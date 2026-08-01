@@ -1,16 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">KaChat</string>
+
+    <!-- Google Drive backup — OAuth 2.0 "Web application" client ID from Google Cloud Console.
+         This is intentionally NOT the Android client ID; Credential Manager's Google Sign-In
+         flow requires the Web client ID as the token audience even for an Android app. -->
+    <string name="google_oauth_web_client_id" translatable="false">1037094663882-r4k15589u3avbvaf98447b28d0434k1e.apps.googleusercontent.com</string>
+
+    <!-- UI strings, extracted from hardcoded literals throughout ui/screens/ -->
+    <string name="photo_saved">عکس ذخیره شد</string>
+    <string name="could_not_save_photo">عکس ذخیره نشد</string>
+    <string name="withdrawal_failed">برداشت ناموفق بود</string>
+    <string name="consolidation_failed">ادغام ناموفق بود</string>
+    <string name="swap_failed">تبدیل ناموفق بود</string>
+    <string name="nothing_to_consolidate">چیزی برای ادغام وجود ندارد</string>
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">۱۲ کلمه</string>
     <string name="n_24_words_recommended">۲۴ کلمه (پیشنهادی)</string>
     <string name="a_kns_inscription_s_commit_transaction">تراکنش تعهد یک کتیبه KNS انجام شد، اما رونمایی هرگز کامل نشد. اکنون دوباره امتحان کنید تا آن را کامل کنید؛ وجوه تا زمانی که این کار را انجام دهید ایمن هستند.</string>
     <string name="accept">پذیرش</string>
+    <string name="account_actions">عملیات حساب</string>
     <string name="account_name">نام حساب</string>
     <string name="active_nodes">گره‌های فعال</string>
+    <string name="automatic">خودکار</string>
+    <string name="automatic_clear_selection">خودکار (پاک کردن انتخاب)</string>
     <string name="add">افزودن</string>
     <string name="add_address">افزودن آدرس</string>
     <string name="add_contact">افزودن مخاطب</string>
+    <string name="add_kaspa_address">افزودن آدرس کاسپا</string>
     <string name="add_transaction">افزودن تراکنش</string>
     <string name="add_to_portfolio">افزودن به سبد دارایی</string>
     <string name="added">اضافه شد</string>
@@ -28,6 +46,7 @@
     <string name="anyone_with_your_seed_phrase_can">هر کسی که عبارت بازیابی شما را داشته باشد می‌تواند به حساب شما دسترسی پیدا کند. هرگز آن را با کسی به اشتراک نگذارید. مطمئن شوید که فقط آن را یادداشت می‌کنید. هرگز از آن اسکرین‌شات نگیرید یا آن را در دستگاه خود ذخیره نکنید.</string>
     <string name="available">موجود</string>
     <string name="back">بازگشت</string>
+    <string name="balance">موجودی</string>
     <string name="before_you_swap">قبل از تبدیل</string>
     <string name="broadcast_settings">تنظیمات پخش</string>
     <string name="broadcasting">در حال پخش...</string>
@@ -37,6 +56,9 @@
     <string name="building_transaction">در حال ایجاد تراکنش...</string>
     <string name="camera_permission_is_needed_to_scan">برای اسکن کد QR به دسترسی دوربین نیاز است</string>
     <string name="cancel">لغو</string>
+    <string name="coin_control">کنترل سکه (Coin Control)</string>
+    <string name="compound_utxos">ترکیب UTXOها</string>
+    <string name="compound_utxos_description">ترکیب تمام UTXOهای این آدرس به یک UTXO واحد.</string>
     <string name="cancel_photo">لغو عکس</string>
     <string name="cancel_recording">لغو ضبط</string>
     <string name="cancel_reply">لغو پاسخ</string>
@@ -44,6 +66,7 @@
     <string name="changenow_exchange_id">شناسه تبادل ChangeNOW</string>
     <string name="channels">کانال‌ها</string>
     <string name="chats">گفتگوها</string>
+    <string name="coinbase">کوین‌بیس</string>
     <string name="chatting_address">آدرس گفتگو</string>
     <string name="chatting_address_2">آدرس گفتگو</string>
     <string name="chatting_vs_spending_address">آدرس گفتگو در برابر آدرس خرج کردن</string>
@@ -51,7 +74,7 @@
     <string name="check_drive_backup_size">بررسی حجم پشتیبان Drive</string>
     <string name="checking_availability">بررسی در دسترس بودن...</string>
     <string name="checking_your_chatting_address_balance">در حال بررسی موجودی آدرس گفتگوی شما...</string>
-    <string name="chess_stats">امار شطرنج</string>
+    <string name="chess_stats">آمار شطرنج</string>
     <string name="choose_avatar">آواتار را انتخاب کنید</string>
     <string name="choose_banner">بنر را انتخاب کنید</string>
     <string name="choose_coin">انتخاب سکه</string>
@@ -60,10 +83,12 @@
     <string name="clear">پاک کردن</string>
     <string name="clear_search">پاک کردن جستجو</string>
     <string name="close">بستن</string>
-    <string name="cold_storage">ذخیره‌سازی سرد</string>
+    <string name="cold_storage">ذخیره سرد</string>
     <string name="confirm">تأیید</string>
+    <string name="confirm_selection">تأیید انتخاب</string>
     <string name="confirm_transfer">تأیید انتقال</string>
     <string name="connect_to_a_node">اتصال به یک گره</string>
+    <string name="consolidating_this_address">در حال ادغام این آدرس</string>
     <string name="connected_only_to_this_node">فقط به این گره متصل است</string>
     <string name="connection_settings">تنظیمات اتصال</string>
     <string name="connection_status">وضعیت اتصال</string>
@@ -76,19 +101,20 @@
     <string name="copy">کپی</string>
     <string name="copy_address">کپی آدرس</string>
     <string name="copy_private_key_hex">کپی کلید خصوصی (Hex)</string>
-    <string name="copy_seed_phrase">کپی seed phrase</string>
+    <string name="copy_seed_phrase">کپی عبارت بازیابی</string>
     <string name="copy_kpub">کپی kpub</string>
     <string name="couldn_t_rename_group">تغییر نام گروه ممکن نشد</string>
     <string name="couldn_t_read_this_swap_s">مبالغ این تبادل خوانده نشد</string>
     <string name="create">ایجاد</string>
     <string name="create_account">ایجاد حساب</string>
-    <string name="create_kns_profile">ایجاد پروفایل KNS</string>
+    <string name="create_kns_profile">ایجاد نمایه KNS</string>
     <string name="create_new_account">ایجاد حساب جدید</string>
     <string name="current_value">مقدار فعلی</string>
     <string name="current_balance">موجودی فعلی</string>
+    <string name="data">داده</string>
     <string name="decline">رد کردن</string>
     <string name="default_option">پیش‌فرض</string>
-    <string name="default_follows_settings_notifications_off_disables">پیش‌فرض از تنظیمات &gt; اعلان‌ها پیروی می‌کند. خاموش، اعلان‌ها را برای این مخاطب غیرفعال می‌کند.</string>
+    <string name="default_follows_settings_notifications_off_disables">پیش‌فرض از تنظیمات &gt; اعلان‌ها پیروی می‌کند. حالت خاموش، اعلان‌ها را برای این مخاطب غیرفعال می‌کند.</string>
     <string name="delete">حذف</string>
     <string name="delete_account">حذف حساب</string>
     <string name="delete_group">حذف گروه</string>
@@ -100,12 +126,13 @@
     <string name="domains">دامنه‌ها</string>
     <string name="done">انجام شد</string>
     <string name="each_transaction_temporarily_uses_2_kas">هر تراکنش به‌طور موقت از ~2 KAS استفاده می‌کند؛ ~1 KAS بلافاصله به‌عنوان باقیمانده برمی‌گردد، بنابراین فقط کارمزد کوچک شبکه هزینه واقعی است.</string>
-    <string name="edit_kns_profile">ویرایش KNS نمایه</string>
+    <string name="edit_kns_profile">ویرایش نمایه KNS</string>
     <string name="edit_account">ویرایش حساب</string>
     <string name="enter_a_kaspa_address_kaspa_or">یک آدرس Kaspa (kaspa:...) یا نام دامنه KNS (مثلا alice.kas) وارد کنید</string>
     <string name="enter_kpub">وارد کردن kpub</string>
     <string name="enter_your_12_or_24_word">عبارت بازیابی 12 یا 24 کلمه‌ای خود را وارد کنید</string>
     <string name="error">خطا</string>
+    <string name="export">خروجی گرفتن</string>
     <string name="every_member_will_see_the_new">هر عضو نام جدید را خواهد دید.</string>
     <string name="exchange_id_copied">شناسه تبادل کپی شد</string>
     <string name="failed_to_send">ارسال ناموفق بود</string>
@@ -133,11 +160,12 @@
     <string name="if_the_network_is_busy_a">اگر شبکه شلوغ باشد، کارمزد بالاتر می‌تواند به تأیید سریع‌تر تراکنش شما کمک کند.</string>
     <string name="import_action">وارد کردن</string>
     <string name="import_account">وارد کردن حساب</string>
-    <string name="import_cold_storage_account">وارد کردن حساب ذخیره‌سازی سرد</string>
+    <string name="import_cold_storage_account">وارد کردن کیف پول سرد</string>
     <string name="import_existing_account">وارد کردن حساب موجود</string>
     <string name="important">مهم</string>
     <string name="incoming_notifications">اعلان های دریافتی</string>
-    <string name="inscribe">درج کنید</string>
+    <string name="invalid_address_format">فرمت آدرس نامعتبر است</string>
+    <string name="inscribe">ثبت کنید</string>
     <string name="inscribe_domain">ثبت دامنه</string>
     <string name="inscribe_new_domain">دامنه جدید را ثبت کنید</string>
     <string name="it_s_ok_i_already_have">مشکلی نیست، من قبلاً یک دامنه دارم</string>
@@ -145,7 +173,7 @@
     <string name="join_or_create_a_channel">پیوستن به کانال یا ایجاد آن</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">دامنه‌های KNS</string>
-    <string name="kns_profile_pictures">تصاویر پروفایل KNS</string>
+    <string name="kns_profile_pictures">تصاویر نمایه KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">لوگوی KaChat</string>
     <string name="kachat_can_t_show_notifications_until">KaChat تا زمانی که اعلان‌ها را برای این برنامه مجاز نکنید نمی‌تواند اعلان‌ها را نمایش دهد.</string>
@@ -166,6 +194,7 @@
     <string name="longer_retention_means_more_messages_stay">نگهداری طولانی‌تر یعنی پیام‌های بیشتری در حافظه پنهان دستگاه شما باقی می‌مانند، که می‌تواند با گذشت زمان برنامه را کند کند، به‌خصوص برای اتاق‌های شلوغ.</string>
     <string name="make_active_address">تبدیل به آدرس فعال</string>
     <string name="manage_addresses">مدیریت آدرس‌ها</string>
+    <string name="manage_address">مدیریت آدرس</string>
     <string name="mark_as_read">علامت‌گذاری به‌عنوان خوانده‌شده</string>
     <string name="mark_as_unread">علامت‌گذاری به‌عنوان خوانده‌نشده</string>
     <string name="max">حداکثر</string>
@@ -178,6 +207,7 @@
     <string name="name_optional">نام (اختیاری)</string>
     <string name="name_this_address">نام‌گذاری این آدرس</string>
     <string name="network">شبکه</string>
+    <string name="network_fee">کارمزد شبکه</string>
     <string name="never_send_kaspa_you_intend_to">هرگز کاسپایی را که قصد خرج کردن آن را دارید به این آدرس ارسال نکنید.</string>
     <string name="next">بعدی</string>
     <string name="no_conversations_yet">هنوز گفتگویی وجود ندارد</string>
@@ -185,8 +215,14 @@
     <string name="no_matching_chats">هیچ گفتگوی منطبقی یافت نشد</string>
     <string name="no_matching_groups">هیچ گروه منطبقی یافت نشد</string>
     <string name="no_broadcast_channels_yet">هنوز هیچ کانال پخشی وجود ندارد</string>
-    <string name="no_cold_storage_accounts_yet_scan">هنوز هیچ حساب ذخیره‌سازی سردی وجود ندارد. یک kpub صادرشده از دستگاه KasSigner خود را اسکن کنید تا موجودی آن را زیر نظر بگیرید و از آن ارسال کنید.</string>
-    <string name="no_domains_yet">هنوز دامنه ای وجود ندارد.</string>
+    <string name="no_cold_storage_accounts_yet_scan">هنوز هیچ حساب ذخیره سردی وجود ندارد. یک kpub صادرشده از دستگاه KasSigner خود را اسکن کنید تا موجودی آن را زیر نظر بگیرید و از آن ارسال کنید.</string>
+    <string name="no_domains_yet">هنوز دامنه‌ای وجود ندارد.</string>
+    <string name="send_domain">ارسال دامنه</string>
+    <string name="asset_id">شناسه دارایی</string>
+    <string name="primary_domain">دامنه اصلی</string>
+    <string name="set_as_primary">تنظیم به‌عنوان اصلی</string>
+    <string name="primary">اصلی</string>
+    <string name="something_went_wrong">مشکلی پیش آمد</string>
     <string name="no_hidden_addresses">هیچ آدرس پنهانی وجود ندارد.</string>
     <string name="no_hidden_users">هیچ کاربر پنهانی وجود ندارد</string>
     <string name="no_hidden_users_in_this_group">هیچ کاربر پنهانی در این گروه وجود ندارد.</string>
@@ -195,6 +231,7 @@
     <string name="no_swaps_yet">هنوز هیچ تبادلی وجود ندارد.</string>
     <string name="no_transactions_yet">هنوز هیچ تراکنشی وجود ندارد.</string>
     <string name="no_transactions_yet_tap_to_add">هنوز هیچ تراکنشی وجود ندارد. برای افزودن اولین خرید یا فروش خود، روی + ضربه بزنید.</string>
+    <string name="no_utxos">هیچ UTXOای وجود ندارد.</string>
     <string name="not_now">الان نه</string>
     <string name="not_linked">پیوند نشده</string>
     <string name="notes_optional">یادداشت‌ها (اختیاری)</string>
@@ -224,6 +261,7 @@
     <string name="popular_tab">تب محبوب</string>
     <string name="portfolio">سبد دارایی</string>
     <string name="powered_by_changenow">قدرت‌گرفته از ChangeNOW</string>
+    <string name="price_needed">قیمت مورد نیاز — برای تنظیم ضربه بزنید</string>
     <string name="price_per_coin">قیمت هر سکه</string>
     <string name="promote_pawn_to">ارتقای سرباز به:</string>
     <string name="qr_code">کد QR</string>
@@ -231,17 +269,19 @@
     <string name="quantity">مقدار</string>
     <string name="rate">نرخ</string>
     <string name="read">خوانده‌شده</string>
+    <string name="receive">دریافت</string>
     <string name="receiving_kas_at">دریافت KAS در</string>
     <string name="recipient_address">آدرس گیرنده</string>
     <string name="recipient_address_or_kas_name">آدرس گیرنده یا نام .kas</string>
     <string name="refresh_status">به‌روزرسانی وضعیت</string>
     <string name="remove">حذف</string>
-    <string name="remove_cold_storage_account">حذف حساب ذخیره‌سازی سرد</string>
+    <string name="remove_cold_storage_account">حذف حساب ذخیره سرد</string>
     <string name="rename">تغییر نام</string>
     <string name="rename_account">تغییر نام حساب</string>
     <string name="rename_address">تغییر نام آدرس</string>
-    <string name="rename_cold_storage_account">تغییر نام حساب ذخیره‌سازی سرد</string>
+    <string name="rename_cold_storage_account">تغییر نام حساب ذخیره سرد</string>
     <string name="rename_group">تغییر نام گروه</string>
+    <string name="rename_utxo">تغییر نام UTXO</string>
     <string name="reserved_domain_no_registration_fee_only">دامنه رزرو شده: بدون هزینه ثبت، فقط کارمزد شبکه اعمال می‌شود.</string>
     <string name="reset_to_defaults">بازنشانی به پیش‌فرض</string>
     <string name="resign">تسلیم شدن</string>
@@ -264,16 +304,18 @@
     <string name="search_coins">جستجوی سکه‌ها</string>
     <string name="secure_messaging_on_kaspa_blockdag">پیام‌رسانی امن روی Kaspa BlockDAG</string>
     <string name="security_warning">هشدار امنیتی</string>
-    <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">طول Seed Phrase</string>
+    <string name="seed_phrase">عبارت بازیابی</string>
+    <string name="seed_phrase_length">طول عبارت بازیابی</string>
     <string name="select_time">انتخاب زمان</string>
+    <string name="select_all">انتخاب همه</string>
     <string name="select_chat">انتخاب گفتگو</string>
     <string name="select_group">انتخاب گروه</string>
+    <string name="selected">انتخاب شد</string>
     <string name="send">ارسال</string>
     <string name="send_all_kaspa_to_primary_spend">ارسال تمام کاسپا به آدرس خرج کردن اصلی</string>
     <string name="send_kaspa">ارسال کاسپا</string>
     <string name="send_payment">ارسال پرداخت</string>
-    <string name="send_from_cold_storage">ارسال از ذخیره‌سازی سرد</string>
+    <string name="send_from_cold_storage">ارسال از ذخیره سرد</string>
     <string name="send_photo">ارسال عکس</string>
     <string name="sending">در حال ارسال</string>
     <string name="sends_kas_out_of_your_identity">KAS را از آدرس هویت شما، همان که برای گفتگو شارژ می‌کنید، ارسال می‌کند.</string>
@@ -299,7 +341,7 @@
     <string name="swaps_are_processed_by_changenow_a">تبدیل‌ها توسط ChangeNOW، یک سرویس تبادل شخص ثالث، پردازش می‌شوند. با ادامه دادن، تأیید می‌کنید که شرایط خدمات مخصوص ChangeNOW را خوانده و پذیرفته‌اید. KaChat فقط درخواست تبدیل شما را ارسال کرده و وضعیت آن را نمایش می‌دهد؛ KaChat مسئول تبدیل‌های ناموفق، تأخیری یا گم‌شده نیست. اگر تبدیلی انجام نشد، مستقیماً با پشتیبانی ChangeNOW تماس بگیرید.</string>
     <string name="tap_an_address_below_to_swap">برای تبدیل از یک آدرس، روی آن در زیر ضربه بزنید</string>
     <string name="tap_an_address_below_to_use">برای استفاده از یک آدرس، روی آن در زیر ضربه بزنید</string>
-    <string name="tap_to_reveal_seed_phrase">برای نمایش seed phrase بزنید</string>
+    <string name="tap_to_reveal_seed_phrase">برای نمایش عبارت بازیابی بزنید</string>
     <string name="this_action_cannot_be_undone_double">این عملیات قابل بازگشت نیست. قبل از تأیید، آدرس بالا را دوباره بررسی کنید.</string>
     <string name="this_could_take_a_few_minutes">این ممکن است چند دقیقه طول بکشد تا در زنجیره تأیید شود.</string>
     <string name="this_only_removes_it_from_kachat">این فقط آن را از فهرست نظارت KaChat حذف می‌کند. هیچ تأثیری بر دستگاه KasSigner یا وجوهی که نگه می‌دارد ندارد.</string>
@@ -322,14 +364,17 @@
     <string name="unhide">لغو پنهان‌سازی</string>
     <string name="unlink">حذف پیوند</string>
     <string name="unread">خوانده‌نشده</string>
+    <string name="use_automatic_selection">استفاده از انتخاب خودکار</string>
     <string name="use_default">استفاده از پیش‌فرض</string>
     <string name="users_you_hide_from_a_broadcast">کاربرانی که از یک اتاق پخش پنهان می‌کنید (از طریق منوی آواتار آن‌ها) اینجا نمایش داده می‌شوند و هرگز در هیچ اتاقی ظاهر یا ذخیره نمی‌شوند.</string>
+    <string name="utxo">UTXO</string>
+    <string name="utxos">UTXOها</string>
     <string name="valid_address">آدرس معتبر</string>
     <string name="view_on_changenow">مشاهده در ChangeNOW</string>
     <string name="waiting_for_camera">در انتظار دوربین...</string>
     <string name="waiting_on_opponent">در انتظار حریف</string>
     <string name="walk_through_setting_up_your_domain">شما را گام‌به‌گام در راه‌اندازی دامنه، بنر، آواتار و جزئیات خود راهنمایی می‌کند.</string>
-    <string name="when_you_message_someone_new_on">وقتی به شخص جدیدی در KaChat پیام می‌دهید، او اعلانی دریافت نمی‌کند و پیام شما پنهان می‌ماند تا زمانی که به شما پاسخ دهد یا شما را نیز اضافه کند. این از هرزنامه محافظت کرده و حریم خصوصی شما را افزایش می‌دهد. اگر می‌خواهید او مطلع شود، روی آیکون دست ضربه بزنید تا درخواست ارتباطی ارسال کنید که 0.2 KAS هزینه دارد. (توجه: تمام برنامه‌های پیام‌رسانی غیر از KaChat به درخواست ارتباط نیاز خواهند داشت)</string>
+    <string name="when_you_message_someone_new_on">این پیام توسط گیرنده دیده نخواهد شد تا زمانی که او نیز سعی کند با شما گفتگو کند، یا اینکه می‌توانید یک درخواست ارتباط (Handshake) برای مطلع کردن او ارسال کنید. درخواست ارتباط ۰.۲ KAS هزینه دارد که در صورت پذیرش درخواست شما بازگردانده می‌شود.</string>
     <string name="wipe_account">پاک کردن حساب</string>
     <string name="wipe_everything">پاک کردن همه چیز</string>
     <string name="wipe_incoming_messages">پاک کردن پیام‌های ورودی</string>
@@ -351,12 +396,8 @@
     <string name="str_3">👋</string>
     <string name="request_to_communicate">👋 درخواست ارتباط</string>
     <string name="photo_unavailable">📷 عکس در دسترس نیست</string>
-    <string name="photo_saved">عکس ذخیره شد</string>
-    <string name="could_not_save_photo">عکس ذخیره نشد</string>
-    <string name="withdrawal_failed">برداشت ناموفق بود</string>
-    <string name="consolidation_failed">ادغام ناموفق بود</string>
-    <string name="swap_failed">تبدیل ناموفق بود</string>
-    <string name="nothing_to_consolidate">چیزی برای ادغام وجود ندارد</string>
+
+    <!-- Extended: labels passed directly to helper composables (PopupMenuRow, SettingsSection, etc.) rather than through Text() -->
     <string name="about">درباره</string>
     <string name="account">حساب</string>
     <string name="actions">عملیات</string>
@@ -368,6 +409,7 @@
     <string name="bio">بیوگرافی</string>
     <string name="biometrics_for_account_login">بیومتریک برای ورود به حساب</string>
     <string name="biometrics_for_seed_phrase">بیومتریک برای عبارت بازیابی</string>
+    <string name="biometrics_for_address_private_keys">بیومتریک برای کلیدهای خصوصی آدرس</string>
     <string name="calculating_fee">در حال محاسبه کارمزد...</string>
     <string name="camera">دوربین</string>
     <string name="chat_history">تاریخچه گفتگو</string>
@@ -398,12 +440,15 @@
     <string name="import_csv">وارد کردن CSV</string>
     <string name="indexer">نمایه‌ساز</string>
     <string name="info">اطلاعات</string>
-    <string name="kns_profile">KNS نمایه</string>
+    <string name="kns_profile">نمایه KNS</string>
     <string name="kns_domain_resolution_service">سرویس تحلیل دامنه KNS</string>
     <string name="kachat_indexer">ایندکسر KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">گره کاسپا</string>
+    <string name="default_recommended">پیش‌فرض (توصیه‌شده)</string>
+    <string name="automatic_scan">اسکن خودکار</string>
+    <string name="kaspa_node_quick_access_footer">اسکن خودکار بهترین گره‌های موجود را پیدا کرده و به آن‌ها متصل می‌شود. با انتخاب یک گره خاص، اتصال فقط به همان گره انجام شده و از گره‌های جایگزین استفاده نمی‌شود. آدرس‌های ذخیره‌شده را در تنظیمات اتصال &gt; دفترچه آدرس IP مدیریت کنید.</string>
     <string name="last_sync">آخرین همگام‌سازی</string>
     <string name="latency">تاخیر</string>
     <string name="message_indexer_service_for_chat_functionality">سرویس ایندکس پیام برای عملکرد گفتگو</string>
@@ -442,6 +487,7 @@
     <string name="submitting_reveal_transaction">در حال ارسال تراکنش رونمایی...</string>
     <string name="submitting_reveal_transaction_this_could_take">در حال ارسال تراکنش رونمایی... این ممکن است چند دقیقه طول بکشد تا در زنجیره تأیید شود.</string>
     <string name="support_email">ایمیل پشتیبانی</string>
+    <string name="switch_between_kas_and_fiat">تغییر بین KAS و ارز فیات</string>
     <string name="sync_system_contacts">همگام‌سازی مخاطبین سیستم</string>
     <string name="system_contact">مخاطب سیستم</string>
     <string name="telegram">Telegram</string>
@@ -456,7 +502,7 @@
     <string name="version">نسخه</string>
     <string name="vibration">لرزش</string>
     <string name="view_profile">مشاهده پروفایل</string>
-    <string name="view_seed_phrase">مشاهده Seed Phrase</string>
+    <string name="view_seed_phrase">مشاهده عبارت بازیابی</string>
     <string name="view_in_explorer">مشاهده در کاوشگر</string>
     <string name="website">وب‌سایت</string>
     <string name="welcome_guide">راهنمای خوش‌آمدگویی</string>
