@@ -57,6 +57,21 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- KaPosts share links: kachat://kapost/<txid> opens the post's thread. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kachat" android:host="kapost" />
+            </intent-filter>
+            <!-- Universal-link form. autoVerify needs /.well-known/assetlinks.json served at
+                 the domain (mirrors iOS's AASA file - see KAPOSTS_INDEXER.md section 7). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/post/" />
+            </intent-filter>
         </activity>
 
         <service

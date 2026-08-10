@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 32,
+    version = 33,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -339,6 +339,29 @@ abstract class KaChatDatabase : RoomDatabase() {
          * icon + Retry (see [com.kachat.app.models.ReactionEntity]). Purely additive; existing rows
          * default to "sent".
          */
+        /**
+         * v32 -> v33: broadcast hidden senders become PER-ROOM - adds `channelName` to
+         * `broadcast_hidden_senders` (default "" = every room, so existing hides keep their
+         * old app-wide effect) and widens the primary key to include it. Table rebuild, same
+         * portable pattern as MIGRATION_15_16.
+         */
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `broadcast_hidden_senders_new` (" +
+                        "`senderAddress` TEXT NOT NULL, `walletAddress` TEXT NOT NULL, " +
+                        "`channelName` TEXT NOT NULL DEFAULT '', `hiddenAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`senderAddress`, `walletAddress`, `channelName`))"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO `broadcast_hidden_senders_new` (senderAddress, walletAddress, channelName, hiddenAt) " +
+                        "SELECT senderAddress, walletAddress, '', hiddenAt FROM `broadcast_hidden_senders`"
+                )
+                db.execSQL("DROP TABLE `broadcast_hidden_senders`")
+                db.execSQL("ALTER TABLE `broadcast_hidden_senders_new` RENAME TO `broadcast_hidden_senders`")
+            }
+        }
+
         val MIGRATION_31_32 = object : Migration(31, 32) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `reactions` ADD COLUMN `deliveryStatus` TEXT NOT NULL DEFAULT 'sent'")

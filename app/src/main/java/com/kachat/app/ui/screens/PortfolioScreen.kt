@@ -185,7 +185,7 @@ fun PortfolioScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.portfolio), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.portfolio), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
@@ -206,23 +206,6 @@ fun PortfolioScreen(
                 onRename = { id, name -> viewModel.renamePortfolio(id, name) },
                 onDelete = { viewModel.deletePortfolio(it) }
             )
-            TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                containerColor = LocalAppColors.current.background,
-                contentColor = KaspaTeal
-            ) {
-                Tab(
-                    selected = pagerState.currentPage == 0,
-                    onClick = { tabCoroutineScope.launch { pagerState.animateScrollToPage(0) } },
-                    text = { Text(stringResource(R.string.data), fontWeight = FontWeight.Bold) }
-                )
-                Tab(
-                    selected = pagerState.currentPage == 1,
-                    onClick = { tabCoroutineScope.launch { pagerState.animateScrollToPage(1) } },
-                    text = { Text(stringResource(R.string.transactions), fontWeight = FontWeight.Bold) }
-                )
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -233,37 +216,41 @@ fun PortfolioScreen(
                     .clipToBounds()
                     .nestedScroll(pullRefreshState.nestedScrollConnection)
             ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    when (page) {
-                        0 -> Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            PortfolioSummaryCard(summary = summary, currentPriceUsd = currentPriceUsd, priceChange24h = priceChange24h, scrubbedPrice = scrubbedPrice, currencyCode = currencyCode)
-                            if (priceHistory.size >= 2) {
-                                PriceChartCard(
-                                    priceHistory = priceHistory,
-                                    onScrub = { scrubbedPrice = it },
-                                    selectedRangeDays = priceRangeDays,
-                                    onRangeSelected = { viewModel.setPriceRangeDays(it) }
-                                )
-                            }
-                            if (valueHistory.size >= 2) {
-                                PortfolioValueChartCard(valueHistory = valueHistory, currencyCode = currencyCode)
-                            }
-                        }
-                        else -> PortfolioTransactionsContent(
-                            viewModel = viewModel,
-                            swapViewModel = swapViewModel,
-                            modifier = Modifier.fillMaxSize()
+                // 4.0 (matches iOS): one continuous page - no Data/Transactions tabs, no
+                // horizontal paging. Cards first, then the transaction ledger (it keeps its
+                // own internal list, sized to roughly a screenful at the end of the scroll).
+                val portfolioScreenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    PortfolioSummaryCard(summary = summary, currentPriceUsd = currentPriceUsd, priceChange24h = priceChange24h, scrubbedPrice = scrubbedPrice, currencyCode = currencyCode)
+                    if (priceHistory.size >= 2) {
+                        PriceChartCard(
+                            priceHistory = priceHistory,
+                            onScrub = { scrubbedPrice = it },
+                            selectedRangeDays = priceRangeDays,
+                            onRangeSelected = { viewModel.setPriceRangeDays(it) }
                         )
                     }
+                    if (valueHistory.size >= 2) {
+                        PortfolioValueChartCard(valueHistory = valueHistory, currencyCode = currencyCode)
+                    }
+                    Text(
+                        stringResource(R.string.transactions),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    )
+                    PortfolioTransactionsContent(
+                        viewModel = viewModel,
+                        swapViewModel = swapViewModel,
+                        modifier = Modifier.height(portfolioScreenHeight * 0.8f)
+                    )
                 }
 
                 PullToRefreshContainer(

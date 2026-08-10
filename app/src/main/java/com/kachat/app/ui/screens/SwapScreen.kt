@@ -94,8 +94,14 @@ import java.util.Locale
 @Composable
 fun SwapScreen(
     navController: androidx.navigation.NavController? = null,
-    swapViewModel: SwapViewModel = hiltViewModel()
+    swapViewModel: SwapViewModel = hiltViewModel(),
+    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
+    // "Add to Portfolio" first asks WHICH portfolio (4.0, matches iOS) - the chosen one
+    // becomes active, then the prefilled add-transaction screen (which writes to the active
+    // portfolio) opens as before.
+    val allPortfolios by portfolioViewModel.portfolios.collectAsState()
+    var portfolioPickerAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val kasIsSendSide by swapViewModel.kasIsSendSide.collectAsState()
     val otherCoin by swapViewModel.otherCoin.collectAsState()
     val amountText by swapViewModel.amountText.collectAsState()
@@ -140,7 +146,7 @@ fun SwapScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
-                    title = { Text(stringResource(R.string.swap), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                    title = { Text(stringResource(R.string.swap), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp) },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
                 )
                 TabRow(
@@ -481,12 +487,48 @@ fun SwapScreen(
                     Toast.makeText(context, context.getString(R.string.couldn_t_read_this_swap_s), Toast.LENGTH_SHORT).show()
                 } else {
                     val notes = android.net.Uri.encode("ChangeNOW swap ${swap.id}")
-                    selectedSwapId = null
-                    navController?.navigate(
-                        "portfolio_transactions?prefillType=${if (isKasReceived) "buy" else "sell"}" +
-                            "&prefillAmountKas=$amountKas&prefillFiatValue=$fiatValue" +
-                            "&prefillTimestamp=${swap.createdAtMillis}&prefillNotes=$notes&prefillSwapId=${swap.id}"
-                    )
+                    val navigate = {
+                        selectedSwapId = null
+                        navController?.navigate(
+                            "portfolio_transactions?prefillType=${if (isKasReceived) "buy" else "sell"}" +
+                                "&prefillAmountKas=$amountKas&prefillFiatValue=$fiatValue" +
+                                "&prefillTimestamp=${swap.createdAtMillis}&prefillNotes=$notes&prefillSwapId=${swap.id}"
+                        )
+                        Unit
+                    }
+                    if (allPortfolios.size > 1) portfolioPickerAction = navigate else navigate()
+                }
+            }
+        )
+    }
+
+    portfolioPickerAction?.let { pendingNavigate ->
+        AlertDialog(
+            onDismissRequest = { portfolioPickerAction = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.add_to_portfolio), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    allPortfolios.forEach { portfolio ->
+                        Text(
+                            portfolio.name,
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    portfolioViewModel.setActivePortfolio(portfolio.id)
+                                    portfolioPickerAction = null
+                                    pendingNavigate()
+                                }
+                                .padding(vertical = 12.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { portfolioPickerAction = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
         )
@@ -504,20 +546,57 @@ fun SwapScreen(
     }
 
     if (!swapDisclaimerAgreed) {
+        var hasReadChangeNowTerms by remember { mutableStateOf(false) }
+        val termsUriHandler = androidx.compose.ui.platform.LocalUriHandler.current
         AlertDialog(
             onDismissRequest = {},
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.before_you_swap), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
-                Text(
-                    stringResource(R.string.swaps_are_processed_by_changenow_a),
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Column {
+                    Text(
+                        stringResource(R.string.swaps_are_processed_by_changenow_a),
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Read ChangeNOW's Terms of Use",
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                        modifier = Modifier.clickable { termsUriHandler.openUri("https://changenow.io/terms-of-use") }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    // Agreeing is gated on explicitly confirming the terms were read.
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        modifier = Modifier.clickable { hasReadChangeNowTerms = !hasReadChangeNowTerms }
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = hasReadChangeNowTerms,
+                            onCheckedChange = { hasReadChangeNowTerms = it },
+                            colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = KaspaTeal)
+                        )
+                        Text(
+                            "I have read and agree to ChangeNOW's Terms of Use",
+                            color = LocalAppColors.current.textPrimary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 14.dp)
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = { swapViewModel.agreeToSwapDisclaimer() }) {
-                    Text(stringResource(R.string.i_agree), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = { swapViewModel.agreeToSwapDisclaimer() },
+                    enabled = hasReadChangeNowTerms
+                ) {
+                    Text(
+                        stringResource(R.string.i_agree),
+                        color = if (hasReadChangeNowTerms) KaspaTeal else LocalAppColors.current.textSecondary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             dismissButton = {

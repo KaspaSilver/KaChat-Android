@@ -92,9 +92,14 @@ data class BroadcastMessageEntity(
  * before the hide), and skipped entirely at scan-time insertion (see BroadcastScanningService, so
  * hidden senders' messages are never stored going forward either).
  */
-@Entity(tableName = "broadcast_hidden_senders", primaryKeys = ["senderAddress", "walletAddress"])
+@Entity(tableName = "broadcast_hidden_senders", primaryKeys = ["senderAddress", "walletAddress", "channelName"])
 data class HiddenBroadcastSenderEntity(
     val senderAddress: String,
     val walletAddress: String,
+    /**
+     * PER-ROOM since 4.0 (matches iOS): a hide applies to one channel. "" is the legacy
+     * every-room scope - rows migrated from before this column keep hiding everywhere.
+     */
+    val channelName: String = "",
     val hiddenAt: Long = System.currentTimeMillis()
 )

@@ -34,6 +34,10 @@ class AppSettingsRepository @Inject constructor(
         val KEY_INDEXER_URL      = stringPreferencesKey("indexer_url")
         val KEY_KNS_API_URL      = stringPreferencesKey("kns_api_url")
         val KEY_KASPA_REST_URL   = stringPreferencesKey("kaspa_rest_url")
+        // K social indexer powering KaPosts feeds (the KaChat-owned fork).
+        val KEY_KAPOST_INDEXER_URL = stringPreferencesKey("kapost_indexer_url")
+        // KaChat broadcast indexer serving #kaspa/#kachat-bugs history (same domain).
+        val KEY_BROADCAST_INDEXER_URL = stringPreferencesKey("broadcast_indexer_url")
         // A user-pinned "host:port" gRPC node - when non-blank, NodePoolManager stops
         // discovery (seeds/DNS/peer-gossip) entirely and only ever connects to this address,
         // Kaspium-style. Empty string = disabled (normal pool discovery).
@@ -51,6 +55,8 @@ class AppSettingsRepository @Inject constructor(
         const val LEGACY_DEFAULT_INDEXER_URL = "https://indexer.kasia.fyi"
         const val DEFAULT_KNS_API_URL    = "https://api.knsdomains.org/mainnet/api/v1"
         const val DEFAULT_KASPA_REST_URL = "https://api.kaspa.org"
+        const val DEFAULT_KAPOST_INDEXER_URL = "https://kachat.duckdns.org"
+        const val DEFAULT_BROADCAST_INDEXER_URL = "https://kachat.duckdns.org"
         // KaChat ships pinned to Kaspium's public node out of the box, rather than defaulting
         // to full seed/DNS/peer-gossip discovery - the "Use Default" button in Connection
         // Settings resets back to this same address after a user has typed something else.
@@ -72,6 +78,13 @@ class AppSettingsRepository @Inject constructor(
         // Flat, chain-wide set of txIds the user has manually revealed a hidden photo for —
         // mirrors iOS's `PhotoRevealStore`. Not per-wallet: txIds are unique on-chain already.
         val KEY_REVEALED_PHOTO_TX_IDS = stringSetPreferencesKey("revealed_photo_tx_ids")
+
+        // KaPosts local stores (poster ADDRESSES, chain-wide like revealed photos): who you
+        // follow (mirrored on-chain by k:1:follow txs - this set drives instant UI state),
+        // and muted/blocked authors whose content hides everywhere in KaPosts.
+        val KEY_KAPOSTS_FOLLOWING = stringSetPreferencesKey("kaposts_following")
+        val KEY_KAPOSTS_MUTED     = stringSetPreferencesKey("kaposts_muted")
+        val KEY_KAPOSTS_BLOCKED   = stringSetPreferencesKey("kaposts_blocked")
 
         // Per-group hidden/muted member sets - each entry is "{groupId}|{address}", flattened
         // into one Set<String> rather than a nested map since DataStore preferences only have
@@ -130,6 +143,15 @@ class AppSettingsRepository @Inject constructor(
         // Menu) — "chats"/"profile" are never allowed in here, only "portfolio"/"cold_storage"/
         // "swap". A route absent from this set is visible.
         val KEY_HIDDEN_TABS = stringSetPreferencesKey("hidden_tabs")
+        // One-time 4.0 seeding marker for KEY_HIDDEN_TABS - see applyKaPostsTabDefaultsIfNeeded.
+        val KEY_TAB_DEFAULTS_40_APPLIED = booleanPreferencesKey("tab_defaults_40_applied")
+        // v3 (final 4.0 rules): existing users get KaPosts/Broadcasts/+More force-ENABLED - a
+        // full dock sends KaPosts/Broadcasts to the Chats-slot cycle, a free slot gets "+More";
+        // brand-new installs get a Chats/Profile/+More dock with everything else off until
+        // enabled through Customize Menu. Also scrubs v1's kaposts-hide.
+        val KEY_TAB_DEFAULTS_40_V3_APPLIED = booleanPreferencesKey("tab_defaults_40_v3_applied")
+        // The 4.0 dock wizard has been dismissed (shown once per install).
+        val KEY_DOCK_WIZARD_DISMISSED = booleanPreferencesKey("dock_wizard_dismissed")
         // Settings > Customization > Dark Mode. True (dark) is the default so existing installs'
         // appearance is unchanged — every screen was designed dark-only until this toggle existed.
         val KEY_DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
@@ -150,9 +172,9 @@ class AppSettingsRepository @Inject constructor(
     // Reactive flows (collect in ViewModel with .stateIn)
     // -------------------------------------------------------------------------
 
-    val network: Flow<String> = dataStore.data.map {
-        it[KEY_NETWORK] ?: DEFAULT_NETWORK
-    }
+    // Testnet is no longer selectable anywhere in the app (4.0, matches iOS) - always mainnet,
+    // regardless of any previously stored value.
+    val network: Flow<String> = dataStore.data.map { DEFAULT_NETWORK }
 
     // Transforms away the retired kasia.fyi default on read (rather than requiring a one-time
     // write-back migration) - anyone who saved settings before the indexer moved to kasia.wtf
@@ -169,6 +191,20 @@ class AppSettingsRepository @Inject constructor(
     val kaspaRestUrl: Flow<String> = dataStore.data.map {
         it[KEY_KASPA_REST_URL] ?: DEFAULT_KASPA_REST_URL
     }
+
+    val kapostIndexerUrl: Flow<String> = dataStore.data.map {
+        it[KEY_KAPOST_INDEXER_URL] ?: DEFAULT_KAPOST_INDEXER_URL
+    }
+
+    val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
+        it[KEY_BROADCAST_INDEXER_URL] ?: DEFAULT_BROADCAST_INDEXER_URL
+    }
+
+    val kapostsFollowing: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_FOLLOWING] ?: emptySet() }
+    val kapostsMuted: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_MUTED] ?: emptySet() }
+    val kapostsBlocked: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_BLOCKED] ?: emptySet() }
+
+    val dockWizardDismissed: Flow<Boolean> = dataStore.data.map { it[KEY_DOCK_WIZARD_DISMISSED] ?: false }
 
     // Falls back to DEFAULT_TRUSTED_NODE_ADDRESS only when the key has never been written at
     // all (a fresh install) - once the user explicitly saves "" (clearing it via the Kaspa Node
@@ -216,12 +252,25 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_BROADCAST_SHOW_KNS_AVATARS] ?: true
     }
 
-    /** Route strings, in display order — see KEY_TAB_ORDER. Falls back to the app's default tab order (as defined in KaChatApp.kt's bottomNavItems) until the user first drags a tab. */
+    // The dock is PER ACCOUNT: each account gets its own order/visibility keys once it diverges;
+    // until then it inherits the legacy global keys (which the 4.0 seeding below also targets),
+    // so the account that existed before this feature keeps its arrangement and new accounts
+    // start from a sensible base. KEY_ACTIVE_ADDRESS is mirrored from WalletManager's active
+    // account by WalletViewModel, so these transactional reads always see the right account.
+    private fun tabOrderKeyFor(address: String) = stringPreferencesKey("tab_order_$address")
+    private fun hiddenTabsKeyFor(address: String) = stringSetPreferencesKey("hidden_tabs_$address")
+
+    /** Route strings, in display order — per-account, falling back to the legacy global key, then the app's default tab order. */
     val tabOrder: Flow<List<String>> = dataStore.data.map { prefs ->
-        prefs[KEY_TAB_ORDER]?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_TAB_ORDER
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val raw = address?.let { prefs[tabOrderKeyFor(it)] } ?: prefs[KEY_TAB_ORDER]
+        raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_TAB_ORDER
     }
 
-    val hiddenTabs: Flow<Set<String>> = dataStore.data.map { it[KEY_HIDDEN_TABS] ?: emptySet() }
+    val hiddenTabs: Flow<Set<String>> = dataStore.data.map { prefs ->
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        (address?.let { prefs[hiddenTabsKeyFor(it)] }) ?: prefs[KEY_HIDDEN_TABS] ?: emptySet()
+    }
 
     val darkModeEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DARK_MODE_ENABLED] ?: true }
 
@@ -359,6 +408,12 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setIndexerUrl(value: String) = dataStore.edit { it[KEY_INDEXER_URL] = value }
     suspend fun setKnsApiUrl(value: String) = dataStore.edit { it[KEY_KNS_API_URL] = value }
     suspend fun setKaspaRestUrl(value: String) = dataStore.edit { it[KEY_KASPA_REST_URL] = value }
+    suspend fun setKapostIndexerUrl(value: String) = dataStore.edit { it[KEY_KAPOST_INDEXER_URL] = value }
+    suspend fun setBroadcastIndexerUrl(value: String) = dataStore.edit { it[KEY_BROADCAST_INDEXER_URL] = value }
+    suspend fun setKapostsFollowing(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_FOLLOWING] = value }
+    suspend fun setKapostsMuted(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_MUTED] = value }
+    suspend fun setKapostsBlocked(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_BLOCKED] = value }
+    suspend fun setDockWizardDismissed() = dataStore.edit { it[KEY_DOCK_WIZARD_DISMISSED] = true }
     suspend fun setTrustedNodeAddress(value: String) = dataStore.edit { it[KEY_TRUSTED_NODE_ADDRESS] = value }
     suspend fun addSavedNodeAddress(entry: com.kachat.app.models.SavedNodeAddress) = dataStore.edit { prefs ->
         val current = prefs[KEY_SAVED_NODE_ADDRESSES]?.let { json ->
@@ -389,10 +444,45 @@ class AppSettingsRepository @Inject constructor(
     }
     suspend fun setBroadcastPopularEnabled(value: Boolean) = dataStore.edit { it[KEY_BROADCAST_POPULAR_ENABLED] = value }
     suspend fun setBroadcastShowKnsAvatars(value: Boolean) = dataStore.edit { it[KEY_BROADCAST_SHOW_KNS_AVATARS] = value }
-    suspend fun setTabOrder(routes: List<String>) = dataStore.edit { it[KEY_TAB_ORDER] = routes.joinToString(",") }
+    suspend fun setTabOrder(routes: List<String>) = dataStore.edit { prefs ->
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val encoded = routes.joinToString(",")
+        if (address != null) prefs[tabOrderKeyFor(address)] = encoded else prefs[KEY_TAB_ORDER] = encoded
+    }
     suspend fun setTabHidden(route: String, hidden: Boolean) = dataStore.edit { prefs ->
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val readKey = if (address != null) hiddenTabsKeyFor(address) else KEY_HIDDEN_TABS
+        // First divergence for an account starts from what it currently inherits (legacy global).
+        val current = prefs[readKey] ?: prefs[KEY_HIDDEN_TABS] ?: emptySet()
+        prefs[readKey] = if (hidden) current + route else current - route
+    }
+
+    /**
+     * One-time 4.0 dock seeding, run at app start (WalletViewModel init). New tabs default to
+     * VISIBLE here (hidden_tabs polarity + resolveTabOrder auto-append), which is wrong for both
+     * audiences, so:
+     * - EXISTING users (has_wallet set): hide the new "kaposts" and "more" items so their dock is
+     *   unchanged by the update - both stay available in Settings > Customization > Menu.
+     * - FRESH installs (no wallet yet): seed the minimal 4.0 dock - Chats, Profile and "+ More"
+     *   only (portfolio/storage/swap/kaposts hidden until toggled on via More).
+     * The sentinel guarantees this never re-runs, so later user choices are never overwritten.
+     */
+    suspend fun applyKaPostsTabDefaultsIfNeeded() = dataStore.edit { prefs ->
+        if (prefs[KEY_TAB_DEFAULTS_40_V3_APPLIED] == true) return@edit
+        val hasWallet = prefs[KEY_HAS_WALLET] ?: false
         val current = prefs[KEY_HIDDEN_TABS] ?: emptySet()
-        prefs[KEY_HIDDEN_TABS] = if (hidden) current + route else current - route
+        prefs[KEY_HIDDEN_TABS] = if (hasWallet) {
+            // EXISTING users: KaPosts, Broadcasts and "+More" all ENABLED. The dock cap does
+            // the rest: a full 5-tab dock is unchanged (KaPosts/Broadcasts ride the Chats
+            // cycle, "+More" falls off the tail); a dock with a free slot gets "+More" in it.
+            current - "kaposts" - "broadcasts" - "more"
+        } else {
+            // BRAND-NEW installs: Chats, Profile and "+More" only - everything else (including
+            // KaPosts/Broadcasts) stays off until toggled on through Customize Menu.
+            current + setOf("portfolio", "cold_storage", "swap", "kaposts", "broadcasts")
+        }
+        prefs[KEY_TAB_DEFAULTS_40_V3_APPLIED] = true
+        prefs[KEY_TAB_DEFAULTS_40_APPLIED] = true
     }
     suspend fun setDarkModeEnabled(value: Boolean) = dataStore.edit { it[KEY_DARK_MODE_ENABLED] = value }
     suspend fun setCurrency(value: String) = dataStore.edit { it[KEY_CURRENCY] = value }

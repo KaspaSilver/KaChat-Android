@@ -80,7 +80,7 @@ class BroadcastScanningService @Inject constructor(
     private var alwaysListenChannelNames: Set<String> = emptySet()
     private var liveViewedChannelNames: Set<String> = emptySet()
     private var notifyEnabledChannelNames: Set<String> = emptySet()
-    private var hiddenSenderAddresses: Set<String> = emptySet()
+        private var hiddenSenderRows: List<com.kachat.app.models.HiddenBroadcastSenderEntity> = emptyList()
 
     init {
         // Self-observing rather than wired externally per-screen: this needs to hold/release its
@@ -100,8 +100,8 @@ class BroadcastScanningService @Inject constructor(
             }
         }
         scope.launch {
-            broadcastRepository.getHiddenSenderAddresses().collectLatest { addresses ->
-                setHiddenSenderAddresses(addresses)
+            broadcastRepository.getHiddenSenders().collectLatest { rows ->
+                setHiddenSenderRows(rows)
             }
         }
     }
@@ -115,13 +115,14 @@ class BroadcastScanningService @Inject constructor(
     private fun isChannelNotifyEnabled(channelName: String): Boolean = channelName in notifyEnabledChannelNames
 
     @Synchronized
-    private fun setHiddenSenderAddresses(addresses: Set<String>) {
-        hiddenSenderAddresses = addresses
+    private fun setHiddenSenderRows(rows: List<com.kachat.app.models.HiddenBroadcastSenderEntity>) {
+        hiddenSenderRows = rows
     }
 
-    /** Skips storing a hidden sender's messages entirely going forward — see BroadcastRepository.getMessages for the display-side filter covering already-cached ones too. */
+    /** Skips storing a sender's messages for a room they're hidden in (per-room since 4.0; "" rows hide everywhere) — see BroadcastRepository.getMessages for the display-side filter covering already-cached ones too. */
     @Synchronized
-    private fun isSenderHidden(address: String): Boolean = address in hiddenSenderAddresses
+    private fun isSenderHidden(address: String, channelName: String): Boolean =
+        hiddenSenderRows.any { it.senderAddress == address && (it.channelName.isEmpty() || it.channelName == channelName) }
 
     val isRunning: Boolean get() = scanJob?.isActive == true
 
@@ -230,7 +231,7 @@ class BroadcastScanningService @Inject constructor(
             val senderAddress = tx.outputsList.firstOrNull()
                 ?.let { KaspaAddress.addressFromScriptPublicKey(it.scriptPublicKey.scriptPublicKey) }
                 ?: continue
-            if (isSenderHidden(senderAddress)) continue
+            if (isSenderHidden(senderAddress, parsed.channel)) continue
 
             val blockTimestampMillis = if (block.hasHeader()) block.header.timestamp else System.currentTimeMillis()
 

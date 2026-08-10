@@ -31,6 +31,12 @@ class NetworkService @Inject constructor(
     private val _knsApi = MutableStateFlow<KnsApi?>(null)
     val knsApi: StateFlow<KnsApi?> = _knsApi
 
+    private val _kapostApi = MutableStateFlow<KaPostApi?>(null)
+    val kapostApi: StateFlow<KaPostApi?> = _kapostApi
+
+    private val _broadcastIndexerApi = MutableStateFlow<BroadcastIndexerApi?>(null)
+    val broadcastIndexerApi: StateFlow<BroadcastIndexerApi?> = _broadcastIndexerApi
+
     init {
         observeSettings()
     }
@@ -49,6 +55,16 @@ class NetworkService @Inject constructor(
         scope.launch {
             settings.knsApiUrl.collectLatest { url ->
                 createApi<KnsApi>(url)?.let { _knsApi.value = it }
+            }
+        }
+        scope.launch {
+            settings.kapostIndexerUrl.collectLatest { url ->
+                createApi<KaPostApi>(url)?.let { _kapostApi.value = it }
+            }
+        }
+        scope.launch {
+            settings.broadcastIndexerUrl.collectLatest { url ->
+                createApi<BroadcastIndexerApi>(url)?.let { _broadcastIndexerApi.value = it }
             }
         }
     }

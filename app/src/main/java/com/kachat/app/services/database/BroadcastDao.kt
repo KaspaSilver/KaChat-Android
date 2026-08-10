@@ -77,12 +77,13 @@ interface BroadcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun hideSender(entity: HiddenBroadcastSenderEntity)
 
-    @Query("DELETE FROM broadcast_hidden_senders WHERE senderAddress = :senderAddress AND walletAddress = :walletAddress")
-    suspend fun unhideSender(senderAddress: String, walletAddress: String)
+    /** Removes both the room-scoped hide AND any legacy every-room ("") hide for the sender. */
+    @Query("DELETE FROM broadcast_hidden_senders WHERE senderAddress = :senderAddress AND walletAddress = :walletAddress AND (channelName = :channelName OR channelName = '')")
+    suspend fun unhideSender(senderAddress: String, walletAddress: String, channelName: String)
 
     /** Reactive so a fresh hide/unhide immediately re-filters any already-open channel screen and the scanning service's insert-time check (see BroadcastScanningService). */
-    @Query("SELECT senderAddress FROM broadcast_hidden_senders WHERE walletAddress = :walletAddress")
-    fun getHiddenSenderAddresses(walletAddress: String): Flow<List<String>>
+    @Query("SELECT * FROM broadcast_hidden_senders WHERE walletAddress = :walletAddress")
+    fun getHiddenSenders(walletAddress: String): Flow<List<HiddenBroadcastSenderEntity>>
 }
 
 data class ChannelRetention(val channelName: String, val retentionMillis: Long)

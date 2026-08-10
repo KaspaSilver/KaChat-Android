@@ -18,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.ui.theme.KaChatTheme
 import com.kachat.app.ui.KaChatApp
+import com.kachat.app.ui.screens.KaPostsDeepLink
 import com.kachat.app.viewmodels.WalletViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -49,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         pendingContactId = intent?.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
         pendingChannelName = intent?.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent?.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
+        intent?.let(::handleKaPostDeepLink)
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
             val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
@@ -76,5 +78,28 @@ class MainActivity : AppCompatActivity() {
         pendingContactId = intent.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
         pendingChannelName = intent.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
+        handleKaPostDeepLink(intent)
+    }
+
+    /**
+     * KaPosts share links land here: kachat://kapost/<txid> (the share-text form) and
+     * https://kachat.duckdns.org/post/<txid> (universal-link form). The txid is handed to
+     * [KaPostsDeepLink]; KaChatApp navigates to the KaPosts tab and the screen opens the
+     * post's thread.
+     */
+    private fun handleKaPostDeepLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        val txId = when {
+            uri.scheme.equals("kachat", ignoreCase = true) &&
+                uri.host.equals("kapost", ignoreCase = true) -> uri.lastPathSegment
+            uri.scheme.equals("https", ignoreCase = true) &&
+                uri.host.equals("kachat.duckdns.org", ignoreCase = true) &&
+                uri.pathSegments.firstOrNull() == "post" -> uri.pathSegments.getOrNull(1)
+            else -> null
+        }
+        if (!txId.isNullOrBlank()) {
+            KaPostsDeepLink.pendingPostTxId.value = txId
+        }
     }
 }

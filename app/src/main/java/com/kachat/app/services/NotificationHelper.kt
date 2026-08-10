@@ -125,6 +125,36 @@ class NotificationHelper @Inject constructor(
     }
 
     /** Per-channel opt-in notification for a new broadcast message — see [EXTRA_CHANNEL_NAME]/BroadcastScanningService. */
+    /** KaPosts social ping ("alice liked your post") - taps open the KaPosts tab. */
+    suspend fun showKaPosts(text: String, actionTxId: String) {
+        if (!settings.notificationsEnabled.first()) return
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_OPEN_KAPOSTS, true)
+        }
+        val notificationId = "kaposts_$actionTxId".hashCode()
+        val pendingIntent = PendingIntent.getActivity(
+            context, notificationId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val soundEnabled = settings.notificationSoundEnabled.first()
+        val vibrationEnabled = settings.notificationVibrationEnabled.first()
+        val notification = NotificationCompat.Builder(context, channelFor(soundEnabled, vibrationEnabled))
+            .setSmallIcon(R.drawable.ic_kachat_logo)
+            .setContentTitle("KaPosts")
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSilent(!soundEnabled && !vibrationEnabled)
+            .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
+            .apply { if (!soundEnabled) setSound(null) }
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) {}
+    }
+
     suspend fun showBroadcast(channelName: String, title: String, text: String) {
         if (activeChannelName.value == channelName) return // already looking at this channel
         if (!settings.notificationsEnabled.first()) return
@@ -209,6 +239,7 @@ class NotificationHelper @Inject constructor(
         const val EXTRA_CONTACT_ID = "contact_id"
         const val EXTRA_CHANNEL_NAME = "channel_name"
         const val EXTRA_GROUP_ID = "group_id"
+        const val EXTRA_OPEN_KAPOSTS = "open_kaposts"
 
         // (channelId, soundEnabled, vibrationEnabled)
         private val CHANNELS = listOf(

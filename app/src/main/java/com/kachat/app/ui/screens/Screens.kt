@@ -57,6 +57,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -2378,6 +2381,13 @@ fun ProfileScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.profile),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 TopStatusBar(
                     balance = balance,
                     onStatusClick = { navController.navigate("connection_status") },
@@ -2406,174 +2416,122 @@ fun ProfileScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            if (pendingKnsCommit != null) {
-                SettingsSection(title = stringResource(R.string.unfinished_inscription)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.a_kns_inscription_s_commit_transaction),
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
+            // 4.0 Profile redesign (matches iOS): inline-editable account name up top, then a
+            // KaPosts-style hero (KNS banner, overlapping avatar, display name, bio), then the
+            // KNS profile editing entry - the old boxed Account section is gone.
+            run {
+                var isEditingName by remember { mutableStateOf(false) }
+                var editedName by remember { mutableStateOf("") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isEditingName) {
+                        OutlinedTextField(
+                            value = editedName,
+                            onValueChange = { editedName = it },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            textStyle = MaterialTheme.typography.titleMedium.copy(color = LocalAppColors.current.textPrimary)
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.retryPendingKnsReveal() },
-                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                            enabled = knsInscribeState.status != WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL
-                        ) {
-                            Text(stringResource(R.string.retry_inscription_reveal), color = Color.Black, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = {
+                            val trimmed = editedName.trim()
+                            isEditingName = false
+                            if (trimmed.isNotEmpty() && trimmed != accountName) {
+                                address?.let { viewModel.renameAccount(it, trimmed) }
+                            }
+                        }) {
+                            Icon(Icons.Default.CheckCircle, null, tint = KaspaTeal)
+                        }
+                    } else {
+                        Text(
+                            accountName ?: stringResource(R.string.account_name),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1
+                        )
+                        IconButton(onClick = {
+                            editedName = accountName ?: ""
+                            isEditingName = true
+                        }) {
+                            Icon(Icons.Default.Edit, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
             }
 
-            if (!accountName.isNullOrBlank()) {
-                SettingsSection(title = stringResource(R.string.account)) {
+            Surface(
+                color = LocalAppColors.current.surface,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    val bannerUrl = knsProfile?.bannerUrl
+                    if (bannerUrl != null) {
+                        SubcomposeAsyncImage(
+                            model = bannerUrl,
+                            contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxWidth().height(140.dp),
+                            loading = { Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f))) },
+                            error = { Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f))) }
+                        )
+                    } else {
+                        Box(
+                            Modifier.fillMaxWidth().height(140.dp).background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(KaspaTeal.copy(alpha = 0.55f), KaspaTeal.copy(alpha = 0.15f))
+                                )
+                            )
+                        )
+                    }
+                    val heroName = activeProfileDomainName?.removeSuffix(".kas") ?: accountName ?: ""
+                    Box(modifier = Modifier.padding(start = 16.dp).offset(y = (-38).dp)) {
+                        Box(
+                            modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ContactAvatar(imageUrl = knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
+                        }
+                    }
+                    Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
+                        Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
+                        knsProfile?.bio?.takeIf { it.isNotBlank() }?.let { bio ->
+                            Spacer(Modifier.height(4.dp))
+                            Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+
+            // Straight to the KNS editor (matches iOS's editKNSProfileRow) - no domain yet
+            // sends you into the create-profile flow instead. Replaces the old KNS Profile
+            // card section entirely.
+            Surface(
+                color = LocalAppColors.current.surface,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (!activeProfileDomainName.isNullOrBlank()) {
+                                navController.navigate("edit_kns_profile")
+                            } else {
+                                navController.navigate("create_kns_profile")
+                            }
+                        }
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Default.Badge, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(16.dp))
                     Text(
-                        accountName!!,
+                        stringResource(R.string.edit_kns_profile),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.weight(1f)
                     )
-                }
-            }
-
-            if (showSetupGuides) {
-                SettingsSection(title = stringResource(R.string.welcome_guide)) {
-                    SettingsNavigationItem(stringResource(R.string.welcome_guide), Icons.Default.WavingHand, onClick = {
-                        navController.navigate("welcome_guide")
-                    })
-                }
-            }
-
-            GiftClaimProfileSection(walletAddress = address)
-
-            SettingsSection(title = stringResource(R.string.kns_profile)) {
-                if (profileAssetId == null || activeProfileDomainName == null) {
-                    // No domain yet - nothing to show an avatar/chevron-row for (there's no
-                    // profile data at all), so this collapses to a single centered call-to-action
-                    // that opens the guided creation wizard instead of the editor built for
-                    // *existing* profiles.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { navController.navigate("create_kns_profile") }
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            stringResource(R.string.create_kns_profile),
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.clickable { navController.navigate("edit_kns_profile") }
-                    ) {
-                        val bannerUrl = knsProfile?.bannerUrl?.takeIf { it.isNotBlank() }
-                        if (bannerUrl != null) {
-                            SubcomposeAsyncImage(
-                                model = bannerUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(90.dp)
-                                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                                    .background(LocalAppColors.current.surface)
-                            )
-                        }
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            ContactAvatar(
-                                imageUrl = knsProfile?.avatarUrl,
-                                fallbackText = activeProfileDomainName,
-                                size = 48.dp
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(activeProfileDomainName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                                val bio = knsProfile?.bio?.takeIf { it.isNotBlank() }
-                                if (bio != null) {
-                                    Text(
-                                        text = bio,
-                                        color = LocalAppColors.current.textPrimary,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 5
-                                    )
-                                } else {
-                                    Text(
-                                        text = if (hasAnyProfileData) "On-chain profile data available." else "No on-chain profile data yet.",
-                                        color = LocalAppColors.current.textSecondary,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
-                        }
-                        val knsProfileSnapshot = knsProfile
-                        val hasMoreInfo = knsProfileSnapshot != null && listOf(
-                            knsProfileSnapshot.bio, knsProfileSnapshot.x, knsProfileSnapshot.website, knsProfileSnapshot.telegram,
-                            knsProfileSnapshot.discord, knsProfileSnapshot.contactEmail, knsProfileSnapshot.github
-                        ).any { !it.isNullOrBlank() }
-                        if (hasMoreInfo) {
-                            HorizontalDivider(color = LocalAppColors.current.divider)
-                        }
-                        var moreInfoExpanded by remember { mutableStateOf(false) }
-                        if (hasMoreInfo) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { moreInfoExpanded = !moreInfoExpanded }
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(stringResource(R.string.more_info), color = KaspaTeal, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Icon(
-                                    if (moreInfoExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (moreInfoExpanded) "Collapse" else "Expand",
-                                    tint = KaspaTeal
-                                )
-                            }
-                        }
-                        if (moreInfoExpanded) {
-                            HorizontalDivider(color = LocalAppColors.current.divider)
-                            val context = LocalContext.current
-                            Column(modifier = Modifier.padding(16.dp)) {
-
-                                val socialLinks = listOfNotNull(
-                                    knsProfile?.x?.takeIf { it.isNotBlank() }?.let { "X" to it },
-                                    knsProfile?.website?.takeIf { it.isNotBlank() }?.let { "Website" to it },
-                                    knsProfile?.telegram?.takeIf { it.isNotBlank() }?.let { "Telegram" to it },
-                                    knsProfile?.discord?.takeIf { it.isNotBlank() }?.let { "Discord" to it },
-                                    knsProfile?.contactEmail?.takeIf { it.isNotBlank() }?.let { "Email" to it },
-                                    knsProfile?.github?.takeIf { it.isNotBlank() }?.let { "GitHub" to it }
-                                )
-                                socialLinks.forEachIndexed { index, (label, value) ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                val url = if (value.startsWith("http")) value else "https://$value"
-                                                try {
-                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                                } catch (e: Exception) { /* no browser available */ }
-                                            }
-                                            .padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(label, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
-                                        Text(value, color = KaspaTeal, style = MaterialTheme.typography.bodyMedium)
-                                    }
-                                    if (index < socialLinks.lastIndex) {
-                                        HorizontalDivider(color = LocalAppColors.current.divider)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -2693,9 +2651,51 @@ fun ProfileScreen(
                 }
             }
 
+            if (pendingKnsCommit != null) {
+                SettingsSection(title = null) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.a_kns_inscription_s_commit_transaction),
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { viewModel.retryPendingKnsReveal() },
+                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                            enabled = knsInscribeState.status != WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL
+                        ) {
+                            Text(stringResource(R.string.retry_inscription_reveal), color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // Curated Kaspa sites (4.0): its own page, matching iOS's ProfileAppsView -
+            // Apps sits ABOVE Help, same as iOS.
+            SettingsSection(title = null) {
+                SettingsNavigationItem(stringResource(R.string.apps), Icons.Default.Apps, onClick = {
+                    navController.navigate("kaspa_apps")
+                })
+            }
+
+            SettingsSection(title = null) {
+                SettingsNavigationItem(stringResource(R.string.help), Icons.AutoMirrored.Filled.HelpOutline, onClick = {
+                    navController.navigate("help")
+                })
+            }
+
+            GiftClaimProfileSection(walletAddress = address)
+
             // Bottom-most section on Profile - merges what used to be a separate "Info" section
             // (just "Created") with Settings' old "About" section (Version/Website/Support
             // Email/Donate), now reached without needing to open Settings at all.
+            SettingsSection(title = null) {
+                SettingsActionItem(stringResource(R.string.log_out), Icons.AutoMirrored.Filled.Logout, Color.Red) {
+                    showLogoutConfirmation = true
+                }
+            }
+
             SettingsSection(title = stringResource(R.string.about)) {
                 SettingsInfoItem(stringResource(R.string.created), "Apr 22, 2026 at 8:33 AM")
                 SettingsDivider()
@@ -2740,11 +2740,6 @@ fun ProfileScreen(
 
             // Moved here from Settings > Actions - Profile is where the rest of the
             // account-level actions (address management, About) already live.
-            SettingsSection(title = stringResource(R.string.actions)) {
-                SettingsActionItem(stringResource(R.string.log_out), Icons.AutoMirrored.Filled.Logout, Color.Red) {
-                    showLogoutConfirmation = true
-                }
-            }
 
             Spacer(modifier = Modifier.height(80.dp))
         }
@@ -2890,12 +2885,15 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     viewModel.resetKnsInscribeState()
                     showInscribeDialog = true
                 },
-                containerColor = KaspaTeal,
-                contentColor = Color.Black,
+                // Deliberately NOT teal - the domain cards are teal-filled, so the action
+                // button contrasts: surface background, teal text, teal outline.
+                containerColor = LocalAppColors.current.surface,
+                contentColor = KaspaTeal,
                 shape = RoundedCornerShape(28.dp),
                 modifier = Modifier
                     .height(56.dp)
                     .widthIn(min = 120.dp)
+                    .border(1.5.dp, KaspaTeal, RoundedCornerShape(28.dp))
             ) {
                 Text(
                     stringResource(R.string.inscribe_new_domain),
@@ -6297,6 +6295,9 @@ private tailrec fun android.content.Context.findActivity(): Activity? = when (th
 @Composable
 fun SettingsScreen(
     navController: NavController,
+    // 4.0 (matches iOS): null renders the settings HUB (one row per category); a key renders
+    // just that category's items as its own page.
+    sectionKey: String? = null,
     walletViewModel: WalletViewModel = hiltViewModel(),
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel(),
@@ -6347,6 +6348,13 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.settings),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 TopStatusBar(
                     balance = balance,
                     onStatusClick = { navController.navigate("connection_status") },
@@ -6365,6 +6373,50 @@ fun SettingsScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            if (sectionKey == null) {
+                // Flat hub list (matches iOS): no section titles - just the categories, the
+                // seed-phrase action, and Danger Zone in one card.
+                Surface(
+                    color = LocalAppColors.current.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                    SettingsNavigationItem(stringResource(R.string.customization), Icons.Default.Palette, onClick = { navController.navigate("settings_section/customization") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Shield, onClick = { navController.navigate("settings_section/security") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.connection), Icons.Default.Language, onClick = { navController.navigate("settings_section/connection") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = { navController.navigate("settings_section/chats") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.contacts), Icons.Default.People, onClick = { navController.navigate("settings_section/contacts") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.storage), Icons.Default.Storage, onClick = { navController.navigate("settings_section/storage") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.chat_history), Icons.Default.History, onClick = { navController.navigate("settings_section/chat_history") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal) {
+                        if (biometricSeedPhraseEnabled) {
+                            context.authenticateWithDeviceCredential(
+                                title = "Unlock to View Seed Phrase",
+                                onSuccess = { navController.navigate("seed_phrase") }
+                            )
+                        } else {
+                            navController.navigate("seed_phrase")
+                        }
+                    }
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsActionItem(stringResource(R.string.danger_zone), Icons.Default.Warning, Color.Red) {
+                        navController.navigate("settings_section/danger_zone")
+                    }
+                    }
+                }
+            }
+
+            if (sectionKey == "customization") {
             SettingsSection(title = stringResource(R.string.customization)) {
                 SettingsSwitchItem(stringResource(R.string.dark_mode), darkModeEnabled) { enabled ->
                     walletViewModel.setDarkModeEnabled(enabled)
@@ -6386,7 +6438,9 @@ fun SettingsScreen(
                     walletViewModel.setShowSetupGuides(enabled)
                 }
             }
+            }
 
+            if (sectionKey == "security") {
             SettingsSection(title = stringResource(R.string.security)) {
                 SettingsSwitchItem(stringResource(R.string.biometrics_for_seed_phrase), biometricSeedPhraseEnabled) { enabled ->
                     walletViewModel.setBiometricSeedPhraseEnabled(enabled)
@@ -6400,7 +6454,9 @@ fun SettingsScreen(
                     walletViewModel.setBiometricSpendingKeyEnabled(enabled)
                 }
             }
+            }
 
+            if (sectionKey == "connection") {
             SettingsSection(title = stringResource(R.string.connection)) {
                 SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, "Mainnet", onClick = {
                     navController.navigate("connection_settings")
@@ -6410,7 +6466,9 @@ fun SettingsScreen(
                     navController.navigate("kaspa_explorer_settings")
                 })
             }
+            }
 
+            if (sectionKey == "chats") {
             SettingsSection(title = stringResource(R.string.chats)) {
                 SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
                     settingsViewModel.setShowFeeEstimate(enabled)
@@ -6438,7 +6496,9 @@ fun SettingsScreen(
                     onClick = { navController.navigate("quick_reaction_settings") }
                 )
             }
+            }
 
+            if (sectionKey == "contacts") {
             SettingsSection(title = stringResource(R.string.contacts)) {
                 SettingsSwitchItem(stringResource(R.string.sync_system_contacts), syncSystemContactsEnabled) { enabled ->
                     chatViewModel.setSyncSystemContactsEnabled(enabled)
@@ -6455,7 +6515,9 @@ fun SettingsScreen(
                 }
                 SettingsFooter(stringResource(R.string.uses_your_device_contacts_to_match))
             }
+            }
 
+            if (sectionKey == "storage") {
             SettingsSection(title = stringResource(R.string.storage)) {
                 val googleBackupEnabled by chatViewModel.googleBackupEnabled.collectAsState()
                 val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
@@ -6608,7 +6670,9 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
 
+            if (sectionKey == "chat_history") {
             SettingsSection(title = stringResource(R.string.chat_history)) {
                 val exportInFlight = exportChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
                 val importInFlight = importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
@@ -6667,7 +6731,9 @@ fun SettingsScreen(
                 }
                 SettingsFooter(stringResource(R.string.exports_a_plaintext_json_file_of))
             }
+            }
 
+            if (sectionKey == "diagnostics") {
             SettingsSection(title = stringResource(R.string.diagnostics)) {
                 val diagnosticsExportInFlight = diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
 
@@ -6697,20 +6763,9 @@ fun SettingsScreen(
                 }
                 SettingsFooter(stringResource(R.string.exports_app_device_info_connection_settings))
             }
-
-            SettingsSection(title = stringResource(R.string.actions)) {
-                SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal) {
-                    if (biometricSeedPhraseEnabled) {
-                        context.authenticateWithDeviceCredential(
-                            title = "Unlock to View Seed Phrase",
-                            onSuccess = { navController.navigate("seed_phrase") }
-                        )
-                    } else {
-                        navController.navigate("seed_phrase")
-                    }
-                }
             }
 
+            if (sectionKey == "danger_zone") {
             SettingsSection(title = stringResource(R.string.danger_zone)) {
                 val activeAddress by walletViewModel.address.collectAsState()
                 val wipeIncomingState by chatViewModel.wipeIncomingState.collectAsState()
@@ -6843,6 +6898,7 @@ fun SettingsScreen(
                     )
                 }
             }
+            }
 
             Spacer(modifier = Modifier.height(100.dp))
         }
@@ -6850,16 +6906,18 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsSection(title: String, headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = LocalAppColors.current.textSecondary,
-                modifier = Modifier.weight(1f).padding(start = 8.dp, bottom = 8.dp)
-            )
-            headerAction?.invoke()
+        if (title != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.weight(1f).padding(start = 8.dp, bottom = 8.dp)
+                )
+                headerAction?.invoke()
+            }
         }
         Column(
             modifier = Modifier
@@ -7928,6 +7986,8 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val indexerUrl by viewModel.indexerUrl.collectAsState()
     val knsApiUrl by viewModel.knsApiUrl.collectAsState()
     val kaspaRestApiUrl by viewModel.kaspaRestApiUrl.collectAsState()
+    val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
+    val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -7963,26 +8023,21 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            SettingsSection(title = stringResource(R.string.network)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.network), color = LocalAppColors.current.textPrimary)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(network, color = KaspaTeal)
-                        Icon(Icons.Default.UnfoldMore, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(16.dp))
-                    }
-                }
-                SettingsFooter(stringResource(R.string.select_mainnet_for_real_transactions_or))
-            }
-
             SettingsSection(title = stringResource(R.string.kachat_indexer)) {
                 ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
                 SettingsFooter(stringResource(R.string.message_indexer_service_for_chat_functionality))
             }
 
+
+            SettingsSection(title = stringResource(R.string.kapost_indexer)) {
+                ConnectionUrlField(label = "KaPost Indexer URL", value = kapostIndexerUrl)
+                SettingsFooter(stringResource(R.string.kapost_indexer_footer))
+            }
+
+            SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
+                ConnectionUrlField(label = "Broadcast Indexer URL", value = broadcastIndexerUrl)
+                SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
+            }
 
             SettingsSection(title = stringResource(R.string.kaspa_name_service)) {
                 ConnectionUrlField(label = "KNS API URL", value = knsApiUrl)

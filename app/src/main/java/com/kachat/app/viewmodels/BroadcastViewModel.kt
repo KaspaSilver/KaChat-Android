@@ -269,16 +269,50 @@ class BroadcastViewModel @Inject constructor(
     val kaspaExplorer: StateFlow<com.kachat.app.models.KaspaExplorer> = settings.kaspaExplorer
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.kachat.app.models.KaspaExplorer.default)
 
-    /** The active account's hidden sender addresses — set via "Hide User" on a sender's avatar. */
-    val hiddenSenderAddresses: StateFlow<Set<String>> = broadcastRepository.getHiddenSenderAddresses()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    /** The active account's hidden-sender rows - PER ROOM since 4.0 ("" = legacy every-room hide). */
+    val hiddenSenders: StateFlow<List<com.kachat.app.models.HiddenBroadcastSenderEntity>> =
+        broadcastRepository.getHiddenSenders()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun hideSender(senderAddress: String) {
-        viewModelScope.launch { broadcastRepository.hideSender(senderAddress) }
+    /** Senders hidden in [channelName] - room-scoped rows plus legacy every-room rows. */
+    fun hiddenAddressesIn(channelName: String): Set<String> =
+        com.kachat.app.repository.BroadcastRepository.hiddenAddressesIn(channelName, hiddenSenders.value)
+
+    /** Hides a sender in ONE room: their messages and notifications from that room disappear; other rooms are unaffected. */
+    fun hideSender(senderAddress: String, channelName: String) {
+        viewModelScope.launch { broadcastRepository.hideSender(senderAddress, channelName) }
     }
 
-    fun unhideSender(senderAddress: String) {
-        viewModelScope.launch { broadcastRepository.unhideSender(senderAddress) }
+    fun unhideSender(senderAddress: String, channelName: String) {
+        viewModelScope.launch { broadcastRepository.unhideSender(senderAddress, channelName) }
+    }
+
+    // MARK: - Indexer backfill (featured rooms): once on open, then every 8s while the room
+    // stays open - messages sent while the app was closed appear, and the room stays fresh
+    // even when live block scanning lags. Dedupe by txId happens in the DAO's REPLACE insert.
+
+    init {
+        // The curated #kaspa/#kachat-bugs rooms are always present (4.0): auto-joined with
+        // fixed 3-day retention, backed by the broadcast indexer.
+        viewModelScope.launch { broadcastRepository.ensureFeaturedChannelsJoined() }
+    }
+
+    private var indexerPollJob: kotlinx.coroutines.Job? = null
+
+    fun startIndexerBackfill(channelName: String) {
+        if (channelName !in com.kachat.app.models.FeaturedBroadcastChannels.NAMES) return
+        stopIndexerBackfill()
+        indexerPollJob = viewModelScope.launch {
+            while (true) {
+                broadcastRepository.backfillFromIndexer(channelName)
+                kotlinx.coroutines.delay(8_000)
+            }
+        }
+    }
+
+    fun stopIndexerBackfill() {
+        indexerPollJob?.cancel()
+        indexerPollJob = null
     }
 
     /** Per-channel opt-in to background scanning — toggled via the speaker icon next to a channel. */

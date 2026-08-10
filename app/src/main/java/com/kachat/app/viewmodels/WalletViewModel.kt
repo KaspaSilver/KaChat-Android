@@ -42,7 +42,8 @@ class WalletViewModel @Inject constructor(
     /** Reused purely for its address-string-keyed REST fetchers (`getTransactionHistory`/
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
-    private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery
+    private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
+    private val kaPostsNotificationPoller: com.kachat.app.services.KaPostsNotificationPoller
 ) : ViewModel() {
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
@@ -408,6 +409,20 @@ class WalletViewModel @Inject constructor(
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
     init {
+        // One-time 4.0 dock seeding (existing users: KaPosts/Broadcasts/+More enabled, dock
+        // preserved via the cap/cycle; fresh installs: minimal Chats/Profile/+More dock).
+        // Sentinel-guarded no-op on every later launch.
+        viewModelScope.launch { settings.applyKaPostsTabDefaultsIfNeeded() }
+        // KaPosts social pings while the app runs (60s poll) - iOS parity.
+        kaPostsNotificationPoller.start()
+        // Mirror the active account's address into DataStore so the per-account dock keys
+        // (AppSettingsRepository.tabOrder/hiddenTabs) always resolve against the right account,
+        // including immediately after an account switch.
+        viewModelScope.launch {
+            walletManager.activeAddressFlow.collect { address ->
+                if (address != null) settings.setActiveAddress(address)
+            }
+        }
         if (walletManager.hasWallet()) {
             _address.value = walletManager.getAddress()
             _accountName.value = walletManager.getAccountName()
@@ -1003,6 +1018,15 @@ class WalletViewModel @Inject constructor(
     /** Bottom-tab routes the user has hidden from the nav bar via Settings > Customization > Menu. */
     val hiddenTabs: StateFlow<Set<String>> = settings.hiddenTabs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
+
+    /** null until DataStore loads - the wizard must not flash while the real value is unknown. */
+    val dockWizardDismissed: StateFlow<Boolean?> = settings.dockWizardDismissed
+        .map { it as Boolean? }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    fun dismissDockWizard() {
+        viewModelScope.launch { settings.setDockWizardDismissed() }
+    }
 
     fun setTabHidden(route: String, hidden: Boolean) {
         viewModelScope.launch { settings.setTabHidden(route, hidden) }

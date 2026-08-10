@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PieChart
@@ -24,6 +27,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -63,6 +72,11 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     // AppTab.coldStorage — hideable like Portfolio/Swap via Settings > Customization > Menu, but
     // no longer a separate opt-in reached through Portfolio's old "Cold Storage Devices" row.
     object ColdStorage : Screen("cold_storage", "Storage",      Icons.Default.Lock)
+    object KaPosts     : Screen("kaposts",      "KaPosts",      Icons.Default.EditNote)
+    object Broadcasts  : Screen("broadcasts",   "Broadcasts",   Icons.Default.Sensors)
+    /// Not a real page: tapping it opens Settings > Customization > Menu directly (see the dock's
+    /// clickable). Exists as a Screen so it participates in ordering/visibility like iOS's .more.
+    object More        : Screen("more",         "More",         Icons.Default.AddCircleOutline)
 }
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
@@ -76,8 +90,14 @@ val bottomNavItems = listOf(
     Screen.ColdStorage,
     Screen.Chats,
     Screen.Swap,
-    Screen.Profile
+    Screen.Profile,
+    Screen.KaPosts,
+    Screen.Broadcasts,
+    Screen.More
 )
+
+/** The dock renders at most this many items (matches iOS's AppTab.maxDockItems). */
+const val MAX_DOCK_ITEMS = 5
 
 /**
  * Maps persisted route strings (from AppSettingsRepository.tabOrder) back to [Screen] objects,
@@ -88,12 +108,46 @@ val bottomNavItems = listOf(
  * anything the user unchecked in Settings > Customization > Menu (never applied to
  * [ALWAYS_VISIBLE_TAB_ROUTES]).
  */
-private fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>): List<Screen> {
+fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>): List<Screen> {
     val byRoute = bottomNavItems.associateBy { it.route }
     val resolved = routes.mapNotNull { byRoute[it] }
     val missing = bottomNavItems.filter { it !in resolved }
     val ordered = resolved + missing
-    return ordered.filter { it.route in ALWAYS_VISIBLE_TAB_ROUTES || it.route !in hiddenTabs }
+    var visible = ordered.filter { it.route in ALWAYS_VISIBLE_TAB_ROUTES || it.route !in hiddenTabs }
+    // Dock cap (matches iOS AppTab.visible): when over capacity KaPosts drops out first, then
+    // Broadcasts - both stay reachable by cycling the Chats tab - then the tail falls off.
+    for (cyclable in listOf(Screen.KaPosts, Screen.Broadcasts)) {
+        if (visible.size > MAX_DOCK_ITEMS) {
+            visible = visible.filter { it != cyclable }
+        }
+    }
+    if (visible.size > MAX_DOCK_ITEMS) {
+        visible = visible.take(MAX_DOCK_ITEMS)
+    }
+    return visible
+}
+
+/** KaPosts is enabled but didn't fit the dock - it joins the Chats-tab cycle. */
+fun kaPostsAccessibleViaChatsTab(routes: List<String>, hiddenTabs: Set<String>): Boolean {
+    if (Screen.KaPosts.route in hiddenTabs) return false
+    return resolveTabOrder(routes, hiddenTabs).none { it.route == Screen.KaPosts.route }
+}
+
+/** Broadcasts is enabled but didn't fit the dock - it joins the Chats-tab cycle. */
+fun broadcastsAccessibleViaChatsTab(routes: List<String>, hiddenTabs: Set<String>): Boolean {
+    if (Screen.Broadcasts.route in hiddenTabs) return false
+    return resolveTabOrder(routes, hiddenTabs).none { it.route == Screen.Broadcasts.route }
+}
+
+/**
+ * What tapping the Chats slot cycles through (matches iOS AppTab.chatsSlotCycle): always Chats
+ * itself, then whichever of KaPosts/Broadcasts are enabled but masked out of the full dock.
+ */
+fun chatsSlotCycle(routes: List<String>, hiddenTabs: Set<String>): List<Screen> {
+    val cycle = mutableListOf<Screen>(Screen.Chats)
+    if (kaPostsAccessibleViaChatsTab(routes, hiddenTabs)) cycle.add(Screen.KaPosts)
+    if (broadcastsAccessibleViaChatsTab(routes, hiddenTabs)) cycle.add(Screen.Broadcasts)
+    return cycle
 }
 
 /**
@@ -151,6 +205,7 @@ fun MainShell(
     // you'd want to maximize screen space for.
     val onTabRoute = currentDestination?.hierarchy?.any { dest ->
         bottomNavItems.any { it.route == dest.route } ||
+            dest.route == Screen.KaPosts.route ||
             dest.route == "broadcasts" || dest.route == "broadcast_channel/{channelName}"
     } == true
 
@@ -163,13 +218,46 @@ fun MainShell(
     val persistedTabOrder by walletViewModel.tabOrder.collectAsState()
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val hideBottomBar by walletViewModel.hideBottomBar.collectAsState()
-    var draggedScreen by remember { mutableStateOf<Screen?>(null) }
-    var dragOffsetX by remember { mutableStateOf(0f) }
-    var tabItemWidthPx by remember { mutableStateOf(0f) }
-    var localTabOrder by remember { mutableStateOf(resolveTabOrder(persistedTabOrder, hiddenTabs)) }
-    LaunchedEffect(persistedTabOrder, hiddenTabs) {
-        if (draggedScreen == null) {
-            localTabOrder = resolveTabOrder(persistedTabOrder, hiddenTabs)
+    val localTabOrder = resolveTabOrder(persistedTabOrder, hiddenTabs)
+    // Chats-slot cycle (matches iOS): KaPosts/Broadcasts enabled but over the dock cap ride the
+    // Chats slot - tapping it cycles chats -> kaposts -> broadcasts. The slot is STICKY: leaving
+    // to another tab and coming back returns to whichever page the slot last showed.
+    val slotCycle = chatsSlotCycle(persistedTabOrder, hiddenTabs)
+    var chatsSlotRoute by rememberSaveable { mutableStateOf(Screen.Chats.route) }
+    val currentTopRoute = currentDestination?.route
+    // Deep links/notifications can land on a cycle page directly - keep the slot in sync.
+    LaunchedEffect(currentTopRoute) {
+        if (currentTopRoute != null && currentTopRoute != Screen.Chats.route &&
+            slotCycle.any { it.route == currentTopRoute }
+        ) {
+            chatsSlotRoute = currentTopRoute
+        }
+    }
+    // A menu change can remove the slot's current page from the cycle - snap home to Chats.
+    LaunchedEffect(slotCycle.map { it.route }) {
+        if (slotCycle.none { it.route == chatsSlotRoute }) chatsSlotRoute = Screen.Chats.route
+    }
+
+    fun showSlotRoute(route: String) {
+        chatsSlotRoute = route
+        navController.popBackStack(Screen.Chats.route, false)
+        if (route != Screen.Chats.route) {
+            navController.navigate(route) { launchSingleTop = true }
+        }
+    }
+
+    // Hold-to-slide slot menu: hold the Chats slot, a card with the cycle options rises above
+    // the dock; slide onto one and release (or tap it) to jump straight there.
+    var slotMenuVisible by remember { mutableStateOf(false) }
+    var slotMenuHighlight by remember { mutableStateOf<Int?>(null) }
+    var slotOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+    var slotMenuBounds by remember { mutableStateOf<Rect?>(null) }
+    LaunchedEffect(slotMenuVisible) {
+        if (slotMenuVisible) {
+            // Failsafe: never let the menu linger (backgrounding mid-hold skips onDragEnd).
+            kotlinx.coroutines.delay(8_000)
+            slotMenuVisible = false
+            slotMenuHighlight = null
         }
     }
 
@@ -199,6 +287,16 @@ fun MainShell(
         }
     }
 
+    // KaPosts share/deep links (kachat://kapost/<txid>, https://kachat.duckdns.org/post/…):
+    // surface the KaPosts tab; KaPostsScreen itself consumes the pending txid and opens the
+    // post's thread once visible.
+    val pendingKaPostTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
+    LaunchedEffect(pendingKaPostTxId) {
+        if (pendingKaPostTxId != null) {
+            navController.navigate(Screen.KaPosts.route) { launchSingleTop = true }
+        }
+    }
+
     // Shows the Welcome Guide automatically the first time this shell renders after an account is
     // added — whether created or imported — see `WalletViewModel.pendingWelcomeGuide`. Always shown
     // on create/import, independent of the "show setup guides" setting.
@@ -208,6 +306,26 @@ fun MainShell(
             navController.navigate("welcome_guide")
             walletViewModel.consumePendingWelcomeGuide()
         }
+    }
+
+    // "What's new in 4.0" dock wizard: shown once per install, only while sitting on a tab
+    // page (so it never covers onboarding or the Welcome Guide - fresh installs see the setup
+    // wizard first, then this). Any dismissal is permanent.
+    val dockWizardDismissed by walletViewModel.dockWizardDismissed.collectAsState()
+    var showDockWizard by remember { mutableStateOf(false) }
+    LaunchedEffect(dockWizardDismissed, pendingWelcomeGuide, currentTopRoute) {
+        if (dockWizardDismissed == false && !pendingWelcomeGuide && !showDockWizard &&
+            bottomNavItems.any { it.route == currentTopRoute }
+        ) {
+            kotlinx.coroutines.delay(1_200)
+            showDockWizard = true
+        }
+    }
+    if (showDockWizard) {
+        DockWizardDialog(onDismiss = {
+            showDockWizard = false
+            walletViewModel.dismissDockWizard()
+        })
     }
 
     Scaffold(
@@ -229,6 +347,54 @@ fun MainShell(
                         .padding(bottom = 24.dp, start = 24.dp, end = 24.dp),
                     contentAlignment = Alignment.BottomCenter
                 ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Hold-to-slide menu card: rises above the dock while holding the Chats slot;
+                    // slide onto an option and release (or tap it) to jump straight there.
+                    if (slotMenuVisible && slotCycle.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .padding(bottom = 10.dp)
+                                .background(LocalAppColors.current.surface, RoundedCornerShape(22.dp))
+                                .padding(6.dp)
+                                .onGloballyPositioned { slotMenuBounds = it.boundsInRoot() },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            slotCycle.forEachIndexed { index, option ->
+                                val highlighted = slotMenuHighlight == index
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .width(86.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (highlighted) KaspaTeal.copy(alpha = 0.22f)
+                                            else Color.Transparent
+                                        )
+                                        .clickable {
+                                            slotMenuVisible = false
+                                            slotMenuHighlight = null
+                                            showSlotRoute(option.route)
+                                        }
+                                        .padding(vertical = 10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = option.icon,
+                                        contentDescription = option.label,
+                                        tint = if (highlighted) KaspaTeal else LocalAppColors.current.textPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = option.label,
+                                        color = if (highlighted) KaspaTeal else LocalAppColors.current.textPrimary,
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .height(80.dp)
@@ -243,57 +409,94 @@ fun MainShell(
                             // state stays attached to the same logical tab as the list reorders,
                             // rather than to whichever position happens to render it.
                             key(screen.route) {
-                                val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                                val isDragging = draggedScreen == screen
-
+                                // The Chats slot lights up (and morphs its icon/label) while any
+                                // of its cycle pages is showing.
+                                val onCyclePage = slotCycle.size > 1 && currentDestination?.hierarchy?.any { dest ->
+                                    slotCycle.any { it.route == dest.route && it != Screen.Chats }
+                                } == true
+                                val chatsSlotMorph: Screen? = if (screen == Screen.Chats && slotCycle.size > 1) {
+                                    slotCycle.firstOrNull { it.route == chatsSlotRoute && it != Screen.Chats }
+                                } else null
+                                val selected = (screen == Screen.Chats && onCyclePage) ||
+                                    currentDestination?.hierarchy?.any { it.route == screen.route } == true
                                 Box(
                                     modifier = Modifier
                                         .height(64.dp)
                                         .weight(1f)
-                                        .offset { IntOffset((if (isDragging) dragOffsetX else 0f).roundToInt(), 0) }
-                                        .zIndex(if (isDragging) 1f else 0f)
-                                        .onSizeChanged { tabItemWidthPx = it.width.toFloat() }
                                         .clip(RoundedCornerShape(32.dp))
                                         // Long-press then drag to reorder. Keyed on the route (stable
                                         // across reorders) so this gesture detector isn't restarted
                                         // mid-drag when localTabOrder itself changes — every state read
                                         // inside the callbacks below is a live Compose State read, so
                                         // there's no stale-closure risk from not re-keying on the list.
-                                        .pointerInput(screen.route) {
+                                        .onGloballyPositioned {
+                                            if (screen == Screen.Chats) {
+                                                slotOriginInRoot = it.positionInRoot()
+                                            }
+                                        }
+                                        .pointerInput(screen.route, slotCycle.size) {
+                                            // In-dock drag-reorder is gone (4.0): tab order is
+                                            // changed in Customize Menu, matching iOS. The only
+                                            // hold gesture left is the Chats slot's jump menu.
+                                            if (screen != Screen.Chats || slotCycle.size <= 1) return@pointerInput
                                             detectDragGesturesAfterLongPress(
                                                 onDragStart = {
-                                                    draggedScreen = screen
-                                                    dragOffsetX = 0f
+                                                    slotMenuVisible = true
+                                                    slotMenuHighlight = null
                                                 },
-                                                onDrag = { change, dragAmount ->
+                                                onDrag = { change, _ ->
                                                     change.consume()
-                                                    dragOffsetX += dragAmount.x
-                                                    if (tabItemWidthPx <= 0f) return@detectDragGesturesAfterLongPress
-                                                    val current = localTabOrder.indexOf(screen)
-                                                    val slotShift = (dragOffsetX / tabItemWidthPx).roundToInt()
-                                                    if (slotShift == 0) return@detectDragGesturesAfterLongPress
-                                                    val target = (current + slotShift).coerceIn(0, localTabOrder.lastIndex)
-                                                    if (target != current) {
-                                                        localTabOrder = localTabOrder.toMutableList().apply {
-                                                            add(target, removeAt(current))
-                                                        }
-                                                        // Keeps the item moving continuously under the
-                                                        // finger instead of jumping after each slot swap.
-                                                        dragOffsetX -= slotShift * tabItemWidthPx
-                                                    }
+                                                    // Highlight whichever menu option the finger is over.
+                                                    val rootPos = slotOriginInRoot + change.position
+                                                    val bounds = slotMenuBounds
+                                                    slotMenuHighlight = if (bounds != null && bounds.width > 0f) {
+                                                        val index = ((rootPos.x - bounds.left) / (bounds.width / slotCycle.size)).toInt()
+                                                        if (rootPos.x in bounds.left..bounds.right && index in slotCycle.indices) index else null
+                                                    } else null
                                                 },
                                                 onDragEnd = {
-                                                    draggedScreen = null
-                                                    dragOffsetX = 0f
-                                                    walletViewModel.setTabOrder(localTabOrder.map { it.route })
+                                                    // Release on an option selects it; release elsewhere
+                                                    // keeps the menu open for a plain tap.
+                                                    slotMenuHighlight?.let { index ->
+                                                        slotCycle.getOrNull(index)?.let { showSlotRoute(it.route) }
+                                                        slotMenuVisible = false
+                                                    }
+                                                    slotMenuHighlight = null
                                                 },
                                                 onDragCancel = {
-                                                    draggedScreen = null
-                                                    dragOffsetX = 0f
+                                                    slotMenuVisible = false
+                                                    slotMenuHighlight = null
                                                 }
                                             )
                                         }
                                         .clickable {
+                                            if (slotMenuVisible && screen != Screen.Chats) {
+                                                slotMenuVisible = false
+                                                slotMenuHighlight = null
+                                            }
+                                            // "+ More" is not a destination: it opens Customize
+                                            // Menu directly and the selection never moves.
+                                            if (screen == Screen.More) {
+                                                navController.navigate("settings_menu")
+                                                return@clickable
+                                            }
+                                            // Chats slot with masked pages behind it: tapping while
+                                            // ON the slot advances the cycle (chats -> kaposts ->
+                                            // broadcasts -> chats); tapping from another tab returns
+                                            // to whichever page the slot last showed.
+                                            if (screen == Screen.Chats && slotCycle.size > 1) {
+                                                val onSlotNow = currentDestination?.route != null &&
+                                                    slotCycle.any { it.route == currentDestination.route }
+                                                if (onSlotNow) {
+                                                    val currentIndex = slotCycle.indexOfFirst { it.route == chatsSlotRoute }
+                                                        .coerceAtLeast(0)
+                                                    val next = slotCycle[(currentIndex + 1) % slotCycle.size]
+                                                    showSlotRoute(next.route)
+                                                } else {
+                                                    showSlotRoute(chatsSlotRoute)
+                                                }
+                                                return@clickable
+                                            }
                                             // Already there — let that screen know it was re-tapped (so it can
                                             // dismiss its own transient UI, e.g. a full-screen QR overlay) rather
                                             // than running the popBackStack/navigate logic below, which for a tab
@@ -330,14 +533,14 @@ fun MainShell(
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Icon(
-                                            imageVector = screen.icon,
-                                            contentDescription = screen.label,
+                                            imageVector = chatsSlotMorph?.icon ?: screen.icon,
+                                            contentDescription = chatsSlotMorph?.label ?: screen.label,
                                             tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = screen.label,
+                                            text = chatsSlotMorph?.label ?: screen.label,
                                             color = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
                                             // Longer labels ("Cold Storage") don't fit at 10sp once there are
                                             // enough tabs that each weight(1f) slot narrows below their natural
@@ -352,6 +555,7 @@ fun MainShell(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -379,7 +583,7 @@ fun MainShell(
             // pushed detail screen, not the instant tab-swap treatment below.
             composable(Screen.Settings.route) {
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                    SettingsScreen(navController, walletViewModel)
+                    SettingsScreen(navController, walletViewModel = walletViewModel)
                 }
             }
             // The four bottom-tab destinations get an instant swap, overriding the NavHost-level
@@ -395,6 +599,17 @@ fun MainShell(
             ) {
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                     ChatsScreen(navController, walletViewModel, chatViewModel = chatViewModel)
+                }
+            }
+            composable(
+                Screen.KaPosts.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    KaPostsScreen(navController)
                 }
             }
             composable(
@@ -697,6 +912,48 @@ fun MainShell(
                 )
             }
 
+            composable("settings_section/{sectionKey}") { backStackEntry ->
+                SettingsScreen(
+                    navController = navController,
+                    sectionKey = backStackEntry.arguments?.getString("sectionKey")
+                )
+            }
+
+            composable("help") {
+                @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+                HelpScreen(
+                    onBack = { navController.popBackStack() },
+                    onWelcomeGuide = { navController.navigate("welcome_guide") },
+                    onKnsGuide = { navController.navigate("create_kns_profile") }
+                )
+            }
+
+            composable("kaspa_apps") {
+                @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+                KaspaAppsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpen = { app ->
+                        navController.navigate(
+                            "in_app_browser?url=${java.net.URLEncoder.encode(app.url, "UTF-8")}&title=${java.net.URLEncoder.encode(app.name, "UTF-8")}"
+                        )
+                    }
+                )
+            }
+
+            composable(
+                "in_app_browser?url={url}&title={title}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("url") { defaultValue = "" },
+                    androidx.navigation.navArgument("title") { defaultValue = "" }
+                )
+            ) { backStackEntry ->
+                InAppBrowserScreen(
+                    url = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("url") ?: "", "UTF-8"),
+                    title = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("title") ?: "", "UTF-8"),
+                    onClose = { navController.popBackStack() }
+                )
+            }
+
             composable("settings_menu") {
                 MenuVisibilityScreen(navController = navController)
             }
@@ -755,10 +1012,15 @@ fun MainShell(
                 )
             }
 
-            composable("broadcasts") {
-                // Now a tab-like route (see onTabRoute above) with the floating bottom nav
-                // visible over it, same bottom-padding treatment as Chats/Settings/Profile so
-                // that overlay doesn't cover the last row of content.
+            composable(
+                "broadcasts",
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
+                // A dock/cycle page since 4.0 (see the Chats-slot cycle) with the floating
+                // bottom nav visible over it, same bottom-padding treatment as Chats/Profile.
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                     BroadcastListScreen(
                         navController = navController,

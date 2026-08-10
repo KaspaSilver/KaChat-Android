@@ -94,16 +94,14 @@ fun BroadcastListScreen(
     broadcastViewModel: BroadcastViewModel = hiltViewModel()
 ) {
     val channels by broadcastViewModel.joinedChannels.collectAsState()
-    val popularTabEnabled by broadcastViewModel.popularTabEnabled.collectAsState()
     val showKnsAvatarsEnabled by broadcastViewModel.showKnsAvatarsEnabled.collectAsState()
-    val hiddenSenderAddresses by broadcastViewModel.hiddenSenderAddresses.collectAsState()
+    val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
     val joinState by broadcastViewModel.joinChannelState.collectAsState()
     var showJoinDialog by remember { mutableStateOf(false) }
     var showBroadcastSettingsDialog by remember { mutableStateOf(false) }
     var channelInput by remember { mutableStateOf("") }
     var channelToLeave by remember { mutableStateOf<String?>(null) }
     var retentionSettingsChannelName by remember { mutableStateOf<String?>(null) }
-    val pagerState = rememberPagerState(pageCount = { if (popularTabEnabled) 2 else 1 })
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -114,9 +112,6 @@ fun BroadcastListScreen(
     }
 
     // Don't leave the user stuck on a tab that just got hidden.
-    LaunchedEffect(popularTabEnabled) {
-        if (!popularTabEnabled && pagerState.currentPage != 0) pagerState.scrollToPage(0)
-    }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -124,7 +119,7 @@ fun BroadcastListScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
-                    title = { Text(stringResource(R.string.broadcasts), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                    title = { Text(stringResource(R.string.broadcasts), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
@@ -144,33 +139,14 @@ fun BroadcastListScreen(
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
                 )
-                if (popularTabEnabled) {
-                    TabRow(
-                        selectedTabIndex = pagerState.currentPage,
-                        containerColor = LocalAppColors.current.background,
-                        contentColor = KaspaTeal
-                    ) {
-                        Tab(
-                            selected = pagerState.currentPage == 0,
-                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
-                            text = { Text(stringResource(R.string.channels), fontWeight = FontWeight.Bold) }
-                        )
-                        Tab(
-                            selected = pagerState.currentPage == 1,
-                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
-                            text = { Text(stringResource(R.string.popular), fontWeight = FontWeight.Bold) }
-                        )
-                    }
-                }
             }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-            if (page == 1 && popularTabEnabled) {
+            // 4.0 (matches iOS): ONE screen, no Channels/Popular tabs - the featured rooms are
+            // auto-joined (see BroadcastRepository.ensureFeaturedChannelsJoined), so the joined
+            // list below already shows everything. The old Popular page is dead code:
+            if (false) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -231,6 +207,10 @@ fun BroadcastListScreen(
                     contentPadding = PaddingValues(vertical = 16.dp)
                 ) {
                     items(channels, key = { it.channelName }) { channel ->
+                        // Featured rooms (4.0): indexer-backed with a FIXED 3-day retention -
+                        // no listen toggle (scanning follows the bell), no retention settings,
+                        // no leaving. The bell stays: it drives notifications.
+                        val isFeatured = channel.channelName in com.kachat.app.models.FeaturedBroadcastChannels.NAMES
                         Surface(
                             color = LocalAppColors.current.surface,
                             shape = RoundedCornerShape(16.dp),
@@ -245,7 +225,7 @@ fun BroadcastListScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("#${channel.channelName}", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                                 }
-                                IconButton(onClick = {
+                                if (!isFeatured) IconButton(onClick = {
                                     val newValue = !channel.alwaysListen
                                     broadcastViewModel.setAlwaysListen(channel.channelName, newValue)
                                     coroutineScope.launch {
@@ -283,21 +263,20 @@ fun BroadcastListScreen(
                                         tint = if (channel.notifyEnabled) KaspaTeal else Color.Gray
                                     )
                                 }
-                                IconButton(onClick = { retentionSettingsChannelName = channel.channelName }) {
+                                if (!isFeatured) IconButton(onClick = { retentionSettingsChannelName = channel.channelName }) {
                                     Icon(
                                         imageVector = Icons.Default.Settings,
                                         contentDescription = stringResource(R.string.message_retention_settings),
                                         tint = LocalAppColors.current.textSecondary
                                     )
                                 }
-                                TextButton(onClick = { channelToLeave = channel.channelName }) {
+                                if (!isFeatured) TextButton(onClick = { channelToLeave = channel.channelName }) {
                                     Text(stringResource(R.string.leave), color = LocalAppColors.current.textSecondary)
                                 }
                             }
                         }
                     }
                 }
-            }
             }
         }
     }
@@ -501,27 +480,6 @@ fun BroadcastListScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(stringResource(R.string.popular_tab), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                stringResource(R.string.shows_a_tab_of_recommended_broadcast),
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                        Switch(
-                            checked = popularTabEnabled,
-                            onCheckedChange = { broadcastViewModel.setPopularTabEnabled(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f))
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(stringResource(R.string.kns_profile_pictures), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(2.dp))
                             Text(
@@ -541,7 +499,7 @@ fun BroadcastListScreen(
                     SettingsNavigationItem(
                         stringResource(R.string.hidden_broadcast_room_users),
                         Icons.Default.VisibilityOff,
-                        hiddenSenderAddresses.size.toString(),
+                        hiddenSenders.size.toString(),
                         onClick = {
                             showBroadcastSettingsDialog = false
                             navController.navigate("hidden_broadcast_users")
@@ -653,11 +611,21 @@ fun BroadcastChannelScreen(
     }
 
     // Live messages appear while this screen is open even if this channel isn't marked
-    // always-listen — bounded to exactly as long as this composable is on screen.
+    // always-listen — bounded to exactly as long as this composable is on screen. Featured
+    // rooms additionally backfill from the broadcast indexer (once + every 8s) so history
+    // sent while the app was closed shows up too.
     DisposableEffect(channelName) {
         broadcastViewModel.startLiveViewing(channelName)
-        onDispose { broadcastViewModel.stopLiveViewing() }
+        broadcastViewModel.startIndexerBackfill(channelName)
+        onDispose {
+            broadcastViewModel.stopLiveViewing()
+            broadcastViewModel.stopIndexerBackfill()
+        }
     }
+    val isFeaturedRoom = channelName in com.kachat.app.models.FeaturedBroadcastChannels.NAMES
+    val roomDotColorHex by androidx.hilt.navigation.compose.hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
+    var showRoomHiddenUsers by remember { mutableStateOf(false) }
+    val roomHiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
 
     LaunchedEffect(myAddress) {
         myAddress?.let { broadcastViewModel.ensureSenderProfileFetched(it) }
@@ -667,10 +635,28 @@ fun BroadcastChannelScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Same green connection dot as the Chats header (matches iOS).
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(Color(roomDotColorHex))
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    // Per-room hidden users (4.0, matches iOS): manage who's hidden in THIS room.
+                    IconButton(onClick = { showRoomHiddenUsers = true }) {
+                        Icon(Icons.Default.VisibilityOff, contentDescription = "Hidden users", tint = LocalAppColors.current.textSecondary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -825,10 +811,24 @@ fun BroadcastChannelScreen(
             }
         }
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Featured rooms: permanent notice - these two rooms are indexed server-side and their
+        // history is served to everyone, so the privacy story must stay visible (matches iOS).
+        if (isFeaturedRoom) {
+            Text(
+                stringResource(R.string.broadcast_featured_room_banner),
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 12.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(LocalAppColors.current.surface)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
@@ -928,7 +928,8 @@ fun BroadcastChannelScreen(
                                         }
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.VisibilityOff, stringResource(R.string.hide_user), labelColor = Color(0xFFFF3B30), iconTint = Color(0xFFFF3B30)) {
-                                            broadcastViewModel.hideSender(message.senderAddress)
+                                            // Per-room since 4.0: hides this sender in THIS room only.
+                                            broadcastViewModel.hideSender(message.senderAddress, channelName)
                                             showAvatarMenu = false
                                         }
                                     }
@@ -1168,6 +1169,49 @@ fun BroadcastChannelScreen(
         }
     }
 
+    if (showRoomHiddenUsers) {
+        AlertDialog(
+            onDismissRequest = { showRoomHiddenUsers = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Hidden in #$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                val rows = roomHiddenSenders.filter { it.channelName.isEmpty() || it.channelName == channelName }
+                if (rows.isEmpty()) {
+                    Text(
+                        "No hidden users in this room. Hide someone from their avatar menu.",
+                        color = LocalAppColors.current.textSecondary
+                    )
+                } else {
+                    Column {
+                        rows.forEach { row ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                            ) {
+                                Text(
+                                    contactAliases[row.senderAddress] ?: senderKnsNames[row.senderAddress] ?: row.senderAddress.takeLast(10),
+                                    color = LocalAppColors.current.textPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(onClick = { broadcastViewModel.unhideSender(row.senderAddress, channelName) }) {
+                                    Text(stringResource(R.string.unhide), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRoomHiddenUsers = false }) {
+                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     if (showFeeEditor) {
         AlertDialog(
             onDismissRequest = { showFeeEditor = false },
@@ -1229,6 +1273,7 @@ fun BroadcastChannelScreen(
             }
         )
     }
+    }
 }
 
 /** Manages senders hidden from every broadcast room (set via "Hide User" on an avatar) — reachable from the main Settings tab, underneath Archived Chats. */
@@ -1238,7 +1283,7 @@ fun HiddenBroadcastUsersScreen(
     onBack: () -> Unit,
     broadcastViewModel: BroadcastViewModel = hiltViewModel()
 ) {
-    val hiddenSenderAddresses by broadcastViewModel.hiddenSenderAddresses.collectAsState()
+    val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
     val contactAliases by broadcastViewModel.contactAliases.collectAsState()
     val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
 
@@ -1246,8 +1291,8 @@ fun HiddenBroadcastUsersScreen(
     // user's name here should read the same as it would if they weren't hidden. KNS names aren't
     // fetched anywhere else for these addresses (no message list is rendering them once hidden),
     // so this screen has to kick that lookup off itself.
-    LaunchedEffect(hiddenSenderAddresses) {
-        hiddenSenderAddresses.forEach { broadcastViewModel.ensureSenderProfileFetched(it) }
+    LaunchedEffect(hiddenSenders) {
+        hiddenSenders.forEach { broadcastViewModel.ensureSenderProfileFetched(it.senderAddress) }
     }
 
     Scaffold(
@@ -1264,7 +1309,7 @@ fun HiddenBroadcastUsersScreen(
             )
         }
     ) { padding ->
-        if (hiddenSenderAddresses.isEmpty()) {
+        if (hiddenSenders.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1290,7 +1335,8 @@ fun HiddenBroadcastUsersScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                items(hiddenSenderAddresses.toList(), key = { it }) { address ->
+                items(hiddenSenders, key = { "${it.senderAddress}|${it.channelName}" }) { row ->
+                    val address = row.senderAddress
                     Surface(
                         color = LocalAppColors.current.surface,
                         shape = RoundedCornerShape(16.dp),
@@ -1301,12 +1347,21 @@ fun HiddenBroadcastUsersScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
-                                color = LocalAppColors.current.textPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            TextButton(onClick = { broadcastViewModel.unhideSender(address) }) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
+                                    color = LocalAppColors.current.textPrimary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                // Per-room since 4.0 - "" rows are legacy every-room hides.
+                                Text(
+                                    if (row.channelName.isEmpty()) stringResource(R.string.hidden_in_all_rooms)
+                                    else "#${row.channelName}",
+                                    color = LocalAppColors.current.textSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            TextButton(onClick = { broadcastViewModel.unhideSender(address, row.channelName) }) {
                                 Text(stringResource(R.string.unhide), color = KaspaTeal, fontWeight = FontWeight.Bold)
                             }
                         }

@@ -99,7 +99,7 @@ fun GiftClaimProfileSection(walletAddress: String?) {
     LaunchedEffect(state) { if (state !is GiftClaimState.AlreadyClaimed) resetTaps = 0 }
     val claimable = state is GiftClaimState.Eligible
 
-    SettingsSection(title = "Kaspa Gift") {
+    SettingsSection(title = null) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

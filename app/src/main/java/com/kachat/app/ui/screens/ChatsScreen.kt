@@ -13,6 +13,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RssFeed
@@ -210,6 +211,13 @@ fun ChatsScreen(
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    Text(
+                        stringResource(R.string.chats),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
                     TopStatusBar(
                         balance = balance,
                         onStatusClick = { navController.navigate("connection_status") },
@@ -425,12 +433,6 @@ fun ChatsScreen(
         ) {
             if (conversations.isEmpty()) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Shown here too (not just in the real conversation list below) so a
-                    // brand-new account with zero 1:1 chats doesn't lose access to Broadcasts
-                    // until their first conversation exists.
-                    if ("broadcasts" !in hiddenTabs) {
-                        BroadcastsEntryRow(onClick = { navController.navigate("broadcasts") })
-                    }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
@@ -508,17 +510,13 @@ fun ChatsScreen(
                 var contactToDelete by remember { mutableStateOf<String?>(null) }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // Restored to its original placement: a row inside the Chats list itself (so
-                    // it reads as "just another chat"), not a standalone element above the tabs -
-                    // only shown while not searching, matching iOS.
-                    if ("broadcasts" !in hiddenTabs && searchQuery.isBlank()) {
-                        item {
-                            BroadcastsEntryRow(onClick = { navController.navigate("broadcasts") })
-                        }
-                    }
+                    // 4.0: the Broadcasts entry card is gone - Broadcasts is a dock tab now,
+                    // riding the Chats-slot cycle when the dock is full (matches iOS).
                     items(filteredConversations, key = { it.contact.id }) { convo ->
                         SwipeActionRow(
-                            enabled = !isSelectionMode,
+                            // 4.0 (matches iOS): row swipes are gone - horizontal swipes page
+                            // between Chats and Groups; delete/read live in Select mode.
+                            enabled = false,
                             leadingIcon = if (convo.unreadCount > 0) Icons.Default.MarkEmailRead else Icons.Default.MarkEmailUnread,
                             leadingLabel = if (convo.unreadCount > 0) "Read" else "Unread",
                             leadingColor = KaspaTeal,
@@ -689,53 +687,6 @@ private fun TabBadge(count: Int, content: @Composable () -> Unit) {
     }
 }
 
-/** The "Broadcasts" row inside the Chats list - shown both in the real conversation list and the empty state, so it's reachable regardless of whether the user has any 1:1 chats yet. */
-@Composable
-private fun BroadcastsEntryRow(onClick: () -> Unit) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(LocalAppColors.current.surface),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.RssFeed,
-                    contentDescription = null,
-                    tint = KaspaTeal,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = stringResource(R.string.broadcasts),
-                style = MaterialTheme.typography.titleMedium,
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = LocalAppColors.current.textSecondary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 72.dp),
-            color = Color.DarkGray.copy(alpha = 0.5f)
-        )
-    }
-}
-
 /**
  * Group Chats tab content embedded in `ChatsScreen`'s pager - list of joined groups with their
  * latest message, matching the 1:1 Chats page's row/footer/empty-state shape. Owns its own
@@ -813,7 +764,8 @@ fun GroupListBody(
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(groupConversations, key = { it.group.groupId }) { convo ->
                 SwipeActionRow(
-                    enabled = !isSelectionMode,
+                    // 4.0 (matches iOS): row swipes are gone - see the 1:1 list above.
+                    enabled = false,
                     leadingIcon = if (convo.unreadCount > 0) Icons.Default.MarkEmailRead else Icons.Default.MarkEmailUnread,
                     leadingLabel = if (convo.unreadCount > 0) "Read" else "Unread",
                     leadingColor = KaspaTeal,
@@ -1225,10 +1177,12 @@ fun ContactAvatar(
 
 @Composable
 private fun AvatarInitials(text: String, fontSize: TextUnit) {
-    Text(
-        text = text.take(2).uppercase(),
-        color = KaspaTeal,
-        fontWeight = FontWeight.Bold,
-        fontSize = fontSize
+    // 4.0 (matches iOS): no photo shows a person glyph, not initials - initials read like
+    // random letters for KNS-less addresses and looked inconsistent next to real avatars.
+    Icon(
+        imageVector = Icons.Outlined.Person,
+        contentDescription = null,
+        tint = KaspaTeal,
+        modifier = Modifier.fillMaxSize(0.55f)
     )
 }
