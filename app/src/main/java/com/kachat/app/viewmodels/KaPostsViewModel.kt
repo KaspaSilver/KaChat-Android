@@ -15,6 +15,7 @@ import com.kachat.app.services.KnsService
 import com.kachat.app.services.WalletManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -662,10 +663,16 @@ class KaPostsViewModel @Inject constructor(
                         _myFollowersCount.value = details.followersCount
                     }
                 }
-                val fetched = kaPostsService.fetchUserPosts(pubkey, includeReplies = true)
-                val mapped = fetched.mapNotNull { mapRemotePost(it) }
-                _myProfilePosts.value = mapped.filter { it.parentRemoteId == null }
-                _myProfileReplies.value = mapped.filter { it.parentRemoteId != null }
+                // Replies come from get-replies?user= - the indexer's get-posts never returns them.
+                val postsDeferred = async { kaPostsService.fetchUserPosts(pubkey) }
+                val repliesDeferred = async {
+                    try { kaPostsService.fetchUserReplies(pubkey) } catch (e: Exception) {
+                        Log.w(TAG, "My profile replies fetch failed", e); emptyList()
+                    }
+                }
+                _myProfilePosts.value = postsDeferred.await().mapNotNull { mapRemotePost(it) }
+                    .filter { it.parentRemoteId == null }
+                _myProfileReplies.value = repliesDeferred.await().mapNotNull { mapRemotePost(it) }
             } catch (e: Exception) {
                 Log.w(TAG, "My profile load failed", e)
             } finally {
@@ -701,10 +708,16 @@ class KaPostsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val details = try { kaPostsService.fetchUserDetails(pubkey) } catch (_: Exception) { null }
-                val fetched = kaPostsService.fetchUserPosts(pubkey, includeReplies = true)
-                val mapped = fetched.mapNotNull { mapRemotePost(it) }
-                _posterProfilePosts.value = mapped.filter { it.parentRemoteId == null }
-                _posterProfileReplies.value = mapped.filter { it.parentRemoteId != null }
+                // Replies come from get-replies?user= - the indexer's get-posts never returns them.
+                val postsDeferred = async { kaPostsService.fetchUserPosts(pubkey) }
+                val repliesDeferred = async {
+                    try { kaPostsService.fetchUserReplies(pubkey) } catch (e: Exception) {
+                        Log.w(TAG, "Poster profile replies fetch failed", e); emptyList()
+                    }
+                }
+                _posterProfilePosts.value = postsDeferred.await().mapNotNull { mapRemotePost(it) }
+                    .filter { it.parentRemoteId == null }
+                _posterProfileReplies.value = repliesDeferred.await().mapNotNull { mapRemotePost(it) }
                 _posterProfile.value = _posterProfile.value?.copy(
                     followersCount = details?.followersCount,
                     followingCount = details?.followingCount,
@@ -928,9 +941,16 @@ class KaPostsViewModel @Inject constructor(
         findPostByRemoteId(txId)?.let { return it }
         try {
             val pubkey = kaPostsService.requesterPubkey()
-            val mapped = kaPostsService.fetchUserPosts(pubkey, includeReplies = true).mapNotNull { mapRemotePost(it) }
-            _myProfilePosts.value = mapped.filter { it.parentRemoteId == null }
-            _myProfileReplies.value = mapped.filter { it.parentRemoteId != null }
+            // Replies come from get-replies?user= - the indexer's get-posts never returns them.
+            _myProfilePosts.value = kaPostsService.fetchUserPosts(pubkey)
+                .mapNotNull { mapRemotePost(it) }
+                .filter { it.parentRemoteId == null }
+            _myProfileReplies.value = try {
+                kaPostsService.fetchUserReplies(pubkey).mapNotNull { mapRemotePost(it) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Shared-post replies fetch failed", e)
+                _myProfileReplies.value
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Shared-post own-content fetch failed", e)
         }

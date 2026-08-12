@@ -133,6 +133,15 @@ interface KaPostApi {
         @Query("before") before: String? = null,
     ): KRepliesResponse
 
+    /** get-replies dual mode: `user` instead of `post` returns all replies MADE BY that user. */
+    @GET("get-replies")
+    suspend fun getUserReplies(
+        @Query("user") user: String,
+        @Query("requesterPubkey") requesterPubkey: String,
+        @Query("limit") limit: Int = 50,
+        @Query("before") before: String? = null,
+    ): KRepliesResponse
+
     @GET("get-notifications")
     suspend fun getNotifications(
         @Query("requesterPubkey") requesterPubkey: String,
@@ -251,12 +260,21 @@ class KaPostsService @Inject constructor(
                 .filter { (it.contentType ?: "post") != "reply" }
         }
 
-    /** One user's posts (by K pubkey); includeReplies also returns their replies with parentPostId set. */
+    /** One user's posts (by K pubkey). NOTE: the deployed indexer ignores includeReplies
+     *  (get-posts serves content_type post/quote only) - use fetchUserReplies for replies. */
     suspend fun fetchUserPosts(pubkey: String, limit: Int = 50, before: String? = null, includeReplies: Boolean = false): List<KPost> =
         rethrowingApiError {
             filterKaChat(
                 api().getUserPosts(pubkey, requesterPubkey(), limit, if (includeReplies) "true" else null, before).posts.orEmpty()
             )
+        }
+
+    /** One user's replies across ALL threads: get-replies with `user` instead of `post`
+     *  (verified live + against the fork's handle_get_replies). Items carry parentPostId.
+     *  The profile Replies tab must read this - get-posts never returns replies. */
+    suspend fun fetchUserReplies(pubkey: String, limit: Int = 50, before: String? = null): List<KPost> =
+        rethrowingApiError {
+            filterKaChat(api().getUserReplies(pubkey, requesterPubkey(), limit, before).replies.orEmpty())
         }
 
     suspend fun fetchReplies(postId: String, limit: Int = 100, before: String? = null): List<KPost> =
