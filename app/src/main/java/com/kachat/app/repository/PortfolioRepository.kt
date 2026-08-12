@@ -3,6 +3,7 @@ package com.kachat.app.repository
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.google.gson.Gson
 import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.services.CoinGeckoApi
 import com.kachat.app.services.ColdStorageAddressDiscovery
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import retrofit2.HttpException
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -143,15 +145,77 @@ class PortfolioRepository @Inject constructor(
         }
     }
 
-    /** (timestampMillis, price) pairs in [currency], oldest first — empty on failure rather than throwing. */
+    /**
+     * (timestampMillis, price) pairs in [currency], oldest first — empty on failure rather than
+     * throwing, so callers must not blindly overwrite existing cached history with an empty
+     * result (see [com.kachat.app.viewmodels.PortfolioViewModel]'s fetchPriceHistory).
+     *
+     * CoinGecko's keyless tier throttles bursts hard (429 for a stretch after just a few rapid
+     * calls) — a launch plus a couple of chart-range taps was enough to make every subsequent
+     * range fetch come back empty, leaving the chart stuck on whatever range loaded first. A
+     * 429/5xx here gets one retry, honoring the response's Retry-After (capped at 10s).
+     */
     suspend fun getPriceHistory(days: Int = 30, currency: String = "usd"): List<Pair<Long, Double>> {
-        return try {
-            coinGeckoApi.getMarketChart(vsCurrency = currency, days = days).prices.mapNotNull { point ->
-                if (point.size < 2) null else point[0].toLong() to point[1]
+        repeat(2) { attempt ->
+            try {
+                return coinGeckoApi.getMarketChart(vsCurrency = currency, days = days).prices.mapNotNull { point ->
+                    if (point.size < 2) null else point[0].toLong() to point[1]
+                }
+            } catch (e: HttpException) {
+                if (attempt > 0 || (e.code() != 429 && e.code() < 500)) return emptyList()
+                val retryAfterSeconds = e.response()?.headers()?.get("Retry-After")?.toDoubleOrNull() ?: 2.0
+                delay((minOf(retryAfterSeconds, 10.0) * 1000).toLong())
+            } catch (e: Exception) {
+                // Includes coroutine cancellation mid-request — bail out quietly, same
+                // "degrade gracefully" contract as getCurrentPriceUsd.
+                return emptyList()
             }
-        } catch (e: Exception) {
-            emptyList()
         }
+        return emptyList()
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistent price-history cache (10-minute TTL)
+    // -------------------------------------------------------------------------
+    //
+    // CoinGecko's keyless tier throttles bursts aggressively — a cold launch already costs a few
+    // calls, so cycling chart ranges could exhaust the limit and leave every new range's fetch
+    // returning empty, with the chart stuck showing the first range's ~1-day curve no matter
+    // which range was selected. Persisting each (currency, days) history for 10 minutes makes
+    // range cycling free after the first fetch (and across relaunches), and on a failed fetch the
+    // stale copy for the *requested* range still beats showing the wrong range. Storage is a
+    // SharedPreferences JSON payload per (currency, days) key, same prefs+Gson pattern as
+    // GiftManager; the freshness policy (TTL check, stale fallback) lives with the caller —
+    // see PortfolioViewModel's fetchPriceHistory.
+
+    /** Gson payload persisted per (currency, days) — [t] = timestampMillis, [p] = price, kept short since a 365-day history is thousands of points. */
+    private data class StoredPricePoint(val t: Long, val p: Double)
+    private data class StoredPriceHistory(val fetchedAt: Long, val points: List<StoredPricePoint>)
+
+    /** A previously fetched history plus when it was fetched, so callers can apply their own freshness policy (see [PRICE_HISTORY_CACHE_TTL_MILLIS]). */
+    data class PersistedPriceHistory(val fetchedAtMillis: Long, val points: List<Pair<Long, Double>>)
+
+    private val priceHistoryPrefs = context.getSharedPreferences(PRICE_HISTORY_PREFS_NAME, Context.MODE_PRIVATE)
+    private val gson = Gson()
+
+    private fun priceHistoryCacheKey(days: Int, currency: String) = "kachat_price_history_${currency}_$days"
+
+    /** Null when nothing was ever persisted for this (currency, days) — or the payload is corrupt/empty, which callers treat the same way. */
+    fun readPersistedPriceHistory(days: Int, currency: String): PersistedPriceHistory? {
+        val json = priceHistoryPrefs.getString(priceHistoryCacheKey(days, currency), null) ?: return null
+        return try {
+            val stored = gson.fromJson(json, StoredPriceHistory::class.java) ?: return null
+            if (stored.points.isNullOrEmpty()) return null
+            PersistedPriceHistory(stored.fetchedAt, stored.points.map { it.t to it.p })
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun persistPriceHistory(points: List<Pair<Long, Double>>, days: Int, currency: String) {
+        if (points.isEmpty()) return
+        val stored = StoredPriceHistory(System.currentTimeMillis(), points.map { StoredPricePoint(it.first, it.second) })
+        priceHistoryPrefs.edit().putString(priceHistoryCacheKey(days, currency), gson.toJson(stored)).apply()
     }
 
     private val historyDateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.US).apply {
@@ -462,6 +526,13 @@ class PortfolioRepository @Inject constructor(
         }
         fields.add(current.toString())
         return fields
+    }
+
+    companion object {
+        private const val PRICE_HISTORY_PREFS_NAME = "kachat_price_history_cache"
+
+        /** How long a persisted (currency, days) history counts as fresh — long enough to make range cycling and relaunches free, short enough that the chart never looks meaningfully out of date. */
+        const val PRICE_HISTORY_CACHE_TTL_MILLIS = 10 * 60 * 1000L
     }
 }
 

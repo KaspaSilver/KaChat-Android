@@ -12,6 +12,7 @@ import com.kachat.app.repository.PortfolioRepository
 import com.kachat.app.services.PortfolioManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -112,11 +113,14 @@ class PortfolioViewModel @Inject constructor(
 
     private var priceHistoryJob: Job? = null
 
-    // Per-range (days -> history) cache. Re-selecting an already-fetched range applies instantly
-    // with no network call — both nicer UX and, more importantly, far less likely to hit
-    // CoinGecko's public-API rate limit (429) than re-fetching on every single tap of the range
-    // cycle. Cleared on refreshPrice() (an explicit "get me current data" action) since a genuine
-    // refresh should bypass stale cached history, not just the current range's live price.
+    // Per-range (days -> history) session cache. Re-selecting an already-fetched range applies
+    // instantly with no network call — both nicer UX and, more importantly, far less likely to
+    // hit CoinGecko's public-API rate limit (429) than re-fetching on every single tap of the
+    // range cycle. Backed by a second, persistent layer surviving relaunches (see
+    // [PortfolioRepository.readPersistedPriceHistory] and fetchPriceHistory below for the
+    // session -> persisted -> network lookup order). Cleared on refreshPrice() (an explicit "get
+    // me current data" action) since a genuine refresh should bypass stale cached history, not
+    // just the current range's live price.
     //
     // Declared before the init block below, which calls refreshPrice() -> this map, on purpose:
     // Kotlin runs property initializers and init blocks in textual declaration order, so this had
@@ -174,7 +178,7 @@ class PortfolioViewModel @Inject constructor(
             }
         }
         priceHistoryCache.clear()
-        fetchPriceHistory(_priceRangeDays.value)
+        fetchPriceHistory(_priceRangeDays.value, force = true)
         fetchSevenDayPriceHistoryForCards()
         val historyJob = priceHistoryJob
         viewModelScope.launch {
@@ -185,12 +189,27 @@ class PortfolioViewModel @Inject constructor(
         }
     }
 
-    /** Fetches (or refetches, on a currency change) the fixed 7-day window [_sevenDayPriceHistory] relies on — independent of whatever range the visible chart is currently toggled to. */
+    /**
+     * Fetches (or refetches, on a currency change) the fixed 7-day window [_sevenDayPriceHistory]
+     * relies on — independent of whatever range the visible chart is currently toggled to.
+     * Served from the persisted 10-minute cache when fresh enough (the cards tolerate slight
+     * staleness), and otherwise staggered 1.5s behind the main chart's fetch — this call landing
+     * in the same instant as the price + chart fetches was part of the launch burst that tripped
+     * CoinGecko's keyless-tier throttle (see [PortfolioRepository.getPriceHistory]).
+     */
     private fun fetchSevenDayPriceHistoryForCards() {
         val currencyCode = currency.value
+        repository.readPersistedPriceHistory(7, currencyCode)?.let { persisted ->
+            if (System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
+                _sevenDayPriceHistory.value = persisted.points
+                return
+            }
+        }
         viewModelScope.launch {
+            delay(1_500)
             val result = repository.getPriceHistory(7, currencyCode)
             if (result.isNotEmpty()) {
+                repository.persistPriceHistory(result, 7, currencyCode)
                 _sevenDayPriceHistory.value = result
             }
         }
@@ -204,28 +223,52 @@ class PortfolioViewModel @Inject constructor(
     }
 
     /**
-     * Serves [days] from [priceHistoryCache] if already fetched this session; otherwise fetches
-     * it, cancelling any still-in-flight fetch first (rapidly tapping the range cycle otherwise
-     * fires overlapping requests — see [priceHistoryCache]'s doc comment for why that's a real
-     * problem, not just wasteful).
+     * Serves [days] from [priceHistoryCache] if already fetched this session, then from the
+     * persisted 10-minute cache (surviving relaunches — see
+     * [PortfolioRepository.readPersistedPriceHistory]), before hitting the network — cancelling
+     * any still-in-flight fetch first (rapidly tapping the range cycle otherwise fires
+     * overlapping requests — see [priceHistoryCache]'s doc comment for why that's a real problem,
+     * not just wasteful). [force] (explicit refresh, see [refreshPrice]) skips both caches.
      *
-     * On failure, [_priceHistory] is deliberately left alone rather than overwritten with the
-     * empty list [PortfolioRepository.getPriceHistory] returns on any error, and nothing is
-     * cached — a failed/rate-limited fetch was previously either wiping out the whole chart card
-     * (it only renders when `priceHistory.size >= 2`) or, after that first fix, getting stuck
-     * silently showing a stale range forever with no way to recover since nothing was ever cached
-     * to notice the mismatch — both confirmed via on-device repro. Now a failed fetch is simply
-     * retried the next time this range is selected, since it's still uncached.
+     * An empty network result gets one paced retry (on top of the Retry-After-honoring retry
+     * inside [PortfolioRepository.getPriceHistory] itself), then falls back to the persisted copy
+     * for this range even if stale — a rate-limited fetch was previously either wiping out the
+     * whole chart card (it only renders when `priceHistory.size >= 2`) or getting stuck silently
+     * showing a stale *range* forever (every range's fetch coming back empty left the first
+     * loaded range's ~1-day curve on screen no matter which range was selected) — both confirmed
+     * via on-device repro; a stale curve for the *requested* range beats either. Only if there's
+     * nothing at all is [_priceHistory] left alone, preserving whatever chart is on screen
+     * instead of blanking it, and the range simply retried on its next selection since nothing
+     * was cached.
      */
-    private fun fetchPriceHistory(days: Int) {
-        priceHistoryCache[days]?.let { cached ->
-            _priceHistory.value = cached
-            return
+    private fun fetchPriceHistory(days: Int, force: Boolean = false) {
+        val currencyCode = currency.value
+        if (!force) {
+            priceHistoryCache[days]?.let { cached ->
+                _priceHistory.value = cached
+                return
+            }
+            repository.readPersistedPriceHistory(days, currencyCode)?.let { persisted ->
+                if (System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
+                    priceHistoryCache[days] = persisted.points
+                    _priceHistory.value = persisted.points
+                    return
+                }
+            }
         }
         priceHistoryJob?.cancel()
-        val currencyCode = currency.value
         priceHistoryJob = viewModelScope.launch {
-            val result = repository.getPriceHistory(days, currencyCode)
+            var result = repository.getPriceHistory(days, currencyCode)
+            if (result.isEmpty()) {
+                // One paced retry — the keyless tier's throttle window usually clears quickly.
+                delay(3_000)
+                result = repository.getPriceHistory(days, currencyCode)
+            }
+            if (result.isNotEmpty()) {
+                repository.persistPriceHistory(result, days, currencyCode)
+            } else {
+                result = repository.readPersistedPriceHistory(days, currencyCode)?.points ?: emptyList()
+            }
             if (result.isNotEmpty()) {
                 priceHistoryCache[days] = result
                 _priceHistory.value = result
