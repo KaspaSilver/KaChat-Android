@@ -138,7 +138,7 @@ class AppSettingsRepository @Inject constructor(
         val KEY_TAB_ORDER = stringPreferencesKey("tab_order")
         // Kept in sync with KaChatApp.kt's bottomNavItems default order. "settings" is deliberately
         // absent - it isn't a tab (matches iOS), it's reached one tap in from Profile's gear icon.
-        val DEFAULT_TAB_ORDER = listOf("portfolio", "cold_storage", "chats", "swap", "profile")
+        val DEFAULT_TAB_ORDER = listOf("portfolio", "cold_storage", "chats", "swap", "profile", "kaposts", "broadcasts")
         // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >
         // Menu) — "chats"/"profile" are never allowed in here, only "portfolio"/"cold_storage"/
         // "swap". A route absent from this set is visible.
@@ -458,13 +458,13 @@ class AppSettingsRepository @Inject constructor(
     }
 
     /**
-     * One-time 4.0 dock seeding, run at app start (WalletViewModel init). New tabs default to
-     * VISIBLE here (hidden_tabs polarity + resolveTabOrder auto-append), which is wrong for both
-     * audiences, so:
-     * - EXISTING users (has_wallet set): hide the new "kaposts" and "more" items so their dock is
-     *   unchanged by the update - both stay available in Settings > Customization > Menu.
-     * - FRESH installs (no wallet yet): seed the minimal 4.0 dock - Chats, Profile and "+ More"
-     *   only (portfolio/storage/swap/kaposts hidden until toggled on via More).
+     * One-time 4.0 dock seeding, run at app start (WalletViewModel init).
+     * - EXISTING users (has_wallet set): force-enable the tabs new in 4.0 ("kaposts"/
+     *   "broadcasts") but otherwise leave their explicit hide/show choices untouched.
+     * - FRESH installs (no wallet yet): EVERYTHING enabled - all tabs default to ON (the old
+     *   minimal Chats/Profile/"+ More" seed is gone; hidden_tabs polarity means "leave the set
+     *   empty" = all on). The 5-item dock cap then shows Portfolio/Storage/Chats/Swap/Profile,
+     *   with KaPosts/Broadcasts riding the Chats-slot cycle (matches iOS).
      * The sentinel guarantees this never re-runs, so later user choices are never overwritten.
      */
     suspend fun applyKaPostsTabDefaultsIfNeeded() = dataStore.edit { prefs ->
@@ -472,14 +472,14 @@ class AppSettingsRepository @Inject constructor(
         val hasWallet = prefs[KEY_HAS_WALLET] ?: false
         val current = prefs[KEY_HIDDEN_TABS] ?: emptySet()
         prefs[KEY_HIDDEN_TABS] = if (hasWallet) {
-            // EXISTING users: KaPosts, Broadcasts and "+More" all ENABLED. The dock cap does
-            // the rest: a full 5-tab dock is unchanged (KaPosts/Broadcasts ride the Chats
-            // cycle, "+More" falls off the tail); a dock with a free slot gets "+More" in it.
+            // EXISTING users: the 4.0-new tabs get ENABLED; anything the user explicitly hid
+            // before (portfolio/cold_storage/swap) stays hidden. "more" is scrubbed too - the
+            // "+ More" pseudo-tab no longer exists.
             current - "kaposts" - "broadcasts" - "more"
         } else {
-            // BRAND-NEW installs: Chats, Profile and "+More" only - everything else (including
-            // KaPosts/Broadcasts) stays off until toggled on through Customize Menu.
-            current + setOf("portfolio", "cold_storage", "swap", "kaposts", "broadcasts")
+            // BRAND-NEW installs: all tabs ON. Scrub every known route so no stale v1/v2
+            // seeding survives - an empty set means everything visible.
+            current - "portfolio" - "cold_storage" - "swap" - "kaposts" - "broadcasts" - "more"
         }
         prefs[KEY_TAB_DEFAULTS_40_V3_APPLIED] = true
         prefs[KEY_TAB_DEFAULTS_40_APPLIED] = true

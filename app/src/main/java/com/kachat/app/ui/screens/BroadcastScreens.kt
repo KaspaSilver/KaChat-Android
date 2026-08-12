@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -54,6 +56,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -63,8 +66,12 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -80,6 +87,7 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.ChatTimeFormat
 import com.kachat.app.util.MessageReply
+import com.kachat.app.util.TextLinkify
 import com.kachat.app.util.VoiceMessage
 import com.kachat.app.viewmodels.BroadcastViewModel
 import com.kachat.app.viewmodels.WalletViewModel
@@ -126,15 +134,10 @@ fun BroadcastListScreen(
                         }
                     },
                     actions = {
+                        // Matches iOS BroadcastListView's toolbar: gear only — the join/create
+                        // "+" lives on the "Your Channels" section header row below instead.
                         IconButton(onClick = { showBroadcastSettingsDialog = true }) {
                             Icon(Icons.Default.Settings, "Broadcast Settings", tint = KaspaTeal)
-                        }
-                        IconButton(onClick = {
-                            channelInput = ""
-                            broadcastViewModel.resetJoinChannelState()
-                            showJoinDialog = true
-                        }) {
-                            Icon(Icons.Default.Add, "Join Channel", tint = KaspaTeal)
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -143,74 +146,107 @@ fun BroadcastListScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // 4.0 (matches iOS): ONE screen, no Channels/Popular tabs - the featured rooms are
-            // auto-joined (see BroadcastRepository.ensureFeaturedChannelsJoined), so the joined
-            // list below already shows everything. The old Popular page is dead code:
-            if (false) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp)
-                ) {
-                    items(FeaturedBroadcastChannels.NAMES, key = { it }) { name ->
-                        val alreadyJoined = channels.any { it.channelName == name }
-                        Surface(
-                            color = LocalAppColors.current.surface,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (!alreadyJoined) broadcastViewModel.joinChannel(name)
-                                }
+            // 4.0 (matches iOS BroadcastListView.combinedList): ONE page, no tabs, two sections —
+            // the curated Popular rooms pinned on top (permanent, auto-joined by the VM's init,
+            // bell-only), then everything the user joined under "Your Channels", whose header
+            // row carries the "+" join/create entry point. Item keys use ':' prefixes because
+            // a colon can never appear in a channel name (MessageProtocol.isValidChannelName),
+            // so a user-joined channel can't collide with a header/popular key.
+            val ownChannels = channels.filter { it.channelName !in com.kachat.app.models.FeaturedBroadcastChannels.NAMES }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                item(key = "header:popular") {
+                    Text(
+                        "Popular",
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+                items(FeaturedBroadcastChannels.NAMES, key = { "popular:$it" }) { name ->
+                    // Curated rooms are permanent (no Leave) with fixed 3-day retention (no
+                    // gear) and indexer-backed history (no listen toggle) — the bell is the
+                    // only control, same as iOS. They're auto-joined, so tapping always just
+                    // opens the room; the join call below only covers the brief first-launch
+                    // race before ensureFeaturedChannelsJoined has landed.
+                    val channel = channels.firstOrNull { it.channelName == name }
+                    Surface(
+                        color = LocalAppColors.current.surface,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (channel == null) broadcastViewModel.joinChannel(name)
+                                navController.navigate("broadcast_channel/$name")
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("#$name", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("#$name", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                            }
+                            if (channel != null) IconButton(onClick = {
+                                val newValue = !channel.notifyEnabled
+                                broadcastViewModel.setNotifyEnabled(channel.channelName, newValue)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (newValue) {
+                                            "You'll get a notification for new messages in this broadcast as long as your app remains open"
+                                        } else {
+                                            "Notifications are off for this broadcast"
+                                        }
+                                    )
                                 }
-                                Text(
-                                    if (alreadyJoined) "Joined" else "Join",
-                                    color = if (alreadyJoined) Color.Gray else KaspaTeal,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
+                            }) {
+                                Icon(
+                                    imageVector = if (channel.notifyEnabled) Icons.Default.Notifications else Icons.Default.NotificationsNone,
+                                    contentDescription = if (channel.notifyEnabled) "Turn off notifications" else "Turn on notifications",
+                                    tint = if (channel.notifyEnabled) KaspaTeal else Color.Gray
                                 )
                             }
                         }
                     }
                 }
-            } else if (channels.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        stringResource(R.string.no_broadcast_channels_yet),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(R.string.broadcasts_are_public_unencrypted_channels_anyone),
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
+                item(key = "header:own") {
+                    // iOS parity: the "+" sits on the same line as the section title and opens
+                    // the exact same join/create dialog the toolbar button used to.
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Your Channels",
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = {
+                            channelInput = ""
+                            broadcastViewModel.resetJoinChannelState()
+                            showJoinDialog = true
+                        }) {
+                            Icon(Icons.Default.AddCircle, "Join Channel", tint = KaspaTeal)
+                        }
+                    }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp)
-                ) {
-                    items(channels, key = { it.channelName }) { channel ->
-                        // Featured rooms (4.0): indexer-backed with a FIXED 3-day retention -
-                        // no listen toggle (scanning follows the bell), no retention settings,
-                        // no leaving. The bell stays: it drives notifications.
-                        val isFeatured = channel.channelName in com.kachat.app.models.FeaturedBroadcastChannels.NAMES
+                if (ownChannels.isEmpty()) {
+                    item(key = "own:empty") {
+                        Text(
+                            "No channels yet - tap + to join or create one.",
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                        )
+                    }
+                } else {
+                    items(ownChannels, key = { it.channelName }) { channel ->
                         Surface(
                             color = LocalAppColors.current.surface,
                             shape = RoundedCornerShape(16.dp),
@@ -225,7 +261,7 @@ fun BroadcastListScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("#${channel.channelName}", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                                 }
-                                if (!isFeatured) IconButton(onClick = {
+                                IconButton(onClick = {
                                     val newValue = !channel.alwaysListen
                                     broadcastViewModel.setAlwaysListen(channel.channelName, newValue)
                                     coroutineScope.launch {
@@ -263,14 +299,14 @@ fun BroadcastListScreen(
                                         tint = if (channel.notifyEnabled) KaspaTeal else Color.Gray
                                     )
                                 }
-                                if (!isFeatured) IconButton(onClick = { retentionSettingsChannelName = channel.channelName }) {
+                                IconButton(onClick = { retentionSettingsChannelName = channel.channelName }) {
                                     Icon(
                                         imageVector = Icons.Default.Settings,
                                         contentDescription = stringResource(R.string.message_retention_settings),
                                         tint = LocalAppColors.current.textSecondary
                                     )
                                 }
-                                if (!isFeatured) TextButton(onClick = { channelToLeave = channel.channelName }) {
+                                TextButton(onClick = { channelToLeave = channel.channelName }) {
                                     Text(stringResource(R.string.leave), color = LocalAppColors.current.textSecondary)
                                 }
                             }
@@ -528,7 +564,14 @@ fun BroadcastChannelScreen(
 ) {
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val messages by broadcastViewModel.getMessages(channelName).collectAsState(initial = emptyList())
+    // Reactions aggregated per message txId — same shape as GroupChatScreen's groupReactionsByTxId.
+    val channelReactions by broadcastViewModel.getReactions(channelName).collectAsState(initial = emptyList())
+    val reactionsByTxId = remember(channelReactions) { channelReactions.groupBy { it.targetTxId } }
+    val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
+    // Zero-balance funding gate — same behavior as the 1:1/group chat threads (confirmed 0 KAS
+    // only, on-entry refresh + 10s re-poll while gated); see GiftClaimUi.kt.
+    val fundingGate = rememberZeroBalanceFundingGate()
     val sendState by broadcastViewModel.sendBroadcastState.collectAsState()
     val voiceRecordingState by broadcastViewModel.voiceRecordingState.collectAsState()
     val messageText by broadcastViewModel.messageText.collectAsState()
@@ -663,7 +706,9 @@ fun BroadcastChannelScreen(
             )
         },
         bottomBar = {
-            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().imePadding().padding(8.dp)) {
+            // Composer dims and goes inert while the zero-balance funding gate is up — see
+            // Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().imePadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
                 if (sendState.status == BroadcastViewModel.SendBroadcastStatus.FAILED) {
                     Text(
                         sendState.message ?: "Failed to send",
@@ -873,7 +918,22 @@ fun BroadcastChannelScreen(
                     val replyContent = remember(message.content) { MessageReply.parseOrNull(message.content) }
                     val displayContent = replyContent?.text ?: message.content
                     val voiceContent = remember(displayContent) { VoiceMessage.parseOrNull(displayContent) }
+                    // Same lone-URL detection 1:1's MessageBubble uses: nothing but a link means
+                    // the preview card replaces the plain-text bubble entirely; a link mixed with
+                    // other text keeps the bubble and stacks the card below it (like groups).
+                    // Both checked only for content short enough to lay out inline — scanning a
+                    // huge wall of text for links is wasted work (see MessageBubble's same guard).
+                    val isEntirelyLinkMessage = remember(displayContent, voiceContent) {
+                        voiceContent == null && displayContent.length <= MESSAGE_TEXT_TRUNCATION_THRESHOLD && TextLinkify.isEntirelyLink(displayContent)
+                    }
+                    val separateLinkPreviewUrl = remember(displayContent, voiceContent, isEntirelyLinkMessage) {
+                        if (voiceContent == null && !isEntirelyLinkMessage && displayContent.length <= MESSAGE_TEXT_TRUNCATION_THRESHOLD) {
+                            TextLinkify.findUrls(displayContent).firstOrNull()?.uri
+                        } else null
+                    }
+                    val messageReactions = reactionsByTxId[message.id] ?: emptyList()
                     var showMenu by remember { mutableStateOf(false) }
+                    var showQuickReactionBar by remember { mutableStateOf(false) }
                     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
                     val clipboardManager = LocalClipboardManager.current
 
@@ -1016,7 +1076,7 @@ fun BroadcastChannelScreen(
                                         voiceContent,
                                         isSent = isMine,
                                         onLongPress = { showMenu = true },
-                                        onDoubleClick = { broadcastViewModel.startReplyTo(message) }
+                                        onDoubleClick = { showQuickReactionBar = true }
                                     )
                                 } else if (displayContent.length > MESSAGE_TEXT_TRUNCATION_THRESHOLD) {
                                     // See MESSAGE_TEXT_TRUNCATION_THRESHOLD's doc comment in Screens.kt -
@@ -1033,7 +1093,7 @@ fun BroadcastChannelScreen(
                                             .combinedClickable(
                                                 onClick = { showFullText = true },
                                                 onLongClick = { showMenu = true },
-                                                onDoubleClick = { broadcastViewModel.startReplyTo(message) }
+                                                onDoubleClick = { showQuickReactionBar = true }
                                             )
                                             .padding(horizontal = 16.dp, vertical = 10.dp)
                                             .widthIn(max = 280.dp)
@@ -1057,30 +1117,70 @@ fun BroadcastChannelScreen(
                                             onCopy = { clipboardManager.setText(AnnotatedString(displayContent)) }
                                         )
                                     }
+                                } else if (isEntirelyLinkMessage) {
+                                    // Message is nothing but a link — the shared preview card
+                                    // (bare media for image/video, attachment card for
+                                    // audio/files) replaces the plain-text bubble entirely,
+                                    // exactly like 1:1/group bubbles. `fallbackText` keeps the
+                                    // raw link visible/tappable if no preview data is found.
+                                    LinkPreviewCard(
+                                        url = TextLinkify.findUrls(displayContent).first().uri,
+                                        txId = message.id,
+                                        kaspaExplorer = kaspaExplorer,
+                                        fallbackText = displayContent,
+                                        onDoubleTap = { showQuickReactionBar = true }
+                                    )
                                 } else {
+                                    var textLayoutResult by remember(displayContent) { mutableStateOf<TextLayoutResult?>(null) }
+                                    // Sent bubbles are teal with black text/links for contrast —
+                                    // matches 1:1/group chats' treatment of the same case.
+                                    val linkColor = if (isMine) Color.Black else KaspaTeal
+                                    val annotatedBody = remember(displayContent, isMine) {
+                                        buildAnnotatedString {
+                                            append(displayContent)
+                                            for (match in TextLinkify.findUrls(displayContent)) {
+                                                addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
+                                                addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
+                                            }
+                                        }
+                                    }
                                     Column(
                                         modifier = Modifier
                                             .background(
                                                 if (isMine) KaspaTeal else LocalAppColors.current.surface,
                                                 RoundedCornerShape(20.dp)
                                             )
-                                            .combinedClickable(
-                                                onClick = {},
-                                                onLongClick = { showMenu = true },
-                                                onDoubleClick = { broadcastViewModel.startReplyTo(message) }
-                                            )
-                                            .padding(horizontal = 16.dp, vertical = 10.dp)
                                             .widthIn(max = 280.dp)
                                     ) {
                                         Text(
-                                            displayContent,
-                                            color = if (isMine) Color.Black else LocalAppColors.current.textPrimary
+                                            annotatedBody,
+                                            color = if (isMine) Color.Black else LocalAppColors.current.textPrimary,
+                                            modifier = Modifier
+                                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                                .pointerInput(annotatedBody) {
+                                                    detectTapGestures(
+                                                        onLongPress = { showMenu = true },
+                                                        onDoubleTap = { showQuickReactionBar = true },
+                                                        onTap = { offset ->
+                                                            val layout = textLayoutResult ?: return@detectTapGestures
+                                                            val charOffset = layout.getOffsetForPosition(offset)
+                                                            annotatedBody.getStringAnnotations("URL", charOffset, charOffset)
+                                                                .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                                        }
+                                                    )
+                                                },
+                                            onTextLayout = { textLayoutResult = it }
                                         )
                                     }
                                 }
 
                                 if (showMenu) {
                                     CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+                                        PopupMenuRow(Icons.AutoMirrored.Filled.Reply, stringResource(R.string.reply)) {
+                                            broadcastViewModel.startReplyTo(message)
+                                            showMenu = false
+                                        }
+                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_message)) {
                                             clipboardManager.setText(AnnotatedString(displayContent))
                                             showMenu = false
@@ -1137,6 +1237,61 @@ fun BroadcastChannelScreen(
                                     }
                                 }
                             }
+
+                            // A link mixed with other text keeps the bubble above and stacks the
+                            // shared preview card below it, as its own sibling — same placement
+                            // (and same reasoning) as 1:1's MessageBubble/group's GroupMessageBubble.
+                            separateLinkPreviewUrl?.let { url ->
+                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true })
+                            }
+
+                            if (showQuickReactionBar) {
+                                QuickReactionBar(
+                                    onDismissRequest = { showQuickReactionBar = false },
+                                    anchor = menuAnchor,
+                                    onReact = { emoji ->
+                                        // Tapping your active emoji removes it; any other emoji
+                                        // adds/replaces — same toggle rule as 1:1/group chats.
+                                        val existing = messageReactions.firstOrNull { it.reactorAddress == myAddress }
+                                        val action = if (existing?.emoji == emoji) "remove" else "add"
+                                        broadcastViewModel.sendReaction(channelName, message.id, emoji, action)
+                                    },
+                                    onReply = { broadcastViewModel.startReplyTo(message) },
+                                    emojis = quickReactionEmojis
+                                )
+                            }
+
+                            if (messageReactions.isNotEmpty()) {
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    ReactionPill(
+                                        reactions = messageReactions,
+                                        myAddress = myAddress,
+                                        modifier = Modifier
+                                            .align(if (isMine) Alignment.CenterStart else Alignment.CenterEnd)
+                                            .offset(y = 10.dp)
+                                    )
+                                }
+                                // The pill is offset ~10dp down (offset reserves no layout space), so
+                                // reserve it here - otherwise the pill overlaps the next message below.
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
+
+                            // A reaction (not the message) that failed to send: red "Retry" under the
+                            // message, paired with the error icon on the reaction pill — same as groups.
+                            messageReactions.firstOrNull { it.deliveryStatus == "failed" }?.let { failedReaction ->
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = stringResource(R.string.retry),
+                                        color = Color(0xFFFF3B30),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .align(if (isMine) Alignment.CenterStart else Alignment.CenterEnd)
+                                            .padding(top = 2.dp)
+                                            .clickable { broadcastViewModel.retryReaction(failedReaction) }
+                                    )
+                                }
+                            }
                         }
                         if (isMine) {
                             Spacer(Modifier.width(8.dp))
@@ -1165,6 +1320,18 @@ fun BroadcastChannelScreen(
                     tint = LocalAppColors.current.textPrimary
                 )
             }
+        }
+
+        // Zero-balance funding gate card — same as the 1:1/group threads: composer dimmed
+        // below, the room stays readable and scrollable, gone the moment the chatting balance
+        // confirms as > 0.
+        if (fundingGate.active) {
+            ZeroBalanceFundingCard(
+                walletAddress = fundingGate.chattingAddress,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+            )
         }
         }
     }

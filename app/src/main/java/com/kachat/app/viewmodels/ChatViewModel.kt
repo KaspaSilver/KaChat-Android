@@ -77,6 +77,24 @@ class ChatViewModel @Inject constructor(
         notificationHelper.setActiveGroup(groupId)
     }
 
+    /** True only when the chatting (identity) address balance is a *confirmed* 0 KAS — never
+     *  while it's still unknown/loading. `WalletService.balanceKnown` gates the balance flow's
+     *  0L initial placeholder, so a cold launch can't flash the gate before the first fetch
+     *  lands. Drives ChatThreadScreen's 1:1 zero-balance funding gate (dimmed composer +
+     *  "fund your chatting address" card); group chats and broadcasts don't read it. */
+    val chattingBalanceGateActive: StateFlow<Boolean> =
+        combine(walletService.balance, walletService.balanceKnown) { balanceSompi, known ->
+            known && balanceSompi == 0L
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Re-fetches the chatting-address balance backing [chattingBalanceGateActive] — fired when
+     *  a 1:1 thread opens, and polled while the funding gate is showing so a gift claim or an
+     *  external deposit dismisses the gate without leaving the screen (nothing else pushes a
+     *  balance update into WalletService while the user just sits on the thread). */
+    fun refreshChattingBalance() {
+        viewModelScope.launch { walletService.refreshBalance() }
+    }
+
     val chatPhotoQualityPreset: StateFlow<com.kachat.app.models.ChatPhotoQualityPreset> = settings.chatPhotoQualityPreset
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kachat.app.models.ChatPhotoQualityPreset.default)
 

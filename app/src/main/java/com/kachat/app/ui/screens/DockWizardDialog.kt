@@ -3,7 +3,6 @@ package com.kachat.app.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -57,7 +55,8 @@ import kotlinx.coroutines.launch
 /**
  * "What's new in 4.0" dock wizard - shown ONCE per install (any dismissal is permanent, see
  * AppSettingsRepository.KEY_DOCK_WIZARD_DISMISSED). Four pages with small animated demos of
- * the new Chats-slot behavior, mirroring iOS's DockWizardView.
+ * the Chats-slot cycle behavior, mirroring iOS's DockWizardView. (The old "+ More" dock entry
+ * is gone - customization now lives in Settings > Customization > Customize Dock.)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -98,7 +97,7 @@ fun DockWizardDialog(onDismiss: () -> Unit) {
                     ) { HoldSlideDemo() }
                     3 -> WizardPage(
                         title = "Make it yours",
-                        body = "Reorder the dock and choose what shows via + More or Settings > Customization > Menu.",
+                        body = "Choose which tabs show and reorder them in Settings > Customization > Customize Dock.",
                     ) { StaticIconDemo(Icons.Default.Tune) }
                 }
             }

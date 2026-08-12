@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Forum
@@ -74,9 +73,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object ColdStorage : Screen("cold_storage", "Storage",      Icons.Default.Lock)
     object KaPosts     : Screen("kaposts",      "KaPosts",      Icons.Default.EditNote)
     object Broadcasts  : Screen("broadcasts",   "Broadcasts",   Icons.Default.Sensors)
-    /// Not a real page: tapping it opens Settings > Customization > Menu directly (see the dock's
-    /// clickable). Exists as a Screen so it participates in ordering/visibility like iOS's .more.
-    object More        : Screen("more",         "More",         Icons.Default.AddCircleOutline)
+    // The old "+ More" pseudo-tab (opened Customize Dock from the dock itself) is gone —
+    // Customize Dock is reached via Settings > Customization instead. The dock still caps at
+    // MAX_DOCK_ITEMS, with over-cap KaPosts/Broadcasts riding the Chats-slot cycle.
 }
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
@@ -92,8 +91,7 @@ val bottomNavItems = listOf(
     Screen.Swap,
     Screen.Profile,
     Screen.KaPosts,
-    Screen.Broadcasts,
-    Screen.More
+    Screen.Broadcasts
 )
 
 /** The dock renders at most this many items (matches iOS's AppTab.maxDockItems). */
@@ -115,7 +113,8 @@ fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>): List<Screen>
     val ordered = resolved + missing
     var visible = ordered.filter { it.route in ALWAYS_VISIBLE_TAB_ROUTES || it.route !in hiddenTabs }
     // Dock cap (matches iOS AppTab.visible): when over capacity KaPosts drops out first, then
-    // Broadcasts - both stay reachable by cycling the Chats tab - then the tail falls off.
+    // Broadcasts - both stay reachable by cycling the Chats tab - then the tail falls off
+    // silently (any future tab beyond the cap stays hidden until the user frees a slot).
     for (cyclable in listOf(Screen.KaPosts, Screen.Broadcasts)) {
         if (visible.size > MAX_DOCK_ITEMS) {
             visible = visible.filter { it != cyclable }
@@ -489,12 +488,6 @@ fun MainShell(
                                                 slotMenuVisible = false
                                                 slotMenuHighlight = null
                                             }
-                                            // "+ More" is not a destination: it opens Customize
-                                            // Menu directly and the selection never moves.
-                                            if (screen == Screen.More) {
-                                                navController.navigate("settings_menu")
-                                                return@clickable
-                                            }
                                             // Chats slot with masked pages behind it: tapping while
                                             // ON the slot advances the cycle (chats -> kaposts ->
                                             // broadcasts -> chats); tapping from another tab returns
@@ -557,7 +550,7 @@ fun MainShell(
                                         Text(
                                             text = chatsSlotMorph?.label ?: screen.label,
                                             color = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
-                                            // Longer labels ("Cold Storage") don't fit at 10sp once there are
+                                            // Longer labels ("Broadcasts") don't fit at 10sp once there are
                                             // enough tabs that each weight(1f) slot narrows below their natural
                                             // width — shrink just those instead of letting them clip/wrap and
                                             // get cut off by the fixed-height Box.

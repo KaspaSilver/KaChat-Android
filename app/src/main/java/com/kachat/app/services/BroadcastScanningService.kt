@@ -4,6 +4,7 @@ import android.util.Log
 import com.kachat.app.models.BroadcastMessageEntity
 import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.services.database.KaChatDatabase
+import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.MessageProtocol
@@ -246,10 +247,16 @@ class BroadcastScanningService @Inject constructor(
             )
 
             if (isChannelNotifyEnabled(parsed.channel)) {
-                // Unwrap a reply first so a voice reply's notification says "🎤 Audio message"
-                // too, rather than showing the raw reply JSON (see MessageReply).
+                // A reaction's raw JSON must never surface in a notification — humanize it.
+                // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
+                // message" too, rather than showing the raw reply JSON (see MessageReply).
+                val reaction = MessageReaction.parseOrNull(parsed.content)
                 val displayContent = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content
-                val notificationText = if (VoiceMessage.parseOrNull(displayContent) != null) "🎤 Audio message" else displayContent
+                val notificationText = when {
+                    reaction != null -> "Reacted ${reaction.emoji}"
+                    VoiceMessage.parseOrNull(displayContent) != null -> "🎤 Audio message"
+                    else -> displayContent
+                }
                 notificationHelper.showBroadcast(
                     channelName = parsed.channel,
                     title = "#${parsed.channel}",

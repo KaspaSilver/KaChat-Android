@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -133,10 +134,12 @@ private fun formatUsdPrice(value: Double, currencyCode: String): String {
     return "$sign${currencySymbolFor(currencyCode)}${String.format(Locale.US, "%,.${decimals}f", kotlin.math.abs(value))}"
 }
 
-/** "1d"/"7d"/"30d" — matches the PortfolioViewModel.priceRangeDays values in the range switcher. */
+/** "1d"/"7d"/"30d"/"3m"/"1y" — matches the PortfolioViewModel.priceRangeDays values in the range switcher. */
 private fun priceRangeLabel(days: Int): String = when (days) {
     1 -> "1d"
     7 -> "7d"
+    90 -> "3m"
+    365 -> "1y"
     else -> "${days}d"
 }
 
@@ -239,13 +242,6 @@ fun PortfolioScreen(
                     if (valueHistory.size >= 2) {
                         PortfolioValueChartCard(valueHistory = valueHistory, currencyCode = currencyCode)
                     }
-                    Text(
-                        stringResource(R.string.transactions),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
-                    )
                     PortfolioTransactionsContent(
                         viewModel = viewModel,
                         swapViewModel = swapViewModel,
@@ -299,6 +295,8 @@ fun PortfolioTransactionsScreen(
         PortfolioTransactionsContent(
             viewModel = viewModel,
             swapViewModel = swapViewModel,
+            // The Scaffold's top bar already says "Transactions" — keep just the action icons.
+            showTitle = false,
             prefillType = prefillType,
             prefillAmountKas = prefillAmountKas,
             prefillFiatValue = prefillFiatValue,
@@ -321,6 +319,7 @@ fun PortfolioTransactionsScreen(
 private fun PortfolioTransactionsContent(
     viewModel: PortfolioViewModel,
     swapViewModel: SwapViewModel,
+    showTitle: Boolean = true,
     prefillType: String? = null,
     prefillAmountKas: Double? = null,
     prefillFiatValue: Double? = null,
@@ -357,12 +356,85 @@ private fun PortfolioTransactionsContent(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize()) {
+        // iOS-style section header: "Transactions" title with the add and import/export menus
+        // on the same row (replaces the old floating action buttons at the bottom).
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showTitle) {
+                Text(
+                    stringResource(R.string.transactions),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Box {
+                IconButton(onClick = { showAddMenu = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.AddCircle,
+                        contentDescription = stringResource(R.string.add_transaction),
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+                if (showAddMenu) {
+                    CenteredOptionsMenu(onDismissRequest = { showAddMenu = false }) {
+                        PopupMenuRow(Icons.Default.MonetizationOn, stringResource(R.string.add_transaction)) {
+                            showAddMenu = false
+                            pendingPrefillSwapId = null
+                            showAddDialog = true
+                        }
+                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        PopupMenuRow(Icons.Default.QrCodeScanner, stringResource(R.string.add_kaspa_address)) {
+                            showAddMenu = false
+                            showAddAddressDialog = true
+                        }
+                    }
+                }
+            }
+            Box {
+                IconButton(onClick = { showCsvMenu = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Default.ImportExport,
+                        contentDescription = "Import or export CSV",
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                if (showCsvMenu) {
+                    CenteredOptionsMenu(onDismissRequest = { showCsvMenu = false }) {
+                        PopupMenuRow(Icons.Default.FileDownload, stringResource(R.string.export_csv)) {
+                            showCsvMenu = false
+                            viewModel.exportCsv { uri ->
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/csv"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
+                            }
+                        }
+                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        PopupMenuRow(Icons.Default.FileUpload, stringResource(R.string.import_csv)) {
+                            showCsvMenu = false
+                            importCsvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
+                        }
+                    }
+                }
+            }
+        }
+
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            // Horizontal inset is per-item below (not here). Extra bottom padding so the last
-            // row isn't hidden behind the FAB row below.
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 16.dp, bottom = 96.dp),
+            modifier = Modifier.weight(1f),
+            // Horizontal inset is per-item below (not here).
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (transactions.isEmpty()) {
@@ -385,71 +457,6 @@ private fun PortfolioTransactionsContent(
                         currencyCode = currencyCode,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box {
-                FloatingActionButton(
-                    onClick = { showAddMenu = true },
-                    containerColor = KaspaTeal,
-                    contentColor = Color.Black,
-                    shape = CircleShape,
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_transaction))
-                }
-                if (showAddMenu) {
-                    CenteredOptionsMenu(onDismissRequest = { showAddMenu = false }) {
-                        PopupMenuRow(Icons.Default.MonetizationOn, stringResource(R.string.add_transaction)) {
-                            showAddMenu = false
-                            pendingPrefillSwapId = null
-                            showAddDialog = true
-                        }
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.QrCodeScanner, stringResource(R.string.add_kaspa_address)) {
-                            showAddMenu = false
-                            showAddAddressDialog = true
-                        }
-                    }
-                }
-            }
-            Box {
-                FloatingActionButton(
-                    onClick = { showCsvMenu = true },
-                    containerColor = KaspaTeal,
-                    contentColor = Color.Black,
-                    shape = CircleShape,
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(Icons.Default.ImportExport, "Import or export CSV")
-                }
-                if (showCsvMenu) {
-                    CenteredOptionsMenu(onDismissRequest = { showCsvMenu = false }) {
-                        PopupMenuRow(Icons.Default.FileDownload, stringResource(R.string.export_csv)) {
-                            showCsvMenu = false
-                            viewModel.exportCsv { uri ->
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/csv"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
-                            }
-                        }
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.FileUpload, stringResource(R.string.import_csv)) {
-                            showCsvMenu = false
-                            importCsvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
-                        }
-                    }
                 }
             }
         }
@@ -699,10 +706,12 @@ private fun PriceChartCard(
     ) {
         Row(
             modifier = Modifier.clickable {
-                // Cycles 1 -> 7 -> 30 -> 1 day...
+                // Cycles 1 -> 7 -> 30 -> 90 -> 365 -> 1 day...
                 val nextDays = when (selectedRangeDays) {
                     1 -> 7
                     7 -> 30
+                    30 -> 90
+                    90 -> 365
                     else -> 1
                 }
                 onRangeSelected(nextDays)

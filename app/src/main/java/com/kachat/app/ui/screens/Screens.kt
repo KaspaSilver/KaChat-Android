@@ -194,6 +194,11 @@ fun ChatThreadScreen(
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by chatViewModel.feeRateOverride.collectAsState()
+    // Zero-balance funding gate — active only for a *confirmed* 0 KAS chatting balance
+    // (unknown/still-loading never trips it); the helper also owns the on-entry refresh and
+    // the 10s re-poll that dismisses the gate once funds arrive. Shared with group chat,
+    // broadcast rooms and KaPosts — see GiftClaimUi.kt.
+    val fundingGate = rememberZeroBalanceFundingGate()
 
     var paymentMode by remember { mutableStateOf(startInPaymentMode) }
     var showComposerMenu by remember { mutableStateOf(false) }
@@ -408,7 +413,10 @@ fun ChatThreadScreen(
             // (gesture pill or 3-button bar) when the keyboard is closed — its height varies
             // a lot across devices/manufacturers, so a fixed dp padding isn't enough on every
             // phone. imePadding() on the Scaffold above already handles the keyboard-open case.
-            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp)) {
+            // Zero-balance funding gate: the whole composer (text field, camera, "+" menu, send,
+            // mic, payment entry) dims and stops responding until the chatting address is funded
+            // — see Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
                 if (paymentMode) {
                     Column(
                         modifier = Modifier
@@ -849,7 +857,10 @@ fun ChatThreadScreen(
                                         onDismiss = { showNextcloudPicker = false },
                                         onPick = { link ->
                                             showNextcloudPicker = false
-                                            chatViewModel.sendMessage(contactId, link)
+                                            // Stage the link in the composer for review instead of
+                                            // auto-sending — the user presses send themselves.
+                                            val current = messageText.trim()
+                                            chatViewModel.setMessageText(if (current.isEmpty()) link else "$current $link")
                                         }
                                     )
                                 }
@@ -1129,6 +1140,19 @@ fun ChatThreadScreen(
                         tint = LocalAppColors.current.textPrimary
                     )
                 }
+            }
+
+            // Zero-balance funding gate card — floats over the (usually still empty) thread
+            // while the composer below sits dimmed and inert. Deliberately not full-screen:
+            // received messages stay readable and scrollable around it, only sending is gated.
+            // Gone reactively the moment the chatting balance confirms as > 0.
+            if (fundingGate.active) {
+                ZeroBalanceFundingCard(
+                    walletAddress = fundingGate.chattingAddress,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp)
+                )
             }
         }
     }

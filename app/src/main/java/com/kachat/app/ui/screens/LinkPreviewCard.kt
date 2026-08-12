@@ -65,7 +65,7 @@ private val VIDEO_HOSTS = setOf("youtube.com", "www.youtube.com", "youtu.be", "m
  *  mirrors iMessage. Renders nothing while the fetch is in flight, rather than a placeholder that
  *  could flash or look broken. If no preview data is found (a bare/broken link, or a site with no
  *  Open Graph tags), falls back to [fallbackText] if given, else renders nothing. Used by
- *  [MessageBubble] and `GroupMessageBubble` only - broadcast rooms never call this.
+ *  [MessageBubble], `GroupMessageBubble`, and broadcast rooms' message rows.
  *
  *  [txId] is the owning message's transaction id, for the "View in Explorer" long-press action -
  *  matches every other bubble type's identical action ([MessageBubble]'s

@@ -61,6 +61,9 @@ val KASPA_APPS = listOf(
     KaspaApp("kasplay.fun", "https://kasplay.fun"),
     KaspaApp("kasmart.org", "https://kasmart.org"),
     KaspaApp("kasmedia.com", "https://kasmedia.com"),
+    KaspaApp("Kaspalytics", "https://www.kaspalytics.com"),
+    KaspaApp("Kas-Smiths", "https://kas-smiths.org"),
+    KaspaApp("Kaspa Core R&D", "https://t.me/kasparnd"),
 )
 
 /** Full Apps page - Profile > Apps navigates here (its own screen, matching iOS's ProfileAppsView). */

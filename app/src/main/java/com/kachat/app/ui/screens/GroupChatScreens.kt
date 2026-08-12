@@ -173,6 +173,9 @@ fun GroupChatThreadScreen(
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     val myKnsProfile by walletViewModel.knsProfile.collectAsState()
+    // Zero-balance funding gate — same behavior as the 1:1 chat thread (confirmed 0 KAS only,
+    // on-entry refresh + 10s re-poll while gated); see GiftClaimUi.kt.
+    val fundingGate = rememberZeroBalanceFundingGate()
     val groups by chatViewModel.groups.collectAsState()
     val group = groups.firstOrNull { it.groupId == groupId }
     val messages by chatViewModel.getGroupMessages(groupId).collectAsState(initial = emptyList())
@@ -393,7 +396,9 @@ fun GroupChatThreadScreen(
             )
         },
         bottomBar = {
-            Column(modifier = Modifier.background(LocalAppColors.current.background).imePadding().navigationBarsPadding()) {
+            // Composer dims and goes inert while the zero-balance funding gate is up — see
+            // Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            Column(modifier = Modifier.background(LocalAppColors.current.background).imePadding().navigationBarsPadding().zeroBalanceComposerGate(fundingGate.active)) {
                 errorMessage?.let { message ->
                     Text(
                         text = message,
@@ -599,7 +604,11 @@ fun GroupChatThreadScreen(
                                         onDismiss = { showNextcloudPicker = false },
                                         onPick = { link ->
                                             showNextcloudPicker = false
-                                            chatViewModel.sendGroupMessage(link, groupId) { error -> errorMessage = error }
+                                            // Stage the link in the composer for review instead of
+                                            // auto-sending — the user presses send themselves.
+                                            val current = draft.text.trim()
+                                            val staged = if (current.isEmpty()) link else "$current $link"
+                                            draft = TextFieldValue(staged, TextRange(staged.length))
                                         }
                                     )
                                 }
@@ -725,6 +734,18 @@ fun GroupChatThreadScreen(
                         }
                     }
                 }
+            }
+
+            // Zero-balance funding gate card — same as the 1:1 thread: composer dimmed below,
+            // received messages stay readable around it, gone the moment the chatting balance
+            // confirms as > 0.
+            if (fundingGate.active) {
+                ZeroBalanceFundingCard(
+                    walletAddress = fundingGate.chattingAddress,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp)
+                )
             }
         }
     }

@@ -59,6 +59,10 @@ interface BroadcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: BroadcastMessageEntity)
 
+    /** One message row by id — used to look a failed reaction's own message row back up for retry (see BroadcastRepository.retryReactionMessage). */
+    @Query("SELECT * FROM broadcast_messages WHERE id = :id LIMIT 1")
+    suspend fun getMessage(id: String): BroadcastMessageEntity?
+
     /** Removes a single message by id — used to drop a "pending_<uuid>" placeholder once its real send resolves (success swaps it for the real-txId row; see BroadcastRepository.sendBroadcast). */
     @Query("DELETE FROM broadcast_messages WHERE id = :id")
     suspend fun deleteMessage(id: String)

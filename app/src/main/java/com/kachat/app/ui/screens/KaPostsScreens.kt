@@ -12,6 +12,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,6 +80,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -135,6 +137,11 @@ fun KaPostsScreen(
 
     var showSideMenu by remember { mutableStateOf(false) }
     var showComposer by remember { mutableStateOf(false) }
+    // Zero-balance funding gate — tapping "New post" while the chatting balance is a confirmed
+    // 0 KAS opens the shared funding card as a dialog instead of the post composer (replies get
+    // the same treatment inside KaPostThreadOverlay). See GiftClaimUi.kt.
+    val fundingGate = rememberZeroBalanceFundingGate()
+    var showFundingGate by remember { mutableStateOf(false) }
     /** Thread stack: each entry is a post's LOCAL id; tapping nested comments pushes deeper. */
     var threadStack by remember { mutableStateOf(listOf<String>()) }
     var repostTarget by remember { mutableStateOf<KaPostDraft?>(null) }
@@ -182,7 +189,7 @@ fun KaPostsScreen(
         containerColor = colors.background,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showComposer = true },
+                onClick = { if (fundingGate.active) showFundingGate = true else showComposer = true },
                 containerColor = KaspaTeal,
                 contentColor = Color.White,
             ) {
@@ -312,6 +319,15 @@ fun KaPostsScreen(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             )
         }
+    }
+
+    // Also conditioned on the gate itself so the dialog vanishes reactively the moment the
+    // chatting balance confirms as funded (e.g. the gift claim lands while it's open).
+    if (showFundingGate && fundingGate.active) {
+        ZeroBalanceFundingDialog(
+            walletAddress = fundingGate.chattingAddress,
+            onDismiss = { showFundingGate = false },
+        )
     }
 
     if (showComposer) {
@@ -1096,6 +1112,10 @@ fun KaPostThreadOverlay(
 ) {
     val colors = LocalAppColors.current
     var replyText by remember { mutableStateOf("") }
+    // Zero-balance funding gate — tapping the reply composer while the chatting balance is a
+    // confirmed 0 KAS opens the shared funding card instead of the reply field/keyboard.
+    val fundingGate = rememberZeroBalanceFundingGate()
+    var showFundingGate by remember { mutableStateOf(false) }
     var expandedIds by remember { mutableStateOf(setOf<String>()) }
     val muted by viewModel.muted.collectAsState()
     val blocked by viewModel.blocked.collectAsState()
@@ -1180,44 +1200,71 @@ fun KaPostThreadOverlay(
                 }
             }
             HorizontalDivider(color = colors.surfaceVariant)
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicTextField(
-                    value = replyText,
-                    onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
-                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
-                    cursorBrush = SolidColor(KaspaTeal),
+            // While the funding gate is active the reply row renders dimmed and any tap on it
+            // opens the funding card instead of focusing the field — same "no composer until
+            // funded" rule as the New Post FAB above.
+            Box {
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(colors.surface)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    decorationBox = { inner ->
-                        if (replyText.isEmpty()) {
-                            Text("Post your reply", color = colors.textSecondary, fontSize = 15.sp)
-                        }
-                        inner()
-                    },
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                KaPostCharacterMeter(count = replyText.length)
-                TextButton(
-                    onClick = {
-                        viewModel.submitReply(post, replyText.trim())
-                        replyText = ""
-                    },
-                    enabled = replyText.isNotBlank(),
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .alpha(if (fundingGate.active) 0.35f else 1f),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        "Reply",
-                        color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
-                        fontWeight = FontWeight.Bold,
+                    BasicTextField(
+                        value = replyText,
+                        onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
+                        textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
+                        cursorBrush = SolidColor(KaspaTeal),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(colors.surface)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        decorationBox = { inner ->
+                            if (replyText.isEmpty()) {
+                                Text("Post your reply", color = colors.textSecondary, fontSize = 15.sp)
+                            }
+                            inner()
+                        },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    KaPostCharacterMeter(count = replyText.length)
+                    TextButton(
+                        onClick = {
+                            viewModel.submitReply(post, replyText.trim())
+                            replyText = ""
+                        },
+                        enabled = replyText.isNotBlank(),
+                    ) {
+                        Text(
+                            "Reply",
+                            color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                if (fundingGate.active) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { showFundingGate = true }
                     )
                 }
             }
         }
+    }
+
+    // Also conditioned on the gate itself so the dialog vanishes reactively the moment the
+    // chatting balance confirms as funded (e.g. the gift claim lands while it's open).
+    if (showFundingGate && fundingGate.active) {
+        ZeroBalanceFundingDialog(
+            walletAddress = fundingGate.chattingAddress,
+            onDismiss = { showFundingGate = false },
+        )
     }
 }
 

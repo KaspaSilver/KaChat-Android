@@ -28,8 +28,8 @@ data class LinkPreviewData(
 )
 
 /**
- * Fetches Open Graph preview metadata for links sent in chat messages (private/group only -
- * broadcast rooms never call this). Each recipient's own device does this fetch when the message
+ * Fetches Open Graph preview metadata for links sent in chat messages (private, group, and
+ * broadcast rooms alike). Each recipient's own device does this fetch when the message
  * renders, rather than the sender embedding preview data in the encrypted message payload, so
  * link previews never bloat the on-chain/indexer payload.
  *

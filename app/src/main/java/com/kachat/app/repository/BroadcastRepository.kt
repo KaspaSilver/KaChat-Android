@@ -5,6 +5,7 @@ import com.kachat.app.models.BroadcastMessageEntity
 import com.kachat.app.models.BroadcastRetention
 import com.kachat.app.models.HiddenBroadcastSenderEntity
 import com.kachat.app.models.FeaturedBroadcastChannels
+import com.kachat.app.models.ReactionEntity
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.WalletService
@@ -12,6 +13,7 @@ import com.kachat.app.services.database.KaChatDatabase
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import com.kachat.app.util.MessageProtocol
+import com.kachat.app.util.MessageReaction
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -124,12 +126,64 @@ class BroadcastRepository @Inject constructor(
         }
     }
 
-    /** Never includes messages from a sender hidden IN THIS ROOM (or via a legacy every-room hide) — including ones already cached from before the hide (see BroadcastScanningService for the future-side enforcement). */
+    /** Never includes messages from a sender hidden IN THIS ROOM (or via a legacy every-room hide) — including ones already cached from before the hide (see BroadcastScanningService for the future-side enforcement). Reaction messages (see [getReactions]) never render as a message row, so they're filtered out here too. */
     fun getMessages(channelName: String): Flow<List<BroadcastMessageEntity>> {
         return combine(database.broadcastDao().getMessagesForChannel(channelName), getHiddenSenders()) { messages, hidden ->
             val hiddenHere = hiddenAddressesIn(channelName, hidden)
-            messages.filterNot { it.senderAddress in hiddenHere }
+            messages.filterNot { it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null }
         }
+    }
+
+    /**
+     * Reactions in [channelName], derived from the cached broadcast message rows themselves —
+     * a reaction is just a broadcast whose content is the [MessageReaction] JSON (same wire
+     * format as 1:1/group chats), so the rows the block scanner / indexer backfill already
+     * persist ARE the reaction storage: they survive restarts, load with the channel's history,
+     * and dedupe by txId, which keeps re-processing the indexer's repeated 200-row pages
+     * harmless (unlike replaying add/remove events into a separate table would be).
+     *
+     * Aggregation matches group chat's semantics exactly: reactor = sender address, one reaction
+     * per (target, reactor) with the newest blockTime winning, and a "remove" deleting the chip —
+     * except a FAILED remove, which is restored marked failed (so it isn't silently lost and the
+     * Retry under the message can re-attempt it), mirroring GroupRepository.sendGroupReaction's
+     * failure handling. Emitted as in-memory [ReactionEntity] values (never persisted to the
+     * `reactions` table — walletAddress is left blank) purely so the existing ReactionPill UI is
+     * reused as-is; `reactionTxId` carries the reaction message row's own id for [retryReactionMessage].
+     */
+    fun getReactions(channelName: String): Flow<List<ReactionEntity>> {
+        return combine(database.broadcastDao().getMessagesForChannel(channelName), getHiddenSenders()) { messages, hidden ->
+            val hiddenHere = hiddenAddressesIn(channelName, hidden)
+            val newestPerReactor = LinkedHashMap<Pair<String, String>, Pair<BroadcastMessageEntity, com.kachat.app.util.MessageReactionContent>>()
+            for (row in messages) {
+                if (row.senderAddress in hiddenHere) continue
+                val parsed = MessageReaction.parseOrNull(row.content) ?: continue
+                val key = parsed.targetTxId to row.senderAddress
+                val existing = newestPerReactor[key]
+                // >= so a tie is broken by row order (DAO orders by blockTimestamp ASC).
+                if (existing == null || row.blockTimestamp >= existing.first.blockTimestamp) {
+                    newestPerReactor[key] = row to parsed
+                }
+            }
+            newestPerReactor.values.mapNotNull { (row, parsed) ->
+                if (parsed.action != "add" && row.deliveryStatus != "failed") return@mapNotNull null
+                ReactionEntity(
+                    targetTxId = parsed.targetTxId,
+                    walletAddress = "", // in-memory value object only, never inserted into the reactions table
+                    reactorAddress = row.senderAddress,
+                    emoji = parsed.emoji,
+                    reactionTxId = row.id,
+                    blockTimestamp = row.blockTimestamp,
+                    deliveryStatus = row.deliveryStatus,
+                    failedAction = if (row.deliveryStatus == "failed") parsed.action else null
+                )
+            }
+        }
+    }
+
+    /** Re-attempts a reaction message whose send previously failed — [reactionMessageId] is the reaction's own broadcast message row id (see [getReactions]'s `reactionTxId`). */
+    suspend fun retryReactionMessage(reactionMessageId: String?) {
+        val row = reactionMessageId?.let { database.broadcastDao().getMessage(it) } ?: return
+        retryBroadcast(row)
     }
 
     /** The active account's hidden-sender rows (per-room since 4.0; channelName "" = every room) — re-emits on account switch, same as everything else here. */

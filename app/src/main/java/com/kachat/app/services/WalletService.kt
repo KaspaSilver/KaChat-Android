@@ -40,6 +40,13 @@ class WalletService @Inject constructor(
     private val _balance = MutableStateFlow(0L)
     val balance: StateFlow<Long> = _balance.asStateFlow()
 
+    // [balance]'s 0L initial value is indistinguishable from a genuinely empty wallet, so
+    // consumers that must react only to a *confirmed* zero (ChatThreadScreen's funding gate)
+    // check this alongside it — it flips true the first time a balance fetch for the chatting
+    // (identity) address actually succeeds, and never flips back.
+    private val _balanceKnown = MutableStateFlow(false)
+    val balanceKnown: StateFlow<Boolean> = _balanceKnown.asStateFlow()
+
     private val _spendingBalance = MutableStateFlow(0L)
     val spendingBalance: StateFlow<Long> = _spendingBalance.asStateFlow()
 
@@ -67,6 +74,7 @@ class WalletService @Inject constructor(
         try {
             val response = api.getBalance(address)
             _balance.value = response.balance
+            _balanceKnown.value = true
         } catch (e: Exception) {
             Log.e("WalletService", "Error refreshing balance", e)
         }

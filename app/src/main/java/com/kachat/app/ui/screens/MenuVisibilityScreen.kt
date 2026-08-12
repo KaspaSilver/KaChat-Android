@@ -33,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -61,11 +60,12 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 
 /**
- * Settings > Customization > Menu — which bottom-nav tabs show up, and in what set (order is
- * still controlled separately, by press-and-hold-drag on the bar itself). Matches iOS's
- * MenuVisibilityView: Chats/Profile are permanently on (Settings itself is reached from Profile
- * now, not its own tab, so it isn't listed here at all), Portfolio/Storage/Swap can each be
- * hidden. Broadcasts is an Android-only extra tab with no iOS equivalent.
+ * Settings > Customization > Customize Dock — which bottom-nav tabs show up, and in what order.
+ * Chats/Profile are permanently on (Settings itself is reached from Profile, not its own tab,
+ * so it isn't listed here at all); every other tab can be hidden. There's no "+ More" dock
+ * entry or enabled-tab limit anymore: anything can be toggled on, and the 5-item dock cap does
+ * the rest — over-cap KaPosts/Broadcasts ride the Chats-slot cycle (hint shown on their rows),
+ * any other over-cap tab tail-drops until a slot frees up.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,11 +75,10 @@ fun MenuVisibilityScreen(
 ) {
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val tabOrder by walletViewModel.tabOrder.collectAsState()
-    // At most 3 optional dock menus ON among Portfolio/Storage/Swap/More (2 locked + 3 = the
-    // 5-item dock). KaPosts and Broadcasts are exempt from the limit: when the dock is full
-    // they ride the Chats-slot cycle instead (tap Chats to cycle, hold it to jump).
-    val enabledDockToggleCount = listOf("portfolio", "cold_storage", "swap", "more").count { it !in hiddenTabs }
-    val atMenuLimit = enabledDockToggleCount >= 3
+    // No enabled-tab limit anymore (the old "at most 3 optional menus" rule went away with the
+    // "+ More" pseudo-tab): everything can be ON at once, and the 5-item dock cap handles the
+    // rest — over-cap KaPosts/Broadcasts ride the Chats-slot cycle (hinted below), any other
+    // over-cap tab silently tail-drops until the user frees a slot.
     val kaPostsReTapHint = if ("kaposts" !in hiddenTabs && kaPostsAccessibleViaChatsTab(tabOrder, hiddenTabs)) {
         stringResource(R.string.kaposts_dock_full_hint)
     } else null
@@ -145,13 +144,10 @@ fun MenuVisibilityScreen(
                             icon = screen.icon,
                             label = when (route) {
                                 "kaposts" -> stringResource(R.string.kaposts)
-                                "more" -> stringResource(R.string.more_plus)
                                 else -> screen.label
                             },
                             checked = locked || route !in hiddenTabs,
                             locked = locked,
-                            limitLocked = route in setOf("portfolio", "cold_storage", "swap", "more") &&
-                                atMenuLimit && route in hiddenTabs,
                             hint = when (route) {
                                 "kaposts" -> kaPostsReTapHint
                                 "broadcasts" -> broadcastsReTapHint
@@ -180,7 +176,6 @@ private fun MenuVisibilityRow(
     label: String,
     checked: Boolean,
     locked: Boolean,
-    limitLocked: Boolean = false,
     hint: String? = null,
     onToggle: (Boolean) -> Unit = {},
     onMoveUp: (() -> Unit)? = null,
@@ -189,8 +184,7 @@ private fun MenuVisibilityRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (limitLocked) 0.45f else 1f)
-            .clickable(enabled = !locked && !limitLocked) { onToggle(!checked) }
+            .clickable(enabled = !locked) { onToggle(!checked) }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -214,8 +208,6 @@ private fun MenuVisibilityRow(
             Text(label, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             if (locked) {
                 Text(stringResource(R.string.always_shown), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-            } else if (limitLocked) {
-                Text(stringResource(R.string.turn_another_menu_off_to_enable), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
             } else if (hint != null) {
                 Text(hint, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
             }
