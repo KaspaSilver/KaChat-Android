@@ -287,6 +287,21 @@ fun MainShell(
         }
     }
 
+    // Incoming system-share (text/link/image shared from another app — see MainActivity.
+    // handleShareIntent): a direct-share pick carries the chosen conversation and jumps straight
+    // into that chat; a plain "KaChat" share target lands on the Chats list, whose banner asks
+    // the user to pick the chat. Either way ChatThreadScreen consumes the pending content.
+    val pendingShare by com.kachat.app.services.ShareIntake.pending.collectAsState()
+    LaunchedEffect(pendingShare) {
+        val share = pendingShare ?: return@LaunchedEffect
+        if (share.targetContactId != null) {
+            navController.navigate("chat/${share.targetContactId}")
+        } else {
+            // Untargeted: surface the Chats list wherever the user currently is.
+            navController.popBackStack(Screen.Chats.route, false)
+        }
+    }
+
     // KaPosts share/deep links (kachat://kapost/<txid>, https://kachat.duckdns.org/post/…):
     // surface the KaPosts tab; KaPostsScreen itself consumes the pending txid and opens the
     // post's thread once visible.

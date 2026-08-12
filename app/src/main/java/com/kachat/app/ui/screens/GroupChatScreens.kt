@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -195,6 +196,11 @@ fun GroupChatThreadScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
+    // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
+    // Storage > Nextcloud). Picking a file sends its public share link as a normal group text
+    // message, which recipients' link-preview cards render as tappable media. Matches 1:1 chat.
+    val nextcloudAccount by chatViewModel.nextcloud.account.collectAsState()
+    var showNextcloudPicker by remember { mutableStateOf(false) }
     // Local-only multi-select for deleting individual messages (never the whole group - see
     // GroupChatInfoScreen's delete for that) - toggled from the top bar's "Select" action.
     var isSelectingMessages by remember { mutableStateOf(false) }
@@ -573,12 +579,29 @@ fun GroupChatThreadScreen(
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
                                         }
+                                        if (nextcloudAccount != null) {
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                            PopupMenuRow(Icons.Default.Cloud, "Send from Nextcloud") {
+                                                showComposerMenu = false
+                                                showNextcloudPicker = true
+                                            }
+                                        }
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.Mic, stringResource(R.string.send_audio_message)) {
                                             showComposerMenu = false
                                             startVoiceRecordingIfPermitted()
                                         }
                                     }
+                                }
+                                if (showNextcloudPicker) {
+                                    NextcloudPickerDialog(
+                                        service = chatViewModel.nextcloud,
+                                        onDismiss = { showNextcloudPicker = false },
+                                        onPick = { link ->
+                                            showNextcloudPicker = false
+                                            chatViewModel.sendGroupMessage(link, groupId) { error -> errorMessage = error }
+                                        }
+                                    )
                                 }
                             } else {
                                 IconButton(

@@ -18,6 +18,8 @@ import com.kachat.app.services.ChatHistoryExportImportService
 import com.kachat.app.services.GoogleDriveBackupService
 import com.kachat.app.services.KnsProfileFields
 import com.kachat.app.services.KnsService
+import com.kachat.app.services.NextcloudFile
+import com.kachat.app.services.NextcloudService
 import com.kachat.app.services.SystemContactsSyncService
 import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.util.ImageMessage
@@ -52,12 +54,20 @@ class ChatViewModel @Inject constructor(
     private val diagnosticsExportService: com.kachat.app.services.DiagnosticsExportService,
     private val voiceRecorderService: VoiceRecorderService,
     private val googleDriveBackupService: GoogleDriveBackupService,
-    private val groupRepository: com.kachat.app.repository.GroupRepository
+    private val nextcloudService: NextcloudService,
+    private val groupRepository: com.kachat.app.repository.GroupRepository,
+    private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager
 ) : ViewModel() {
 
     /** Suppresses a notification for whichever contact's thread is currently open. */
     fun setActiveContact(contactId: String?) {
         notificationHelper.setActiveContact(contactId)
+        // Opening a chat is one of the two moments the recency order the share sheet shows can
+        // change — keep the direct-share conversation shortcuts current. refresh() diffs against
+        // what's already published, so this is free when nothing changed.
+        if (contactId != null) {
+            shareShortcutsManager.refresh(conversations.value)
+        }
     }
 
     /** Suppresses a notification for whichever group's thread is currently open, and (via
@@ -298,6 +308,93 @@ class ChatViewModel @Inject constructor(
                 Log.e("ChatViewModel", "Google Drive restore failed", e)
                 _restoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Restore failed")
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Nextcloud — same JSON archive + merge logic as Google Drive, just with the user's own
+    // Nextcloud server (WebDAV) as the transport. The service itself is exposed so the settings
+    // section and picker composables can read account state / list folders / mint share links
+    // directly; the archive-touching operations stay here, mirroring the Google Drive ones.
+    // -------------------------------------------------------------------------
+
+    val nextcloud: NextcloudService get() = nextcloudService
+
+    private val _nextcloudConnectState = MutableStateFlow(ChatHistoryOpState())
+    val nextcloudConnectState: StateFlow<ChatHistoryOpState> = _nextcloudConnectState.asStateFlow()
+
+    fun connectNextcloud(server: String, username: String, appPassword: String) {
+        if (_nextcloudConnectState.value.status == ChatHistoryOpStatus.IN_PROGRESS) return
+        viewModelScope.launch {
+            _nextcloudConnectState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
+            try {
+                nextcloudService.connect(server, username, appPassword)
+                _nextcloudConnectState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS)
+                refreshNextcloudBackupInfo()
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Nextcloud connect failed", e)
+                _nextcloudConnectState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Could not connect")
+            }
+        }
+    }
+
+    fun disconnectNextcloud() {
+        nextcloudService.disconnect()
+        _nextcloudConnectState.value = ChatHistoryOpState()
+        _nextcloudBackupState.value = ChatHistoryOpState()
+        _nextcloudRestoreState.value = ChatHistoryOpState()
+        _nextcloudBackupInfo.value = null
+    }
+
+    private val _nextcloudBackupState = MutableStateFlow(ChatHistoryOpState())
+    val nextcloudBackupState: StateFlow<ChatHistoryOpState> = _nextcloudBackupState.asStateFlow()
+
+    /** Mirrors [backupNow], with the user's own Nextcloud server as the destination. */
+    fun nextcloudBackupNow() {
+        if (_nextcloudBackupState.value.status == ChatHistoryOpStatus.IN_PROGRESS) return
+        viewModelScope.launch {
+            _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
+            try {
+                val json = chatHistoryExportImportService.buildArchiveJson()
+                nextcloudService.uploadBackup(json)
+                _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS, message = "Backed up just now")
+                refreshNextcloudBackupInfo()
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Nextcloud backup failed", e)
+                _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Backup failed")
+            }
+        }
+    }
+
+    private val _nextcloudRestoreState = MutableStateFlow(ChatHistoryOpState())
+    val nextcloudRestoreState: StateFlow<ChatHistoryOpState> = _nextcloudRestoreState.asStateFlow()
+
+    /** Manual only — never triggered automatically. Merges via the same logic as [restoreFromGoogleDrive]. */
+    fun restoreFromNextcloud() {
+        if (_nextcloudRestoreState.value.status == ChatHistoryOpStatus.IN_PROGRESS) return
+        viewModelScope.launch {
+            _nextcloudRestoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
+            try {
+                val json = nextcloudService.downloadBackup()
+                val result = chatHistoryExportImportService.importChatHistory(json)
+                _nextcloudRestoreState.value = ChatHistoryOpState(
+                    status = ChatHistoryOpStatus.SUCCESS,
+                    message = "Imported ${result.importedMessageCount} messages from ${result.conversationCount} chats."
+                )
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Nextcloud restore failed", e)
+                _nextcloudRestoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Restore failed")
+            }
+        }
+    }
+
+    private val _nextcloudBackupInfo = MutableStateFlow<NextcloudFile?>(null)
+    val nextcloudBackupInfo: StateFlow<NextcloudFile?> = _nextcloudBackupInfo.asStateFlow()
+
+    /** The backup file's server-side date + size for the settings "last backup" line — null means none found (or not connected). */
+    fun refreshNextcloudBackupInfo() {
+        viewModelScope.launch {
+            _nextcloudBackupInfo.value = if (nextcloudService.isConnected) nextcloudService.fetchBackupInfo() else null
         }
     }
 
@@ -654,14 +751,17 @@ class ChatViewModel @Inject constructor(
      * photo — same shape as [VoiceMessage.estimatedWirePayloadSize]: the real send always measures
      * the actual encoded bytes exactly, this is only ever used for the live preview.
      */
-    private val previewPayloadSize: Flow<Int> = combine(_messageText, voiceRecordingState, pendingPhotoUri, chatPhotoQualityPreset) { text, recording, photoUri, photoQuality ->
+    private val previewPayloadSize: Flow<Int> = combine(_messageText, voiceRecordingState, pendingPhotoUri, chatPhotoQualityPreset, nextcloudService.mediaSendEnabled) { text, recording, photoUri, photoQuality, mediaSend ->
+        // Via Nextcloud, the chain only carries the ~100-byte share link regardless of media
+        // size — mirrors groupPreviewPayloadSize's identical branch.
+        val nextcloudMode = mediaSend && nextcloudService.isConnected
         if (recording.status == VoiceRecordingStatus.RECORDING) {
-            VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
+            if (nextcloudMode) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
         } else if (photoUri != null) {
             // Compressed image bytes -> inner base64 (+33%) -> JSON envelope overhead -> encryption
             // + outer base64 (+33%) -- rough multiplier, calibrated the same way VoiceMessage's
             // estimate is: never used for the real fee, only this live preview.
-            (photoQuality.targetBytes * 1.33 * 1.33).toInt() + 150
+            if (nextcloudMode) NEXTCLOUD_LINK_PREVIEW_BYTES else (photoQuality.targetBytes * 1.33 * 1.33).toInt() + 150
         } else {
             text.toByteArray().size
         }
@@ -741,9 +841,15 @@ class ChatViewModel @Inject constructor(
         return (elapsedSeconds * 1_150.0).toInt()
     }
 
-    private val groupPreviewPayloadSize: Flow<Int> = combine(_groupMessageText, groupVoiceRecordingState, groupPendingPhotoUri) { text, recording, photoUri ->
+    private val groupPreviewPayloadSize: Flow<Int> = combine(_groupMessageText, groupVoiceRecordingState, groupPendingPhotoUri, nextcloudService.mediaSendEnabled, nextcloudService.account) { text, recording, photoUri, mediaSendEnabled, account ->
+        // With "Send Media via Nextcloud" on (and connected), staged media goes out as just a
+        // short share-link text message (see sendPendingGroupPhoto/stopAndSendGroupVoiceRecording),
+        // so the fee pill prices a link-sized payload instead of the embedded media envelope.
+        val nextcloudMode = mediaSendEnabled && account != null
         when {
+            recording.status == VoiceRecordingStatus.RECORDING && nextcloudMode -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
             recording.status == VoiceRecordingStatus.RECORDING -> estimatedGroupWirePayloadSize(estimatedGroupAudioRawBytes(recording.elapsedMs), isMediaEnvelope = true)
+            photoUri != null && nextcloudMode -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
             photoUri != null -> estimatedGroupWirePayloadSize(GROUP_PHOTO_TARGET_BYTES, isMediaEnvelope = true)
             else -> estimatedGroupWirePayloadSize(text.toByteArray().size, isMediaEnvelope = false)
         }
@@ -1377,6 +1483,10 @@ class ChatViewModel @Inject constructor(
 
     fun sendMessage(contactId: String, text: String) {
         if (text.isEmpty()) return
+        // Sending bumps this conversation to the top of the recency order the system share sheet
+        // mirrors — promote it explicitly since the conversations flow only reorders after the
+        // pending insert lands. Diffed inside refresh(), so repeat sends to the same top chat are free.
+        shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
         val reply = _replyingTo.value
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
@@ -1556,11 +1666,18 @@ class ChatViewModel @Inject constructor(
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
+        // On-chain notes are payload-capped at 10s; a Nextcloud-uploaded note only needs to
+        // fit the server, so the ceiling relaxes to 10 minutes while the toggle is on.
+        val maxDurationMs = if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
+        } else {
+            VoiceRecorderService.MAX_RECORDING_DURATION_MS
+        }
         recordingTickerJob = viewModelScope.launch {
             while (isActive && _voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _voiceRecordingState.value = _voiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= VoiceRecorderService.MAX_RECORDING_DURATION_MS) {
+                if (elapsed >= maxDurationMs) {
                     stopAndSendVoiceRecording(contactId)
                     break
                 }
@@ -1617,11 +1734,19 @@ class ChatViewModel @Inject constructor(
         }
         _groupVoiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
+        // Same dynamic ceiling as 1:1's startVoiceRecording: on-chain group notes are
+        // payload-capped at 10s, but a Nextcloud-uploaded note only needs to fit the server,
+        // so the cap relaxes to 10 minutes while the toggle is on.
+        val maxDurationMs = if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
+        } else {
+            VoiceRecorderService.MAX_RECORDING_DURATION_MS
+        }
         groupRecordingTickerJob = viewModelScope.launch {
             while (isActive && _groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _groupVoiceRecordingState.value = _groupVoiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= VoiceRecorderService.MAX_RECORDING_DURATION_MS) {
+                if (elapsed >= maxDurationMs) {
                     stopAndSendGroupVoiceRecording(groupId)
                     break
                 }
@@ -1630,6 +1755,11 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Group twin of the 1:1 [sendVoiceMessage] Nextcloud gate: with "Send Media via Nextcloud"
+     *  on (and an account connected), the recorded file (Opus-in-WebM, exactly as captured — no
+     *  re-encode, so the full relaxed-cap length ships byte-for-byte) uploads to the server and
+     *  the group message is just the public share link; any upload/share failure falls back to
+     *  the embedded on-chain gcomm envelope below, with a toast so the sender knows. */
     fun stopAndSendGroupVoiceRecording(groupId: String) {
         if (_groupVoiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
         val elapsed = _groupVoiceRecordingState.value.elapsedMs
@@ -1644,7 +1774,25 @@ class ChatViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val bytes = file.readBytes()
+                val bytes = withContext(Dispatchers.IO) { file.readBytes() }
+                if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                    try {
+                        val extension = file.extension.ifEmpty { "webm" }
+                        val mimeType = when (extension.lowercase()) {
+                            "webm" -> "audio/webm"
+                            "ogg", "opus" -> "audio/ogg"
+                            "m4a", "mp4" -> "audio/mp4"
+                            else -> "application/octet-stream"
+                        }
+                        // The recorder already names files voice_<timestamp>.webm — keep that name.
+                        val url = nextcloudService.uploadMediaAndShare(bytes, file.name, mimeType)
+                        groupRepository.sendGroupMessage(url, groupId)
+                        return@launch
+                    } catch (e: Exception) {
+                        Log.w("ChatViewModel", "Nextcloud group voice upload failed, falling back to on-chain send", e)
+                        android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending voice message on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
                 groupRepository.sendGroupAudio(bytes, groupId, fileName = file.name)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending group voice message", e)
@@ -1661,11 +1809,34 @@ class ChatViewModel @Inject constructor(
         voiceRecorderService.cancelRecording()
     }
 
-    /** Mirrors [sendPendingPhoto] for the group's own staged photo - smaller default target than 1:1's preset since group's `gcomm` payload hex-encodes the ciphertext (vs. 1:1's base64) plus extra fixed per-message fields, so the same raw photo lands as a noticeably larger on-chain payload. */
+    /** Mirrors [sendPendingPhoto] for the group's own staged photo - smaller default target than 1:1's preset since group's `gcomm` payload hex-encodes the ciphertext (vs. 1:1's base64) plus extra fixed per-message fields, so the same raw photo lands as a noticeably larger on-chain payload.
+     *
+     *  Same Nextcloud gate as 1:1's [sendPendingPhoto]: with "Send Media via Nextcloud" on (and an
+     *  account connected), the ORIGINAL picked image uploads to the server at full quality and the
+     *  group message is just the public share link — recipients' link-preview cards render it as a
+     *  photo. Any upload/share failure falls back to the compressed on-chain gcomm envelope below,
+     *  with a toast so the sender knows. */
     fun sendPendingGroupPhoto(groupId: String) {
         val uri = _groupPendingPhotoUri.value ?: return
         _groupPendingPhotoUri.value = null
         viewModelScope.launch {
+            if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                try {
+                    val url = withContext(Dispatchers.IO) {
+                        val resolver = appContext.contentResolver
+                        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: throw java.io.IOException("Could not read the selected photo.")
+                        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+                        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+                        nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
+                    }
+                    groupRepository.sendGroupMessage(url, groupId)
+                    return@launch
+                } catch (e: Exception) {
+                    Log.w("ChatViewModel", "Nextcloud group photo upload failed, falling back to on-chain send", e)
+                    android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending photo on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             try {
                 val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, GROUP_PHOTO_TARGET_BYTES) }
                 groupRepository.sendGroupImage(prepared.bytes, groupId, fileName = prepared.fileName, mimeType = prepared.mimeType)
@@ -1675,11 +1846,35 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Compresses and sends the currently staged [pendingPhotoUri] — clears the staged photo either way, matching the picker-cancel UX (a failed compression just drops back to the empty input bar, same as [sendVoiceMessage] logging and moving on rather than surfacing a dedicated error). */
+    /** Compresses and sends the currently staged [pendingPhotoUri] — clears the staged photo either way, matching the picker-cancel UX (a failed compression just drops back to the empty input bar, same as [sendVoiceMessage] logging and moving on rather than surfacing a dedicated error).
+     *
+     *  With "Send Media via Nextcloud" on (and an account connected), the ORIGINAL picked image
+     *  uploads to the server at full quality and the chat message is just the public share link —
+     *  the recipient's link preview renders it as a photo bubble. Any upload/share failure falls
+     *  back to the embedded on-chain envelope below, with a toast so the sender knows the photo
+     *  went on-chain (compressed) instead of via their server. 1:1 only — the group path
+     *  ([sendPendingGroupPhoto]) is untouched. */
     fun sendPendingPhoto(contactId: String) {
         val uri = _pendingPhotoUri.value ?: return
         _pendingPhotoUri.value = null
         viewModelScope.launch {
+            if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                try {
+                    val url = withContext(Dispatchers.IO) {
+                        val resolver = appContext.contentResolver
+                        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: throw java.io.IOException("Could not read the selected photo.")
+                        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+                        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+                        nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
+                    }
+                    sendMessage(contactId, url)
+                    return@launch
+                } catch (e: Exception) {
+                    Log.w("ChatViewModel", "Nextcloud photo upload failed, falling back to on-chain send", e)
+                    android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending photo on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             try {
                 val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, chatPhotoQualityPreset.value.targetBytes) }
                 val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
@@ -1691,10 +1886,32 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** With "Send Media via Nextcloud" on, the recorded file (Opus-in-WebM, exactly as captured —
+     *  no duration cap pressure from on-chain payload size) uploads to the server and the message
+     *  is the share link; any failure falls back to the embedded on-chain envelope with a toast.
+     *  1:1 only — the group voice path is untouched. */
     private fun sendVoiceMessage(contactId: String, file: java.io.File) {
         viewModelScope.launch {
             try {
-                val bytes = file.readBytes()
+                val bytes = withContext(Dispatchers.IO) { file.readBytes() }
+                if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                    try {
+                        val extension = file.extension.ifEmpty { "webm" }
+                        val mimeType = when (extension.lowercase()) {
+                            "webm" -> "audio/webm"
+                            "ogg", "opus" -> "audio/ogg"
+                            "m4a", "mp4" -> "audio/mp4"
+                            else -> "application/octet-stream"
+                        }
+                        // The recorder already names files voice_<timestamp>.webm — keep that name.
+                        val url = nextcloudService.uploadMediaAndShare(bytes, file.name, mimeType)
+                        sendMessage(contactId, url)
+                        return@launch
+                    } catch (e: Exception) {
+                        Log.w("ChatViewModel", "Nextcloud voice upload failed, falling back to on-chain send", e)
+                        android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending voice message on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                 val json = VoiceMessage.encode(fileName = file.name, sizeBytes = bytes.size.toLong(), base64Audio = base64)
                 sendMessage(contactId, json)
@@ -1806,6 +2023,11 @@ class ChatViewModel @Inject constructor(
 
         /** Target raw JPEG bytes for a group chat photo — see [sendPendingGroupPhoto]. */
         private const val GROUP_PHOTO_TARGET_BYTES = 10_000
+
+        /** Rough byte length of a Nextcloud public share link ("https://<host>/s/<token>") for the
+         *  live fee preview while media is staged in Nextcloud mode — the real send measures the
+         *  actual link exactly, same preview-only contract as [estimatedGroupWirePayloadSize]. */
+        private const val NEXTCLOUD_LINK_PREVIEW_BYTES = 100
 
         /**
          * We've reached out with no handshake (deterministic-alias messaging) and haven't

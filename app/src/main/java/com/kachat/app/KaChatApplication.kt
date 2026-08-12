@@ -50,6 +50,15 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var groupRepository: GroupRepository
 
+    // For the Nextcloud automatic chat-history backup below — the archive json comes from the
+    // same export service ChatViewModel's manual backup uses, so both paths write byte-identical
+    // backups.
+    @Inject
+    lateinit var nextcloudService: com.kachat.app.services.NextcloudService
+
+    @Inject
+    lateinit var chatHistoryExportImportService: com.kachat.app.services.ChatHistoryExportImportService
+
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
 
@@ -89,6 +98,13 @@ class KaChatApplication : Application(), Configuration.Provider {
                 } catch (e: Exception) {
                     android.util.Log.w("KaChatApplication", "Couldn't start SyncForegroundService (will retry via SyncWorker)", e)
                 }
+                // Backgrounding is the natural "done chatting" moment — run the Nextcloud
+                // automatic backup then, throttled to at most once per hour. autoBackupIfDue
+                // no-ops unless the toggle is on and an account is connected, and swallows its
+                // own failures (the next trigger retries). Mirrors iOS's on-background backup.
+                owner.lifecycleScope.launch(Dispatchers.IO) {
+                    nextcloudService.autoBackupIfDue { chatHistoryExportImportService.buildArchiveJson() }
+                }
             }
 
             override fun onStart(owner: LifecycleOwner) {
@@ -112,6 +128,14 @@ class KaChatApplication : Application(), Configuration.Provider {
                     } catch (e: Exception) {
                         android.util.Log.w("KaChatApplication", "Foreground group catch-up sync failed", e)
                     }
+                }
+                // Nextcloud backup catch-up on launch/foreground: covers users who never
+                // background the app cleanly (force-kill, crash, days of disuse). The day-long
+                // threshold keeps this from ever competing with the hourly on-background cadence.
+                owner.lifecycleScope.launch(Dispatchers.IO) {
+                    nextcloudService.autoBackupIfDue(
+                        minIntervalMs = com.kachat.app.services.NextcloudService.AUTO_BACKUP_CATCH_UP_INTERVAL_MS
+                    ) { chatHistoryExportImportService.buildArchiveJson() }
                 }
             }
         })

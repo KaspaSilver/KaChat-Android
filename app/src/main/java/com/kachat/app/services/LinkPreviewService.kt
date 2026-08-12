@@ -15,7 +15,16 @@ data class LinkPreviewData(
     val title: String?,
     val description: String?,
     val imageUrl: String?,
-    val siteName: String?
+    val siteName: String?,
+    /** Set only for Nextcloud public-share links: "image"/"video"/"audio"/"pdf"/"file" (generic
+     *  fallback — a valid share ALWAYS gets a kind, never null). Tells the card this link is a
+     *  directly shareable file and which kind, so tapping opens the in-app viewer / system player
+     *  instead of the browser. Mirrors iOS's `LinkPreviewData.nextcloudMedia`. */
+    val nextcloudMedia: String? = null,
+    /** The share's raw-file `/download` URL (streams via range requests) — the viewer's source. */
+    val mediaDownloadUrl: String? = null,
+    /** The shared file's Content-Length from the HEAD probe — the attachment card's size caption. */
+    val mediaByteSize: Long? = null
 )
 
 /**
@@ -52,6 +61,26 @@ object LinkPreviewService {
 
     private val youTubeHosts = setOf("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be")
 
+    /** `https://host/s/TOKEN` (or `/index.php/s/TOKEN`, token 10+ url-safe chars). */
+    private val nextcloudSharePathRegex = Regex("""^(/index\.php)?/s/([A-Za-z0-9_-]{10,})/?$""")
+
+    data class NextcloudShareEndpoints(val downloadUrl: String, val previewUrl: String)
+
+    /** A Nextcloud public share's raw-file `/download` and thumbnail `/preview` endpoints
+     *  (query/fragment stripped); null for any other URL. */
+    fun nextcloudShareEndpoints(url: String): NextcloudShareEndpoints? {
+        val httpUrl = url.toHttpUrlOrNull() ?: return null
+        val match = nextcloudSharePathRegex.find(httpUrl.encodedPath) ?: return null
+        val prefix = if (match.groupValues[1].isNotEmpty()) "/index.php" else ""
+        val base = httpUrl.newBuilder()
+            .encodedPath("$prefix/s/${match.groupValues[2]}")
+            .query(null)
+            .fragment(null)
+            .build()
+            .toString()
+        return NextcloudShareEndpoints(downloadUrl = "$base/download", previewUrl = "$base/preview")
+    }
+
     suspend fun fetchPreview(url: String): LinkPreviewData? {
         synchronized(cacheLock) {
             if (cache.containsKey(url)) return cache[url]
@@ -72,6 +101,10 @@ object LinkPreviewService {
     private fun fetchAndParse(url: String): LinkPreviewData? {
         val scheme = url.substringBefore("://", missingDelimiterValue = "").lowercase()
         if (scheme != "http" && scheme != "https") return null
+
+        // Nextcloud public shares are media files, not pages — no Open Graph to scrape. Type
+        // comes from a HEAD on the raw-file endpoint instead (see fetchNextcloudPreview).
+        nextcloudShareEndpoints(url)?.let { return fetchNextcloudPreview(url, it) }
 
         // YouTube serves a cookie-consent-wall page (no Open Graph tags at all) to plain scraper
         // requests instead of the real video page, so the generic scrape below never finds
@@ -139,6 +172,103 @@ object LinkPreviewService {
         } catch (e: Exception) {
             null
         }
+    }
+
+    /**
+     * The share link itself carries no file type, so HEAD the `/download` URL and branch on
+     * `Content-Type`. Non-media shares return null, which renders as a plain link. The card's
+     * poster is the share's `/preview` thumbnail; the full-quality fetch/stream only happens
+     * when the user taps the card.
+     */
+    private fun fetchNextcloudPreview(url: String, endpoints: NextcloudShareEndpoints): LinkPreviewData? {
+        return try {
+            val request = Request.Builder().url(endpoints.downloadUrl).head().build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val contentType = (response.header("Content-Type") ?: "").lowercase()
+                // Every valid share gets a kind — "file" is the generic fallback for docs,
+                // archives, and anything else, so a share never renders as a bare link.
+                val kind = when {
+                    contentType.startsWith("image/") -> "image"
+                    contentType.startsWith("video/") -> "video"
+                    contentType.startsWith("audio/") -> "audio"
+                    contentType.contains("pdf") -> "pdf"
+                    else -> "file"
+                }
+                val filename = filenameFromContentDisposition(response.header("Content-Disposition"))
+                val fallbackTitle = when (kind) {
+                    "image" -> "Photo"
+                    "video" -> "Video"
+                    "audio" -> "Audio"
+                    "pdf" -> "PDF"
+                    else -> "File"
+                }
+                val host = runCatching { java.net.URI(url).host }.getOrNull()
+                LinkPreviewData(
+                    url = url,
+                    title = filename ?: fallbackTitle,
+                    description = null,
+                    imageUrl = endpoints.previewUrl,
+                    siteName = if (host != null) "Nextcloud · $host" else "Nextcloud",
+                    nextcloudMedia = kind,
+                    mediaDownloadUrl = endpoints.downloadUrl,
+                    mediaByteSize = response.header("Content-Length")?.toLongOrNull()
+                )
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Downloads a (public) share file to app-private cache for local rendering — the in-app PDF
+     * viewer's source. Its own client without [FETCH_TIMEOUT_SECONDS]'s overall call cap: a
+     * multi-MB document on a home server's uplink legitimately takes longer than a page scrape.
+     * Null on any failure or if the file exceeds [maxBytes].
+     */
+    suspend fun downloadToCacheFile(
+        context: android.content.Context,
+        url: String,
+        maxBytes: Long = 50_000_000L
+    ): java.io.File? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder().url(url).build()
+            downloadClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body ?: return@withContext null
+                if (body.contentLength() > maxBytes) return@withContext null
+                val dir = java.io.File(context.cacheDir, "nextcloud_previews").apply { mkdirs() }
+                val file = java.io.File(dir, "share-${url.hashCode()}.bin")
+                file.outputStream().use { out -> body.byteStream().copyTo(out) }
+                if (file.length() > maxBytes) {
+                    file.delete()
+                    null
+                } else {
+                    file
+                }
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private val downloadClient = OkHttpClient.Builder()
+        .connectTimeout(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    /** Pulls the shared file's name out of `Content-Disposition: attachment; filename="x.jpg"`
+     *  (or the RFC 5987 `filename*=UTF-8''x.jpg` form) for the card title. */
+    private fun filenameFromContentDisposition(header: String?): String? {
+        if (header == null) return null
+        Regex("""filename\*=UTF-8''([^;]+)""").find(header)?.let { match ->
+            val raw = match.groupValues[1].trim()
+            return runCatching { android.net.Uri.decode(raw) }.getOrDefault(raw).takeIf { it.isNotEmpty() }
+        }
+        Regex("""filename="([^"]+)"""").find(header)?.let { match ->
+            return match.groupValues[1].takeIf { it.isNotEmpty() }
+        }
+        return null
     }
 
     private fun parseHtml(html: String, url: String): LinkPreviewData? {

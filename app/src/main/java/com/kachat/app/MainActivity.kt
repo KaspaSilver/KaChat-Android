@@ -14,13 +14,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
 import com.kachat.app.services.NotificationHelper
+import com.kachat.app.services.PendingShare
+import com.kachat.app.services.ShareIntake
 import com.kachat.app.ui.theme.KaChatTheme
 import com.kachat.app.ui.KaChatApp
 import com.kachat.app.ui.screens.KaPostsDeepLink
 import com.kachat.app.viewmodels.WalletViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Single Activity — all navigation is handled in Compose via NavHost.
@@ -51,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         pendingChannelName = intent?.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent?.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         intent?.let(::handleKaPostDeepLink)
+        intent?.let(::handleShareIntent)
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
             val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
@@ -79,6 +88,70 @@ class MainActivity : AppCompatActivity() {
         pendingChannelName = intent.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         handleKaPostDeepLink(intent)
+        handleShareIntent(intent)
+    }
+
+    /**
+     * System share sheet intake (ACTION_SEND / ACTION_SEND_MULTIPLE — text/plain and image MIME types).
+     *
+     * If the user picked a specific conversation on the share sheet (a direct-share shortcut
+     * published by ShareShortcutsManager), the shortcut id — the contact's address — arrives in
+     * [Intent.EXTRA_SHORTCUT_ID] and the share is targeted straight at that chat. Otherwise the
+     * share is untargeted: the Chats list shows a "choose a chat" banner and whichever thread is
+     * opened next consumes it (see ShareIntake).
+     *
+     * Image streams are copied into app cache immediately: the sender's content-URI read grant
+     * is tied to this delivery and can't be relied on later when the user actually hits send.
+     */
+    private fun handleShareIntent(intent: Intent) {
+        val action = intent.action
+        if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
+        val type = intent.type ?: return
+        val targetContactId = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID)
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val imageStreams: List<android.net.Uri> = when {
+            action == Intent.ACTION_SEND && type.startsWith("image/") ->
+                listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, android.net.Uri::class.java))
+            action == Intent.ACTION_SEND_MULTIPLE ->
+                IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                    ?.filterNotNull() ?: emptyList()
+            else -> emptyList()
+        }
+        if (text.isNullOrBlank() && imageStreams.isEmpty()) return
+        lifecycleScope.launch {
+            val cachedImages = withContext(Dispatchers.IO) { imageStreams.mapNotNull(::copySharedImageToCache) }
+            if (text.isNullOrBlank() && cachedImages.isEmpty()) return@launch
+            ShareIntake.pending.value = PendingShare(
+                text = text?.takeIf { it.isNotBlank() },
+                imageUris = cachedImages,
+                targetContactId = targetContactId
+            )
+        }
+    }
+
+    /** Copies a shared image stream into app cache, returning a file:// URI readable at any later point (or null on failure). */
+    private fun copySharedImageToCache(uri: android.net.Uri): android.net.Uri? {
+        return try {
+            val dir = File(cacheDir, "shared_images").apply { mkdirs() }
+            // Stale copies from earlier shares are tiny compared to photo caches, but don't let
+            // them accumulate forever either.
+            dir.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 24 * 60 * 60_000L }
+                ?.forEach { it.delete() }
+            val extension = when (contentResolver.getType(uri)) {
+                "image/png" -> "png"
+                "image/webp" -> "webp"
+                "image/gif" -> "gif"
+                else -> "jpg"
+            }
+            val file = File(dir, "share_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(8)}.$extension")
+            contentResolver.openInputStream(uri)?.use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            } ?: return null
+            android.net.Uri.fromFile(file)
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to copy shared image", e)
+            null
+        }
     }
 
     /**

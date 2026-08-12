@@ -198,6 +198,11 @@ fun ChatThreadScreen(
     var paymentMode by remember { mutableStateOf(startInPaymentMode) }
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
+    // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
+    // Storage > Nextcloud). Picking a file sends its public share link as a normal text message,
+    // which the recipient's link-preview feature renders as tappable media.
+    val nextcloudAccount by chatViewModel.nextcloud.account.collectAsState()
+    var showNextcloudPicker by remember { mutableStateOf(false) }
     // Local-only multi-select for deleting individual messages (never the whole chat - see
     // ChatsScreen's own delete for that) - toggled from the top bar's "Select" action.
     var isSelectingMessages by remember { mutableStateOf(false) }
@@ -270,6 +275,34 @@ fun ChatThreadScreen(
     DisposableEffect(contactId) {
         chatViewModel.setActiveContact(contactId)
         onDispose { chatViewModel.setActiveContact(null) }
+    }
+
+    // System-share intake (see ShareIntake/MainActivity.handleShareIntent): consume a pending
+    // share that's either targeted at this conversation (direct-share pick on the share sheet)
+    // or untargeted (user tapped this chat from the Chats list's "choose a chat" banner).
+    // Text/links pre-fill the composer; images run through the same staged-photo pipeline a
+    // picked photo uses (preview + explicit send). Multiple shared images stage one at a time —
+    // the next queues up as soon as the current one is sent or dismissed.
+    val pendingShareContent by com.kachat.app.services.ShareIntake.pending.collectAsState()
+    var sharedImageQueue by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    LaunchedEffect(pendingShareContent, contactId) {
+        val share = pendingShareContent ?: return@LaunchedEffect
+        if (share.targetContactId != null && share.targetContactId != contactId) return@LaunchedEffect
+        com.kachat.app.services.ShareIntake.pending.value = null
+        if (share.isExpired()) return@LaunchedEffect
+        share.text?.let { chatViewModel.setMessageText(it) }
+        if (share.imageUris.isNotEmpty()) {
+            chatViewModel.setPendingPhoto(share.imageUris.first())
+            sharedImageQueue = share.imageUris.drop(1)
+        }
+        // A share always lands in the message composer, never the payment-entry UI.
+        paymentMode = false
+    }
+    LaunchedEffect(pendingPhotoUri) {
+        if (pendingPhotoUri == null && sharedImageQueue.isNotEmpty()) {
+            chatViewModel.setPendingPhoto(sharedImageQueue.first())
+            sharedImageQueue = sharedImageQueue.drop(1)
+        }
     }
 
     LaunchedEffect(paymentMode) {
@@ -779,6 +812,13 @@ fun ChatThreadScreen(
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
                                         }
+                                        if (nextcloudAccount != null) {
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                            PopupMenuRow(Icons.Default.Cloud, "Send from Nextcloud") {
+                                                showComposerMenu = false
+                                                showNextcloudPicker = true
+                                            }
+                                        }
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.Mic, stringResource(R.string.send_audio_message)) {
                                             showComposerMenu = false
@@ -802,6 +842,16 @@ fun ChatThreadScreen(
                                             }
                                         }
                                     }
+                                }
+                                if (showNextcloudPicker) {
+                                    NextcloudPickerDialog(
+                                        service = chatViewModel.nextcloud,
+                                        onDismiss = { showNextcloudPicker = false },
+                                        onPick = { link ->
+                                            showNextcloudPicker = false
+                                            chatViewModel.sendMessage(contactId, link)
+                                        }
+                                    )
                                 }
                             } else {
                                 IconButton(
@@ -6670,6 +6720,9 @@ fun SettingsScreen(
                     }
                 }
             }
+            // Self-hosted alternative to the Google Drive backup above — its own labeled group,
+            // mirroring iOS's Settings > Storage > Nextcloud section.
+            NextcloudSettingsSection(chatViewModel)
             }
 
             if (sectionKey == "chat_history") {

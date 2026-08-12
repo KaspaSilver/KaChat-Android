@@ -72,6 +72,24 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/post/" />
             </intent-filter>
+            <!-- System share sheet: text/links and images shared from any app land in a chat's
+                 composer (see ShareShortcutsManager/ShareIntake + MainActivity.handleShareIntent).
+                 Recent conversations additionally appear as direct-share targets via the sharing
+                 shortcuts published by ShareShortcutsManager + @xml/shortcuts below. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <service

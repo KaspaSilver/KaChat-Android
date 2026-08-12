@@ -288,6 +288,39 @@ fun ChatsScreen(
                         )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    // Untargeted system-share landed here (user tapped the plain "KaChat" target
+                    // on another app's share sheet, not a specific conversation): prompt them to
+                    // pick the chat — whichever thread they open next consumes the pending share
+                    // (see ShareIntake / ChatThreadScreen).
+                    val pendingShare by com.kachat.app.services.ShareIntake.pending.collectAsState()
+                    if (pendingShare != null && pendingShare?.targetContactId == null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(KaspaTeal.copy(alpha = 0.15f))
+                                .padding(start = 14.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.share_pick_chat),
+                                color = LocalAppColors.current.textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { com.kachat.app.services.ShareIntake.pending.value = null }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel),
+                                    tint = LocalAppColors.current.textSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
                 val chatsUnreadCount = conversations.sumOf { it.unreadCount }

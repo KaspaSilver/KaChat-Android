@@ -65,6 +65,8 @@
     <string name="changenow_exchange_id">ChangeNOW Exchange ID</string>
     <string name="channels">Channels</string>
     <string name="chats">Chats</string>
+    <!-- Banner on the Chats list after sharing into KaChat from another app without picking a specific conversation on the share sheet. -->
+    <string name="share_pick_chat">Choose a chat to share to</string>
     <string name="kaposts">KaPosts</string>
     <string name="coming_soon">Coming Soon</string>
     <string name="kapost_indexer">KaPost Indexer</string>
