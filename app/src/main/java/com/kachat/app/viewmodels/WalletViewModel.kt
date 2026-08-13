@@ -43,7 +43,8 @@ class WalletViewModel @Inject constructor(
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
     private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
-    private val kaPostsNotificationPoller: com.kachat.app.services.KaPostsNotificationPoller
+    private val kaPostsNotificationPoller: com.kachat.app.services.KaPostsNotificationPoller,
+    private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager
 ) : ViewModel() {
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
@@ -420,7 +421,12 @@ class WalletViewModel @Inject constructor(
         // including immediately after an account switch.
         viewModelScope.launch {
             walletManager.activeAddressFlow.collect { address ->
-                if (address != null) settings.setActiveAddress(address)
+                if (address != null) {
+                    settings.setActiveAddress(address)
+                    // Register (or re-register on account switch) this device's FCM token with
+                    // the indexer so native push works while backgrounded. No-ops without FCM.
+                    pushRegistrationManager.registerAsync()
+                }
             }
         }
         if (walletManager.hasWallet()) {

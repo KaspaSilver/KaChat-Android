@@ -122,8 +122,9 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- FCM Push Notification Service (Phase 7) -->
-        <!-- Uncomment when Firebase is integrated
+        <!-- FCM Push Notification Service. Data-only messages are handled here and turned into
+             notifications via NotificationHelper (mirrors iOS's Notification Service Extension).
+             Inactive at runtime until google-services.json is added (see app/build.gradle.kts). -->
         <service
             android:name=".services.KaChatFirebaseMessagingService"
             android:exported="false">
@@ -131,7 +132,12 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        -->
+
+        <!-- Default notification channel for FCM (used if a message arrives without an explicit
+             channel). Points at the app's primary messages channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="kachat_messages_sound_vibrate" />
 
         <!-- Required for AppCompatDelegate.setApplicationLocales() to survive a cold app
              restart on API <33 (the Settings > Language row uses this API) - without this

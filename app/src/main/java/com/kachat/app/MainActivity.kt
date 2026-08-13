@@ -1,9 +1,14 @@
 package com.kachat.app
 
+import android.Manifest
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,6 +50,19 @@ class MainActivity : AppCompatActivity() {
     private var pendingChannelName by mutableStateOf<String?>(null)
     private var pendingGroupId by mutableStateOf<String?>(null)
 
+    // Android 13+ requires an explicit runtime grant before ANY notification (local or FCM push)
+    // can be shown. Registered here (during construction, as required) and requested in onCreate.
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* result ignored */ }
+
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Phones lock to portrait; tablets (sw>=600dp, see res/values-sw600dp/bools.xml) rotate
@@ -55,6 +73,7 @@ class MainActivity : AppCompatActivity() {
             ActivityInfo.SCREEN_ORIENTATION_FULL_USER
         }
         enableEdgeToEdge()
+        maybeRequestNotificationPermission()
         pendingContactId = intent?.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
         pendingChannelName = intent?.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent?.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)

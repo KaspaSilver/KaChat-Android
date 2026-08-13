@@ -7,6 +7,15 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.protobuf)
+    alias(libs.plugins.google.services) apply false
+}
+
+// Firebase Cloud Messaging is opt-in on the drop-in `google-services.json` (Firebase console →
+// Project settings → your Android app → download). Applied only when that file is present so a
+// checkout without it (fresh clone / CI without secrets) still builds — FCM is simply inactive
+// until the file is added. Same conditional-local-file pattern as keystore.properties below.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 protobuf {
@@ -184,6 +193,11 @@ dependencies {
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp.core)
     implementation(libs.okhttp.logging)
+
+    // Firebase Cloud Messaging — native push (registration signed with the wallet key against
+    // the KaChat indexer's /v1/push API). Only active when google-services.json is present.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // Coroutines
     implementation(libs.coroutines.android)
