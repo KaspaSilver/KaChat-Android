@@ -63,7 +63,11 @@ class BroadcastScanningService @Inject constructor(
     private val nodePoolManager: NodePoolManager,
     private val database: KaChatDatabase,
     private val broadcastRepository: BroadcastRepository,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    // Consulted ONLY at the notification-posting site: while native FCM push is active, the
+    // server pushes bell-enabled channels' messages (PUSH_EXTENSIONS.md §2/§4) and a local
+    // banner here too would be a duplicate. Scanning/caching itself is never gated on it.
+    private val pushState: PushState
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
@@ -246,7 +250,7 @@ class BroadcastScanningService @Inject constructor(
                 )
             )
 
-            if (isChannelNotifyEnabled(parsed.channel)) {
+            if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive) {
                 // A reaction's raw JSON must never surface in a notification — humanize it.
                 // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
                 // message" too, rather than showing the raw reply JSON (see MessageReply).

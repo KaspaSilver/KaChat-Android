@@ -19,6 +19,7 @@ import com.kachat.app.services.ChatHistoryExportImportService
 import com.kachat.app.services.GoogleDriveBackupService
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.NotificationHelper
+import com.kachat.app.services.PushState
 import com.kachat.app.services.TransactionResponse
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.database.KaChatDatabase
@@ -57,6 +58,11 @@ class ChatRepository @Inject constructor(
     private val walletManager: WalletManager,
     private val settingsRepository: AppSettingsRepository,
     private val notificationHelper: NotificationHelper,
+    // Consulted ONLY at the notification-posting sites below: while native FCM push is active,
+    // the server is the notification source for 1:1 handshakes/messages/payments
+    // (PUSH_EXTENSIONS.md §4) and posting here too would duplicate every banner. The sync work
+    // itself is never gated on it — it still powers the live UI and the local store.
+    private val pushState: PushState,
     private val googleDriveBackupService: GoogleDriveBackupService,
     // Lazy because ChatHistoryExportImportService itself depends on ChatRepository (it reads
     // contacts/messages to build the archive) — a direct circular constructor dependency Dagger
@@ -399,12 +405,14 @@ class ChatRepository @Inject constructor(
         )
 
         val displayName = theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(handshake.sender)
-        notificationHelper.show(
-            contactId = handshake.sender,
-            title = if (newStatus == "pending") "Request to communicate" else "Connected",
-            text = if (newStatus == "pending") "$displayName wants to connect" else "$displayName accepted your request",
-            notificationOverride = ContactNotificationMode.fromName(existing?.notificationOverride)
-        )
+        if (!pushState.isActive) { // handshake pushes come from the server in remote-push mode
+            notificationHelper.show(
+                contactId = handshake.sender,
+                title = if (newStatus == "pending") "Request to communicate" else "Connected",
+                text = if (newStatus == "pending") "$displayName wants to connect" else "$displayName accepted your request",
+                notificationOverride = ContactNotificationMode.fromName(existing?.notificationOverride)
+            )
+        }
     }
 
     private suspend fun syncContextualMessages(myAddress: String, api: KasiaIndexerApi) {
@@ -507,12 +515,14 @@ class ChatRepository @Inject constructor(
             com.kachat.app.util.ChessMessage.parseOrNull(plaintext) != null -> "♟️ Chess game"
             else -> plaintext
         }
-        notificationHelper.show(
-            contactId = contact.id,
-            title = contact.alias ?: contact.id.takeLast(8),
-            text = notificationText,
-            notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride)
-        )
+        if (!pushState.isActive) { // contextual-message pushes come from the server in remote-push mode
+            notificationHelper.show(
+                contactId = contact.id,
+                title = contact.alias ?: contact.id.takeLast(8),
+                text = notificationText,
+                notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride)
+            )
+        }
     }
 
     /**
@@ -601,12 +611,14 @@ class ChatRepository @Inject constructor(
             )
         )
 
-        notificationHelper.show(
-            contactId = sender,
-            title = "Payment received",
-            text = displayText,
-            notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride)
-        )
+        if (!pushState.isActive) { // payment pushes come from the server in remote-push mode
+            notificationHelper.show(
+                contactId = sender,
+                title = "Payment received",
+                text = displayText,
+                notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride)
+            )
+        }
     }
 
     companion object {

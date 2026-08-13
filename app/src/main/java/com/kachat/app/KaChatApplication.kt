@@ -44,6 +44,14 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var groupScanningService: GroupScanningService
 
+    // Same lazy-singleton reasoning again: PushRegistrationManager's init block observes the
+    // active account / contact set / broadcast bells / hidden senders / notifications setting and
+    // re-registers (or unregisters) the FCM token with the push service whenever any of it
+    // changes. Field-injecting it here guarantees those observers run for the app's whole
+    // lifetime, not just after the first screen that happens to request it.
+    @Inject
+    lateinit var pushRegistrationManager: com.kachat.app.services.PushRegistrationManager
+
     @Inject
     lateinit var nodePoolManager: com.kachat.app.services.NodePoolManager
 

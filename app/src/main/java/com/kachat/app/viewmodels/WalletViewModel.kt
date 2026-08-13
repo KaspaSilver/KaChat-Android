@@ -474,10 +474,19 @@ class WalletViewModel @Inject constructor(
         }
         if (walletManager.hasWallet()) {
             _isLoggedIn.value = true
+            // Logging back into the SAME account re-registers push explicitly — logout()
+            // unregistered, and activeAddressFlow won't re-emit for an unchanged address, so the
+            // observer inside PushRegistrationManager can't see this transition on its own.
+            // (Switching accounts is covered either way; the register is fingerprint-deduped.)
+            pushRegistrationManager.registerAsync()
         }
     }
 
     fun logout() {
+        // Mirrors iOS's WalletManager.logout(): a logged-out device must stop receiving pushes
+        // for the account, even though the wallet data stays on the device. Signing material is
+        // captured synchronously, and the wallet isn't being destroyed here anyway.
+        pushRegistrationManager.unregisterAsync()
         _isLoggedIn.value = false
     }
 
@@ -537,6 +546,13 @@ class WalletViewModel @Inject constructor(
      * destructive action. An explicit re-login/account tap is clearer.
      */
     fun deleteWallet(address: String) {
+        // Unregister push BEFORE the keys are destroyed (iOS's deleteWallet does the same) — a
+        // signed unregister needs the wallet's key, and unregisterAsync snapshots it
+        // synchronously right here. Only when deleting the account push is registered FOR:
+        // deleting some other saved account from the Welcome list must not kill this one's push.
+        if (address == walletManager.getActiveAccount()?.address) {
+            pushRegistrationManager.unregisterAsync()
+        }
         walletManager.deleteAccount(address)
         _accounts.value = walletManager.getAllAccounts()
         _hasWallet.value = walletManager.hasWallet()

@@ -28,6 +28,10 @@ class KaPostsNotificationPoller @Inject constructor(
     private val walletManager: WalletManager,
     private val notificationHelper: NotificationHelper,
     private val dataStore: DataStore<Preferences>,
+    // While native FCM push is active the server sends the KaPosts pings (PUSH_EXTENSIONS.md
+    // §3/§4), so the poller must not post duplicates — but it still polls: last-seen tracking
+    // and the Notifications screen's data depend on it.
+    private val pushState: PushState,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollJob: Job? = null
@@ -66,6 +70,9 @@ class KaPostsNotificationPoller @Inject constructor(
         val fresh = notifications.filter { it.timestamp > lastSeen }
         if (fresh.isEmpty()) return
         dataStore.edit { it[key] = maxOf(newest, lastSeen) }
+        // Remote-push mode: the server already pushed these (PUSH_EXTENSIONS.md §4) — advance
+        // last-seen as usual, but don't post duplicate local pings.
+        if (pushState.isActive) return
         // Oldest first, capped so a viral post can't fire fifty pings at once.
         for (n in fresh.sortedBy { it.timestamp }.takeLast(5)) {
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue
