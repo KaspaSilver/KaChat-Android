@@ -15,8 +15,13 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settings: AppSettingsRepository
+    private val settings: AppSettingsRepository,
+    pushState: com.kachat.app.services.PushState
 ) : ViewModel() {
+
+    /** Read-only push diagnostics for Settings > Notifications (see PushState.PushDiagnostics). */
+    val pushActive = pushState.pushActive
+    val pushDiagnostics = pushState.diagnostics
 
     val network = settings.network
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_NETWORK)

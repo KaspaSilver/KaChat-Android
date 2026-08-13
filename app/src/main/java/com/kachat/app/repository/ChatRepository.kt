@@ -75,11 +75,14 @@ class ChatRepository @Inject constructor(
     private var backupDebounceJob: Job? = null
 
     init {
-        // Real-time-ish receive: the indexer has no push mechanism we use, so poll it
+        // Real-time-ish receive for the LIVE UI while the app is open: poll the indexer
         // periodically, mirroring NodePoolManager's probe-loop pattern. syncMessages()
         // already no-ops safely if there's no active wallet yet. Each cycle is just a
         // couple of lightweight indexer GETs, so this can run much faster than a typical
         // polling interval — Kaspa's block time is far faster than 15s ever reflected.
+        // Once the app leaves the foreground this loop simply freezes with the process
+        // (nothing keeps it alive anymore, by design) — FCM push is the only background
+        // delivery path for DMs, so push failures surface instead of being masked.
         scope.launch {
             pruneOldMessages() // once on startup, matching iOS's on-launch retention prune
             while (true) {

@@ -30,12 +30,6 @@
     <!-- Biometric/device-credential prompt guarding the seed phrase and account unlock -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
-    <!-- Keeps the message/handshake/payment poll loop alive in the background —
-         Android freezes a plain background process's threads within seconds otherwise,
-         which silently stopped notifications from firing once the app was backgrounded. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
     <application
         android:name=".KaChatApplication"
         android:allowBackup="false"
@@ -91,11 +85,6 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
         </activity>
-
-        <service
-            android:name=".services.SyncForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
 
         <!-- WorkManager's default auto-init is disabled — KaChatApplication implements
              Configuration.Provider so SyncWorker gets constructed via HiltWorkerFactory

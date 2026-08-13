@@ -27,16 +27,21 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         // FCM rotated the token — re-register it with the indexer (signed with the wallet key).
+        Log.i(TAG, "FCM token rotated, re-registering with the push service")
         pushRegistrationManager.onTokenRefreshed(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
-        if (data.isEmpty()) return
+        if (data.isEmpty()) {
+            Log.d(TAG, "push received with empty data payload, ignoring")
+            return
+        }
 
         val type = data["type"].orEmpty()
         val title = data["title"].orEmpty()
         val body = data["body"].orEmpty()
+        Log.i(TAG, "push received: type=$type txId=${data["tx_id"].orEmpty().take(16)}")
 
         // NotificationHelper.show* are suspend and quick (settings read + notify); block so the
         // work completes before the service is torn down.
@@ -87,6 +92,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     companion object {
-        private const val TAG = "KaChatFCM"
+        // Same tag as PushRegistrationManager: `adb logcat -s KaChatPush` shows registrations,
+        // token rotations, and every received push in one stream.
+        private const val TAG = PushRegistrationManager.TAG
     }
 }

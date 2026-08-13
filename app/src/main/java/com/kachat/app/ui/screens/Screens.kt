@@ -7538,12 +7538,38 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
     }
 }
 
+/** Read-only label/value row for the push-diagnostics section of [NotificationSettingsScreen]. */
+@Composable
+private fun PushDiagnosticRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            color = LocalAppColors.current.textPrimary,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f).padding(end = 12.dp)
+        )
+        Text(
+            text = value,
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val soundEnabled by viewModel.notificationSoundEnabled.collectAsState()
     val vibrationEnabled by viewModel.notificationVibrationEnabled.collectAsState()
+    val pushActive by viewModel.pushActive.collectAsState()
+    val pushDiag by viewModel.pushDiagnostics.collectAsState()
 
     val context = LocalContext.current
     var permissionGranted by remember {
@@ -7617,7 +7643,7 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                 }
                 SettingsFooter(
                     if (notificationsEnabled && permissionGranted)
-                        "Receive notifications when contacts send messages while KaChat is running. There's no remote push server yet, so nothing arrives once the app has been fully closed by the system."
+                        "Messages, broadcasts, and KaPosts notifications are delivered by the KaChat push service, including while the app is closed. Group notifications are checked in the background about every 15 minutes."
                     else
                         "Notifications are disabled."
                 )
@@ -7633,6 +7659,36 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                         viewModel.setNotificationVibrationEnabled(it)
                     }
                 }
+            }
+
+            // Read-only push diagnostics — background delivery for DMs/broadcasts/KaPosts has no
+            // polling fallback, so when pushes don't arrive this is the first place to look
+            // (paired with `adb logcat -s KaChatPush` for the full story).
+            SettingsSection(title = "Push diagnostics") {
+                PushDiagnosticRow("Remote push active", if (pushActive) "Yes" else "No")
+                SettingsDivider()
+                PushDiagnosticRow(
+                    "FCM token",
+                    when {
+                        pushDiag.fcmTokenPresent -> "Present"
+                        pushDiag.lastAttemptAtMs == null -> "—"
+                        else -> "Missing"
+                    }
+                )
+                SettingsDivider()
+                PushDiagnosticRow(
+                    "Last registration",
+                    pushDiag.lastAttemptAtMs?.let { ts ->
+                        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                            .format(java.util.Date(ts))
+                        val outcome = if (pushDiag.lastAttemptSucceeded == true) "OK" else "failed"
+                        "${pushDiag.lastAction ?: "attempt"} $outcome · $time"
+                    } ?: "None yet"
+                )
+                SettingsFooter(
+                    pushDiag.lastError?.let { "Last error: $it" }
+                        ?: "Delivery problems? Capture logs with: adb logcat -s KaChatPush"
+                )
             }
 
             Spacer(modifier = Modifier.height(40.dp))

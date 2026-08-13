@@ -1,8 +1,6 @@
 package com.kachat.app
 
 import android.app.Application
-import android.content.Intent
-import androidx.core.content.ContextCompat
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -15,7 +13,7 @@ import androidx.work.WorkManager
 import com.kachat.app.repository.GroupRepository
 import com.kachat.app.services.BroadcastScanningService
 import com.kachat.app.services.GroupScanningService
-import com.kachat.app.services.SyncForegroundService
+import com.kachat.app.services.KaPostsNotificationPoller
 import com.kachat.app.services.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +56,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var groupRepository: GroupRepository
 
+    // Foreground-only KaPosts pings (started/stopped by the process lifecycle observer below) —
+    // while the app is closed, the push service is the only KaPosts notification source.
+    @Inject
+    lateinit var kaPostsNotificationPoller: KaPostsNotificationPoller
+
     // For the Nextcloud automatic chat-history backup below — the archive json comes from the
     // same export service ChatViewModel's manual backup uses, so both paths write byte-identical
     // backups.
@@ -76,36 +79,29 @@ class KaChatApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
-        // Periodic fallback for SyncForegroundService — see SyncWorker's doc comment. Runs
-        // independently of the foreground service's own lifecycle, so it still gets a chance
-        // to sync roughly every 15 minutes even during the hours the FGS itself can't restart
-        // (Android 15+'s dataSync execution-time cap). KEEP means re-registering on every app
-        // launch doesn't stack duplicate periodic jobs.
+        // Background catch-up for GROUP chat only (see SyncWorker's doc comment): groups have no
+        // remote push (the push registration is the LegacyV1 shape with no watched_group_ids), so
+        // this 15-minute WorkManager cadence is their sole closed-app notification path. All
+        // push-covered surfaces (1:1 DMs, broadcasts, KaPosts) are delivered by FCM when the app
+        // is backgrounded or killed. KEEP means re-registering on every app launch doesn't stack
+        // duplicate periodic jobs.
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SyncWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES).build()
         )
 
-        // Only run the (notification-requiring) foreground sync service while the app
-        // is actually backgrounded — while it's in the foreground, ChatRepository's poll
-        // loop already runs unthrottled and a persistent notification would just be
-        // redundant noise on top of what the user is already looking at.
+        // Foreground/background transitions. There is deliberately NO mechanism here keeping the
+        // process alive while backgrounded: FCM push (see PushRegistrationManager) is the only
+        // delivery path for 1:1 DMs, broadcasts, and KaPosts once the app leaves the foreground,
+        // so a push-delivery problem surfaces as missing notifications instead of being silently
+        // masked by a background poller. The in-process pollers (ChatRepository's loop, the
+        // broadcast/group scanners) simply freeze with the process and resume on foreground.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
-                // Android 15+ caps a dataSync foreground service to ~6 cumulative hours per
-                // rolling 24h window — once that's exhausted, every restart attempt throws
-                // ForegroundServiceStartNotAllowedException until the window frees back up.
-                // That's expected/recoverable (SyncWorker's periodic fallback covers the gap
-                // in the meantime), not a crash-worthy condition.
-                try {
-                    ContextCompat.startForegroundService(
-                        this@KaChatApplication,
-                        Intent(this@KaChatApplication, SyncForegroundService::class.java)
-                    )
-                } catch (e: Exception) {
-                    android.util.Log.w("KaChatApplication", "Couldn't start SyncForegroundService (will retry via SyncWorker)", e)
-                }
+                // In-app KaPosts pings are a foreground concern only — the push service covers
+                // KaPosts while backgrounded/closed.
+                kaPostsNotificationPoller.stop()
                 // Backgrounding is the natural "done chatting" moment — run the Nextcloud
                 // automatic backup then, throttled to at most once per hour. autoBackupIfDue
                 // no-ops unless the toggle is on and an account is connected, and swallows its
@@ -116,7 +112,8 @@ class KaChatApplication : Application(), Configuration.Provider {
             }
 
             override fun onStart(owner: LifecycleOwner) {
-                stopService(Intent(this@KaChatApplication, SyncForegroundService::class.java))
+                // KaPosts pings while the app is actually open (60s poll) — iOS parity.
+                kaPostsNotificationPoller.start()
                 // A batch of gRPC connections can die silently while backgrounded/asleep (the OS
                 // tears down sockets, and each KaspadConnection's own self-reconnect can be
                 // suspended along with the rest of the app) - reconnect any that are dead right

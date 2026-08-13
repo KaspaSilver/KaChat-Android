@@ -35,7 +35,8 @@ class DiagnosticsExportService @Inject constructor(
     private val chatRepository: ChatRepository,
     private val walletManager: WalletManager,
     private val settingsRepository: AppSettingsRepository,
-    private val nodePoolManager: NodePoolManager
+    private val nodePoolManager: NodePoolManager,
+    private val pushState: PushState
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -116,7 +117,15 @@ class DiagnosticsExportService @Inject constructor(
             "googleBackupEnabled" to settingsRepository.googleBackupEnabled.first().toString(),
             "backupRetention" to settingsRepository.backupRetention.first().name,
             "broadcastPopularEnabled" to settingsRepository.broadcastPopularEnabled.first().toString(),
-            "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString()
+            "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString(),
+            // Push diagnostics — background DM/broadcast/KaPosts delivery is push-only (no
+            // polling fallback), so this is the state to check when notifications don't arrive.
+            "pushActive" to pushState.isActive.toString(),
+            "pushLastAttemptAtMs" to (pushState.diagnostics.value.lastAttemptAtMs?.toString() ?: "never"),
+            "pushLastAction" to (pushState.diagnostics.value.lastAction ?: "none"),
+            "pushLastAttemptSucceeded" to (pushState.diagnostics.value.lastAttemptSucceeded?.toString() ?: "n/a"),
+            "pushLastError" to (pushState.diagnostics.value.lastError ?: "none"),
+            "pushFcmTokenPresent" to pushState.diagnostics.value.fcmTokenPresent.toString()
         )
 
         return DiagnosticsArchive(

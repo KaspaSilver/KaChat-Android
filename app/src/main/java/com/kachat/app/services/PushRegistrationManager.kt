@@ -186,7 +186,10 @@ class PushRegistrationManager @Inject constructor(
         lastRegisteredFingerprint = null
 
         val api = networkService.pushApi.first { it != null } ?: return@withLock
-        val token = try { FirebaseMessaging.getInstance().token.await().trim() } catch (_: Exception) { return@withLock }
+        val token = try { FirebaseMessaging.getInstance().token.await().trim() } catch (e: Exception) {
+            pushState.recordAttempt("unregister", succeeded = false, error = "FCM token unavailable: ${e.message}", fcmTokenPresent = false)
+            return@withLock
+        }
         if (token.isEmpty()) return@withLock
 
         val auth = material?.let {
@@ -196,16 +199,20 @@ class PushRegistrationManager @Inject constructor(
         }
         try {
             api.unregister(PushUnregisterRequest(deviceToken = token, auth = auth))
+            pushState.recordAttempt("unregister", succeeded = true, error = null, fcmTokenPresent = true)
             Log.i(TAG, "push unregistered")
         } catch (e: HttpException) {
             // A signed attempt the server rejects (e.g. token bound to a wallet we no longer
             // hold the key for) still deserves the unsigned best-effort try before giving up.
-            if (auth != null) {
-                runCatching { api.unregister(PushUnregisterRequest(deviceToken = token, auth = null)) }
-                    .onSuccess { Log.i(TAG, "push unregistered (unsigned fallback)") }
-                    .onFailure { Log.w(TAG, "push unregister rejected: ${e.code()}") }
+            val recovered = auth != null && runCatching {
+                api.unregister(PushUnregisterRequest(deviceToken = token, auth = null))
+            }.isSuccess
+            if (recovered) {
+                pushState.recordAttempt("unregister", succeeded = true, error = null, fcmTokenPresent = true)
+                Log.i(TAG, "push unregistered (unsigned fallback)")
             } else {
-                Log.w(TAG, "push unregister rejected: ${e.code()}")
+                pushState.recordAttempt("unregister", succeeded = false, error = describeError(e), fcmTokenPresent = true)
+                Log.w(TAG, "push unregister rejected: ${describeError(e)}")
             }
         }
     }
@@ -215,8 +222,17 @@ class PushRegistrationManager @Inject constructor(
         if (!settings.notificationsEnabled.first()) return@withLock
 
         val api = networkService.pushApi.first { it != null } ?: return@withLock
-        val token = (tokenOverride ?: FirebaseMessaging.getInstance().token.await()).trim()
-        if (token.isEmpty()) return@withLock
+        val token = try {
+            (tokenOverride ?: FirebaseMessaging.getInstance().token.await()).trim()
+        } catch (e: Exception) {
+            // No google-services.json / no Play services / Firebase not initialized.
+            pushState.recordAttempt("register", succeeded = false, error = "FCM token unavailable: ${e.message}", fcmTokenPresent = false)
+            throw e
+        }
+        if (token.isEmpty()) {
+            pushState.recordAttempt("register", succeeded = false, error = "FCM returned an empty token", fcmTokenPresent = false)
+            return@withLock
+        }
 
         val privateKey = walletManager.getPrivateKeyBytes()
         // Kaspa addresses are canonical lowercase bech32, so this already matches the server's
@@ -265,6 +281,7 @@ class PushRegistrationManager @Inject constructor(
         // with POST_NOTIFICATIONS denied the pollers' (equally invisible) banners are moot
         // anyway, but keeping the flag honest costs nothing.
         pushState.setActive(NotificationManagerCompat.from(context).areNotificationsEnabled())
+        pushState.recordAttempt("register", succeeded = true, error = null, fcmTokenPresent = true)
         Log.i(
             TAG,
             "push registered (watched=${watchedAddresses.size}, channels=${broadcastChannels.size}, " +
@@ -309,8 +326,24 @@ class PushRegistrationManager @Inject constructor(
             // and forgets the fingerprint so the next trigger retries for real.
             pushState.setActive(false)
             lastRegisteredFingerprint = null
+            pushState.recordAttempt(
+                "register",
+                succeeded = false,
+                error = describeError(e),
+                fcmTokenPresent = true,
+            )
+            Log.w(TAG, "register attempt failed: ${describeError(e)}")
             throw e
         }
+    }
+
+    /** HTTP failures with status + server error body when available; else the exception message. */
+    private fun describeError(e: Exception): String = when (e) {
+        is HttpException -> {
+            val body = runCatching { e.response()?.errorBody()?.string()?.take(200) }.getOrNull()
+            "HTTP ${e.code()}${if (body.isNullOrBlank()) "" else ": $body"}"
+        }
+        else -> e.message ?: e.javaClass.simpleName
     }
 
     /** Server contract (iOS parity): 401 + "bound to another wallet" in the error body. */
@@ -485,7 +518,10 @@ class PushRegistrationManager @Inject constructor(
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     companion object {
-        private const val TAG = "PushRegistration"
+        // Shared with KaChatFirebaseMessagingService so `adb logcat -s KaChatPush` shows the
+        // whole story: registration attempts, their outcomes, token rotations, and every
+        // received push.
+        internal const val TAG = "KaChatPush"
         private const val AUTH_DOMAIN_V1 = "kasia-push-auth:v1"
     }
 }

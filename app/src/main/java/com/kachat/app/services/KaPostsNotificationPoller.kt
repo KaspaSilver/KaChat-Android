@@ -17,10 +17,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * In-app KaPosts notification pings, mirroring iOS's KaPostsNotificationService: while the app
- * process is alive, polls the indexer's notification stream every 60s and posts a local
- * notification for new actions on your content ("alice liked your post"). Last-seen is stored
- * per wallet so nothing replays, and opening the Notifications screen marks everything seen.
+ * In-app KaPosts notification pings, mirroring iOS's KaPostsNotificationService: while the app is
+ * in the FOREGROUND (KaChatApplication's process lifecycle observer calls [start]/[stop] on
+ * foreground/background transitions), polls the indexer's notification stream every 60s and posts
+ * a local notification for new actions on your content ("alice liked your post"). Once the app is
+ * backgrounded or closed, the push service is the only KaPosts notification source — deliberately
+ * no background continuation here, so push failures stay visible. Last-seen is stored per wallet
+ * so nothing replays, and opening the Notifications screen marks everything seen.
  */
 @Singleton
 class KaPostsNotificationPoller @Inject constructor(
@@ -46,6 +49,12 @@ class KaPostsNotificationPoller @Inject constructor(
                 delay(60_000)
             }
         }
+    }
+
+    /** Called when the app leaves the foreground — background KaPosts pings are push's job. */
+    fun stop() {
+        pollJob?.cancel()
+        pollJob = null
     }
 
     /** The Notifications screen calls this with the newest timestamp it displayed. */

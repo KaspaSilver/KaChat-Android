@@ -43,7 +43,6 @@ class WalletViewModel @Inject constructor(
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
     private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
-    private val kaPostsNotificationPoller: com.kachat.app.services.KaPostsNotificationPoller,
     private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager
 ) : ViewModel() {
 
@@ -414,8 +413,8 @@ class WalletViewModel @Inject constructor(
         // preserved via the cap/cycle; fresh installs: minimal Chats/Profile/+More dock).
         // Sentinel-guarded no-op on every later launch.
         viewModelScope.launch { settings.applyKaPostsTabDefaultsIfNeeded() }
-        // KaPosts social pings while the app runs (60s poll) - iOS parity.
-        kaPostsNotificationPoller.start()
+        // (KaPosts social-ping polling is started/stopped by KaChatApplication's process
+        // lifecycle observer now — foreground-only, since push covers KaPosts when closed.)
         // Mirror the active account's address into DataStore so the per-account dock keys
         // (AppSettingsRepository.tabOrder/hiddenTabs) always resolve against the right account,
         // including immediately after an account switch.

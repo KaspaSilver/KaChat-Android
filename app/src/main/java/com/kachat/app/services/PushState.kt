@@ -38,4 +38,41 @@ class PushState @Inject constructor() {
     internal fun setActive(active: Boolean) {
         _pushActive.value = active
     }
+
+    /**
+     * Read-only debugging surface for Settings > Notifications ("why aren't pushes arriving?").
+     * Updated by [PushRegistrationManager] around every registration/unregistration attempt;
+     * everything here is also logged under the `KaChatPush` logcat tag, so
+     * `adb logcat -s KaChatPush` tells the same story with history.
+     */
+    data class PushDiagnostics(
+        /** Epoch ms of the most recent register/unregister attempt; null = none this process. */
+        val lastAttemptAtMs: Long? = null,
+        /** Outcome of that attempt; null = still none / in flight. */
+        val lastAttemptSucceeded: Boolean? = null,
+        /** Human-readable failure reason from the last FAILED attempt; null after a success. */
+        val lastError: String? = null,
+        /** Whether an FCM token could be obtained (false = no google-services/Play services). */
+        val fcmTokenPresent: Boolean = false,
+        /** What the last attempt was, e.g. "register", "unregister". */
+        val lastAction: String? = null,
+    )
+
+    private val _diagnostics = MutableStateFlow(PushDiagnostics())
+    val diagnostics: StateFlow<PushDiagnostics> = _diagnostics
+
+    internal fun recordAttempt(
+        action: String,
+        succeeded: Boolean,
+        error: String?,
+        fcmTokenPresent: Boolean,
+    ) {
+        _diagnostics.value = PushDiagnostics(
+            lastAttemptAtMs = System.currentTimeMillis(),
+            lastAttemptSucceeded = succeeded,
+            lastError = error,
+            fcmTokenPresent = fcmTokenPresent,
+            lastAction = action,
+        )
+    }
 }
