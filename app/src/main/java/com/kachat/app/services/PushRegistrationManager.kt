@@ -89,6 +89,9 @@ class PushRegistrationManager @Inject constructor(
      * Everything the registration payload is derived from, observed as one combined flow.
      * [notificationsEnabled] rides along so flipping the setting re-triggers [onSnapshot]
      * (where it decides register vs unregister) — it is NOT part of the fingerprint.
+     * [childModeEnabled] is the sixth observed input: toggling Child Mode changes what
+     * [register] sends (broadcast channels / KaPosts pubkey dropped), so it must re-trigger a
+     * registration automatically, exactly like iOS's .settingsDidChange → updateWatchedAddresses.
      */
     private data class Snapshot(
         val activeAddress: String?,
@@ -96,10 +99,13 @@ class PushRegistrationManager @Inject constructor(
         val activeContacts: Set<String>,
         val notifyChannels: Set<String>,
         val hiddenSenderRows: Set<Pair<String, String>>, // (channelName, senderAddress)
+        val childModeEnabled: Boolean,
     )
 
     init {
         scope.launch {
+            // The 6-flow combine only exists as the vararg overload (typed ones stop at 5),
+            // hence the positional Array<Any?> casts.
             combine(
                 walletManager.activeAddressFlow,
                 settings.notificationsEnabled,
@@ -110,8 +116,17 @@ class PushRegistrationManager @Inject constructor(
                 broadcastRepository.getHiddenSenders().map { rows ->
                     rows.map { it.channelName to it.senderAddress }.toSet()
                 },
-            ) { address, notify, contacts, channels, hidden ->
-                Snapshot(address, notify, contacts, channels, hidden)
+                settings.childModeEnabled,
+            ) { values ->
+                @Suppress("UNCHECKED_CAST")
+                Snapshot(
+                    activeAddress = values[0] as String?,
+                    notificationsEnabled = values[1] as Boolean,
+                    activeContacts = values[2] as Set<String>,
+                    notifyChannels = values[3] as Set<String>,
+                    hiddenSenderRows = values[4] as Set<Pair<String, String>>,
+                    childModeEnabled = values[5] as Boolean,
+                )
             }
                 .distinctUntilChanged()
                 // Coalesce bursts (accepting a handshake touches contacts repeatedly, hiding a
@@ -243,7 +258,12 @@ class PushRegistrationManager @Inject constructor(
         // Kaspa addresses are canonical lowercase bech32, so this already matches the server's
         // RpcAddress round-trip (normalize_wallet_address / derive_wallet_address).
         val walletAddress = walletManager.getAddress().trim()
-        val kaPostsPubkey = compressedPubkeyHex(privateKey)
+        // Child Mode: no broadcast channels and no KaPosts identity registered with the push
+        // service at all (mirrors iOS's collectWatchedBroadcastChannels/collectKaPostsPubkey
+        // guards). Both feed the fingerprint below AND the init observer watches the flag, so
+        // toggling the mode re-registers automatically in either direction.
+        val childMode = settings.childModeEnabled.first()
+        val kaPostsPubkey = if (childMode) null else compressedPubkeyHex(privateKey)
 
         // Own address included alongside active contacts, matching iOS's collectWatchedAddresses
         // — the server routes by SENDER (find_devices_watching), so without it a handshake from a
@@ -251,7 +271,7 @@ class PushRegistrationManager @Inject constructor(
         val watchedAddresses = (chatRepository.getContacts().first()
             .filter { it.conversationStatus == "active" }
             .map { it.id } + walletAddress).distinct()
-        val broadcastChannels = broadcastRepository.getNotifyEnabledChannelNames().first().toList()
+        val broadcastChannels = if (childMode) emptyList() else broadcastRepository.getNotifyEnabledChannelNames().first().toList()
         val hiddenSenders = collectHiddenBroadcastSenders(broadcastChannels)
         // Blinded group ids to be pushed for (per group, per other non-muted member) — iOS parity.
         // Non-empty flips the registration to the TransitionalGroups auth shape.
@@ -303,7 +323,8 @@ class PushRegistrationManager @Inject constructor(
         token: String,
         privateKey: ByteArray,
         walletAddress: String,
-        kaPostsPubkey: String,
+        // null while Child Mode is on — the server then sends no KaPosts pings to this device.
+        kaPostsPubkey: String?,
         watchedAddresses: List<String>,
         broadcastChannels: List<String>,
         hiddenSenders: Map<String, List<String>>,
@@ -415,7 +436,7 @@ class PushRegistrationManager @Inject constructor(
         watchedAddresses: List<String>,
         broadcastChannels: List<String>,
         hiddenSenders: Map<String, List<String>>,
-        kaPostsPubkey: String,
+        kaPostsPubkey: String?,
         watchedGroupIds: List<String>,
     ): String = sha256Hex(
         listOf(
@@ -424,7 +445,7 @@ class PushRegistrationManager @Inject constructor(
             canonicalizeAddresses(watchedAddresses).joinToString(","),
             broadcastChannels.sorted().joinToString(","),
             hiddenSenders.toSortedMap().entries.joinToString(";") { "${it.key}=${it.value.joinToString(",")}" },
-            kaPostsPubkey,
+            kaPostsPubkey.orEmpty(),
             canonicalizeAddresses(watchedGroupIds).joinToString(","),
         ).joinToString("\n")
     )

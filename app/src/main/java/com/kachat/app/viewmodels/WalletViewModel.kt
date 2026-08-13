@@ -1093,6 +1093,29 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch { settings.setBiometricSpendingKeyEnabled(enabled) }
     }
 
+    /** Settings > Security > Child Mode — the dock/deep-link/notification gates all derive from
+     *  this at render time (see resolveTabOrder); the masked state is never written into the
+     *  stored per-account dock prefs. */
+    val childModeEnabled: StateFlow<Boolean> = settings.childModeEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
+
+    /** Race-free read for one-shot navigation decisions (deep links / notification taps) — the
+     *  StateFlow above starts as `false` before DataStore loads, which a cold-start notification
+     *  tap could otherwise slip through. */
+    suspend fun isChildModeEnabled(): Boolean = settings.childModeEnabled.first()
+
+    /** True while the Welcome Guide's "Who will use KaChat?" step is owed an answer (marker
+     *  "pending") — MainShell re-presents the guide at that step on every launch until it is.
+     *  null while DataStore loads (don't re-present on an unknown value). */
+    val userTypePending: StateFlow<Boolean?> = settings.userTypeChoiceState
+        .map { (it == com.kachat.app.repository.AppSettingsRepository.USER_TYPE_PENDING) as Boolean? }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    /** Called right before the first-run guide auto-presents — never downgrades "chosen". */
+    fun markUserTypePending() {
+        viewModelScope.launch { settings.markUserTypePending() }
+    }
+
     /**
      * Settings > Customization — whether the "Setup Guide" re-entry points (the Profile screen's
      * "Welcome Guide" row, the "Edit KNS Profile" screen's "Setup Guide" section) are shown.

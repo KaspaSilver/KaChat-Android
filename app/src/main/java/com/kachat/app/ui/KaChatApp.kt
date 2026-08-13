@@ -98,20 +98,35 @@ val bottomNavItems = listOf(
 const val MAX_DOCK_ITEMS = 5
 
 /**
+ * Routes hard-hidden everywhere while Child Mode is on (Settings > Security > Child Mode) —
+ * matches iOS's AppTab.isEnabled gate. [resolveTabOrder] below is the single choke point every
+ * dock consumer flows through (the bar itself, the Chats-slot cycle, Customize Menu's preview),
+ * so while it's on these tabs can't render in the dock NOR ride the Chats-slot cycle, regardless
+ * of dock settings. Deliberately derived at render time only: the per-account stored dock prefs
+ * (tab_order/hidden_tabs) are never rewritten with the masked state, so turning Child Mode off
+ * restores exactly the arrangement the user had before.
+ */
+val CHILD_MODE_HIDDEN_ROUTES = setOf(Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route)
+
+/**
  * Maps persisted route strings (from AppSettingsRepository.tabOrder) back to [Screen] objects,
  * in that order. Any route no longer recognized (e.g. a tab removed in a future update) is
  * dropped, and any [Screen] missing from the persisted list (e.g. a tab added since the user
  * last reordered) is appended at the end — so neither a stale persisted value nor an app update
  * can leave a tab permanently missing or crash on an unknown route. [hiddenTabs] then filters out
  * anything the user unchecked in Settings > Customization > Menu (never applied to
- * [ALWAYS_VISIBLE_TAB_ROUTES]).
+ * [ALWAYS_VISIBLE_TAB_ROUTES]). [childMode] hard-hides [CHILD_MODE_HIDDEN_ROUTES] on top of
+ * whatever the user's own dock settings say.
  */
-fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>): List<Screen> {
+fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
     val byRoute = bottomNavItems.associateBy { it.route }
     val resolved = routes.mapNotNull { byRoute[it] }
     val missing = bottomNavItems.filter { it !in resolved }
     val ordered = resolved + missing
     var visible = ordered.filter { it.route in ALWAYS_VISIBLE_TAB_ROUTES || it.route !in hiddenTabs }
+    if (childMode) {
+        visible = visible.filter { it.route !in CHILD_MODE_HIDDEN_ROUTES }
+    }
     // Dock cap (matches iOS AppTab.visible): when over capacity KaPosts drops out first, then
     // Broadcasts - both stay reachable by cycling the Chats tab - then the tail falls off
     // silently (any future tab beyond the cap stays hidden until the user frees a slot).
@@ -126,26 +141,31 @@ fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>): List<Screen>
     return visible
 }
 
-/** KaPosts is enabled but didn't fit the dock - it joins the Chats-tab cycle. */
-fun kaPostsAccessibleViaChatsTab(routes: List<String>, hiddenTabs: Set<String>): Boolean {
+/** KaPosts is enabled but didn't fit the dock - it joins the Chats-tab cycle. Never while Child
+ *  Mode is on: the cycle must skip the hidden tabs entirely, not keep them reachable. */
+fun kaPostsAccessibleViaChatsTab(routes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): Boolean {
+    if (childMode) return false
     if (Screen.KaPosts.route in hiddenTabs) return false
-    return resolveTabOrder(routes, hiddenTabs).none { it.route == Screen.KaPosts.route }
+    return resolveTabOrder(routes, hiddenTabs, childMode).none { it.route == Screen.KaPosts.route }
 }
 
-/** Broadcasts is enabled but didn't fit the dock - it joins the Chats-tab cycle. */
-fun broadcastsAccessibleViaChatsTab(routes: List<String>, hiddenTabs: Set<String>): Boolean {
+/** Broadcasts is enabled but didn't fit the dock - it joins the Chats-tab cycle. Never while
+ *  Child Mode is on (same reasoning as [kaPostsAccessibleViaChatsTab]). */
+fun broadcastsAccessibleViaChatsTab(routes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): Boolean {
+    if (childMode) return false
     if (Screen.Broadcasts.route in hiddenTabs) return false
-    return resolveTabOrder(routes, hiddenTabs).none { it.route == Screen.Broadcasts.route }
+    return resolveTabOrder(routes, hiddenTabs, childMode).none { it.route == Screen.Broadcasts.route }
 }
 
 /**
  * What tapping the Chats slot cycles through (matches iOS AppTab.chatsSlotCycle): always Chats
  * itself, then whichever of KaPosts/Broadcasts are enabled but masked out of the full dock.
+ * While Child Mode is on this is always just [Screen.Chats].
  */
-fun chatsSlotCycle(routes: List<String>, hiddenTabs: Set<String>): List<Screen> {
+fun chatsSlotCycle(routes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
     val cycle = mutableListOf<Screen>(Screen.Chats)
-    if (kaPostsAccessibleViaChatsTab(routes, hiddenTabs)) cycle.add(Screen.KaPosts)
-    if (broadcastsAccessibleViaChatsTab(routes, hiddenTabs)) cycle.add(Screen.Broadcasts)
+    if (kaPostsAccessibleViaChatsTab(routes, hiddenTabs, childMode)) cycle.add(Screen.KaPosts)
+    if (broadcastsAccessibleViaChatsTab(routes, hiddenTabs, childMode)) cycle.add(Screen.Broadcasts)
     return cycle
 }
 
@@ -217,11 +237,14 @@ fun MainShell(
     val persistedTabOrder by walletViewModel.tabOrder.collectAsState()
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val hideBottomBar by walletViewModel.hideBottomBar.collectAsState()
-    val localTabOrder = resolveTabOrder(persistedTabOrder, hiddenTabs)
+    // Child Mode strips Swap/KaPosts/Broadcasts from the dock AND the Chats-slot cycle - derived
+    // fresh on every render, never baked into the stored dock prefs (see CHILD_MODE_HIDDEN_ROUTES).
+    val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
+    val localTabOrder = resolveTabOrder(persistedTabOrder, hiddenTabs, childModeEnabled)
     // Chats-slot cycle (matches iOS): KaPosts/Broadcasts enabled but over the dock cap ride the
     // Chats slot - tapping it cycles chats -> kaposts -> broadcasts. The slot is STICKY: leaving
     // to another tab and coming back returns to whichever page the slot last showed.
-    val slotCycle = chatsSlotCycle(persistedTabOrder, hiddenTabs)
+    val slotCycle = chatsSlotCycle(persistedTabOrder, hiddenTabs, childModeEnabled)
     var chatsSlotRoute by rememberSaveable { mutableStateOf(Screen.Chats.route) }
     val currentTopRoute = currentDestination?.route
     // Deep links/notifications can land on a cycle page directly - keep the slot in sync.
@@ -235,6 +258,18 @@ fun MainShell(
     // A menu change can remove the slot's current page from the cycle - snap home to Chats.
     LaunchedEffect(slotCycle.map { it.route }) {
         if (slotCycle.none { it.route == chatsSlotRoute }) chatsSlotRoute = Screen.Chats.route
+    }
+    // Child Mode just turned on (or the app landed on a now-hidden screen): snap home to Chats.
+    // Covers the three hidden tab routes plus Broadcasts' pushed room screen.
+    LaunchedEffect(childModeEnabled, currentTopRoute) {
+        if (childModeEnabled && currentTopRoute != null && (
+                currentTopRoute in CHILD_MODE_HIDDEN_ROUTES ||
+                    currentTopRoute.startsWith("broadcast_channel/") ||
+                    currentTopRoute == "hidden_broadcast_users"
+                )
+        ) {
+            navController.popBackStack(Screen.Chats.route, false)
+        }
     }
 
     fun showSlotRoute(route: String) {
@@ -270,10 +305,18 @@ fun MainShell(
         }
     }
 
-    // Same idea for a notify-enabled broadcast channel's new message notification.
+    // Same idea for a notify-enabled broadcast channel's new message notification. Child Mode:
+    // a stray broadcast notification tap (e.g. one delivered before the mode was switched on, or
+    // a remote push that raced the re-registration) must not route into the hidden feature -
+    // land on the main Chats screen instead. Read race-free (suspend, not the StateFlow's `false`
+    // initial value) so a cold-start tap can't slip through before DataStore loads.
     LaunchedEffect(pendingChannelName) {
         if (pendingChannelName != null) {
-            navController.navigate("broadcast_channel/$pendingChannelName")
+            if (walletViewModel.isChildModeEnabled()) {
+                navController.popBackStack(Screen.Chats.route, false)
+            } else {
+                navController.navigate("broadcast_channel/$pendingChannelName")
+            }
             onPendingChannelHandled()
         }
     }
@@ -307,7 +350,14 @@ fun MainShell(
     val pendingKaPostTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
     LaunchedEffect(pendingKaPostTxId) {
         if (pendingKaPostTxId != null) {
-            navController.navigate(Screen.KaPosts.route) { launchSingleTop = true }
+            // Child Mode: KaPosts links (universal https://.../post/<txid> and kachat://kapost/...)
+            // no-op to the main Chats screen instead of opening the hidden feature.
+            if (walletViewModel.isChildModeEnabled()) {
+                KaPostsDeepLink.pendingPostTxId.value = null
+                navController.popBackStack(Screen.Chats.route, false)
+            } else {
+                navController.navigate(Screen.KaPosts.route) { launchSingleTop = true }
+            }
         }
     }
 
@@ -317,8 +367,25 @@ fun MainShell(
     val pendingWelcomeGuide by walletViewModel.pendingWelcomeGuide.collectAsState()
     LaunchedEffect(pendingWelcomeGuide) {
         if (pendingWelcomeGuide) {
+            // First-run auto-present: the "Who will use KaChat?" step is now owed an answer -
+            // persist the marker so killing the app mid-wizard re-presents the step at next
+            // launch. Never downgrades an already-"chosen" device (see markUserTypePending), and
+            // legacy installs that never auto-present are never marked (so never forced).
+            walletViewModel.markUserTypePending()
             navController.navigate("welcome_guide")
             walletViewModel.consumePendingWelcomeGuide()
+        }
+    }
+
+    // Interrupted first run (app killed before the wizard's Adult/Child step was answered): the
+    // auto-present trigger above is in-memory only and lost on relaunch, so the persisted marker
+    // re-presents the guide - jumping straight back to the choice - until it's answered.
+    val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
+    LaunchedEffect(userTypePendingMarker, pendingWelcomeGuide, currentTopRoute) {
+        if (userTypePendingMarker == true && !pendingWelcomeGuide &&
+            currentTopRoute != null && !currentTopRoute.startsWith("welcome_guide")
+        ) {
+            navController.navigate("welcome_guide?startAtUserType=true")
         }
     }
 
@@ -906,9 +973,13 @@ fun MainShell(
                 )
             }
 
-            composable("welcome_guide") {
+            composable(
+                "welcome_guide?startAtUserType={startAtUserType}",
+                arguments = listOf(navArgument("startAtUserType") { type = NavType.BoolType; defaultValue = false })
+            ) { backStackEntry ->
                 WelcomeGuideScreen(
                     walletViewModel = walletViewModel,
+                    startAtUserType = backStackEntry.arguments?.getBoolean("startAtUserType") ?: false,
                     onFinished = { navController.popBackStack() }
                 )
             }
@@ -964,6 +1035,12 @@ fun MainShell(
 
             composable("settings_menu") {
                 MenuVisibilityScreen(navController = navController)
+            }
+
+            composable("child_mode_settings") {
+                ChildModeSettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable("connection_settings") {

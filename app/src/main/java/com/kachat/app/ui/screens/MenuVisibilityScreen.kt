@@ -75,14 +75,19 @@ fun MenuVisibilityScreen(
 ) {
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val tabOrder by walletViewModel.tabOrder.collectAsState()
+    // Child Mode removes Swap/KaPosts/Broadcasts from the whole app - their rows disappear from
+    // this screen too so they can't even be flipped "for later" while it's on. Purely a render-
+    // time filter: the stored per-account order/hidden prefs are never rewritten, so turning
+    // Child Mode off restores the user's own arrangement untouched.
+    val childModeOn by walletViewModel.childModeEnabled.collectAsState()
     // No enabled-tab limit anymore (the old "at most 3 optional menus" rule went away with the
     // "+ More" pseudo-tab): everything can be ON at once, and the 5-item dock cap handles the
     // rest — over-cap KaPosts/Broadcasts ride the Chats-slot cycle (hinted below), any other
     // over-cap tab silently tail-drops until the user frees a slot.
-    val kaPostsReTapHint = if ("kaposts" !in hiddenTabs && kaPostsAccessibleViaChatsTab(tabOrder, hiddenTabs)) {
+    val kaPostsReTapHint = if ("kaposts" !in hiddenTabs && kaPostsAccessibleViaChatsTab(tabOrder, hiddenTabs, childModeOn)) {
         stringResource(R.string.kaposts_dock_full_hint)
     } else null
-    val broadcastsReTapHint = if ("broadcasts" !in hiddenTabs && broadcastsAccessibleViaChatsTab(tabOrder, hiddenTabs)) {
+    val broadcastsReTapHint = if ("broadcasts" !in hiddenTabs && broadcastsAccessibleViaChatsTab(tabOrder, hiddenTabs, childModeOn)) {
         stringResource(R.string.kaposts_dock_full_hint)
     } else null
 
@@ -116,7 +121,7 @@ fun MenuVisibilityScreen(
             // Live dock preview (matches iOS): what the bottom bar shows right now - hold a
             // tab and slide it sideways to move it; hidden/cycled tabs keep their slots.
             DockPreviewStrip(
-                visibleRoutes = com.kachat.app.ui.resolveTabOrder(tabOrder, hiddenTabs).map { it.route },
+                visibleRoutes = com.kachat.app.ui.resolveTabOrder(tabOrder, hiddenTabs, childModeOn).map { it.route },
                 fullOrder = run {
                     val known = bottomNavItems.map { it.route }
                     val resolved = tabOrder.filter { it in known }
@@ -127,16 +132,30 @@ fun MenuVisibilityScreen(
 
             // Rows render in the DOCK'S order and reorder from here (the in-dock drag gesture
             // is gone, matching iOS): the arrows move a tab up/down in the persisted order.
+            // While Child Mode is on, the Swap/KaPosts/Broadcasts rows aren't rendered at all -
+            // the up/down arrows then move relative to the *displayed* neighbors, merged back
+            // into the full persisted order so hidden routes keep their stored slots.
             val known = bottomNavItems.map { it.route }
             val resolvedOrder = tabOrder.filter { it in known }
             val fullOrder = resolvedOrder + known.filter { it !in resolvedOrder }
+            val displayedOrder = if (childModeOn) {
+                fullOrder.filter { it !in com.kachat.app.ui.CHILD_MODE_HIDDEN_ROUTES }
+            } else fullOrder
+            // Applies a reorder of the displayed rows back onto the full stored order: displayed
+            // slots take the new sequence, non-displayed (child-hidden) routes stay where they were
+            // - same merge the DockPreviewStrip uses, so nothing ever bakes the masked state in.
+            fun persistDisplayedOrder(newDisplayed: List<String>) {
+                val displayedSet = displayedOrder.toSet()
+                var next = 0
+                walletViewModel.setTabOrder(fullOrder.map { r -> if (r in displayedSet) newDisplayed[next++] else r })
+            }
             Surface(
                 color = LocalAppColors.current.surface,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column {
-                    fullOrder.forEachIndexed { index, route ->
+                    displayedOrder.forEachIndexed { index, route ->
                         val screen = bottomNavItems.first { it.route == route }
                         if (index > 0) HorizontalDivider(color = LocalAppColors.current.divider)
                         val locked = route in com.kachat.app.ui.ALWAYS_VISIBLE_TAB_ROUTES
@@ -155,16 +174,22 @@ fun MenuVisibilityScreen(
                             },
                             onToggle = { checked -> walletViewModel.setTabHidden(route, !checked) },
                             onMoveUp = if (index > 0) ({
-                                val reordered = fullOrder.toMutableList().apply { add(index - 1, removeAt(index)) }
-                                walletViewModel.setTabOrder(reordered)
+                                persistDisplayedOrder(displayedOrder.toMutableList().apply { add(index - 1, removeAt(index)) })
                             }) else null,
-                            onMoveDown = if (index < fullOrder.lastIndex) ({
-                                val reordered = fullOrder.toMutableList().apply { add(index + 1, removeAt(index)) }
-                                walletViewModel.setTabOrder(reordered)
+                            onMoveDown = if (index < displayedOrder.lastIndex) ({
+                                persistDisplayedOrder(displayedOrder.toMutableList().apply { add(index + 1, removeAt(index)) })
                             }) else null
                         )
                     }
                 }
+            }
+            if (childModeOn) {
+                Text(
+                    stringResource(R.string.child_mode_menu_footer),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
             }
         }
     }

@@ -128,6 +128,10 @@ class NotificationHelper @Inject constructor(
     /** KaPosts social ping ("alice liked your post") - taps open the KaPosts tab. */
     suspend fun showKaPosts(text: String, actionTxId: String) {
         if (!settings.notificationsEnabled.first()) return
+        // Child Mode removes KaPosts entirely - no notification pings for it either. Guarding
+        // here covers every source at once: the foreground poller AND the FCM receive handler
+        // (push registration already drops kaposts_pubkey, but a push can race re-registration).
+        if (settings.childModeEnabled.first()) return
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_OPEN_KAPOSTS, true)
@@ -158,6 +162,10 @@ class NotificationHelper @Inject constructor(
     suspend fun showBroadcast(channelName: String, title: String, text: String) {
         if (activeChannelName.value == channelName) return // already looking at this channel
         if (!settings.notificationsEnabled.first()) return
+        // Child Mode removes Broadcasts entirely - no local banners for them either. Covers the
+        // scan-driven path (BroadcastScanningService) AND the FCM receive handler in one place
+        // (registration already drops watched_broadcast_channels, but a push can race it).
+        if (settings.childModeEnabled.first()) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

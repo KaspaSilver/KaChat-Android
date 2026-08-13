@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.WavingHand
@@ -66,7 +67,9 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 
-private enum class WelcomeGuideStep { WELCOME, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
+private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
+
+private enum class UserTypeChoice { ADULT, CHILD }
 
 private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 
@@ -81,12 +84,29 @@ private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 fun WelcomeGuideScreen(
     walletViewModel: WalletViewModel,
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
+    /** Re-presentation after an interrupted first run (app killed before the Adult/Child step
+     *  was answered): jump straight back to the choice instead of replaying from Welcome. */
+    startAtUserType: Boolean = false,
     onFinished: () -> Unit
 ) {
-    var step by remember { mutableStateOf(WelcomeGuideStep.WELCOME) }
+    var step by remember {
+        mutableStateOf(if (startAtUserType) WelcomeGuideStep.USER_TYPE else WelcomeGuideStep.WELCOME)
+    }
     val chattingAddress by walletViewModel.address.collectAsState()
     val spendingAddress by walletViewModel.spendingAddress.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
+
+    // Gates every skip affordance: the wizard is unskippable while the Adult/Child choice is
+    // still owed (persisted marker "pending" - see AppSettingsRepository.userTypeChoiceState).
+    // While unanswered the top-bar Skip (X) is hidden AND system back is swallowed; once
+    // answered (this session, or a replay/legacy run) the guide skips exactly as before.
+    val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
+    var answeredThisSession by remember { mutableStateOf(false) }
+    val userTypeAnswered = answeredThisSession || userTypePendingMarker == false
+    androidx.activity.compose.BackHandler(enabled = !userTypeAnswered) {
+        // Swallowed - the "Who will use KaChat?" step must be answered first.
+    }
 
     var nodeChoice by remember(trustedNodeAddress) {
         mutableStateOf(
@@ -108,8 +128,12 @@ fun WelcomeGuideScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onFinished) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
+                    // Skip exists ONLY once the Adult/Child step is answered - until then the
+                    // wizard has no way out (back-dismiss is swallowed above too).
+                    if (userTypeAnswered) {
+                        IconButton(onClick = onFinished) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)
@@ -124,7 +148,17 @@ fun WelcomeGuideScreen(
                     title = stringResource(R.string.welcome_to_kachat),
                     body = stringResource(R.string.lets_walk_through_the_basics_so),
                     buttonLabel = stringResource(R.string.next),
-                    onNext = { step = WelcomeGuideStep.LANGUAGE }
+                    onNext = { step = WelcomeGuideStep.USER_TYPE }
+                )
+                WelcomeGuideStep.USER_TYPE -> WelcomeGuideUserTypeStep(
+                    settingsViewModel = settingsViewModel,
+                    onAnswered = {
+                        // Persist the marker (so relaunches stop re-presenting the wizard) and
+                        // restore the Skip affordance for the rest of the guide.
+                        settingsViewModel.markUserTypeChosen()
+                        answeredThisSession = true
+                        step = WelcomeGuideStep.LANGUAGE
+                    }
                 )
                 WelcomeGuideStep.LANGUAGE -> WelcomeGuideLanguageStep(
                     walletViewModel = walletViewModel,
@@ -219,6 +253,144 @@ private fun WelcomeGuideStepScaffold(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(buttonLabel, color = Color.Black, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/**
+ * "Who will use KaChat?" - deliberately placed BEFORE the language step (matches iOS). Adult
+ * continues untouched; Child sets a free-form password (stored salted-hashed via
+ * [com.kachat.app.services.ChildModeService]) and Child Mode turns ON immediately - persisted
+ * right here at the step, not deferred to the end of the guide, so the choice survives no matter
+ * what the rest of the wizard writes (or whether it finishes). When the guide is REPLAYED with
+ * Child Mode already on, the step is informational only - offering "Adult" there would be a
+ * password-free way out.
+ */
+@Composable
+private fun WelcomeGuideUserTypeStep(
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
+    onAnswered: () -> Unit
+) {
+    val childModeEnabled by settingsViewModel.childModeEnabled.collectAsState()
+    var choice by remember { mutableStateOf(UserTypeChoice.ADULT) }
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var setupError by remember { mutableStateOf<String?>(null) }
+    val enterPasswordFirst = stringResource(R.string.enter_a_password_first)
+    val passwordsDontMatch = stringResource(R.string.passwords_dont_match)
+    val couldntSavePassword = stringResource(R.string.couldnt_save_the_password)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.FamilyRestroom,
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(Modifier.height(20.dp))
+        Text(
+            stringResource(R.string.who_will_use_kachat),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalAppColors.current.textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(12.dp))
+
+        if (childModeEnabled) {
+            // Replay with Child Mode already on: purely informational, just continue. Still
+            // counts as answered - Child Mode being on IS the standing choice.
+            Text(
+                stringResource(R.string.child_mode_is_on_guide_info),
+                color = LocalAppColors.current.textSecondary,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                stringResource(R.string.a_child_gets_a_simpler_safer),
+                color = LocalAppColors.current.textSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(20.dp))
+
+            NodeChoiceRow(
+                selected = choice == UserTypeChoice.ADULT,
+                title = stringResource(R.string.adult),
+                badge = null,
+                subtitle = stringResource(R.string.the_full_app_everything_available),
+                onClick = { choice = UserTypeChoice.ADULT; setupError = null }
+            )
+            Spacer(Modifier.height(10.dp))
+            NodeChoiceRow(
+                selected = choice == UserTypeChoice.CHILD,
+                title = stringResource(R.string.child),
+                badge = null,
+                subtitle = stringResource(R.string.chats_portfolio_and_cold_storage_only),
+                onClick = { choice = UserTypeChoice.CHILD; setupError = null }
+            )
+
+            if (choice == UserTypeChoice.CHILD) {
+                Spacer(Modifier.height(12.dp))
+                RevealableSecureField(
+                    value = password,
+                    onValueChange = { password = it; setupError = null },
+                    label = stringResource(R.string.password)
+                )
+                Spacer(Modifier.height(8.dp))
+                RevealableSecureField(
+                    value = confirm,
+                    onValueChange = { confirm = it; setupError = null },
+                    label = stringResource(R.string.confirm_password)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.child_mode_password_helper),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+
+            setupError?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = Color(0xFFFF3B30), fontSize = 12.sp, textAlign = TextAlign.Center)
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = {
+                when {
+                    // Informational replay - Child Mode being on is the standing choice.
+                    childModeEnabled -> onAnswered()
+                    choice == UserTypeChoice.ADULT -> onAnswered()
+                    else -> {
+                        when {
+                            password.isEmpty() -> setupError = enterPasswordFirst
+                            password != confirm -> setupError = passwordsDontMatch
+                            !settingsViewModel.setChildModePassword(password) -> setupError = couldntSavePassword
+                            else -> {
+                                // Persisted at this step, not wizard end - Child Mode is on from
+                                // first launch no matter what happens to the rest of the guide.
+                                settingsViewModel.enableChildMode()
+                                password = ""
+                                confirm = ""
+                                setupError = null
+                                onAnswered()
+                            }
+                        }
+                    }
+                }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }

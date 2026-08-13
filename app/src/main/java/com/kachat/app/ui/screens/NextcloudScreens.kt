@@ -74,7 +74,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -748,12 +747,12 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
+                // Same reveal-toggle field the Child Mode password flows use - app passwords are
+                // long random strings, so being able to see what was typed/pasted matters here.
+                RevealableSecureField(
                     value = appPassword,
                     onValueChange = { appPassword = it },
-                    label = { Text("App password") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
+                    label = "App password",
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )

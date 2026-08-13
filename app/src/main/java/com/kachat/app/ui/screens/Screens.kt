@@ -60,6 +60,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -6527,6 +6528,17 @@ fun SettingsScreen(
                 SettingsSwitchItem(stringResource(R.string.biometrics_for_address_private_keys), biometricSpendingKeyEnabled) { enabled ->
                     walletViewModel.setBiometricSpendingKeyEnabled(enabled)
                 }
+                SettingsDivider()
+                // Child Mode (matches iOS Settings > Security > Child Mode). NEVER biometric-
+                // gated - the whole point is that the device owner (the child) can pass
+                // fingerprint/face unlock but must not know the parent's password.
+                val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
+                SettingsNavigationItem(
+                    stringResource(R.string.child_mode),
+                    Icons.Default.FamilyRestroom,
+                    if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+                    onClick = { navController.navigate("child_mode_settings") }
+                )
             }
             }
 
