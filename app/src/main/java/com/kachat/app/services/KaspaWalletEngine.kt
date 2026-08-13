@@ -225,8 +225,29 @@ class KaspaWalletEngine @Inject constructor(
             // submits exclusively over gRPC — so payload-carrying sends go straight to
             // a node via gRPC here, bypassing the REST gateway entirely. Plain payments
             // (no payload) keep using REST since that path is already proven working.
+            //
+            // allowOrphan: when this send chains onto our own not-yet-confirmed change (the
+            // reconciled pending UTXOs above have blockDaaScore == 0), the pooled node this
+            // lands on may not have seen the parent transaction yet — with allowOrphan=false
+            // it would reject with kaspad's "transaction ... is an orphan, where orphan is
+            // disallowed" (the exact failure users saw sending broadcast messages/reactions
+            // back-to-back). allowOrphan=true parks it in the node's orphan pool until the
+            // parent propagates (sub-second), matching what iOS's broadcast/1:1 send does.
+            // And even with confirmed-only inputs, the submit node can briefly lag the node
+            // that served the UTXO snapshot — retry that rejection once tolerating orphan
+            // (same recovery KnsInscriptionEngine's reveal step uses) instead of failing.
+            val usesUnconfirmedInputs = selectionResult.selectedUtxos.any { it.utxoEntry.blockDaaScore == 0L }
             val transactionId = if (payloadBytes != null) {
-                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx)
+                try {
+                    nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                } catch (e: Exception) {
+                    if (!usesUnconfirmedInputs && e.message?.contains("orphan", ignoreCase = true) == true) {
+                        Log.w("KaspaWalletEngine", "Submit rejected as orphan (node behind), retrying with allowOrphan=true", e)
+                        nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = true)
+                    } else {
+                        throw e
+                    }
+                }
             } else {
                 api.postTransaction(PostTransactionRequest(signedTx)).transactionId
             }

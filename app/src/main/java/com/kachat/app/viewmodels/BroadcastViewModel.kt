@@ -139,7 +139,16 @@ class BroadcastViewModel @Inject constructor(
 
     private val _messageText = MutableStateFlow("")
     val messageText: StateFlow<String> = _messageText.asStateFlow()
-    fun setMessageText(text: String) { _messageText.value = text }
+    fun setMessageText(text: String) {
+        _messageText.value = text
+        // The red failure line above the composer would otherwise sit there for the entire next
+        // message being typed (it only cleared on the next send attempt). The failed bubble keeps
+        // its own red icon + Retry, so once the user starts typing again the banner has done its
+        // job — drop it rather than alarm them mid-composition.
+        if (_sendBroadcastState.value.status == SendBroadcastStatus.FAILED) {
+            _sendBroadcastState.value = SendBroadcastUiState()
+        }
+    }
 
     private val _currentUtxos = MutableStateFlow<List<UtxoEntry>>(emptyList())
     private val _networkFeeRate = MutableStateFlow(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble())
@@ -421,9 +430,25 @@ class BroadcastViewModel @Inject constructor(
                 Log.e("BroadcastViewModel", "Error sending broadcast", e)
                 _sendBroadcastState.value = SendBroadcastUiState(
                     status = SendBroadcastStatus.FAILED,
-                    message = e.message ?: "Failed to send"
+                    message = humanizeSendError(e)
                 )
             }
+        }
+    }
+
+    /**
+     * Node-level rejection text ("transaction ... is an orphan, where orphan is disallowed",
+     * "already spent", ...) means "the network hasn't caught up with your previous send yet" —
+     * meaningless and alarming rendered raw above the composer. Map it (after the engine's own
+     * orphan retry is exhausted) to plain language; anything unrecognized passes through as-is.
+     */
+    private fun humanizeSendError(e: Exception): String {
+        val raw = e.message ?: return "Failed to send"
+        val lower = raw.lowercase()
+        return if (lower.contains("orphan") || lower.contains("already spent") || lower.contains("double spend")) {
+            "The network is still confirming your previous send — please try again in a few seconds."
+        } else {
+            raw
         }
     }
 
