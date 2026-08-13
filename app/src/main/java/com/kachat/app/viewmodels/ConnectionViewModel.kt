@@ -96,6 +96,7 @@ class ConnectionViewModel @Inject constructor(
     val kaspaRestApiUrl: StateFlow<String> = settings.kaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val kapostIndexerUrl: StateFlow<String> = settings.kapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val broadcastIndexerUrl: StateFlow<String> = settings.broadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val pushIndexerUrl: StateFlow<String> = settings.pushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val trustedNodeAddress: StateFlow<String> = settings.trustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val savedNodeAddresses: StateFlow<List<com.kachat.app.models.SavedNodeAddress>> =
         settings.savedNodeAddresses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())

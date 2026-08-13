@@ -38,6 +38,9 @@ class AppSettingsRepository @Inject constructor(
         val KEY_KAPOST_INDEXER_URL = stringPreferencesKey("kapost_indexer_url")
         // KaChat broadcast indexer serving #kaspa/#kachat-bugs history (same domain).
         val KEY_BROADCAST_INDEXER_URL = stringPreferencesKey("broadcast_indexer_url")
+        // Push-registration host (FCM device registration; mirrors iOS's pushIndexerURL). Same
+        // domain by default, but configurable so push can point at a different indexer.
+        val KEY_PUSH_INDEXER_URL = stringPreferencesKey("push_indexer_url")
         // A user-pinned "host:port" gRPC node - when non-blank, NodePoolManager stops
         // discovery (seeds/DNS/peer-gossip) entirely and only ever connects to this address,
         // Kaspium-style. Empty string = disabled (normal pool discovery).
@@ -57,6 +60,7 @@ class AppSettingsRepository @Inject constructor(
         const val DEFAULT_KASPA_REST_URL = "https://api.kaspa.org"
         const val DEFAULT_KAPOST_INDEXER_URL = "https://kachat.duckdns.org"
         const val DEFAULT_BROADCAST_INDEXER_URL = "https://kachat.duckdns.org"
+        const val DEFAULT_PUSH_INDEXER_URL = "https://kachat.duckdns.org"
         // KaChat ships pinned to Kaspium's public node out of the box, rather than defaulting
         // to full seed/DNS/peer-gossip discovery - the "Use Default" button in Connection
         // Settings resets back to this same address after a user has typed something else.
@@ -198,6 +202,10 @@ class AppSettingsRepository @Inject constructor(
 
     val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
         it[KEY_BROADCAST_INDEXER_URL] ?: DEFAULT_BROADCAST_INDEXER_URL
+    }
+
+    val pushIndexerUrl: Flow<String> = dataStore.data.map {
+        it[KEY_PUSH_INDEXER_URL] ?: DEFAULT_PUSH_INDEXER_URL
     }
 
     val kapostsFollowing: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_FOLLOWING] ?: emptySet() }
@@ -410,6 +418,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKaspaRestUrl(value: String) = dataStore.edit { it[KEY_KASPA_REST_URL] = value }
     suspend fun setKapostIndexerUrl(value: String) = dataStore.edit { it[KEY_KAPOST_INDEXER_URL] = value }
     suspend fun setBroadcastIndexerUrl(value: String) = dataStore.edit { it[KEY_BROADCAST_INDEXER_URL] = value }
+    suspend fun setPushIndexerUrl(value: String) = dataStore.edit { it[KEY_PUSH_INDEXER_URL] = value }
     suspend fun setKapostsFollowing(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_FOLLOWING] = value }
     suspend fun setKapostsMuted(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_MUTED] = value }
     suspend fun setKapostsBlocked(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_BLOCKED] = value }

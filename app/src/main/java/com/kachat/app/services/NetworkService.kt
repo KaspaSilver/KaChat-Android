@@ -64,6 +64,12 @@ class NetworkService @Inject constructor(
         scope.launch {
             settings.kapostIndexerUrl.collectLatest { url ->
                 createApi<KaPostApi>(url)?.let { _kapostApi.value = it }
+            }
+        }
+        scope.launch {
+            // Push registration has its own configurable host (mirrors iOS's pushIndexerURL),
+            // defaulting to the same kachat.duckdns.org.
+            settings.pushIndexerUrl.collectLatest { url ->
                 createApi<PushApi>(url)?.let { _pushApi.value = it }
             }
         }

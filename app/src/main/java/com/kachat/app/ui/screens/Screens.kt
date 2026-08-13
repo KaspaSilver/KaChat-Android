@@ -8121,6 +8121,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val kaspaRestApiUrl by viewModel.kaspaRestApiUrl.collectAsState()
     val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
     val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
+    val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -8170,6 +8171,11 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
                 ConnectionUrlField(label = "Broadcast Indexer URL", value = broadcastIndexerUrl)
                 SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
+            }
+
+            SettingsSection(title = "Push Registration") {
+                ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
+                SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
             }
 
             SettingsSection(title = stringResource(R.string.kaspa_name_service)) {
