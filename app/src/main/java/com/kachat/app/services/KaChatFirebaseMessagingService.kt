@@ -118,53 +118,38 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      */
     private suspend fun handleDirectMessage(data: Map<String, String>) {
         val sender = data["sender"] ?: return
+        // Media/large messages exceed FCM's 4KB cap, so the server can't attach the encrypted body
+        // (enc_payload absent) — the server's generic body is used for those. Small text messages
+        // carry enc_payload and are decrypted here for the real preview.
         val fallback = data["body"].orEmpty().ifEmpty { "New message" }
-        val enc = data["enc_payload"]
 
-        // TEMPORARY debug marker appended to the notification so the decrypt outcome is visible on
-        // the device without adb. Remove once DM decryption is confirmed working.
-        var debug: String
-        val plaintext: String? = if (enc.isNullOrEmpty()) {
-            debug = " [no-enc]"
-            null
-        } else {
-            try {
-                // enc_payload = base64 body of the sealed EncryptedMessage (ephemeral key + nonce
-                // are inside those bytes — stateless decrypt with our wallet key).
-                val sealed = Base64.getDecoder().decode(enc)
-                val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed)
-                if (encrypted == null) {
-                    debug = " [bad-fmt len=${sealed.size}]"
-                    null
-                } else {
-                    try {
-                        val pt = MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
-                        debug = ""
-                        pt
-                    } catch (e: Exception) {
-                        debug = " [decrypt-err:${e.message?.take(28)}]"
-                        null
-                    }
-                }
-            } catch (e: Exception) {
-                debug = " [b64-err:${e.message?.take(28)}]"
-                null
-            }
-        }
-        Log.i(TAG, "DM decrypt: encLen=${enc?.length ?: 0} result=${if (debug.isEmpty()) "ok" else debug.trim()}")
-
+        val plaintext = decryptDirectMessage(data["enc_payload"])
         if (plaintext != null && MessageReaction.parseOrNull(plaintext) != null) {
             // Reactions are never shown as their own notification (matches ChatRepository).
             return
         }
 
-        val text = (plaintext?.let { notificationPreview(it) } ?: fallback) + debug
+        val text = plaintext?.let { notificationPreview(it) } ?: fallback
         notificationHelper.show(
             contactId = sender,
             title = contactTitle(sender, data["title"].orEmpty().ifEmpty { sender }),
             text = text,
             notificationOverride = contactOverride(sender),
         )
+    }
+
+    /** Base64 → EncryptedMessage → ChaCha20-Poly1305 decrypt with the wallet key. Null on failure
+     * (no encrypted body attached, e.g. an oversized/media message; or a tag/key mismatch). */
+    private fun decryptDirectMessage(encPayload: String?): String? {
+        if (encPayload.isNullOrEmpty()) return null
+        return try {
+            val sealed = Base64.getDecoder().decode(encPayload)
+            val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed) ?: return null
+            MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
+        } catch (e: Exception) {
+            Log.d(TAG, "DM decrypt failed, using fallback: ${e.message}")
+            null
+        }
     }
 
     /** Same preview mapping the in-app poller uses (ChatRepository) so text matches iOS wording. */
