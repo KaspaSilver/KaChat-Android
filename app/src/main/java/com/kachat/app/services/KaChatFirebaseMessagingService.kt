@@ -119,36 +119,52 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     private suspend fun handleDirectMessage(data: Map<String, String>) {
         val sender = data["sender"] ?: return
         val fallback = data["body"].orEmpty().ifEmpty { "New message" }
+        val enc = data["enc_payload"]
 
-        val plaintext = decryptDirectMessage(data["enc_payload"])
+        // TEMPORARY debug marker appended to the notification so the decrypt outcome is visible on
+        // the device without adb. Remove once DM decryption is confirmed working.
+        var debug: String
+        val plaintext: String? = if (enc.isNullOrEmpty()) {
+            debug = " [no-enc]"
+            null
+        } else {
+            try {
+                // enc_payload = base64 body of the sealed EncryptedMessage (ephemeral key + nonce
+                // are inside those bytes — stateless decrypt with our wallet key).
+                val sealed = Base64.getDecoder().decode(enc)
+                val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed)
+                if (encrypted == null) {
+                    debug = " [bad-fmt len=${sealed.size}]"
+                    null
+                } else {
+                    try {
+                        val pt = MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
+                        debug = ""
+                        pt
+                    } catch (e: Exception) {
+                        debug = " [decrypt-err:${e.message?.take(28)}]"
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                debug = " [b64-err:${e.message?.take(28)}]"
+                null
+            }
+        }
+        Log.i(TAG, "DM decrypt: encLen=${enc?.length ?: 0} result=${if (debug.isEmpty()) "ok" else debug.trim()}")
+
         if (plaintext != null && MessageReaction.parseOrNull(plaintext) != null) {
             // Reactions are never shown as their own notification (matches ChatRepository).
             return
         }
 
-        val text = plaintext?.let { notificationPreview(it) } ?: fallback
+        val text = (plaintext?.let { notificationPreview(it) } ?: fallback) + debug
         notificationHelper.show(
             contactId = sender,
             title = contactTitle(sender, data["title"].orEmpty().ifEmpty { sender }),
             text = text,
             notificationOverride = contactOverride(sender),
         )
-    }
-
-    /** Base64 → EncryptedMessage → ChaCha20-Poly1305 decrypt with the wallet key. Null on failure. */
-    private fun decryptDirectMessage(encPayload: String?): String? {
-        if (encPayload.isNullOrEmpty()) return null
-        return try {
-            // `enc_payload` is the base64 body of the sealed EncryptedMessage (the same base64 that
-            // the on-chain `ciph_msg:1:comm:<alias>:<base64>` carries); the ephemeral pubkey + nonce
-            // live inside those bytes, so no sender pubkey / handshake state is needed.
-            val sealed = Base64.getDecoder().decode(encPayload)
-            val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed) ?: return null
-            MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
-        } catch (e: Exception) {
-            Log.d(TAG, "DM decrypt failed, using fallback text: ${e.message}")
-            null
-        }
     }
 
     /** Same preview mapping the in-app poller uses (ChatRepository) so text matches iOS wording. */
