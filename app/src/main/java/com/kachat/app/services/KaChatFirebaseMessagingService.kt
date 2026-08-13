@@ -79,14 +79,25 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         notificationHelper.showKaPosts(text = body.ifEmpty { title }, actionTxId = txId)
                     }
 
-                    "group_message", "group_control" -> {
-                        // Group decryption is stateful (needs the local group seed), so keep the
-                        // generic text for now.
+                    "group_message" -> {
+                        // Group decryption is stateful (needs the local group seed + a ciphertext
+                        // fetch), so keep generic text for now — the notification still fires.
                         val groupId = data["blinded_group_id"] ?: return@runBlocking
                         notificationHelper.showGroup(
                             groupId = groupId,
                             title = title.ifEmpty { "Group" },
                             text = body.ifEmpty { "New group message" },
+                        )
+                    }
+
+                    "group_control" -> {
+                        // "You were added to a group" / group update. These carry no
+                        // blinded_group_id, so key the notification on the tx id instead.
+                        val key = data["blinded_group_id"] ?: data["tx_id"] ?: "group"
+                        notificationHelper.showGroup(
+                            groupId = key,
+                            title = title.ifEmpty { "Group" },
+                            text = body.ifEmpty { "Group update" },
                         )
                     }
 

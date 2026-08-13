@@ -37,15 +37,17 @@ data class PushResponse(
 )
 
 /**
- * `watched_group_ids` is intentionally NOT a field here: omitting it makes the server select the
- * `LegacyV1` auth-preimage format (no group hash line, no forced `group_v1` capability), which is
- * exactly what [PushRegistrationManager.buildAuthPreimage] signs. Group-message push would require
- * switching both sides to the TransitionalGroups shape.
+ * `watched_group_ids`: when non-null, the server selects the `TransitionalGroups` auth-preimage
+ * format (adds the group-hash line and forces the `group_v1` capability, requiring
+ * primary_address == wallet_address) — [PushRegistrationManager.buildAuthPreimage] signs the
+ * matching shape. When null it's omitted, so the server falls back to `LegacyV1` (DM/broadcast
+ * only). Each entry is a lowercase 64-hex blinded group id (per group, per watched member).
  */
 data class PushRegistrationRequest(
     @SerializedName("device_token") val deviceToken: String,
     @SerializedName("platform") val platform: String,
     @SerializedName("watched_addresses") val watchedAddresses: List<String>,
+    @SerializedName("watched_group_ids") val watchedGroupIds: List<String>? = null,
     @SerializedName("capabilities") val capabilities: List<String> = emptyList(),
     @SerializedName("primary_address") val primaryAddress: String? = null,
     @SerializedName("aliases") val aliases: List<String> = emptyList(),

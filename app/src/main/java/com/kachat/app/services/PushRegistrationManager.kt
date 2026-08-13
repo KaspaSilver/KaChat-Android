@@ -7,6 +7,8 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.repository.ChatRepository
+import com.kachat.app.repository.GroupRepository
+import com.kachat.app.util.GroupCipher
 import com.kachat.app.util.KaspaMessageSigner
 import com.kachat.app.util.Schnorr
 import com.kachat.app.util.Secp256k1
@@ -36,9 +38,10 @@ import javax.inject.Singleton
  * backgrounded or killed.
  *
  * The registration is authenticated exactly like the iOS client: a BIP-340 Schnorr signature over
- * a canonical, newline-joined preimage. We emit the **LegacyV1** auth shape (no `watched_group_ids`
- * field), which the Rust server (`kasia-indexer`) matches in `build_auth_preimage`. Group-message
- * push is out of scope for this version (it needs the TransitionalGroups shape on both sides).
+ * a canonical, newline-joined preimage. With no groups we emit the **LegacyV1** auth shape; once
+ * the device has group memberships we register their blinded group ids and switch to the
+ * **TransitionalGroups** shape (extra `watched_group_ids_hash` line, forced `group_v1` capability),
+ * both matched by the Rust server (`kasia-indexer`) in `build_auth_preimage`.
  *
  * Idempotent and safe to call repeatedly — the server upserts by device token, and an unchanged
  * registration snapshot (see [lastRegisteredFingerprint]) short-circuits before any network I/O.
@@ -63,6 +66,8 @@ class PushRegistrationManager @Inject constructor(
     private val networkService: NetworkService,
     private val chatRepository: ChatRepository,
     private val broadcastRepository: BroadcastRepository,
+    private val groupRepository: GroupRepository,
+    private val groupSecretStore: GroupSecretStore,
     private val settings: AppSettingsRepository,
     private val pushState: PushState,
 ) {
@@ -248,19 +253,23 @@ class PushRegistrationManager @Inject constructor(
             .map { it.id } + walletAddress).distinct()
         val broadcastChannels = broadcastRepository.getNotifyEnabledChannelNames().first().toList()
         val hiddenSenders = collectHiddenBroadcastSenders(broadcastChannels)
+        // Blinded group ids to be pushed for (per group, per other non-muted member) — iOS parity.
+        // Non-empty flips the registration to the TransitionalGroups auth shape.
+        val watchedGroupIds = collectWatchedGroupIds(walletAddress)
 
         // Skip the network round-trip entirely when the server-accepted snapshot is unchanged —
         // this is what collapses the startup trigger + init-observer + foreground triggers into
         // one actual registration.
         val fingerprint = registrationFingerprint(
-            token, walletAddress, watchedAddresses, broadcastChannels, hiddenSenders, kaPostsPubkey
+            token, walletAddress, watchedAddresses, broadcastChannels, hiddenSenders, kaPostsPubkey,
+            watchedGroupIds,
         )
         if (fingerprint == lastRegisteredFingerprint) return@withLock
 
         try {
             submitRegistration(
                 api, token, privateKey, walletAddress, kaPostsPubkey,
-                watchedAddresses, broadcastChannels, hiddenSenders,
+                watchedAddresses, broadcastChannels, hiddenSenders, watchedGroupIds,
             )
         } catch (e: HttpException) {
             // Wallet-binding conflict: this token is still bound to a previously active wallet
@@ -272,7 +281,7 @@ class PushRegistrationManager @Inject constructor(
             unregisterForRecovery(api, token, privateKey, walletAddress)
             submitRegistration(
                 api, token, privateKey, walletAddress, kaPostsPubkey,
-                watchedAddresses, broadcastChannels, hiddenSenders,
+                watchedAddresses, broadcastChannels, hiddenSenders, watchedGroupIds,
             )
         }
 
@@ -284,8 +293,8 @@ class PushRegistrationManager @Inject constructor(
         pushState.recordAttempt("register", succeeded = true, error = null, fcmTokenPresent = true)
         Log.i(
             TAG,
-            "push registered (watched=${watchedAddresses.size}, channels=${broadcastChannels.size}, " +
-                "hiddenRooms=${hiddenSenders.size}, active=${pushState.isActive})"
+            "push registered (watched=${watchedAddresses.size}, groups=${watchedGroupIds.size}, " +
+                "channels=${broadcastChannels.size}, hiddenRooms=${hiddenSenders.size}, active=${pushState.isActive})"
         )
     }
 
@@ -298,6 +307,7 @@ class PushRegistrationManager @Inject constructor(
         watchedAddresses: List<String>,
         broadcastChannels: List<String>,
         hiddenSenders: Map<String, List<String>>,
+        watchedGroupIds: List<String>,
     ) {
         try {
             val auth = buildAuth(
@@ -306,6 +316,7 @@ class PushRegistrationManager @Inject constructor(
                 path = "/v1/push/register",
                 deviceToken = token,
                 watchedAddresses = watchedAddresses,
+                watchedGroupIds = watchedGroupIds,
                 primaryAddress = walletAddress,
             )
             api.register(
@@ -313,6 +324,9 @@ class PushRegistrationManager @Inject constructor(
                     deviceToken = token,
                     platform = "android",
                     watchedAddresses = watchedAddresses,
+                    // Non-null (even empty) would force TransitionalGroups; send null when there
+                    // are no groups so DM-only devices stay on the simpler LegacyV1 shape.
+                    watchedGroupIds = watchedGroupIds.ifEmpty { null },
                     primaryAddress = walletAddress,
                     aliases = emptyList(),
                     watchedBroadcastChannels = broadcastChannels,
@@ -402,6 +416,7 @@ class PushRegistrationManager @Inject constructor(
         broadcastChannels: List<String>,
         hiddenSenders: Map<String, List<String>>,
         kaPostsPubkey: String,
+        watchedGroupIds: List<String>,
     ): String = sha256Hex(
         listOf(
             token,
@@ -410,8 +425,38 @@ class PushRegistrationManager @Inject constructor(
             broadcastChannels.sorted().joinToString(","),
             hiddenSenders.toSortedMap().entries.joinToString(";") { "${it.key}=${it.value.joinToString(",")}" },
             kaPostsPubkey,
+            canonicalizeAddresses(watchedGroupIds).joinToString(","),
         ).joinToString("\n")
     )
+
+    /**
+     * Blinded group ids to receive group-message push for — one per (group, other non-muted member),
+     * matching iOS's collectWatchedGroupIds. `deriveBlindedGroupId(blindingKey, memberXOnlyPubKey)`
+     * is a byte-for-byte port of the sender's on-chain derivation, so the resulting hex equals the
+     * `blinded_group_id` the indexer puts on the push event. Lowercase 64-hex, deduped.
+     */
+    private suspend fun collectWatchedGroupIds(walletAddress: String): List<String> {
+        val muted = runCatching { settings.groupMutedMembers.first() }.getOrDefault(emptySet())
+        val groups = runCatching { groupRepository.getGroups().first() }.getOrDefault(emptyList())
+        val ids = mutableSetOf<String>()
+        for (group in groups) {
+            val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
+            val blindingKey = runCatching { bag.blindingKey.hexToBytes() }.getOrNull() ?: continue
+            for (member in groupRepository.membersOf(group)) {
+                if (member.address == walletAddress) continue                     // exclude self
+                if ("${group.groupId}|${member.address}" in muted) continue       // exclude muted
+                val pub = runCatching { member.xOnlyPubKeyHex.hexToBytes() }.getOrNull() ?: continue
+                ids += GroupCipher.deriveBlindedGroupId(blindingKey, pub).toHex()
+            }
+        }
+        return ids.toList()
+    }
+
+    private fun String.hexToBytes(): ByteArray {
+        val clean = trim()
+        require(clean.length % 2 == 0) { "odd-length hex" }
+        return ByteArray(clean.length / 2) { clean.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+    }
 
     /**
      * Fetches a fresh single-use challenge and signs the canonical preimage for [method]/[path]
@@ -424,6 +469,7 @@ class PushRegistrationManager @Inject constructor(
         path: String,
         deviceToken: String,
         watchedAddresses: List<String>,
+        watchedGroupIds: List<String> = emptyList(),
         primaryAddress: String,
     ): PushAuthRequest {
         val api = networkService.pushApi.first { it != null }
@@ -438,6 +484,7 @@ class PushRegistrationManager @Inject constructor(
             path = path,
             deviceToken = deviceToken,
             watchedAddresses = watchedAddresses,
+            watchedGroupIds = watchedGroupIds,
             primaryAddress = primaryAddress,
             aliases = emptyList(),
             walletPubkey = walletPubkey,
@@ -473,6 +520,7 @@ class PushRegistrationManager @Inject constructor(
         path: String,
         deviceToken: String,
         watchedAddresses: List<String>,
+        watchedGroupIds: List<String>,
         primaryAddress: String,
         aliases: List<String>,
         walletPubkey: String,
@@ -480,22 +528,33 @@ class PushRegistrationManager @Inject constructor(
         nonce: String,
         timestampMs: Long,
         expiresAtMs: Long,
-    ): String = listOf(
-        "domain=$AUTH_DOMAIN_V1",
-        "nonce=${nonce.trim()}",
-        "method=$method",
-        "path=$path",
-        // The server hashes the *normalized* device token; for FCM the normalized form is the
-        // token verbatim (see push.rs normalize_device_token), so hash it as-is.
-        "device_token_hash=${sha256Hex(deviceToken.trim())}",
-        "watched_addresses_hash=${sha256Hex(canonicalizeAddresses(watchedAddresses).joinToString("\n"))}",
-        "primary_address=$primaryAddress",
-        "aliases_hash=${sha256Hex(canonicalizeAliases(aliases).joinToString("\n"))}",
-        "wallet_pubkey=$walletPubkey",
-        "wallet_address=$walletAddress",
-        "timestamp_ms=$timestampMs",
-        "expires_at_ms=$expiresAtMs",
-    ).joinToString("\n")
+    ): String {
+        val lines = mutableListOf(
+            "domain=$AUTH_DOMAIN_V1",
+            "nonce=${nonce.trim()}",
+            "method=$method",
+            "path=$path",
+            // The server hashes the *normalized* device token; for FCM the normalized form is the
+            // token verbatim (see push.rs normalize_device_token), so hash it as-is.
+            "device_token_hash=${sha256Hex(deviceToken.trim())}",
+            "watched_addresses_hash=${sha256Hex(canonicalizeAddresses(watchedAddresses).joinToString("\n"))}",
+        )
+        // TransitionalGroups: when watched_group_ids is present the server inserts this line right
+        // after watched_addresses_hash (build_auth_preimage) and forces the group_v1 capability.
+        // Group ids are lowercase hex, canonicalized like addresses (trim/lowercase/dedupe/sort).
+        if (watchedGroupIds.isNotEmpty()) {
+            lines += "watched_group_ids_hash=${sha256Hex(canonicalizeAddresses(watchedGroupIds).joinToString("\n"))}"
+        }
+        lines += listOf(
+            "primary_address=$primaryAddress",
+            "aliases_hash=${sha256Hex(canonicalizeAliases(aliases).joinToString("\n"))}",
+            "wallet_pubkey=$walletPubkey",
+            "wallet_address=$walletAddress",
+            "timestamp_ms=$timestampMs",
+            "expires_at_ms=$expiresAtMs",
+        )
+        return lines.joinToString("\n")
+    }
 
     private fun sha256Hex(value: String): String =
         MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).toHex()
