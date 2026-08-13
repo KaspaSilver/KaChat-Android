@@ -3,17 +3,32 @@ package com.kachat.app.services
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.kachat.app.models.ContactNotificationMode
+import com.kachat.app.repository.ChatRepository
+import com.kachat.app.util.ChessMessage
+import com.kachat.app.util.ImageMessage
+import com.kachat.app.util.KasiaCipher
+import com.kachat.app.util.MessageProtocol
+import com.kachat.app.util.MessageReaction
+import com.kachat.app.util.MessageReply
+import com.kachat.app.util.VoiceMessage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
+import java.util.Base64
 import javax.inject.Inject
 
 /**
- * Receives FCM **data-only** messages and turns them into notifications via [NotificationHelper]
- * — the Android analogue of iOS's Notification Service Extension. The server (`kasia-indexer`)
- * always sends data messages (never a `notification` block) so this handler runs for every push
- * and keeps full control over channels, grouping, and tap-routing, exactly like the in-app poller.
+ * Receives FCM messages and turns them into notifications via [NotificationHelper].
  *
- * The data schema mirrors the server payloads built in `push.rs`:
+ * Two shapes arrive from the server (`kasia-indexer` `push.rs`):
+ *  - **Public content** (broadcast / KaPosts) is sent WITH a `notification` block, so the OS shows
+ *    it even when the app is dead; `onMessageReceived` also runs when the app is alive.
+ *  - **Encrypted DM/group content** is sent **data-only** (no `notification` block) so this handler
+ *    runs and can DECRYPT the body locally with the wallet key — mirroring iOS's Notification
+ *    Service Extension. (Data-only needs the app wake-able; a force-closed app under OEM battery
+ *    optimization may not fire — set the app's battery usage to Unrestricted.)
+ *
+ * Data schema:
  *   broadcast : type, channel, title, subtitle, body, thread_id, tx_id
  *   kaposts   : type, title, subtitle, body, thread_id, tx_id, [post_id]
  *   chat/DM   : type(contextual|payment|handshake|group_message|group_control), sender, title,
@@ -24,6 +39,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var pushRegistrationManager: PushRegistrationManager
+    @Inject lateinit var walletManager: WalletManager
+    @Inject lateinit var chatRepository: ChatRepository
 
     override fun onNewToken(token: String) {
         // FCM rotated the token — re-register it with the indexer (signed with the wallet key).
@@ -43,8 +60,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         val body = data["body"].orEmpty()
         Log.i(TAG, "push received: type=$type txId=${data["tx_id"].orEmpty().take(16)}")
 
-        // NotificationHelper.show* are suspend and quick (settings read + notify); block so the
-        // work completes before the service is torn down.
+        // NotificationHelper.show* are suspend and quick; block so the work completes before the
+        // service is torn down.
         runBlocking {
             try {
                 when (type) {
@@ -63,6 +80,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     }
 
                     "group_message", "group_control" -> {
+                        // Group decryption is stateful (needs the local group seed), so keep the
+                        // generic text for now.
                         val groupId = data["blinded_group_id"] ?: return@runBlocking
                         notificationHelper.showGroup(
                             groupId = groupId,
@@ -71,14 +90,15 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         )
                     }
 
-                    // 1:1 DM classes. The body is a server-side fallback ("New message", etc.);
-                    // the real content is end-to-end encrypted (data["enc_payload"]) and would be
-                    // decrypted here in a later iteration, matching iOS's NSE.
-                    "contextual", "payment", "handshake" -> {
+                    "contextual" -> handleDirectMessage(data)
+
+                    // Payment / handshake bodies are already meaningful ("Payment received",
+                    // "Started a conversation") — no decryption needed.
+                    "payment", "handshake" -> {
                         val sender = data["sender"] ?: return@runBlocking
                         notificationHelper.show(
                             contactId = sender,
-                            title = title.ifEmpty { sender },
+                            title = contactTitle(sender, sender),
                             text = body.ifEmpty { "New message" },
                         )
                     }
@@ -89,6 +109,65 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                 Log.w(TAG, "Failed to handle push (type=$type): ${e.message}")
             }
         }
+    }
+
+    /**
+     * 1:1 message: decrypt `enc_payload` locally (stateless ECDH — only needs our wallet key and
+     * the ephemeral key embedded in the sealed blob) and show the real sender + text. Falls back to
+     * the server's generic text on any failure (no wallet, tag mismatch, unknown format).
+     */
+    private suspend fun handleDirectMessage(data: Map<String, String>) {
+        val sender = data["sender"] ?: return
+        val fallback = data["body"].orEmpty().ifEmpty { "New message" }
+
+        val plaintext = decryptDirectMessage(data["enc_payload"])
+        if (plaintext != null && MessageReaction.parseOrNull(plaintext) != null) {
+            // Reactions are never shown as their own notification (matches ChatRepository).
+            return
+        }
+
+        val text = plaintext?.let { notificationPreview(it) } ?: fallback
+        notificationHelper.show(
+            contactId = sender,
+            title = contactTitle(sender, data["title"].orEmpty().ifEmpty { sender }),
+            text = text,
+            notificationOverride = contactOverride(sender),
+        )
+    }
+
+    /** Base64 → EncryptedMessage → ChaCha20-Poly1305 decrypt with the wallet key. Null on failure. */
+    private fun decryptDirectMessage(encPayload: String?): String? {
+        if (encPayload.isNullOrEmpty()) return null
+        return try {
+            // `enc_payload` is the base64 body of the sealed EncryptedMessage (the same base64 that
+            // the on-chain `ciph_msg:1:comm:<alias>:<base64>` carries); the ephemeral pubkey + nonce
+            // live inside those bytes, so no sender pubkey / handshake state is needed.
+            val sealed = Base64.getDecoder().decode(encPayload)
+            val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed) ?: return null
+            MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
+        } catch (e: Exception) {
+            Log.d(TAG, "DM decrypt failed, using fallback text: ${e.message}")
+            null
+        }
+    }
+
+    /** Same preview mapping the in-app poller uses (ChatRepository) so text matches iOS wording. */
+    private fun notificationPreview(plaintext: String): String {
+        MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
+        if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"
+        if (ImageMessage.parseOrNull(plaintext) != null) return "Sent a photo"
+        if (ChessMessage.parseOrNull(plaintext) != null) return "♟️ Chess game"
+        return plaintext
+    }
+
+    private suspend fun contactTitle(senderId: String, default: String): String {
+        val contact = runCatching { chatRepository.getContact(senderId) }.getOrNull()
+        return contact?.alias ?: contact?.knsName ?: default.takeLast(12)
+    }
+
+    private suspend fun contactOverride(senderId: String): ContactNotificationMode? {
+        val contact = runCatching { chatRepository.getContact(senderId) }.getOrNull()
+        return ContactNotificationMode.fromName(contact?.notificationOverride)
     }
 
     companion object {
