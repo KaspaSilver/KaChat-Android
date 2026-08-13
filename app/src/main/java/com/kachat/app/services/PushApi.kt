@@ -9,7 +9,7 @@ import retrofit2.http.POST
  * Retrofit client for the KaChat indexer's push-registration API (the same host that serves
  * KaPosts — `AppSettingsRepository.kapostIndexerUrl`, default https://kachat.duckdns.org).
  *
- * Wire-compatible with the iOS client and the Rust server (`kasia-indexer` `/v1/push/*`). The
+ * Wire-compatible with the iOS client and the Rust server (`kasia-indexer` `/v1/push/...`). The
  * registration is authenticated by a BIP-340 Schnorr signature over a canonical preimage; see
  * [PushRegistrationManager] for how the signed body is built.
  */
