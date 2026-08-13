@@ -9,6 +9,9 @@
     <!-- Push notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Lets the app show the OS "ignore battery optimizations" dialog so data-only encrypted
+         DM/group push can wake a force-closed app (see MainActivity.maybeRequestBatteryExemption). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Voice messages -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

@@ -1,11 +1,15 @@
 package com.kachat.app
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -63,6 +67,39 @@ class MainActivity : AppCompatActivity() {
         if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
+    /**
+     * One-time nudge to exempt KaChat from battery optimization — the OS "Allow to run in the
+     * background?" dialog (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS). Encrypted DM/group push is
+     * delivered data-only so the app can decrypt it; a force-closed app under aggressive OEM
+     * battery management may otherwise never wake to receive it. Only shown once, only after
+     * notifications are enabled (so it doesn't stack on the notification-permission dialog), and
+     * only if not already exempt.
+     */
+    private fun maybeRequestBatteryExemption() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        // Premature before the user has notifications on — wait until they do.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val prefs = getSharedPreferences("kachat_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("battery_exemption_asked", false)) return
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return
+        prefs.edit().putBoolean("battery_exemption_asked", true).apply()
+        try {
+            startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(Uri.parse("package:$packageName"))
+            )
+        } catch (e: Exception) {
+            // A few OEMs don't implement the direct dialog — fall back to the battery-optimization list.
+            runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Phones lock to portrait; tablets (sw>=600dp, see res/values-sw600dp/bools.xml) rotate
@@ -74,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         }
         enableEdgeToEdge()
         maybeRequestNotificationPermission()
+        maybeRequestBatteryExemption()
         pendingContactId = intent?.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
         pendingChannelName = intent?.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent?.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
