@@ -268,9 +268,13 @@ class PushRegistrationManager @Inject constructor(
         // Own address included alongside active contacts, matching iOS's collectWatchedAddresses
         // — the server routes by SENDER (find_devices_watching), so without it a handshake from a
         // not-yet-known sender could never be pushed.
-        val watchedAddresses = (chatRepository.getContacts().first()
+        val activeContacts = chatRepository.getContacts().first()
             .filter { it.conversationStatus == "active" }
-            .map { it.id } + walletAddress).distinct()
+        val watchedAddresses = (activeContacts.map { it.id } + walletAddress).distinct()
+        // The aliases INCOMING messages from these contacts carry (same aliases the message sync
+        // fetches with). Registering them narrows the server's alias filter to OUR conversations,
+        // so a contact's messages to OTHER people don't match us (iOS: knownIncomingAliases).
+        val aliases = collectIncomingAliases(activeContacts)
         val broadcastChannels = if (childMode) emptyList() else broadcastRepository.getNotifyEnabledChannelNames().first().toList()
         val hiddenSenders = collectHiddenBroadcastSenders(broadcastChannels)
         // Blinded group ids to be pushed for (per group, per other non-muted member) — iOS parity.
@@ -281,7 +285,7 @@ class PushRegistrationManager @Inject constructor(
         // this is what collapses the startup trigger + init-observer + foreground triggers into
         // one actual registration.
         val fingerprint = registrationFingerprint(
-            token, walletAddress, watchedAddresses, broadcastChannels, hiddenSenders, kaPostsPubkey,
+            token, walletAddress, watchedAddresses, aliases, broadcastChannels, hiddenSenders, kaPostsPubkey,
             watchedGroupIds,
         )
         if (fingerprint == lastRegisteredFingerprint) return@withLock
@@ -289,7 +293,7 @@ class PushRegistrationManager @Inject constructor(
         try {
             submitRegistration(
                 api, token, privateKey, walletAddress, kaPostsPubkey,
-                watchedAddresses, broadcastChannels, hiddenSenders, watchedGroupIds,
+                watchedAddresses, aliases, broadcastChannels, hiddenSenders, watchedGroupIds,
             )
         } catch (e: HttpException) {
             // Wallet-binding conflict: this token is still bound to a previously active wallet
@@ -301,7 +305,7 @@ class PushRegistrationManager @Inject constructor(
             unregisterForRecovery(api, token, privateKey, walletAddress)
             submitRegistration(
                 api, token, privateKey, walletAddress, kaPostsPubkey,
-                watchedAddresses, broadcastChannels, hiddenSenders, watchedGroupIds,
+                watchedAddresses, aliases, broadcastChannels, hiddenSenders, watchedGroupIds,
             )
         }
 
@@ -313,7 +317,7 @@ class PushRegistrationManager @Inject constructor(
         pushState.recordAttempt("register", succeeded = true, error = null, fcmTokenPresent = true)
         Log.i(
             TAG,
-            "push registered (watched=${watchedAddresses.size}, groups=${watchedGroupIds.size}, " +
+            "push registered (watched=${watchedAddresses.size}, aliases=${aliases.size}, groups=${watchedGroupIds.size}, " +
                 "channels=${broadcastChannels.size}, hiddenRooms=${hiddenSenders.size}, active=${pushState.isActive})"
         )
     }
@@ -326,6 +330,7 @@ class PushRegistrationManager @Inject constructor(
         // null while Child Mode is on — the server then sends no KaPosts pings to this device.
         kaPostsPubkey: String?,
         watchedAddresses: List<String>,
+        aliases: List<String>,
         broadcastChannels: List<String>,
         hiddenSenders: Map<String, List<String>>,
         watchedGroupIds: List<String>,
@@ -337,6 +342,7 @@ class PushRegistrationManager @Inject constructor(
                 path = "/v1/push/register",
                 deviceToken = token,
                 watchedAddresses = watchedAddresses,
+                aliases = aliases,
                 watchedGroupIds = watchedGroupIds,
                 primaryAddress = walletAddress,
             )
@@ -349,7 +355,7 @@ class PushRegistrationManager @Inject constructor(
                     // are no groups so DM-only devices stay on the simpler LegacyV1 shape.
                     watchedGroupIds = watchedGroupIds.ifEmpty { null },
                     primaryAddress = walletAddress,
-                    aliases = emptyList(),
+                    aliases = aliases,
                     watchedBroadcastChannels = broadcastChannels,
                     hiddenBroadcastSenders = hiddenSenders,
                     kaPostsPubkey = kaPostsPubkey,
@@ -434,6 +440,7 @@ class PushRegistrationManager @Inject constructor(
         token: String,
         walletAddress: String,
         watchedAddresses: List<String>,
+        aliases: List<String>,
         broadcastChannels: List<String>,
         hiddenSenders: Map<String, List<String>>,
         kaPostsPubkey: String?,
@@ -443,12 +450,29 @@ class PushRegistrationManager @Inject constructor(
             token,
             walletAddress,
             canonicalizeAddresses(watchedAddresses).joinToString(","),
+            canonicalizeAliases(aliases).joinToString(","),
             broadcastChannels.sorted().joinToString(","),
             hiddenSenders.toSortedMap().entries.joinToString(";") { "${it.key}=${it.value.joinToString(",")}" },
             kaPostsPubkey.orEmpty(),
             canonicalizeAddresses(watchedGroupIds).joinToString(","),
         ).joinToString("\n")
     )
+
+    /**
+     * The aliases INCOMING messages from these contacts carry — the same set the message sync
+     * queries with (contact.theirAlias + the deterministic alias derivable from both addresses).
+     * Registering them makes the server's alias filter match only OUR conversations, not the
+     * contact's messages to third parties. Mirrors iOS's knownIncomingAliases. Case-preserved.
+     */
+    private fun collectIncomingAliases(activeContacts: List<com.kachat.app.models.ContactEntity>): List<String> {
+        val aliases = mutableSetOf<String>()
+        for (contact in activeContacts) {
+            contact.theirAlias?.trim()?.takeIf { it.isNotEmpty() }?.let { aliases += it }
+            runCatching { walletManager.myDeterministicAlias(contact.id) }
+                .getOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { aliases += it }
+        }
+        return aliases.toList()
+    }
 
     /**
      * Blinded group ids to receive group-message push for — one per (group, other non-muted member),
@@ -490,6 +514,7 @@ class PushRegistrationManager @Inject constructor(
         path: String,
         deviceToken: String,
         watchedAddresses: List<String>,
+        aliases: List<String> = emptyList(),
         watchedGroupIds: List<String> = emptyList(),
         primaryAddress: String,
     ): PushAuthRequest {
@@ -507,7 +532,7 @@ class PushRegistrationManager @Inject constructor(
             watchedAddresses = watchedAddresses,
             watchedGroupIds = watchedGroupIds,
             primaryAddress = primaryAddress,
-            aliases = emptyList(),
+            aliases = aliases,
             walletPubkey = walletPubkey,
             walletAddress = material.walletAddress,
             nonce = challenge.nonce,
