@@ -1041,6 +1041,16 @@ fun MainShell(
                 )
             }
 
+            // Settings > Storage sub-pages, one per backup provider (see StorageScreens.kt) -
+            // the Storage section itself is just the hub of rows pointing here, like iOS.
+            composable("storage_google_drive") {
+                GoogleDriveStorageScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable("storage_nextcloud") {
+                NextcloudStorageScreen(onBack = { navController.popBackStack() })
+            }
+
             composable("help") {
                 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
                 HelpScreen(

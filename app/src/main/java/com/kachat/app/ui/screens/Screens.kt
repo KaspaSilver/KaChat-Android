@@ -2,7 +2,6 @@ package com.kachat.app.ui.screens
 
 import android.Manifest
 import android.app.Activity
-import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -16,7 +15,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.animateColorAsState
@@ -119,7 +117,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.kachat.app.R
-import com.kachat.app.models.BackupRetention
 import com.kachat.app.models.Conversation
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.ReactionEntity
@@ -6705,13 +6702,6 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
     }
 }
 
-/** Unwraps a Compose [android.content.Context] (often a ContextWrapper) to find the real hosting Activity — needed for Credential Manager / Drive authorization, which require an Activity, not just any Context. */
-private tailrec fun android.content.Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -6954,161 +6944,28 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "storage") {
+            // Storage hub (matches iOS's Settings > Storage): one category row per backup
+            // provider, each pushing its own page (see StorageScreens.kt). Google Drive is
+            // Android's counterpart to iOS's iCloud row. On-device usage has no settings of its
+            // own, so it stays inline here as a readout rather than a row leading to a page with
+            // a single read-only line.
             SettingsSection(title = stringResource(R.string.storage)) {
-                val googleBackupEnabled by chatViewModel.googleBackupEnabled.collectAsState()
-                val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
-                val restoreState by chatViewModel.restoreState.collectAsState()
-                val pendingConsentIntent by chatViewModel.pendingConsentIntent.collectAsState()
-                val activity = LocalContext.current.findActivity()
-
-                val consentLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.StartIntentSenderForResult()
-                ) { result ->
-                    chatViewModel.consentIntentLaunched()
-                    result.data?.let { chatViewModel.completeGoogleDriveAuthorization(it) }
-                }
-
-                LaunchedEffect(pendingConsentIntent) {
-                    pendingConsentIntent?.let { pendingIntent ->
-                        consentLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
-                    }
-                }
-
-                val backupInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
-                val restoreInFlight = restoreState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-
-                SettingsSwitchItem(
-                    stringResource(R.string.back_up_to_google_drive),
-                    checked = googleBackupEnabled,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            activity?.let { chatViewModel.enableGoogleDriveBackup(it) }
-                        } else {
-                            chatViewModel.disableGoogleDriveBackup()
-                        }
-                    }
-                )
-                val backupFooterText = when {
-                    backupInFlight -> "Working..."
-                    googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.FAILED -> googleBackupOpState.message ?: "Something went wrong"
-                    googleBackupEnabled && googleBackupOpState.signedInEmail != null -> "Signed in as ${googleBackupOpState.signedInEmail}"
-                    else -> "Off by default. Backs up chat history to your own Google Drive as hidden storage, not visible in your regular Drive files."
-                }
-                SettingsFooter(backupFooterText)
-
-                // Local vs. cloud storage — mirrors iOS's "Local storage used"/"iCloud storage
-                // used" split. Android has no live per-record cloud sync like CloudKit; Google
-                // Drive backup is one flat JSON file per account, so "cloud" here is just that
-                // one file's current size in Drive.
-                SettingsDivider()
-                val context = LocalContext.current
                 val localStorageSizeBytes by chatViewModel.localStorageSizeBytes.collectAsState()
                 LaunchedEffect(Unit) { chatViewModel.refreshLocalStorageSize() }
                 SettingsInfoItem(
-                    label = "Local storage used",
+                    label = stringResource(R.string.local_storage_used),
                     value = localStorageSizeBytes?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
                         ?: "Calculating..."
                 )
-
                 SettingsDivider()
-                val driveBackupSizeState by chatViewModel.driveBackupSizeState.collectAsState()
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(stringResource(R.string.google_drive_backup_used), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            text = when (driveBackupSizeState.status) {
-                                ChatViewModel.DriveSizeStatus.IDLE -> "Not checked"
-                                ChatViewModel.DriveSizeStatus.LOADING -> "Checking..."
-                                ChatViewModel.DriveSizeStatus.LOADED -> driveBackupSizeState.bytes?.let {
-                                    android.text.format.Formatter.formatShortFileSize(context, it)
-                                } ?: "No backup found"
-                                ChatViewModel.DriveSizeStatus.FAILED -> "Unavailable"
-                            },
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    if (driveBackupSizeState.status == ChatViewModel.DriveSizeStatus.LOADING) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                    } else {
-                        IconButton(onClick = { chatViewModel.refreshDriveBackupSize() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.check_drive_backup_size), tint = KaspaTeal)
-                        }
-                    }
-                }
-
-                if (googleBackupEnabled) {
-                    SettingsDivider()
-                    SettingsActionItem(
-                        label = if (backupInFlight) "Backing Up..." else "Back Up Now",
-                        icon = Icons.Default.CloudUpload,
-                        color = if (backupInFlight) Color.Gray else KaspaTeal
-                    ) {
-                        if (!backupInFlight) chatViewModel.backupNow()
-                    }
-                    SettingsDivider()
-                    SettingsActionItem(
-                        label = if (restoreInFlight) "Restoring..." else "Restore from Google Drive",
-                        icon = Icons.Default.CloudDownload,
-                        color = if (restoreInFlight) Color.Gray else KaspaTeal
-                    ) {
-                        if (!restoreInFlight) chatViewModel.restoreFromGoogleDrive()
-                    }
-                    if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
-                        SettingsFooter(restoreState.message ?: "Restore complete.")
-                    }
-                    if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                        SettingsFooter(restoreState.message ?: "Restore failed.")
-                    }
-
-                    SettingsDivider()
-
-                    val backupRetention by chatViewModel.backupRetention.collectAsState()
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.retention), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(8.dp))
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            val options = listOf(
-                                Triple("Forever", BackupRetention.FOREVER, 0),
-                                Triple("30 Days", BackupRetention.DAYS_30, 1),
-                                Triple("90 Days", BackupRetention.DAYS_90, 2)
-                            )
-                            options.forEach { (label, value, index) ->
-                                SegmentedButton(
-                                    selected = backupRetention == value,
-                                    onClick = { chatViewModel.setBackupRetention(value) },
-                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                                    colors = SegmentedButtonDefaults.colors(
-                                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                                        activeContentColor = LocalAppColors.current.textPrimary,
-                                        inactiveContainerColor = LocalAppColors.current.surface,
-                                        inactiveContentColor = LocalAppColors.current.textSecondary
-                                    )
-                                ) {
-                                    Text(label, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = if (backupRetention == BackupRetention.FOREVER) {
-                                "Chat history is kept forever and backed up as-is."
-                            } else {
-                                "Messages older than ${backupRetention.days} days are permanently deleted from this device, not just excluded from the backup. This cannot be undone."
-                            },
-                            color = if (backupRetention == BackupRetention.FOREVER) Color.Gray else Color(0xFFFF3B30),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
+                SettingsNavigationItem(stringResource(R.string.google_drive), Icons.Default.CloudQueue, onClick = {
+                    navController.navigate("storage_google_drive")
+                })
+                SettingsDivider()
+                SettingsNavigationItem(stringResource(R.string.nextcloud), Icons.Default.Cloud, onClick = {
+                    navController.navigate("storage_nextcloud")
+                })
             }
-            // Self-hosted alternative to the Google Drive backup above — its own labeled group,
-            // mirroring iOS's Settings > Storage > Nextcloud section.
-            NextcloudSettingsSection(chatViewModel)
             }
 
             if (sectionKey == "chat_history") {

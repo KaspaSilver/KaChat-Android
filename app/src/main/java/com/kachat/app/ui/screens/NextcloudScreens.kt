@@ -687,10 +687,13 @@ fun NextcloudPdfViewerDialog(
 }
 
 /**
- * Settings > Storage > "Nextcloud" group. Not connected: server/username/app-password form.
- * Connected: account line, start/backup folder rows, automatic-backup toggle, manual backup,
- * last-backup line, restore (with confirmation), disconnect. Mirrors iOS's Nextcloud section
- * and follows the Google Drive section's Compose patterns right above it.
+ * The rows of the Settings > Storage > Nextcloud page ([NextcloudStorageScreen] supplies the
+ * page chrome). Not connected: server/username/app-password form. Connected: account line,
+ * start/backup folder rows, automatic-backup toggle, manual backup, last-backup line, restore
+ * (with confirmation), disconnect. Mirrors iOS's NextcloudSettingsView, which its Storage page
+ * pushes as its own screen in exactly the same way.
+ *
+ * Card title is left null because the page's app bar already says "Nextcloud".
  */
 @Composable
 fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
@@ -712,7 +715,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
         if (account != null) chatViewModel.refreshNextcloudBackupInfo()
     }
 
-    SettingsSection(title = "Nextcloud") {
+    SettingsSection(title = null) {
         val connected = account
         if (connected == null) {
             var server by remember { mutableStateOf("") }

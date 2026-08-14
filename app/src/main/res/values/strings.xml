@@ -200,6 +200,7 @@
     <string name="from">From</string>
     <string name="fund_your_chatting_address">Fund Your Chatting Address</string>
     <string name="generate_account">Generate Account</string>
+    <string name="google_drive">Google Drive</string>
     <string name="google_drive_backup_used">Google Drive backup used</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="grant_permission_2">Grant permission</string>
@@ -248,6 +249,7 @@
     <string name="let_s_fund_your_chatting_address">Let\'s fund your chatting address so that you can start chatting with people. 5-10 Kaspa is enough. (1 KAS is about ~500 messages)</string>
     <string name="link_from_contacts">Link from Contacts</string>
     <string name="linked">Linked</string>
+    <string name="local_storage_used">Local storage used</string>
     <string name="log_out">Log Out</string>
     <string name="longer_retention_means_more_messages_stay">Longer retention means more messages stay cached on your device, which can slow the app down over time, especially for busy rooms.</string>
     <string name="make_active_address">Make Active Address</string>
@@ -265,6 +267,7 @@
     <string name="network">Network</string>
     <string name="network_fee">Network Fee</string>
     <string name="never_send_kaspa_you_intend_to">Never send Kaspa you intend to spend to this address.</string>
+    <string name="nextcloud">Nextcloud</string>
     <string name="next">Next</string>
     <string name="no_conversations_yet">No Conversations Yet</string>
     <string name="no_group_chats_yet">No Group Chats Yet</string>
