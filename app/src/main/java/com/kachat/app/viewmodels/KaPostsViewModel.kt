@@ -696,6 +696,23 @@ class KaPostsViewModel @Inject constructor(
     private val _posterProfileReplies = MutableStateFlow<List<KaPostDraft>>(emptyList())
     val posterProfileReplies: StateFlow<List<KaPostDraft>> = _posterProfileReplies.asStateFlow()
 
+    /**
+     * A snapshot of EVERY list a post can live in, re-emitted whenever any of them changes.
+     *
+     * [findPost]/[findParent] read plain `StateFlow.value`, which Compose cannot observe - a view
+     * that resolves a post by id (the thread overlay) would otherwise keep rendering the object it
+     * captured when it first opened, so fetched replies, expanded sub-threads and just-submitted
+     * replies would never appear. Collecting this in the composable makes those resolutions
+     * recompose. Declared after every backing flow above so property init order is satisfied.
+     */
+    val postTree: StateFlow<List<List<KaPostDraft>>> = combine(
+        listOf(
+            _localPosts, _remotePosts, _posterProfilePosts, _posterProfileReplies,
+            _myProfilePosts, _myProfileReplies,
+        )
+    ) { lists -> lists.toList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun openPosterProfile(address: String, pubkey: String?) {
         _posterProfile.value = PosterProfile(address = address, pubkey = pubkey)
         _posterProfilePosts.value = emptyList()

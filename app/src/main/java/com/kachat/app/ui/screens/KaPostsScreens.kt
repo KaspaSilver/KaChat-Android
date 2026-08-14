@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -385,23 +386,19 @@ fun KaPostsScreen(
         )
     }
 
-    // Thread stack - the topmost id renders; back pops.
+    // Thread stack - the topmost id renders; back pops. The overlay resolves the id against the
+    // live post tree itself (it must recompose as replies land), so only the id is handed over.
     threadStack.lastOrNull()?.let { topId ->
-        val post = viewModel.findPost(topId)
-        if (post != null) {
-            KaPostThreadOverlay(
-                post = post,
-                viewModel = viewModel,
-                onClose = { threadStack = threadStack.dropLast(1) },
-                onOpenNested = { nested -> openThread(nested) },
-                onOpenProfile = { address, pubkey -> viewModel.openPosterProfile(address, pubkey) },
-                onOpenShared = { txId -> openShared(txId) },
-                onRepostTap = { repostHandler(it) },
-                onViewEngagement = { engagementTarget = it },
-            )
-        } else {
-            threadStack = threadStack.dropLast(1)
-        }
+        KaPostThreadOverlay(
+            postId = topId,
+            viewModel = viewModel,
+            onClose = { threadStack = threadStack.dropLast(1) },
+            onOpenNested = { nested -> openThread(nested) },
+            onOpenProfile = { address, pubkey -> viewModel.openPosterProfile(address, pubkey) },
+            onOpenShared = { txId -> openShared(txId) },
+            onRepostTap = { repostHandler(it) },
+            onViewEngagement = { engagementTarget = it },
+        )
     }
 
     if (showMyProfile) {
@@ -600,6 +597,12 @@ fun KaPostCell(
      * detail/comment/profile/bookmark cells show everything. Matches iOS KaPostCellView.
      */
     truncatesLongText: Boolean = false,
+    /**
+     * In-thread cells pass this: the comment bubble then aims the thread's reply composer at THIS
+     * post instead of opening its thread (desktop's `data-kaposts-reply-to`). Null everywhere else,
+     * where the bubble keeps its "open the thread" meaning.
+     */
+    onReply: (() -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     val context = LocalContext.current
@@ -781,7 +784,7 @@ fun KaPostCell(
                     post = post,
                     commentCount = viewModel.commentCount(post),
                     deadlines = deadlines,
-                    onComment = onOpenThread,
+                    onComment = onReply ?: onOpenThread,
                     onRepost = onRepostTap,
                     onLike = { viewModel.toggleLike(post) },
                     onDislike = { viewModel.toggleDislike(post) },
@@ -1105,7 +1108,7 @@ fun KaPostCharacterMeter(count: Int) {
 
 @Composable
 fun KaPostThreadOverlay(
-    post: KaPostDraft,
+    postId: String,
     viewModel: KaPostsViewModel,
     onClose: () -> Unit,
     onOpenNested: (KaPostDraft) -> Unit,
@@ -1115,16 +1118,33 @@ fun KaPostThreadOverlay(
     onViewEngagement: (KaPostDraft) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    var replyText by remember { mutableStateOf("") }
+    // Resolving against the collected tree (rather than taking a KaPostDraft parameter) is what
+    // makes the thread live: fetched replies, inline-expanded sub-threads and optimistic replies
+    // all land inside the view model's post lists, and this is what re-reads them.
+    val tree by viewModel.postTree.collectAsState()
+    val post = remember(postId, tree) { viewModel.findPost(postId) }
+    if (post == null) {
+        // The thread's post vanished (feed refresh dropped it) - pop this level.
+        LaunchedEffect(postId) { onClose() }
+        return
+    }
+    var replyText by remember(postId) { mutableStateOf("") }
+    /** Which post in this thread the composer targets; null = the thread root. */
+    var replyTargetId by remember(postId) { mutableStateOf<String?>(null) }
     // Zero-balance funding gate — tapping the reply composer while the chatting balance is a
     // confirmed 0 KAS opens the shared funding card instead of the reply field/keyboard.
     val fundingGate = rememberZeroBalanceFundingGate()
     var showFundingGate by remember { mutableStateOf(false) }
-    var expandedIds by remember { mutableStateOf(setOf<String>()) }
+    var expandedIds by remember(postId) { mutableStateOf(setOf<String>()) }
     val muted by viewModel.muted.collectAsState()
     val blocked by viewModel.blocked.collectAsState()
     val hidden = muted + blocked
     val visibleComments = post.comments.filter { it.posterAddress !in hidden }
+    // Falls back to the root whenever the targeted comment is gone (a refresh replaced it).
+    val replyTarget = remember(replyTargetId, tree, post) {
+        replyTargetId?.let { viewModel.findPost(it) } ?: post
+    }
+    val replyingToComment = replyTarget.id != post.id
 
     LaunchedEffect(post.remoteId) { viewModel.loadReplies(post) }
 
@@ -1175,6 +1195,8 @@ fun KaPostThreadOverlay(
                         onOpenQuoted = onOpenShared,
                         onViewEngagement = { onViewEngagement(post) },
                         isRoot = true,
+                        // In-thread the comment bubble means "reply to this", not "open this".
+                        onReply = { replyTargetId = null },
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
                 }
@@ -1196,6 +1218,7 @@ fun KaPostThreadOverlay(
                         onOpenShared = onOpenShared,
                         onRepostTap = onRepostTap,
                         onViewEngagement = onViewEngagement,
+                        onReplyTo = { target -> replyTargetId = target.id },
                     )
                     HorizontalDivider(
                         color = colors.surfaceVariant,
@@ -1208,44 +1231,94 @@ fun KaPostThreadOverlay(
             // opens the funding card instead of focusing the field — same "no composer until
             // funded" rule as the New Post FAB above.
             Box {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .alpha(if (fundingGate.active) 0.35f else 1f),
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    BasicTextField(
-                        value = replyText,
-                        onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
-                        textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
-                        cursorBrush = SolidColor(KaspaTeal),
+                    // "Replying to <name> x" - the composer targets a comment rather than the
+                    // thread root (desktop's reply-context chip). Clearing it aims at the root.
+                    if (replyingToComment) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 12.dp, top = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Replying to ${viewModel.posterDisplayName(replyTarget.posterAddress)}",
+                                color = KaspaTeal,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Reply to the original post instead",
+                                tint = colors.textSecondary,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { replyTargetId = null },
+                            )
+                        }
+                    }
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(colors.surface)
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        decorationBox = { inner ->
-                            if (replyText.isEmpty()) {
-                                Text("Post your reply", color = colors.textSecondary, fontSize = 15.sp)
-                            }
-                            inner()
-                        },
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    KaPostCharacterMeter(count = replyText.length)
-                    TextButton(
-                        onClick = {
-                            viewModel.submitReply(post, replyText.trim())
-                            replyText = ""
-                        },
-                        enabled = replyText.isNotBlank(),
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            "Reply",
-                            color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
-                            fontWeight = FontWeight.Bold,
+                        BasicTextField(
+                            value = replyText,
+                            onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
+                            textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
+                            cursorBrush = SolidColor(KaspaTeal),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(colors.surface)
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            decorationBox = { inner ->
+                                if (replyText.isEmpty()) {
+                                    Text(
+                                        if (replyingToComment) "Post your reply to this comment" else "Post your reply",
+                                        color = colors.textSecondary,
+                                        fontSize = 15.sp,
+                                    )
+                                }
+                                inner()
+                            },
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        KaPostCharacterMeter(count = replyText.length)
+                        TextButton(
+                            onClick = {
+                                // Replies nest against their IMMEDIATE parent (postId + mention =
+                                // that comment and its author), which is what the indexer keys
+                                // get-replies on - same rule as iOS/desktop.
+                                val target = replyTarget
+                                viewModel.submitReply(target, replyText.trim())
+                                // Reveal the new reply straight away: a comment's children only
+                                // render while it's expanded. Pull its existing chain in too, so
+                                // the expansion isn't just our own reply on its own.
+                                if (target.id != post.id && target.id !in expandedIds) {
+                                    viewModel.expandReplies(target)
+                                    expandedIds = expandedIds + target.id
+                                }
+                                replyText = ""
+                                replyTargetId = null
+                            },
+                            enabled = replyText.isNotBlank(),
+                        ) {
+                            Text(
+                                "Reply",
+                                color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
                 if (fundingGate.active) {
@@ -1274,8 +1347,8 @@ fun KaPostThreadOverlay(
 
 /**
  * One comment with X-style inline expansion: "View N replies" loads and indents its children
- * (connector line at the leading edge), recursively. Tapping the comment itself pushes it as
- * a new thread root for full depth.
+ * (connector line at the leading edge), recursively. The comment bubble replies to THIS comment
+ * (the composer retargets); tapping the comment body pushes it as a new thread root for full depth.
  */
 @Composable
 private fun ThreadCommentNode(
@@ -1290,6 +1363,7 @@ private fun ThreadCommentNode(
     onOpenShared: (String) -> Unit,
     onRepostTap: (KaPostDraft) -> Unit,
     onViewEngagement: (KaPostDraft) -> Unit,
+    onReplyTo: (KaPostDraft) -> Unit,
 ) {
     val colors = LocalAppColors.current
     val expanded = comment.id in expandedIds
@@ -1304,6 +1378,7 @@ private fun ThreadCommentNode(
             onOpenProfile = { onOpenProfile(comment.posterAddress, comment.posterPubkey) },
             onOpenQuoted = onOpenShared,
             onViewEngagement = { onViewEngagement(comment) },
+            onReply = { onReplyTo(comment) },
         )
         if (childCount > 0) {
             Row(
@@ -1356,6 +1431,7 @@ private fun ThreadCommentNode(
                         onOpenShared = onOpenShared,
                         onRepostTap = onRepostTap,
                         onViewEngagement = onViewEngagement,
+                        onReplyTo = onReplyTo,
                     )
                 }
             }
