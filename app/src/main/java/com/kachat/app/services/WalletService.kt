@@ -503,39 +503,54 @@ class WalletService @Inject constructor(
      * user exactly what address they're sending to before they confirm). Re-validates here too
      * as a backend safety net: rejects sending to your own address, a different network's
      * address, or a domain you no longer actually own.
+     *
+     * [fromSpendingAddressIndex] non-null makes THAT spending-chain address the transfer source
+     * (mirrors iOS `KNSDomainTransferService.transferDomain(fromSpendingAddressIndex:)`): it is
+     * the domain's owner — it funds the commit, its pubkey goes into the redeem script, its key
+     * signs both transactions, and it receives all change. Null keeps the historical
+     * identity/chatting-address behavior.
      */
-    suspend fun transferDomain(fullDomain: String, assetId: String, toAddress: String, priorityFeeSompi: Long = KnsInscriptionEngine.REVEAL_PRIORITY_FEE_SOMPI, onStep: (KnsInscribeStep) -> Unit = {}): TransferDomainResult {
+    suspend fun transferDomain(fullDomain: String, assetId: String, toAddress: String, priorityFeeSompi: Long = KnsInscriptionEngine.REVEAL_PRIORITY_FEE_SOMPI, fromSpendingAddressIndex: Int? = null, onStep: (KnsInscribeStep) -> Unit = {}): TransferDomainResult {
         val trimmedAssetId = assetId.trim()
         require(trimmedAssetId.isNotEmpty()) { "Missing KNS asset id" }
-        val myAddress = walletManager.getAddress()
+        // One key does everything — no split between funder and owner.
+        val sourceAddress: String
+        val sourcePrivateKey: ByteArray
+        if (fromSpendingAddressIndex != null) {
+            sourceAddress = walletManager.deriveSpendingAddress(fromSpendingAddressIndex)
+            sourcePrivateKey = walletManager.getSpendingPrivateKeyBytes(fromSpendingAddressIndex)
+        } else {
+            sourceAddress = walletManager.getAddress()
+            sourcePrivateKey = walletManager.getPrivateKeyBytes()
+        }
 
         require(KaspaAddress.isValid(toAddress)) { "Invalid recipient address" }
-        require(toAddress != myAddress) { "Recipient address must be different from your wallet" }
-        require(toAddress.substringBefore(":") == myAddress.substringBefore(":")) { "Recipient address is on the wrong network" }
+        require(toAddress != sourceAddress) { "Recipient address must be different from your wallet" }
+        require(toAddress.substringBefore(":") == sourceAddress.substringBefore(":")) { "Recipient address is on the wrong network" }
 
         val currentOwner = knsService.resolve(fullDomain)
-        if (currentOwner != myAddress) throw IllegalStateException("Domain is not owned by current wallet")
+        if (currentOwner != sourceAddress) {
+            throw IllegalStateException(
+                if (fromSpendingAddressIndex != null) "Domain is not owned by this spending address"
+                else "Domain is not owned by current wallet"
+            )
+        }
 
         val payloadJson = Gson().toJson(KnsTransferDomainPayload(op = "transfer", p = "domain", id = trimmedAssetId, to = toAddress)).toByteArray()
-
-        // KNS activity is funded and settled entirely on the identity/chatting address chain -
-        // no spending-address split, same as inscribeDomain/updateKnsProfileField. Ownership
-        // itself moves via the payload's "to" field, authorized by the current owner's signature.
-        val identityPrivateKey = walletManager.getPrivateKeyBytes()
 
         onStep(KnsInscribeStep.SUBMITTING_COMMIT)
         val commit = knsInscriptionEngine.buildAndSubmitCommit(
             payloadJson = payloadJson,
             commitAmountSompi = TRANSFER_COMMIT_SOMPI,
             revealAmountSompi = TRANSFER_REVEAL_SOMPI,
-            revealTargetAddress = myAddress,
+            revealTargetAddress = sourceAddress,
             operationType = "transfer",
-            fundingAddress = myAddress,
-            fundingPrivateKey = identityPrivateKey,
-            ownerPrivateKey = identityPrivateKey
+            fundingAddress = sourceAddress,
+            fundingPrivateKey = sourcePrivateKey,
+            ownerPrivateKey = sourcePrivateKey
         )
         onStep(KnsInscribeStep.SUBMITTING_REVEAL)
-        val revealTxId = knsInscriptionEngine.buildAndSubmitReveal(commit, myAddress, myAddress, identityPrivateKey, priorityFeeSompi)
+        val revealTxId = knsInscriptionEngine.buildAndSubmitReveal(commit, sourceAddress, sourceAddress, sourcePrivateKey, priorityFeeSompi)
 
         onStep(KnsInscribeStep.VERIFYING)
         val verified = verifyDomainOwnership(fullDomain, toAddress)

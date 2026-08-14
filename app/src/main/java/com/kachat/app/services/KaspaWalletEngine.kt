@@ -287,7 +287,14 @@ class KaspaWalletEngine @Inject constructor(
             ?: return Result.failure(IllegalStateException("No active account"))
         val currentSpendingAddress = walletManager.deriveSpendingAddress(currentIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(currentIndex)
-        val nextSpendingAddress = walletManager.deriveSpendingAddress(currentIndex + 1)
+        // Change goes one past the ALL-TIME max index (not just currentIndex + 1) — guarantees it
+        // never lands on an address that's already been used, offered as a payment-pool
+        // reservation, or manually generated from Manage Addresses. The allocation bumps the max
+        // atomically, so a concurrent pool reservation can't collide either (matches iOS's
+        // `sendPaymentInternal` fresh-change-index rule). On failure the allocated index is
+        // simply burned unused — revealing an index is always safe, reusing one is not.
+        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+            ?: return Result.failure(IllegalStateException("Could not derive change address"))
 
         val result = sendKaspa(
             toAddress = toAddress,
@@ -299,7 +306,7 @@ class KaspaWalletEngine @Inject constructor(
             feeRateOverride = feeRateOverride
         )
         if (result.isSuccess) {
-            walletManager.advanceSpendingAddressIndex(identityAddress)
+            walletManager.setSpendingAddressIndex(identityAddress, nextIndex)
         }
         return result
     }

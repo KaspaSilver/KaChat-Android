@@ -405,6 +405,66 @@ class WalletManager @Inject constructor(
     fun deriveSpendingAddress(index: Int): String =
         addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()))
 
+    /**
+     * The shared spending-chain node (m/44'/111111'/1'/0), derived once — each
+     * [deriveSpendingAddress] call redoes the expensive PBKDF2 mnemonic-to-seed plus four
+     * derivations from scratch, which is fine for one lookup but dominates when a caller needs
+     * every revealed address (pool validation, address-activity watch sets). Mirrors iOS's
+     * `spendingChangeKey()` optimization.
+     */
+    private fun spendingChainKey(): DeterministicKey {
+        val seed = MnemonicCode.toSeed(activeMnemonicWords(), activePassphrase())
+        val masterKey = HDKeyDerivation.createMasterPrivateKey(seed)
+        val key44h = HDKeyDerivation.deriveChildKey(masterKey, ChildNumber(44, true))
+        val keyKaspaH = HDKeyDerivation.deriveChildKey(key44h, ChildNumber(111111, true))
+        val keyAccountH = HDKeyDerivation.deriveChildKey(keyKaspaH, ChildNumber(1, true))
+        return HDKeyDerivation.deriveChildKey(keyAccountH, ChildNumber(0, false))
+    }
+
+    /** Every revealed spending-chain address (0..max(spendingAddressIndex, maxSpendingAddressIndex)),
+     *  derived with a single seed computation — for own-address watch sets and received-pool
+     *  validation. Empty if there's no active account. */
+    fun allSpendingAddresses(): List<String> {
+        val account = getActiveAccount() ?: return emptyList()
+        val maxIndex = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyList() }
+        return (0..maxIndex).map { index ->
+            addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }
+    }
+
+    /** True if [address] is one of this wallet's own revealed spending-chain addresses — used to
+     *  reject a received payment pool that tries to feed our own addresses back to us. */
+    fun isOwnSpendingAddress(address: String): Boolean = allSpendingAddresses().contains(address)
+
+    /** Guards every fresh-spending-index allocation (payment change AND pool reservations) so two
+     *  concurrent allocators can never hand out the same index — see [allocateFreshSpendingIndices]. */
+    private val spendingIndexAllocationLock = Any()
+
+    /**
+     * Reveals and returns [count] brand-new spending-chain slots in one atomic step — used both
+     * by the fresh-address payment pool feature (reserving addresses to offer a contact) and by
+     * spending-payment change routing. Indices start strictly past the all-time max
+     * (`max(spendingAddressIndex, maxSpendingAddressIndex) + 1`) and the max is bumped to cover
+     * them BEFORE returning, so: (a) they have never been revealed, funded, or offered before,
+     * and (b) no later payment-change address or pool reservation can ever land on the same
+     * index — both allocation paths funnel through this one synchronized method (the Android
+     * equivalent of iOS serializing reservation + payment-change derivation through the outgoing
+     * tx queue). Returns (index, address) pairs; empty on failure.
+     */
+    fun allocateFreshSpendingIndices(count: Int): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
+        if (count <= 0) return@synchronized emptyList()
+        val account = getActiveAccount() ?: return@synchronized emptyList()
+        val chainKey = try { spendingChainKey() } catch (e: Exception) { return@synchronized emptyList() }
+        val base = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1
+        val result = (0 until count).map { offset ->
+            val index = base + offset
+            index to addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }
+        ensureMaxSpendingAddressIndexAtLeast(account.address, base + count - 1)
+        result
+    }
+
     fun getSpendingPrivateKeyBytes(index: Int): ByteArray =
         deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()).privKeyBytes
 

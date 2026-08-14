@@ -141,12 +141,44 @@ class ColdStorageViewModel @Inject constructor(
                     AddressRow(it.index, it.address, it.balanceSompi, it.hasHistory, labels[it.index], it.index in hiddenIndices)
                 }
                 onResult((_addresses.value.size - previousCount).coerceAtLeast(0))
+                // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
+                refreshDomainOwningAddresses(_addresses.value.map { it.address })
             } catch (e: Exception) {
                 _addresses.value = emptyList()
                 onResult(0)
             } finally {
                 _isDiscovering.value = false
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // KNS domains on cold addresses: the "Contains domain" list tags and the per-address
+    // "KNS Domains (n)" tab (LIST-ONLY here - a KNS transfer's reveal input spends a P2SH
+    // redeem script, and the KSPT QR format only carries plain single-sig Schnorr inputs,
+    // so KasSigner can't sign inscription transactions).
+    // -------------------------------------------------------------------------
+
+    private val _domainOwningAddresses = MutableStateFlow<Set<String>>(emptySet())
+    val domainOwningAddresses: StateFlow<Set<String>> = _domainOwningAddresses.asStateFlow()
+
+    private fun refreshDomainOwningAddresses(addresses: List<String>) {
+        if (addresses.isEmpty()) return
+        viewModelScope.launch {
+            _domainOwningAddresses.value = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
+        }
+    }
+
+    private val _addressKnsDomains = MutableStateFlow<List<com.kachat.app.services.KnsAsset>>(emptyList())
+    val addressKnsDomains: StateFlow<List<com.kachat.app.services.KnsAsset>> = _addressKnsDomains.asStateFlow()
+    private val _addressKnsDomainsLoading = MutableStateFlow(false)
+    val addressKnsDomainsLoading: StateFlow<Boolean> = _addressKnsDomainsLoading.asStateFlow()
+
+    fun loadAddressKnsDomains(address: String) {
+        viewModelScope.launch {
+            _addressKnsDomainsLoading.value = true
+            _addressKnsDomains.value = try { knsService.getOwnedDomains(address) } catch (e: Exception) { emptyList() }
+            _addressKnsDomainsLoading.value = false
         }
     }
 

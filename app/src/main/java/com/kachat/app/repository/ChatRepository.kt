@@ -68,7 +68,10 @@ class ChatRepository @Inject constructor(
     // contacts/messages to build the archive) — a direct circular constructor dependency Dagger
     // can't resolve. Lazy<T> defers instantiation past construction time, breaking the cycle
     // while still letting this class call into it once actually needed (auto-backup).
-    private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>
+    private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>,
+    // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
+    // WalletService, which depends on this repository.
+    private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -490,6 +493,26 @@ class ChatRepository @Inject constructor(
                 upsertReaction(reaction.targetTxId, contact.id, contact.id, reaction.emoji, message.txId, message.blockTime)
             } else {
                 removeReaction(reaction.targetTxId, contact.id)
+            }
+            return
+        }
+
+        // Fresh-address payment pool envelopes (addr_pool / addr_pool_request / payment_notice)
+        // are invisible, exactly like reactions - intercepted before a MessageEntity is ever
+        // created. A payment_notice produces a payment bubble, but the envelope itself never
+        // renders. See MESSAGING.md "Fresh-Address Payment Pools" and PaymentPoolService.
+        val poolEnvelope = com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)
+        if (poolEnvelope != null) {
+            try {
+                paymentPoolServiceLazy.get().handleIncomingEnvelope(
+                    envelope = poolEnvelope,
+                    txId = message.txId,
+                    blockTime = message.blockTime,
+                    contact = contact,
+                    myAddress = myAddress
+                )
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Failed to handle payment pool envelope ${message.txId}", e)
             }
             return
         }

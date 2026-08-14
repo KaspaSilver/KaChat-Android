@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WavingHand
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -67,7 +68,7 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 
-private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
+private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING, PAYMENT_PRIVACY }
 
 private enum class UserTypeChoice { ADULT, CHILD }
 
@@ -88,6 +89,14 @@ fun WelcomeGuideScreen(
     /** Re-presentation after an interrupted first run (app killed before the Adult/Child step
      *  was answered): jump straight back to the choice instead of replaying from Welcome. */
     startAtUserType: Boolean = false,
+    /**
+     * Explicit presentation context, supplied by the presenter and NEVER inferred from persisted
+     * markers (matches iOS): true only for auto-presented onboarding runs (create AND import,
+     * including re-presentations of an interrupted run) — those are fully unskippable end to
+     * end, from Welcome through Finish. Help replays leave this false and keep the Skip (X) and
+     * back-dismiss.
+     */
+    isOnboardingRun: Boolean = false,
     onFinished: () -> Unit
 ) {
     var step by remember {
@@ -97,15 +106,16 @@ fun WelcomeGuideScreen(
     val spendingAddress by walletViewModel.spendingAddress.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
 
-    // Gates every skip affordance: the wizard is unskippable while the Adult/Child choice is
-    // still owed (persisted marker "pending" - see AppSettingsRepository.userTypeChoiceState).
-    // While unanswered the top-bar Skip (X) is hidden AND system back is swallowed; once
-    // answered (this session, or a replay/legacy run) the guide skips exactly as before.
+    // Skip gating: an onboarding run is unskippable END TO END (top-bar X hidden and system back
+    // swallowed until Finish). Replays additionally stay locked while the Adult/Child choice is
+    // still owed (persisted marker "pending" - see AppSettingsRepository.userTypeChoiceState);
+    // once answered, a replay skips exactly as before.
     val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
     var answeredThisSession by remember { mutableStateOf(false) }
     val userTypeAnswered = answeredThisSession || userTypePendingMarker == false
-    androidx.activity.compose.BackHandler(enabled = !userTypeAnswered) {
-        // Swallowed - the "Who will use KaChat?" step must be answered first.
+    val canSkip = !isOnboardingRun && userTypeAnswered
+    androidx.activity.compose.BackHandler(enabled = !canSkip) {
+        // Swallowed - onboarding runs must reach Finish; replays must answer Adult/Child first.
     }
 
     var nodeChoice by remember(trustedNodeAddress) {
@@ -128,9 +138,9 @@ fun WelcomeGuideScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    // Skip exists ONLY once the Adult/Child step is answered - until then the
-                    // wizard has no way out (back-dismiss is swallowed above too).
-                    if (userTypeAnswered) {
+                    // Skip exists only on replays with the Adult/Child step answered — an
+                    // onboarding run has no way out until Finish (back-dismiss swallowed too).
+                    if (canSkip) {
                         IconButton(onClick = onFinished) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
                         }
@@ -210,10 +220,110 @@ fun WelcomeGuideScreen(
                     icon = Icons.AutoMirrored.Filled.Chat,
                     title = stringResource(R.string.starting_a_conversation),
                     body = stringResource(R.string.to_chat_with_someone_press_create),
-                    buttonLabel = stringResource(R.string.finish),
-                    onNext = onFinished
+                    buttonLabel = stringResource(R.string.next),
+                    onNext = { step = WelcomeGuideStep.PAYMENT_PRIVACY }
+                )
+                WelcomeGuideStep.PAYMENT_PRIVACY -> WelcomeGuidePaymentPrivacyStep(
+                    walletViewModel = walletViewModel,
+                    settingsViewModel = settingsViewModel,
+                    onFinish = {
+                        // Reaching Finish is what completes an onboarding run — clear the
+                        // persisted re-presentation marker (no-op on replays, which never set it).
+                        walletViewModel.clearOnboardingWizardPending()
+                        onFinished()
+                    }
                 )
             }
+        }
+    }
+}
+
+/**
+ * "Chat Payment Privacy" — the wizard's final step (after Starting a Conversation), ported from
+ * iOS WelcomeGuideView's paymentPrivacy step with its exact copy. On is preselected (Recommended);
+ * tapping either option writes the per-account value IMMEDIATELY (not deferred to Finish), via
+ * [WalletViewModel.setChatsPaymentPrivacyFromWizard] — which deliberately skips the Settings
+ * toggle's revoke/re-offer propagation, matching iOS.
+ */
+@Composable
+private fun WelcomeGuidePaymentPrivacyStep(
+    walletViewModel: WalletViewModel,
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
+    onFinish: () -> Unit
+) {
+    val stored by settingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
+    var choice by remember { mutableStateOf(true) }
+    var seeded by remember { mutableStateOf(false) }
+    // Seed once from the stored per-account value (default ON for a new account, the current
+    // value on a replay) — after that the user's taps own the state.
+    androidx.compose.runtime.LaunchedEffect(stored) {
+        if (!seeded) {
+            choice = stored
+            seeded = true
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.VisibilityOff,
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Chat Payment Privacy",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalAppColors.current.textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "How would you like to send and receive payments in chats?",
+            color = LocalAppColors.current.textSecondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(20.dp))
+
+        NodeChoiceRow(
+            selected = choice,
+            title = "On",
+            badge = stringResource(R.string.recommended),
+            subtitle = "Payments in your chats travel between fresh private addresses. When you pay a contact who also has privacy on, the money goes to a fresh address only the two of you know about, and payments you receive arrive on fresh addresses of your own the same way. Nobody watching the network can tie chat payments to you or your contacts.",
+            onClick = {
+                choice = true
+                walletViewModel.setChatsPaymentPrivacyFromWizard(true)
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        NodeChoiceRow(
+            selected = !choice,
+            title = "Off",
+            badge = null,
+            subtitle = "Payments you send and receive are tied to your chatting address only, where anyone can see the full payment history.",
+            onClick = {
+                choice = false
+                walletViewModel.setChatsPaymentPrivacyFromWizard(false)
+            }
+        )
+
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = {
+                walletViewModel.setChatsPaymentPrivacyFromWizard(choice)
+                onFinish()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.finish), color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }

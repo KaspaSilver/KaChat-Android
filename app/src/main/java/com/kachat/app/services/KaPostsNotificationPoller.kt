@@ -35,6 +35,10 @@ class KaPostsNotificationPoller @Inject constructor(
     // §3/§4), so the poller must not post duplicates — but it still polls: last-seen tracking
     // and the Notifications screen's data depend on it.
     private val pushState: PushState,
+    // Settings > Notifications > KaPosts: per-kind toggles filtered here at the poll source
+    // (never at display), mirroring iOS — a toggled-off kind is dropped permanently: the
+    // last-seen watermark advances regardless, so it never re-fires if re-enabled later.
+    private val settingsRepository: com.kachat.app.repository.AppSettingsRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollJob: Job? = null
@@ -76,9 +80,14 @@ class KaPostsNotificationPoller @Inject constructor(
             dataStore.edit { it[key] = newest }
             return
         }
-        val fresh = notifications.filter { it.timestamp > lastSeen }
-        if (fresh.isEmpty()) return
+        // Per-kind toggle filter (Likes/Reposts/Follows/Dislikes/Comments) applied at the
+        // source, BEFORE the burst cap, so a disabled kind neither notifies nor consumes a
+        // slot. The watermark below still advances over filtered items.
+        val fresh = notifications.filter {
+            it.timestamp > lastSeen && settingsRepository.shouldNotifyKaPostsAction(it.contentType, it.voteType)
+        }
         dataStore.edit { it[key] = maxOf(newest, lastSeen) }
+        if (fresh.isEmpty()) return
         // Remote-push mode: the server already pushed these (PUSH_EXTENSIONS.md §4) — advance
         // last-seen as usual, but don't post duplicate local pings.
         if (pushState.isActive) return

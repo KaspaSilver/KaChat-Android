@@ -159,6 +159,37 @@ class NotificationHelper @Inject constructor(
         } catch (_: SecurityException) {}
     }
 
+    /** Wallet address-activity notification ("Received X KAS" on a spending/cold address) — see
+     *  [AddressActivityNotifier]. Gated only by the global notifications toggle here; the
+     *  Address Activity setting itself is checked by the notifier before calling. */
+    suspend fun showAddressActivity(title: String, text: String, dedupeKey: String) {
+        if (!settings.notificationsEnabled.first()) return
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val notificationId = "addr_activity_$dedupeKey".hashCode()
+        val pendingIntent = PendingIntent.getActivity(
+            context, notificationId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val soundEnabled = settings.notificationSoundEnabled.first()
+        val vibrationEnabled = settings.notificationVibrationEnabled.first()
+        val notification = NotificationCompat.Builder(context, channelFor(soundEnabled, vibrationEnabled))
+            .setSmallIcon(R.drawable.ic_kachat_logo)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSilent(!soundEnabled && !vibrationEnabled)
+            .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
+            .apply { if (!soundEnabled) setSound(null) }
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) {}
+    }
+
     suspend fun showBroadcast(channelName: String, title: String, text: String) {
         if (activeChannelName.value == channelName) return // already looking at this channel
         if (!settings.notificationsEnabled.first()) return

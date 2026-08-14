@@ -56,8 +56,15 @@ class ChatViewModel @Inject constructor(
     private val googleDriveBackupService: GoogleDriveBackupService,
     private val nextcloudService: NextcloudService,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
-    private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager
+    private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
+    private val paymentPoolService: com.kachat.app.services.PaymentPoolService,
+    private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier
 ) : ViewModel() {
+
+    /** Own-address balance-change events (see AddressActivityNotifier.utxoActivityEvents) — the
+     *  payment composer's Available pill refreshes off these when the current spending address
+     *  is involved, e.g. when a rotation change lands after a private-mode send. */
+    val ownAddressUtxoActivityEvents = addressActivityNotifier.utxoActivityEvents
 
     /** Suppresses a notification for whichever contact's thread is currently open. */
     fun setActiveContact(contactId: String?) {
@@ -67,6 +74,11 @@ class ChatViewModel @Inject constructor(
         // what's already published, so this is free when nothing changed.
         if (contactId != null) {
             shareShortcutsManager.refresh(conversations.value)
+            // Fresh-address payment pools: lazily offer our pool once per established contact,
+            // and top up our stored pool of theirs if it has run low (both throttled/marker-
+            // guarded inside the service) — the Android equivalent of iOS's enterConversation
+            // hook. Fire-and-forget on the service's own scope.
+            paymentPoolService.onConversationOpened(contactId)
         }
     }
 
@@ -923,11 +935,48 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Same as [refreshUtxos] but for the spending address — "Pay in Kaspa"'s live fee preview needs its UTXOs, not the identity address's. */
+    /**
+     * Whether the ACTIVE account's Chats Payment Privacy toggle is on (default true) — drives the
+     * payment composer's funding-source display: which balance the Available pill shows, whether
+     * it's tappable, and which UTXO set the fee/Max estimators price against.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val chatsPaymentPrivacyOn: StateFlow<Boolean> = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) kotlinx.coroutines.flow.flowOf(true) else settings.chatsPaymentPrivacyEnabled(address)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** True when the NEXT payment to the open contact would go to a fresh pool address the
+     *  contact shared — drives the subtle fresh-address arrow merged into the Available pill.
+     *  Refreshed on entering payment mode and after each send, matching iOS. */
+    private val _paysToFreshPoolAddress = MutableStateFlow(false)
+    val paysToFreshPoolAddress: StateFlow<Boolean> = _paysToFreshPoolAddress.asStateFlow()
+
+    fun refreshFreshPoolIndicator(contactId: String) {
+        viewModelScope.launch {
+            _paysToFreshPoolAddress.value = try {
+                paymentPoolService.willPayViaFreshPoolAddress(contactId)
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    /**
+     * Same as [refreshUtxos] but for the PAYMENT FUNDING SOURCE — the current spending address
+     * when Chats Payment Privacy is on, the chatting/identity address when off. The fee preview
+     * and the Max button both price against this set, so they always agree with what
+     * [sendPayment] will actually spend (estimators must use the same source the send uses).
+     */
     fun refreshSpendingUtxos() {
         viewModelScope.launch {
             try {
-                val address = walletManager.currentSpendingAddress()
+                val address = if (paymentPoolService.isChatsPrivacyEnabled()) {
+                    walletManager.currentSpendingAddress()
+                } else {
+                    walletManager.getAddress()
+                }
                 val api = networkService.kaspaRestApi.value ?: return@launch
 
                 try {
@@ -1999,7 +2048,47 @@ class ChatViewModel @Inject constructor(
                     )
                 )
 
-                val txId = walletService.payInKaspa(toAddress = contactId, amountSompi = sompi, feeRateOverride = feeRate)
+                // Fresh-address payment pools (MESSAGING.md): pay a fresh address from the
+                // contact's stored pool when one is available (consumed at selection, persisted
+                // - never offered to another payment even if this one fails), falling back to
+                // the chatting address when no pool exists or Chats Payment Privacy is off.
+                val destination = paymentPoolService.poolPaymentDestination(contactId, pendingId)
+
+                // FUNDING SOURCE - keyed on the per-account Chats Payment Privacy toggle:
+                // ON (default) spends from the spending chain with change routed to a fresh
+                // never-used index (payInKaspa); OFF is chatting-to-chatting end to end - funded
+                // from the chatting address with the identity key, change back to the chatting
+                // address, sharing the exact same UTXO/outpoint bookkeeping message sends use
+                // (KaspaWalletEngine's pending-spent tracking), so an immediately-following
+                // message can't race onto the just-spent outpoints.
+                val privacyOn = paymentPoolService.isChatsPrivacyEnabled()
+                val txId = if (privacyOn) {
+                    walletService.payInKaspa(toAddress = destination, amountSompi = sompi, feeRateOverride = feeRate)
+                } else {
+                    walletService.sendKaspa(toAddress = destination, amountSompi = sompi, feeRateOverride = feeRate)
+                }
+
+                // Pool-address payments announce themselves to the recipient (payment_notice) -
+                // their payment detection only watches the chatting address. No-op when the
+                // destination is the chatting address.
+                paymentPoolService.handlePoolPaymentSubmitted(contactId, txId, sompi, destination, pendingId)
+
+                // The Available pill tracks the post-send state: the fresh-address indicator may
+                // flip (an address was consumed), and the rotated-to spending address's balance
+                // lags the send — retry the balance shortly after, then again once the change
+                // output has typically landed (~1.5s and ~4s, matching iOS's retry schedule).
+                refreshFreshPoolIndicator(contactId)
+                launch {
+                    delay(1_500)
+                    walletService.refreshSpendingBalance()
+                    walletService.refreshBalance()
+                    refreshSpendingUtxos()
+                    delay(2_500)
+                    walletService.refreshSpendingBalance()
+                    walletService.refreshBalance()
+                    refreshSpendingUtxos()
+                    addressActivityNotifier.requestRefresh()
+                }
 
                 chatRepository.deleteMessage(pendingId)
                 chatRepository.insertMessage(
@@ -2022,6 +2111,15 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
+    /** The deterministic alias on messages THIS CONTACT sends me (what my sync watches) — Chat
+     *  Info's "Receiving alias". Derived on demand only; null when derivation fails. */
+    fun deriveReceivingAlias(contactId: String): String? =
+        try { walletManager.myDeterministicAlias(contactId) } catch (e: Exception) { null }
+
+    /** The deterministic alias on messages I send this contact — Chat Info's "Sending alias". */
+    fun deriveSendingAlias(contactId: String): String? =
+        try { walletManager.theirDeterministicAlias(contactId) } catch (e: Exception) { null }
 
     fun getConversation(contactId: String): Conversation? {
         return conversations.value.find { it.contact.id == contactId }

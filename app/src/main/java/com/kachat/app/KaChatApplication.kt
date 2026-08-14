@@ -61,6 +61,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var kaPostsNotificationPoller: KaPostsNotificationPoller
 
+    // Address-activity notifications (external receipts on spending/cold addresses): per-wallet
+    // baseline + diff engine, foreground poll + on-foreground catch-up. See its class doc.
+    @Inject
+    lateinit var addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier
+
     // For the Nextcloud automatic chat-history backup below — the archive json comes from the
     // same export service ChatViewModel's manual backup uses, so both paths write byte-identical
     // backups.
@@ -102,6 +107,7 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // In-app KaPosts pings are a foreground concern only — the push service covers
                 // KaPosts while backgrounded/closed.
                 kaPostsNotificationPoller.stop()
+                addressActivityNotifier.onAppBackground()
                 // Backgrounding is the natural "done chatting" moment — run the Nextcloud
                 // automatic backup then, throttled to at most once per hour. autoBackupIfDue
                 // no-ops unless the toggle is on and an account is connected, and swallows its
@@ -114,6 +120,9 @@ class KaChatApplication : Application(), Configuration.Provider {
             override fun onStart(owner: LifecycleOwner) {
                 // KaPosts pings while the app is actually open (60s poll) — iOS parity.
                 kaPostsNotificationPoller.start()
+                // Immediate catch-up diff for address activity (external receipts while the app
+                // was closed, first-run silent baseline seeding), then its foreground poll loop.
+                addressActivityNotifier.onAppForeground()
                 // A batch of gRPC connections can die silently while backgrounded/asleep (the OS
                 // tears down sockets, and each KaspadConnection's own self-reconnect can be
                 // suspended along with the rest of the app) - reconnect any that are dead right

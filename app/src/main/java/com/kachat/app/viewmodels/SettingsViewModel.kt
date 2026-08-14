@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.kachat.app.repository.AppSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,7 +18,9 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     pushState: com.kachat.app.services.PushState,
-    private val childModeService: com.kachat.app.services.ChildModeService
+    private val childModeService: com.kachat.app.services.ChildModeService,
+    private val walletManager: com.kachat.app.services.WalletManager,
+    private val paymentPoolService: com.kachat.app.services.PaymentPoolService
 ) : ViewModel() {
 
     /** Read-only push diagnostics for Settings > Notifications (see PushState.PushDiagnostics). */
@@ -56,6 +59,51 @@ class SettingsViewModel @Inject constructor(
     fun setNotificationVibrationEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationVibrationEnabled(value) }
     fun setShowFeeEstimate(value: Boolean) = viewModelScope.launch { settings.setShowFeeEstimate(value) }
     fun setQuickReactionEmojis(value: List<String>) = viewModelScope.launch { settings.setQuickReactionEmojis(value) }
+
+    // ------------------------------------------------------------------
+    // Notifications hub subpages (Settings > Notifications)
+    // ------------------------------------------------------------------
+
+    val addressActivityNotificationsEnabled = settings.addressActivityNotificationsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyLikes = settings.kaPostsNotifyLikes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyReposts = settings.kaPostsNotifyReposts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyFollows = settings.kaPostsNotifyFollows
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyDislikes = settings.kaPostsNotifyDislikes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyComments = settings.kaPostsNotifyComments
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setAddressActivityNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setAddressActivityNotificationsEnabled(value) }
+    fun setKaPostsNotifyLikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyLikes(value) }
+    fun setKaPostsNotifyReposts(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyReposts(value) }
+    fun setKaPostsNotifyFollows(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyFollows(value) }
+    fun setKaPostsNotifyDislikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyDislikes(value) }
+    fun setKaPostsNotifyComments(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyComments(value) }
+
+    // ------------------------------------------------------------------
+    // Chats Payment Privacy (per-account) — fresh-address payment pools.
+    // ------------------------------------------------------------------
+
+    /** The ACTIVE account's Chats Payment Privacy value, re-scoped on account switches. Default ON. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val chatsPaymentPrivacyEnabled = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) kotlinx.coroutines.flow.flowOf(true)
+            else settings.chatsPaymentPrivacyEnabled(address)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** Persists the per-account flag, then propagates the transition (revoke on OFF from
+     *  persisted pool state, proactive re-offer on ON) — see PaymentPoolService. */
+    fun setChatsPaymentPrivacyEnabled(value: Boolean) = viewModelScope.launch {
+        val address = try { walletManager.getAddress() } catch (e: Exception) { return@launch }
+        settings.setChatsPaymentPrivacyEnabled(address, value)
+        paymentPoolService.handleChatsPrivacyToggleChanged(value)
+    }
 
     // ------------------------------------------------------------------
     // Child Mode (Settings > Security > Child Mode + the Welcome Guide's

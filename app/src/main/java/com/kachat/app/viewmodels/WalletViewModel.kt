@@ -163,6 +163,8 @@ class WalletViewModel @Inject constructor(
             _manageAddressesLoading.value = true
             _manageAddresses.value = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
             _manageAddressesLoading.value = false
+            // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
+            refreshDomainOwningAddresses(_manageAddresses.value.map { it.address })
         }
     }
 
@@ -765,8 +767,11 @@ class WalletViewModel @Inject constructor(
 
     private var transferPreviewJob: Job? = null
 
-    /** Debounced: resolves a ".kas" name to an address (or validates a raw address directly), then checks it's a real, different, same-network address. */
-    fun checkTransferRecipient(rawInput: String) {
+    /** Debounced: resolves a ".kas" name to an address (or validates a raw address directly), then
+     *  checks it's a real, different, same-network address. [sourceAddress] overrides which own
+     *  address the recipient must differ from — the spending-address domain-transfer flow passes
+     *  that address (recipient must differ from the SOURCE, matching iOS); null = the identity. */
+    fun checkTransferRecipient(rawInput: String, sourceAddress: String? = null) {
         transferPreviewJob?.cancel()
         val trimmed = rawInput.trim()
         if (trimmed.isEmpty()) {
@@ -776,7 +781,7 @@ class WalletViewModel @Inject constructor(
         transferPreviewJob = viewModelScope.launch {
             delay(350)
             _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = true)
-            val myAddress = address.value
+            val myAddress = sourceAddress ?: address.value
             try {
                 val resolved = if (KnsService.looksLikeDomain(trimmed)) {
                     knsService.resolve(trimmed) ?: throw IllegalStateException("Domain not found or has no owner")
@@ -809,8 +814,9 @@ class WalletViewModel @Inject constructor(
     private val _transferDomainState = MutableStateFlow(TransferDomainUiState())
     val transferDomainState: StateFlow<TransferDomainUiState> = _transferDomainState.asStateFlow()
 
-    /** Submits the real, irreversible on-chain transfer — only proceeds using the already-resolved+validated recipient address, never the raw typed input. */
-    fun transferDomain(fullDomain: String, assetId: String, priorityFeeSompi: Long = KnsInscriptionEngine.REVEAL_PRIORITY_FEE_SOMPI) {
+    /** Submits the real, irreversible on-chain transfer — only proceeds using the already-resolved+validated recipient address, never the raw typed input.
+     *  [fromSpendingAddressIndex] non-null signs/funds from that spending-chain address instead of the identity (see WalletService.transferDomain). */
+    fun transferDomain(fullDomain: String, assetId: String, priorityFeeSompi: Long = KnsInscriptionEngine.REVEAL_PRIORITY_FEE_SOMPI, fromSpendingAddressIndex: Int? = null) {
         val resolvedAddress = _transferRecipientPreview.value?.resolvedAddress ?: return
         val current = _transferDomainState.value.status
         if (current != KnsInscribeUiStatus.IDLE && current != KnsInscribeUiStatus.SUCCESS && current != KnsInscribeUiStatus.FAILED) return
@@ -818,7 +824,7 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch {
             _transferDomainState.value = TransferDomainUiState(status = KnsInscribeUiStatus.SUBMITTING_COMMIT)
             try {
-                val result = walletService.transferDomain(fullDomain, assetId, resolvedAddress, priorityFeeSompi) { step ->
+                val result = walletService.transferDomain(fullDomain, assetId, resolvedAddress, priorityFeeSompi, fromSpendingAddressIndex) { step ->
                     _transferDomainState.value = _transferDomainState.value.copy(status = step.toUiStatus())
                 }
                 _transferDomainState.value = TransferDomainUiState(status = KnsInscribeUiStatus.SUCCESS, result = result)
@@ -826,6 +832,36 @@ class WalletViewModel @Inject constructor(
             } catch (e: Exception) {
                 _transferDomainState.value = TransferDomainUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = e.message ?: "Transfer failed")
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-address KNS domains ("KNS Domains (n)" tab on a spending address's detail screen) and
+    // the "Contains domain" tags on the Manage Addresses list.
+    // -------------------------------------------------------------------------
+
+    private val _addressKnsDomains = MutableStateFlow<List<com.kachat.app.services.KnsAsset>>(emptyList())
+    val addressKnsDomains: StateFlow<List<com.kachat.app.services.KnsAsset>> = _addressKnsDomains.asStateFlow()
+    private val _addressKnsDomainsLoading = MutableStateFlow(false)
+    val addressKnsDomainsLoading: StateFlow<Boolean> = _addressKnsDomainsLoading.asStateFlow()
+
+    fun loadAddressKnsDomains(address: String) {
+        viewModelScope.launch {
+            _addressKnsDomainsLoading.value = true
+            _addressKnsDomains.value = try { knsService.getOwnedDomains(address) } catch (e: Exception) { emptyList() }
+            _addressKnsDomainsLoading.value = false
+        }
+    }
+
+    /** Addresses in the Manage Addresses list that own at least one KNS domain — batched cached
+     *  lookups fired AFTER the rows are already visible, so tags fill in without blocking. */
+    private val _domainOwningAddresses = MutableStateFlow<Set<String>>(emptySet())
+    val domainOwningAddresses: StateFlow<Set<String>> = _domainOwningAddresses.asStateFlow()
+
+    private fun refreshDomainOwningAddresses(addresses: List<String>) {
+        if (addresses.isEmpty()) return
+        viewModelScope.launch {
+            _domainOwningAddresses.value = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
         }
     }
 
@@ -1114,6 +1150,34 @@ class WalletViewModel @Inject constructor(
     /** Called right before the first-run guide auto-presents — never downgrades "chosen". */
     fun markUserTypePending() {
         viewModelScope.launch { settings.markUserTypePending() }
+    }
+
+    /** True while an auto-presented onboarding run (create or import) hasn't reached the wizard's
+     *  Finish — MainShell re-presents the FULL guide at next launch until it does. null while
+     *  DataStore loads (don't re-present on an unknown value). */
+    val onboardingWizardPending: StateFlow<Boolean?> = settings.onboardingWizardPending
+        .map { it as Boolean? }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    /** Stamped when the guide auto-presents for an onboarding run. */
+    fun markOnboardingWizardPending() {
+        viewModelScope.launch { settings.markOnboardingWizardPending() }
+    }
+
+    /** Only the wizard's Finish button clears the marker. */
+    fun clearOnboardingWizardPending() {
+        viewModelScope.launch { settings.clearOnboardingWizardPending() }
+    }
+
+    /** The wizard's Chat Payment Privacy step writes the per-account value directly - it
+     *  deliberately does NOT trigger the Settings toggle's revoke/re-offer propagation (there is
+     *  nothing to propagate during onboarding; replays flipping here match iOS's behavior of
+     *  only the Settings toggle propagating). */
+    fun setChatsPaymentPrivacyFromWizard(value: Boolean) {
+        viewModelScope.launch {
+            val addr = _address.value ?: try { walletManager.getAddress() } catch (e: Exception) { null } ?: return@launch
+            settings.setChatsPaymentPrivacyEnabled(addr, value)
+        }
     }
 
     /**

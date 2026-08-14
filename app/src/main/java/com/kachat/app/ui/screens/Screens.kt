@@ -201,7 +201,14 @@ fun ChatThreadScreen(
     // broadcast rooms and KaPosts — see GiftClaimUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
 
-    var paymentMode by remember { mutableStateOf(startInPaymentMode) }
+    // rememberSaveable (not remember) so payment mode survives a push to Manage Spending
+    // Addresses from the Available pill and back — iOS keeps payment mode alive by presenting
+    // that screen as a sheet; on Android the nav round-trip must not silently drop the mode.
+    var paymentMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(startInPaymentMode) }
+    val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
+    val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
+    val identityFullBalance by walletViewModel.fullBalance.collectAsState()
+    val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
@@ -315,6 +322,23 @@ fun ChatThreadScreen(
         if (paymentMode) {
             chatViewModel.refreshSpendingUtxos()
             walletViewModel.refreshSpendingAddress()
+            // Privacy OFF funds payments from the chatting address — keep its balance fresh too.
+            walletViewModel.refreshBalance()
+            chatViewModel.refreshFreshPoolIndicator(contactId)
+        }
+    }
+
+    // The Available pill tracks rotation change landing after a private-mode send: whenever an
+    // own-address balance change involves the current spending address (AddressActivityNotifier's
+    // always-on UI event, separate from its notification decision), re-fetch the shown balance.
+    LaunchedEffect(paymentMode) {
+        if (!paymentMode) return@LaunchedEffect
+        chatViewModel.ownAddressUtxoActivityEvents.collect { involved ->
+            val currentSpending = walletViewModel.spendingAddress.value
+            if (currentSpending == null || involved.contains(currentSpending)) {
+                walletViewModel.refreshSpendingAddress()
+                chatViewModel.refreshSpendingUtxos()
+            }
         }
     }
 
@@ -446,16 +470,44 @@ fun ChatThreadScreen(
                                 }
                             }
                             
+                            // Available pill: primary spending balance when Chats Payment Privacy
+                            // is ON (underlined + tappable, opens Manage Spending Addresses),
+                            // chatting balance when OFF (plain, not tappable). The fresh-address
+                            // indicator is merged into this pill (a small accent arrow) so the
+                            // helper row never clips on narrow screens; the pill itself absorbs
+                            // any squeeze by tail-truncating.
                             Surface(
                                 color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f, fill = false)
                             ) {
-                                Text(
-                                    text = "available: $spendingBalance",
-                                    color = LocalAppColors.current.textSecondary,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .then(
+                                            if (paymentPrivacyOn) Modifier.clickable { navController.navigate("manage_addresses") }
+                                            else Modifier
+                                        )
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "available: ${if (paymentPrivacyOn) spendingBalance else identityFullBalance}",
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textDecoration = if (paymentPrivacyOn) androidx.compose.ui.text.style.TextDecoration.Underline else null
+                                    )
+                                    if (paymentPrivacyOn && paysToFreshPoolAddress) {
+                                        Icon(
+                                            Icons.Filled.ArrowForward,
+                                            contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                         
@@ -543,7 +595,12 @@ fun ChatThreadScreen(
                                             )
                                             val fee = com.kachat.app.util.KaspaMass.calculateFee(mass, networkFeeRate.toLong())
 
-                                            val maxSendableSompi = (spendingBalanceSompi - fee).coerceAtLeast(0L)
+                                            // Same source the send will use: primary spending
+                                            // balance with privacy ON, chatting balance with
+                                            // privacy OFF (spendingUtxos already tracks the same
+                                            // funding source - see refreshSpendingUtxos).
+                                            val sourceBalanceSompi = if (paymentPrivacyOn) spendingBalanceSompi else identityBalanceSompi
+                                            val maxSendableSompi = (sourceBalanceSompi - fee).coerceAtLeast(0L)
                                             val maxSendableKas = maxSendableSompi.toDouble() / 100_000_000.0
                                             fiatAmountState.setMaxKas(maxSendableKas, fiatPriceInCurrency)
                                         }) {
@@ -555,11 +612,13 @@ fun ChatThreadScreen(
                                 singleLine = true
                             )
                             
-                            ChatActionButton(Icons.AutoMirrored.Filled.Chat, onClick = { 
+                            // Deliberately no mic in payment mode (matches iOS): the message
+                            // button is the only mode exit — audio stays reachable through
+                            // message mode's "+" menu as usual.
+                            ChatActionButton(Icons.AutoMirrored.Filled.Chat, onClick = {
                                 paymentMode = false
                                 chatViewModel.setPaymentAmount("")
                             })
-                            ChatActionButton(Icons.Default.Mic)
                         }
 
                         Button(
@@ -1284,6 +1343,112 @@ private fun UnnotifiedMessageBanner() {
 const val MESSAGE_TEXT_TRUNCATION_THRESHOLD = 2_000
 const val MESSAGE_TEXT_PREVIEW_LENGTH = 500
 
+/**
+ * Splits a payment bubble's display text into (amountText, note) for the rich payment card —
+ * ported from iOS's `paymentCardParts`. NOT regex/word-based, so it's locale-proof: the head
+ * (before an optional " — " em-dash separator) contributes its first whitespace-separated token
+ * that parses as a number (after `,` -> `.`); everything after the separator is the note.
+ * Returns null (text-bubble fallback) for oversized or non-numeric content.
+ */
+internal fun parsePaymentCardParts(content: String?): Pair<String, String?>? {
+    if (content == null || content.length > 512) return null
+    val pieces = content.split(" — ")
+    val head = pieces.first()
+    val amountToken = head.split(Regex("\\s+")).firstOrNull { token ->
+        token.replace(",", ".").toDoubleOrNull() != null
+    } ?: return null
+    val note = pieces.drop(1).joinToString(" — ").trim().ifEmpty { null }
+    return amountToken to note
+}
+
+/**
+ * Apple-Pay-style card for 1:1 payment messages — iOS's `paymentCardBubble` ported to Compose.
+ * Sent: teal gradient background, Kaspa logo in a SOLID WHITE circle (translucent white made the
+ * teal logo invisible on teal); received: neutral surface with teal accents. Used for detected
+ * payments AND pool payment_notice bubbles (both are `type == "pay"`).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PaymentCardBubble(
+    amountText: String,
+    note: String?,
+    isSent: Boolean,
+    isWarning: Boolean = false,
+    onLongPress: () -> Unit = {},
+    onDoubleClick: () -> Unit = {}
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val background = if (isSent) {
+        Modifier.background(
+            androidx.compose.ui.graphics.Brush.linearGradient(
+                colors = listOf(KaspaTeal, KaspaTeal.copy(alpha = 0.78f))
+            ),
+            shape
+        )
+    } else {
+        Modifier.background(LocalAppColors.current.surface, shape)
+    }
+    val strokeColor = if (isSent) Color.White.copy(alpha = 0.22f) else KaspaTeal.copy(alpha = 0.35f)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .widthIn(min = 170.dp, max = 300.dp)
+            .clip(shape)
+            .then(background)
+            .border(0.8.dp, strokeColor, shape)
+            .combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .background(if (isSent) Color.White else KaspaTeal.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_kaspa_logo),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(34.dp)
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = if (isSent) "Sent" else "Received",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSent) Color.White.copy(alpha = 0.85f) else LocalAppColors.current.textSecondary
+            )
+            Text(
+                text = "$amountText KAS",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (isSent) Color.White else LocalAppColors.current.textPrimary
+            )
+            if (note != null) {
+                Text(
+                    text = note,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isSent) Color.White.copy(alpha = 0.8f) else LocalAppColors.current.textSecondary
+                )
+            }
+            if (isWarning) {
+                // payment_notice chain verification found no output to the claimed address.
+                Text(
+                    text = "⚠︎ Unverified on-chain",
+                    fontSize = 11.sp,
+                    color = if (isSent) Color.White.copy(alpha = 0.9f) else Color(0xFFF39C12)
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
@@ -1477,25 +1642,45 @@ fun MessageBubble(
         }
         Box {
             if (message.type == "pay") {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                    Icon(painterResource(R.drawable.ic_kaspa_logo), null, tint = Color.Unspecified, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.payment), color = Color(0xFFF39C12), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-
-                Surface(
-                    color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                    shape = RoundedCornerShape(20.dp),
-                    // Same off-screen-avatar risk as the plain text bubble — a long payment memo
-                    // needs the same cap.
-                    modifier = Modifier.widthIn(max = 280.dp).combinedClickable(onClick = {}, onLongClick = { showMenu = true })
-                ) {
-                    Text(
-                        text = message.plaintextBody ?: "Payment",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold
+                // Apple-Pay-style payment card (ported from iOS's paymentCardBubble): teal
+                // gradient with the Kaspa logo in a SOLID WHITE circle on the sent side, neutral
+                // surface with teal accents for received, big bold amount, Sent/Received line
+                // and optional note line. Unparseable content (legacy/foreign payments) falls
+                // back to the old plain text bubble plus the orange "Payment" capsule — the
+                // capsule only shows in that fallback, never alongside the card.
+                val cardParts = remember(message.plaintextBody, isSent) { parsePaymentCardParts(message.plaintextBody) }
+                if (cardParts != null) {
+                    PaymentCardBubble(
+                        amountText = cardParts.first,
+                        note = cardParts.second,
+                        isSent = isSent,
+                        isWarning = message.deliveryStatus == "warning",
+                        onLongPress = { showMenu = true },
+                        onDoubleClick = { showQuickReactionBar = true }
                     )
+                } else {
+                    Column(horizontalAlignment = if (isSent) Alignment.End else Alignment.Start) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+                            Icon(painterResource(R.drawable.ic_kaspa_logo), null, tint = Color.Unspecified, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.payment), color = Color(0xFFF39C12), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Surface(
+                            color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
+                            shape = RoundedCornerShape(20.dp),
+                            // Same off-screen-avatar risk as the plain text bubble — a long payment memo
+                            // needs the same cap.
+                            modifier = Modifier.widthIn(max = 280.dp).combinedClickable(onClick = {}, onLongClick = { showMenu = true })
+                        ) {
+                            Text(
+                                text = message.plaintextBody ?: "Payment",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             } else if (message.type == MessageProtocol.TYPE_HANDSHAKE) {
                 // A message I sent is either my initial outreach ("Request to communicate",
@@ -3283,7 +3468,13 @@ fun KnsDomainSendScreen(
     domain: com.kachat.app.services.KnsAsset,
     viewModel: WalletViewModel,
     onDone: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /** Non-null: sign/fund the transfer from this spending-chain address index instead of the
+     *  identity address (the spending-address detail screen's KNS Domains tab passes it). */
+    fromSpendingAddressIndex: Int? = null,
+    /** The source address matching [fromSpendingAddressIndex] — recipient validation checks the
+     *  recipient differs from the SOURCE, not necessarily from the identity address. */
+    sourceAddress: String? = null
 ) {
     val recipientPreview by viewModel.transferRecipientPreview.collectAsState()
     val transferState by viewModel.transferDomainState.collectAsState()
@@ -3331,7 +3522,7 @@ fun KnsDomainSendScreen(
             if (transferState.status != WalletViewModel.KnsInscribeUiStatus.SUCCESS) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Button(
-                        onClick = { viewModel.transferDomain(domainName, assetId, priorityFeeSompi) },
+                        onClick = { viewModel.transferDomain(domainName, assetId, priorityFeeSompi, fromSpendingAddressIndex) },
                         enabled = canSend,
                         colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = KaspaTeal.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -3419,7 +3610,7 @@ fun KnsDomainSendScreen(
                         value = recipientInput,
                         onValueChange = {
                             recipientInput = it
-                            viewModel.checkTransferRecipient(it)
+                            viewModel.checkTransferRecipient(it, sourceAddress)
                         },
                         placeholder = { Text(stringResource(R.string.recipient_address_or_kas_name)) },
                         singleLine = true,
@@ -3546,12 +3737,19 @@ fun ManageAddressesScreen(
     val pullRefreshState = rememberPullToRefreshState()
     val consolidateState by viewModel.consolidateState.collectAsState()
 
-    // Funded addresses always sort to the top; within each group, newest (highest index) first —
-    // so a freshly generated (zero-balance) address lands right below the last funded one rather
-    // than jumping above it just for being newest.
-    val visibleAddresses = remember(addresses) {
-        addresses.filterNot { it.hidden }
+    // Ordering (matches iOS ManageAddressesView): the primary address first, then addresses with
+    // a balance OR an owned KNS domain (funded before domain-only, newest index first within each
+    // group), then fresh addresses. Domain knowledge fills in asynchronously, so rows may
+    // re-partition once the batched KNS lookups land.
+    val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
+    val visibleAddresses = remember(addresses, domainOwningAddresses) {
+        val visible = addresses.filterNot { it.hidden }
+        val primary = visible.filter { it.isCurrent }
+        val rest = visible.filterNot { it.isCurrent }
             .sortedWith(compareByDescending<com.kachat.app.services.WalletService.SpendingAddressEntry> { it.balanceSompi > 0 }.thenByDescending { it.index })
+        val active = rest.filter { it.balanceSompi > 0 || it.address in domainOwningAddresses }
+        val fresh = rest.filter { it.balanceSompi == 0L && it.address !in domainOwningAddresses }
+        primary + active + fresh
     }
     val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
 
@@ -3737,6 +3935,7 @@ fun ManageAddressesScreen(
                 items(visibleAddresses, key = { it.index }) { entry ->
                     ManageAddressRow(
                         entry = entry,
+                        showsDomainTag = entry.address in domainOwningAddresses,
                         onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
                         onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
                         onQrClick = { qrAddress = entry.address },
@@ -4614,12 +4813,36 @@ fun SpendingAddressTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
+    var sendingDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
+    val knsDomains by viewModel.addressKnsDomains.collectAsState()
+    val isLoadingKnsDomains by viewModel.addressKnsDomainsLoading.collectAsState()
 
     LaunchedEffect(address) {
         if (address.isNotEmpty()) {
             viewModel.loadSpendingAddressTxHistory(address)
             viewModel.loadSpendingAddressUtxos(address)
+            viewModel.loadAddressKnsDomains(address)
             utxoLabels = viewModel.getSpendingUtxoLabels(address)
+        }
+    }
+
+    // Domain-transfer send flow parameterized to sign/fund from THIS spending address — same
+    // full-screen-swap idiom as the Withdraw flow below. Mirrors iOS's
+    // KNSDomainSendView(domain:spendingAddressIndex:) from the spending detail's KNS tab.
+    sendingDomain?.let { domain ->
+        if (entry != null) {
+            KnsDomainSendScreen(
+                domain = domain,
+                viewModel = viewModel,
+                fromSpendingAddressIndex = entry.index,
+                sourceAddress = entry.address,
+                onDone = {
+                    sendingDomain = null
+                    viewModel.loadAddressKnsDomains(address)
+                },
+                onBack = { sendingDomain = null }
+            )
+            return
         }
     }
 
@@ -4750,12 +4973,17 @@ fun SpendingAddressTxHistoryScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text(stringResource(R.string.transaction_history)) }
+                    text = { Text("History") }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text("KNS Domains (${knsDomains.size})") }
                 )
             }
             when (selectedTab) {
@@ -4780,6 +5008,37 @@ fun SpendingAddressTxHistoryScreen(
                                 SpendingAddressTxHistoryRow(
                                     tx = tx,
                                     onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) }
+                                )
+                            }
+                        }
+                    }
+                }
+                2 -> when {
+                    isLoadingKnsDomains && knsDomains.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                    knsDomains.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("No KNS domains on this address.", color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(knsDomains, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domain ->
+                                // Tapping a domain card opens the transfer flow signed/funded
+                                // from THIS spending address.
+                                KnsDomainCard(
+                                    domain = domain,
+                                    modifier = Modifier.clickable {
+                                        viewModel.resetTransferDomainState()
+                                        sendingDomain = domain
+                                    }
                                 )
                             }
                         }
@@ -5458,6 +5717,21 @@ private fun SpendingAddressUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo
  * on its own line instead of being squeezed by four icon buttons. Send/receive for a specific
  * address live in [SpendingAddressTxHistoryScreen] instead (reached via `onClick`).
  */
+/** "Contains domain" capsule tag shown on spending/cold address rows that own at least one KNS
+ *  domain — shared component ported from iOS's ContainsDomainTag. */
+@Composable
+fun ContainsDomainTag() {
+    Text(
+        text = "Contains domain",
+        color = KaspaTeal,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .background(KaspaTeal.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    )
+}
+
 @Composable
 private fun ManageAddressRow(
     entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
@@ -5466,7 +5740,9 @@ private fun ManageAddressRow(
     onQrClick: () -> Unit,
     onActivateClick: () -> Unit,
     onHideToggleClick: () -> Unit,
-    onRenameClick: () -> Unit
+    onRenameClick: () -> Unit,
+    /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
+    showsDomainTag: Boolean = false
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
     val canHide = entry.hidden || (entry.balanceSompi == 0L && !entry.isCurrent)
@@ -5517,12 +5793,17 @@ private fun ManageAddressRow(
                     fontSize = 14.sp
                 )
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    text = if (entry.everUsed) "Used" else "Unused",
-                    color = if (entry.everUsed) Color(0xFFF39C12) else Color(0xFF4CD964),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = if (entry.everUsed) "Used" else "Unused",
+                        color = if (entry.everUsed) Color(0xFFF39C12) else Color(0xFF4CD964),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (showsDomainTag) {
+                        ContainsDomainTag()
+                    }
+                }
             }
             IconButton(
                 onClick = { showMenu = true },
@@ -6460,6 +6741,10 @@ fun SettingsScreen(
                     HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.connection), Icons.Default.Language, onClick = { navController.navigate("settings_section/connection") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
+                    // Top-level Notifications hub (4.0, matches iOS): Chats / Wallet / KaPosts
+                    // subpages - sits between Connection and Chats like iOS's settings list.
+                    SettingsNavigationItem(stringResource(R.string.notifications), Icons.Default.NotificationsNone, onClick = { navController.navigate("settings_section/notifications") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = { navController.navigate("settings_section/chats") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.contacts), Icons.Default.People, onClick = { navController.navigate("settings_section/contacts") })
@@ -6535,6 +6820,23 @@ fun SettingsScreen(
             }
             }
 
+            if (sectionKey == "notifications") {
+            // Notifications hub (matches iOS's NotificationsHubPage): three subpages.
+            SettingsSection(title = stringResource(R.string.notifications)) {
+                SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = {
+                    navController.navigate("notification_settings")
+                })
+                SettingsDivider()
+                SettingsNavigationItem("Wallet", Icons.Default.AccountBalanceWallet, onClick = {
+                    navController.navigate("wallet_notification_settings")
+                })
+                SettingsDivider()
+                SettingsNavigationItem("KaPosts", Icons.Default.Edit, onClick = {
+                    navController.navigate("kaposts_notification_settings")
+                })
+            }
+            }
+
             if (sectionKey == "chats") {
             SettingsSection(title = stringResource(R.string.chats)) {
                 SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
@@ -6548,13 +6850,6 @@ fun SettingsScreen(
                     onClick = { navController.navigate("photo_quality_settings") }
                 )
                 SettingsDivider()
-                SettingsNavigationItem(
-                    stringResource(R.string.notifications),
-                    Icons.Default.NotificationsNone,
-                    if (notificationsEnabled) "On" else "Off",
-                    onClick = { navController.navigate("notification_settings") }
-                )
-                SettingsDivider()
                 val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
                 SettingsNavigationItem(
                     "Quick Reactions",
@@ -6562,6 +6857,15 @@ fun SettingsScreen(
                     quickReactionEmojis.joinToString(""),
                     onClick = { navController.navigate("quick_reaction_settings") }
                 )
+            }
+            // Per-account fresh-address payment pool toggle - its own card below the Chats
+            // items, mirroring iOS's separate unnamed section on the Chats settings page.
+            SettingsSection(title = null) {
+                val chatsPaymentPrivacyEnabled by settingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
+                SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
+                    settingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
+                }
+                SettingsFooter("Payments in 1:1 chats are sent to fresh addresses your contacts privately share, instead of their public chatting address. When off, Kaspa you send and receive is routed to public chatting addresses instead.")
             }
             }
 
@@ -7672,7 +7976,9 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.notifications), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                // "Chats" since 4.0: this page is the Chats subpage of the top-level
+                // Notifications hub (Settings > Notifications > Chats), matching iOS.
+                title = { Text(stringResource(R.string.chats), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
@@ -7778,6 +8084,102 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
             }
 
             Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+/**
+ * Settings > Notifications > Wallet — the Address Activity toggle (default ON). Gates
+ * [com.kachat.app.services.AddressActivityNotifier]'s local notifications for external receipts
+ * on any spending or cold storage address. Mirrors iOS's WalletNotificationSettingsView.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WalletNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+    val addressActivityEnabled by viewModel.addressActivityNotificationsEnabled.collectAsState()
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Wallet", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Spacer(Modifier.height(8.dp))
+            SettingsSection(title = null) {
+                SettingsSwitchItem("Address Activity", addressActivityEnabled) {
+                    viewModel.setAddressActivityNotificationsEnabled(it)
+                }
+                SettingsFooter("Notify when any of your spending or cold storage addresses receives Kaspa from an external source. Transfers between your own addresses are ignored.")
+            }
+        }
+    }
+}
+
+/**
+ * Settings > Notifications > KaPosts — five default-ON toggles choosing which KaPosts activity
+ * kinds post a notification. Filtering happens at the poll source
+ * ([com.kachat.app.services.KaPostsNotificationPoller]) via the K API contentType/voteType
+ * mapping (vote+downvote = dislike, vote = like, reply = comment, quote = repost,
+ * follow = follow). Mirrors iOS's KaPostsNotificationSettingsView.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KaPostsNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+    val likes by viewModel.kaPostsNotifyLikes.collectAsState()
+    val reposts by viewModel.kaPostsNotifyReposts.collectAsState()
+    val follows by viewModel.kaPostsNotifyFollows.collectAsState()
+    val dislikes by viewModel.kaPostsNotifyDislikes.collectAsState()
+    val comments by viewModel.kaPostsNotifyComments.collectAsState()
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("KaPosts", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Spacer(Modifier.height(8.dp))
+            SettingsSection(title = null) {
+                SettingsSwitchItem("Likes", likes) { viewModel.setKaPostsNotifyLikes(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Reposts", reposts) { viewModel.setKaPostsNotifyReposts(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Follows", follows) { viewModel.setKaPostsNotifyFollows(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Dislikes", dislikes) { viewModel.setKaPostsNotifyDislikes(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Comments", comments) { viewModel.setKaPostsNotifyComments(it) }
+                SettingsFooter("Choose which KaPosts activity sends a notification. Quotes of your posts count as reposts.")
+            }
         }
     }
 }
@@ -9656,6 +10058,74 @@ fun ChatInfoScreen(
                         textAlign = TextAlign.Center
                     )
                 }
+            }
+
+            // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
+            // this conversation's messages on-chain. Receiving = the alias on messages this
+            // contact sends me (what my sync watches - WalletManager.myDeterministicAlias, my
+            // pubkey as HKDF context); Sending = the alias on my messages to them
+            // (WalletManager.theirDeterministicAlias, their pubkey as context) - direction
+            // semantics verified against ChatRepository.syncContextualMessages/
+            // WalletService.sendKasiaMessage usage. Derived only on demand (tap), never at render.
+            var revealedReceivingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+            var revealedSendingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+
+            @Composable
+            fun AliasRow(label: String, revealed: String?, derive: () -> String?, onRevealed: (String?) -> Unit) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (revealed != null) {
+                                clipboardManager.setText(AnnotatedString(revealed))
+                                Toast.makeText(context, "Alias copied to clipboard.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val derived = derive()
+                                if (derived != null) {
+                                    onRevealed(derived)
+                                } else {
+                                    Toast.makeText(context, "Alias unavailable.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(label, color = LocalAppColors.current.textPrimary)
+                    if (revealed != null) {
+                        Text(
+                            revealed,
+                            color = LocalAppColors.current.textSecondary,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("••••••••••••", color = LocalAppColors.current.textSecondary)
+                            Icon(Icons.Default.Visibility, contentDescription = "Reveal", tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            Column {
+                SettingsSection(title = "Aliases") {
+                    AliasRow(
+                        label = "Receiving alias",
+                        revealed = revealedReceivingAlias,
+                        derive = { chatViewModel.deriveReceivingAlias(contactId) },
+                        onRevealed = { revealedReceivingAlias = it }
+                    )
+                    SettingsDivider()
+                    AliasRow(
+                        label = "Sending alias",
+                        revealed = revealedSendingAlias,
+                        derive = { chatViewModel.deriveSendingAlias(contactId) },
+                        onRevealed = { revealedSendingAlias = it }
+                    )
+                }
+                SettingsFooter("These identify this conversation's messages on the network. Receiving is the alias on messages this contact sends you. Sending is the alias on messages you send them. Useful when building tools that message this chat.")
             }
 
             SettingsSection(title = stringResource(R.string.system_contact)) {

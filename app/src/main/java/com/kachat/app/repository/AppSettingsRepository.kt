@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.google.gson.Gson
 import com.kachat.app.models.PendingKnsCommit
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -107,6 +108,20 @@ class AppSettingsRepository @Inject constructor(
         val KEY_NOTIFICATION_SOUND    = booleanPreferencesKey("notification_sound_enabled")
         val KEY_NOTIFICATION_VIBRATION = booleanPreferencesKey("notification_vibration_enabled")
 
+        // Settings > Notifications > Wallet. Local notifications when any of your spending or
+        // cold storage addresses receives Kaspa from an external source — see
+        // AddressActivityNotifier. Default ON, mirrors iOS's addressActivityNotificationsEnabled.
+        val KEY_ADDRESS_ACTIVITY_NOTIFICATIONS = booleanPreferencesKey("address_activity_notifications_enabled")
+
+        // Settings > Notifications > KaPosts. Which KaPosts activity kinds post a notification —
+        // filtered at the poll source (KaPostsNotificationPoller), all default ON, mirroring
+        // iOS's kaPostsNotify* settings and its shouldNotifyKaPostsAction mapping.
+        val KEY_KAPOSTS_NOTIFY_LIKES = booleanPreferencesKey("kaposts_notify_likes")
+        val KEY_KAPOSTS_NOTIFY_REPOSTS = booleanPreferencesKey("kaposts_notify_reposts")
+        val KEY_KAPOSTS_NOTIFY_FOLLOWS = booleanPreferencesKey("kaposts_notify_follows")
+        val KEY_KAPOSTS_NOTIFY_DISLIKES = booleanPreferencesKey("kaposts_notify_dislikes")
+        val KEY_KAPOSTS_NOTIFY_COMMENTS = booleanPreferencesKey("kaposts_notify_comments")
+
         // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
         val KEY_SYNC_SYSTEM_CONTACTS = booleanPreferencesKey("sync_system_contacts")
         val KEY_AUTOCREATE_SYSTEM_CONTACTS = booleanPreferencesKey("autocreate_system_contacts")
@@ -184,6 +199,12 @@ class AppSettingsRepository @Inject constructor(
         val KEY_USER_TYPE_CHOICE_STATE = stringPreferencesKey("user_type_choice_state")
         const val USER_TYPE_PENDING = "pending"
         const val USER_TYPE_CHOSEN = "chosen"
+        // An onboarding wizard run (auto-presented after create/import) is in progress and hasn't
+        // reached Finish yet — killing the app mid-wizard re-presents the FULL guide at next
+        // launch. Set when the guide auto-presents, cleared ONLY by its Finish button. Mirrors
+        // iOS's "kachat_onboarding_wizard_pending" marker. Distinct from USER_TYPE_PENDING (which
+        // only re-presents the Adult/Child step for devices that answered it before).
+        val KEY_ONBOARDING_WIZARD_PENDING = booleanPreferencesKey("onboarding_wizard_pending")
     }
 
     // -------------------------------------------------------------------------
@@ -309,6 +330,8 @@ class AppSettingsRepository @Inject constructor(
     val childModeEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CHILD_MODE_ENABLED] ?: false }
     /** [USER_TYPE_PENDING], [USER_TYPE_CHOSEN], or null (legacy install predating the wizard step). */
     val userTypeChoiceState: Flow<String?> = dataStore.data.map { it[KEY_USER_TYPE_CHOICE_STATE] }
+    /** True while an auto-presented onboarding wizard run hasn't reached Finish — see [KEY_ONBOARDING_WIZARD_PENDING]. */
+    val onboardingWizardPending: Flow<Boolean> = dataStore.data.map { it[KEY_ONBOARDING_WIZARD_PENDING] ?: false }
     val swapDisclaimerAgreed: Flow<Boolean> = dataStore.data.map { it[KEY_SWAP_DISCLAIMER_AGREED] ?: false }
 
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map {
@@ -321,6 +344,35 @@ class AppSettingsRepository @Inject constructor(
 
     val notificationVibrationEnabled: Flow<Boolean> = dataStore.data.map {
         it[KEY_NOTIFICATION_VIBRATION] ?: true
+    }
+
+    val addressActivityNotificationsEnabled: Flow<Boolean> = dataStore.data.map {
+        it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] ?: true
+    }
+
+    val kaPostsNotifyLikes: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_LIKES] ?: true }
+    val kaPostsNotifyReposts: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_REPOSTS] ?: true }
+    val kaPostsNotifyFollows: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_FOLLOWS] ?: true }
+    val kaPostsNotifyDislikes: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_DISLIKES] ?: true }
+    val kaPostsNotifyComments: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_COMMENTS] ?: true }
+
+    /**
+     * Whether a KaPosts notification event should post, per the K API's contentType/voteType
+     * mapping — mirrors iOS's `AppSettings.shouldNotifyKaPostsAction` exactly: `vote` +
+     * `downvote` = dislike, `vote` + anything else = like, `reply` = comment, `quote` = repost
+     * (K's repost mechanism covers bare reposts and quotes-with-text), `follow` = follow.
+     * Unknown kinds always notify rather than silently vanishing.
+     */
+    suspend fun shouldNotifyKaPostsAction(contentType: String?, voteType: String?): Boolean {
+        val prefs = dataStore.data.first()
+        return when (contentType) {
+            "vote" -> if (voteType == "downvote") prefs[KEY_KAPOSTS_NOTIFY_DISLIKES] ?: true
+                      else prefs[KEY_KAPOSTS_NOTIFY_LIKES] ?: true
+            "reply" -> prefs[KEY_KAPOSTS_NOTIFY_COMMENTS] ?: true
+            "quote" -> prefs[KEY_KAPOSTS_NOTIFY_REPOSTS] ?: true
+            "follow" -> prefs[KEY_KAPOSTS_NOTIFY_FOLLOWS] ?: true
+            else -> true
+        }
     }
 
     val syncSystemContactsEnabled: Flow<Boolean> = dataStore.data.map {
@@ -414,6 +466,22 @@ class AppSettingsRepository @Inject constructor(
     fun handshakeSyncCursor(address: String): Flow<Long?> = dataStore.data.map {
         it[handshakeSyncCursorKey(address)]
     }
+
+    /**
+     * Per-account "Chats Payment Privacy" toggle (MESSAGING.md, "Fresh-Address Payment Pools",
+     * User Toggle) — mirrors iOS's `AppSettings.chatsPrivacyEnabled(for:)`: keyed by the
+     * account's chatting address, default ON (unset key == enabled), each wallet on the same
+     * install decides independently. Gates the SEND side only: pool consumption, addr_pool /
+     * addr_pool_request emission, serving inbound requests, and the payment funding source
+     * (spending chain when ON, chatting address when OFF). Inbound payment_notice handling and
+     * previously offered reservations stay active regardless.
+     */
+    fun chatsPaymentPrivacyEnabled(address: String): Flow<Boolean> = dataStore.data.map {
+        it[chatsPaymentPrivacyKey(address)] ?: true
+    }
+
+    suspend fun setChatsPaymentPrivacyEnabled(address: String, value: Boolean) =
+        dataStore.edit { it[chatsPaymentPrivacyKey(address)] = value }
 
     /**
      * Per-account toggle for whether the "Setup Guide" re-entry points (the Profile screen's
@@ -524,6 +592,10 @@ class AppSettingsRepository @Inject constructor(
         if (it[KEY_USER_TYPE_CHOICE_STATE] != USER_TYPE_CHOSEN) it[KEY_USER_TYPE_CHOICE_STATE] = USER_TYPE_PENDING
     }
     suspend fun markUserTypeChosen() = dataStore.edit { it[KEY_USER_TYPE_CHOICE_STATE] = USER_TYPE_CHOSEN }
+    /** The onboarding wizard auto-presented — an unfinished run must re-present at next launch. */
+    suspend fun markOnboardingWizardPending() = dataStore.edit { it[KEY_ONBOARDING_WIZARD_PENDING] = true }
+    /** Only the wizard's Finish button clears this. */
+    suspend fun clearOnboardingWizardPending() = dataStore.edit { it[KEY_ONBOARDING_WIZARD_PENDING] = false }
     suspend fun setSwapDisclaimerAgreed(value: Boolean) = dataStore.edit { it[KEY_SWAP_DISCLAIMER_AGREED] = value }
     suspend fun setNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = value }
     suspend fun setShowFeeEstimate(value: Boolean) = dataStore.edit { it[KEY_SHOW_FEE_ESTIMATE] = value }
@@ -531,6 +603,12 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setNotificationSoundEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_SOUND] = value }
     suspend fun setNotificationVibrationEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_VIBRATION] = value }
     suspend fun setSyncSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_SYNC_SYSTEM_CONTACTS] = value }
+    suspend fun setAddressActivityNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] = value }
+    suspend fun setKaPostsNotifyLikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_LIKES] = value }
+    suspend fun setKaPostsNotifyReposts(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_REPOSTS] = value }
+    suspend fun setKaPostsNotifyFollows(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_FOLLOWS] = value }
+    suspend fun setKaPostsNotifyDislikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_DISLIKES] = value }
+    suspend fun setKaPostsNotifyComments(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_COMMENTS] = value }
     suspend fun setGoogleBackupEnabled(value: Boolean) = dataStore.edit { it[KEY_GOOGLE_BACKUP_ENABLED] = value }
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
     suspend fun setAutoCreateSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_AUTOCREATE_SYSTEM_CONTACTS] = value }
@@ -540,6 +618,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setHandshakeSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeSyncCursorKey(address)] = value }
     suspend fun setShowSetupGuides(address: String, value: Boolean) = dataStore.edit { it[showSetupGuidesKey(address)] = value }
 
+    private fun chatsPaymentPrivacyKey(address: String) = booleanPreferencesKey("chats_payment_privacy_$address")
     private fun paymentSyncBaselineKey(address: String) = longPreferencesKey("payment_sync_baseline_$address")
     private fun handshakeSyncCursorKey(address: String) = longPreferencesKey("handshake_sync_cursor_$address")
     private fun showSetupGuidesKey(address: String) = booleanPreferencesKey("show_setup_guides_$address")

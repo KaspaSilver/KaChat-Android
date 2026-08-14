@@ -455,12 +455,17 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
         }
     }
 
-    // Funded addresses always sort to the top; within each group, newest (highest index) first —
-    // so a freshly generated (zero-balance) address lands right below the last funded one rather
-    // than jumping above it just for being newest. Matches Manage Addresses' spending-address list.
-    val visibleAddresses = remember(addresses) {
-        addresses.filterNot { it.hidden }
+    // Ordering (matches iOS ColdStorageView / Manage Addresses): addresses with a balance OR an
+    // owned KNS domain first (funded before domain-only, newest index first within each group),
+    // then fresh addresses. Domain knowledge fills in asynchronously after the batched lookups.
+    val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
+    val visibleAddresses = remember(addresses, domainOwningAddresses) {
+        val visible = addresses.filterNot { it.hidden }
+        val rest = visible
             .sortedWith(compareByDescending<ColdStorageViewModel.AddressRow> { it.balanceSompi > 0 }.thenByDescending { it.index })
+        val active = rest.filter { it.balanceSompi > 0 || it.address in domainOwningAddresses }
+        val fresh = rest.filter { it.balanceSompi == 0L && it.address !in domainOwningAddresses }
+        active + fresh
     }
     val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
     // A hidden address is excluded on purpose (a "put this aside" gesture) — it shouldn't keep
@@ -675,6 +680,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                 items(visibleAddresses, key = { it.index }) { row ->
                     ColdAddressRow(
                         row = row,
+                        showsDomainTag = row.address in domainOwningAddresses,
                         onAddressClick = { navController.navigate("cold_storage_tx_history/${row.address}") },
                         onLabelClick = { labelingRow = row; labelInput = row.label ?: "" },
                         onCopyClick = { clipboardManager.setText(AnnotatedString(row.address)) },
@@ -956,7 +962,9 @@ private fun ColdAddressRow(
     onCopyClick: () -> Unit,
     onSendClick: () -> Unit,
     onShowQrClick: () -> Unit,
-    onHideToggleClick: () -> Unit
+    onHideToggleClick: () -> Unit,
+    /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
+    showsDomainTag: Boolean = false
 ) {
     val kas = row.balanceSompi / 100_000_000.0
     val canHide = row.hidden || row.balanceSompi == 0L
@@ -1001,12 +1009,17 @@ private fun ColdAddressRow(
                     fontSize = 14.sp
                 )
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    text = if (row.hasHistory) "Used" else "Unused",
-                    color = if (row.hasHistory) Color(0xFFF39C12) else Color(0xFF4CD964),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = if (row.hasHistory) "Used" else "Unused",
+                        color = if (row.hasHistory) Color(0xFFF39C12) else Color(0xFF4CD964),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (showsDomainTag) {
+                        com.kachat.app.ui.screens.ContainsDomainTag()
+                    }
+                }
             }
             IconButton(
                 onClick = { showMenu = true },
@@ -1935,10 +1948,13 @@ fun ColdStorageTxHistoryScreen(address: String, onBack: () -> Unit, viewModel: C
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
+    val knsDomains by viewModel.addressKnsDomains.collectAsState()
+    val isLoadingKnsDomains by viewModel.addressKnsDomainsLoading.collectAsState()
 
     LaunchedEffect(address) {
         viewModel.loadTxHistory(address)
         viewModel.loadUtxos(address)
+        viewModel.loadAddressKnsDomains(address)
         utxoLabels = viewModel.getUtxoLabels(address)
     }
 
@@ -2045,15 +2061,54 @@ fun ColdStorageTxHistoryScreen(address: String, onBack: () -> Unit, viewModel: C
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text(stringResource(R.string.transaction_history)) }
+                    text = { Text("History") }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
                 )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text("KNS Domains (${knsDomains.size})") }
+                )
             }
             when (selectedTab) {
+                // LIST-ONLY, no send flow: a KNS transfer's reveal input spends a P2SH redeem
+                // script, and the KSPT QR format only carries plain single-sig Schnorr inputs —
+                // KasSigner can't sign inscription transactions (matches iOS's cold KNS tab).
+                2 -> when {
+                    isLoadingKnsDomains && knsDomains.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                    knsDomains.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("No KNS domains on this address.", color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(knsDomains, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domain ->
+                                KnsDomainCard(domain = domain)
+                            }
+                            item {
+                                Text(
+                                    "Sending domains from a cold storage address requires signing on the KasSigner, which doesn't support inscription transactions yet.",
+                                    color = LocalAppColors.current.textSecondary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 0 -> when {
                     isLoading && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

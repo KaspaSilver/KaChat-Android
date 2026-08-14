@@ -372,20 +372,27 @@ fun MainShell(
             // launch. Never downgrades an already-"chosen" device (see markUserTypePending), and
             // legacy installs that never auto-present are never marked (so never forced).
             walletViewModel.markUserTypePending()
-            navController.navigate("welcome_guide")
+            // Onboarding runs are unskippable end to end - a run only completes at Finish, and
+            // this persisted marker re-presents an interrupted run at next launch.
+            walletViewModel.markOnboardingWizardPending()
+            navController.navigate("welcome_guide?onboarding=true")
             walletViewModel.consumePendingWelcomeGuide()
         }
     }
 
-    // Interrupted first run (app killed before the wizard's Adult/Child step was answered): the
-    // auto-present trigger above is in-memory only and lost on relaunch, so the persisted marker
-    // re-presents the guide - jumping straight back to the choice - until it's answered.
+    // Interrupted first run: the auto-present trigger above is in-memory only and lost on
+    // relaunch, so the persisted markers re-present the guide until it's genuinely finished -
+    // jumping back to the Adult/Child choice when that's what is still owed, otherwise replaying
+    // the whole onboarding run from the top (still unskippable).
     val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
-    LaunchedEffect(userTypePendingMarker, pendingWelcomeGuide, currentTopRoute) {
-        if (userTypePendingMarker == true && !pendingWelcomeGuide &&
-            currentTopRoute != null && !currentTopRoute.startsWith("welcome_guide")
-        ) {
-            navController.navigate("welcome_guide?startAtUserType=true")
+    val onboardingWizardPendingMarker by walletViewModel.onboardingWizardPending.collectAsState()
+    LaunchedEffect(userTypePendingMarker, onboardingWizardPendingMarker, pendingWelcomeGuide, currentTopRoute) {
+        if (pendingWelcomeGuide) return@LaunchedEffect
+        if (currentTopRoute == null || currentTopRoute.startsWith("welcome_guide")) return@LaunchedEffect
+        if (userTypePendingMarker == true) {
+            navController.navigate("welcome_guide?startAtUserType=true&onboarding=true")
+        } else if (onboardingWizardPendingMarker == true) {
+            navController.navigate("welcome_guide?onboarding=true")
         }
     }
 
@@ -974,12 +981,19 @@ fun MainShell(
             }
 
             composable(
-                "welcome_guide?startAtUserType={startAtUserType}",
-                arguments = listOf(navArgument("startAtUserType") { type = NavType.BoolType; defaultValue = false })
+                "welcome_guide?startAtUserType={startAtUserType}&onboarding={onboarding}",
+                arguments = listOf(
+                    navArgument("startAtUserType") { type = NavType.BoolType; defaultValue = false },
+                    // Explicit presentation context (never inferred from persisted markers):
+                    // true only for auto-presented onboarding runs, which are unskippable end
+                    // to end. Help replays keep the default false and stay skippable.
+                    navArgument("onboarding") { type = NavType.BoolType; defaultValue = false }
+                )
             ) { backStackEntry ->
                 WelcomeGuideScreen(
                     walletViewModel = walletViewModel,
                     startAtUserType = backStackEntry.arguments?.getBoolean("startAtUserType") ?: false,
+                    isOnboardingRun = backStackEntry.arguments?.getBoolean("onboarding") ?: false,
                     onFinished = { navController.popBackStack() }
                 )
             }
@@ -1075,6 +1089,18 @@ fun MainShell(
 
             composable("notification_settings") {
                 NotificationSettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("wallet_notification_settings") {
+                WalletNotificationSettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("kaposts_notification_settings") {
+                KaPostsNotificationSettingsScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
