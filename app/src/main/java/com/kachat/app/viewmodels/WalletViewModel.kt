@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kachat.app.models.PendingKnsCommit
+import com.kachat.app.models.WalletSourceFamily
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.services.ColdStorageAddressDiscovery
 import com.kachat.app.services.KaspaWalletEngine
@@ -29,6 +30,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
+
+/** How many identity-chain indices one "Change Chatting Address" scan pass covers (matches iOS). */
+const val CHATTING_ADDRESS_SCAN_BATCH = 50
 
 @HiltViewModel
 class WalletViewModel @Inject constructor(
@@ -575,6 +579,28 @@ class WalletViewModel @Inject constructor(
      * the mnemonic is invalid. The passphrase itself can't be validated — a wrong one just derives
      * a different, empty account — so it's only collected on the next screen.
      */
+    /**
+     * Source-wallet derivation family picked on the import chooser (the screen shown BEFORE seed
+     * entry). Carried in memory across the chooser -> seed -> passphrase steps, then persisted on
+     * the account by [commitImport]. Reset to the default whenever a fresh import run starts.
+     */
+    private var pendingSourceFamily: WalletSourceFamily = WalletSourceFamily.KASPA_STANDARD
+
+    fun setPendingSourceFamily(family: WalletSourceFamily) {
+        pendingSourceFamily = family
+    }
+
+    /** True while the CURRENT onboarding run is an import (not a create) — gates the wizard's
+     *  "Change Chatting Address" option, which must never appear on Help replays or after a
+     *  freshly created wallet (whose index 0 is the only address that can exist). Mirrors iOS's
+     *  `WalletManager.justImportedWallet`. */
+    private val _justImportedWallet = MutableStateFlow(false)
+    val justImportedWallet: StateFlow<Boolean> = _justImportedWallet.asStateFlow()
+
+    fun clearJustImportedWallet() {
+        _justImportedWallet.value = false
+    }
+
     fun prepareImport(name: String, words: List<String>): Boolean {
         if (!walletManager.isValidMnemonic(words)) {
             _importWalletState.value = ImportWalletUiState(
@@ -595,7 +621,13 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch {
             _importWalletState.value = ImportWalletUiState(status = ImportWalletStatus.IMPORTING)
             try {
-                walletManager.importWallet(pendingMnemonicWords, pendingAccountName, passphrase)
+                walletManager.importWallet(
+                    pendingMnemonicWords,
+                    pendingAccountName,
+                    passphrase,
+                    family = pendingSourceFamily
+                )
+                _justImportedWallet.value = true
                 _hasWallet.value = true
                 _address.value = walletManager.getAddress()
                 _accountName.value = walletManager.getAccountName()
@@ -630,6 +662,78 @@ class WalletViewModel @Inject constructor(
 
     fun resetImportWalletState() {
         _importWalletState.value = ImportWalletUiState()
+        pendingSourceFamily = WalletSourceFamily.KASPA_STANDARD
+    }
+
+    // --- Chatting-address picker (import onboarding runs only) --------------------------------
+
+    /** Progressive scan state for the wizard's "Change Chatting Address" picker: candidates found
+     *  so far, how many indices have been covered, and whether a pass is running/failed. */
+    data class ChattingAddressScanState(
+        val candidates: List<WalletService.ChattingAddressCandidate> = emptyList(),
+        val scannedCount: Int = 0,
+        val isScanning: Boolean = false,
+        val failed: Boolean = false
+    )
+
+    private val _chattingAddressScan = MutableStateFlow(ChattingAddressScanState())
+    val chattingAddressScan: StateFlow<ChattingAddressScanState> = _chattingAddressScan.asStateFlow()
+
+    /** The identity-chain index the active account currently chats from (0 = the default identity). */
+    fun currentChattingAddressIndex(): Int = walletManager.activeChattingAddressIndex()
+
+    /** Scans the next [batchSize] identity-chain indices; "Scan Further" simply calls this again. */
+    fun scanNextChattingAddressBatch(batchSize: Int = CHATTING_ADDRESS_SCAN_BATCH) {
+        if (_chattingAddressScan.value.isScanning) return
+        val from = _chattingAddressScan.value.scannedCount
+        _chattingAddressScan.value = _chattingAddressScan.value.copy(isScanning = true, failed = false)
+        viewModelScope.launch {
+            val batch = try {
+                walletService.scanChattingAddressCandidates(from until (from + batchSize))
+            } catch (e: Exception) {
+                android.util.Log.w("WalletViewModel", "Chatting-address scan failed", e)
+                null
+            }
+            _chattingAddressScan.value = if (batch == null) {
+                _chattingAddressScan.value.copy(isScanning = false, failed = true)
+            } else {
+                _chattingAddressScan.value.copy(
+                    candidates = _chattingAddressScan.value.candidates + batch,
+                    scannedCount = from + batchSize,
+                    isScanning = false,
+                    failed = false
+                )
+            }
+        }
+    }
+
+    fun resetChattingAddressScan() {
+        _chattingAddressScan.value = ChattingAddressScanState()
+    }
+
+    /**
+     * Makes the scanned address at [index] this account's chatting identity. Routes through the
+     * normal account-switch machinery (see [WalletManager.switchChattingAddress]) and then
+     * refreshes every piece of derived state a real account switch would: address, name, saved
+     * accounts, balance, spending address, and push registration for the new identity.
+     */
+    fun switchChattingAddress(index: Int, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val newAddress = walletService.switchChattingAddress(index)
+                _address.value = newAddress
+                _accountName.value = walletManager.getAccountName()
+                _accounts.value = walletManager.getAllAccounts()
+                refreshBalance()
+                refreshSpendingAddress()
+                pushRegistrationManager.registerAsync()
+                resetChattingAddressScan()
+                onResult(true)
+            } catch (e: Exception) {
+                android.util.Log.e("WalletViewModel", "Chatting-address switch failed", e)
+                onResult(false)
+            }
+        }
     }
 
     /** BIP39 English wordlist (2048 words) for the in-app import keyboard's autocomplete. */

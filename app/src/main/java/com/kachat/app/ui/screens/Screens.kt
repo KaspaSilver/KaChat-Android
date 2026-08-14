@@ -290,32 +290,25 @@ fun ChatThreadScreen(
         onDispose { chatViewModel.setActiveContact(null) }
     }
 
-    // System-share intake (see ShareIntake/MainActivity.handleShareIntent): consume a pending
-    // share that's either targeted at this conversation (direct-share pick on the share sheet)
-    // or untargeted (user tapped this chat from the Chats list's "choose a chat" banner).
-    // Text/links pre-fill the composer; images run through the same staged-photo pipeline a
-    // picked photo uses (preview + explicit send). Multiple shared images stage one at a time —
-    // the next queues up as soon as the current one is sent or dismissed.
+    // System-share intake (see ShareIntake/MainActivity.handleShareIntent): an UNTARGETED share
+    // (user tapped the plain "KaChat" target, then picked this chat from the Chats list's "choose
+    // a chat" banner) now has its destination — hand it to the in-place compose sheet
+    // (ShareComposeSheet, rendered by KaChatApp) rather than silently pre-filling this composer.
+    // Direct-share picks never reach here: they already carry their conversation and go straight
+    // to the sheet from KaChatApp.
     val pendingShareContent by com.kachat.app.services.ShareIntake.pending.collectAsState()
-    var sharedImageQueue by remember { mutableStateOf<List<Uri>>(emptyList()) }
     LaunchedEffect(pendingShareContent, contactId) {
         val share = pendingShareContent ?: return@LaunchedEffect
         if (share.targetContactId != null && share.targetContactId != contactId) return@LaunchedEffect
         com.kachat.app.services.ShareIntake.pending.value = null
         if (share.isExpired()) return@LaunchedEffect
-        share.text?.let { chatViewModel.setMessageText(it) }
-        if (share.imageUris.isNotEmpty()) {
-            chatViewModel.setPendingPhoto(share.imageUris.first())
-            sharedImageQueue = share.imageUris.drop(1)
-        }
-        // A share always lands in the message composer, never the payment-entry UI.
+        // A share always lands in the message composer flow, never the payment-entry UI.
         paymentMode = false
-    }
-    LaunchedEffect(pendingPhotoUri) {
-        if (pendingPhotoUri == null && sharedImageQueue.isNotEmpty()) {
-            chatViewModel.setPendingPhoto(sharedImageQueue.first())
-            sharedImageQueue = sharedImageQueue.drop(1)
-        }
+        com.kachat.app.services.ShareIntake.compose.value = com.kachat.app.services.ShareCompose(
+            contactId = contactId,
+            text = share.text,
+            imageUris = share.imageUris
+        )
     }
 
     LaunchedEffect(paymentMode) {
@@ -10078,13 +10071,13 @@ fun ChatInfoScreen(
                         .clickable {
                             if (revealed != null) {
                                 clipboardManager.setText(AnnotatedString(revealed))
-                                Toast.makeText(context, "Alias copied to clipboard.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.alias_copied), Toast.LENGTH_SHORT).show()
                             } else {
                                 val derived = derive()
                                 if (derived != null) {
                                     onRevealed(derived)
                                 } else {
-                                    Toast.makeText(context, "Alias unavailable.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.alias_unavailable), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -10103,29 +10096,29 @@ fun ChatInfoScreen(
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("••••••••••••", color = LocalAppColors.current.textSecondary)
-                            Icon(Icons.Default.Visibility, contentDescription = "Reveal", tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Visibility, contentDescription = stringResource(R.string.reveal), tint = KaspaTeal, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
             }
 
             Column {
-                SettingsSection(title = "Aliases") {
+                SettingsSection(title = stringResource(R.string.aliases)) {
                     AliasRow(
-                        label = "Receiving alias",
+                        label = stringResource(R.string.receiving_alias),
                         revealed = revealedReceivingAlias,
                         derive = { chatViewModel.deriveReceivingAlias(contactId) },
                         onRevealed = { revealedReceivingAlias = it }
                     )
                     SettingsDivider()
                     AliasRow(
-                        label = "Sending alias",
+                        label = stringResource(R.string.sending_alias),
                         revealed = revealedSendingAlias,
                         derive = { chatViewModel.deriveSendingAlias(contactId) },
                         onRevealed = { revealedSendingAlias = it }
                     )
                 }
-                SettingsFooter("These identify this conversation's messages on the network. Receiving is the alias on messages this contact sends you. Sending is the alias on messages you send them. Useful when building tools that message this chat.")
+                SettingsFooter(stringResource(R.string.these_identify_this_conversations_messages))
             }
 
             SettingsSection(title = stringResource(R.string.system_contact)) {

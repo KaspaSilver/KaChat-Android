@@ -169,6 +169,91 @@ class WalletService @Inject constructor(
         }
     }
 
+    /**
+     * One scanned identity-chain slot for the import wizard's "Change Chatting Address" picker —
+     * mirrors iOS's `ChattingAddressCandidate`. The picker lists only the interesting ones
+     * (balance or domains), always including index 0 and the current index.
+     */
+    data class ChattingAddressCandidate(
+        val index: Int,
+        val address: String,
+        val balanceSompi: Long,
+        val domains: List<KnsAsset>,
+        val primaryDomain: String?
+    ) {
+        val isInteresting: Boolean get() = balanceSompi > 0L || domains.isNotEmpty()
+    }
+
+    /**
+     * Derives [indices] on the active account's identity chain — WITHIN its own source family,
+     * see [WalletManager.deriveChattingAddresses] — and checks the whole batch for KAS balance
+     * (one batched `POST addresses/balances` call, with a bounded-concurrency per-address sweep as
+     * fallback) and KNS domains (the existing [KnsService.getOwnedDomainsCached] batch, four
+     * concurrent requests at a time, same as the address lists' "Contains domain" tags). Never
+     * fires 50 raw balance requests.
+     *
+     * Returns ALL derived candidates in index order; the caller filters for interesting ones. Null
+     * when derivation itself fails (no active account / unusable seed), which the UI surfaces as
+     * an error rather than an empty scan.
+     */
+    suspend fun scanChattingAddressCandidates(indices: IntRange): List<ChattingAddressCandidate>? = coroutineScope {
+        val derived = walletManager.deriveChattingAddresses(indices)
+        if (derived.isEmpty()) return@coroutineScope null
+        val addresses = derived.map { it.second }
+
+        val balanceByAddress = fetchBalancesBatched(addresses)
+
+        // Domains + primary domain, both off the cached-per-address KNS lookups.
+        val domainsByAddress = mutableMapOf<String, List<KnsAsset>>()
+        for (chunk in addresses.chunked(4)) {
+            val results = chunk.map { address ->
+                async { address to (try { knsService.getOwnedDomainsCached(address) } catch (e: Exception) { emptyList<KnsAsset>() }) }
+            }.awaitAll()
+            results.forEach { (address, domains) -> domainsByAddress[address] = domains }
+        }
+
+        derived.map { (index, address) ->
+            val domains = domainsByAddress[address].orEmpty()
+            ChattingAddressCandidate(
+                index = index,
+                address = address,
+                balanceSompi = balanceByAddress[address] ?: 0L,
+                domains = domains,
+                // Only worth a reverse-lookup round trip for addresses that actually own domains.
+                primaryDomain = if (domains.isEmpty()) null else {
+                    try { knsService.reverseResolve(address) } catch (e: Exception) { null }
+                }
+            )
+        }
+    }
+
+    /** One batched balances call, degrading to a chunked-concurrent sweep when the configured REST
+     *  host doesn't implement the batch endpoint. Missing/failed addresses simply come back absent
+     *  (treated as zero by the caller). */
+    private suspend fun fetchBalancesBatched(addresses: List<String>): Map<String, Long> = coroutineScope {
+        val api = readyApi() ?: return@coroutineScope emptyMap()
+        try {
+            api.getBalances(BalancesRequest(addresses)).associate { it.address to it.balance }
+        } catch (e: Exception) {
+            Log.w("WalletService", "Batched balances unavailable, falling back to per-address sweep", e)
+            val out = mutableMapOf<String, Long>()
+            for (chunk in addresses.chunked(8)) {
+                chunk.map { address ->
+                    async { address to (try { api.getBalance(address).balance } catch (e: Exception) { 0L }) }
+                }.awaitAll().forEach { (address, balance) -> out[address] = balance }
+            }
+            out
+        }
+    }
+
+    /**
+     * Makes the identity-chain address at [index] this account's chatting address, returning the
+     * new address. Delegates straight to [WalletManager.switchChattingAddress] (which rewrites the
+     * account record and routes the change through the normal account-switch machinery); the
+     * caller is responsible for refreshing its own derived UI state afterwards.
+     */
+    fun switchChattingAddress(index: Int): String = walletManager.switchChattingAddress(index)
+
     /** Toggles whether one spending-chain address is hidden from the main Manage Addresses list — see [WalletManager.setSpendingAddressHidden]. */
     fun setSpendingAddressHidden(index: Int, hidden: Boolean) {
         val account = walletManager.getActiveAccount() ?: return

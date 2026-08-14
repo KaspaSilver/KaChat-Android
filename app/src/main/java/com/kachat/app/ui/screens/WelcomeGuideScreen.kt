@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -104,6 +105,7 @@ fun WelcomeGuideScreen(
     }
     val chattingAddress by walletViewModel.address.collectAsState()
     val spendingAddress by walletViewModel.spendingAddress.collectAsState()
+    val justImportedWallet by walletViewModel.justImportedWallet.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
 
     // Skip gating: an onboarding run is unskippable END TO END (top-bar X hidden and system back
@@ -187,6 +189,11 @@ fun WelcomeGuideScreen(
                 )
                 WelcomeGuideStep.FUNDING -> WelcomeGuideFundingStep(
                     chattingAddress = chattingAddress,
+                    // "Change Chatting Address" is offered ONLY on import onboarding runs: a
+                    // freshly created wallet has nothing but index 0, and a Help replay must never
+                    // let the user re-pick an identity behind their existing conversations.
+                    walletViewModel = walletViewModel,
+                    canChangeChattingAddress = isOnboardingRun && justImportedWallet,
                     onNext = { step = WelcomeGuideStep.NODE_CONNECTION }
                 )
                 WelcomeGuideStep.NODE_CONNECTION -> WelcomeGuideNodeConnectionStep(
@@ -668,10 +675,28 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onNext: (
 }
 
 @Composable
-private fun WelcomeGuideFundingStep(chattingAddress: String?, onNext: () -> Unit) {
+private fun WelcomeGuideFundingStep(
+    chattingAddress: String?,
+    walletViewModel: WalletViewModel,
+    canChangeChattingAddress: Boolean,
+    onNext: () -> Unit
+) {
     var showQr by remember { mutableStateOf(false) }
+    var showChattingAddressPicker by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+
+    // The picker takes over the whole step while open, and pops back here on Back or after a
+    // switch — this step re-renders with the new address, since [chattingAddress] reads the live
+    // WalletViewModel state the switch updates.
+    if (showChattingAddressPicker) {
+        ChattingAddressPickerScreen(
+            walletViewModel = walletViewModel,
+            onBack = { showChattingAddressPicker = false },
+            onSwitched = { showChattingAddressPicker = false }
+        )
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -712,6 +737,16 @@ private fun WelcomeGuideFundingStep(chattingAddress: String?, onNext: () -> Unit
                 Icon(Icons.Default.QrCode, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.show_qr_code), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (canChangeChattingAddress) {
+            TextButton(onClick = {
+                walletViewModel.resetChattingAddressScan()
+                showChattingAddressPicker = true
+            }) {
+                Icon(Icons.Default.PersonSearch, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.change_chatting_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(24.dp))

@@ -39,7 +39,23 @@ import javax.inject.Singleton
  */
 object ShareIntake {
     val pending = MutableStateFlow<PendingShare?>(null)
+
+    /**
+     * A share whose destination conversation is now known, staged for the in-place compose sheet
+     * (see `ShareComposeSheet`) — set either straight from a direct-share pick (the contact came
+     * with the intent) or by the chat the user opened for an untargeted share. The sheet is
+     * rendered above everything by `KaChatApp` and clears this when it closes.
+     */
+    val compose = MutableStateFlow<ShareCompose?>(null)
 }
+
+/** A pending share with its chosen conversation — the input to the in-place compose sheet. */
+data class ShareCompose(
+    val contactId: String,
+    val text: String?,
+    /** file:// URIs of app-cache copies of the shared images (see [PendingShare.imageUris]). */
+    val imageUris: List<Uri>
+)
 
 data class PendingShare(
     val text: String?,

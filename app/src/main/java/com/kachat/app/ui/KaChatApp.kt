@@ -330,18 +330,42 @@ fun MainShell(
     }
 
     // Incoming system-share (text/link/image shared from another app — see MainActivity.
-    // handleShareIntent): a direct-share pick carries the chosen conversation and jumps straight
-    // into that chat; a plain "KaChat" share target lands on the Chats list, whose banner asks
-    // the user to pick the chat. Either way ChatThreadScreen consumes the pending content.
+    // handleShareIntent): a direct-share pick carries the chosen conversation and opens the
+    // in-place compose sheet directly; a plain "KaChat" share target lands on the Chats list,
+    // whose banner asks the user to pick the chat, and the thread they open hands the share to
+    // the same sheet.
     val pendingShare by com.kachat.app.services.ShareIntake.pending.collectAsState()
     LaunchedEffect(pendingShare) {
         val share = pendingShare ?: return@LaunchedEffect
         if (share.targetContactId != null) {
-            navController.navigate("chat/${share.targetContactId}")
+            // Direct-share pick: the conversation is already known, so go straight to the in-place
+            // compose sheet (matching iOS's share extension) instead of dropping the user into the
+            // chat with a silently pre-filled composer.
+            com.kachat.app.services.ShareIntake.pending.value = null
+            if (!share.isExpired()) {
+                com.kachat.app.services.ShareIntake.compose.value = com.kachat.app.services.ShareCompose(
+                    contactId = share.targetContactId,
+                    text = share.text,
+                    imageUris = share.imageUris
+                )
+            }
         } else {
-            // Untargeted: surface the Chats list wherever the user currently is.
+            // Untargeted: surface the Chats list wherever the user currently is; whichever chat
+            // the user opens next hands the share to the same compose sheet.
             navController.popBackStack(Screen.Chats.route, false)
         }
+    }
+
+    // The in-place share compose sheet, rendered above the whole shell so it survives whatever
+    // screen is underneath (see ShareComposeSheet).
+    val shareCompose by com.kachat.app.services.ShareIntake.compose.collectAsState()
+    shareCompose?.let { compose ->
+        ShareComposeSheet(
+            share = compose,
+            onOpenChat = { contactId -> navController.navigate("chat/$contactId") },
+            onDismiss = { com.kachat.app.services.ShareIntake.compose.value = null },
+            chatViewModel = chatViewModel
+        )
     }
 
     // KaPosts share/deep links (kachat://kapost/<txid>, https://kachat.duckdns.org/post/…):
@@ -994,7 +1018,12 @@ fun MainShell(
                     walletViewModel = walletViewModel,
                     startAtUserType = backStackEntry.arguments?.getBoolean("startAtUserType") ?: false,
                     isOnboardingRun = backStackEntry.arguments?.getBoolean("onboarding") ?: false,
-                    onFinished = { navController.popBackStack() }
+                    onFinished = {
+                        // The import run is over — a later Help replay of this same guide must not
+                        // offer "Change Chatting Address" again (see WelcomeGuideFundingStep).
+                        walletViewModel.clearJustImportedWallet()
+                        navController.popBackStack()
+                    }
                 )
             }
 

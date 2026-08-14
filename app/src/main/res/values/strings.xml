@@ -577,4 +577,44 @@
     <string name="i_already_have_a_domain_somewhere">I already have a domain somewhere else</string>
     <string name="transfer_your_domain">Transfer Your Domain</string>
     <string name="transfer_your_domain_to_this_address">Transfer your domain to this address so that your identity is connected to KaChat.</string>
+
+    <!-- Import source-wallet chooser -->
+    <string name="where_is_this_seed_phrase_from">Where is this seed phrase from?</string>
+    <string name="different_wallets_store_your_kaspa">Different wallets store your Kaspa on different address paths. Pick where this seed phrase comes from so KaChat finds your funds and domains.</string>
+    <string name="default_label">Default</string>
+    <string name="continue_label">Continue</string>
+
+    <!-- Chatting-address picker (import runs only) -->
+    <string name="change_chatting_address">Change Chatting Address</string>
+    <string name="choose_your_chatting_address">Choose Your Chatting Address</string>
+    <string name="if_this_seed_already_holds_your">If this seed already holds your identity at a different address, a KNS domain or a funded chatting balance, pick it here. Only addresses with a balance or domains are shown.</string>
+    <string name="scan_further">Scan Further</string>
+    <string name="scanning_addresses">Scanning addresses %1$d to %2$d…</string>
+    <string name="scanned_the_first_addresses">Scanned the first %1$d addresses.</string>
+    <string name="could_not_derive_addresses">Could not derive addresses from this seed. Please try again.</string>
+    <string name="set_as_chatting_address">Set as Chatting Address</string>
+    <string name="current_chatting_address">Current Chatting Address</string>
+    <string name="address_number">Address #%1$d</string>
+    <string name="current">Current</string>
+    <string name="switch_chatting_address_question">Switch Chatting Address?</string>
+    <string name="this_seed_already_has_conversations">This seed already has conversations on the current chatting address. Switching starts fresh with the new address. Your existing conversations stay with the old address and are not deleted.</string>
+    <string name="switch_action">Switch</string>
+    <string name="tap_the_address_to_copy_it">Tap the address to copy it</string>
+    <string name="kns_domains_count">KNS Domains (%1$d)</string>
+    <string name="domains_count">%1$d domains</string>
+
+    <!-- Chat Info pair aliases -->
+    <string name="aliases">Aliases</string>
+    <string name="receiving_alias">Receiving alias</string>
+    <string name="sending_alias">Sending alias</string>
+    <string name="alias_copied">Alias copied to clipboard.</string>
+    <string name="alias_unavailable">Alias unavailable.</string>
+    <string name="these_identify_this_conversations_messages">These identify this conversation\'s messages on the network. Receiving is the alias on messages this contact sends you. Sending is the alias on messages you send them. Useful when building tools that message this chat.</string>
+    <string name="reveal">Reveal</string>
+
+    <!-- Share-sheet in-place compose -->
+    <string name="share_to_kachat">Share to KaChat</string>
+    <string name="send_to">Send to</string>
+    <string name="choose_a_chat">Choose a chat</string>
+    <string name="couldnt_send_saved_as_draft">Couldn\'t send. Saved as a draft in this chat.</string>
 </resources>

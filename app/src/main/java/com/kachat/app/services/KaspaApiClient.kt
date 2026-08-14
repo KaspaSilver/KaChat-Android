@@ -20,6 +20,11 @@ data class BalanceResponse(
     val balance: Long   // in sompi (1 KAS = 100_000_000 sompi)
 )
 
+/** Request body for the batched `POST addresses/balances` endpoint. */
+data class BalancesRequest(
+    val addresses: List<String>
+)
+
 // Field names verified live against api.kaspa.org's real response (snake_case) —
 // a bare Gson converter (no naming policy) needs explicit @SerializedName for these.
 data class TransactionResponse(
@@ -77,6 +82,18 @@ interface KaspaRestApi {
     suspend fun getBalance(
         @Path("address") address: String
     ): BalanceResponse
+
+    /**
+     * Batched balances for many addresses in ONE round trip (api.kaspa.org's
+     * `POST /addresses/balances`) — used by the import wizard's chatting-address scanner, which
+     * checks 50 derived addresses per pass and must never fan that out into 50 raw requests.
+     * Callers fall back to a bounded-concurrency [getBalance] sweep if a given REST host doesn't
+     * expose this endpoint.
+     */
+    @POST("addresses/balances")
+    suspend fun getBalances(
+        @Body request: BalancesRequest
+    ): List<BalanceResponse>
 
     @GET("addresses/{address}/utxos")
     suspend fun getUtxos(

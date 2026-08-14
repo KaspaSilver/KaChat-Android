@@ -1550,6 +1550,16 @@ class ChatViewModel @Inject constructor(
 
     fun sendMessage(contactId: String, text: String) {
         if (text.isEmpty()) return
+        viewModelScope.launch { sendMessageAwait(contactId, text) }
+    }
+
+    /**
+     * The actual 1:1 send, awaitable and reporting success — [sendMessage] is the fire-and-forget
+     * wrapper every composer uses, while the share-sheet compose sheet needs the outcome so it can
+     * show progress/success and fall back to staging a draft when the send fails.
+     */
+    suspend fun sendMessageAwait(contactId: String, text: String): Boolean {
+        if (text.isEmpty()) return false
         // Sending bumps this conversation to the top of the recency order the system share sheet
         // mirrors — promote it explicitly since the conversations flow only reorders after the
         // pending insert lands. Diffed inside refresh(), so repeat sends to the same top chat are free.
@@ -1557,7 +1567,7 @@ class ChatViewModel @Inject constructor(
         val reply = _replyingTo.value
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
-        viewModelScope.launch {
+        run {
             val pendingId = "pending_${java.util.UUID.randomUUID()}"
             try {
                 val myAddress = walletManager.getAddress()
@@ -1607,10 +1617,64 @@ class ChatViewModel @Inject constructor(
                     )
                 )
                 _replyingTo.value = null
+                return true
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)
                 chatRepository.updateMessageStatus(pendingId, "failed")
+                return false
             }
+        }
+    }
+
+    /**
+     * The share-sheet compose sheet's direct send: the (possibly edited) text first, then every
+     * shared image, each as its own message through the exact same 1:1 pipeline the composer uses
+     * (so Nextcloud media-send, photo quality presets, pending bubbles and delivery status all
+     * behave identically). Returns true only when every part went out — the sheet stages the text
+     * as a draft in that chat otherwise.
+     */
+    suspend fun sendSharedContent(contactId: String, text: String, imageUris: List<Uri>): Boolean {
+        var allOk = true
+        if (text.isNotBlank() && !sendMessageAwait(contactId, text)) allOk = false
+        for (uri in imageUris) {
+            val payload = prepareSharedImagePayload(uri)
+            if (payload == null || !sendMessageAwait(contactId, payload)) allOk = false
+        }
+        return allOk
+    }
+
+    /** The message payload for one shared image: a Nextcloud share link when media-send is on and
+     *  connected, otherwise the embedded on-chain [ImageMessage] envelope — the same two paths
+     *  [sendPendingPhoto] picks between, with the same on-failure fallback to on-chain. */
+    private suspend fun prepareSharedImagePayload(uri: Uri): String? {
+        if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            try {
+                return withContext(Dispatchers.IO) {
+                    val resolver = appContext.contentResolver
+                    val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: throw java.io.IOException("Could not read the shared photo.")
+                    val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+                    val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+                    nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
+                }
+            } catch (e: Exception) {
+                Log.w("ChatViewModel", "Nextcloud upload failed for shared photo, falling back to on-chain", e)
+            }
+        }
+        return try {
+            val prepared = withContext(Dispatchers.Default) {
+                ImagePrep.prepareForChatMessage(appContext, uri, chatPhotoQualityPreset.value.targetBytes)
+            }
+            val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
+            ImageMessage.encode(
+                fileName = prepared.fileName,
+                sizeBytes = prepared.bytes.size.toLong(),
+                base64Image = base64,
+                mimeType = prepared.mimeType
+            )
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Error preparing shared photo", e)
+            null
         }
     }
 
