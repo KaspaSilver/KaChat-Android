@@ -73,6 +73,23 @@ data class NextcloudFile(
     }
 }
 
+/**
+ * The one ordering every Nextcloud listing surface uses: phone-gallery order.
+ *
+ * Folders stay grouped ahead of files (so a folder never lands in the middle of the thumbnail
+ * grid), and within each group entries run newest-first by `getlastmodified`. Entries whose date
+ * the server omitted or that failed to parse sort last rather than interleaving randomly, and name
+ * is the tiebreak so equal timestamps stay deterministic.
+ *
+ * Applied once in [NextcloudService.listFolder]; screens only filter, never re-sort.
+ */
+private val NEWEST_FIRST: Comparator<NextcloudFile> =
+    compareByDescending<NextcloudFile> { it.isDirectory }
+        .thenByDescending { it.modifiedMs ?: Long.MIN_VALUE }
+        .thenBy { it.name.lowercase() }
+
+fun List<NextcloudFile>.sortedNewestFirst(): List<NextcloudFile> = sortedWith(NEWEST_FIRST)
+
 /** URL + Authorization header value for a server-generated thumbnail, ready to hand to Coil. */
 data class NextcloudThumbnailRequest(val url: String, val authorization: String)
 
@@ -415,7 +432,7 @@ class NextcloudService @Inject constructor(
             }
             event = parser.next()
         }
-        return results
+        return results.sortedNewestFirst()
     }
 
     // -------------------------------------------------------------------------

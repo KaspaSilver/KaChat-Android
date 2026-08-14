@@ -134,11 +134,13 @@ fun NextcloudPickerDialog(
         isLoading = false
     }
 
-    val folders = entries.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
-    val media = entries.filter { it.isImage || it.isVideo }.sortedBy { it.name.lowercase() }
+    // listFolder already returns newest-first (folders grouped ahead of files), so these only split
+    // that one ordering into sections — filtering preserves it, never re-sort here.
+    val folders = entries.filter { it.isDirectory }
+    val media = entries.filter { it.isImage || it.isVideo }
     // Everything else (audio, PDFs, docs, archives...) is still shareable — listed as rows below
     // the thumbnail grid, shared exactly like media.
-    val otherFiles = entries.filter { !it.isDirectory && !it.isImage && !it.isVideo }.sortedBy { it.name.lowercase() }
+    val otherFiles = entries.filter { !it.isDirectory && !it.isImage && !it.isVideo }
 
     val share: (NextcloudFile) -> Unit = { file ->
         if (sharingPath == null) {
@@ -405,7 +407,8 @@ fun NextcloudFolderSelectDialog(
         isLoading = true
         errorMessage = null
         folders = try {
-            service.listFolder(currentPath).filter { it.isDirectory }.sortedBy { it.name.lowercase() }
+            // Newest-first comes from listFolder; this only drops the non-folder entries.
+            service.listFolder(currentPath).filter { it.isDirectory }
         } catch (e: Exception) {
             errorMessage = e.message ?: "Could not load this folder."
             emptyList()
