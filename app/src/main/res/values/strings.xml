@@ -56,6 +56,9 @@
     <string name="camera_permission_is_needed_to_scan">Camera permission is needed to scan a QR code</string>
     <string name="cancel">Cancel</string>
 
+    <!-- App-wide settings reachable from the accounts screen's gear (no active account) -->
+    <string name="app_settings">App Settings</string>
+
     <!-- Child Mode (Settings > Security > Child Mode + the Welcome Guide's "Who will use KaChat?" step) -->
     <string name="child_mode">Child Mode</string>
     <string name="on">On</string>

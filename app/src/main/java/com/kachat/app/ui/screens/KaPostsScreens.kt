@@ -213,6 +213,10 @@ fun KaPostsScreen(
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.weight(1f))
+                    // Total balance in the header, same as every other main page (iOS
+                    // KaPostsView's BalanceToolbarLabel) — trailing here since this
+                    // screen's title is left-aligned rather than centered.
+                    BalanceTopBarLabel(modifier = Modifier.padding(end = 4.dp))
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp).padding(end = 4.dp),

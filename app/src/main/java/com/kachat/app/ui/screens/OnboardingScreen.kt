@@ -62,6 +62,7 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
             WelcomeScreen(
                 viewModel,
                 onNavigateToCreate = { navController.navigate("create_account") },
+                onOpenAppSettings = { navController.navigate("app_settings") },
                 onNavigateToImport = {
                     // A stale SUCCESS/FAILED status left over from a previous import would
                     // otherwise fire ImportWalletScreen's success LaunchedEffect immediately on
@@ -116,15 +117,81 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 onProceed = { passphrase -> viewModel.commitImport(passphrase) }
             )
         }
+
+        // App Settings (the gear on the accounts screen, matching iOS's gearshape sheet on
+        // OnboardingView): ONLY the app-wide settings tier - Customization/Security/Connection/
+        // Diagnostics - every leaf reusing the exact screens the in-account Settings uses.
+        composable("app_settings") {
+            AppSettingsHubScreen(
+                onBack = { navController.popBackStack() },
+                onOpenCustomization = { navController.navigate("app_settings_customization") },
+                onOpenSecurity = { navController.navigate("app_settings_security") },
+                onOpenConnection = { navController.navigate("app_settings_connection") },
+                onOpenDiagnostics = { navController.navigate("app_settings_diagnostics") }
+            )
+        }
+        composable("app_settings_customization") {
+            AppCustomizationScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToLanguage = { navController.navigate("app_settings_language") },
+                onNavigateToCurrency = { navController.navigate("app_settings_currency") },
+                walletViewModel = viewModel
+            )
+        }
+        composable("app_settings_language") {
+            LanguageSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_currency") {
+            CurrencySettingsScreen(onBack = { navController.popBackStack() }, walletViewModel = viewModel)
+        }
+        composable("app_settings_security") {
+            AppSecurityScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToChildMode = { navController.navigate("app_settings_child_mode") },
+                walletViewModel = viewModel
+            )
+        }
+        composable("app_settings_child_mode") {
+            // Fully functional with no account active - the password record and enabled flag
+            // are device-global (ChildModeService's EncryptedSharedPreferences + DataStore).
+            ChildModeSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_connection") {
+            ConnectionSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_diagnostics") {
+            AppDiagnosticsScreen(onBack = { navController.popBackStack() })
+        }
     }
 }
 
 @Composable
-fun WelcomeScreen(viewModel: WalletViewModel, onNavigateToCreate: () -> Unit, onNavigateToImport: () -> Unit) {
+fun WelcomeScreen(
+    viewModel: WalletViewModel,
+    onNavigateToCreate: () -> Unit,
+    onNavigateToImport: () -> Unit,
+    onOpenAppSettings: () -> Unit = {}
+) {
     Surface(
         color = LocalAppColors.current.background,
         modifier = Modifier.fillMaxSize()
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+        // Top-right gear (matches iOS OnboardingView's gearshape toolbar button): app-wide
+        // settings that make sense with no account active - see AppSettingsHubScreen.
+        IconButton(
+            onClick = onOpenAppSettings,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 8.dp, end = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = stringResource(R.string.app_settings),
+                tint = LocalAppColors.current.textSecondary
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -247,6 +314,7 @@ fun WelcomeScreen(viewModel: WalletViewModel, onNavigateToCreate: () -> Unit, on
                     )
                 }
             }
+        }
         }
     }
 }

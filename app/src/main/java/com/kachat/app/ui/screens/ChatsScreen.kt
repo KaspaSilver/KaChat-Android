@@ -209,15 +209,11 @@ fun ChatsScreen(
                     .statusBarsPadding()
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        stringResource(R.string.chats),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
+                    // Header order matches iPhone (ChatListView.swift): status/balance toolbar
+                    // row on top, bold large "Chats" title below it, search bar DIRECTLY
+                    // underneath the title.
                     TopStatusBar(
                         balance = balance,
                         onStatusClick = { navController.navigate("connection_status") },
@@ -254,7 +250,13 @@ fun ChatsScreen(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.chats),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+                    )
 
                     // Search Bar
                     TextField(

@@ -142,6 +142,13 @@ fun BroadcastListScreen(
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
                 )
+                // Total balance under the title, same header anatomy as the other main pages
+                // (iOS BroadcastListView's centered BalanceToolbarLabel).
+                BalanceTopBarLabel(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 4.dp)
+                )
             }
         }
     ) { padding ->

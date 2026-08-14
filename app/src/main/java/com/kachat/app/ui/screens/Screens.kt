@@ -6384,8 +6384,6 @@ fun SettingsScreen(
     val showSetupGuides by walletViewModel.showSetupGuides.collectAsState()
     val currencyCode by walletViewModel.currency.collectAsState()
     val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
-    val biometricAccountLoginEnabled by walletViewModel.biometricAccountLoginEnabled.collectAsState()
-    val biometricSpendingKeyEnabled by walletViewModel.biometricSpendingKeyEnabled.collectAsState()
     val notificationsEnabled by settingsViewModel.notificationsEnabled.collectAsState()
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val chatPhotoQualityPreset by chatViewModel.chatPhotoQualityPreset.collectAsState()
@@ -6394,7 +6392,6 @@ fun SettingsScreen(
     val autoCreateSystemContactsEnabled by chatViewModel.autoCreateSystemContactsEnabled.collectAsState()
     val exportChatHistoryState by chatViewModel.exportState.collectAsState()
     val importChatHistoryState by chatViewModel.importState.collectAsState()
-    val diagnosticsExportState by chatViewModel.diagnosticsExportState.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -6517,27 +6514,11 @@ fun SettingsScreen(
 
             if (sectionKey == "security") {
             SettingsSection(title = stringResource(R.string.security)) {
-                SettingsSwitchItem(stringResource(R.string.biometrics_for_seed_phrase), biometricSeedPhraseEnabled) { enabled ->
-                    walletViewModel.setBiometricSeedPhraseEnabled(enabled)
-                }
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.biometrics_for_account_login), biometricAccountLoginEnabled) { enabled ->
-                    walletViewModel.setBiometricAccountLoginEnabled(enabled)
-                }
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.biometrics_for_address_private_keys), biometricSpendingKeyEnabled) { enabled ->
-                    walletViewModel.setBiometricSpendingKeyEnabled(enabled)
-                }
-                SettingsDivider()
-                // Child Mode (matches iOS Settings > Security > Child Mode). NEVER biometric-
-                // gated - the whole point is that the device owner (the child) can pass
-                // fingerprint/face unlock but must not know the parent's password.
-                val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
-                SettingsNavigationItem(
-                    stringResource(R.string.child_mode),
-                    Icons.Default.FamilyRestroom,
-                    if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
-                    onClick = { navController.navigate("child_mode_settings") }
+                // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt) -
+                // every row is app-wide, so both entry points render the exact same items.
+                SecuritySettingsItems(
+                    walletViewModel = walletViewModel,
+                    onNavigateToChildMode = { navController.navigate("child_mode_settings") }
                 )
             }
             }
@@ -6824,33 +6805,8 @@ fun SettingsScreen(
 
             if (sectionKey == "diagnostics") {
             SettingsSection(title = stringResource(R.string.diagnostics)) {
-                val diagnosticsExportInFlight = diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-
-                SettingsActionItem(
-                    label = if (diagnosticsExportInFlight) "Exporting..." else "Export Diagnostics Archive",
-                    icon = Icons.Default.BugReport,
-                    color = if (diagnosticsExportInFlight) Color.Gray else KaspaTeal
-                ) {
-                    if (!diagnosticsExportInFlight) {
-                        chatViewModel.exportDiagnostics { uri ->
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/zip"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Export Diagnostics Archive"))
-                        }
-                    }
-                }
-                if (diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                    Text(
-                        diagnosticsExportState.message ?: "Export failed",
-                        color = Color(0xFFFF3B30),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-                SettingsFooter(stringResource(R.string.exports_app_device_info_connection_settings))
+                // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt).
+                DiagnosticsSettingsItems(chatViewModel = chatViewModel)
             }
             }
 
@@ -7262,6 +7218,131 @@ fun SettingsFooter(text: String) {
     )
 }
 
+/**
+ * The Security section's rows — every one app-wide (biometric toggles + Child Mode), so the same
+ * items render both in the in-account Settings > Security page and in the accounts screen's App
+ * Settings sheet (see AppSettingsScreen.kt), one source of truth. Caller supplies the enclosing
+ * [SettingsSection] and the navigation to the Child Mode screen (each host has its own NavHost).
+ */
+@Composable
+fun SecuritySettingsItems(
+    walletViewModel: WalletViewModel,
+    onNavigateToChildMode: () -> Unit
+) {
+    val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
+    val biometricAccountLoginEnabled by walletViewModel.biometricAccountLoginEnabled.collectAsState()
+    val biometricSpendingKeyEnabled by walletViewModel.biometricSpendingKeyEnabled.collectAsState()
+    SettingsSwitchItem(stringResource(R.string.biometrics_for_seed_phrase), biometricSeedPhraseEnabled) { enabled ->
+        walletViewModel.setBiometricSeedPhraseEnabled(enabled)
+    }
+    SettingsDivider()
+    SettingsSwitchItem(stringResource(R.string.biometrics_for_account_login), biometricAccountLoginEnabled) { enabled ->
+        walletViewModel.setBiometricAccountLoginEnabled(enabled)
+    }
+    SettingsDivider()
+    SettingsSwitchItem(stringResource(R.string.biometrics_for_address_private_keys), biometricSpendingKeyEnabled) { enabled ->
+        walletViewModel.setBiometricSpendingKeyEnabled(enabled)
+    }
+    SettingsDivider()
+    // Child Mode (matches iOS Settings > Security > Child Mode). NEVER biometric-gated - the
+    // whole point is that the device owner (the child) can pass fingerprint/face unlock but
+    // must not know the parent's password. Fully functional with no account active: the
+    // password record and enabled flag are device-global (ChildModeService/DataStore).
+    val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
+    SettingsNavigationItem(
+        stringResource(R.string.child_mode),
+        Icons.Default.FamilyRestroom,
+        if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+        onClick = onNavigateToChildMode
+    )
+}
+
+/**
+ * The Diagnostics section's rows — the export gathers app/device/settings/node-pool info and is
+ * account-tolerant (see DiagnosticsExportService's no-active-account fallbacks), so the same
+ * items render both in the in-account Settings > Diagnostics page and in the accounts screen's
+ * App Settings sheet. Caller supplies the enclosing [SettingsSection].
+ */
+@Composable
+fun DiagnosticsSettingsItems(chatViewModel: ChatViewModel = hiltViewModel()) {
+    val diagnosticsExportState by chatViewModel.diagnosticsExportState.collectAsState()
+    val context = LocalContext.current
+    val diagnosticsExportInFlight = diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+
+    SettingsActionItem(
+        label = if (diagnosticsExportInFlight) "Exporting..." else "Export Diagnostics Archive",
+        icon = Icons.Default.BugReport,
+        color = if (diagnosticsExportInFlight) Color.Gray else KaspaTeal
+    ) {
+        if (!diagnosticsExportInFlight) {
+            chatViewModel.exportDiagnostics { uri ->
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/zip"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Export Diagnostics Archive"))
+            }
+        }
+    }
+    if (diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
+        Text(
+            diagnosticsExportState.message ?: "Export failed",
+            color = Color(0xFFFF3B30),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    }
+    SettingsFooter(stringResource(R.string.exports_app_device_info_connection_settings))
+}
+
+/**
+ * Kaspa-logo total-balance row — Android port of iOS's BalanceToolbarLabel
+ * (SettingsView.swift): 15dp Kaspa logo + full 8-decimal balance in bold with
+ * tabular figures and secondary color, so the header balance reads identically
+ * on every main page (Chats/Settings via TopStatusBar; Broadcasts, Cold Storage,
+ * Swap, Portfolio and KaPosts via BalanceTopBarLabel below).
+ */
+@Composable
+fun BalanceLabelRow(balance: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_kaspa_logo),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(15.dp)
+        )
+        Text(
+            text = balance,
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                fontFeatureSettings = "tnum"
+            )
+        )
+    }
+}
+
+/**
+ * Self-contained variant for screens that don't already collect the wallet balance:
+ * observes WalletViewModel.fullBalance and refreshes it once on appearance (matches
+ * the iOS label's `.task { refreshBalance() }`).
+ */
+@Composable
+fun BalanceTopBarLabel(
+    modifier: Modifier = Modifier,
+    walletViewModel: WalletViewModel = hiltViewModel()
+) {
+    val balance by walletViewModel.fullBalance.collectAsState()
+    LaunchedEffect(Unit) { walletViewModel.refreshBalance() }
+    BalanceLabelRow(balance, modifier)
+}
+
 @Composable
 fun TopStatusBar(
     balance: String,
@@ -7302,14 +7383,7 @@ fun TopStatusBar(
             )
         }
 
-        Text(
-            text = balance,
-            color = LocalAppColors.current.textPrimary,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-        )
+        BalanceLabelRow(balance)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (isEditing && selectAllLabel != null) {
