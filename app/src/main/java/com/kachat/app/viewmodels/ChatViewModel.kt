@@ -655,13 +655,27 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private val _handshakeSendInFlight = MutableStateFlow<Set<String>>(emptySet())
+
+    /**
+     * Contact addresses with an outbound handshake currently being built/submitted. Lets every
+     * entry point into [sendHandshake] (the composer menu's "Send Handshake" row and the new-chat
+     * banner's button) show progress and refuse a double-tap without either of them owning the
+     * send itself — the transaction still goes out through the one path below.
+     */
+    val handshakeSendInFlight: StateFlow<Set<String>> = _handshakeSendInFlight.asStateFlow()
+
     /** Manually starts a conversation by sending an initial handshake — the hand icon in a fresh chat. */
     fun sendHandshake(contactId: String) {
+        if (contactId in _handshakeSendInFlight.value) return
         viewModelScope.launch {
+            _handshakeSendInFlight.value = _handshakeSendInFlight.value + contactId
             try {
                 walletService.sendHandshakeToNewContact(contactId)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending handshake", e)
+            } finally {
+                _handshakeSendInFlight.value = _handshakeSendInFlight.value - contactId
             }
         }
     }

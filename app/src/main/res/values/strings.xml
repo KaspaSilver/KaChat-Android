@@ -421,7 +421,7 @@
     <string name="view_on_changenow">View on ChangeNOW</string>
     <string name="waiting_for_camera">Waiting for camera...</string>
     <string name="waiting_on_opponent">Waiting on opponent</string>
-    <string name="the_recipient_wont_see_your_messages">The recipient won\'t see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept.</string>
+    <string name="the_recipient_wont_see_your_messages">The recipient won\'t see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them.</string>
     <string name="wipe_account">Wipe Account</string>
     <string name="wipe_everything">Wipe Everything</string>
     <string name="wipe_incoming_messages">Wipe Incoming Messages</string>

@@ -177,6 +177,7 @@ fun ChatThreadScreen(
     val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
     val reactions by chatViewModel.getReactions(contactId).collectAsState(initial = emptyList())
     val reactionsByTxId = remember(reactions) { reactions.groupBy { it.targetTxId } }
+    val handshakeSendInFlight by chatViewModel.handshakeSendInFlight.collectAsState()
     val revealedPhotoTxIds by chatViewModel.revealedPhotoTxIds.collectAsState()
 
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
@@ -440,7 +441,14 @@ fun ChatThreadScreen(
                 // available pills) so it never collides with them, and visible the instant the
                 // chat opens rather than only once the user starts typing.
                 if (ChatViewModel.shouldShowUnnotifiedWarning(messages)) {
-                    UnnotifiedMessageBanner()
+                    // Same guard the composer menu's "Send Handshake" row uses — once the
+                    // handshake is complete there's nothing left to ping, so the action drops
+                    // away while the banner itself stays until the chat is actually reciprocated.
+                    val canSendHandshake = conversation?.contact?.handshakeComplete != true
+                    UnnotifiedMessageBanner(
+                        onSendHandshake = if (canSendHandshake) ({ chatViewModel.sendHandshake(contactId) }) else null,
+                        isSendingHandshake = contactId in handshakeSendInFlight
+                    )
                 }
                 if (paymentMode) {
                     Column(
@@ -1320,29 +1328,73 @@ fun ChatThreadScreen(
  * this used before.
  */
 @Composable
-private fun UnnotifiedMessageBanner() {
+private fun UnnotifiedMessageBanner(
+    /** Null hides the action — nothing to offer once the handshake is already complete. */
+    onSendHandshake: (() -> Unit)? = null,
+    isSendingHandshake: Boolean = false
+) {
     val colors = LocalAppColors.current
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(colors.surface)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.Top
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = null,
-            tint = colors.warning,
-            modifier = Modifier.size(16.dp).padding(top = 2.dp)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.the_recipient_wont_see_your_messages),
-            color = colors.textSecondary,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Row(verticalAlignment = Alignment.Top) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = colors.warning,
+                modifier = Modifier.size(16.dp).padding(top = 2.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.the_recipient_wont_see_your_messages),
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        if (onSendHandshake != null) {
+            Spacer(Modifier.height(8.dp))
+            // Compact accent pill on its own row rather than beside the text — the copy runs to
+            // three lines, so an end-aligned button would squeeze it badly on narrow screens.
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Surface(
+                    color = if (isSendingHandshake) colors.accent.copy(alpha = 0.4f) else colors.accent,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.clickable(enabled = !isSendingHandshake, onClick = onSendHandshake)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isSendingHandshake) {
+                            CircularProgressIndicator(
+                                color = colors.textOnAccent,
+                                strokeWidth = 1.5.dp,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.BackHand,
+                                contentDescription = null,
+                                tint = colors.textOnAccent,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.send_handshake),
+                            color = colors.textOnAccent,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
