@@ -18,19 +18,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -79,6 +83,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -117,9 +122,52 @@ object KaPostsDeepLink {
     val pendingPostTxId = MutableStateFlow<String?>(null)
 }
 
+/**
+ * Properties for KaPosts' full-screen overlays.
+ *
+ * `decorFitsSystemWindows = false` is load-bearing, not cosmetic. The app targets SDK 36, where
+ * edge-to-edge is enforced: the framework ignores a window's request to fit the system bars while
+ * its DecorView still CONSUMES the insets on the way in. A Compose `Dialog` left on the default
+ * (`true`) therefore ends up drawing under the status and navigation bars while every inset
+ * modifier inside it resolves to zero - which is why the thread overlay's reply composer sat half
+ * under the gesture-navigation bar. Turning it off stops the decor consuming, so the real insets
+ * reach the content and [KaPostsOverlayInsets] below is the single source of truth. It is also the
+ * documented prerequisite for the IME inset being reported inside a dialog at all.
+ */
+private val KaPostsFullScreenDialogProperties = DialogProperties(
+    usePlatformDefaultWidth = false,
+    decorFitsSystemWindows = false,
+)
+
+/**
+ * Status bar + navigation bar (gesture AND 3-button) + display cutout + the IME while it is up,
+ * as ONE union. Applying them as a union rather than chaining `.imePadding()` after
+ * `.navigationBarsPadding()` matters: the IME inset already spans the navigation bar, so the chain
+ * double-counted the bottom and shoved the composer up by an extra nav-bar height whenever the
+ * keyboard opened.
+ */
+private val KaPostsOverlayInsets: WindowInsets
+    @Composable get() = WindowInsets.safeDrawing
+
+/**
+ * Feed tab order, matching iOS's `FeedTab.allCases`: Following | Feed | Popular. The tab row and
+ * the swipe pager both index into this one list, so they can never disagree about what page 0 is.
+ */
+private val KaPostsFeedTabs = listOf(
+    KaPostsViewModel.FeedTab.FOLLOWING,
+    KaPostsViewModel.FeedTab.FEED,
+    KaPostsViewModel.FeedTab.POPULAR,
+)
+
+private fun KaPostsViewModel.FeedTab.label(): String = when (this) {
+    KaPostsViewModel.FeedTab.FOLLOWING -> "Following"
+    KaPostsViewModel.FeedTab.FEED -> "Feed"
+    KaPostsViewModel.FeedTab.POPULAR -> "Popular"
+}
+
 // MARK: - Main screen
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun KaPostsScreen(
     navController: NavController,
@@ -128,7 +176,8 @@ fun KaPostsScreen(
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
     val selectedFeed by viewModel.selectedFeed.collectAsState()
-    val feed by viewModel.visibleFeed.collectAsState()
+    val visiblePosts by viewModel.visiblePosts.collectAsState()
+    val following by viewModel.following.collectAsState()
     val isLoading by viewModel.isLoadingFeed.collectAsState()
     val feedError by viewModel.feedError.collectAsState()
     val undoToast by viewModel.undoToast.collectAsState()
@@ -157,6 +206,34 @@ fun KaPostsScreen(
 
     val posterProfile by viewModel.posterProfile.collectAsState()
     val deepLinkTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
+
+    // Swipeable feed tabs. One LazyListState per tab, hoisted here rather than remembered inside
+    // the pager page, so each feed keeps its scroll offset across swipes.
+    val feedPagerState = rememberPagerState(
+        initialPage = KaPostsFeedTabs.indexOf(selectedFeed).coerceAtLeast(0),
+        pageCount = { KaPostsFeedTabs.size },
+    )
+    val followingListState = rememberLazyListState()
+    val feedListState = rememberLazyListState()
+    val popularListState = rememberLazyListState()
+    val feedListStates = listOf(followingListState, feedListState, popularListState)
+    // Two-way sync. Each direction no-ops once the other has caught up, so they can't ping-pong:
+    // a swipe selects the tab (which then finds the pager already there), a tab tap animates the
+    // pager across (which then re-selects the tab it is already on). settledPage rather than
+    // currentPage, and the equality guard, keep selectFeed's network refresh from firing
+    // mid-drag or redundantly on first composition.
+    LaunchedEffect(feedPagerState) {
+        snapshotFlow { feedPagerState.settledPage }.collect { page ->
+            val tab = KaPostsFeedTabs[page]
+            if (tab != viewModel.selectedFeed.value) viewModel.selectFeed(tab)
+        }
+    }
+    LaunchedEffect(selectedFeed) {
+        val target = KaPostsFeedTabs.indexOf(selectedFeed)
+        if (target >= 0 && target != feedPagerState.currentPage) {
+            feedPagerState.animateScrollToPage(target)
+        }
+    }
 
     fun openThread(post: KaPostDraft) {
         threadStack = threadStack + post.id
@@ -233,43 +310,63 @@ fun KaPostsScreen(
                 FeedTabsRow(selected = selectedFeed, onSelect = { viewModel.selectFeed(it) })
                 HorizontalDivider(color = colors.surfaceVariant)
 
-                if (feedError != null && feed.isEmpty()) {
-                    FeedEmptyState(
-                        title = "Couldn't load the feed",
-                        body = feedError ?: "",
-                        actionLabel = "Retry",
-                        onAction = { viewModel.refresh() },
-                    )
-                } else if (feed.isEmpty() && !isLoading) {
-                    FeedEmptyState(
-                        title = if (selectedFeed == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
-                        body = if (selectedFeed == KaPostsViewModel.FeedTab.FOLLOWING)
-                            "Follow people from their posts and their content shows up here."
-                        else
-                            "Be the first to post something on the Kaspa network.",
-                        actionLabel = null,
-                        onAction = {},
-                    )
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(feed, key = { it.id }) { post ->
-                            LaunchedEffect(post.posterAddress) {
-                                viewModel.ensureSenderProfileFetched(post.posterAddress)
+                // Horizontal paging between the three feeds, synced both ways with the tab row
+                // above (tap animates the page across; swipe moves the underline) - matching iOS's
+                // page-style TabView. Draggable paging is safe here: unlike the chat list, post
+                // cells carry no row-level horizontal gestures, and the thread/profile/menu
+                // overlays are separate Dialog windows that never see this pager's drags.
+                HorizontalPager(
+                    state = feedPagerState,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    key = { KaPostsFeedTabs[it] },
+                ) { page ->
+                    val tab = KaPostsFeedTabs[page]
+                    val pageFeed = remember(tab, visiblePosts, following) {
+                        viewModel.feedFor(tab, visiblePosts, following)
+                    }
+                    if (feedError != null && pageFeed.isEmpty()) {
+                        FeedEmptyState(
+                            title = "Couldn't load the feed",
+                            body = feedError ?: "",
+                            actionLabel = "Retry",
+                            onAction = { viewModel.refresh() },
+                        )
+                    } else if (pageFeed.isEmpty() && !isLoading) {
+                        FeedEmptyState(
+                            title = if (tab == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
+                            body = if (tab == KaPostsViewModel.FeedTab.FOLLOWING)
+                                "Follow people from their posts and their content shows up here."
+                            else
+                                "Be the first to post something on the Kaspa network.",
+                            actionLabel = null,
+                            onAction = {},
+                        )
+                    } else {
+                        LazyColumn(
+                            // Hoisted per tab so each feed keeps its own scroll position when you
+                            // swipe away and back (the pager disposes off-screen pages).
+                            state = feedListStates[page],
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(pageFeed, key = { it.id }) { post ->
+                                LaunchedEffect(post.posterAddress) {
+                                    viewModel.ensureSenderProfileFetched(post.posterAddress)
+                                }
+                                KaPostCell(
+                                    post = post,
+                                    viewModel = viewModel,
+                                    onOpenThread = { openThread(post) },
+                                    onRepostTap = { repostHandler(post) },
+                                    onOpenProfile = { viewModel.openPosterProfile(post.posterAddress, post.posterPubkey) },
+                                    onOpenQuoted = { txId -> openShared(txId) },
+                                    onViewEngagement = { engagementTarget = post },
+                                    truncatesLongText = true,
+                                )
+                                HorizontalDivider(
+                                    color = colors.surfaceVariant,
+                                    modifier = Modifier.padding(start = 68.dp),
+                                )
                             }
-                            KaPostCell(
-                                post = post,
-                                viewModel = viewModel,
-                                onOpenThread = { openThread(post) },
-                                onRepostTap = { repostHandler(post) },
-                                onOpenProfile = { viewModel.openPosterProfile(post.posterAddress, post.posterPubkey) },
-                                onOpenQuoted = { txId -> openShared(txId) },
-                                onViewEngagement = { engagementTarget = post },
-                                truncatesLongText = true,
-                            )
-                            HorizontalDivider(
-                                color = colors.surfaceVariant,
-                                modifier = Modifier.padding(start = 68.dp),
-                            )
                         }
                     }
                 }
@@ -530,11 +627,8 @@ private fun FeedTabsRow(
 ) {
     val colors = LocalAppColors.current
     Row(modifier = Modifier.fillMaxWidth()) {
-        listOf(
-            KaPostsViewModel.FeedTab.FOLLOWING to "Following",
-            KaPostsViewModel.FeedTab.FEED to "Feed",
-            KaPostsViewModel.FeedTab.POPULAR to "Popular",
-        ).forEach { (tab, label) ->
+        KaPostsFeedTabs.forEach { tab ->
+            val label = tab.label()
             val isSelected = tab == selected
             Column(
                 modifier = Modifier
@@ -993,15 +1087,13 @@ fun KaPostComposerDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = KaPostsFullScreenDialogProperties,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.background)
-                .statusBarsPadding()
-                .imePadding()
-                .navigationBarsPadding(),
+                .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
@@ -1150,15 +1242,18 @@ fun KaPostThreadOverlay(
 
     Dialog(
         onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = KaPostsFullScreenDialogProperties,
     ) {
+        // Header (wrap) / thread (weight 1f, the only scrolling region) / composer (wrap, pinned
+        // to the bottom). The composer is the LAST non-weighted child, so it always gets its
+        // intrinsic height and the list absorbs whatever is left - including the shrink when the
+        // keyboard opens, which is what keeps the composer riding above the IME instead of being
+        // pushed off-screen.
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.background)
-                .statusBarsPadding()
-                .imePadding()
-                .navigationBarsPadding(),
+                .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
@@ -1170,7 +1265,7 @@ fun KaPostThreadOverlay(
                 Text("Post", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
             HorizontalDivider(color = colors.surfaceVariant)
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 item(key = "root-context") {
                     // "Replying to X" - this post is itself a reply; tap opens the parent.
                     post.parentRemoteId?.let { parentId ->
@@ -1199,6 +1294,21 @@ fun KaPostThreadOverlay(
                         onReply = { replyTargetId = null },
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
+                }
+                if (visibleComments.isEmpty()) {
+                    // Otherwise the space between the post and the pinned composer is just a
+                    // large black void (it filled most of the screen in the bug report). Same
+                    // copy as iOS's thread view.
+                    item(key = "no-comments") {
+                        Text(
+                            "No comments yet - be the first to reply.",
+                            color = colors.textSecondary,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 24.dp),
+                        )
+                    }
                 }
                 items(visibleComments, key = { it.id }) { comment ->
                     LaunchedEffect(comment.posterAddress) {
@@ -2107,14 +2217,13 @@ private fun KaPostsOverlayScaffold(
     val colors = LocalAppColors.current
     Dialog(
         onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = KaPostsFullScreenDialogProperties,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.background)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),

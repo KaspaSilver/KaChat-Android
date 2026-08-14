@@ -81,23 +81,36 @@ class KaPostsViewModel @Inject constructor(
         address in mutedSet || address in blockedSet
 
     /**
-     * The visible feed for the selected tab: session posts first, then remote posts deduped by
-     * remote id; muted/blocked authors hidden everywhere; Following filters to followed
-     * addresses; Popular sorts by total engagement.
+     * Everything this user can see, before any tab is applied: session posts first, then remote
+     * posts deduped by remote id, with muted/blocked authors hidden. Tab-independent so the feed
+     * pager can lay out all three tabs from one list ([feedFor] slices it).
      */
-    val visibleFeed: StateFlow<List<KaPostDraft>> = combine(
-        _localPosts, _remotePosts, _selectedFeed, following,
-        combine(muted, blocked) { m, b -> m + b },
-    ) { local, remote, tab, followingSet, hiddenSet ->
+    val visiblePosts: StateFlow<List<KaPostDraft>> = combine(
+        _localPosts, _remotePosts, combine(muted, blocked) { m, b -> m + b },
+    ) { local, remote, hiddenSet ->
         val combined = local + remote.filter { r ->
             local.none { it.remoteId != null && it.remoteId == r.remoteId }
         }
-        val visible = combined.filter { it.posterAddress !in hiddenSet }
+        combined.filter { it.posterAddress !in hiddenSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * One tab's slice of [visiblePosts]: Following filters to followed addresses, Popular sorts by
+     * total engagement, Feed is everything. Pure, so the pager can render the neighbouring pages
+     * without them having to be the selected tab.
+     */
+    fun feedFor(tab: FeedTab, visible: List<KaPostDraft>, followingSet: Set<String>): List<KaPostDraft> =
         when (tab) {
             FeedTab.FOLLOWING -> visible.filter { it.posterAddress in followingSet }
             FeedTab.FEED -> visible
             FeedTab.POPULAR -> visible.sortedByDescending { it.likes + it.reposts + it.dislikes }
         }
+
+    /** The selected tab's feed - kept for callers that only care about what's on screen. */
+    val visibleFeed: StateFlow<List<KaPostDraft>> = combine(
+        visiblePosts, _selectedFeed, following,
+    ) { visible, tab, followingSet ->
+        feedFor(tab, visible, followingSet)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // MARK: - Toasts + undo scheduler
