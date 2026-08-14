@@ -715,7 +715,7 @@ fun MainShell(
                 popExitTransition = { ExitTransition.None }
             ) {
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                    KaPostsScreen(navController)
+                    KaPostsScreen(navController, walletViewModel = walletViewModel)
                 }
             }
             composable(

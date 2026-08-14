@@ -1,6 +1,7 @@
 package com.kachat.app.ui.screens
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,10 +20,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -75,7 +78,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -93,9 +98,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,6 +110,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
@@ -110,6 +119,7 @@ import com.kachat.app.models.KaPostDraft
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.KaPostsViewModel
+import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -150,6 +160,41 @@ private val KaPostsOverlayInsets: WindowInsets
     @Composable get() = WindowInsets.safeDrawing
 
 /**
+ * Forces a Compose `Dialog`'s window to actually be full-screen. Call it as the first thing inside
+ * the dialog's content.
+ *
+ * `usePlatformDefaultWidth = false` does NOT give the dialog a MATCH_PARENT window: `DialogLayout`
+ * measures its content against `Configuration.screenHeightDp` and then calls
+ * `window.setLayout(child.measuredWidth, child.measuredHeight)`, so the window is only ever as big
+ * as the content it just measured. Under this app's enforced edge-to-edge (targetSdk 36) that
+ * lands the window short of the content, and anything at the bottom of the content gets clipped
+ * off the screen - which is what was cutting the thread overlay's reply composer in half. Asserting
+ * MATCH_PARENT (plus ADJUST_RESIZE so the IME resizes the window, and no decor fitting so the real
+ * insets reach the content) keeps these overlays whole.
+ *
+ * The thread overlay does not use this - it was moved out of a Dialog entirely, which is the
+ * sturdier fix. These secondary overlays keep the Dialog because they carry no bottom-pinned
+ * composer to lose.
+ */
+@Composable
+private fun ForceFullScreenDialogWindow() {
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        window.setLayout(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+        )
+        // Deprecated from API 30, where setDecorFitsSystemWindows(false) below plus the IME inset
+        // supersede it - still the only thing that resizes the window for the keyboard on this
+        // app's minSdk 26..29 range, so both are set.
+        @Suppress("DEPRECATION")
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+    }
+}
+
+/**
  * Feed tab order, matching iOS's `FeedTab.allCases`: Following | Feed | Popular. The tab row and
  * the swipe pager both index into this one list, so they can never disagree about what page 0 is.
  */
@@ -172,6 +217,7 @@ private fun KaPostsViewModel.FeedTab.label(): String = when (this) {
 fun KaPostsScreen(
     navController: NavController,
     viewModel: KaPostsViewModel = hiltViewModel(),
+    walletViewModel: WalletViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
@@ -234,6 +280,16 @@ fun KaPostsScreen(
             feedPagerState.animateScrollToPage(target)
         }
     }
+
+    // The thread overlay renders inside this screen's own composition (not a Dialog window), so it
+    // is bounded by the shell's content area - which reserves room for the floating dock. KaPosts
+    // is a tab route, so the dock is otherwise always drawn on top; ask the shell to drop it while
+    // a thread is open, exactly as Cold Storage's full-screen scanner does. Dropping the dock also
+    // collapses the shell's reserved bottom padding, which is what lets the overlay reach the
+    // bottom of the screen.
+    val threadOpen = threadStack.isNotEmpty()
+    LaunchedEffect(threadOpen) { walletViewModel.setHideBottomBar(threadOpen) }
+    DisposableEffect(Unit) { onDispose { walletViewModel.setHideBottomBar(false) } }
 
     fun openThread(post: KaPostDraft) {
         threadStack = threadStack + post.id
@@ -1089,6 +1145,7 @@ fun KaPostComposerDialog(
         onDismissRequest = onDismiss,
         properties = KaPostsFullScreenDialogProperties,
     ) {
+        ForceFullScreenDialogWindow()
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -1198,6 +1255,19 @@ fun KaPostCharacterMeter(count: Int) {
 
 // MARK: - Thread overlay (root + replies, X-style inline nested expansion)
 
+/**
+ * Rendered as a full-screen overlay INSIDE the KaPosts composition, deliberately not as a
+ * `Dialog`.
+ *
+ * A Compose `Dialog` with `usePlatformDefaultWidth = false` never gets a MATCH_PARENT window:
+ * `DialogLayout` measures its content against `Configuration.screenHeightDp` and then calls
+ * `window.setLayout(child.measuredWidth, child.measuredHeight)` on every layout pass. Under this
+ * app's enforced edge-to-edge (targetSdk 36) the resulting window ends up shorter than the content
+ * being laid out inside it, so the bottom of that content - the reply composer - was clipped off
+ * the bottom of the screen, and no amount of inset padding could fix it because the window itself
+ * was the wrong size. In the ordinary composition the overlay is measured by the same layout path
+ * as every other screen in the app, which lays out correctly.
+ */
 @Composable
 fun KaPostThreadOverlay(
     postId: String,
@@ -1240,9 +1310,27 @@ fun KaPostThreadOverlay(
 
     LaunchedEffect(post.remoteId) { viewModel.loadReplies(post) }
 
-    Dialog(
-        onDismissRequest = onClose,
-        properties = KaPostsFullScreenDialogProperties,
+    // System back closes this level of the thread, matching the Dialog's dismiss behaviour and the
+    // Back arrow in the header. Nested pushes each get their own overlay instance, so back walks
+    // the thread stack down one level at a time.
+    BackHandler(onBack = onClose)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            // Opaque AND gesture-claiming: the feed pager and the post cells behind this overlay
+            // must never see a touch that landed on the thread. Children are dispatched first in
+            // the Main pass, so the list, buttons and the text field keep working normally; this
+            // only swallows whatever they left unclaimed - notably horizontal drags, which the
+            // pager would otherwise read as a tab swipe.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { if (!it.isConsumed) it.consume() }
+                    }
+                }
+            },
     ) {
         // Header (wrap) / thread (weight 1f, the only scrolling region) / composer (wrap, pinned
         // to the bottom). The composer is the LAST non-weighted child, so it always gets its
@@ -1252,7 +1340,6 @@ fun KaPostThreadOverlay(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             Row(
@@ -1588,10 +1675,17 @@ fun KaPostsProfileOverlay(
 
     Dialog(
         onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = KaPostsFullScreenDialogProperties,
     ) {
+        // Same window-sizing fix as the other overlays. This one deliberately keeps its content
+        // edge-to-edge at the top (the KNS banner runs under the status bar), so it takes the
+        // navigation-bar inset on the list's bottom instead of padding the whole Column.
+        ForceFullScreenDialogWindow()
         Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+            ) {
                 item(key = "banner") {
                     Box {
                         val bannerUrl = senderBanners[address]
@@ -2219,6 +2313,7 @@ private fun KaPostsOverlayScaffold(
         onDismissRequest = onClose,
         properties = KaPostsFullScreenDialogProperties,
     ) {
+        ForceFullScreenDialogWindow()
         Column(
             modifier = Modifier
                 .fillMaxSize()
