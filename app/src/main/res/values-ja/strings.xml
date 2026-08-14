@@ -312,7 +312,6 @@
     <string name="view_on_changenow">ChangeNOWで表示</string>
     <string name="waiting_for_camera">カメラを待っています...</string>
     <string name="waiting_on_opponent">相手を待っています</string>
-    <string name="when_you_message_someone_new_on">KaChatで新しい相手にメッセージを送ると、相手には通知が届かず、相手が返信するかあなたを追加するまであなたのメッセージは非表示のままです。これによりスパムから保護され、プライバシーが向上します。相手に通知させたい場合は、手のアイコンをタップして通信リクエストを送信してください。費用は0.2 KASです。(注: KaChat以外のすべてのメッセージングアプリは通信リクエストが必要です)</string>
     <string name="wipe_account">アカウントを削除</string>
     <string name="wipe_everything">すべて削除</string>
     <string name="wipe_incoming_messages">受信メッセージを消去</string>

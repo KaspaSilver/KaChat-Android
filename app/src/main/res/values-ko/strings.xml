@@ -312,7 +312,6 @@
     <string name="view_on_changenow">ChangeNOW에서 보기</string>
     <string name="waiting_for_camera">카메라 대기 중...</string>
     <string name="waiting_on_opponent">상대방 대기 중</string>
-    <string name="when_you_message_someone_new_on">KaChat에서 새로운 사람에게 메시지를 보내면 상대방은 알림을 받지 않으며 상대방이 답장하거나 당신을 추가할 때까지 메시지가 숨겨진 상태로 유지됩니다. 이는 스팸을 방지하고 개인정보 보호를 강화합니다. 상대방에게 알리고 싶다면 손 아이콘을 탭하여 0.2 KAS의 비용이 드는 통신 요청을 보내세요. (참고: KaChat이 아닌 모든 메시징 앱은 통신 요청이 필요합니다)</string>
     <string name="wipe_account">계정 삭제</string>
     <string name="wipe_everything">모두 삭제</string>
     <string name="wipe_incoming_messages">수신 메시지 삭제</string>

@@ -5,12 +5,19 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import androidx.core.app.Person
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.kachat.app.MainActivity
 import com.kachat.app.models.Conversation
 import com.kachat.app.util.KaspaAddress
@@ -86,7 +93,18 @@ class ShareShortcutsManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Volatile
-    private var lastPublished: List<Pair<String, String>>? = null
+    private var lastPublished: List<ShortcutEntry>? = null
+
+    /**
+     * One publishable share target. Carries both avatar sources so the icon resolves through the
+     * same KNS-avatar -> device-contact-photo -> initials order the in-app `ContactAvatar` uses.
+     */
+    private data class ShortcutEntry(
+        val contactId: String,
+        val label: String,
+        val knsAvatarUrl: String?,
+        val deviceContactPhotoUri: String?
+    )
 
     /** [promoteContactId] pins that conversation to the front — used at send time, before the
      *  conversations flow has reordered around the still-pending insert. */
@@ -103,7 +121,12 @@ class ShareShortcutsManager @Inject constructor(
                 val label = convo.contact.alias?.takeIf { it.isNotBlank() }
                     ?: convo.contact.knsName?.takeIf { it.isNotBlank() }
                     ?: KaspaAddress.shortDisplay(convo.contact.id)
-                convo.contact.id to label
+                ShortcutEntry(
+                    contactId = convo.contact.id,
+                    label = label,
+                    knsAvatarUrl = convo.contact.knsAvatarUrl?.takeIf { it.isNotBlank() },
+                    deviceContactPhotoUri = convo.contact.systemContactPhotoUri?.takeIf { it.isNotBlank() }
+                )
             }
             .toList()
         if (top == lastPublished) return
@@ -118,34 +141,69 @@ class ShareShortcutsManager @Inject constructor(
         }
     }
 
-    private fun publish(entries: List<Pair<String, String>>) {
+    private suspend fun publish(entries: List<ShortcutEntry>) {
         val max = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).let {
             if (it > 0) it else MAX_SHORTCUTS
         }
-        val shortcuts = entries.take(max).mapIndexed { index, (contactId, label) ->
+        val shortcuts = entries.take(max).mapIndexed { index, entry ->
             // Tapping the shortcut itself (e.g. launcher long-press menu) opens the chat via the
             // same extra a message notification uses — MainActivity already routes it.
             val intent = Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_MAIN
-                putExtra(NotificationHelper.EXTRA_CONTACT_ID, contactId)
+                putExtra(NotificationHelper.EXTRA_CONTACT_ID, entry.contactId)
             }
-            ShortcutInfoCompat.Builder(context, contactId)
-                .setShortLabel(label)
-                .setLongLabel(label)
-                .setIcon(IconCompat.createWithBitmap(initialsBitmap(label)))
+            ShortcutInfoCompat.Builder(context, entry.contactId)
+                .setShortLabel(entry.label)
+                .setLongLabel(entry.label)
+                .setIcon(IconCompat.createWithBitmap(avatarBitmap(entry)))
                 .setIntent(intent)
                 .setLongLived(true)
                 .setRank(index)
                 .setCategories(setOf(SHARE_TARGET_CATEGORY))
-                .setPerson(Person.Builder().setKey(contactId).setName(label).build())
+                .setPerson(Person.Builder().setKey(entry.contactId).setName(entry.label).build())
                 .build()
         }
         ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
     }
 
-    /** Circular Kaspa-teal avatar with the contact's initials — matches the in-app avatar look. */
+    /**
+     * KNS avatar, else the device address-book photo, else initials — the non-Compose mirror of
+     * `ContactAvatar`'s chain. Both image candidates go through the app's shared Coil loader, so
+     * they hit the same memory/disk caches the in-app avatars already warmed, and decoding happens
+     * on Coil's own dispatcher (this whole method runs off the main thread from [refresh]'s scope).
+     */
+    private suspend fun avatarBitmap(entry: ShortcutEntry): Bitmap {
+        for (candidate in listOfNotNull(entry.knsAvatarUrl, entry.deviceContactPhotoUri)) {
+            val loaded = try {
+                val request = ImageRequest.Builder(context)
+                    .data(candidate)
+                    .size(AVATAR_SIZE)
+                    .allowHardware(false) // must be a software Bitmap to hand to IconCompat
+                    .build()
+                (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap(AVATAR_SIZE, AVATAR_SIZE)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load share-target avatar", e)
+                null
+            }
+            if (loaded != null) return circleCrop(loaded)
+        }
+        return initialsBitmap(entry.label)
+    }
+
+    /** Launcher share targets are shown as circles on most OEMs, but not all — crop so it's consistent. */
+    private fun circleCrop(source: Bitmap): Bitmap {
+        val output = Bitmap.createBitmap(AVATAR_SIZE, AVATAR_SIZE, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        canvas.drawCircle(AVATAR_SIZE / 2f, AVATAR_SIZE / 2f, AVATAR_SIZE / 2f, paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(source, null, Rect(0, 0, AVATAR_SIZE, AVATAR_SIZE), paint)
+        return output
+    }
+
+    /** Circular Kaspa-teal avatar with the contact's initials — the last resort of [avatarBitmap]. */
     private fun initialsBitmap(label: String): Bitmap {
-        val size = 256
+        val size = AVATAR_SIZE
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = KASPA_TEAL }
@@ -173,5 +231,6 @@ class ShareShortcutsManager @Inject constructor(
         const val SHARE_TARGET_CATEGORY = "com.kachat.app.category.SHARE_TARGET"
         private const val MAX_SHORTCUTS = 8
         private const val KASPA_TEAL = 0xFF49EACB.toInt()
+        private const val AVATAR_SIZE = 256
     }
 }

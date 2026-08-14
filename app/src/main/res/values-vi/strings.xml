@@ -312,7 +312,6 @@
     <string name="view_on_changenow">Xem trên ChangeNOW</string>
     <string name="waiting_for_camera">Đang chờ máy ảnh...</string>
     <string name="waiting_on_opponent">Dang cho doi thu</string>
-    <string name="when_you_message_someone_new_on">Khi bạn nhắn tin cho ai đó mới trên KaChat, họ sẽ không nhận được thông báo và tin nhắn của bạn sẽ bị ẩn cho đến khi họ trả lời bạn hoặc cũng thêm bạn. Điều này bảo vệ chống spam và tăng quyền riêng tư của bạn. Nếu bạn muốn họ được thông báo, hãy chạm vào biểu tượng bàn tay để gửi yêu cầu liên lạc, việc này sẽ tốn 0,2 KAS. (Lưu ý: tất cả các ứng dụng nhắn tin không phải KaChat sẽ yêu cầu một yêu cầu liên lạc)</string>
     <string name="wipe_account">Xóa tài khoản</string>
     <string name="wipe_everything">Xóa tất cả</string>
     <string name="wipe_incoming_messages">Xóa tin nhắn đến</string>

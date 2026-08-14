@@ -187,6 +187,7 @@ fun GroupChatThreadScreen(
     // groupMemberAvatarsByAddress/groupMemberNamesByAddress). This is what makes group chats show
     // avatars + KNS names instead of raw addresses.
     val contactAvatarsByAddress by chatViewModel.groupMemberAvatarsByAddress.collectAsState()
+    val contactPhotoUrisByAddress by chatViewModel.contactPhotoUrisByAddress.collectAsState()
     val contactAliasesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val pendingPhotoUri by chatViewModel.groupPendingPhotoUri.collectAsState()
     val voiceRecordingState by chatViewModel.groupVoiceRecordingState.collectAsState()
@@ -682,6 +683,7 @@ fun GroupChatThreadScreen(
                             message = message,
                             group = group,
                             avatarUrl = message.senderAddress?.let { contactAvatarsByAddress[it] },
+                            avatarPhotoUri = message.senderAddress?.let { contactPhotoUrisByAddress[it] },
                             liveAlias = message.senderAddress?.let { contactAliasesByAddress[it] },
                             myAddress = myAddress,
                             myAvatarUrl = myKnsProfile?.avatarUrl,
@@ -956,6 +958,8 @@ private fun GroupMessageBubble(
     message: GroupMessage,
     group: com.kachat.app.models.GroupEntity?,
     avatarUrl: String?,
+    /** Sender's device address-book photo, when they're a linked phone contact — the no-KNS-avatar fallback. */
+    avatarPhotoUri: String? = null,
     liveAlias: String?,
     myAddress: String?,
     myAvatarUrl: String?,
@@ -1044,6 +1048,7 @@ private fun GroupMessageBubble(
             groupAvatarButton(
                 address = message.senderAddress,
                 avatarUrl = avatarUrl,
+                photoUri = avatarPhotoUri,
                 fallbackText = senderName,
                 navController = navController,
                 isMuted = isMuted,
@@ -1269,6 +1274,7 @@ private fun GroupMessageBubble(
 private fun groupAvatarButton(
     address: String?,
     avatarUrl: String?,
+    photoUri: String? = null,
     fallbackText: String,
     navController: NavController,
     isOwnMessage: Boolean = false,
@@ -1278,7 +1284,7 @@ private fun groupAvatarButton(
     onHide: (String) -> Unit = {}
 ) {
     if (address == null) {
-        ContactAvatar(imageUrl = avatarUrl, fallbackText = fallbackText, size = 32.dp)
+        ContactAvatar(imageUrl = avatarUrl, deviceContactPhotoUri = photoUri, fallbackText = fallbackText, size = 32.dp)
         return
     }
     var showAvatarMenu by remember { mutableStateOf(false) }
@@ -1292,6 +1298,7 @@ private fun groupAvatarButton(
     ) {
         ContactAvatar(
             imageUrl = avatarUrl,
+            deviceContactPhotoUri = photoUri,
             fallbackText = fallbackText,
             size = 32.dp,
             modifier = Modifier.clickable { showAvatarMenu = true }
@@ -1357,6 +1364,7 @@ fun GroupChatInfoScreen(
     // Merged contact+KNS maps so the roster shows avatars + KNS names for non-contact members too
     // (see the group thread screen / VM's groupMemberAvatarsByAddress/groupMemberNamesByAddress).
     val contactAvatarsByAddress by chatViewModel.groupMemberAvatarsByAddress.collectAsState()
+    val contactPhotoUrisByAddress by chatViewModel.contactPhotoUrisByAddress.collectAsState()
     val contactAliasesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val groupMentionsOnly by chatViewModel.groupMentionsOnly.collectAsState()
     val members = remember(group?.membersJson) {
@@ -1421,7 +1429,12 @@ fun GroupChatInfoScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            ContactAvatar(imageUrl = contactAvatarsByAddress[member.address], fallbackText = memberLabel, size = 32.dp)
+                            ContactAvatar(
+                                imageUrl = contactAvatarsByAddress[member.address],
+                                deviceContactPhotoUri = contactPhotoUrisByAddress[member.address],
+                                fallbackText = memberLabel,
+                                size = 32.dp
+                            )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(text = memberLabel, color = LocalAppColors.current.textPrimary)
                         }

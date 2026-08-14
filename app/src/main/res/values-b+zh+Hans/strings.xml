@@ -312,7 +312,6 @@
     <string name="view_on_changenow">在 ChangeNOW 上查看</string>
     <string name="waiting_for_camera">正在等待相机...</string>
     <string name="waiting_on_opponent">等待对手</string>
-    <string name="when_you_message_someone_new_on">当您在 KaChat 上给新对象发送消息时,对方不会收到通知,您的消息将保持隐藏,直到对方回复您或也将您添加。这可以防止垃圾信息并提高您的隐私。如果您希望对方收到通知,请点击手形图标发送通信请求,费用为 0.2 KAS。(注意:所有非 KaChat 的消息应用都需要发送通信请求)</string>
     <string name="wipe_account">清除账户</string>
     <string name="wipe_everything">清除所有内容</string>
     <string name="wipe_incoming_messages">清除接收消息</string>

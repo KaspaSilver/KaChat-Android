@@ -1114,6 +1114,7 @@ private fun ConversationRow(
     ) {
         ContactAvatar(
             imageUrl = convo.contact.knsAvatarUrl,
+            deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
             fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
             size = 48.dp
         )
@@ -1178,7 +1179,23 @@ private fun ConversationRow(
     }
 }
 
-/** Contact avatar — shows the KNS profile photo when available, else falls back to initials, everywhere a contact is shown. */
+/**
+ * Contact avatar — the single place the app's avatar resolution order lives, used everywhere a
+ * contact is shown:
+ *
+ *   1. [imageUrl] — the contact's KNS profile photo (a remote https URL), when they have one.
+ *   2. [deviceContactPhotoUri] — the photo from the device address book for a linked phone
+ *      contact (a local `content://` URI; see [com.kachat.app.models.ContactEntity.systemContactPhotoUri]).
+ *   3. the person glyph.
+ *
+ * Both image steps go through Coil, so the memory/disk caches and the off-main-thread decode are
+ * the same for a device photo as for a KNS avatar. A candidate that fails to load falls through to
+ * the next one rather than dead-ending on the glyph — that's what makes a broken/expired KNS URL
+ * still show the device photo.
+ *
+ * Call sites should pass BOTH sources rather than pre-collapsing them, so the fallback order stays
+ * defined here and can't drift per screen.
+ */
 @Composable
 fun ContactAvatar(
     imageUrl: String?,
@@ -1186,8 +1203,15 @@ fun ContactAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     backgroundColor: Color = LocalAppColors.current.surface,
-    fontSize: TextUnit = 16.sp
+    fontSize: TextUnit = 16.sp,
+    deviceContactPhotoUri: String? = null
 ) {
+    val candidates = remember(imageUrl, deviceContactPhotoUri) {
+        listOfNotNull(
+            imageUrl?.takeIf { it.isNotBlank() },
+            deviceContactPhotoUri?.takeIf { it.isNotBlank() }
+        )
+    }
     Box(
         modifier = modifier
             .size(size)
@@ -1195,19 +1219,26 @@ fun ContactAvatar(
             .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
-        if (imageUrl != null) {
-            SubcomposeAsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                loading = { AvatarInitials(fallbackText, fontSize) },
-                error = { AvatarInitials(fallbackText, fontSize) }
-            )
-        } else {
-            AvatarInitials(fallbackText, fontSize)
-        }
+        AvatarImageChain(candidates, fallbackText, fontSize)
     }
+}
+
+/** Renders [candidates] in order, dropping to the next on load failure and to the glyph when exhausted. */
+@Composable
+private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fontSize: TextUnit) {
+    val current = candidates.firstOrNull()
+    if (current == null) {
+        AvatarInitials(fallbackText, fontSize)
+        return
+    }
+    SubcomposeAsyncImage(
+        model = current,
+        contentDescription = null,
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Crop,
+        loading = { AvatarInitials(fallbackText, fontSize) },
+        error = { AvatarImageChain(candidates.drop(1), fallbackText, fontSize) }
+    )
 }
 
 @Composable

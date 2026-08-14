@@ -566,6 +566,16 @@ class ChatViewModel @Inject constructor(
         .map { contacts -> contacts.associateBy({ it.id }, { it.knsAvatarUrl }) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /**
+     * address -> cached device address-book photo URI, the fallback rendered wherever there's no
+     * KNS avatar (see [com.kachat.app.models.ContactEntity.systemContactPhotoUri]). Paired with
+     * [contactAvatarsByAddress] at every group-chat avatar call site so group members resolve
+     * through the same KNS -> device photo -> glyph chain the 1:1 screens use.
+     */
+    val contactPhotoUrisByAddress: StateFlow<Map<String, String?>> = chatRepository.getContacts()
+        .map { contacts -> contacts.associateBy({ it.id }, { it.systemContactPhotoUri }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     /** address -> live contact alias (KNS-resolved name or custom nickname), for group chat's sender labels - see [contactAvatarsByAddress]. */
     val contactAliasesByAddress: StateFlow<Map<String, String>> = chatRepository.getContacts()
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
@@ -1430,8 +1440,8 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Links a chat to a phone contact picked via ActivityResultContracts.PickContact() — that name always wins over KNS auto-rename. */
-    fun linkSystemContact(contactId: String, lookupKey: String, displayName: String) {
-        viewModelScope.launch { chatRepository.linkSystemContact(contactId, lookupKey, displayName, source = "manual") }
+    fun linkSystemContact(contactId: String, lookupKey: String, displayName: String, photoUri: String? = null) {
+        viewModelScope.launch { chatRepository.linkSystemContact(contactId, lookupKey, displayName, source = "manual", photoUri = photoUri) }
     }
 
     fun unlinkSystemContact(contactId: String) {
@@ -1473,20 +1483,41 @@ class ChatViewModel @Inject constructor(
             if (!settings.syncSystemContactsEnabled.first()) return@launch
             if (!systemContactsSyncService.hasReadPermission()) return@launch
 
-            val unlinked = chatRepository.getContacts().first().filter { it.systemContactId == null }
+            val allContacts = chatRepository.getContacts().first()
+
+            // Already-linked contacts: re-read their address-book photo so contacts linked before
+            // photos were stored get backfilled, and a photo changed on the phone follows through.
+            // ContentResolver work is deliberately off the main thread — this runs on every chat
+            // list appearance and a full address-book lookup per contact would jank the list.
+            val linked = allContacts.filter { it.systemContactId != null }
+            if (linked.isNotEmpty()) {
+                val refreshedPhotos = withContext(Dispatchers.IO) {
+                    linked.mapNotNull { contact ->
+                        val lookupKey = contact.systemContactId ?: return@mapNotNull null
+                        contact.id to systemContactsSyncService.photoUriForLookupKey(lookupKey)
+                    }
+                }
+                for ((contactId, photoUri) in refreshedPhotos) {
+                    chatRepository.updateSystemContactPhotoUri(contactId, photoUri)
+                }
+            }
+
+            val unlinked = allContacts.filter { it.systemContactId == null }
             if (unlinked.isEmpty()) return@launch
 
-            val matches = systemContactsSyncService.findMatches(unlinked.map { it.id }.toSet())
+            val matches = withContext(Dispatchers.IO) {
+                systemContactsSyncService.findMatches(unlinked.map { it.id }.toSet())
+            }
             for (contact in unlinked) {
                 val match = matches[contact.id] ?: continue
-                chatRepository.linkSystemContact(contact.id, match.lookupKey, match.displayName, source = "manual")
+                chatRepository.linkSystemContact(contact.id, match.lookupKey, match.displayName, source = "manual", photoUri = match.photoUri)
             }
 
             if (settings.autoCreateSystemContactsEnabled.first() && systemContactsSyncService.hasWritePermission()) {
                 for (contact in unlinked) {
                     if (contact.id in matches) continue // just linked above
                     val alias = contact.alias ?: contact.id.takeLast(8)
-                    val lookupKey = systemContactsSyncService.createShadowContact(contact.id, alias) ?: continue
+                    val lookupKey = withContext(Dispatchers.IO) { systemContactsSyncService.createShadowContact(contact.id, alias) } ?: continue
                     chatRepository.linkSystemContact(contact.id, lookupKey, alias, source = "autoCreated")
                 }
             }
@@ -2210,19 +2241,30 @@ class ChatViewModel @Inject constructor(
         private const val NEXTCLOUD_LINK_PREVIEW_BYTES = 100
 
         /**
-         * We've reached out with no handshake (deterministic-alias messaging) and haven't
-         * heard back yet — matches iOS's `shouldShowUnnotifiedWarning`: at least one sent
-         * message, no handshake in either direction, no payment ever exchanged, and they
-         * haven't sent anything back. Any of those happening clears the banner for good.
+         * Whether the "the recipient won't see your messages yet" banner belongs in a 1:1 chat.
+         *
+         * Cross-platform corrected semantics (desktop's `relationshipState === "established"`,
+         * which this is the Android equivalent of):
+         *  - Visible from the moment the chat opens. It is NOT gated on having already sent
+         *    something, and NOT gated on the composer having text — the whole point is to warn
+         *    *before* the user types into the void.
+         *  - Hidden only once the relationship is genuinely reciprocated: at least one real
+         *    non-handshake message in EACH direction. Evidence in one direction only isn't
+         *    enough, and a handshake on its own isn't evidence of communication at all.
+         *
+         * "Genuine" excludes handshakes (protocol traffic, not conversation) and empty-bodied
+         * messages, but counts a payment either way — an actual KAS transfer is real two-way
+         * contact even when it carries no note.
          */
         internal fun shouldShowUnnotifiedWarning(messages: List<MessageEntity>): Boolean {
-            val hasOutgoing = messages.any { it.direction == "sent" }
-            val hasIncomingHandshake = messages.any { it.type == com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE && it.direction == "received" }
-            val hasOutgoingHandshake = messages.any { it.type == com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE && it.direction == "sent" }
-            val hasAnyPayment = messages.any { it.type == com.kachat.app.util.MessageProtocol.TYPE_PAY }
-            val hasAnyIncoming = messages.any { it.direction == "received" }
+            fun isGenuine(m: MessageEntity): Boolean =
+                m.type != com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE &&
+                    (m.type == com.kachat.app.util.MessageProtocol.TYPE_PAY || !m.plaintextBody.isNullOrBlank())
 
-            return hasOutgoing && !hasIncomingHandshake && !hasOutgoingHandshake && !hasAnyPayment && !hasAnyIncoming
+            val hasGenuineOutgoing = messages.any { it.direction == "sent" && isGenuine(it) }
+            val hasGenuineIncoming = messages.any { it.direction == "received" && isGenuine(it) }
+
+            return !(hasGenuineOutgoing && hasGenuineIncoming)
         }
 
         /** Matches iOS's `shouldShowRetry` — only failed outgoing non-payment messages can be retried. */

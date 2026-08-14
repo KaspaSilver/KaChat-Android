@@ -22,18 +22,27 @@ class ChatViewModelTest {
     )
 
     @Test
-    fun `no warning before any message has been sent`() {
-        assertFalse(ChatViewModel.shouldShowUnnotifiedWarning(emptyList()))
+    fun `warning shows on a brand-new chat, before anything has been sent`() {
+        // Not gated on having already messaged them — the warning exists to be read *before*
+        // typing into the void, so it's up from the moment the chat opens.
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(emptyList()))
     }
 
     @Test
-    fun `warning shows after sending a comm message with no handshake and no reply`() {
+    fun `warning shows after sending a comm message with no reply`() {
         val messages = listOf(message(MessageProtocol.TYPE_COMM, "sent"))
         assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(messages))
     }
 
     @Test
-    fun `warning clears once they reply`() {
+    fun `warning still shows when only they have messaged us`() {
+        // Evidence in one direction isn't reciprocity — we still have no proof they can see us.
+        val messages = listOf(message(MessageProtocol.TYPE_COMM, "received"))
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(messages))
+    }
+
+    @Test
+    fun `warning clears once both sides have sent a real message`() {
         val messages = listOf(
             message(MessageProtocol.TYPE_COMM, "sent"),
             message(MessageProtocol.TYPE_COMM, "received")
@@ -42,7 +51,7 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `warning clears once a handshake exists in either direction`() {
+    fun `a handshake in either direction is not evidence of communication`() {
         val sentHandshake = listOf(
             message(MessageProtocol.TYPE_COMM, "sent"),
             message(MessageProtocol.TYPE_HANDSHAKE, "sent")
@@ -51,17 +60,37 @@ class ChatViewModelTest {
             message(MessageProtocol.TYPE_COMM, "sent"),
             message(MessageProtocol.TYPE_HANDSHAKE, "received")
         )
-        assertFalse(ChatViewModel.shouldShowUnnotifiedWarning(sentHandshake))
-        assertFalse(ChatViewModel.shouldShowUnnotifiedWarning(receivedHandshake))
+        val bothHandshakes = listOf(
+            message(MessageProtocol.TYPE_HANDSHAKE, "sent"),
+            message(MessageProtocol.TYPE_HANDSHAKE, "received")
+        )
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(sentHandshake))
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(receivedHandshake))
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(bothHandshakes))
     }
 
     @Test
-    fun `warning clears once a payment has ever been exchanged`() {
+    fun `a payment counts as a real message even with no note`() {
         val messages = listOf(
             message(MessageProtocol.TYPE_COMM, "sent"),
-            message(MessageProtocol.TYPE_PAY, "received")
+            message(MessageProtocol.TYPE_PAY, "received").copy(plaintextBody = null)
         )
         assertFalse(ChatViewModel.shouldShowUnnotifiedWarning(messages))
+    }
+
+    @Test
+    fun `a payment in one direction alone does not clear the warning`() {
+        val messages = listOf(message(MessageProtocol.TYPE_PAY, "received"))
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(messages))
+    }
+
+    @Test
+    fun `an empty-bodied comm message is not evidence of communication`() {
+        val messages = listOf(
+            message(MessageProtocol.TYPE_COMM, "sent"),
+            message(MessageProtocol.TYPE_COMM, "received").copy(plaintextBody = "  ")
+        )
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(messages))
     }
 
     @Test

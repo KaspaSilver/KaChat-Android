@@ -366,6 +366,7 @@ fun ChatThreadScreen(
                     ) {
                         ContactAvatar(
                             imageUrl = conversation?.contact?.knsAvatarUrl,
+                            deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                             fallbackText = conversation?.contact?.alias ?: contactId.takeLast(8),
                             size = 36.dp
                         )
@@ -435,6 +436,12 @@ fun ChatThreadScreen(
             // mic, payment entry) dims and stops responding until the chatting address is funded
             // — see Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
             Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
+                // Above everything else in the composer stack (including payment mode's fee /
+                // available pills) so it never collides with them, and visible the instant the
+                // chat opens rather than only once the user starts typing.
+                if (ChatViewModel.shouldShowUnnotifiedWarning(messages)) {
+                    UnnotifiedMessageBanner()
+                }
                 if (paymentMode) {
                     Column(
                         modifier = Modifier
@@ -1106,6 +1113,7 @@ fun ChatThreadScreen(
                                 },
                                 onOpenChessGame = { gameId -> navController.navigate("chess_game/$contactId/$gameId") },
                                 contactAvatarUrl = conversation?.contact?.knsAvatarUrl,
+                                contactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 contactAvatarFallback = conversation?.contact?.alias ?: contactId.takeLast(8),
                                 myAvatarUrl = myKnsProfile?.avatarUrl,
                                 myAvatarFallback = myAddress?.takeLast(8) ?: "",
@@ -1169,9 +1177,6 @@ fun ChatThreadScreen(
                                 }
                             }
                         }
-                    }
-                    if (ChatViewModel.shouldShowUnnotifiedWarning(messages)) {
-                        item { UnnotifiedMessageBanner() }
                     }
                 }
             }
@@ -1305,28 +1310,37 @@ fun ChatThreadScreen(
     }
 }
 
+/**
+ * The new-chat handshake warning, matching desktop's `handshake-warning-banner` word for word.
+ *
+ * Sits directly above the composer and is visible from the moment a 1:1 chat opens (it is not
+ * gated on typing) until the conversation is genuinely reciprocated — see
+ * [ChatViewModel.shouldShowUnnotifiedWarning] for the exact rule. Styled off the theme's own
+ * surface/warning tokens like the app's other inline banners, rather than the hardcoded orange
+ * this used before.
+ */
 @Composable
 private fun UnnotifiedMessageBanner() {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFFF9500).copy(alpha = 0.08f))
-            .border(0.5.dp, Color(0xFFFF9500).copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(10.dp),
+            .padding(bottom = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surface)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
         Icon(
             imageVector = Icons.Default.Warning,
             contentDescription = null,
-            tint = Color(0xFFFF9500),
+            tint = colors.warning,
             modifier = Modifier.size(16.dp).padding(top = 2.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = stringResource(R.string.when_you_message_someone_new_on),
-            color = LocalAppColors.current.textSecondary,
+            text = stringResource(R.string.the_recipient_wont_see_your_messages),
+            color = colors.textSecondary,
             style = MaterialTheme.typography.bodySmall
         )
     }
@@ -1447,6 +1461,8 @@ internal fun PaymentCardBubble(
 fun MessageBubble(
     message: MessageEntity,
     contactAvatarUrl: String? = null,
+    /** Device address-book photo of this contact — the fallback when they have no KNS avatar. */
+    contactPhotoUri: String? = null,
     contactAvatarFallback: String = "",
     myAvatarUrl: String? = null,
     myAvatarFallback: String = "",
@@ -1598,7 +1614,7 @@ fun MessageBubble(
             verticalAlignment = Alignment.Bottom
         ) {
         if (!isSent) {
-            ContactAvatar(imageUrl = contactAvatarUrl, fallbackText = contactAvatarFallback, size = 32.dp)
+            ContactAvatar(imageUrl = contactAvatarUrl, deviceContactPhotoUri = contactPhotoUri, fallbackText = contactAvatarFallback, size = 32.dp)
             Spacer(Modifier.width(8.dp))
         }
         Column(
@@ -2763,12 +2779,16 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // Label follows the same reactive condition as the destination: no profile yet
+                // means "Create KNS Profile", and it flips to "Edit KNS Profile" the moment
+                // activeProfileDomainName lands - no app restart needed.
+                val hasKnsProfile = !activeProfileDomainName.isNullOrBlank()
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (!activeProfileDomainName.isNullOrBlank()) {
+                            if (hasKnsProfile) {
                                 navController.navigate("edit_kns_profile")
                             } else {
                                 navController.navigate("create_kns_profile")
@@ -2779,7 +2799,7 @@ fun ProfileScreen(
                     Icon(Icons.Default.Badge, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        stringResource(R.string.edit_kns_profile),
+                        stringResource(if (hasKnsProfile) R.string.edit_kns_profile else R.string.create_kns_profile),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
@@ -9802,17 +9822,24 @@ fun ChatInfoScreen(
     val context = LocalContext.current
     val pickContactLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
+        // PHOTO_URI rides along on the picker's one-shot URI grant (no READ_CONTACTS needed), so a
+        // manual link picks up the device address-book photo the same way the automatic scan does.
         context.contentResolver.query(
             uri,
-            arrayOf(ContactsContract.Contacts.LOOKUP_KEY, ContactsContract.Contacts.DISPLAY_NAME_PRIMARY),
+            arrayOf(
+                ContactsContract.Contacts.LOOKUP_KEY,
+                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+                ContactsContract.Contacts.PHOTO_URI
+            ),
             null, null, null
         )?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val lookupKey = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY))
                 val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY))
+                val photoUri = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_URI))
                 if (lookupKey != null && displayName != null) {
                     contactName = displayName
-                    chatViewModel.linkSystemContact(contactId, lookupKey, displayName)
+                    chatViewModel.linkSystemContact(contactId, lookupKey, displayName, photoUri)
                 }
             }
         }
@@ -9865,6 +9892,7 @@ fun ChatInfoScreen(
                     ) {
                         ContactAvatar(
                             imageUrl = knsFields?.avatarUrl,
+                            deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                             fallbackText = conversation?.contact?.alias ?: contactId.takeLast(8),
                             size = 60.dp,
                             backgroundColor = LocalAppColors.current.surfaceVariant,
@@ -9910,6 +9938,7 @@ fun ChatInfoScreen(
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             ContactAvatar(
                                 imageUrl = knsFields?.avatarUrl,
+                                deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 fallbackText = knsProfile?.selectedDomain ?: contactId.takeLast(8),
                                 size = 48.dp
                             )

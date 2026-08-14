@@ -312,7 +312,6 @@
     <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
     <string name="waiting_for_camera">Kamera bekleniyor...</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
-    <string name="when_you_message_someone_new_on">KaChat\'te yeni biriyle mesajlastiginizda, o kisi bildirim almaz ve mesajiniz o size yanit verene veya o da sizi eklemedigi surece gizli kalir. Bu, spam\'e karsi korur ve gizliliginizi artirir. Bildirim almasini istiyorsaniz, 0,2 KAS\'a mal olacak bir iletisim istegi gondermek icin el simgesine dokunun. (Not: KaChat disindaki tum mesajlasma uygulamalari iletisim istegi gerektirecektir)</string>
     <string name="wipe_account">Hesabi Sil</string>
     <string name="wipe_everything">Her Seyi Sil</string>
     <string name="wipe_incoming_messages">Gelen Mesajları Sil</string>

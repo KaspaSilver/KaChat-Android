@@ -312,7 +312,6 @@
     <string name="view_on_changenow">Voir sur ChangeNOW</string>
     <string name="waiting_for_camera">En attente de la camera...</string>
     <string name="waiting_on_opponent">En attente de l\'adversaire</string>
-    <string name="when_you_message_someone_new_on">Quand vous ecrivez a quelqu\'un de nouveau sur KaChat, il ne recevra pas de notification et votre message restera cache jusqu\'a ce qu\'il vous reponde ou vous ajoute aussi. Cela protege contre le spam et augmente votre confidentialite. Si vous voulez qu\'il soit notifie, touchez l\'icone de la main pour envoyer une demande de communication qui coutera 0,2 KAS. (Remarque : toutes les applications de messagerie hors KaChat necessiteront une demande de communication)</string>
     <string name="wipe_account">Effacer le compte</string>
     <string name="wipe_everything">Tout effacer</string>
     <string name="wipe_incoming_messages">Effacer les messages entrants</string>

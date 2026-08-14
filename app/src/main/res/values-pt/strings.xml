@@ -312,7 +312,6 @@
     <string name="view_on_changenow">Ver na ChangeNOW</string>
     <string name="waiting_for_camera">Aguardando a camera...</string>
     <string name="waiting_on_opponent">Aguardando oponente</string>
-    <string name="when_you_message_someone_new_on">Quando voce envia mensagem para alguem novo no KaChat, essa pessoa nao recebe notificacao e sua mensagem fica oculta ate que ela responda ou tambem adicione voce. Isso protege contra spam e aumenta sua privacidade. Se quiser que ela seja notificada, toque no icone de mao para enviar uma solicitacao de comunicacao, que custara 0,2 KAS. (Nota: todos os apps de mensagens que nao sejam o KaChat exigirao uma solicitacao de comunicacao)</string>
     <string name="wipe_account">Apagar conta</string>
     <string name="wipe_everything">Apagar tudo</string>
     <string name="wipe_incoming_messages">Apagar mensagens recebidas</string>

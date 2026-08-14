@@ -312,7 +312,6 @@
     <string name="view_on_changenow">مشاهده در ChangeNOW</string>
     <string name="waiting_for_camera">در انتظار دوربین...</string>
     <string name="waiting_on_opponent">در انتظار حریف</string>
-    <string name="when_you_message_someone_new_on">وقتی به شخص جدیدی در KaChat پیام می‌دهید، او اعلانی دریافت نمی‌کند و پیام شما پنهان می‌ماند تا زمانی که به شما پاسخ دهد یا شما را نیز اضافه کند. این از هرزنامه محافظت کرده و حریم خصوصی شما را افزایش می‌دهد. اگر می‌خواهید او مطلع شود، روی آیکون دست ضربه بزنید تا درخواست ارتباطی ارسال کنید که 0.2 KAS هزینه دارد. (توجه: تمام برنامه‌های پیام‌رسانی غیر از KaChat به درخواست ارتباط نیاز خواهند داشت)</string>
     <string name="wipe_account">پاک کردن حساب</string>
     <string name="wipe_everything">پاک کردن همه چیز</string>
     <string name="wipe_incoming_messages">پاک کردن پیام‌های ورودی</string>

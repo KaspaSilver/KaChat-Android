@@ -198,21 +198,40 @@ class ChatRepository @Inject constructor(
         return database.contactDao().getContact(id, walletManager.getAddress())
     }
 
-    suspend fun linkSystemContact(contactId: String, lookupKey: String, displayName: String, source: String = "manual") {
+    suspend fun linkSystemContact(
+        contactId: String,
+        lookupKey: String,
+        displayName: String,
+        source: String = "manual",
+        photoUri: String? = null
+    ) {
         val contact = getContact(contactId) ?: return
         addContact(
             contact.copy(
                 alias = displayName,
                 systemContactId = lookupKey,
                 systemContactName = displayName,
-                systemContactLinkSource = source
+                systemContactLinkSource = source,
+                systemContactPhotoUri = photoUri
             )
         )
     }
 
+    /**
+     * Refreshes just the cached device-address-book photo of an already-linked contact — used by
+     * the periodic sync to backfill contacts linked before photos were stored and to follow photo
+     * changes made in the phone's address book. No-op when nothing changed, so it never churns the
+     * contacts flow (and therefore never re-renders the chat list) for no reason.
+     */
+    suspend fun updateSystemContactPhotoUri(contactId: String, photoUri: String?) {
+        val contact = getContact(contactId) ?: return
+        if (contact.systemContactPhotoUri == photoUri) return
+        addContact(contact.copy(systemContactPhotoUri = photoUri))
+    }
+
     suspend fun unlinkSystemContact(contactId: String) {
         val contact = getContact(contactId) ?: return
-        addContact(contact.copy(systemContactId = null, systemContactName = null, systemContactLinkSource = null))
+        addContact(contact.copy(systemContactId = null, systemContactName = null, systemContactLinkSource = null, systemContactPhotoUri = null))
     }
 
     suspend fun insertMessage(message: MessageEntity) {

@@ -312,7 +312,6 @@
     <string name="view_on_changenow">ChangeNOW पर देखें</string>
     <string name="waiting_for_camera">कैमरे की प्रतीक्षा हो रही है...</string>
     <string name="waiting_on_opponent">प्रतिद्वंद्वी की प्रतीक्षा है</string>
-    <string name="when_you_message_someone_new_on">जब आप KaChat पर किसी नए व्यक्ति को संदेश भेजते हैं, तो उसे कोई सूचना नहीं मिलेगी और आपका संदेश तब तक छिपा रहेगा जब तक वह आपको जवाब नहीं देता या आपको भी नहीं जोड़ता। यह स्पैम से बचाता है और आपकी गोपनीयता बढ़ाता है। अगर आप चाहते हैं कि उसे सूचित किया जाए, तो संचार अनुरोध भेजने के लिए हाथ के आइकन पर टैप करें, जिसकी कीमत 0.2 KAS होगी। (नोट: सभी गैर-KaChat मैसेजिंग ऐप्स को संचार अनुरोध की आवश्यकता होगी)</string>
     <string name="wipe_account">खाता मिटाएं</string>
     <string name="wipe_everything">सब कुछ मिटाएं</string>
     <string name="wipe_incoming_messages">आने वाले संदेश मिटाएं</string>

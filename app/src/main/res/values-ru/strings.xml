@@ -312,7 +312,6 @@
     <string name="view_on_changenow">Посмотреть на ChangeNOW</string>
     <string name="waiting_for_camera">Ожидание камеры...</string>
     <string name="waiting_on_opponent">Ожидание соперника</string>
-    <string name="when_you_message_someone_new_on">Когда вы пишете кому-то новому в KaChat, он не получит уведомления, а ваше сообщение останется скрытым, пока он не ответит вам или тоже не добавит вас. Это защищает от спама и повышает вашу приватность. Если хотите, чтобы он получил уведомление, нажмите значок руки, чтобы отправить запрос на общение, который будет стоить 0,2 KAS. (Примечание: все мессенджеры, кроме KaChat, потребуют запрос на общение)</string>
     <string name="wipe_account">Удалить аккаунт</string>
     <string name="wipe_everything">Удалить всё</string>
     <string name="wipe_incoming_messages">Очистить входящие сообщения</string>

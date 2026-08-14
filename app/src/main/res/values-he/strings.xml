@@ -312,7 +312,6 @@
     <string name="view_on_changenow">צפה ב-ChangeNOW</string>
     <string name="waiting_for_camera">ממתין למצלמה...</string>
     <string name="waiting_on_opponent">ממתין ליריב</string>
-    <string name="when_you_message_someone_new_on">כשאתה שולח הודעה למישהו חדש ב-KaChat, הוא לא יקבל התראה וההודעה שלך תישאר מוסתרת עד שהוא ישיב לך או גם יוסיף אותך. זה מגן מפני ספאם ומגביר את הפרטיות שלך. אם אתה רוצה שהוא יקבל התראה, הקש על סמל היד כדי לשלוח בקשת תקשורת שתעלה 0.2 KAS. (הערה: כל אפליקציות ההודעות שאינן KaChat ידרשו בקשת תקשורת)</string>
     <string name="wipe_account">מחק חשבון</string>
     <string name="wipe_everything">מחק הכל</string>
     <string name="wipe_incoming_messages">מחק הודעות נכנסות</string>

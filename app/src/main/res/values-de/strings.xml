@@ -312,7 +312,6 @@
     <string name="view_on_changenow">Auf ChangeNOW ansehen</string>
     <string name="waiting_for_camera">Warte auf Kamera...</string>
     <string name="waiting_on_opponent">Warte auf Gegner</string>
-    <string name="when_you_message_someone_new_on">Wenn du jemand Neuem auf KaChat schreibst, erhalt er keine Benachrichtigung und deine Nachricht bleibt verborgen, bis er dir antwortet oder dich ebenfalls hinzufugt. Dies schutzt vor Spam und erhoht deine Privatsphare. Wenn du mochtest, dass er benachrichtigt wird, tippe auf das Handsymbol, um eine Kommunikationsanfrage zu senden, die 0,2 KAS kostet. (Hinweis: Alle Nicht-KaChat-Messaging-Apps erfordern eine Kommunikationsanfrage)</string>
     <string name="wipe_account">Konto loschen</string>
     <string name="wipe_everything">Alles loschen</string>
     <string name="wipe_incoming_messages">Eingehende Nachrichten löschen</string>

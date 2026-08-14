@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 33,
+    version = 34,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -366,6 +366,21 @@ abstract class KaChatDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `reactions` ADD COLUMN `deliveryStatus` TEXT NOT NULL DEFAULT 'sent'")
                 db.execSQL("ALTER TABLE `reactions` ADD COLUMN `failedAction` TEXT DEFAULT NULL")
+            }
+        }
+
+        /**
+         * v33 -> v34: adds `contacts.systemContactPhotoUri` — the device address-book photo of a
+         * linked phone contact, so it can stand in wherever a KNS avatar would render. A single
+         * nullable column, so the plain `ALTER TABLE ... ADD COLUMN` form is enough (same shape as
+         * v18->v19/v20->v21). Existing linked contacts start `NULL` and are backfilled lazily by
+         * `ChatViewModel.syncSystemContacts`, which now re-reads the photo URI for already-linked
+         * contacts too — no migration-time ContactsContract access (a Migration has only the raw
+         * database, and READ_CONTACTS may not even be granted at upgrade time).
+         */
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `contacts` ADD COLUMN `systemContactPhotoUri` TEXT DEFAULT NULL")
             }
         }
     }

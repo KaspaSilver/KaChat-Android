@@ -99,6 +99,7 @@ data class ContactEntity(
     val knsAvatarUrl: String? = null,       // Cached from the KNS profile of `knsName`, so the chat list can render an avatar without a live fetch per row
     val systemContactId: String? = null,    // Phone contact's LOOKUP_KEY, once linked via "Link from Contacts" — takes priority over KNS auto-rename
     val systemContactName: String? = null,  // Name snapshot at link time, for the "Linked: X" row
+    val systemContactPhotoUri: String? = null, // Device address-book photo (content:// URI) of the linked phone contact — the fallback every avatar uses when there's no KNS avatar. Stored (not resolved per-render) so the chat list never touches ContactsContract on the main thread; refreshed by ChatViewModel.syncSystemContacts.
     val systemContactLinkSource: String? = null, // "manual" | "autoCreated" — only "autoCreated" shadow contacts get deleted if Autocreate is turned off
     val photoAutoDisplayOverride: String? = null, // PhotoAutoDisplayMode.name, null = automatic (see ChatRepository.shouldAutoDisplayPhotos)
     val notificationOverride: String? = null // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
