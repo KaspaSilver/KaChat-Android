@@ -54,6 +54,26 @@ data class KPostsResponse(val posts: List<KPost>?, val pagination: KPagination?)
 
 data class KRepliesResponse(val replies: List<KPost>?, val pagination: KPagination?)
 
+/**
+ * One fetched page, keeping the RAW page's paging facts alongside the filtered rows.
+ *
+ * The KaChat-marker filter (and the viewer's mute/block lists further up) can shrink a 25-item
+ * server page down to two visible rows, so "did we reach the end?" can only ever be answered from
+ * the untouched response: [hasMore]/[cursor] come from the server's pagination block, and [rawIds]
+ * are every id the page carried, filtered or not. Callers use [rawIds] to detect a deployment that
+ * ignores `before` (a second page repeating the same ids) and stop instead of looping.
+ */
+data class KPage<T>(
+    val items: List<T>,
+    val rawIds: List<String>,
+    val cursor: String?,
+    val hasMore: Boolean,
+) {
+    companion object {
+        fun <T> empty(): KPage<T> = KPage(emptyList(), emptyList(), null, false)
+    }
+}
+
 data class KNotification(
     val id: String,
     val userPublicKey: String,
@@ -66,7 +86,7 @@ data class KNotification(
     val decodedContent: String? get() = postContent?.let { KaPostsProtocol.decodeB64(it) }
 }
 
-data class KNotificationsResponse(val notifications: List<KNotification>?)
+data class KNotificationsResponse(val notifications: List<KNotification>?, val pagination: KPagination?)
 
 /** One actor row from get-post-engagement (KaChat indexer fork). */
 data class KEngagementEntry(
@@ -76,7 +96,7 @@ data class KEngagementEntry(
     val kind: String, // upvote | downvote | repost | quote
 )
 
-data class KEngagementResponse(val engagement: List<KEngagementEntry>?)
+data class KEngagementResponse(val engagement: List<KEngagementEntry>?, val pagination: KPagination?)
 
 data class KFollowUser(val userPublicKey: String, val timestamp: Long?)
 
@@ -89,6 +109,7 @@ data class KFollowListResponse(
     val users: List<KFollowUser>?,
     val following: List<KFollowUser>?,
     val followers: List<KFollowUser>?,
+    val pagination: KPagination? = null,
 ) {
     val items: List<KFollowUser> get() = posts ?: users ?: following ?: followers ?: emptyList()
 }
@@ -155,13 +176,20 @@ interface KaPostApi {
         @Query("type") type: String = "all",
         @Query("requesterPubkey") requesterPubkey: String,
         @Query("limit") limit: Int = 100,
+        @Query("before") before: String? = null,
     ): KEngagementResponse
 
+    /**
+     * The follow-list endpoints are not documented as cursored; `before` is sent anyway so a
+     * deployment that supports it paginates, and one that ignores it simply replays page one -
+     * which the caller detects (no new ids) and treats as "end of list" instead of looping.
+     */
     @GET("get-users-following")
     suspend fun getUsersFollowing(
         @Query("userPubkey") userPubkey: String,
         @Query("requesterPubkey") requesterPubkey: String,
         @Query("limit") limit: Int = 100,
+        @Query("before") before: String? = null,
     ): KFollowListResponse
 
     @GET("get-users-followers")
@@ -169,6 +197,7 @@ interface KaPostApi {
         @Query("userPubkey") userPubkey: String,
         @Query("requesterPubkey") requesterPubkey: String,
         @Query("limit") limit: Int = 100,
+        @Query("before") before: String? = null,
     ): KFollowListResponse
 
     @GET("get-user-details")
@@ -245,65 +274,118 @@ class KaPostsService @Inject constructor(
         return hex
     }
 
-    // MARK: - Reads (KaChat-filtered)
+    // MARK: - Reads (KaChat-filtered, page-shaped)
+
+    /**
+     * Wraps one raw response into a [KPage]. `hasMore` prefers the server's own flag and falls
+     * back to "the page came back full"; the cursor prefers the server's opaque `nextCursor` and
+     * falls back to the last raw id, which the caller's no-new-ids guard makes safe on
+     * deployments where that is not what `before` means.
+     */
+    private fun <T> pageOf(
+        raw: List<T>,
+        filtered: List<T>,
+        pagination: KPagination?,
+        limit: Int,
+        idOf: (T) -> String,
+    ): KPage<T> {
+        val rawIds = raw.map(idOf)
+        return KPage(
+            items = filtered,
+            rawIds = rawIds,
+            cursor = pagination?.nextCursor ?: rawIds.lastOrNull(),
+            hasMore = pagination?.hasMore ?: (raw.size >= limit),
+        )
+    }
 
     /** Global feed (K "watching" = all posts). Filtered to KaChat-marked posts. */
-    suspend fun fetchGlobalFeed(limit: Int = 50, before: String? = null): List<KPost> =
+    suspend fun fetchGlobalFeedPage(limit: Int = 25, before: String? = null): KPage<KPost> =
         rethrowingApiError {
-            filterKaChat(api().getPostsWatching(requesterPubkey(), limit, before).posts.orEmpty())
+            val response = api().getPostsWatching(requesterPubkey(), limit, before)
+            val raw = response.posts.orEmpty()
+            pageOf(raw, filterKaChat(raw), response.pagination, limit) { it.id }
         }
 
     /** Content from accounts the requester follows. Top-level content only - replies live under threads. */
-    suspend fun fetchFollowingFeed(limit: Int = 50, before: String? = null): List<KPost> =
+    suspend fun fetchFollowingFeedPage(limit: Int = 25, before: String? = null): KPage<KPost> =
         rethrowingApiError {
-            filterKaChat(api().getContentsFollowing(requesterPubkey(), limit, before).posts.orEmpty())
-                .filter { (it.contentType ?: "post") != "reply" }
+            val response = api().getContentsFollowing(requesterPubkey(), limit, before)
+            val raw = response.posts.orEmpty()
+            val filtered = filterKaChat(raw).filter { (it.contentType ?: "post") != "reply" }
+            pageOf(raw, filtered, response.pagination, limit) { it.id }
         }
 
     /** One user's posts (by K pubkey). NOTE: the deployed indexer ignores includeReplies
      *  (get-posts serves content_type post/quote only) - use fetchUserReplies for replies. */
-    suspend fun fetchUserPosts(pubkey: String, limit: Int = 50, before: String? = null, includeReplies: Boolean = false): List<KPost> =
-        rethrowingApiError {
-            filterKaChat(
-                api().getUserPosts(pubkey, requesterPubkey(), limit, if (includeReplies) "true" else null, before).posts.orEmpty()
-            )
-        }
+    suspend fun fetchUserPostsPage(
+        pubkey: String,
+        limit: Int = 25,
+        before: String? = null,
+        includeReplies: Boolean = false,
+    ): KPage<KPost> = rethrowingApiError {
+        val response = api().getUserPosts(
+            pubkey, requesterPubkey(), limit, if (includeReplies) "true" else null, before,
+        )
+        val raw = response.posts.orEmpty()
+        pageOf(raw, filterKaChat(raw), response.pagination, limit) { it.id }
+    }
 
     /** One user's replies across ALL threads: get-replies with `user` instead of `post`
      *  (verified live + against the fork's handle_get_replies). Items carry parentPostId.
      *  The profile Replies tab must read this - get-posts never returns replies. */
-    suspend fun fetchUserReplies(pubkey: String, limit: Int = 50, before: String? = null): List<KPost> =
+    suspend fun fetchUserRepliesPage(pubkey: String, limit: Int = 25, before: String? = null): KPage<KPost> =
         rethrowingApiError {
-            filterKaChat(api().getUserReplies(pubkey, requesterPubkey(), limit, before).replies.orEmpty())
+            val response = api().getUserReplies(pubkey, requesterPubkey(), limit, before)
+            val raw = response.replies.orEmpty()
+            pageOf(raw, filterKaChat(raw), response.pagination, limit) { it.id }
         }
 
-    suspend fun fetchReplies(postId: String, limit: Int = 100, before: String? = null): List<KPost> =
+    suspend fun fetchRepliesPage(postId: String, limit: Int = 25, before: String? = null): KPage<KPost> =
         rethrowingApiError {
-            filterKaChat(api().getReplies(postId, requesterPubkey(), limit, before).replies.orEmpty())
+            val response = api().getReplies(postId, requesterPubkey(), limit, before)
+            val raw = response.replies.orEmpty()
+            pageOf(raw, filterKaChat(raw), response.pagination, limit) { it.id }
         }
 
     /** The requester's notification stream - actions on OUR content. */
-    suspend fun fetchNotifications(limit: Int = 100, before: String? = null): List<KNotification> =
+    suspend fun fetchNotificationsPage(limit: Int = 50, before: String? = null): KPage<KNotification> =
         rethrowingApiError {
-            api().getNotifications(requesterPubkey(), limit, before).notifications.orEmpty()
+            val response = api().getNotifications(requesterPubkey(), limit, before)
+            val raw = response.notifications.orEmpty()
+            pageOf(raw, raw, response.pagination, limit) { it.id }
         }
 
     /** Per-post actor lists (KaChat indexer fork) - works for ANY post. */
-    suspend fun fetchPostEngagement(postId: String, type: String = "all", limit: Int = 100): List<KEngagementEntry> =
-        rethrowingApiError {
-            api().getPostEngagement(postId, type, requesterPubkey(), limit).engagement.orEmpty()
-        }
+    suspend fun fetchPostEngagementPage(
+        postId: String,
+        type: String = "all",
+        limit: Int = 50,
+        before: String? = null,
+    ): KPage<KEngagementEntry> = rethrowingApiError {
+        val response = api().getPostEngagement(postId, type, requesterPubkey(), limit, before)
+        val raw = response.engagement.orEmpty()
+        pageOf(raw, raw, response.pagination, limit) { it.actionTxId }
+    }
 
     /** Who [pubkey] follows (followers=false) or who follows them (followers=true). */
-    suspend fun fetchFollowList(pubkey: String, followers: Boolean, limit: Int = 100): List<KFollowUser> =
-        rethrowingApiError {
-            val response = if (followers) {
-                api().getUsersFollowers(pubkey, requesterPubkey(), limit)
-            } else {
-                api().getUsersFollowing(pubkey, requesterPubkey(), limit)
-            }
-            response.items
+    suspend fun fetchFollowListPage(
+        pubkey: String,
+        followers: Boolean,
+        limit: Int = 50,
+        before: String? = null,
+    ): KPage<KFollowUser> = rethrowingApiError {
+        val response = if (followers) {
+            api().getUsersFollowers(pubkey, requesterPubkey(), limit, before)
+        } else {
+            api().getUsersFollowing(pubkey, requesterPubkey(), limit, before)
         }
+        val raw = response.items
+        pageOf(raw, raw, response.pagination, limit) { it.userPublicKey }
+    }
+
+    /** Single-page convenience for callers that never paginate (the notification poller). */
+    suspend fun fetchNotifications(limit: Int = 100, before: String? = null): List<KNotification> =
+        fetchNotificationsPage(limit, before).items
 
     suspend fun fetchUserDetails(pubkey: String): KUserDetails =
         rethrowingApiError { api().getUserDetails(pubkey, requesterPubkey()) }

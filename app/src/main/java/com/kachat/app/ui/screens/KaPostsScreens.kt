@@ -34,6 +34,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -87,6 +89,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -122,6 +125,7 @@ import com.kachat.app.viewmodels.KaPostsViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -210,6 +214,88 @@ private fun KaPostsViewModel.FeedTab.label(): String = when (this) {
     KaPostsViewModel.FeedTab.POPULAR -> "Popular"
 }
 
+// MARK: - Endless scrolling
+//
+// Every list in KaPosts pages the same way: a trigger that fires as the reader NEARS the end (not
+// at the last row - by then the stall is already visible), and a footer that shows what the fetch
+// is doing. The view model owns the "is one already in flight / have we hit the end" decision, so
+// [EndlessScroll] can fire freely and [KaPostsViewModel.loadMore*] just no-ops when it shouldn't run.
+
+/**
+ * Calls [onLoadMore] whenever the last visible row comes within
+ * [KaPostsViewModel.LOAD_MORE_THRESHOLD] of the end of [listState]'s list.
+ *
+ * Re-fires after an append too (the total grows, the check runs again), which is what fills a tall
+ * screen when the KaChat-marker filter leaves a page with only a couple of visible rows.
+ */
+@Composable
+private fun EndlessScroll(
+    listState: LazyListState,
+    key: Any? = Unit,
+    onLoadMore: () -> Unit,
+) {
+    val loadMore by rememberUpdatedState(onLoadMore)
+    LaunchedEffect(listState, key) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            (info.visibleItemsInfo.lastOrNull()?.index ?: -1) to info.totalItemsCount
+        }
+            .distinctUntilChanged()
+            .collect { (lastVisible, total) ->
+                if (total > 0 && lastVisible >= total - 1 - KaPostsViewModel.LOAD_MORE_THRESHOLD) {
+                    loadMore()
+                }
+            }
+    }
+}
+
+/**
+ * Bottom-of-list status row: a spinner while a page is being fetched, or a retry row when one
+ * failed. A failure never clears what is already loaded - the reader keeps their list and their
+ * place in it, and taps Retry to resume from the same cursor. Renders nothing once the surface has
+ * reached the end, which is how the list stops asking.
+ */
+private fun LazyListScope.pagingFooter(
+    state: KaPostsViewModel.PagingState,
+    keySuffix: String,
+    onRetry: () -> Unit,
+) {
+    if (!state.isLoadingMore && state.error == null) return
+    item(key = "paging-footer-$keySuffix") {
+        val colors = LocalAppColors.current
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (state.error != null) {
+                Text("Couldn't load more.", color = colors.textSecondary, fontSize = 13.sp)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    "Retry",
+                    color = KaspaTeal,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onRetry() },
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = KaspaTeal,
+                )
+            }
+        }
+    }
+}
+
+/** The live paging state for one surface, as Compose state. */
+@Composable
+private fun pagingStateOf(viewModel: KaPostsViewModel, key: String): KaPostsViewModel.PagingState {
+    val all by viewModel.paging.collectAsState()
+    return all[key] ?: KaPostsViewModel.PagingState()
+}
+
 // MARK: - Main screen
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -223,7 +309,7 @@ fun KaPostsScreen(
     val scope = rememberCoroutineScope()
     val selectedFeed by viewModel.selectedFeed.collectAsState()
     val visiblePosts by viewModel.visiblePosts.collectAsState()
-    val following by viewModel.following.collectAsState()
+    val visibleFollowingPosts by viewModel.visibleFollowingPosts.collectAsState()
     val isLoading by viewModel.isLoadingFeed.collectAsState()
     val feedError by viewModel.feedError.collectAsState()
     val undoToast by viewModel.undoToast.collectAsState()
@@ -377,9 +463,17 @@ fun KaPostsScreen(
                     key = { KaPostsFeedTabs[it] },
                 ) { page ->
                     val tab = KaPostsFeedTabs[page]
-                    val pageFeed = remember(tab, visiblePosts, following) {
-                        viewModel.feedFor(tab, visiblePosts, following)
+                    val pageFeed = remember(tab, visiblePosts, visibleFollowingPosts) {
+                        viewModel.feedFor(tab, visiblePosts, visibleFollowingPosts)
                     }
+                    val feedPaging = pagingStateOf(
+                        viewModel,
+                        if (tab == KaPostsViewModel.FeedTab.FOLLOWING) {
+                            KaPostsViewModel.PAGE_FOLLOWING_FEED
+                        } else {
+                            KaPostsViewModel.PAGE_GLOBAL_FEED
+                        },
+                    )
                     if (feedError != null && pageFeed.isEmpty()) {
                         FeedEmptyState(
                             title = "Couldn't load the feed",
@@ -398,6 +492,11 @@ fun KaPostsScreen(
                             onAction = {},
                         )
                     } else {
+                        // Endless scroll, per tab. Each tab keeps its own cursor in the view
+                        // model, so a swipe away and back resumes exactly where it was.
+                        EndlessScroll(listState = feedListStates[page], key = tab) {
+                            viewModel.loadMoreFeed(tab)
+                        }
                         LazyColumn(
                             // Hoisted per tab so each feed keeps its own scroll position when you
                             // swipe away and back (the pager disposes off-screen pages).
@@ -422,6 +521,9 @@ fun KaPostsScreen(
                                     color = colors.surfaceVariant,
                                     modifier = Modifier.padding(start = 68.dp),
                                 )
+                            }
+                            pagingFooter(feedPaging, keySuffix = "feed-$page") {
+                                viewModel.loadMoreFeed(tab)
                             }
                         }
                     }
@@ -1310,6 +1412,17 @@ fun KaPostThreadOverlay(
 
     LaunchedEffect(post.remoteId) { viewModel.loadReplies(post) }
 
+    // Endless scroll through the thread's replies. Keyed on the root's txid, so pushing a nested
+    // comment as a new thread root starts a fresh surface rather than inheriting this one's cursor.
+    val threadListState = rememberLazyListState()
+    val threadPaging = pagingStateOf(
+        viewModel,
+        post.remoteId?.let { KaPostsViewModel.pageThread(it) } ?: "thread:none",
+    )
+    EndlessScroll(listState = threadListState, key = post.remoteId) {
+        viewModel.loadMoreReplies(post)
+    }
+
     // System back closes this level of the thread, matching the Dialog's dismiss behaviour and the
     // Back arrow in the header. Nested pushes each get their own overlay instance, so back walks
     // the thread stack down one level at a time.
@@ -1352,7 +1465,7 @@ fun KaPostThreadOverlay(
                 Text("Post", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
             HorizontalDivider(color = colors.surfaceVariant)
-            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(state = threadListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
                 item(key = "root-context") {
                     // "Replying to X" - this post is itself a reply; tap opens the parent.
                     post.parentRemoteId?.let { parentId ->
@@ -1421,6 +1534,9 @@ fun KaPostThreadOverlay(
                         color = colors.surfaceVariant,
                         modifier = Modifier.padding(start = 88.dp),
                     )
+                }
+                pagingFooter(threadPaging, keySuffix = "thread") {
+                    viewModel.loadMoreReplies(post)
                 }
             }
             HorizontalDivider(color = colors.surfaceVariant)
@@ -1612,6 +1728,13 @@ private fun ThreadCommentNode(
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = KaspaTeal)
                 }
             } else {
+                // An inline expansion is not its own scroll container (it is drawn inside ONE
+                // LazyColumn row), so there is no scroll position to derive a trigger from -
+                // deeper pages of a sub-thread load on tap instead.
+                val nestedPaging = pagingStateOf(
+                    viewModel,
+                    comment.remoteId?.let { KaPostsViewModel.pageThread(it) } ?: "thread:none",
+                )
                 children.forEach { child ->
                     LaunchedEffect(child.posterAddress) {
                         viewModel.ensureSenderProfileFetched(child.posterAddress)
@@ -1629,6 +1752,21 @@ private fun ThreadCommentNode(
                         onRepostTap = onRepostTap,
                         onViewEngagement = onViewEngagement,
                         onReplyTo = onReplyTo,
+                    )
+                }
+                if (nestedPaging.isLoadingMore) {
+                    Row(modifier = Modifier.padding(start = 56.dp, top = 2.dp, bottom = 8.dp)) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = KaspaTeal)
+                    }
+                } else if (nestedPaging.hasMore || nestedPaging.error != null) {
+                    Text(
+                        text = if (nestedPaging.error != null) "Couldn't load more - retry" else "Show more replies",
+                        color = KaspaTeal,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clickable { viewModel.loadMoreReplies(comment) }
+                            .padding(start = 56.dp, top = 2.dp, bottom = 8.dp),
                     )
                 }
             }
@@ -1670,8 +1808,19 @@ fun KaPostsProfileOverlay(
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = Posts, 1 = Replies
     val name = viewModel.posterDisplayName(address)
+    val listState = rememberLazyListState()
+    // Posts and Replies are separate paging surfaces (separate endpoints, separate cursors), so
+    // the footer and the trigger both follow whichever tab is open.
+    val profilePubkey = remember(isMine, pubkey, posterProfile?.pubkey) { viewModel.profilePubkey(isMine) }
+    val profilePaging = pagingStateOf(
+        viewModel,
+        profilePubkey?.let { KaPostsViewModel.pageProfile(it, isMine, selectedTab == 1) } ?: "profile:none",
+    )
 
     LaunchedEffect(address) { viewModel.ensureSenderProfileFetched(address) }
+    EndlessScroll(listState = listState, key = selectedTab to profilePubkey) {
+        viewModel.loadMoreProfile(isMine, replies = selectedTab == 1)
+    }
 
     Dialog(
         onDismissRequest = onClose,
@@ -1683,6 +1832,7 @@ fun KaPostsProfileOverlay(
         ForceFullScreenDialogWindow()
         Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.weight(1f),
                 contentPadding = WindowInsets.navigationBars.asPaddingValues(),
             ) {
@@ -1838,6 +1988,9 @@ fun KaPostsProfileOverlay(
                     }
                 } else {
                     items(items, key = { "profile-${it.id}" }) { post ->
+                        LaunchedEffect(post.posterAddress) {
+                            viewModel.ensureSenderProfileFetched(post.posterAddress)
+                        }
                         KaPostCell(
                             post = post,
                             viewModel = viewModel,
@@ -1850,6 +2003,9 @@ fun KaPostsProfileOverlay(
                             color = colors.surfaceVariant,
                             modifier = Modifier.padding(start = 68.dp),
                         )
+                    }
+                    pagingFooter(profilePaging, keySuffix = "profile-$selectedTab") {
+                        viewModel.loadMoreProfile(isMine, replies = selectedTab == 1)
                     }
                 }
             }
@@ -1872,7 +2028,11 @@ fun KaPostsNotificationsOverlay(
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val uriHandler = LocalUriHandler.current
 
+    val listState = rememberLazyListState()
+    val paging = pagingStateOf(viewModel, KaPostsViewModel.PAGE_NOTIFICATIONS)
+
     LaunchedEffect(Unit) { viewModel.loadNotifications() }
+    EndlessScroll(listState = listState) { viewModel.loadMoreNotifications() }
 
     KaPostsOverlayScaffold(title = "Notifications", onClose = onClose) {
         if (isLoading && items.isEmpty()) {
@@ -1896,7 +2056,7 @@ fun KaPostsNotificationsOverlay(
                 )
             }
         } else {
-            LazyColumn {
+            LazyColumn(state = listState) {
                 items(items, key = { it.id }) { item ->
                     LaunchedEffect(item.actorAddress) {
                         viewModel.ensureSenderProfileFetched(item.actorAddress)
@@ -1941,6 +2101,7 @@ fun KaPostsNotificationsOverlay(
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
                 }
+                pagingFooter(paging, keySuffix = "notifications") { viewModel.loadMoreNotifications() }
             }
         }
     }
@@ -1967,9 +2128,12 @@ fun KaPostsFollowListOverlay(
     val colors = LocalAppColors.current
     val following by viewModel.following.collectAsState()
     val senderProfiles by viewModel.senderProfiles.collectAsState()
-    var entries by remember { mutableStateOf<List<KaPostsViewModel.FollowEntry>?>(null) }
+    val entries by viewModel.followEntries.collectAsState()
+    val listState = rememberLazyListState()
+    val paging = pagingStateOf(viewModel, KaPostsViewModel.pageFollowList(followers))
 
-    LaunchedEffect(followers) { entries = viewModel.loadFollowList(followers) }
+    LaunchedEffect(followers) { viewModel.loadFollowList(followers) }
+    EndlessScroll(listState = listState, key = followers) { viewModel.loadMoreFollowList(followers) }
 
     KaPostsOverlayScaffold(title = if (followers) "Followers" else "Following", onClose = onClose) {
         val list = entries
@@ -1999,7 +2163,7 @@ fun KaPostsFollowListOverlay(
                 )
             }
         } else {
-            LazyColumn {
+            LazyColumn(state = listState) {
                 items(list, key = { it.address }) { entry ->
                     LaunchedEffect(entry.address) { viewModel.ensureSenderProfileFetched(entry.address) }
                     Row(
@@ -2037,6 +2201,7 @@ fun KaPostsFollowListOverlay(
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
                 }
+                pagingFooter(paging, keySuffix = "follows") { viewModel.loadMoreFollowList(followers) }
             }
         }
     }
@@ -2054,13 +2219,20 @@ fun KaPostEngagementOverlay(
     val senderProfiles by viewModel.senderProfiles.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val uriHandler = LocalUriHandler.current
-    var lists by remember { mutableStateOf<KaPostsViewModel.EngagementLists?>(null) }
-    var loaded by remember { mutableStateOf(false) }
+    val lists by viewModel.engagementLists.collectAsState()
+    val loaded by viewModel.engagementLoaded.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
+    val listState = rememberLazyListState()
+    val paging = pagingStateOf(
+        viewModel,
+        post.remoteId?.let { KaPostsViewModel.pageEngagement(it) } ?: "engagement:none",
+    )
 
-    LaunchedEffect(post.remoteId) {
-        lists = viewModel.loadEngagement(post)
-        loaded = true
+    LaunchedEffect(post.remoteId) { viewModel.loadEngagement(post) }
+    // The stream carries all four kinds at once, so the loop targets the OPEN tab: switching tabs
+    // re-arms the trigger against the kind the reader is now looking at.
+    EndlessScroll(listState = listState, key = post.remoteId to selectedTab) {
+        viewModel.loadMoreEngagement(post, selectedTab)
     }
 
     val tabs = listOf("Likes", "Dislikes", "Reposts", "Quotes")
@@ -2135,7 +2307,7 @@ fun KaPostEngagementOverlay(
                         )
                     }
                 } else {
-                    LazyColumn {
+                    LazyColumn(state = listState) {
                         items(rows, key = { it.actionTxId }) { entry ->
                             LaunchedEffect(entry.actorAddress) { viewModel.ensureSenderProfileFetched(entry.actorAddress) }
                             Row(
@@ -2168,6 +2340,9 @@ fun KaPostEngagementOverlay(
                                 )
                             }
                             HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
+                        }
+                        pagingFooter(paging, keySuffix = "engagement") {
+                            viewModel.loadMoreEngagement(post, selectedTab)
                         }
                     }
                 }
