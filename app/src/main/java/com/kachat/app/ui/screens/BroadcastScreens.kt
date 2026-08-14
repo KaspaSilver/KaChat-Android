@@ -1243,6 +1243,32 @@ fun BroadcastChannelScreen(
                                         }
                                     }
                                 }
+
+                                // Anchored INSIDE the bubble's own wrap-content Box, exactly like
+                                // 1:1's MessageBubble - so BottomStart/BottomEnd resolve against
+                                // the bubble itself. It used to live below this Box inside a
+                                // `Box(Modifier.fillMaxWidth())`, which resolved the alignment
+                                // against the full row width instead: the pill flew to the screen
+                                // edge (up to ~280dp from a short bubble), and stretching the
+                                // Column to full width also moved the `menuAnchor` captured on it,
+                                // so the long-press menu and the double-tap QuickReactionBar jumped
+                                // to the left edge on any message that already had a reaction.
+                                if (messageReactions.isNotEmpty()) {
+                                    ReactionPill(
+                                        reactions = messageReactions,
+                                        myAddress = myAddress,
+                                        modifier = Modifier
+                                            .align(if (isMine) Alignment.BottomStart else Alignment.BottomEnd)
+                                            .offset(y = 10.dp)
+                                    )
+                                }
+                            }
+
+                            // The pill is offset ~10dp below the bubble Box and offset reserves no
+                            // layout space, so reserve it here - otherwise the pill overlaps the
+                            // link preview card / next message below it.
+                            if (messageReactions.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(14.dp))
                             }
 
                             // A link mixed with other text keeps the bubble above and stacks the
@@ -1268,36 +1294,21 @@ fun BroadcastChannelScreen(
                                 )
                             }
 
-                            if (messageReactions.isNotEmpty()) {
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    ReactionPill(
-                                        reactions = messageReactions,
-                                        myAddress = myAddress,
-                                        modifier = Modifier
-                                            .align(if (isMine) Alignment.CenterStart else Alignment.CenterEnd)
-                                            .offset(y = 10.dp)
-                                    )
-                                }
-                                // The pill is offset ~10dp down (offset reserves no layout space), so
-                                // reserve it here - otherwise the pill overlaps the next message below.
-                                Spacer(modifier = Modifier.height(14.dp))
-                            }
-
                             // A reaction (not the message) that failed to send: red "Retry" under the
-                            // message, paired with the error icon on the reaction pill — same as groups.
+                            // message, paired with the error icon on the reaction pill. Aligned with
+                            // ColumnScope.align (NOT a fillMaxWidth Box) so it sits under the pill's
+                            // side of the bubble without stretching this Column to the full row width.
                             messageReactions.firstOrNull { it.deliveryStatus == "failed" }?.let { failedReaction ->
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        text = stringResource(R.string.retry),
-                                        color = Color(0xFFFF3B30),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .align(if (isMine) Alignment.CenterStart else Alignment.CenterEnd)
-                                            .padding(top = 2.dp)
-                                            .clickable { broadcastViewModel.retryReaction(failedReaction) }
-                                    )
-                                }
+                                Text(
+                                    text = stringResource(R.string.retry),
+                                    color = Color(0xFFFF3B30),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .align(if (isMine) Alignment.Start else Alignment.End)
+                                        .padding(top = 2.dp)
+                                        .clickable { broadcastViewModel.retryReaction(failedReaction) }
+                                )
                             }
                         }
                         if (isMine) {
