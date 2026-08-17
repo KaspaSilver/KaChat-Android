@@ -279,17 +279,19 @@ class NextcloudService @Inject constructor(
     /**
      * Runs the automatic backup when enabled, connected, and at least [minIntervalMs] past the
      * last one (hourly for on-background, daily for the launch catch-up). Failures are silent
-     * by design (the next trigger retries); success stamps the throttle clock.
+     * by design (the next trigger retries); success stamps the throttle clock. Goes through
+     * [runBackup], so an automatic backup merges with the server's copy exactly like a manual
+     * one — and aborts without uploading anything if that copy can't be read.
      */
     suspend fun autoBackupIfDue(
         minIntervalMs: Long = AUTO_BACKUP_MIN_INTERVAL_MS,
-        buildJson: suspend () -> String
+        buildJson: suspend (String?) -> String
     ) {
         if (!_autoBackupEnabled.value || !isConnected) return
         val last = prefs.getLong(PREF_LAST_AUTO_BACKUP_MS, 0L)
         if (System.currentTimeMillis() - last < minIntervalMs) return
         try {
-            uploadBackup(buildJson())
+            runBackup(buildJson)
             prefs.edit().putLong(PREF_LAST_AUTO_BACKUP_MS, System.currentTimeMillis()).apply()
         } catch (e: Exception) {
             Log.w(TAG, "Automatic Nextcloud backup failed (will retry on the next trigger)", e)
@@ -583,9 +585,48 @@ class NextcloudService @Inject constructor(
     // -------------------------------------------------------------------------
 
     /**
+     * The whole backup: read whatever the server already holds, hand it to [buildJson] to be
+     * MERGED with this device's history, and upload the union — so a backup can only ever ADD to
+     * `kachat-backup.json` (desktop, iOS and Android all write that same file) and no device can
+     * delete another's chat history.
+     *
+     * The only "just upload" case is a genuine 404 (no backup yet). Every other failure — an
+     * unreadable server response, or a [buildJson] that rejects the remote file as foreign,
+     * corrupt or a different wallet — throws BEFORE the PUT, leaving the existing file untouched.
+     */
+    suspend fun runBackup(buildJson: suspend (String?) -> String) {
+        val existingRemoteJson = downloadExistingBackup()
+        uploadBackup(buildJson(existingRemoteJson))
+    }
+
+    /**
+     * The backup file's current contents, or null when there is none yet (404 — file or folder).
+     * Any OTHER failure throws, because "couldn't read it" must abort the backup rather than let
+     * the caller overwrite a file whose contents are unknown.
+     */
+    private suspend fun downloadExistingBackup(): String? = withContext(Dispatchers.IO) {
+        val account = requireAccount()
+        val request = Request.Builder()
+            .url(davUrl(account, "$backupFolderPath/$BACKUP_FILE_NAME"))
+            .header("Authorization", basicAuth(account))
+            .build()
+        client.newCall(request).execute().use { response ->
+            when {
+                response.code == 404 -> null
+                response.code == 401 -> throw IOException("Nextcloud rejected the username or app password — nothing was uploaded.")
+                !response.isSuccessful -> throw IOException(
+                    "Could not read the backup already on the server (HTTP ${response.code}) — nothing was uploaded and that file was left untouched."
+                )
+                else -> response.body?.string()?.takeIf { it.isNotBlank() }
+            }
+        }
+    }
+
+    /**
      * Uploads the archive to `<backup folder>/kachat-backup.json`, creating the folder first
      * (MKCOL answers 405 when it already exists — fine; a user-picked folder always already
-     * exists since it was chosen through the folder browser).
+     * exists since it was chosen through the folder browser). Overwrites in place: callers that
+     * back chat history up must go through [runBackup] so the body is a merge, not a replacement.
      */
     suspend fun uploadBackup(archiveJson: String) = withContext(Dispatchers.IO) {
         val account = requireAccount()

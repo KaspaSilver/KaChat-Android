@@ -385,8 +385,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
             try {
-                val json = chatHistoryExportImportService.buildArchiveJson()
-                nextcloudService.uploadBackup(json)
+                // Merges with whatever is already on the server (and aborts without uploading if
+                // that file can't be read or belongs to another wallet) — see runBackup.
+                nextcloudService.runBackup { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
                 _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS, message = "Backed up just now")
                 refreshNextcloudBackupInfo()
             } catch (e: Exception) {

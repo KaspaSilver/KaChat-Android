@@ -113,7 +113,7 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // no-ops unless the toggle is on and an account is connected, and swallows its
                 // own failures (the next trigger retries). Mirrors iOS's on-background backup.
                 owner.lifecycleScope.launch(Dispatchers.IO) {
-                    nextcloudService.autoBackupIfDue { chatHistoryExportImportService.buildArchiveJson() }
+                    nextcloudService.autoBackupIfDue { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
                 }
             }
 
@@ -149,7 +149,7 @@ class KaChatApplication : Application(), Configuration.Provider {
                 owner.lifecycleScope.launch(Dispatchers.IO) {
                     nextcloudService.autoBackupIfDue(
                         minIntervalMs = com.kachat.app.services.NextcloudService.AUTO_BACKUP_CATCH_UP_INTERVAL_MS
-                    ) { chatHistoryExportImportService.buildArchiveJson() }
+                    ) { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
                 }
             }
         })
