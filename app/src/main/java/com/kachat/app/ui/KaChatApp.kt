@@ -1197,7 +1197,13 @@ fun MainShell(
                 }
             }
 
-            composable("create_chat") {
+            // `group` is an optional query-style arg (defaults false) so the tab-aware create
+            // button can open this screen straight into group-builder mode from the Group Chats tab.
+            composable(
+                "create_chat?group={group}",
+                arguments = listOf(navArgument("group") { type = NavType.BoolType; defaultValue = false })
+            ) { backStackEntry ->
+                val startInGroupMode = backStackEntry.arguments?.getBoolean("group") ?: false
                 CreateChatScreen(
                     onBack = { navController.popBackStack() },
                     onChatCreated = { address ->
@@ -1210,6 +1216,7 @@ fun MainShell(
                             popUpTo(Screen.Chats.route)
                         }
                     },
+                    startInGroupMode = startInGroupMode,
                     chatViewModel = chatViewModel
                 )
             }

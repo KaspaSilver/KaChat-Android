@@ -102,7 +102,8 @@ data class ContactEntity(
     val systemContactPhotoUri: String? = null, // Device address-book photo (content:// URI) of the linked phone contact — the fallback every avatar uses when there's no KNS avatar. Stored (not resolved per-render) so the chat list never touches ContactsContract on the main thread; refreshed by ChatViewModel.syncSystemContacts.
     val systemContactLinkSource: String? = null, // "manual" | "autoCreated" — only "autoCreated" shadow contacts get deleted if Autocreate is turned off
     val photoAutoDisplayOverride: String? = null, // PhotoAutoDisplayMode.name, null = automatic (see ChatRepository.shouldAutoDisplayPhotos)
-    val notificationOverride: String? = null // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
+    val notificationOverride: String? = null, // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
+    val backupPhotoBase64: String? = null // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS or system-contact photo (e.g. a photo set on desktop)
 )
 
 /**

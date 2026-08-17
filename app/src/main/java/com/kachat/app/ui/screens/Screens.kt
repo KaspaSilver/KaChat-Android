@@ -8960,17 +8960,21 @@ fun CreateChatScreen(
     onBack: () -> Unit,
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit = {},
+    startInGroupMode: Boolean = false,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
     var address by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
 
-    // Group chat mode — same screen, just a toggle: instead of one address, up to 10, plus a
-    // group name instead of an optional contact nickname.
-    var isGroupMode by remember { mutableStateOf(false) }
+    // Group chat mode. The create button is tab-aware (Chats vs Group Chats), so the screen
+    // opens directly in the right mode instead of exposing a toggle.
+    var isGroupMode by remember { mutableStateOf(startInGroupMode) }
     var groupName by remember { mutableStateOf("") }
     var groupAddressRows by remember { mutableStateOf(listOf(GroupAddressRow())) }
+    // New group flow: members are picked from existing contacts (searchable), not typed.
+    var selectedMemberAddresses by remember { mutableStateOf(setOf<String>()) }
+    var memberSearchText by remember { mutableStateOf("") }
     var scanningGroupRowId by remember { mutableStateOf<String?>(null) }
     var importingGroupRowId by remember { mutableStateOf<String?>(null) }
     val isCreatingGroup by chatViewModel.isCreatingGroup.collectAsState()
@@ -8983,6 +8987,8 @@ fun CreateChatScreen(
     val knsResolvedAddress by chatViewModel.knsResolvedAddress.collectAsState()
     val isResolvingKns by chatViewModel.isResolvingKns.collectAsState()
     val knsError by chatViewModel.knsError.collectAsState()
+    // Existing contacts (via conversations) shown in the group member picker.
+    val conversations by chatViewModel.conversations.collectAsState()
 
     val context = LocalContext.current
     // Reads the picked contact's data via the /entities sub-path of the URI the system picker
@@ -9081,14 +9087,7 @@ fun CreateChatScreen(
         return
     }
 
-    val canCreateGroup = groupName.trim().isNotEmpty() &&
-        groupAddressRows.filter { it.trimmedText.isNotEmpty() }.let { rows ->
-            if (rows.isEmpty() || !rows.all { it.isValid }) return@let false
-            // No two rows may resolve to the same address/KNS domain (same raw address typed
-            // twice, same domain typed twice, or two different domains owned by the same address).
-            val addresses = rows.mapNotNull { it.effectiveAddress?.lowercase() }
-            addresses.size == addresses.toSet().size
-        }
+    val canCreateGroup = groupName.trim().isNotEmpty() && selectedMemberAddresses.isNotEmpty()
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -9114,7 +9113,7 @@ fun CreateChatScreen(
                         } else {
                             TextButton(
                                 onClick = {
-                                    val resolvedAddresses = groupAddressRows.mapNotNull { it.effectiveAddress }
+                                    val resolvedAddresses = selectedMemberAddresses.toList()
                                     chatViewModel.createGroupChat(groupName, resolvedAddresses) { groupId ->
                                         onGroupCreated(groupId)
                                     }
@@ -9154,41 +9153,22 @@ fun CreateChatScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(stringResource(R.string.group_chat), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                Switch(
-                    checked = isGroupMode,
-                    onCheckedChange = {
-                        isGroupMode = it
-                        chatViewModel.clearCreateGroupError()
-                    },
-                    colors = SwitchDefaults.colors(checkedTrackColor = KaspaTeal)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             if (isGroupMode) {
                 GroupChatCreationFields(
                     groupName = groupName,
                     onGroupNameChange = { groupName = it },
-                    rows = groupAddressRows,
-                    onRowsChange = { groupAddressRows = it },
-                    onScanRequested = { rowId -> scanningGroupRowId = rowId },
-                    onImportRequested = { rowId ->
-                        importingGroupRowId = rowId
-                        pickContactForImportLauncher.launch(null)
+                    searchText = memberSearchText,
+                    onSearchTextChange = { memberSearchText = it },
+                    conversations = conversations,
+                    selectedAddresses = selectedMemberAddresses,
+                    onToggleMember = { address ->
+                        selectedMemberAddresses = if (selectedMemberAddresses.contains(address)) {
+                            selectedMemberAddresses - address
+                        } else if (selectedMemberAddresses.size < MAX_GROUP_MEMBERS) {
+                            selectedMemberAddresses + address
+                        } else selectedMemberAddresses
                     },
-                    errorMessage = createGroupError,
-                    chatViewModel = chatViewModel
+                    errorMessage = createGroupError
                 )
                 return@Column
             }
@@ -9386,73 +9366,13 @@ data class GroupAddressRow(
 fun GroupChatCreationFields(
     groupName: String,
     onGroupNameChange: (String) -> Unit,
-    rows: List<GroupAddressRow>,
-    onRowsChange: (List<GroupAddressRow>) -> Unit,
-    onScanRequested: (String) -> Unit,
-    onImportRequested: (String) -> Unit,
-    errorMessage: String?,
-    chatViewModel: ChatViewModel
+    searchText: String,
+    onSearchTextChange: (String) -> Unit,
+    conversations: List<Conversation>,
+    selectedAddresses: Set<String>,
+    onToggleMember: (String) -> Unit,
+    errorMessage: String?
 ) {
-    val clipboardManager = LocalClipboardManager.current
-
-    // The one member "card" expanded for editing (text field + Import/Paste/Scan + Add Address)
-    // - every other row shows collapsed (name/address + a remove button only). Tapping a
-    // collapsed row re-expands it; committing the expanded one via "Add Address" collapses it
-    // and expands a fresh blank row in its place. Resets whenever this composable enters
-    // composition fresh (i.e. every time group mode is toggled on), same as `rows` itself.
-    var editingRowId by remember { mutableStateOf(rows.firstOrNull()?.id) }
-
-    fun isValidRow(row: GroupAddressRow): Boolean = row.isValid
-
-    // Lowercased effective addresses that appear more than once across all rows - catches the
-    // same raw address typed twice, the same KNS domain typed twice, and two different KNS
-    // domains that happen to resolve to the same owner address.
-    val duplicateAddresses = remember(rows) {
-        val addresses = rows.mapNotNull { it.effectiveAddress?.lowercase() }
-        val seen = mutableSetOf<String>()
-        val duplicates = mutableSetOf<String>()
-        for (address in addresses) {
-            if (!seen.add(address)) duplicates.add(address)
-        }
-        duplicates
-    }
-
-    fun commitRow(id: String) {
-        val row = rows.firstOrNull { it.id == id } ?: return
-        if (!isValidRow(row)) return
-        if (rows.size < MAX_GROUP_MEMBERS) {
-            val newRow = GroupAddressRow()
-            onRowsChange(rows + newRow)
-            editingRowId = newRow.id
-        } else {
-            editingRowId = null
-        }
-    }
-
-    fun setEditingRow(id: String) {
-        val currentId = editingRowId
-        if (currentId != null && currentId != id) {
-            val current = rows.firstOrNull { it.id == currentId }
-            if (current != null && current.trimmedText.isEmpty() && rows.size > 1) {
-                onRowsChange(rows.filterNot { it.id == currentId })
-            }
-        }
-        editingRowId = id
-    }
-
-    fun removeRow(id: String) {
-        val wasEditing = editingRowId == id
-        val newRows = rows.filterNot { it.id == id }
-        if (wasEditing) editingRowId = null
-        if (newRows.isEmpty() || (editingRowId == null && newRows.size < MAX_GROUP_MEMBERS)) {
-            val newRow = GroupAddressRow()
-            onRowsChange(newRows + newRow)
-            editingRowId = newRow.id
-        } else {
-            onRowsChange(newRows)
-        }
-    }
-
     Text(
         text = stringResource(R.string.group_name),
         color = LocalAppColors.current.textPrimary,
@@ -9482,171 +9402,96 @@ fun GroupChatCreationFields(
     Spacer(modifier = Modifier.height(32.dp))
 
     Text(
-        text = stringResource(R.string.members),
+        text = if (selectedAddresses.isEmpty()) stringResource(R.string.members) else "${stringResource(R.string.members)} (${selectedAddresses.size})",
         color = LocalAppColors.current.textPrimary,
         fontWeight = FontWeight.Bold,
         style = MaterialTheme.typography.titleMedium
     )
     Spacer(modifier = Modifier.height(12.dp))
 
-    Column(
+    // Search box to filter the existing contacts shown below.
+    TextField(
+        value = searchText,
+        onValueChange = onSearchTextChange,
+        placeholder = { Text("Search contacts", color = Color.DarkGray) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
-            .padding(16.dp)
-    ) {
-        rows.forEachIndexed { index, row ->
-            if (index > 0) Spacer(modifier = Modifier.height(12.dp))
+            .clip(RoundedCornerShape(16.dp)),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = LocalAppColors.current.surface,
+            unfocusedContainerColor = LocalAppColors.current.surface,
+            focusedTextColor = LocalAppColors.current.textPrimary,
+            unfocusedTextColor = LocalAppColors.current.textPrimary,
+            cursorColor = KaspaTeal,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        ),
+        singleLine = true
+    )
 
-            // Debounced KNS resolution for this row, independent of every other row.
-            LaunchedEffect(row.text) {
-                val trimmed = row.text.trim()
-                if (trimmed.isEmpty() || !com.kachat.app.services.KnsService.looksLikeDomain(trimmed)) {
-                    if (row.resolvedAddress != null || row.knsError != null || row.isResolvingKns) {
-                        onRowsChange(rows.map { if (it.id == row.id) it.copy(resolvedAddress = null, knsError = null, isResolvingKns = false) else it })
-                    }
-                    return@LaunchedEffect
-                }
-                onRowsChange(rows.map { if (it.id == row.id) it.copy(isResolvingKns = true, resolvedAddress = null, knsError = null) else it })
-                kotlinx.coroutines.delay(500)
-                val resolved = chatViewModel.resolveKnsDomain(trimmed)
-                onRowsChange(rows.map {
-                    if (it.id == row.id && it.trimmedText == trimmed) {
-                        it.copy(isResolvingKns = false, resolvedAddress = resolved, knsError = if (resolved == null) "KNS domain not found" else null)
-                    } else it
-                })
-            }
+    Spacer(modifier = Modifier.height(8.dp))
 
-            if (row.id == editingRowId) {
-                // The one expanded "card": address field, then Import/Paste/Scan (same
-                // size/style as the single-contact flow), then Add Address to commit it and
-                // open the next blank slot.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextField(
-                        value = row.text,
-                        onValueChange = { newValue ->
-                            onRowsChange(rows.map { if (it.id == row.id) it.copy(text = newValue) else it })
-                        },
-                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
-                        modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            cursorColor = KaspaTeal,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        singleLine = true
-                    )
-                    if (rows.size > 1) {
-                        IconButton(onClick = { removeRow(row.id) }) {
-                            Icon(Icons.Default.RemoveCircle, contentDescription = stringResource(R.string.remove), tint = Color(0xFFFF3B30))
-                        }
-                    }
-                }
+    val query = searchText.trim().lowercase()
+    val contacts = remember(conversations, query) {
+        conversations.map { it.contact }
+            .distinctBy { it.id }
+            .sortedBy { (it.alias ?: it.id).lowercase() }
+            .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+    }
 
-                if (row.trimmedText.isNotEmpty() || row.knsError != null) {
-                    when {
-                        row.isResolvingKns -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.resolving_kns_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                        }
-                        row.knsError != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(row.knsError, color = Color(0xFFFF3B30), fontSize = 12.sp)
-                        }
-                        row.effectiveAddress?.lowercase()?.let { it in duplicateAddresses } == true -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Already added to this group", color = Color(0xFFFF3B30), fontSize = 12.sp)
-                        }
-                        row.looksLikeDomain && row.resolvedAddress != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Resolved: ${row.resolvedAddress.takeLast(12)}", color = Color(0xFF4CD964), fontSize = 12.sp)
-                        }
-                        !row.looksLikeDomain -> {
-                            val isValid = KaspaAddress.isValid(row.trimmedText)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    if (isValid) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = if (isValid) Color(0xFF4CD964) else Color(0xFFFF3B30),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    if (isValid) "Valid address" else "Invalid address format",
-                                    color = if (isValid) Color(0xFF4CD964) else Color(0xFFFF3B30),
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = LocalAppColors.current.divider)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                    CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
-                        onImportRequested(row.id)
-                    }
-                    CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
-                        clipboardManager.getText()?.text?.let { pasted ->
-                            onRowsChange(rows.map { if (it.id == row.id) it.copy(text = pasted.trim()) else it })
-                        }
-                    }
-                    CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") {
-                        onScanRequested(row.id)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { commitRow(row.id) },
-                    enabled = isValidRow(row),
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.add_address), color = if (isValidRow(row)) Color.Black else Color.Gray, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                // Committed: collapsed to a single row - tap the name/address to edit it again,
-                // or tap the red button to remove it outright.
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { setEditingRow(row.id) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+    if (conversations.isEmpty()) {
+        Text(
+            text = "You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to a group.",
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
+    } else if (contacts.isEmpty()) {
+        Text(
+            text = "No contacts match your search.",
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
+    } else {
+        contacts.forEach { contact ->
+            val selected = selectedAddresses.contains(contact.id)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleMember(contact.id) }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ContactAvatar(
+                    imageUrl = contact.knsAvatarUrl,
+                    deviceContactPhotoUri = contact.systemContactPhotoUri,
+                    backupPhotoBase64 = contact.backupPhotoBase64,
+                    fallbackText = contact.alias ?: contact.id.takeLast(8),
+                    size = 40.dp
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = row.trimmedText,
+                        text = contact.alias ?: KaspaAddress.shortDisplay(contact.id),
                         color = LocalAppColors.current.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
-                    IconButton(onClick = { removeRow(row.id) }) {
-                        Icon(Icons.Default.RemoveCircle, contentDescription = stringResource(R.string.remove), tint = Color(0xFFFF3B30))
-                    }
+                    Text(
+                        text = KaspaAddress.shortDisplay(contact.id),
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
                 }
+                Icon(
+                    imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary
+                )
             }
         }
     }
-
-    Spacer(modifier = Modifier.height(12.dp))
-    Text(
-        text = "Up to $MAX_GROUP_MEMBERS addresses or KNS domains. Anyone not already a contact will be added automatically.",
-        color = LocalAppColors.current.textSecondary,
-        style = MaterialTheme.typography.bodySmall
-    )
 
     errorMessage?.let { message ->
         Spacer(modifier = Modifier.height(12.dp))
@@ -9656,6 +9501,13 @@ fun GroupChatCreationFields(
             Text(message, color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(
+        text = "Search and tap contacts to add them to the group. You can add up to $MAX_GROUP_MEMBERS.",
+        color = LocalAppColors.current.textSecondary,
+        style = MaterialTheme.typography.bodySmall
+    )
 
     Spacer(modifier = Modifier.height(32.dp))
 }

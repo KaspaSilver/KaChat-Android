@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 34,
+    version = 35,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -381,6 +381,14 @@ abstract class KaChatDatabase : RoomDatabase() {
         val MIGRATION_33_34 = object : Migration(33, 34) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `contacts` ADD COLUMN `systemContactPhotoUri` TEXT DEFAULT NULL")
+            }
+        }
+
+        // Cross-platform contact photo carried in the shared backup (base64 JPEG), an avatar
+        // fallback when there is no KNS or device-contact photo.
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `contacts` ADD COLUMN `backupPhotoBase64` TEXT DEFAULT NULL")
             }
         }
     }

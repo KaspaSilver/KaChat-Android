@@ -1,7 +1,10 @@
 package com.kachat.app.services
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import androidx.core.content.FileProvider
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -59,6 +62,7 @@ class ChatHistoryExportImportService @Inject constructor(
                 ChatHistoryArchiveConversation(
                     contactAddress = contactId,
                     contactAlias = contactsById[contactId]?.alias,
+                    contactPhoto = contactPhotoForArchive(contactsById[contactId]),
                     unreadCount = exportable.count { it.direction == "received" && !it.isRead },
                     messages = exportable.map { toArchiveMessage(it, myAddress) }
                 )
@@ -70,6 +74,33 @@ class ChatHistoryExportImportService @Inject constructor(
             conversations = conversations
         )
         return gson.toJson(archive)
+    }
+
+    /**
+     * A cross-platform base64 JPEG for the contact's photo, or null. A photo already carried in
+     * from a backup wins; otherwise the linked device-contact photo is decoded, downscaled to a
+     * small thumbnail, and re-encoded so it travels in the shared file without bloating it.
+     * Best-effort: any failure (no photo, unreadable URI) just omits the photo.
+     */
+    private fun contactPhotoForArchive(contact: ContactEntity?): String? {
+        if (contact == null) return null
+        if (!contact.backupPhotoBase64.isNullOrBlank()) return contact.backupPhotoBase64
+        val uriString = contact.systemContactPhotoUri ?: return null
+        return try {
+            val bytes = context.contentResolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }
+                ?: return null
+            val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+            val maxDimension = 256
+            val scale = minOf(1f, maxDimension.toFloat() / maxOf(source.width, source.height))
+            val scaled = if (scale < 1f) {
+                Bitmap.createScaledBitmap(source, (source.width * scale).toInt().coerceAtLeast(1), (source.height * scale).toInt().coerceAtLeast(1), true)
+            } else source
+            val out = java.io.ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.JPEG, 70, out)
+            Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** Builds the archive for the active account, writes it to app-private cache, and returns a content:// URI ready to hand to a share sheet. */
@@ -115,6 +146,7 @@ class ChatHistoryExportImportService @Inject constructor(
             if (conversation.messages.isEmpty()) continue
             val contactAddress = conversation.contactAddress
 
+            val importedPhoto = conversation.contactPhoto?.takeIf { it.isNotBlank() }
             val existingContact = chatRepository.getContact(contactAddress)
             if (existingContact == null) {
                 chatRepository.addContact(
@@ -123,11 +155,21 @@ class ChatHistoryExportImportService @Inject constructor(
                         walletAddress = myAddress,
                         alias = conversation.contactAlias,
                         knsName = null,
-                        publicKeyHex = null
+                        publicKeyHex = null,
+                        backupPhotoBase64 = importedPhoto
                     )
                 )
-            } else if (existingContact.alias.isNullOrBlank() && !conversation.contactAlias.isNullOrBlank()) {
-                chatRepository.addContact(existingContact.copy(alias = conversation.contactAlias))
+            } else {
+                var updated = existingContact
+                if (existingContact.alias.isNullOrBlank() && !conversation.contactAlias.isNullOrBlank()) {
+                    updated = updated.copy(alias = conversation.contactAlias)
+                }
+                // Adopt a backed-up photo only when this device has no photo of its own for the
+                // contact (no linked device photo and no prior backup photo).
+                if (updated.backupPhotoBase64.isNullOrBlank() && updated.systemContactPhotoUri.isNullOrBlank() && importedPhoto != null) {
+                    updated = updated.copy(backupPhotoBase64 = importedPhoto)
+                }
+                if (updated != existingContact) chatRepository.addContact(updated)
             }
 
             var addedAny = false

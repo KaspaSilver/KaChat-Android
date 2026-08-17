@@ -22,6 +22,8 @@ data class ChatHistoryArchiveConversation(
     val conversationId: String? = null,
     val contactAddress: String,
     val contactAlias: String?,
+    // Cross-platform base64 JPEG contact photo (optional; older archives omit it).
+    val contactPhoto: String? = null,
     val unreadCount: Int,
     val messages: List<ChatHistoryArchiveMessage>
 )

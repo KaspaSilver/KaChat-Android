@@ -23,7 +23,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -370,7 +374,9 @@ fun ChatsScreen(
             // sits above the app-wide floating tab bar for free, since this screen's own content
             // region is already reserved above it before this Scaffold is even composed.
             FloatingActionButton(
-                onClick = { navController.navigate("create_chat") },
+                // Tab-aware: opens the group builder on the Group Chats tab, the 1:1 create
+                // screen on the Chats tab.
+                onClick = { navController.navigate(if (isOnGroupsTab) "create_chat?group=true" else "create_chat") },
                 containerColor = KaspaTeal,
                 contentColor = Color.Black,
                 shape = CircleShape,
@@ -1115,6 +1121,7 @@ private fun ConversationRow(
         ContactAvatar(
             imageUrl = convo.contact.knsAvatarUrl,
             deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
+            backupPhotoBase64 = convo.contact.backupPhotoBase64,
             fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
             size = 48.dp
         )
@@ -1204,7 +1211,8 @@ fun ContactAvatar(
     modifier: Modifier = Modifier,
     backgroundColor: Color = LocalAppColors.current.surface,
     fontSize: TextUnit = 16.sp,
-    deviceContactPhotoUri: String? = null
+    deviceContactPhotoUri: String? = null,
+    backupPhotoBase64: String? = null
 ) {
     val candidates = remember(imageUrl, deviceContactPhotoUri) {
         listOfNotNull(
@@ -1212,6 +1220,8 @@ fun ContactAvatar(
             deviceContactPhotoUri?.takeIf { it.isNotBlank() }
         )
     }
+    // Cross-platform backup photo (base64 JPEG) decoded once; the last fallback before the glyph.
+    val backupBitmap = remember(backupPhotoBase64) { decodeBase64Avatar(backupPhotoBase64) }
     Box(
         modifier = modifier
             .size(size)
@@ -1219,16 +1229,35 @@ fun ContactAvatar(
             .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
-        AvatarImageChain(candidates, fallbackText, fontSize)
+        AvatarImageChain(candidates, fallbackText, fontSize, backupBitmap)
     }
 }
 
-/** Renders [candidates] in order, dropping to the next on load failure and to the glyph when exhausted. */
+private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
+    if (base64.isNullOrBlank()) return null
+    return try {
+        val bytes = Base64.decode(base64, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/** Renders [candidates] in order, dropping to the next on load failure; then the backup photo, then the glyph. */
 @Composable
-private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fontSize: TextUnit) {
+private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fontSize: TextUnit, backupBitmap: ImageBitmap? = null) {
     val current = candidates.firstOrNull()
     if (current == null) {
-        AvatarInitials(fallbackText, fontSize)
+        if (backupBitmap != null) {
+            Image(
+                bitmap = backupBitmap,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            AvatarInitials(fallbackText, fontSize)
+        }
         return
     }
     SubcomposeAsyncImage(
@@ -1237,7 +1266,7 @@ private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fon
         modifier = Modifier.fillMaxSize(),
         contentScale = ContentScale.Crop,
         loading = { AvatarInitials(fallbackText, fontSize) },
-        error = { AvatarImageChain(candidates.drop(1), fallbackText, fontSize) }
+        error = { AvatarImageChain(candidates.drop(1), fallbackText, fontSize, backupBitmap) }
     )
 }
 
