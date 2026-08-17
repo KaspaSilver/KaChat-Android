@@ -9170,6 +9170,97 @@ fun CreateChatScreen(
                     },
                     errorMessage = createGroupError
                 )
+
+                // Add someone who is not in your contacts, by raw address or KNS domain. Reuses
+                // the screen-level `address` state, its KNS resolution, and the scanner/import.
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Add by Address",
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Add anyone by Kaspa address or KNS domain, even if they are not in your contacts.",
+                    color = LocalAppColors.current.textSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                TextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp)),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = LocalAppColors.current.surface,
+                        unfocusedContainerColor = LocalAppColors.current.surface,
+                        focusedTextColor = LocalAppColors.current.textPrimary,
+                        unfocusedTextColor = LocalAppColors.current.textPrimary,
+                        cursorColor = KaspaTeal,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true
+                )
+                if (looksLikeKnsDomain && isResolvingKns) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (looksLikeKnsDomain && knsError != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (isValidAddress) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (looksLikeKnsDomain) "Resolved to ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
+                            color = Color(0xFF4CD964),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
+                        pickContactForImportLauncher.launch(null)
+                    }
+                    CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
+                        clipboardManager.getText()?.text?.let { address = it.trim() }
+                    }
+                    CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = {
+                        val resolved = effectiveAddress
+                        if (resolved != null && isValidAddress && selectedMemberAddresses.size < MAX_GROUP_MEMBERS) {
+                            selectedMemberAddresses = selectedMemberAddresses + resolved
+                            address = ""
+                        }
+                    },
+                    enabled = isValidAddress,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
+                ) {
+                    Text("Add to Group", fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(32.dp))
                 return@Column
             }
 
