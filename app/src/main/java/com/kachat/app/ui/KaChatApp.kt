@@ -793,6 +793,29 @@ fun MainShell(
                 )
             }
 
+            // Full-screen KAS price / portfolio value charts, opened from the Portfolio squares.
+            // Both share the Portfolio tab's PortfolioViewModel instance (same rationale as
+            // portfolio_transactions above) so price history / selected range / summary are already
+            // loaded and stay consistent - the squares always push these from the Portfolio tab.
+            composable("portfolio_price_chart") { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
+                }
+                PortfolioPriceChartScreen(
+                    navController = navController,
+                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                )
+            }
+            composable("portfolio_value_chart") { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
+                }
+                PortfolioValueChartScreen(
+                    navController = navController,
+                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                )
+            }
+
             composable("seed_phrase") {
                 SeedPhraseScreen(
                     viewModel = walletViewModel,

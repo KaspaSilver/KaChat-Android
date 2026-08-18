@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.TrendingDown
@@ -85,6 +87,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -152,18 +155,12 @@ fun PortfolioScreen(
 ) {
     val currentPriceUsd by viewModel.currentPriceUsd.collectAsState()
     val priceChange24h by viewModel.priceChange24h.collectAsState()
-    val priceHistory by viewModel.priceHistory.collectAsState()
-    val priceRangeDays by viewModel.priceRangeDays.collectAsState()
-    val valueHistory by viewModel.valueHistory.collectAsState()
     val summary by viewModel.summary.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     val portfolios by viewModel.portfolios.collectAsState()
     val activePortfolioId by viewModel.activePortfolioId.collectAsState()
     val cardSummaries by viewModel.cardSummaries.collectAsState()
     val isRefreshing by viewModel.isRefreshingPortfolio.collectAsState()
-    // (timestamp, price) while scrubbing the price sparkline above, null otherwise — lifted up
-    // here (rather than kept local to PriceChartCard) since the summary card below needs it too.
-    var scrubbedPrice by remember { mutableStateOf<Pair<Long, Double>?>(null) }
     // 0 = Data, 1 = Transactions. Swipeable (see HorizontalPager below) as well as tap-to-switch.
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val tabCoroutineScope = rememberCoroutineScope()
@@ -239,18 +236,17 @@ fun PortfolioScreen(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    PortfolioSummaryCard(summary = summary, currentPriceUsd = currentPriceUsd, priceChange24h = priceChange24h, scrubbedPrice = scrubbedPrice, currencyCode = currencyCode)
-                    if (priceHistory.size >= 2) {
-                        PriceChartCard(
-                            priceHistory = priceHistory,
-                            onScrub = { scrubbedPrice = it },
-                            selectedRangeDays = priceRangeDays,
-                            onRangeSelected = { viewModel.setPriceRangeDays(it) }
-                        )
-                    }
-                    if (valueHistory.size >= 2) {
-                        PortfolioValueChartCard(valueHistory = valueHistory, currencyCode = currencyCode)
-                    }
+                    // Two tappable squares (KAS price | portfolio value) - each opens its own
+                    // full-screen chart destination. The inline summary/price/value cards were
+                    // replaced by these squares (matches iOS/desktop).
+                    PortfolioLauncherSquares(
+                        currentPriceUsd = currentPriceUsd,
+                        priceChange24h = priceChange24h,
+                        summary = summary,
+                        currencyCode = currencyCode,
+                        onOpenPrice = { navController.navigate("portfolio_price_chart") },
+                        onOpenValue = { navController.navigate("portfolio_value_chart") }
+                    )
                     PortfolioTransactionsContent(
                         viewModel = viewModel,
                         swapViewModel = swapViewModel,
@@ -841,6 +837,468 @@ private fun PortfolioValueChartCard(valueHistory: List<Pair<Long, Double>>, curr
                 val y = size.height - ((valueHistory[selectedIndex].second - minValue) / range * size.height).toFloat()
                 drawLine(color = textSecondaryColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 2f)
                 drawCircle(color = KaspaTeal, radius = 6f, center = Offset(x, y))
+            }
+        }
+    }
+}
+
+// CoinMarketCap-style "what is Kaspa" blurb, paraphrased (not copied verbatim).
+private const val KASPA_ABOUT_TEXT =
+    "Kaspa is a decentralized, open-source, proof-of-work cryptocurrency. It is built on the " +
+    "GHOSTDAG protocol - a generalization of Nakamoto consensus that, instead of discarding " +
+    "blocks created in parallel, orders them together in a blockDAG. This lets Kaspa reach very " +
+    "high block rates and near-instant transaction confirmation while keeping the security " +
+    "guarantees of proof of work. Kaspa launched in November 2021 with a fair release: no " +
+    "pre-mine, no pre-sale, and no coin allocations. Its native coin is KAS."
+
+private fun formatAxisHour(millis: Long): String = SimpleDateFormat("h a", Locale.getDefault()).format(Date(millis))
+private fun formatAxisDate(millis: Long): String = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(millis))
+
+// MARK: two launcher squares (KAS price | portfolio value)
+
+@Composable
+private fun PortfolioLauncherSquares(
+    currentPriceUsd: Double?,
+    priceChange24h: Double?,
+    summary: PortfolioSummary,
+    currencyCode: String,
+    onOpenPrice: () -> Unit,
+    onOpenValue: () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        LauncherSquare(
+            modifier = Modifier.weight(1f).clickable { onOpenPrice() },
+            title = "Kaspa",
+            value = currentPriceUsd?.let { formatUsdPrice(it, currencyCode) } ?: "—",
+            changePercent = priceChange24h,
+            headerIcon = {
+                Image(
+                    painter = painterResource(R.drawable.ic_kaspa_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp).clip(CircleShape)
+                )
+            }
+        )
+        LauncherSquare(
+            modifier = Modifier.weight(1f).clickable { onOpenValue() },
+            title = "Value",
+            value = formatFiatAmount(summary.currentValue, currencyCode),
+            changePercent = summary.totalPLPercent,
+            headerIcon = {
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun LauncherSquare(
+    modifier: Modifier,
+    title: String,
+    value: String,
+    changePercent: Double?,
+    headerIcon: @Composable () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .height(122.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            headerIcon()
+            Spacer(Modifier.width(6.dp))
+            Text(
+                title,
+                color = LocalAppColors.current.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = LocalAppColors.current.textSecondary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Text(
+            value,
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            maxLines = 1
+        )
+        if (changePercent != null) {
+            val positive = changePercent >= 0
+            val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    "${String.format(Locale.US, "%.2f", kotlin.math.abs(changePercent))}%",
+                    color = color,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
+            }
+        }
+    }
+}
+
+// MARK: shared big chart (area fill + gridlines + x-axis labels + scrub) and range selector
+
+@Composable
+private fun PortfolioBigChart(
+    points: List<Pair<Long, Double>>,
+    lineColor: Color,
+    onScrub: (Pair<Long, Double>?) -> Unit
+) {
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    val minV = points.minOf { it.second }
+    val maxV = points.maxOf { it.second }
+    val range = (maxV - minV).takeIf { it > 0 } ?: 1.0
+    val gridColor = LocalAppColors.current.divider
+    val cursorColor = LocalAppColors.current.textSecondary
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .onSizeChanged { canvasSize = it }
+                .pointerInput(points) {
+                    fun scrubAt(x: Float) {
+                        if (canvasSize.width <= 0) return
+                        val idx = ((x / canvasSize.width) * (points.size - 1)).roundToInt().coerceIn(0, points.size - 1)
+                        selectedIndex = idx
+                        onScrub(points[idx])
+                    }
+                    detectDragGestures(
+                        onDragStart = { scrubAt(it.x) },
+                        onDrag = { change, _ -> scrubAt(change.position.x); change.consume() },
+                        onDragEnd = { selectedIndex = null; onScrub(null) },
+                        onDragCancel = { selectedIndex = null; onScrub(null) }
+                    )
+                }
+        ) {
+            val padTop = 10f
+            val padBottom = 10f
+            val usableH = size.height - padTop - padBottom
+            val stepX = size.width / (points.size - 1).coerceAtLeast(1)
+            fun yFor(v: Double): Float = padTop + (1f - ((v - minV) / range).toFloat()) * usableH
+
+            val gridCount = 4
+            for (i in 0..gridCount) {
+                val y = padTop + usableH * i / gridCount
+                drawLine(color = gridColor, start = Offset(0f, y), end = Offset(size.width, y), strokeWidth = 1f, alpha = 0.5f)
+            }
+
+            val linePath = Path()
+            points.forEachIndexed { index, (_, v) ->
+                val x = index * stepX
+                val y = yFor(v)
+                if (index == 0) linePath.moveTo(x, y) else linePath.lineTo(x, y)
+            }
+            val areaPath = Path().apply {
+                addPath(linePath)
+                lineTo((points.size - 1) * stepX, size.height)
+                lineTo(0f, size.height)
+                close()
+            }
+            drawPath(
+                path = areaPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(lineColor.copy(alpha = 0.28f), lineColor.copy(alpha = 0.02f)),
+                    startY = 0f,
+                    endY = size.height
+                )
+            )
+            drawPath(path = linePath, color = lineColor, style = Stroke(width = 3f))
+
+            selectedIndex?.let { idx ->
+                val x = idx * stepX
+                val y = yFor(points[idx].second)
+                drawLine(color = cursorColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 2f)
+                drawCircle(color = lineColor, radius = 6f, center = Offset(x, y))
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        // X-axis labels: hours for an intraday (<= ~2d) span, else month/day, so 1D doesn't crowd.
+        val intraday = (points.last().first - points.first().first) <= 2L * 24 * 60 * 60 * 1000
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            val labelCount = 4
+            for (i in 0 until labelCount) {
+                val idx = ((i.toFloat() / (labelCount - 1)) * (points.size - 1)).roundToInt().coerceIn(0, points.size - 1)
+                val ts = points[idx].first
+                Text(
+                    text = if (intraday) formatAxisHour(ts) else formatAxisDate(ts),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit) {
+    val ranges = listOf(1 to "1D", 7 to "1W", 30 to "1M", 90 to "3M", 365 to "1Y")
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ranges.forEach { (days, label) ->
+            val active = days == selectedDays
+            Text(
+                text = label,
+                color = if (active) KaspaTeal else LocalAppColors.current.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (active) KaspaTeal.copy(alpha = 0.15f) else Color.Transparent)
+                    .clickable { onSelect(days) }
+                    .padding(vertical = 8.dp)
+            )
+        }
+    }
+}
+
+// MARK: full-screen chart destinations (registered in KaChatApp's NavHost)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PortfolioPriceChartScreen(
+    navController: NavController,
+    viewModel: PortfolioViewModel = hiltViewModel()
+) {
+    val currentPriceUsd by viewModel.currentPriceUsd.collectAsState()
+    val priceChange24h by viewModel.priceChange24h.collectAsState()
+    val priceHistory by viewModel.priceHistory.collectAsState()
+    val priceRangeDays by viewModel.priceRangeDays.collectAsState()
+    val currencyCode by viewModel.currency.collectAsState()
+    var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("KAS Price", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header: logo + name stay put while scrubbing; only the date + price change.
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_kaspa_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(30.dp).clip(CircleShape)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Kaspa", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                }
+                scrubbed?.let {
+                    Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                }
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = when {
+                            scrubbed != null -> formatUsdPrice(scrubbed!!.second, currencyCode)
+                            currentPriceUsd != null -> formatUsdPrice(currentPriceUsd!!, currencyCode)
+                            else -> "—"
+                        },
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp
+                    )
+                    if (scrubbed == null && priceChange24h != null) {
+                        Spacer(Modifier.width(8.dp))
+                        val positive = priceChange24h!! >= 0
+                        val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+                            Icon(
+                                if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                "${String.format(Locale.US, "%.2f", kotlin.math.abs(priceChange24h!!))}% (24h)",
+                                color = color,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (priceHistory.size >= 2) {
+                PortfolioBigChart(points = priceHistory, lineColor = KaspaTeal, onScrub = { scrubbed = it })
+            } else {
+                Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
+                    Text("Loading…", color = LocalAppColors.current.textSecondary)
+                }
+            }
+
+            PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(LocalAppColors.current.surface)
+                    .padding(14.dp)
+            ) {
+                Text("About Kaspa", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(KASPA_ABOUT_TEXT, color = LocalAppColors.current.textSecondary, fontSize = 13.sp, lineHeight = 20.sp)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PortfolioValueChartScreen(
+    navController: NavController,
+    viewModel: PortfolioViewModel = hiltViewModel()
+) {
+    val valueHistory by viewModel.valueHistory.collectAsState()
+    val summary by viewModel.summary.collectAsState()
+    val priceRangeDays by viewModel.priceRangeDays.collectAsState()
+    val currencyCode by viewModel.currency.collectAsState()
+    var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Value Over Time", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column {
+                Text("Portfolio Value", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                scrubbed?.let {
+                    Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                }
+                Text(
+                    formatFiatAmount(scrubbed?.second ?: summary.currentValue, currencyCode),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp
+                )
+            }
+
+            if (valueHistory.size >= 2) {
+                PortfolioBigChart(points = valueHistory, lineColor = KaspaTeal, onScrub = { scrubbed = it })
+            } else {
+                Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Not enough history yet - check back after a few days of activity.",
+                        color = LocalAppColors.current.textSecondary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
+
+            PortfolioValueStatsCard(summary = summary, currencyCode = currencyCode)
+        }
+    }
+}
+
+@Composable
+private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: String) {
+    val plColor = if (summary.totalPL >= 0) Color(0xFF4CD964) else Color(0xFFFF3B30)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(14.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text(stringResource(R.string.holdings), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                Text("${formatKasAmountGrouped(summary.holdingsKas)} KAS", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(stringResource(R.string.current_value), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                Text(formatFiatAmount(summary.currentValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        HorizontalDivider(color = LocalAppColors.current.divider)
+        Spacer(Modifier.height(10.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text(stringResource(R.string.total_invested), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                Text(formatFiatAmount(summary.totalInvested, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(stringResource(R.string.total_p_l), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                Text(
+                    "${formatFiatAmount(summary.totalPL, currencyCode)} (${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%)",
+                    color = plColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        summary.averageBuyPriceUsd?.let { avg ->
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = LocalAppColors.current.divider)
+            Spacer(Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("Avg. Buy Price", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                    Text(formatUsdPrice(avg, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

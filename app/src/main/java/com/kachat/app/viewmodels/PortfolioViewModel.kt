@@ -48,7 +48,10 @@ data class PortfolioSummary(
     val totalProceeds: Double,
     val currentValue: Double,
     val totalPL: Double,
-    val totalPLPercent: Double
+    val totalPLPercent: Double,
+    /** Lifetime cost basis per KAS across every buy (totalInvested / total KAS ever bought); null
+     *  with no buys yet. Matches iOS/desktop's `averageBuyPriceUsd`. */
+    val averageBuyPriceUsd: Double? = null
 )
 
 @HiltViewModel
@@ -333,11 +336,13 @@ class PortfolioViewModel @Inject constructor(
             var holdingsSompi = 0L
             var totalInvested = 0.0
             var totalProceeds = 0.0
+            var totalBoughtSompi = 0L
             for (tx in transactions) {
                 when (tx.type) {
                     "buy" -> {
                         holdingsSompi += tx.amountSompi
                         totalInvested += tx.fiatValue
+                        totalBoughtSompi += tx.amountSompi
                     }
                     "sell" -> {
                         holdingsSompi -= tx.amountSompi
@@ -349,13 +354,16 @@ class PortfolioViewModel @Inject constructor(
             val currentValue = holdingsKas * currentPriceUsd
             val totalPL = (currentValue + totalProceeds) - totalInvested
             val totalPLPercent = if (totalInvested > 0) (totalPL / totalInvested) * 100.0 else 0.0
+            val totalBoughtKas = totalBoughtSompi / 100_000_000.0
+            val averageBuyPriceUsd = if (totalBoughtKas > 0) totalInvested / totalBoughtKas else null
             return PortfolioSummary(
                 holdingsKas = holdingsKas,
                 totalInvested = totalInvested,
                 totalProceeds = totalProceeds,
                 currentValue = currentValue,
                 totalPL = totalPL,
-                totalPLPercent = totalPLPercent
+                totalPLPercent = totalPLPercent,
+                averageBuyPriceUsd = averageBuyPriceUsd
             )
         }
 
