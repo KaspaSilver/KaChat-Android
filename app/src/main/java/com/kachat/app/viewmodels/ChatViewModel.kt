@@ -1277,6 +1277,24 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Adds several members one at a time - each [GroupRepository.addMember] rotates the epoch and
+     * redistributes the new root, so they MUST run sequentially (a concurrent pair would both read
+     * the same current epoch and collide). Mirrors iOS's serial add loop. Reports how many were
+     * added and how many failed once the whole batch is done.
+     */
+    fun addGroupMembers(contacts: List<ContactEntity>, groupId: String, onResult: (added: Int, failed: Int) -> Unit) {
+        viewModelScope.launch {
+            var added = 0
+            var failed = 0
+            for (contact in contacts) {
+                try { groupRepository.addMember(contact, groupId); added++ }
+                catch (e: Exception) { failed++ }
+            }
+            onResult(added, failed)
+        }
+    }
+
     fun removeGroupMember(member: com.kachat.app.models.GroupMember, groupId: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
@@ -1317,6 +1335,22 @@ class ChatViewModel @Inject constructor(
             } catch (e: Exception) {
                 onError(e.message ?: "Failed to rename group")
             }
+        }
+    }
+
+    /** Re-broadcast the group invite to every member (admin) - retries invites that failed to send. */
+    fun resendGroupInvites(groupId: String, onResult: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try { groupRepository.resendInvites(groupId); onResult("Invites resent to all members.") }
+            catch (e: Exception) { onResult(e.message ?: "Failed to resend invites") }
+        }
+    }
+
+    /** Re-broadcast the group invite to ONE member (admin) - a targeted retry. */
+    fun resendGroupInviteToMember(groupId: String, address: String, onResult: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try { groupRepository.resendInviteToMember(groupId, address); onResult("Invite resent.") }
+            catch (e: Exception) { onResult(e.message ?: "Failed to resend invite") }
         }
     }
 

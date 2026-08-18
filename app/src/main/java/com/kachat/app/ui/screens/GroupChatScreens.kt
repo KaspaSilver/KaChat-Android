@@ -47,8 +47,10 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -1120,33 +1122,48 @@ private fun GroupMessageBubble(
                             }
                         }
                     }
-                    Surface(
-                        color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.widthIn(max = 280.dp)
-                    ) {
-                        Text(
-                            text = annotatedGroupBody,
-                            color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                                .pointerInput(annotatedGroupBody) {
-                                    detectTapGestures(
-                                        onLongPress = { showMenu = true },
-                                        onDoubleTap = { showQuickReactionBar = true },
-                                        onTap = { offset ->
-                                            val layout = groupTextLayoutResult ?: return@detectTapGestures
-                                            val charOffset = layout.getOffsetForPosition(offset)
-                                            annotatedGroupBody.getStringAnnotations("URL", charOffset, charOffset)
-                                                .firstOrNull()?.let { uriHandler.openUri(it.item) }
-                                        }
-                                    )
-                                },
-                            onTextLayout = { groupTextLayoutResult = it }
+                    val isEntirelyLinkGroup = remember(displayContent) { TextLinkify.isEntirelyLink(displayContent) }
+                    if (isEntirelyLinkGroup) {
+                        // Bare-link message: the preview card replaces the text bubble (matches the
+                        // 1:1 chat / iOS). fallbackText keeps the link visible/tappable if no preview
+                        // data is ever found, so the message never renders as nothing.
+                        LinkPreviewCard(
+                            url = TextLinkify.findUrls(displayContent).first().uri,
+                            txId = message.txId,
+                            fallbackText = displayContent,
+                            onSelect = onSelect,
+                            onDoubleTap = { showQuickReactionBar = true }
                         )
-                    }
-                    TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
-                        LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
+                    } else {
+                        Surface(
+                            color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.widthIn(max = 280.dp)
+                        ) {
+                            Text(
+                                text = annotatedGroupBody,
+                                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    .pointerInput(annotatedGroupBody) {
+                                        detectTapGestures(
+                                            onLongPress = { showMenu = true },
+                                            onDoubleTap = { showQuickReactionBar = true },
+                                            onTap = { offset ->
+                                                val layout = groupTextLayoutResult ?: return@detectTapGestures
+                                                val charOffset = layout.getOffsetForPosition(offset)
+                                                annotatedGroupBody.getStringAnnotations("URL", charOffset, charOffset)
+                                                    .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                            }
+                                        )
+                                    },
+                                onTextLayout = { groupTextLayoutResult = it }
+                            )
+                        }
+                        // Link within longer text: show the card beneath the text bubble.
+                        TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
+                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
+                        }
                     }
                 }
             }
@@ -1381,6 +1398,9 @@ fun GroupChatInfoScreen(
     var showRename by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
     var renameError by remember { mutableStateOf<String?>(null) }
+    var resendMessage by remember { mutableStateOf<String?>(null) }
+    var showAddMembers by remember { mutableStateOf(false) }
+    val conversations by chatViewModel.conversations.collectAsState()
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -1438,8 +1458,27 @@ fun GroupChatInfoScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(text = memberLabel, color = LocalAppColors.current.textPrimary)
                         }
-                        if (member.isAdmin) {
-                            Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (member.isAdmin) {
+                                Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                            }
+                            // Admins can re-send this one member's invite (targeted retry for a member who never received it)
+                            if (group?.isAdmin == true && !member.isAdmin) {
+                                Spacer(Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = {
+                                        chatViewModel.resendGroupInviteToMember(groupId, member.address) { msg -> resendMessage = msg }
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Resend invite",
+                                        tint = KaspaTeal,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                     if (index < members.size - 1) {
@@ -1506,6 +1545,38 @@ fun GroupChatInfoScreen(
                     Icon(Icons.Default.Edit, contentDescription = null, tint = LocalAppColors.current.textPrimary)
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(R.string.rename_group), color = LocalAppColors.current.textPrimary)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(LocalAppColors.current.surface)
+                        .clickable {
+                            chatViewModel.resendGroupInvites(groupId) { msg -> resendMessage = msg }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = LocalAppColors.current.textPrimary)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Resend invites to all", color = LocalAppColors.current.textPrimary)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(LocalAppColors.current.surface)
+                        .clickable { showAddMembers = true }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = LocalAppColors.current.textPrimary)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Add members", color = LocalAppColors.current.textPrimary)
                 }
             }
 
@@ -1584,6 +1655,133 @@ fun GroupChatInfoScreen(
             confirmButton = {
                 TextButton(onClick = { renameError = null }) {
                     Text(stringResource(R.string.ok), color = KaspaTeal)
+                }
+            }
+        )
+    }
+
+    if (resendMessage != null) {
+        AlertDialog(
+            onDismissRequest = { resendMessage = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Resend invites", color = LocalAppColors.current.textPrimary) },
+            text = { Text(resendMessage ?: "", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = { resendMessage = null }) {
+                    Text(stringResource(R.string.ok), color = KaspaTeal)
+                }
+            }
+        )
+    }
+
+    if (showAddMembers) {
+        var addSearch by remember { mutableStateOf("") }
+        var addSelected by remember { mutableStateOf(setOf<String>()) }
+        var addBusy by remember { mutableStateOf(false) }
+        var addError by remember { mutableStateOf<String?>(null) }
+        val existingAddresses = remember(members) { members.map { it.address }.toSet() }
+        val query = addSearch.trim().lowercase()
+        val candidates = remember(conversations, existingAddresses, query) {
+            conversations.map { it.contact }
+                .distinctBy { it.id }
+                .filter { it.id !in existingAddresses }
+                .sortedBy { (it.alias ?: it.id).lowercase() }
+                .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+        }
+        AlertDialog(
+            onDismissRequest = { if (!addBusy) showAddMembers = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Add members", color = LocalAppColors.current.textPrimary) },
+            text = {
+                Column {
+                    TextField(
+                        value = addSearch,
+                        onValueChange = { addSearch = it },
+                        placeholder = { Text("Search contacts", color = Color.DarkGray) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LocalAppColors.current.background,
+                            unfocusedContainerColor = LocalAppColors.current.background,
+                            focusedTextColor = LocalAppColors.current.textPrimary,
+                            unfocusedTextColor = LocalAppColors.current.textPrimary,
+                            cursorColor = KaspaTeal,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    if (conversations.isEmpty()) {
+                        Text("You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to the group.",
+                            color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    } else if (candidates.isEmpty()) {
+                        Text(if (query.isEmpty()) "Everyone in your contacts is already in this group." else "No contacts match your search.",
+                            color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                            items(candidates, key = { it.id }) { contact ->
+                                val selected = contact.id in addSelected
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            addSelected = if (selected) addSelected - contact.id else addSelected + contact.id
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    ContactAvatar(
+                                        imageUrl = contact.knsAvatarUrl,
+                                        deviceContactPhotoUri = contact.systemContactPhotoUri,
+                                        backupPhotoBase64 = contact.backupPhotoBase64,
+                                        fallbackText = contact.alias ?: contact.id.takeLast(8),
+                                        size = 36.dp
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(contact.alias ?: contact.id.takeLast(10), color = LocalAppColors.current.textPrimary, maxLines = 1)
+                                        Text(contact.id.takeLast(16), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                    }
+                                    Icon(
+                                        imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                        contentDescription = null,
+                                        tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    addError?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("New members can read messages from the moment they're added, not earlier history.",
+                        color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = addSelected.isNotEmpty() && !addBusy,
+                    onClick = {
+                        val chosen = candidates.filter { it.id in addSelected }
+                            .ifEmpty { conversations.map { it.contact }.distinctBy { it.id }.filter { it.id in addSelected } }
+                        addBusy = true
+                        addError = null
+                        chatViewModel.addGroupMembers(chosen, groupId) { added, failed ->
+                            addBusy = false
+                            if (failed == 0) showAddMembers = false
+                            else addError = "$failed member(s) could not be added ($added added). Please try again."
+                        }
+                    }
+                ) {
+                    Text(if (addSelected.isEmpty()) "Add" else "Add (${addSelected.size})", color = KaspaTeal)
+                }
+            },
+            dismissButton = {
+                TextButton(enabled = !addBusy, onClick = { showAddMembers = false }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
         )

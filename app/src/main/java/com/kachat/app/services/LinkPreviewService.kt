@@ -61,6 +61,27 @@ object LinkPreviewService {
 
     private val youTubeHosts = setOf("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be")
 
+    /** A real desktop-browser User-Agent. A self-identifying bot UA (the old value) makes sites
+     *  like Instagram serve a login/consent wall whose HTML has a title but no post-specific
+     *  `og:image`; a browser UA gets the real page. Shared with the image loader (see
+     *  [com.kachat.app.ui.screens.LinkPreviewCard]) so image CDNs (cdninstagram/fbcdn) that reject
+     *  non-browser requests don't 403. Mirrors iOS's `LinkPreviewService.browserUserAgent`. */
+    const val BROWSER_USER_AGENT =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+
+    /** Meta's own link-scraper User-Agent. Instagram/Facebook serve full Open Graph tags -
+     *  including `og:image` - to this crawler, whereas a browser UA increasingly gets a login wall
+     *  with no post image. Used for the scrape on Meta hosts. Mirrors iOS's
+     *  `facebookExternalHitUserAgent`. */
+    const val FACEBOOK_EXTERNAL_HIT_UA =
+        "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+
+    /** Hosts that gate `og:image` behind Meta's crawler UA (a plain/bot UA gets a login wall). */
+    private val metaScrapeHosts = setOf(
+        "instagram.com", "www.instagram.com", "m.instagram.com",
+        "facebook.com", "www.facebook.com", "m.facebook.com", "fb.watch"
+    )
+
     /** `https://host/s/TOKEN` (or `/index.php/s/TOKEN`, token 10+ url-safe chars). */
     private val nextcloudSharePathRegex = Regex("""^(/index\.php)?/s/([A-Za-z0-9_-]{10,})/?$""")
 
@@ -117,10 +138,14 @@ object LinkPreviewService {
             // private/deleted video) - unlikely to succeed either, but no harm trying.
         }
 
+        // Instagram/Facebook serve a login wall (title/description but no post `og:image`) to a
+        // plain/bot UA; Meta's crawler UA gets the full Open Graph tags. Everything else gets a
+        // real browser UA (some CDNs 403 a self-identifying bot).
+        val scrapeUserAgent = if (host != null && host in metaScrapeHosts) FACEBOOK_EXTERNAL_HIT_UA else BROWSER_USER_AGENT
         return try {
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "Mozilla/5.0 (compatible; KaChatLinkPreview/1.0)")
+                .header("User-Agent", scrapeUserAgent)
                 .build()
 
             client.newCall(request).execute().use { response ->

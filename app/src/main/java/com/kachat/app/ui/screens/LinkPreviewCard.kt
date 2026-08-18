@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.services.LinkPreviewData
 import com.kachat.app.services.LinkPreviewService
@@ -405,6 +406,7 @@ private fun NextcloudAttachmentCard(data: LinkPreviewData, url: String, txId: St
 
 @Composable
 private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: String, kaspaExplorer: KaspaExplorer, onSelect: (() -> Unit)? = null, onDoubleTap: (() -> Unit)? = null) {
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
     val isVideoLink = remember(url) {
@@ -432,8 +434,20 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
     ) {
         if (data.imageUrl != null) {
             Box {
+                // Load the OG image with a real browser UA + Referer (the page it came from).
+                // Image CDNs like cdninstagram/fbcdn 403 the header-less request Coil sends by
+                // default, which is why Instagram previews showed no picture. Mirrors iOS's
+                // LinkPreviewService.imageData(referer:).
+                val imageRequest = remember(data.imageUrl, data.url) {
+                    ImageRequest.Builder(context)
+                        .data(data.imageUrl)
+                        .addHeader("User-Agent", LinkPreviewService.BROWSER_USER_AGENT)
+                        .addHeader("Referer", data.url)
+                        .crossfade(true)
+                        .build()
+                }
                 SubcomposeAsyncImage(
-                    model = data.imageUrl,
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

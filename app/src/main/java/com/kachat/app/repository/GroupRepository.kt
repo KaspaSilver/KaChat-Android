@@ -278,6 +278,35 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /** Re-broadcast the CURRENT root to every member (admin) - retries invites that failed to send,
+     *  without rotating the epoch. Throws if any member still can't be reached. */
+    suspend fun resendInvites(groupId: String) {
+        val walletAddress = walletManager.getAddress()
+        val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        if (!entity.isAdmin) throw IllegalStateException("Only the group admin can resend invites.")
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing admin group secrets.")
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val roster = membersOf(entity)
+        var failures = 0
+        for (member in roster) {
+            if (member.address == walletAddress) continue
+            try { sendRootControlMessage(entity, roster, bag, member.address, privateKey) } catch (e: Exception) { failures++ }
+        }
+        if (failures > 0) throw IllegalStateException("$failures invite(s) still could not be sent.")
+    }
+
+    /** Re-broadcast the current root to ONE member (admin) - a targeted retry of a single invite. */
+    suspend fun resendInviteToMember(groupId: String, address: String) {
+        val walletAddress = walletManager.getAddress()
+        val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        if (!entity.isAdmin) throw IllegalStateException("Only the group admin can resend invites.")
+        if (address == walletAddress) return
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing admin group secrets.")
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val roster = membersOf(entity)
+        sendRootControlMessage(entity, roster, bag, address, privateKey)
+    }
+
     private suspend fun rotateEpoch(groupId: String, reason: String, mutateRoster: (MutableList<GroupMember>) -> Unit) {
         val walletAddress = walletManager.getAddress()
         val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
@@ -514,7 +543,21 @@ class GroupRepository @Inject constructor(
         val walletAddress = walletManager.getAddress()
         val encrypted = KasiaCipher.encrypt(json, recipientXOnlyPub)
         val payloadString = "kchat:1:gctl:" + recipientXOnlyPub.toHexString() + ":" + encrypted.toBytes().toHexString()
-        walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+        // Retry to ride out UTXO contention: each member's invite is its own tx, and a
+        // back-to-back send fails until the prior tx's change output settles. Without this a
+        // multi-member invite can silently drop the 2nd+ members.
+        val attempts = 4
+        var lastError: Exception? = null
+        for (i in 0 until attempts) {
+            try {
+                walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+                return
+            } catch (e: Exception) {
+                lastError = e
+                if (i < attempts - 1) kotlinx.coroutines.delay(1800)
+            }
+        }
+        throw lastError ?: IllegalStateException("Group invite send failed.")
     }
 
     // -------------------------------------------------------------------------
