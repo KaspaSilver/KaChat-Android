@@ -54,8 +54,11 @@ class GroupScanningService @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
 
-    private val gcommPrefixHex = hexPrefix("ciph_msg:1:gcomm:")
-    private val gctlPrefixHex = hexPrefix("ciph_msg:1:gctl:")
+    // Dual-read: write the new `kchat:` root, still scan for the legacy `ciph_msg:` root too.
+    private val gcommPrefixHex = hexPrefix("kchat:1:gcomm:")
+    private val gctlPrefixHex = hexPrefix("kchat:1:gctl:")
+    private val legacyGcommPrefixHex = hexPrefix("ciph_msg:1:gcomm:")
+    private val legacyGctlPrefixHex = hexPrefix("ciph_msg:1:gctl:")
 
     init {
         // Gated on the pool already having a proven-active node, not just hasActiveWallet alone -
@@ -115,8 +118,8 @@ class GroupScanningService @Inject constructor(
             if (txId.isBlank()) continue
 
             val payloadHex = tx.payload
-            val matchesGcomm = payloadHex.startsWith(gcommPrefixHex)
-            val matchesGctl = payloadHex.startsWith(gctlPrefixHex)
+            val matchesGcomm = payloadHex.startsWith(gcommPrefixHex) || payloadHex.startsWith(legacyGcommPrefixHex)
+            val matchesGctl = payloadHex.startsWith(gctlPrefixHex) || payloadHex.startsWith(legacyGctlPrefixHex)
             if (!matchesGcomm && !matchesGctl) continue
 
             val payloadBytes = payloadHex.hexToBytesOrNull() ?: continue

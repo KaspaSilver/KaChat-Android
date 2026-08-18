@@ -513,7 +513,7 @@ class GroupRepository @Inject constructor(
     private suspend fun sendControlPayload(json: String, recipientXOnlyPub: ByteArray, privateKey: ByteArray) {
         val walletAddress = walletManager.getAddress()
         val encrypted = KasiaCipher.encrypt(json, recipientXOnlyPub)
-        val payloadString = "ciph_msg:1:gctl:" + recipientXOnlyPub.toHexString() + ":" + encrypted.toBytes().toHexString()
+        val payloadString = "kchat:1:gctl:" + recipientXOnlyPub.toHexString() + ":" + encrypted.toBytes().toHexString()
         walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
     }
 
@@ -634,8 +634,12 @@ class GroupRepository @Inject constructor(
         val walletAddress = walletManager.getAddress()
         if (senderAddress == walletAddress) return
         val privateKey = walletManager.getPrivateKeyBytes()
-        val prefix = "ciph_msg:1:gctl:"
-        if (!payloadString.startsWith(prefix)) return
+        // Dual-read: strip whichever gctl root the payload carries (new kchat: or legacy).
+        val prefix = when {
+            payloadString.startsWith("kchat:1:gctl:") -> "kchat:1:gctl:"
+            payloadString.startsWith("ciph_msg:1:gctl:") -> "ciph_msg:1:gctl:"
+            else -> return
+        }
         val hexPayload = payloadString.substring(prefix.length)
         val encryptedBytes = try { hexPayload.hexToByteArray() } catch (e: Exception) { return }
         val encrypted = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes) ?: return
@@ -749,7 +753,7 @@ class GroupRepository @Inject constructor(
         }
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
-            val payloadString = reconstructPayloadString("ciph_msg:1:gcomm:", msg.messagePayload) ?: continue
+            val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
             val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
             handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
         }
@@ -766,7 +770,7 @@ class GroupRepository @Inject constructor(
         }
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
-            val payloadString = reconstructPayloadString("ciph_msg:1:gctl:", msg.messagePayload) ?: continue
+            val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
             handleIncomingControlMessage(payloadString, msg.sender)
         }
     }
@@ -786,7 +790,7 @@ class GroupRepository @Inject constructor(
         }
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
-            val payloadString = reconstructPayloadString("ciph_msg:1:gctl:", msg.messagePayload) ?: continue
+            val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
             handleIncomingControlMessage(payloadString, msg.sender)
         }
     }

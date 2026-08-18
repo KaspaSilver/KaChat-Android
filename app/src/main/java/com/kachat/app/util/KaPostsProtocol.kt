@@ -10,7 +10,9 @@ import java.util.Base64
  * field string. Mirrors iOS KaPostsProtocol in KaPostsAPIClient.swift byte-for-byte.
  */
 object KaPostsProtocol {
-    const val PREFIX = "k:1:"
+    // `kchat:` migration: KaPosts now writes the `kchat:1:<action>:` root (was `k:1:`). Reads come
+    // pre-parsed from the K indexer (dual-reads server-side), so only the write shape changes.
+    const val PREFIX = "kchat:1:"
 
     /**
      * U+2060 WORD JOINER - the KaChat exclusivity marker. Invisible everywhere, survives base64

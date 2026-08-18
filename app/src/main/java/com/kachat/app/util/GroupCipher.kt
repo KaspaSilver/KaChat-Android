@@ -258,13 +258,17 @@ object GroupCipher {
         ciphertext: ByteArray,
         signature: ByteArray
     ): String {
-        return "ciph_msg:1:gcomm:${blindedGroupId.toHexString()}:$epoch:${senderId.toHexString()}:" +
+        return "kchat:1:gcomm:${blindedGroupId.toHexString()}:$epoch:${senderId.toHexString()}:" +
             "${senderPubKey.toHexString()}:${msgId.toHexString()}:${ciphertext.toHexString()}:${signature.toHexString()}"
     }
 
     fun parseGroupMessagePayload(payloadString: String): ParsedGroupMessage? {
-        val prefix = "ciph_msg:1:gcomm:"
-        if (!payloadString.startsWith(prefix)) return null
+        // Dual-read: new `kchat:` root and legacy `ciph_msg:` root (tail identical).
+        val prefix = when {
+            payloadString.startsWith("kchat:1:gcomm:") -> "kchat:1:gcomm:"
+            payloadString.startsWith("ciph_msg:1:gcomm:") -> "ciph_msg:1:gcomm:"
+            else -> return null
+        }
         val rest = payloadString.substring(prefix.length)
         val parts = rest.split(":")
         if (parts.size != 7) return null
@@ -293,14 +297,20 @@ object GroupCipher {
      * legacy gctl already relied on, a mismatched recipient's ECIES decrypt just fails silently.
      */
     fun normalizeControlPayload(payloadString: String): String {
-        val prefix = "ciph_msg:1:gctl:"
-        if (!payloadString.startsWith(prefix)) return payloadString
-        val rest = payloadString.substring(prefix.length)
+        // Dual-read: accept either root, then ALWAYS re-root to canonical `kchat:1:gctl:` so the
+        // downstream strip (handleIncomingControlMessage) is correct for old and new.
+        val canonical = "kchat:1:gctl:"
+        val root = when {
+            payloadString.startsWith(canonical) -> canonical
+            payloadString.startsWith("ciph_msg:1:gctl:") -> "ciph_msg:1:gctl:"
+            else -> return payloadString
+        }
+        val rest = payloadString.substring(root.length)
         val parts = rest.split(":")
         if (parts.size != 2 || parts[0].length != 64 || !parts[0].all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
-            return payloadString
+            return canonical + rest
         }
-        return prefix + parts[1]
+        return canonical + parts[1]
     }
 
     // -------------------------------------------------------------------------

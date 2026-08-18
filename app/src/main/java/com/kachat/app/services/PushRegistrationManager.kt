@@ -627,6 +627,6 @@ class PushRegistrationManager @Inject constructor(
         // whole story: registration attempts, their outcomes, token rotations, and every
         // received push.
         internal const val TAG = "KaChatPush"
-        private const val AUTH_DOMAIN_V1 = "kasia-push-auth:v1"
+        private const val AUTH_DOMAIN_V1 = "kchat-push-auth:v1"
     }
 }
