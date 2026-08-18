@@ -9490,96 +9490,188 @@ fun GroupChatCreationFields(
         singleLine = true
     )
 
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.height(24.dp))
 
-    Text(
-        text = if (selectedAddresses.isEmpty()) stringResource(R.string.members) else "${stringResource(R.string.members)} (${selectedAddresses.size})",
-        color = LocalAppColors.current.textPrimary,
-        fontWeight = FontWeight.Bold,
-        style = MaterialTheme.typography.titleMedium
-    )
-    Spacer(modifier = Modifier.height(12.dp))
-
-    // Search box to filter the existing contacts shown below.
-    TextField(
-        value = searchText,
-        onValueChange = onSearchTextChange,
-        placeholder = { Text("Search contacts", color = Color.DarkGray) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
+    // --- Members (N): collapsible list of who has been added so far ---
+    var membersExpanded by remember { mutableStateOf(false) }
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp)),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = LocalAppColors.current.surface,
-            unfocusedContainerColor = LocalAppColors.current.surface,
-            focusedTextColor = LocalAppColors.current.textPrimary,
-            unfocusedTextColor = LocalAppColors.current.textPrimary,
-            cursorColor = KaspaTeal,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        ),
-        singleLine = true
-    )
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    val query = searchText.trim().lowercase()
-    val contacts = remember(conversations, query) {
-        conversations.map { it.contact }
-            .distinctBy { it.id }
-            .sortedBy { (it.alias ?: it.id).lowercase() }
-            .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { membersExpanded = !membersExpanded }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = if (selectedAddresses.isEmpty()) stringResource(R.string.members) else "${stringResource(R.string.members)} (${selectedAddresses.size})",
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = if (membersExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary
+        )
+    }
+    if (membersExpanded) {
+        Spacer(modifier = Modifier.height(8.dp))
+        if (selectedAddresses.isEmpty()) {
+            Text(
+                text = "No members added yet. Open Contacts below to add people.",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            val contactsById = remember(conversations) { conversations.map { it.contact }.associateBy { it.id } }
+            selectedAddresses.forEach { address ->
+                val contact = contactsById[address]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ContactAvatar(
+                        imageUrl = contact?.knsAvatarUrl,
+                        deviceContactPhotoUri = contact?.systemContactPhotoUri,
+                        backupPhotoBase64 = contact?.backupPhotoBase64,
+                        fallbackText = contact?.alias ?: KaspaAddress.shortDisplay(address),
+                        size = 40.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = contact?.alias ?: KaspaAddress.shortDisplay(address),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = KaspaAddress.shortDisplay(address),
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1
+                        )
+                    }
+                    IconButton(onClick = { onToggleMember(address) }) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFFF3B30))
+                    }
+                }
+            }
+        }
     }
 
-    if (conversations.isEmpty()) {
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // --- Contacts: collapsible search + list of people you have chatted with ---
+    var contactsExpanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { contactsExpanded = !contactsExpanded }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
-            text = "You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to a group.",
-            color = LocalAppColors.current.textSecondary,
-            style = MaterialTheme.typography.bodySmall
+            text = "Contacts",
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f)
         )
-    } else if (contacts.isEmpty()) {
-        Text(
-            text = "No contacts match your search.",
-            color = LocalAppColors.current.textSecondary,
-            style = MaterialTheme.typography.bodySmall
+        Icon(
+            imageVector = if (contactsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary
         )
-    } else {
-        contacts.forEach { contact ->
-            val selected = selectedAddresses.contains(contact.id)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleMember(contact.id) }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ContactAvatar(
-                    imageUrl = contact.knsAvatarUrl,
-                    deviceContactPhotoUri = contact.systemContactPhotoUri,
-                    backupPhotoBase64 = contact.backupPhotoBase64,
-                    fallbackText = contact.alias ?: contact.id.takeLast(8),
-                    size = 40.dp
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = contact.alias ?: KaspaAddress.shortDisplay(contact.id),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
+    }
+    if (contactsExpanded) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Search box to filter the existing contacts shown below.
+        TextField(
+            value = searchText,
+            onValueChange = onSearchTextChange,
+            placeholder = { Text("Search contacts", color = Color.DarkGray) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = LocalAppColors.current.surface,
+                unfocusedContainerColor = LocalAppColors.current.surface,
+                focusedTextColor = LocalAppColors.current.textPrimary,
+                unfocusedTextColor = LocalAppColors.current.textPrimary,
+                cursorColor = KaspaTeal,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val query = searchText.trim().lowercase()
+        val contacts = remember(conversations, query) {
+            conversations.map { it.contact }
+                .distinctBy { it.id }
+                .sortedBy { (it.alias ?: it.id).lowercase() }
+                .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+        }
+
+        if (conversations.isEmpty()) {
+            Text(
+                text = "You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to a group.",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else if (contacts.isEmpty()) {
+            Text(
+                text = "No contacts match your search.",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            contacts.forEach { contact ->
+                val selected = selectedAddresses.contains(contact.id)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleMember(contact.id) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ContactAvatar(
+                        imageUrl = contact.knsAvatarUrl,
+                        deviceContactPhotoUri = contact.systemContactPhotoUri,
+                        backupPhotoBase64 = contact.backupPhotoBase64,
+                        fallbackText = contact.alias ?: contact.id.takeLast(8),
+                        size = 40.dp
                     )
-                    Text(
-                        text = KaspaAddress.shortDisplay(contact.id),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = contact.alias ?: KaspaAddress.shortDisplay(contact.id),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = KaspaAddress.shortDisplay(contact.id),
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1
+                        )
+                    }
+                    Icon(
+                        imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary
                     )
                 }
-                Icon(
-                    imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                    contentDescription = null,
-                    tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary
-                )
             }
         }
     }

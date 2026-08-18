@@ -17,6 +17,7 @@ import com.kachat.app.models.ChatHistoryArchiveMessage
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.repository.ChatRepository
+import com.kachat.app.repository.GroupRepository
 import com.kachat.app.util.MessageProtocol
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
@@ -57,6 +58,7 @@ import javax.inject.Singleton
 class ChatHistoryExportImportService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val chatRepository: ChatRepository,
+    private val groupRepository: GroupRepository,
     private val walletManager: WalletManager
 ) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
@@ -99,7 +101,8 @@ class ChatHistoryExportImportService @Inject constructor(
         return ChatHistoryArchive(
             exportedAt = isoSeconds(System.currentTimeMillis()),
             walletAddress = myAddress,
-            conversations = conversations
+            conversations = conversations,
+            groups = groupRepository.exportArchiveGroups()
         )
     }
 
@@ -225,6 +228,11 @@ class ChatHistoryExportImportService @Inject constructor(
             }
             if (addedAny) conversationCount++
         }
+
+        // Groups (cross-platform recovery): restore full group key material so this device
+        // recovers admin groups it created elsewhere as well as member ones. Optional - older
+        // archives omit it.
+        archive.groups?.takeIf { it.isNotEmpty() }?.let { groupRepository.importArchiveGroups(it) }
 
         return ImportResult(importedMessageCount = importedCount, conversationCount = conversationCount)
     }
@@ -568,6 +576,20 @@ class ChatHistoryExportImportService @Inject constructor(
             val walletAddress = local.string("walletAddress").ifEmpty { remote.string("walletAddress") }
             if (walletAddress.isEmpty()) result.remove("walletAddress") else result.addProperty("walletAddress", walletAddress)
             result.add("conversations", conversations)
+
+            // Groups: union by groupId so the shared backup accumulates every device's groups.
+            // Local is listed first, so for a group both hold the just-exported local copy wins.
+            val mergedGroups = com.google.gson.JsonArray()
+            val seenGroupIds = HashSet<String>()
+            for (arr in listOf(local.getAsJsonArray("groups"), remote.getAsJsonArray("groups"))) {
+                arr?.forEach { el ->
+                    if (el.isJsonObject) {
+                        val gid = el.asJsonObject.string("groupId")
+                        if (gid.isNotEmpty() && seenGroupIds.add(gid)) mergedGroups.add(el)
+                    }
+                }
+            }
+            if (mergedGroups.size() > 0) result.add("groups", mergedGroups) else result.remove("groups")
             return result
         }
     }

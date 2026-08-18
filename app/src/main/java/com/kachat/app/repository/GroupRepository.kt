@@ -5,6 +5,8 @@ package com.kachat.app.repository
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.kachat.app.models.ChatHistoryArchiveGroup
+import com.kachat.app.models.ChatHistoryArchiveGroupMember
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.GroupEntity
 import com.kachat.app.models.GroupMember
@@ -817,6 +819,65 @@ class GroupRepository @Inject constructor(
             if (version == 0x00.toByte() && payload.size == 32) payload else null
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Full group key material for the shared backup archive (see ChatHistoryArchive.groups) -
+     * including the admin's groupSeed, which lives ONLY on the creating device and has no
+     * on-chain invite for other devices of the same account to recover from. deviceId/msgCounter
+     * are per-device and deliberately omitted (the importer mints its own).
+     */
+    suspend fun exportArchiveGroups(): List<ChatHistoryArchiveGroup> {
+        val walletAddress = walletManager.getAddress()
+        if (walletAddress.isEmpty()) return emptyList()
+        return database.groupDao().getGroupsOnce(walletAddress).mapNotNull { entity ->
+            val bag = groupSecretStore.loadBag(walletAddress, entity.groupId) ?: return@mapNotNull null
+            val members = try { gson.fromJson<List<GroupMember>>(entity.membersJson, membersListType) ?: emptyList() } catch (e: Exception) { emptyList() }
+            ChatHistoryArchiveGroup(
+                groupId = entity.groupId,
+                name = entity.name,
+                isAdmin = entity.isAdmin,
+                adminAddress = entity.adminAddress,
+                adminSigningPub = entity.adminXOnlyPubKeyHex,
+                groupSeed = bag.groupSeed,
+                groupRootEpoch = bag.groupRootEpoch,
+                blindingKey = bag.blindingKey,
+                currentEpoch = bag.currentEpoch,
+                members = members.map { ChatHistoryArchiveGroupMember(it.address, it.xOnlyPubKeyHex, it.isAdmin) }
+            )
+        }
+    }
+
+    /**
+     * Restore groups from a shared backup archive. Recovers admin groups (groupSeed present) as
+     * well as member ones. Mints a fresh deviceId per group so this device's sends can't collide
+     * with msg_ids the exporting device already used; never downgrades a newer epoch.
+     */
+    suspend fun importArchiveGroups(groups: List<ChatHistoryArchiveGroup>) {
+        val walletAddress = walletManager.getAddress()
+        if (walletAddress.isEmpty()) return
+        for (g in groups) {
+            val groupRootEpoch = g.groupRootEpoch ?: continue
+            val blindingKey = g.blindingKey ?: continue
+            val existingBag = groupSecretStore.loadBag(walletAddress, g.groupId)
+            if (existingBag != null && existingBag.currentEpoch > g.currentEpoch) continue
+            val deviceId = existingBag?.deviceId ?: GroupCipher.generateDeviceId().toHexString()
+            val msgCounter = if (existingBag?.currentEpoch == g.currentEpoch) existingBag.msgCounter else 0L
+            val bag = GroupBag(
+                groupId = g.groupId, groupSeed = g.groupSeed, groupRootEpoch = groupRootEpoch,
+                blindingKey = blindingKey, currentEpoch = g.currentEpoch, deviceId = deviceId, msgCounter = msgCounter
+            )
+            groupSecretStore.saveBag(walletAddress, bag)
+            val roster = g.members.map { GroupMember(it.address, it.xOnlyPubKeyHex ?: "", it.isAdmin, null) }
+            val existingEntity = database.groupDao().getGroup(g.groupId, walletAddress)
+            val entity = GroupEntity(
+                groupId = g.groupId, walletAddress = walletAddress, name = g.name,
+                adminAddress = g.adminAddress ?: "", adminXOnlyPubKeyHex = g.adminSigningPub ?: "",
+                currentEpoch = g.currentEpoch, isAdmin = g.isAdmin, membersJson = gson.toJson(roster),
+                lastReadAt = existingEntity?.lastReadAt
+            )
+            database.groupDao().upsertGroup(entity)
         }
     }
 

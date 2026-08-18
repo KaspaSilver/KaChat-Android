@@ -11,12 +11,37 @@ data class ChatHistoryArchive(
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
     val exportedAt: String,
     val walletAddress: String?,
-    val conversations: List<ChatHistoryArchiveConversation>
+    val conversations: List<ChatHistoryArchiveConversation>,
+    // Cross-platform group key material (optional; older archives omit it). Carries the full
+    // bag - including the admin's groupSeed - so another device of the same account recovers
+    // admin groups that have no on-chain invite addressed to it.
+    val groups: List<ChatHistoryArchiveGroup>? = null
 ) {
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1
     }
 }
+
+// Field names match the desktop/iOS archive schema exactly. deviceId/msgCounter are per-device
+// and deliberately NOT carried (the importer mints its own).
+data class ChatHistoryArchiveGroup(
+    val groupId: String,
+    val name: String,
+    val isAdmin: Boolean,
+    val adminAddress: String?,
+    val adminSigningPub: String?,
+    val groupSeed: String?,
+    val groupRootEpoch: String?,
+    val blindingKey: String?,
+    val currentEpoch: Long,
+    val members: List<ChatHistoryArchiveGroupMember>
+)
+
+data class ChatHistoryArchiveGroupMember(
+    val address: String,
+    val xOnlyPubKeyHex: String?,
+    val isAdmin: Boolean
+)
 
 data class ChatHistoryArchiveConversation(
     val conversationId: String? = null,
