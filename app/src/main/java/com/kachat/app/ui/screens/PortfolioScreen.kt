@@ -1106,10 +1106,20 @@ fun PortfolioPriceChartScreen(
             )
         }
     ) { padding ->
-        Column(
+        val pullRefreshState = rememberPullToRefreshState()
+        val isRefreshing by viewModel.isRefreshingPortfolio.collectAsState()
+        LaunchedEffect(pullRefreshState.isRefreshing) { if (pullRefreshState.isRefreshing) viewModel.refreshPrice() }
+        LaunchedEffect(isRefreshing) { if (!isRefreshing && pullRefreshState.isRefreshing) pullRefreshState.endRefresh() }
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -1184,6 +1194,8 @@ fun PortfolioPriceChartScreen(
                 Text(KASPA_ABOUT_TEXT, color = LocalAppColors.current.textSecondary, fontSize = 13.sp, lineHeight = 20.sp)
             }
         }
+            PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
+        }
     }
 }
 
@@ -1213,10 +1225,20 @@ fun PortfolioValueChartScreen(
             )
         }
     ) { padding ->
-        Column(
+        val pullRefreshState = rememberPullToRefreshState()
+        val isRefreshing by viewModel.isRefreshingPortfolio.collectAsState()
+        LaunchedEffect(pullRefreshState.isRefreshing) { if (pullRefreshState.isRefreshing) viewModel.refreshPrice() }
+        LaunchedEffect(isRefreshing) { if (!isRefreshing && pullRefreshState.isRefreshing) pullRefreshState.endRefresh() }
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -1249,6 +1271,8 @@ fun PortfolioValueChartScreen(
             PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
 
             PortfolioValueStatsCard(summary = summary, currencyCode = currencyCode)
+        }
+            PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
     }
 }
