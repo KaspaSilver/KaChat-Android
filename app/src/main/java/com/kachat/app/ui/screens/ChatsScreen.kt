@@ -445,7 +445,9 @@ fun ChatsScreen(
         // Chats lists. Tab taps still drive it via pagerState.animateScrollToPage above.
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = false,
+            // Allow swiping left/right between the Chats and Group Chats tabs (the tab row
+            // still works too - both drive the same pagerState).
+            userScrollEnabled = true,
             modifier = Modifier.fillMaxSize().padding(padding)
         ) { page ->
         when (page) {
