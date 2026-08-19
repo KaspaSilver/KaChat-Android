@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -406,7 +407,13 @@ fun KaPostsScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.loadFeed() }
+    LaunchedEffect(Unit) {
+        // Entering KaPosts always lands on the MOST RECENT feed: reload page one and snap every
+        // tab's list to the top (the saved scroll state would otherwise restore last visit's
+        // position deep in older posts).
+        viewModel.loadFeed()
+        feedListStates.forEach { state -> runCatching { state.scrollToItem(0) } }
+    }
     LaunchedEffect(deepLinkTxId) {
         val txId = deepLinkTxId ?: return@LaunchedEffect
         KaPostsDeepLink.pendingPostTxId.value = null
@@ -1230,7 +1237,12 @@ private fun EngagementRow(
                     .clickable { onTip() }
                     .padding(horizontal = 4.dp, vertical = 4.dp),
             ) {
-                Icon(Icons.Default.Payments, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                // The real Kaspa logo, matching iOS's Tip button.
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Tip", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
@@ -1366,39 +1378,54 @@ fun KaPostComposerDialog(
                 .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
+            // Header, matching iOS/desktop's composer card: X in a rounded square, bold title,
+            // character meter, teal capsule Post button.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel", tint = KaspaTeal)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surface)
+                        .clickable { onDismiss() }
+                        .padding(10.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Cancel",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = if (threadSegments.isNotEmpty() && quoted == null) "New Thread" else title,
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     modifier = Modifier.weight(1f),
                 )
                 KaPostCharacterMeter(count = text.length)
                 Spacer(modifier = Modifier.width(10.dp))
-                TextButton(
-                    onClick = {
-                        val trimmed = text.trim()
-                        val segments = threadSegments + (if (trimmed.isNotEmpty()) listOf(trimmed) else emptyList())
-                        if (segments.size > 1 && onSubmitThread != null) onSubmitThread(segments)
-                        else onSubmit(segments.firstOrNull() ?: return@TextButton)
-                    },
-                    enabled = canPost,
-                ) {
-                    Text(
-                        if (totalSegments > 1) "Post All ($totalSegments)" else "Post",
-                        color = if (canPost) KaspaTeal else colors.textSecondary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                Text(
+                    if (totalSegments > 1) "Post All ($totalSegments)" else "Post",
+                    color = if (canPost) Color.Black else colors.textSecondary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(if (canPost) KaspaTeal else colors.surface)
+                        .clickable(enabled = canPost) {
+                            val trimmed = text.trim()
+                            val segments = threadSegments + (if (trimmed.isNotEmpty()) listOf(trimmed) else emptyList())
+                            if (segments.isEmpty()) return@clickable
+                            if (segments.size > 1 && onSubmitThread != null) onSubmitThread(segments)
+                            else onSubmit(segments.first())
+                        }
+                        .padding(horizontal = 16.dp, vertical = 9.dp),
+                )
             }
-            HorizontalDivider(color = colors.surfaceVariant)
             // Already-stacked thread segments (X-style), numbered and removable.
             if (threadSegments.isNotEmpty()) {
                 Column(
@@ -1452,76 +1479,88 @@ fun KaPostComposerDialog(
                 }
                 HorizontalDivider(color = colors.surfaceVariant)
             }
-            BasicTextField(
-                value = text,
-                onValueChange = { if (it.length <= limit) text = it },
-                textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp, lineHeight = 22.sp),
-                cursorBrush = SolidColor(KaspaTeal),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(16.dp),
-                decorationBox = { inner ->
-                    if (text.isEmpty()) {
-                        Text(
-                            if (threadSegments.isEmpty()) "What's happening on Kaspa?" else "Add another post",
-                            color = colors.textSecondary,
-                            fontSize = 16.sp,
-                        )
-                    }
-                    inner()
-                },
-            )
-            // X-style +: stack the current text as a thread segment and keep writing.
-            if (threadingEnabled && text.isNotBlank()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    Text(
-                        "＋ Add to thread",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(KaspaTeal.copy(alpha = 0.12f))
-                            .clickable {
-                                threadSegments = threadSegments + text.trim()
-                                text = ""
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
-                }
-            }
-            // @mention autocomplete chips: tapping replaces the trailing @token with "@domain ".
+            // @mention autocomplete: a SCROLLABLE vertical list of the KNS domains of everyone
+            // you've chatted with (plus a live-resolved any-KNS match), iOS/group-chat style.
+            // Above the editor so the keyboard can never hide it.
             if (mentionSuggestions.isNotEmpty()) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = 16.dp)
+                        .widthIn(max = 280.dp)
+                        .heightIn(max = 168.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.surface)
+                        .verticalScroll(rememberScrollState()),
                 ) {
-                    mentionSuggestions.forEach { domain ->
-                        Text(
-                            "@$domain",
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                    mentionSuggestions.forEachIndexed { index, domain ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(KaspaTeal.copy(alpha = 0.14f))
+                                .fillMaxWidth()
                                 .clickable {
                                     text = text.replace(Regex("@[a-z0-9-]*$", RegexOption.IGNORE_CASE), "@$domain ")
                                 }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        )
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                        ) {
+                            Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(domain, color = colors.textPrimary, fontSize = 14.sp)
+                        }
+                        if (index != mentionSuggestions.lastIndex) {
+                            HorizontalDivider(color = colors.surfaceVariant)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            // Bordered editor card with the X-style + floating in its corner: tapping + stacks
+            // the current text as a thread segment and clears the editor for the next post.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+            ) {
+                BasicTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= limit) text = it },
+                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp, lineHeight = 22.sp),
+                    cursorBrush = SolidColor(KaspaTeal),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    decorationBox = { inner ->
+                        if (text.isEmpty()) {
+                            Text(
+                                if (threadSegments.isEmpty()) "What's happening on Kaspa?" else "Add another post",
+                                color = colors.textSecondary,
+                                fontSize = 16.sp,
+                            )
+                        }
+                        inner()
+                    },
+                )
+                if (threadingEnabled && text.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(10.dp)
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(KaspaTeal.copy(alpha = 0.15f))
+                            .clickable {
+                                threadSegments = threadSegments + text.trim()
+                                text = ""
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("＋", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(10.dp))
             quoted?.let {
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     QuotedEmbedCard(
@@ -2434,12 +2473,33 @@ fun KaPostTipDialog(
         containerColor = colors.surface,
         title = { Text("Tip $displayName", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
         text = {
+            // Sectioned like iOS's KaPostTipSheet Form: recipient card + destination line,
+            // amount with the Kaspa logo + Available footer, fee tiers + Network Fee row.
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    KaspaAddress.shortDisplay(address),
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surfaceVariant)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    Text(
+                        displayName,
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        KaspaAddress.shortDisplay(address),
+                        color = colors.textSecondary,
+                        fontSize = 11.sp,
+                    )
+                }
                 // Which privacy scenario this tip will hit (same signal as the chat composer).
                 Text(
                     if (paysViaPool) "🔒 Goes to a fresh private address they shared"
@@ -2452,6 +2512,13 @@ fun KaPostTipDialog(
                     onValueChange = { amountText = it; errorText = null },
                     label = { Text("Amount (KAS)") },
                     singleLine = true,
+                    leadingIcon = {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -2460,7 +2527,10 @@ fun KaPostTipDialog(
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     listOf("Normal" to 1L, "Fast" to 2L, "Priority" to 5L).forEach { (label, mult) ->
                         val selected = feeTier == mult
                         Text(
@@ -2468,22 +2538,30 @@ fun KaPostTipDialog(
                             color = if (selected) Color.Black else colors.textSecondary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier
+                                .weight(1f)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(if (selected) KaspaTeal else colors.surfaceVariant)
                                 .clickable {
                                     feeTier = mult
                                     chatViewModel.setFeeTierMultiplier(mult)
                                 }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                         )
                     }
                 }
-                estimatedFee?.let { fee ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("Network Fee", color = colors.textPrimary, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        "Network fee: ${"%.8f".format(fee / 100_000_000.0).trimEnd('0').trimEnd('.')} KAS",
+                        // estimatedFeeSompi already reflects the tier (the estimator combines
+                        // the fee-rate override) - display it as-is, never re-multiply.
+                        estimatedFee?.let { fee ->
+                            "${"%.8f".format(fee / 100_000_000.0).trimEnd('0').trimEnd('.')} KAS"
+                        } ?: "—",
                         color = colors.textSecondary,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                     )
                 }
                 errorText?.let {
