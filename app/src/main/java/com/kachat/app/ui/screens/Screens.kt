@@ -4368,6 +4368,7 @@ fun ManageAddressesHiddenScreen(
  * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
  * intermediate indices hidden. The primary and funded addresses are locked visible.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressVisibilityScreen(
     viewModel: WalletViewModel,
