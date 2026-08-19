@@ -267,14 +267,13 @@ class PaymentPoolService @Inject constructor(
      * pool if one exists (consumed immediately - persisted, never offered to another payment
      * even if this one fails), else the chatting address (exact pre-pool behavior). A retry of
      * the same payment (same [pendingTxId]) reuses the address already consumed for it.
+     *
+     * Deliberately NOT gated on the sender's Chats Payment Privacy toggle: the RECIPIENT'S
+     * privacy governs the destination - if they shared fresh addresses, money arrives on one
+     * no matter the sender's setting. The sender's toggle only governs the FUNDING side.
      */
     suspend fun poolPaymentDestination(contactId: String, pendingTxId: String): String {
         val walletAddress = walletAddressOrNull() ?: return contactId
-        // Privacy OFF (per account): always the chatting address - stored pools are kept, just
-        // not consumed. Checked before the retry memory on purpose: a payment consumed while the
-        // toggle was ON but retried after it went OFF pays the chatting address (the
-        // already-consumed pool address stays burned, which is always safe).
-        if (!settingsRepository.chatsPaymentPrivacyEnabled(walletAddress).first()) return contactId
         store.paymentDestination(pendingTxId)?.let { return it }
         val poolAddress = store.nextUnusedPoolAddress(contactId, walletAddress) ?: return contactId
         if (!KaspaAddress.isValid(poolAddress)) return contactId
@@ -285,10 +284,10 @@ class PaymentPoolService @Inject constructor(
     }
 
     /** True when the NEXT payment to this contact would go to a fresh pool address - drives the
-     *  subtle fresh-address indicator in the payment composer. */
+     *  subtle fresh-address indicator in the payment composer. Matches [poolPaymentDestination]:
+     *  recipient-governed, independent of the sender's privacy toggle. */
     suspend fun willPayViaFreshPoolAddress(contactId: String): Boolean {
         val walletAddress = walletAddressOrNull() ?: return false
-        if (!settingsRepository.chatsPaymentPrivacyEnabled(walletAddress).first()) return false
         return store.nextUnusedPoolAddress(contactId, walletAddress) != null
     }
 

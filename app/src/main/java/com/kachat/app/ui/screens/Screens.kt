@@ -6916,7 +6916,7 @@ fun SettingsScreen(
                 SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
                     settingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
                 }
-                SettingsFooter("Payments in 1:1 chats are sent to fresh addresses your contacts privately share, instead of their public chatting address. When off, Kaspa you send and receive is routed to public chatting addresses instead.")
+                SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one.")
             }
             }
 
