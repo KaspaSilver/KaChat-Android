@@ -643,20 +643,193 @@ class KaPostsViewModel @Inject constructor(
         for ((address, _) in contactAliases.value) ensureSenderProfileFetched(address)
     }
 
-    private fun mentionedPubkeys(text: String): List<String> {
-        val byDomain = mentionCandidates().toMap()
-        if (byDomain.isEmpty()) return emptyList()
-        val found = linkedSetOf<String>()
+    /** The bare @domain tokens in `text`, in order, deduped. */
+    private fun mentionDomains(text: String): List<String> {
+        val out = linkedSetOf<String>()
         for (match in MENTION_TOKEN_REGEX.findAll(text)) {
             var domain = match.groupValues[2].lowercase()
             if (domain.endsWith(".kas")) domain = domain.dropLast(4)
-            byDomain[domain]?.let { found.add(it) }
+            if (domain.isNotEmpty()) out.add(domain)
+        }
+        return out.toList()
+    }
+
+    /**
+     * Resolves every @domain in `text` to a compressed pubkey for mentioned_pubkeys. Chatted
+     * contacts resolve locally; ANYONE else with a KNS domain resolves live (owner address ->
+     * pubkey). Unresolvable tokens stay plain text.
+     */
+    private suspend fun mentionedPubkeys(text: String): List<String> {
+        val domains = mentionDomains(text)
+        if (domains.isEmpty()) return emptyList()
+        val byDomain = mentionCandidates().toMap()
+        val found = linkedSetOf<String>()
+        for (domain in domains) {
+            var pubkey = byDomain[domain]
+            if (pubkey == null) {
+                val owner = knsService.resolve(domain)
+                if (owner != null) pubkey = KaPostsService.kapostPubkeyFromAddress(owner)
+            }
+            pubkey?.let { found.add(it) }
         }
         return found.toList()
     }
 
+    /** Composer autocomplete: live-resolve the typed @query; the bare domain when it exists. */
+    suspend fun resolveMentionQuery(query: String): String? {
+        val clean = query.lowercase().removeSuffix(".kas")
+        if (clean.length < 2) return null
+        return if (knsService.resolve(clean) != null) clean else null
+    }
+
+    /** Tapped @mention: resolve the KNS domain and open that user's profile (any KNS holder). */
+    fun openMentionProfile(domain: String) {
+        viewModelScope.launch {
+            val owner = knsService.resolve(domain) ?: return@launch
+            openPosterProfile(owner, KaPostsService.kapostPubkeyFromAddress(owner))
+        }
+    }
+
+    // MARK: - X-style threads (posting)
+
+    /**
+     * Unposted work per in-flight/failed thread, keyed by the root's LOCAL id: rootText until
+     * the root posts, remaining segments, last landed txid. Kept until every segment lands so
+     * Retry RESUMES from the first unposted segment (never duplicates).
+     */
+    private data class ThreadRemainder(val rootText: String?, val segments: List<String>, val parentTxId: String?)
+    private val threadRemainders = mutableMapOf<String, ThreadRemainder>()
+
+    /** Local ids of thread roots posted this session - drives the instant "View thread" link. */
+    private val _localThreadRoots = MutableStateFlow<Set<String>>(emptySet())
+    val localThreadRoots: StateFlow<Set<String>> = _localThreadRoots.asStateFlow()
+
+    /**
+     * First segment = top-level post, each following segment = a reply to the PREVIOUS one.
+     * Threads submit sequentially right away (each segment needs the previous txid) - no 5s
+     * undo; the optimistic root carries pending/sent/failed for the whole chain.
+     */
+    fun scheduleThread(segments: List<String>) {
+        val first = segments.firstOrNull() ?: return
+        if (segments.size == 1) { schedulePost(first); return }
+        val myAddress = myAddress() ?: return
+        val newPost = KaPostDraft(
+            text = first,
+            timestamp = System.currentTimeMillis(),
+            posterAddress = myAddress,
+            posterPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null },
+            deliveryStatus = KaPostDraft.Delivery.PENDING,
+        )
+        _localPosts.value = listOf(newPost) + _localPosts.value
+        _localThreadRoots.value = _localThreadRoots.value + newPost.id
+        threadRemainders[newPost.id] = ThreadRemainder(first, segments.drop(1), null)
+        continueThread(newPost.id)
+    }
+
+    private fun continueThread(localId: String) {
+        if (threadRemainders[localId] == null) return
+        mutateEverywhere(localId) { it.copy(deliveryStatus = KaPostDraft.Delivery.PENDING) }
+        viewModelScope.launch {
+            try {
+                var state = threadRemainders[localId] ?: return@launch
+                val rootText = state.rootText
+                if (rootText != null) {
+                    val txId = submitWithUtxoRetry { kaPostsService.submitPost(rootText, mentionedPubkeys(rootText)) }
+                    mutateEverywhere(localId) { it.copy(remoteId = txId) }
+                    state = state.copy(rootText = null, parentTxId = txId)
+                    threadRemainders[localId] = state
+                }
+                val myPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null }
+                while (true) {
+                    val current = threadRemainders[localId] ?: break
+                    val segment = current.segments.firstOrNull() ?: break
+                    val parent = current.parentTxId ?: break
+                    kotlinx.coroutines.delay(1_500) // let the previous change settle (~1s blocks)
+                    val txId = submitWithUtxoRetry { kaPostsService.submitReply(segment, parent, myPubkey) }
+                    threadRemainders[localId] = current.copy(segments = current.segments.drop(1), parentTxId = txId)
+                }
+                threadRemainders.remove(localId)
+                mutateEverywhere(localId) { it.copy(deliveryStatus = KaPostDraft.Delivery.SENT) }
+            } catch (e: Exception) {
+                mutateEverywhere(localId) { it.copy(deliveryStatus = KaPostDraft.Delivery.FAILED) }
+                Log.w(TAG, "Thread submit failed (resumable)", e)
+            }
+        }
+    }
+
+    /** Rapid sequential sends spend change the node hasn't indexed yet - retry with settle gaps. */
+    private suspend fun submitWithUtxoRetry(op: suspend () -> String): String {
+        var attempt = 0
+        while (true) {
+            try { return op() } catch (e: Exception) {
+                attempt += 1
+                if (attempt > 4) throw e
+                Log.w(TAG, "Thread segment retry $attempt", e)
+                kotlinx.coroutines.delay(1_500)
+            }
+        }
+    }
+
+    // MARK: - X-style thread reading
+
+    /** remoteId -> "its replies include one by the author" (false is cached: one probe per post). */
+    private val _threadRootFlags = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val threadRootFlags: StateFlow<Map<String, Boolean>> = _threadRootFlags.asStateFlow()
+
+    /** root LOCAL id -> the author's continuation segments, in order. */
+    private val _threadChains = MutableStateFlow<Map<String, List<KaPostDraft>>>(emptyMap())
+    val threadChains: StateFlow<Map<String, List<KaPostDraft>>> = _threadChains.asStateFlow()
+
+    fun isThreadRoot(post: KaPostDraft): Boolean =
+        post.id in _localThreadRoots.value ||
+            (post.remoteId != null && _threadRootFlags.value[post.remoteId] == true)
+
+    /** Cheap once-per-post probe: first reply page, any self-authored reply = thread root. */
+    fun probeThreadRoot(post: KaPostDraft) {
+        val remoteId = post.remoteId ?: return
+        if (_threadRootFlags.value.containsKey(remoteId)) return
+        if (commentCount(post) <= 0) return
+        _threadRootFlags.value = _threadRootFlags.value + (remoteId to false) // claim
+        viewModelScope.launch {
+            val page = try { kaPostsService.fetchRepliesPage(remoteId, 10, null) } catch (_: Exception) { return@launch }
+            val isThread = page.items.any { KaPostsService.kaspaAddressFromPubkey(it.userPublicKey) == post.posterAddress }
+            if (isThread) _threadRootFlags.value = _threadRootFlags.value + (remoteId to true)
+        }
+    }
+
+    /**
+     * Walks the author's self-reply chain from an opened root (root <- seg2 <- seg3 ... by the
+     * same author), fetching each link. Self-sufficient (fetches the first page itself), so it
+     * doesn't race loadReplies. Capped defensively.
+     */
+    fun loadSelfThreadChain(post: KaPostDraft) {
+        val rootRemote = post.remoteId ?: return
+        viewModelScope.launch {
+            val chain = mutableListOf<KaPostDraft>()
+            var currentRemote = rootRemote
+            var hops = 0
+            while (hops < 25) {
+                val page = try { kaPostsService.fetchRepliesPage(currentRemote, 25, null) } catch (_: Exception) { break }
+                val next = page.items
+                    .mapNotNull { mapRemotePost(it) }
+                    .filter { it.posterAddress == post.posterAddress }
+                    .minByOrNull { it.timestamp } ?: break
+                chain.add(next)
+                hops += 1
+                currentRemote = next.remoteId ?: break
+            }
+            _threadChains.value = _threadChains.value + (post.id to chain)
+            if (chain.isNotEmpty()) _threadRootFlags.value = _threadRootFlags.value + (rootRemote to true)
+        }
+    }
+
     /** Re-submits a failed post or reply (replies resolve their parent for the payload). */
     fun retryPost(post: KaPostDraft) {
+        // A failed THREAD resumes its remaining chain instead of re-posting just the root.
+        if (threadRemainders.containsKey(post.id)) {
+            continueThread(post.id)
+            return
+        }
         mutateEverywhere(post.id) { it.copy(deliveryStatus = KaPostDraft.Delivery.PENDING) }
         viewModelScope.launch {
             try {

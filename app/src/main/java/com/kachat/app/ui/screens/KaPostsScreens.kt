@@ -45,6 +45,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -511,6 +512,9 @@ fun KaPostsScreen(
                                 LaunchedEffect(post.posterAddress) {
                                     viewModel.ensureSenderProfileFetched(post.posterAddress)
                                 }
+                                // Thread-root probe: once per commented post, so "View thread"
+                                // can appear on other people's threads too.
+                                LaunchedEffect(post.remoteId) { viewModel.probeThreadRoot(post) }
                                 KaPostCell(
                                     post = post,
                                     viewModel = viewModel,
@@ -522,6 +526,23 @@ fun KaPostsScreen(
                                     truncatesLongText = true,
                                     onTip = { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
                                 )
+                                // X-style "View thread" under a thread root - opens the detail,
+                                // where the full continuation renders as a connected section.
+                                val threadRootFlags by viewModel.threadRootFlags.collectAsState()
+                                val localThreadRoots by viewModel.localThreadRoots.collectAsState()
+                                if (post.id in localThreadRoots ||
+                                    (post.remoteId != null && threadRootFlags[post.remoteId] == true)
+                                ) {
+                                    Text(
+                                        "⤷ View thread",
+                                        color = KaspaTeal,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier
+                                            .clickable { openThread(post) }
+                                            .padding(start = 68.dp, top = 2.dp, bottom = 8.dp),
+                                    )
+                                }
                                 HorizontalDivider(
                                     color = colors.surfaceVariant,
                                     modifier = Modifier.padding(start = 68.dp),
@@ -605,6 +626,10 @@ fun KaPostsScreen(
                 viewModel.schedulePost(text)
             },
             viewModel = viewModel,
+            onSubmitThread = { segments ->
+                showComposer = false
+                viewModel.scheduleThread(segments)
+            },
         )
     }
 
@@ -989,13 +1014,19 @@ fun KaPostCell(
                     }
                 }
                 Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = annotatedPostText(post.text),
-                    color = colors.textPrimary,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
+                // ClickableText (not Text): tapping an @mention resolves the KNS domain and
+                // opens that user's profile; taps elsewhere in the body do nothing.
+                val postAnnotated = remember(post.text) { annotatedPostText(post.text) }
+                androidx.compose.foundation.text.ClickableText(
+                    text = postAnnotated,
+                    style = TextStyle(color = colors.textPrimary, fontSize = 15.sp, lineHeight = 20.sp),
                     maxLines = if (foldText) 8 else Int.MAX_VALUE,
                     overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
+                    onClick = { offset ->
+                        postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset)
+                            .firstOrNull()
+                            ?.let { viewModel.openMentionProfile(it.item) }
+                    },
                 )
                 if (foldText) {
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1265,11 +1296,16 @@ fun KaPostComposerDialog(
     onSubmit: (String) -> Unit,
     /** Enables @mention autocomplete (chips of 1:1 KNS-domain contacts) when provided. */
     viewModel: KaPostsViewModel? = null,
+    /** Enables X-style thread posting (+ stacks segments; Post All submits the chain). */
+    onSubmitThread: ((List<String>) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     var text by remember { mutableStateOf("") }
+    var threadSegments by remember { mutableStateOf(listOf<String>()) }
     val limit = KaPostDraft.POST_CHARACTER_LIMIT
-    val canPost = text.isNotBlank() && text.length <= limit
+    val totalSegments = threadSegments.size + (if (text.isNotBlank()) 1 else 0)
+    val canPost = totalSegments > 0 && text.length <= limit
+    val threadingEnabled = onSubmitThread != null && quoted == null
 
     // Warm the KNS caches so typing @ has domains to offer.
     LaunchedEffect(Unit) { viewModel?.prefetchMentionCandidates() }
@@ -1278,13 +1314,29 @@ fun KaPostComposerDialog(
         Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]*)$", RegexOption.IGNORE_CASE)
             .find(text)?.groupValues?.get(2)?.lowercase()
     }
-    val mentionSuggestions = remember(text) {
+    // Anyone-with-a-KNS-domain mentions: debounce-resolve the typed query live.
+    var resolvedAnyDomain by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(mentionQuery) {
+        resolvedAnyDomain = null
+        val query = mentionQuery ?: return@LaunchedEffect
+        if (query.length < 2 || viewModel == null) return@LaunchedEffect
+        kotlinx.coroutines.delay(400)
+        resolvedAnyDomain = viewModel.resolveMentionQuery(query)
+    }
+    val mentionSuggestions = remember(text, resolvedAnyDomain) {
         val query = mentionQuery
         if (query == null || viewModel == null) emptyList()
-        else viewModel.mentionCandidates()
-            .map { it.first }
-            .filter { query.isEmpty() || it.startsWith(query) }
-            .take(6)
+        else {
+            val contacts = viewModel.mentionCandidates()
+                .map { it.first }
+                .filter { query.isEmpty() || it.startsWith(query) }
+                .sorted()
+                .take(6)
+            val extra = resolvedAnyDomain
+            if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
+                contacts + extra
+            } else contacts
+        }
     }
 
     Dialog(
@@ -1306,7 +1358,7 @@ fun KaPostComposerDialog(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel", tint = KaspaTeal)
                 }
                 Text(
-                    text = title,
+                    text = if (threadSegments.isNotEmpty() && quoted == null) "New Thread" else title,
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
@@ -1314,15 +1366,76 @@ fun KaPostComposerDialog(
                 )
                 KaPostCharacterMeter(count = text.length)
                 Spacer(modifier = Modifier.width(10.dp))
-                TextButton(onClick = { onSubmit(text.trim()) }, enabled = canPost) {
+                TextButton(
+                    onClick = {
+                        val trimmed = text.trim()
+                        val segments = threadSegments + (if (trimmed.isNotEmpty()) listOf(trimmed) else emptyList())
+                        if (segments.size > 1 && onSubmitThread != null) onSubmitThread(segments)
+                        else onSubmit(segments.firstOrNull() ?: return@TextButton)
+                    },
+                    enabled = canPost,
+                ) {
                     Text(
-                        "Post",
+                        if (totalSegments > 1) "Post All ($totalSegments)" else "Post",
                         color = if (canPost) KaspaTeal else colors.textSecondary,
                         fontWeight = FontWeight.Bold,
                     )
                 }
             }
             HorizontalDivider(color = colors.surfaceVariant)
+            // Already-stacked thread segments (X-style), numbered and removable.
+            if (threadSegments.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 160.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    threadSegments.forEachIndexed { index, segment ->
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(colors.surface)
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                "${index + 1}",
+                                color = KaspaTeal,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(KaspaTeal.copy(alpha = 0.14f))
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                segment,
+                                color = colors.textPrimary,
+                                fontSize = 13.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                "×",
+                                color = colors.textSecondary,
+                                fontSize = 15.sp,
+                                modifier = Modifier
+                                    .clickable {
+                                        threadSegments = threadSegments.filterIndexed { i, _ -> i != index }
+                                    }
+                                    .padding(horizontal = 4.dp),
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(color = colors.surfaceVariant)
+            }
             BasicTextField(
                 value = text,
                 onValueChange = { if (it.length <= limit) text = it },
@@ -1334,11 +1447,39 @@ fun KaPostComposerDialog(
                     .padding(16.dp),
                 decorationBox = { inner ->
                     if (text.isEmpty()) {
-                        Text("What's happening on Kaspa?", color = colors.textSecondary, fontSize = 16.sp)
+                        Text(
+                            if (threadSegments.isEmpty()) "What's happening on Kaspa?" else "Add another post",
+                            color = colors.textSecondary,
+                            fontSize = 16.sp,
+                        )
                     }
                     inner()
                 },
             )
+            // X-style +: stack the current text as a thread segment and keep writing.
+            if (threadingEnabled && text.isNotBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    Text(
+                        "＋ Add to thread",
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(KaspaTeal.copy(alpha = 0.12f))
+                            .clickable {
+                                threadSegments = threadSegments + text.trim()
+                                text = ""
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+            }
             // @mention autocomplete chips: tapping replaces the trailing @token with "@domain ".
             if (mentionSuggestions.isNotEmpty()) {
                 Row(
@@ -1473,14 +1614,24 @@ fun KaPostThreadOverlay(
     val muted by viewModel.muted.collectAsState()
     val blocked by viewModel.blocked.collectAsState()
     val hidden = muted + blocked
-    val visibleComments = post.comments.filter { it.posterAddress !in hidden }
+    // The author's own continuation renders as a connected Thread section under the root;
+    // its segments are excluded from the comment list (segment 2 IS a direct reply).
+    val threadChains by viewModel.threadChains.collectAsState()
+    val threadChain = threadChains[post.id].orEmpty()
+    val chainRemoteIds = remember(threadChain) { threadChain.mapNotNull { it.remoteId }.toSet() }
+    val visibleComments = post.comments.filter {
+        it.posterAddress !in hidden && (it.remoteId == null || it.remoteId !in chainRemoteIds)
+    }
     // Falls back to the root whenever the targeted comment is gone (a refresh replaced it).
     val replyTarget = remember(replyTargetId, tree, post) {
         replyTargetId?.let { viewModel.findPost(it) } ?: post
     }
     val replyingToComment = replyTarget.id != post.id
 
-    LaunchedEffect(post.remoteId) { viewModel.loadReplies(post) }
+    LaunchedEffect(post.remoteId) {
+        viewModel.loadReplies(post)
+        viewModel.loadSelfThreadChain(post)
+    }
 
     // Endless scroll through the thread's replies. Keyed on the root's txid, so pushing a nested
     // comment as a new thread root starts a fresh surface rather than inheriting this one's cursor.
@@ -1564,6 +1715,46 @@ fun KaPostThreadOverlay(
                         onReply = { replyTargetId = null },
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
+                }
+                // X-style thread reading: the author's own continuation, connected and ordered.
+                if (threadChain.isNotEmpty()) {
+                    item(key = "thread-chain-header") {
+                        Text(
+                            "Thread · ${threadChain.size + 1} posts",
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(threadChain, key = { "chain-${it.id}" }) { segment ->
+                        LaunchedEffect(segment.posterAddress) {
+                            viewModel.ensureSenderProfileFetched(segment.posterAddress)
+                        }
+                        Row(modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .width(2.dp)
+                                    .fillMaxHeight()
+                                    .background(KaspaTeal.copy(alpha = 0.35f)),
+                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                KaPostCell(
+                                    post = segment,
+                                    viewModel = viewModel,
+                                    onOpenThread = { onOpenNested(segment) },
+                                    onRepostTap = { onRepostTap(segment) },
+                                    onOpenProfile = { onOpenProfile(segment.posterAddress, segment.posterPubkey) },
+                                    onOpenQuoted = onOpenShared,
+                                    onViewEngagement = { onViewEngagement(segment) },
+                                )
+                            }
+                        }
+                    }
+                    item(key = "thread-chain-divider") {
+                        HorizontalDivider(color = colors.surfaceVariant)
+                    }
                 }
                 if (visibleComments.isEmpty()) {
                     // Otherwise the space between the post and the pinned composer is just a
@@ -2178,7 +2369,10 @@ fun KaPostsNotificationsOverlay(
     }
 }
 
-/** Post text with @mention tokens tinted teal (same token rule as the send-side parser). */
+/** Annotation tag carried by @mention ranges - ClickableText resolves it to a profile. */
+const val MENTION_ANNOTATION_TAG = "mention"
+
+/** Post text with @mention tokens tinted teal AND annotated for tap-to-profile. */
 private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedString =
     androidx.compose.ui.text.buildAnnotatedString {
         append(text)
@@ -2186,10 +2380,17 @@ private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedS
             val domain = match.groups[2] ?: continue
             val start = domain.range.first - 1 // include the '@'
             if (start < 0) continue
+            val end = domain.range.last + 1
             addStyle(
                 androidx.compose.ui.text.SpanStyle(color = KaspaTeal, fontWeight = FontWeight.SemiBold),
                 start,
-                domain.range.last + 1,
+                end,
+            )
+            addStringAnnotation(
+                MENTION_ANNOTATION_TAG,
+                domain.value.lowercase().removeSuffix(".kas"),
+                start,
+                end,
             )
         }
     }
