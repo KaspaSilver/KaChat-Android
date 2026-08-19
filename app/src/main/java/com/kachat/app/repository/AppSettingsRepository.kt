@@ -52,11 +52,12 @@ class AppSettingsRepository @Inject constructor(
 
         // Defaults matching the iOS app
         const val DEFAULT_NETWORK        = "mainnet"
-        const val DEFAULT_INDEXER_URL    = "https://indexer.kasia.wtf"
-        // Retired default - kasia.fyi doesn't run the group-chat REST endpoints
-        // (/group-messages/..., /group-control/...), only kasia.wtf does. See `indexerUrl`'s
-        // one-time migration off this value below.
+        const val DEFAULT_INDEXER_URL    = "https://kachat.duckdns.org"
+        // Superseded defaults, migrated away on read (see `indexerUrl` below): kasia.fyi is offline
+        // and never ran the group-chat REST endpoints; kasia.wtf was the previous community default,
+        // now replaced by KaChat's own indexer (kachat.duckdns.org).
         const val LEGACY_DEFAULT_INDEXER_URL = "https://indexer.kasia.fyi"
+        const val LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF = "https://indexer.kasia.wtf"
         const val DEFAULT_KNS_API_URL    = "https://api.knsdomains.org/mainnet/api/v1"
         const val DEFAULT_KASPA_REST_URL = "https://api.kaspa.org"
         const val DEFAULT_KAPOST_INDEXER_URL = "https://kachat.duckdns.org"
@@ -215,12 +216,13 @@ class AppSettingsRepository @Inject constructor(
     // regardless of any previously stored value.
     val network: Flow<String> = dataStore.data.map { DEFAULT_NETWORK }
 
-    // Transforms away the retired kasia.fyi default on read (rather than requiring a one-time
-    // write-back migration) - anyone who saved settings before the indexer moved to kasia.wtf
-    // would otherwise stay stuck on kasia.fyi forever, which 404s on every group-chat REST call.
+    // Transforms away superseded default indexers on read (rather than a one-time write-back
+    // migration) - anyone who saved settings on an old default (kasia.fyi, or the previous
+    // community default kasia.wtf) is moved to the current default (kachat.duckdns.org). Custom
+    // indexers the user typed are kept as-is.
     val indexerUrl: Flow<String> = dataStore.data.map {
         val stored = it[KEY_INDEXER_URL]
-        if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL) DEFAULT_INDEXER_URL else stored
+        if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
     }
 
     val knsApiUrl: Flow<String> = dataStore.data.map {
