@@ -67,7 +67,10 @@ class BroadcastScanningService @Inject constructor(
     // Consulted ONLY at the notification-posting site: while native FCM push is active, the
     // server pushes bell-enabled channels' messages (PUSH_EXTENSIONS.md §2/§4) and a local
     // banner here too would be a duplicate. Scanning/caching itself is never gated on it.
-    private val pushState: PushState
+    private val pushState: PushState,
+    // Global notification center (Profile bell): live incoming channel rows are listed there,
+    // session-gated and deduped inside the store.
+    private val notificationCenter: GlobalNotificationCenterStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
@@ -249,6 +252,18 @@ class BroadcastScanningService @Inject constructor(
                     blockTimestamp = blockTimestampMillis
                 )
             )
+
+            // Global notification center (Profile bell): reactions never surface as rows.
+            if (MessageReaction.parseOrNull(parsed.content) == null) {
+                notificationCenter.recordBroadcastIfLive(
+                    channel = parsed.channel,
+                    senderAddress = senderAddress,
+                    senderName = KaspaAddress.shortDisplay(senderAddress),
+                    content = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content,
+                    txId = txId,
+                    blockTimeMs = blockTimestampMillis,
+                )
+            }
 
             if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive) {
                 // A reaction's raw JSON must never surface in a notification — humanize it.

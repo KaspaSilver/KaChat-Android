@@ -93,7 +93,8 @@ class GroupRepository @Inject constructor(
     private val groupSecretStore: GroupSecretStore,
     private val networkService: NetworkService,
     private val notificationHelper: NotificationHelper,
-    private val settings: AppSettingsRepository
+    private val settings: AppSettingsRepository,
+    private val notificationCenter: com.kachat.app.services.GlobalNotificationCenterStore,
 ) {
     private val gson = Gson()
     private val membersListType = object : TypeToken<List<GroupMember>>() {}.type
@@ -637,6 +638,14 @@ class GroupRepository @Inject constructor(
             // already-seen txId (e.g. catch-up re-fetching something the live scan already
             // processed) - only notify for a genuinely new, incoming (not our own) message.
             if (rowId != -1L && !isOutgoing) {
+                // Global notification center (Profile bell): list this message when it
+                // @mentions the wallet's own KNS domain (deduped by txId inside the store).
+                notificationCenter.recordGroupMentionIfNeeded(
+                    groupId = group.groupId, groupName = group.name,
+                    senderAddress = senderAddress,
+                    senderName = com.kachat.app.util.KaspaAddress.shortDisplay(senderAddress),
+                    text = plaintext, txId = txId, timestampMs = blockTimestamp,
+                )
                 if (notificationHelper.isViewingGroup(group.groupId)) {
                     // Already looking at this group's thread right now - keep it marked read
                     // instead of letting the badge tick up for a message arriving live.

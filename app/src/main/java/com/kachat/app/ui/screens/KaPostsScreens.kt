@@ -118,7 +118,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kachat.app.util.KaspaAddress
+import com.kachat.app.viewmodels.ChatViewModel
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import com.kachat.app.models.KaPostDraft
@@ -337,6 +342,8 @@ fun KaPostsScreen(
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
     // The profile whose follow list is open: null = my own list, non-null = another user's.
     var followListPubkey by remember { mutableStateOf<String?>(null) }
+    // Quick-tip dialog target: (poster address, display name).
+    var tipTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var moderationKind by remember { mutableStateOf<Boolean?>(null) } // true = blocked
     var showBookmarks by remember { mutableStateOf(false) }
     var notFoundNotice by remember { mutableStateOf(false) }
@@ -524,7 +531,7 @@ fun KaPostsScreen(
                                     onOpenQuoted = { txId -> openShared(txId) },
                                     onViewEngagement = { engagementTarget = post },
                                     truncatesLongText = true,
-                                    onTip = { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
+                                    onTip = { tipTarget = post.posterAddress to viewModel.posterDisplayName(post.posterAddress) },
                                 )
                                 // X-style "View thread" under a thread root - opens the detail,
                                 // where the full continuation renders as a connected section.
@@ -717,6 +724,15 @@ fun KaPostsScreen(
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openShared(it) },
             onOpenFollowList = { followListPubkey = profile.pubkey; followListKind = it },
+            onTip = { tipTarget = it.posterAddress to viewModel.posterDisplayName(it.posterAddress) },
+        )
+    }
+
+    tipTarget?.let { (tipAddress, tipName) ->
+        KaPostTipDialog(
+            address = tipAddress,
+            displayName = tipName,
+            onDismiss = { tipTarget = null },
         )
     }
 
@@ -2050,6 +2066,8 @@ fun KaPostsProfileOverlay(
     onViewEngagement: (KaPostDraft) -> Unit,
     onOpenQuoted: (String) -> Unit,
     onOpenFollowList: ((Boolean) -> Unit)?,
+    /** Quick-tip dialog opener; falls back to the chat payment screen when null. */
+    onTip: ((KaPostDraft) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     val senderProfiles by viewModel.senderProfiles.collectAsState()
@@ -2259,7 +2277,8 @@ fun KaPostsProfileOverlay(
                             onRepostTap = { onRepostTap(post) },
                             onOpenQuoted = onOpenQuoted,
                             onViewEngagement = { onViewEngagement(post) },
-                            onTip = { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
+                            onTip = onTip?.let { open -> { open(post) } }
+                                ?: { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
                         )
                         HorizontalDivider(
                             color = colors.surfaceVariant,
@@ -2367,6 +2386,141 @@ fun KaPostsNotificationsOverlay(
             }
         }
     }
+}
+
+/**
+ * Quick tip: Send-Kaspa-style dialog matching iOS's KaPostTipSheet - fixed recipient with the
+ * pool-destination indicator, amount with the funding source's Available, Normal/Fast/Priority
+ * tiers (a rate multiplier consumed by the next send). The send routes through
+ * ChatViewModel.sendPayment, so destination + funding follow the chat payment privacy rules
+ * exactly, and the payment bubble lands in the 1:1 conversation.
+ */
+@Composable
+fun KaPostTipDialog(
+    address: String,
+    displayName: String,
+    onDismiss: () -> Unit,
+    chatViewModel: ChatViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    var amountText by remember { mutableStateOf("") }
+    var feeTier by remember { mutableStateOf(1L) }
+    var isSending by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+    val paysViaPool by chatViewModel.paysToFreshPoolAddress.collectAsState()
+    val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
+    val spendingUtxos by chatViewModel.spendingUtxos.collectAsState()
+    val availableKas = remember(spendingUtxos) {
+        spendingUtxos.sumOf { it.utxoEntry.amount } / 100_000_000.0
+    }
+
+    LaunchedEffect(address) {
+        // Auto-add the poster as a contact so the payment bubble has a home, then load the
+        // privacy-appropriate funding UTXOs and the destination indicator.
+        chatViewModel.addContact(address, displayName.takeIf { it.isNotBlank() && !it.startsWith("kaspa:") })
+        chatViewModel.refreshFreshPoolIndicator(address)
+        chatViewModel.refreshSpendingUtxos()
+        chatViewModel.setFeeRateOverride(null)
+    }
+    // The amount drives the live fee preview through the same estimator the chat composer uses.
+    LaunchedEffect(amountText) { chatViewModel.setPaymentAmount(amountText) }
+
+    AlertDialog(
+        onDismissRequest = {
+            chatViewModel.setFeeRateOverride(null)
+            chatViewModel.setPaymentAmount("")
+            onDismiss()
+        },
+        containerColor = colors.surface,
+        title = { Text("Tip $displayName", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    KaspaAddress.shortDisplay(address),
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+                // Which privacy scenario this tip will hit (same signal as the chat composer).
+                Text(
+                    if (paysViaPool) "🔒 Goes to a fresh private address they shared"
+                    else "🌐 Goes to their public chatting address",
+                    color = if (paysViaPool) Color(0xFF35C48D) else colors.textSecondary,
+                    fontSize = 12.5.sp,
+                )
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it; errorText = null },
+                    label = { Text("Amount (KAS)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Available: ${"%.8f".format(availableKas).trimEnd('0').trimEnd('.')} KAS",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Normal" to 1L, "Fast" to 2L, "Priority" to 5L).forEach { (label, mult) ->
+                        val selected = feeTier == mult
+                        Text(
+                            label,
+                            color = if (selected) Color.Black else colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (selected) KaspaTeal else colors.surfaceVariant)
+                                .clickable {
+                                    feeTier = mult
+                                    chatViewModel.setFeeTierMultiplier(mult)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+                estimatedFee?.let { fee ->
+                    Text(
+                        "Network fee: ${"%.8f".format(fee / 100_000_000.0).trimEnd('0').trimEnd('.')} KAS",
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                    )
+                }
+                errorText?.let {
+                    Text(it, color = Color(0xFFE57373), fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !isSending && (amountText.toDoubleOrNull() ?: 0.0) > 0.0,
+                onClick = {
+                    isSending = true
+                    errorText = null
+                    // Re-apply the tier right before the send (sendPayment consumes the override).
+                    chatViewModel.setFeeTierMultiplier(feeTier)
+                    chatViewModel.sendPayment(address, amountText.trim()) { ok, error ->
+                        if (ok) {
+                            chatViewModel.setPaymentAmount("")
+                            onDismiss()
+                        } else {
+                            isSending = false
+                            errorText = error ?: "Tip failed."
+                        }
+                    }
+                },
+            ) {
+                Text(if (isSending) "Sending…" else "Send Tip", color = KaspaTeal, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                chatViewModel.setFeeRateOverride(null)
+                chatViewModel.setPaymentAmount("")
+                onDismiss()
+            }) { Text("Cancel", color = colors.textSecondary) }
+        },
+    )
 }
 
 /** Annotation tag carried by @mention ranges - ClickableText resolves it to a profile. */

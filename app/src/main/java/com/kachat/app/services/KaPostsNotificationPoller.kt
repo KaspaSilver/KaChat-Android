@@ -39,6 +39,9 @@ class KaPostsNotificationPoller @Inject constructor(
     // (never at display), mirroring iOS — a toggled-off kind is dropped permanently: the
     // last-seen watermark advances regardless, so it never re-fires if re-enabled later.
     private val settingsRepository: com.kachat.app.repository.AppSettingsRepository,
+    // Global notification center (bell on the Profile screen): every fresh KaPosts action is
+    // listed there, independent of the per-kind OS-banner gates below.
+    private val notificationCenter: GlobalNotificationCenterStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollJob: Job? = null
@@ -80,13 +83,29 @@ class KaPostsNotificationPoller @Inject constructor(
             dataStore.edit { it[key] = newest }
             return
         }
+        val freshAll = notifications.filter { it.timestamp > lastSeen }
+        dataStore.edit { it[key] = maxOf(newest, lastSeen) }
+        // The global notification center lists EVERY fresh action (mentions included),
+        // regardless of the per-kind banner gates or remote-push mode below.
+        for (n in freshAll.sortedBy { it.timestamp }) {
+            val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue
+            if (actor == address) continue
+            val text = KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
+            notificationCenter.record(
+                id = "kaposts-${n.id}",
+                source = "kaposts",
+                title = "${actor.takeLast(10)} ${actionText(n.contentType, n.voteType, text)}",
+                body = text.take(90),
+                timestampMs = n.timestamp,
+                targetId = n.contentId,
+            )
+        }
         // Per-kind toggle filter (Likes/Reposts/Follows/Dislikes/Comments) applied at the
         // source, BEFORE the burst cap, so a disabled kind neither notifies nor consumes a
-        // slot. The watermark below still advances over filtered items.
-        val fresh = notifications.filter {
-            it.timestamp > lastSeen && settingsRepository.shouldNotifyKaPostsAction(it.contentType, it.voteType)
+        // slot. The watermark above already advanced over filtered items.
+        val fresh = freshAll.filter {
+            settingsRepository.shouldNotifyKaPostsAction(it.contentType, it.voteType)
         }
-        dataStore.edit { it[key] = maxOf(newest, lastSeen) }
         if (fresh.isEmpty()) return
         // Remote-push mode: the server already pushed these (PUSH_EXTENSIONS.md §4) — advance
         // last-seen as usual, but don't post duplicate local pings.
@@ -96,18 +115,20 @@ class KaPostsNotificationPoller @Inject constructor(
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue
             if (actor == address) continue
             val text = KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
-            val action = when (n.contentType) {
-                "vote" -> if (n.voteType == "downvote") "disliked your post" else "liked your post"
-                "reply" -> "replied to your post"
-                "quote" -> if (text.isEmpty()) "reposted your post" else "quoted your post"
-                "follow" -> "followed you"
-                else -> "interacted with your post"
-            }
             val name = actor.takeLast(10)
             notificationHelper.showKaPosts(
-                text = "$name $action" + if (text.isEmpty()) "" else ": ${text.take(120)}",
+                text = "$name ${actionText(n.contentType, n.voteType, text)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
                 actionTxId = n.id,
             )
         }
+    }
+
+    private fun actionText(contentType: String?, voteType: String?, text: String): String = when (contentType) {
+        "vote" -> if (voteType == "downvote") "disliked your post" else "liked your post"
+        "reply" -> "replied to your post"
+        "quote" -> if (text.isEmpty()) "reposted your post" else "quoted your post"
+        "follow" -> "followed you"
+        "mention" -> "mentioned you in a post"
+        else -> "interacted with your post"
     }
 }

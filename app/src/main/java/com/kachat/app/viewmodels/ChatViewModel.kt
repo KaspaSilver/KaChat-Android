@@ -2168,8 +2168,14 @@ class ChatViewModel @Inject constructor(
      * as [sendMessage], but with no retry entry point — matches iOS explicitly excluding
      * payment retry, since blindly re-sending a payment risks paying twice.
      */
-    fun sendPayment(contactId: String, amount: String) {
-        val amountKas = amount.toDoubleOrNull() ?: return
+    /** KaPosts quick tip: Normal/Fast/Priority as a multiplier over the live network fee rate.
+     *  1 (or less) clears the override; the next send consumes whatever is set. */
+    fun setFeeTierMultiplier(multiplier: Long) {
+        _feeRateOverride.value = if (multiplier <= 1) null else (_networkFeeRate.value * multiplier).toLong()
+    }
+
+    fun sendPayment(contactId: String, amount: String, onResult: ((Boolean, String?) -> Unit)? = null) {
+        val amountKas = amount.toDoubleOrNull() ?: run { onResult?.invoke(false, "Enter a valid amount."); return }
         val sompi = (amountKas * 100_000_000).toLong()
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
@@ -2249,9 +2255,11 @@ class ChatViewModel @Inject constructor(
                         deliveryStatus = "sent"
                     )
                 )
+                onResult?.invoke(true, null)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending payment", e)
                 chatRepository.updateMessageStatus(pendingId, "failed")
+                onResult?.invoke(false, e.message)
             }
         }
     }

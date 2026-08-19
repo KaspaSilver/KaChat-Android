@@ -56,8 +56,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
@@ -2699,13 +2701,115 @@ fun ProfileScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    stringResource(R.string.profile),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
+                // Bold title + the global notification bell beside it (KaPosts activity, group
+                // @mentions, live broadcasts) - mirrors iOS's Profile toolbar bell.
+                val notifCenterVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
+                val notifEntries by notifCenterVm.store.entries.collectAsState()
+                val notifLastSeen by notifCenterVm.store.lastSeenAt.collectAsState()
+                var showNotifCenter by remember { mutableStateOf(false) }
+                val notifUnread = notifEntries.count { it.timestampMs > notifLastSeen }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.profile),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable {
+                                notifCenterVm.store.reloadIfNeeded()
+                                showNotifCenter = true
+                            }
+                            .padding(6.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = LocalAppColors.current.textPrimary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        if (notifUnread > 0) {
+                            Text(
+                                if (notifUnread > 99) "99+" else "$notifUnread",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFE0245E))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                }
+                if (showNotifCenter) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            notifCenterVm.store.markAllSeen()
+                            showNotifCenter = false
+                        },
+                        containerColor = LocalAppColors.current.surface,
+                        title = { Text("Notifications", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                        text = {
+                            if (notifEntries.isEmpty()) {
+                                Text(
+                                    "KaPosts activity, group @mentions, and live broadcast messages show up here.",
+                                    color = LocalAppColors.current.textSecondary,
+                                )
+                            } else {
+                                androidx.compose.foundation.lazy.LazyColumn(
+                                    modifier = Modifier.heightIn(max = 420.dp),
+                                ) {
+                                    items(notifEntries.size) { index ->
+                                        val entry = notifEntries[index]
+                                        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                            Text(
+                                                entry.title,
+                                                color = LocalAppColors.current.textPrimary,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 13.5.sp,
+                                            )
+                                            if (entry.body.isNotBlank()) {
+                                                Text(
+                                                    entry.body,
+                                                    color = LocalAppColors.current.textSecondary,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 2,
+                                                )
+                                            }
+                                            Text(
+                                                "${entry.source} · ${android.text.format.DateUtils.getRelativeTimeSpanString(entry.timestampMs)}",
+                                                color = LocalAppColors.current.textSecondary,
+                                                fontSize = 10.5.sp,
+                                            )
+                                        }
+                                        HorizontalDivider(color = LocalAppColors.current.surfaceVariant)
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                notifCenterVm.store.markAllSeen()
+                                showNotifCenter = false
+                            }) { Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                        },
+                        dismissButton = {
+                            if (notifEntries.isNotEmpty()) {
+                                TextButton(onClick = { notifCenterVm.store.clearAll() }) {
+                                    Text("Clear All", color = LocalAppColors.current.textSecondary)
+                                }
+                            }
+                        },
+                    )
+                }
                 TopStatusBar(
                     balance = balance,
                     onStatusClick = { navController.navigate("connection_status") },
