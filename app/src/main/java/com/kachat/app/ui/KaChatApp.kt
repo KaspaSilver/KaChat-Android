@@ -948,7 +948,15 @@ fun MainShell(
                     viewModel = walletViewModel,
                     onBack = { navController.popBackStack() },
                     onNavigateToTxHistory = { index -> navController.navigate("spending_address_detail/$index") },
-                    onNavigateToHidden = { navController.navigate("manage_addresses_hidden") }
+                    onNavigateToHidden = { navController.navigate("manage_addresses_hidden") },
+                    onNavigateToVisibility = { navController.navigate("manage_addresses_visibility") }
+                )
+            }
+
+            composable("manage_addresses_visibility") {
+                AddressVisibilityScreen(
+                    viewModel = walletViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
 

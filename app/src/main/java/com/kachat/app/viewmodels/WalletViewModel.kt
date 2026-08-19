@@ -12,6 +12,7 @@ import com.kachat.app.services.KaspaWalletEngine
 import com.kachat.app.services.KnsInscriptionEngine
 import com.kachat.app.services.KnsProfileFields
 import com.kachat.app.services.KnsService
+import com.kachat.app.services.PaymentPoolStore
 import com.kachat.app.services.SpendingAddressDiscovery
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.services.WalletManager
@@ -43,6 +44,9 @@ class WalletViewModel @Inject constructor(
     private val knsService: KnsService,
     private val settings: AppSettingsRepository,
     private val spendingAddressDiscovery: SpendingAddressDiscovery,
+    /** Fresh-address payment-pool reservations — consulted so Generate never recycles an
+     *  index already promised to a contact (the never-re-offered invariant). */
+    private val paymentPoolStore: PaymentPoolStore,
     /** Reused purely for its address-string-keyed REST fetchers (`getTransactionHistory`/
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
@@ -195,13 +199,60 @@ class WalletViewModel @Inject constructor(
         }
     }
 
-    /** Derives one more spending-chain address and reloads the list to show it. */
-    fun generateNewSpendingAddress() {
+    /**
+     * iOS parity (lowestUnusedSpendingAddress): Generate recycles the LOWEST truly-unused
+     * index — skipping the primary, anything holding a balance or with on-chain history, and
+     * payment-pool reservations (promised to a contact, never re-offered) — unhiding it so it
+     * shows on the main list. Falls back to deriving maxIndex+1 when every existing index is
+     * spoken for. [onResult] receives the index that is now ready.
+     */
+    fun generateNewSpendingAddress(onResult: (Int) -> Unit = {}) {
         viewModelScope.launch {
-            walletService.generateNextSpendingAddress()
+            val walletAddress = walletManager.getAddress()
+            val entries = _manageAddresses.value.ifEmpty {
+                try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
+            }
+            val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
+                !entry.isCurrent && entry.balanceSompi == 0L && !entry.everUsed &&
+                    !paymentPoolStore.isReservedAddress(entry.address, walletAddress)
+            }
+            val readyIndex = if (pick != null) {
+                walletService.setSpendingAddressHidden(pick.index, false)
+                pick.index
+            } else {
+                walletService.generateNextSpendingAddress()
+            }
             loadManageAddresses()
+            onResult(readyIndex)
         }
     }
+
+    /** Address at [index] on the spending chain, derived on demand — Address Visibility pager
+     *  rows beyond the revealed bound. */
+    fun spendingAddressAt(index: Int): String? =
+        try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
+
+    /**
+     * iOS parity (WalletManager.revealSpendingAddress): raises the revealed bound to [index],
+     * keeping the intermediate indices hidden so revealing a far-out address doesn't flood the
+     * main Manage Addresses list.
+     */
+    fun revealSpendingAddress(index: Int) {
+        val account = walletManager.getActiveAccount() ?: return
+        val currentMax = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        if (index > currentMax) {
+            for (i in (currentMax + 1) until index) {
+                walletManager.setSpendingAddressHidden(account.address, i, true)
+            }
+            walletManager.ensureMaxSpendingAddressIndexAtLeast(account.address, index)
+        }
+        walletManager.setSpendingAddressHidden(account.address, index, false)
+        loadManageAddresses()
+    }
+
+    /** Used-check for Address Visibility rows derived beyond the loaded list. */
+    suspend fun hasSpendingAddressBeenUsed(address: String): Boolean =
+        walletService.hasSpendingAddressBeenUsed(address)
 
     /**
      * Makes the address at [index] the one "Pay in Kaspa" sources from going forward. The star

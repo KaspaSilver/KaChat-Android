@@ -3885,6 +3885,7 @@ fun ManageAddressesScreen(
     onBack: () -> Unit,
     onNavigateToTxHistory: (Int) -> Unit = {},
     onNavigateToHidden: () -> Unit = {},
+    onNavigateToVisibility: () -> Unit = {},
     onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null
 ) {
     val identityAddress by viewModel.address.collectAsState()
@@ -3964,6 +3965,15 @@ fun ManageAddressesScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
                     }
                 },
+                actions = {
+                    // Bulk visibility manager (iOS parity): compact checkmark list of EVERY
+                    // address, so dozens can be toggled off the main list in one sitting.
+                    if (onAddressPicked == null) {
+                        IconButton(onClick = onNavigateToVisibility) {
+                            Icon(Icons.Default.Checklist, "Manage address visibility", tint = KaspaTeal)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         },
@@ -4008,7 +4018,9 @@ fun ManageAddressesScreen(
                 ) {
                     PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_new_spending_address)) {
                         showActionsMenu = false
-                        viewModel.generateNewSpendingAddress()
+                        viewModel.generateNewSpendingAddress { index ->
+                            Toast.makeText(context, "Spending address #$index is ready.", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                     PopupMenuRow(Icons.Default.Search, stringResource(R.string.discover_addresses)) {
@@ -4068,7 +4080,9 @@ fun ManageAddressesScreen(
                 }
             }
 
-            if (hiddenAddresses.isNotEmpty()) {
+            // The Hidden (n) sub-screen survives only for Swap's address picker — the normal
+            // screen manages visibility through the checklist button instead (iOS parity).
+            if (hiddenAddresses.isNotEmpty() && onAddressPicked != null) {
                 item {
                     Row(
                         modifier = Modifier
@@ -4106,7 +4120,6 @@ fun ManageAddressesScreen(
                         onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
                         onQrClick = { qrAddress = entry.address },
                         onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
-                        onHideToggleClick = { viewModel.setManageAddressHidden(entry.index, true) },
                         onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
                     )
                 }
@@ -4319,7 +4332,6 @@ fun ManageAddressesHiddenScreen(
                             onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
                             onQrClick = { qrAddress = entry.address },
                             onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
-                            onHideToggleClick = { viewModel.setManageAddressHidden(entry.index, false) },
                             onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
                         )
                     }
@@ -4346,6 +4358,178 @@ fun ManageAddressesHiddenScreen(
                 renamingEntry = null
             }
         )
+    }
+}
+
+/**
+ * Address Visibility (iOS parity: SpendingAddressVisibilityView) — a compact checkmark list of
+ * EVERY spending address, paged 50 at a time, so dozens can be toggled off the main Manage
+ * Addresses list in one sitting. The right arrow never runs out: future pages derive addresses
+ * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
+ * intermediate indices hidden. The primary and funded addresses are locked visible.
+ */
+@Composable
+fun AddressVisibilityScreen(
+    viewModel: WalletViewModel,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val addresses by viewModel.manageAddresses.collectAsState()
+    var page by remember { mutableStateOf(0) }
+    val pageSize = 50
+    val byIndex = remember(addresses) { addresses.associateBy { it.index } }
+    val listMax = remember(addresses) { addresses.maxOfOrNull { it.index } ?: -1 }
+    // Lazily filled Used/Unused results for rows derived beyond the loaded list.
+    val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
+
+    val start = page * pageSize
+    val end = start + pageSize - 1
+    val pageEntries = remember(byIndex, page) {
+        (start..end).map { index ->
+            byIndex[index] ?: com.kachat.app.services.WalletService.SpendingAddressEntry(
+                index = index,
+                address = viewModel.spendingAddressAt(index) ?: "",
+                balanceSompi = 0L,
+                everUsed = false,
+                isCurrent = false,
+                hidden = true,
+                label = null
+            )
+        }
+    }
+
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onBack) {
+                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(LocalAppColors.current.background)
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(onClick = { if (page > 0) page -= 1 }, enabled = page > 0) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        "Previous page",
+                        tint = if (page > 0) KaspaTeal else LocalAppColors.current.textSecondary.copy(alpha = 0.4f)
+                    )
+                }
+                Text(
+                    "#$start - #$end",
+                    color = LocalAppColors.current.textSecondary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                IconButton(onClick = { page += 1 }) {
+                    Icon(Icons.Default.ChevronRight, "Next page", tint = KaspaTeal)
+                }
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(pageEntries, key = { it.index }) { entry ->
+                val visible = entry.index <= listMax && !entry.hidden
+                val funded = entry.balanceSompi > 0
+                // Used-state for derived rows the list loader has never seen.
+                if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
+                    LaunchedEffect(entry.index) {
+                        usedCache[entry.index] = viewModel.hasSpendingAddressBeenUsed(entry.address)
+                    }
+                }
+                val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(LocalAppColors.current.surface)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .alpha(if (visible) 1f else 0.55f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            when {
+                                entry.isCurrent ->
+                                    Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
+                                funded && visible ->
+                                    Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                                entry.index > listMax ->
+                                    viewModel.revealSpendingAddress(entry.index)
+                                else ->
+                                    viewModel.setManageAddressHidden(entry.index, !entry.hidden)
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            if (visible) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            if (visible) "Visible" else "Hidden",
+                            tint = if (visible) KaspaTeal else LocalAppColors.current.textSecondary
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "#${entry.index}",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (entry.isCurrent) {
+                                Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(14.dp))
+                            }
+                            entry.label?.takeIf { it.isNotBlank() }?.let { label ->
+                                Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                        Text(
+                            if (entry.address.isNotEmpty()) "${entry.address.take(14)}...${entry.address.takeLast(6)}" else "deriving...",
+                            color = LocalAppColors.current.textPrimary,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    when {
+                        funded -> Text(
+                            "%.4f KAS".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        used != null -> Text(
+                            if (used) "Used" else "Unused",
+                            color = if (used) Color(0xFFF39C12) else Color(0xFF4CD964),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -5905,82 +6089,72 @@ private fun ManageAddressRow(
     onCopyClick: () -> Unit,
     onQrClick: () -> Unit,
     onActivateClick: () -> Unit,
-    onHideToggleClick: () -> Unit,
     onRenameClick: () -> Unit,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
-    val canHide = entry.hidden || (entry.balanceSompi == 0L && !entry.isCurrent)
     var showMenu by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
-    SwipeActionRow(
-        enabled = canHide,
-        cornerRadius = 12.dp,
-        trailingIcon = if (entry.hidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-        trailingLabel = if (entry.hidden) "Unhide" else "Hide",
-        trailingColor = Color(0xFF48484A),
-        onTrailingClick = onHideToggleClick
+    // Swipe-to-hide was retired in favor of the bulk Address Visibility checklist (iOS parity).
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(LocalAppColors.current.surface)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (entry.isCurrent) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp,
+                maxLines = 1
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "%.8f KAS".format(java.util.Locale.US, kas),
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = if (entry.everUsed) "Used" else "Unused",
+                    color = if (entry.everUsed) Color(0xFFF39C12) else Color(0xFF4CD964),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (showsDomainTag) {
+                    ContainsDomainTag()
+                }
+            }
+        }
+        IconButton(
+            onClick = { showMenu = true },
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(LocalAppColors.current.surface)
-                .clickable(onClick = onClick)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(44.dp)
+                .onGloballyPositioned { coords ->
+                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+                }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (entry.isCurrent) {
-                        Spacer(Modifier.width(6.dp))
-                        Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
-                    color = LocalAppColors.current.textPrimary,
-                    fontSize = 14.sp,
-                    maxLines = 1
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "%.8f KAS".format(java.util.Locale.US, kas),
-                    color = LocalAppColors.current.textPrimary,
-                    fontSize = 14.sp
-                )
-                Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = if (entry.everUsed) "Used" else "Unused",
-                        color = if (entry.everUsed) Color(0xFFF39C12) else Color(0xFF4CD964),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (showsDomainTag) {
-                        ContainsDomainTag()
-                    }
-                }
-            }
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier
-                    .size(44.dp)
-                    .onGloballyPositioned { coords ->
-                        menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                    }
-            ) {
-                Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
-            }
+            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
         }
     }
 

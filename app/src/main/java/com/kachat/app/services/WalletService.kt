@@ -169,6 +169,13 @@ class WalletService @Inject constructor(
         }
     }
 
+    /** Whether [address] has any on-chain history — the same single-tx probe the list loader
+     *  uses, exposed for Address Visibility rows derived beyond the loaded list. */
+    suspend fun hasSpendingAddressBeenUsed(address: String): Boolean {
+        val api = readyApi() ?: return false
+        return try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { false }
+    }
+
     /**
      * One scanned identity-chain slot for the import wizard's "Change Chatting Address" picker —
      * mirrors iOS's `ChattingAddressCandidate`. The picker lists only the interesting ones
