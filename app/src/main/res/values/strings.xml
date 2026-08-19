@@ -524,6 +524,8 @@
     <string name="show_fee_estimate">Show Fee Estimate</string>
     <string name="sound_vibration">Sound &amp; Vibration</string>
     <string name="storage">Storage</string>
+    <string name="on_this_device">On This Device</string>
+    <string name="cloud_storage">Cloud Storage</string>
     <string name="submitting_commit_transaction">Submitting commit transaction...</string>
     <string name="submitting_commit_transaction_this_could_take">Submitting commit transaction... this could take a few minutes while it confirms on-chain.</string>
     <string name="submitting_reveal_transaction">Submitting reveal transaction...</string>

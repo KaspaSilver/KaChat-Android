@@ -6845,10 +6845,6 @@ fun SettingsScreen(
                 SettingsNavigationItem(stringResource(R.string.currency), Icons.Default.AttachMoney, currencyCode.uppercase(), onClick = {
                     navController.navigate("currency_settings")
                 })
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.show_setup_guides), showSetupGuides) { enabled ->
-                    walletViewModel.setShowSetupGuides(enabled)
-                }
             }
             }
 
@@ -6949,15 +6945,21 @@ fun SettingsScreen(
             // Android's counterpart to iOS's iCloud row. On-device usage has no settings of its
             // own, so it stays inline here as a readout rather than a row leading to a page with
             // a single read-only line.
-            SettingsSection(title = stringResource(R.string.storage)) {
+            // On-device settings first (message retention + local usage), matching iOS's Storage
+            // screen, before the cloud-provider rows below.
+            SettingsSection(title = stringResource(R.string.on_this_device)) {
                 val localStorageSizeBytes by chatViewModel.localStorageSizeBytes.collectAsState()
                 LaunchedEffect(Unit) { chatViewModel.refreshLocalStorageSize() }
+                MessageRetentionSetting(chatViewModel)
+                SettingsDivider()
                 SettingsInfoItem(
                     label = stringResource(R.string.local_storage_used),
                     value = localStorageSizeBytes?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
                         ?: "Calculating..."
                 )
-                SettingsDivider()
+            }
+
+            SettingsSection(title = stringResource(R.string.cloud_storage)) {
                 SettingsNavigationItem(stringResource(R.string.google_drive), Icons.Default.CloudQueue, onClick = {
                     navController.navigate("storage_google_drive")
                 })

@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VolumeOff
@@ -332,6 +333,8 @@ fun KaPostsScreen(
     var showMyProfile by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
+    // The profile whose follow list is open: null = my own list, non-null = another user's.
+    var followListPubkey by remember { mutableStateOf<String?>(null) }
     var moderationKind by remember { mutableStateOf<Boolean?>(null) } // true = blocked
     var showBookmarks by remember { mutableStateOf(false) }
     var notFoundNotice by remember { mutableStateOf(false) }
@@ -516,6 +519,7 @@ fun KaPostsScreen(
                                     onOpenQuoted = { txId -> openShared(txId) },
                                     onViewEngagement = { engagementTarget = post },
                                     truncatesLongText = true,
+                                    onTip = { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
                                 )
                                 HorizontalDivider(
                                     color = colors.surfaceVariant,
@@ -668,7 +672,7 @@ fun KaPostsScreen(
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openShared(it) },
-            onOpenFollowList = { followListKind = it },
+            onOpenFollowList = { followListPubkey = null; followListKind = it },
         )
     }
 
@@ -684,7 +688,7 @@ fun KaPostsScreen(
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openShared(it) },
-            onOpenFollowList = null,
+            onOpenFollowList = { followListPubkey = profile.pubkey; followListKind = it },
         )
     }
 
@@ -702,6 +706,7 @@ fun KaPostsScreen(
     followListKind?.let { followers ->
         KaPostsFollowListOverlay(
             followers = followers,
+            targetPubkey = followListPubkey,
             viewModel = viewModel,
             onClose = { followListKind = null },
         )
@@ -855,6 +860,8 @@ fun KaPostCell(
      * where the bubble keeps its "open the thread" meaning.
      */
     onReply: (() -> Unit)? = null,
+    /** "Tip": opens the 1:1 chat with the poster in KAS-send mode. Hidden on your own posts. */
+    onTip: (() -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     val context = LocalContext.current
@@ -1042,6 +1049,7 @@ fun KaPostCell(
                     onDislike = { viewModel.toggleDislike(post) },
                     onBookmark = { viewModel.toggleBookmark(post) },
                     onCancelCountdown = { viewModel.cancelUndoable(it) },
+                    onTip = if (!isMine) onTip else null,
                 )
             }
         }
@@ -1088,6 +1096,7 @@ private fun EngagementRow(
     onDislike: () -> Unit,
     onBookmark: () -> Unit,
     onCancelCountdown: (String) -> Unit,
+    onTip: (() -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     Row(
@@ -1162,6 +1171,20 @@ private fun EngagementRow(
             onTap = onBookmark,
             onCancel = onCancelCountdown,
         )
+        if (onTip != null) {
+            Spacer(modifier = Modifier.weight(1f))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTip() }
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+            ) {
+                Icon(Icons.Default.Payments, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Tip", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        }
     }
 }
 
@@ -1998,6 +2021,7 @@ fun KaPostsProfileOverlay(
                             onRepostTap = { onRepostTap(post) },
                             onOpenQuoted = onOpenQuoted,
                             onViewEngagement = { onViewEngagement(post) },
+                            onTip = { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
                         )
                         HorizontalDivider(
                             color = colors.surfaceVariant,
@@ -2124,6 +2148,7 @@ fun KaPostsFollowListOverlay(
     followers: Boolean,
     viewModel: KaPostsViewModel,
     onClose: () -> Unit,
+    targetPubkey: String? = null,
 ) {
     val colors = LocalAppColors.current
     val following by viewModel.following.collectAsState()
@@ -2131,9 +2156,10 @@ fun KaPostsFollowListOverlay(
     val entries by viewModel.followEntries.collectAsState()
     val listState = rememberLazyListState()
     val paging = pagingStateOf(viewModel, KaPostsViewModel.pageFollowList(followers))
+    val myAddress = viewModel.myAddress()
 
-    LaunchedEffect(followers) { viewModel.loadFollowList(followers) }
-    EndlessScroll(listState = listState, key = followers) { viewModel.loadMoreFollowList(followers) }
+    LaunchedEffect(followers, targetPubkey) { viewModel.loadFollowList(followers, targetPubkey) }
+    EndlessScroll(listState = listState, key = followers) { viewModel.loadMoreFollowList(followers, targetPubkey) }
 
     KaPostsOverlayScaffold(title = if (followers) "Followers" else "Following", onClose = onClose) {
         val list = entries
@@ -2189,14 +2215,17 @@ fun KaPostsFollowListOverlay(
                                 Text(relativePostTime(it), color = colors.textSecondary, fontSize = 12.sp)
                             }
                         }
-                        val isFollowing = entry.address in following
-                        TextButton(onClick = { viewModel.toggleFollow(entry.address, entry.pubkey) }) {
-                            Text(
-                                if (isFollowing) "Unfollow" else (if (followers) "Follow Back" else "Follow"),
-                                color = if (isFollowing) colors.textSecondary else KaspaTeal,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                            )
+                        // No follow control for yourself (you can appear on another user's list).
+                        if (entry.address != myAddress) {
+                            val isFollowing = entry.address in following
+                            TextButton(onClick = { viewModel.toggleFollow(entry.address, entry.pubkey) }) {
+                                Text(
+                                    if (isFollowing) "Unfollow" else (if (followers) "Follow Back" else "Follow"),
+                                    color = if (isFollowing) colors.textSecondary else KaspaTeal,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                )
+                            }
                         }
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))

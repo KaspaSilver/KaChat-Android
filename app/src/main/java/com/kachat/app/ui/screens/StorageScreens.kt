@@ -182,48 +182,56 @@ fun GoogleDriveStorageScreen(
                 if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
                     SettingsFooter(restoreState.message ?: "Restore failed.")
                 }
+            }
+        }
+    }
+}
 
-                SettingsDivider()
-
-                val backupRetention by chatViewModel.backupRetention.collectAsState()
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(stringResource(R.string.retention), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        val options = listOf(
-                            Triple("Forever", BackupRetention.FOREVER, 0),
-                            Triple("30 Days", BackupRetention.DAYS_30, 1),
-                            Triple("90 Days", BackupRetention.DAYS_90, 2)
-                        )
-                        options.forEach { (label, value, index) ->
-                            SegmentedButton(
-                                selected = backupRetention == value,
-                                onClick = { chatViewModel.setBackupRetention(value) },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                                colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = LocalAppColors.current.surfaceVariant,
-                                    activeContentColor = LocalAppColors.current.textPrimary,
-                                    inactiveContainerColor = LocalAppColors.current.surface,
-                                    inactiveContentColor = LocalAppColors.current.textSecondary
-                                )
-                            ) {
-                                Text(label, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = if (backupRetention == BackupRetention.FOREVER) {
-                            "Chat history is kept forever and backed up as-is."
-                        } else {
-                            "Messages older than ${backupRetention.days} days are permanently deleted from this device, not just excluded from the backup. This cannot be undone."
-                        },
-                        color = if (backupRetention == BackupRetention.FOREVER) Color.Gray else Color(0xFFFF3B30),
-                        style = MaterialTheme.typography.bodySmall
+/**
+ * Device-level message retention (Forever / 30 / 90 days), shown on the Storage hub before any
+ * cloud provider is chosen. This governs how long messages live on THIS device — older messages
+ * are permanently deleted regardless of whether any backup is connected — so it is intentionally
+ * separate from (and not gated by) Google Drive / Nextcloud.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MessageRetentionSetting(chatViewModel: ChatViewModel) {
+    val backupRetention by chatViewModel.backupRetention.collectAsState()
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(stringResource(R.string.retention), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(8.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            val options = listOf(
+                Triple("Forever", BackupRetention.FOREVER, 0),
+                Triple("30 Days", BackupRetention.DAYS_30, 1),
+                Triple("90 Days", BackupRetention.DAYS_90, 2)
+            )
+            options.forEach { (label, value, index) ->
+                SegmentedButton(
+                    selected = backupRetention == value,
+                    onClick = { chatViewModel.setBackupRetention(value) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = LocalAppColors.current.surfaceVariant,
+                        activeContentColor = LocalAppColors.current.textPrimary,
+                        inactiveContainerColor = LocalAppColors.current.surface,
+                        inactiveContentColor = LocalAppColors.current.textSecondary
                     )
+                ) {
+                    Text(label, fontSize = 12.sp)
                 }
             }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = if (backupRetention == BackupRetention.FOREVER) {
+                "Chat history is kept forever on this device."
+            } else {
+                "Messages older than ${backupRetention.days} days are permanently deleted from this device. This cannot be undone."
+            },
+            color = if (backupRetention == BackupRetention.FOREVER) Color.Gray else Color(0xFFFF3B30),
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

@@ -1449,16 +1449,19 @@ class KaPostsViewModel @Inject constructor(
      * Page one of a follow list. Server order (newest first) is preserved across pages; only the
      * first page is sorted, so appending can never reshuffle what is already on screen.
      */
-    fun loadFollowList(followers: Boolean) {
+    /// targetPubkey null = the signed-in user's own list (loaded via requesterPubkey, with
+    /// locally-stored follows merged in); non-null = another profile's list, server rows only.
+    fun loadFollowList(followers: Boolean, targetPubkey: String? = null) {
         val key = pageFollowList(followers)
         // Followers and Following share one list holder (only one is ever open), so retire the
         // other kind's surface - its in-flight page must not land in the list now on screen.
         resetSurface(pageFollowList(!followers))
         generations.remove(pageFollowList(!followers))
         val generation = resetSurface(key)
+        val isOwnList = targetPubkey == null
         _followEntries.value = null
         loadMoreJobs[key] = viewModelScope.launch {
-            val pubkey = try { kaPostsService.requesterPubkey() } catch (e: Exception) {
+            val pubkey = targetPubkey ?: try { kaPostsService.requesterPubkey() } catch (e: Exception) {
                 Log.w(TAG, "Follow list load failed", e)
                 _followEntries.value = emptyList()
                 updatePaging(key) { it.copy(hasMore = false) }
@@ -1475,7 +1478,7 @@ class KaPostsViewModel @Inject constructor(
             )
             if (generations[key] != generation) return@launch
             var rows = result.items.sortedByDescending { it.timestampMs ?: 0L }
-            if (!followers && !result.hasMore) rows = rows + localOnlyFollows(rows)
+            if (isOwnList && !followers && !result.hasMore) rows = rows + localOnlyFollows(rows)
             _followEntries.value = rows
             updatePaging(key) {
                 it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = result.error)
@@ -1484,15 +1487,16 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
-    fun loadMoreFollowList(followers: Boolean) {
+    fun loadMoreFollowList(followers: Boolean, targetPubkey: String? = null) {
         val key = pageFollowList(followers)
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || !surfaceLoaded(key)) return
         val generation = generations[key] ?: 0
+        val isOwnList = targetPubkey == null
         updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
         loadMoreJobs[key] = viewModelScope.launch {
             val existing = _followEntries.value.orEmpty()
-            val pubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) {
+            val pubkey = targetPubkey ?: try { kaPostsService.requesterPubkey() } catch (_: Exception) {
                 updatePaging(key) { it.copy(isLoadingMore = false, hasMore = false) }
                 return@launch
             }
@@ -1506,12 +1510,12 @@ class KaPostsViewModel @Inject constructor(
                 fetch = { before -> kaPostsService.fetchFollowListPage(pubkey, followers, PAGE_LIMIT, before) },
             )
             if (generations[key] != generation) return@launch
-            if (result.items.isNotEmpty() || (!followers && !result.hasMore)) {
+            if (result.items.isNotEmpty() || (isOwnList && !followers && !result.hasMore)) {
                 // Drop any local-only placeholders before re-appending, so the server rows that
                 // just arrived always sit above them.
                 val serverRows = existing.filter { it.pubkey != null } + result.items
                 _followEntries.value =
-                    if (!followers && !result.hasMore) serverRows + localOnlyFollows(serverRows) else serverRows
+                    if (isOwnList && !followers && !result.hasMore) serverRows + localOnlyFollows(serverRows) else serverRows
             }
             updatePaging(key) {
                 it.copy(
