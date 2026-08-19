@@ -240,6 +240,20 @@ class KaPostsService @Inject constructor(
             return KaspaAddress.encode("kaspa", 0x00, xOnly)
         }
 
+        /**
+         * The inverse bridge for @mentions: a Kaspa address' 32-byte x-only payload as the
+         * compressed KaPost pubkey (BIP-340 even-Y convention, matching desktop/iOS). Used to
+         * fill mentioned_pubkeys from a KNS-domain contact's address alone.
+         */
+        fun kapostPubkeyFromAddress(address: String): String? = try {
+            val (version, payload) = KaspaAddress.decode(address)
+            if (version == 0x00.toByte() && payload.size == 32) {
+                "02" + payload.joinToString("") { "%02x".format(it) }
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+
         private fun decodeHex(hex: String): ByteArray? {
             if (hex.length % 2 != 0 || hex.isEmpty()) return null
             return try {
@@ -416,12 +430,22 @@ class KaPostsService @Inject constructor(
     /**
      * Publishes a KaChat post on-chain. The exclusivity marker is prepended INSIDE the message
      * (the only channel the read API surfaces). Returns the transaction id = post id.
+     *
+     * `mentionedPubkeys` (compressed hex) are client-resolved @mentions: they go into the signed
+     * mentioned_pubkeys array and the indexer turns each into a `contentType: "mention"`
+     * notification for that user. Deduped; malformed entries and the author's own key dropped.
      */
-    suspend fun submitPost(text: String): String {
+    suspend fun submitPost(text: String, mentionedPubkeys: List<String> = emptyList()): String {
         val b64 = KaPostsProtocol.b64(KaPostsProtocol.KACHAT_MARKER + text)
-        val mentions = "[]"
+        val pubkey = requesterPubkey()
+        val me = pubkey.lowercase()
+        val clean = mentionedPubkeys
+            .map { it.lowercase() }
+            .filter { it.matches(Regex("^0[23][0-9a-f]{64}$")) && it != me }
+            .distinct()
+        val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
         val signature = sign(KaPostsProtocol.postSigningString(b64, mentions))
-        return submitPayloadTx(KaPostsProtocol.postPayload(requesterPubkey(), signature, b64, mentions))
+        return submitPayloadTx(KaPostsProtocol.postPayload(pubkey, signature, b64, mentions))
     }
 
     /** Replies to a post (its K txid). Mention rule per spec: parent author, deduped. */

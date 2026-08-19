@@ -47,6 +47,10 @@ class KaPostsViewModel @Inject constructor(
         private const val TAG = "KaPostsViewModel"
         const val UNDO_DELAY_MS = 5_000L
 
+        /** @mention token: @domain at start / after whitespace or opening punctuation (never
+         *  inside an email). Same pattern as desktop/iOS and the indexer contract. */
+        val MENTION_TOKEN_REGEX = Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)", RegexOption.IGNORE_CASE)
+
         /** Rows requested per HTTP page. Small enough to stay snappy, big enough that the
          *  KaChat-marker filter usually still leaves something behind. */
         private const val PAGE_LIMIT = 25
@@ -608,12 +612,47 @@ class KaPostsViewModel @Inject constructor(
 
     private suspend fun submitScheduledPost(localId: String, text: String) {
         try {
-            val txId = kaPostsService.submitPost(text)
+            val txId = kaPostsService.submitPost(text, mentionedPubkeys(text))
             mutateEverywhere(localId) { it.copy(remoteId = txId, deliveryStatus = KaPostDraft.Delivery.SENT) }
         } catch (e: Exception) {
             mutateEverywhere(localId) { it.copy(deliveryStatus = KaPostDraft.Delivery.FAILED) }
             Log.w(TAG, "Post submit failed", e)
         }
+    }
+
+    // MARK: - @mentions (client-resolved: @domain -> contact address -> compressed pubkey; the
+    // indexer turns each pubkey in mentioned_pubkeys into a "mention" notification)
+
+    /** Mentionable = your 1:1 contacts with a KNS domain and a derivable pubkey: (bareDomain, pubkey). */
+    fun mentionCandidates(): List<Pair<String, String>> {
+        val out = mutableListOf<Pair<String, String>>()
+        val seen = mutableSetOf<String>()
+        for ((address, _) in contactAliases.value) {
+            val domain = _senderKnsNames.value[address]?.takeIf { it.isNotBlank() } ?: continue
+            val bare = strippingKasSuffix(domain).lowercase()
+            if (bare.isEmpty() || bare in seen) continue
+            val pubkey = KaPostsService.kapostPubkeyFromAddress(address) ?: continue
+            seen.add(bare)
+            out.add(bare to pubkey)
+        }
+        return out
+    }
+
+    /** Kick KNS lookups for every 1:1 contact so the @ autocomplete has domains to offer. */
+    fun prefetchMentionCandidates() {
+        for ((address, _) in contactAliases.value) ensureSenderProfileFetched(address)
+    }
+
+    private fun mentionedPubkeys(text: String): List<String> {
+        val byDomain = mentionCandidates().toMap()
+        if (byDomain.isEmpty()) return emptyList()
+        val found = linkedSetOf<String>()
+        for (match in MENTION_TOKEN_REGEX.findAll(text)) {
+            var domain = match.groupValues[2].lowercase()
+            if (domain.endsWith(".kas")) domain = domain.dropLast(4)
+            byDomain[domain]?.let { found.add(it) }
+        }
+        return found.toList()
     }
 
     /** Re-submits a failed post or reply (replies resolve their parent for the payload). */
@@ -626,7 +665,7 @@ class KaPostsViewModel @Inject constructor(
                     val parentRemoteId = parent.remoteId ?: error("Parent post is not on-chain yet")
                     kaPostsService.submitReply(post.text, parentRemoteId, parent.posterPubkey)
                 } else {
-                    kaPostsService.submitPost(post.text)
+                    kaPostsService.submitPost(post.text, mentionedPubkeys(post.text))
                 }
                 mutateEverywhere(post.id) { it.copy(remoteId = txId, deliveryStatus = KaPostDraft.Delivery.SENT) }
             } catch (e: Exception) {
@@ -1167,7 +1206,7 @@ class KaPostsViewModel @Inject constructor(
         /** Post to open in-app on row tap; null for follows. */
         val targetTxId: String?,
     ) {
-        enum class Kind { LIKE, DISLIKE, REPLY, QUOTE, REPOST, FOLLOW, OTHER }
+        enum class Kind { LIKE, DISLIKE, REPLY, QUOTE, REPOST, FOLLOW, MENTION, OTHER }
     }
 
     private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
@@ -1198,6 +1237,7 @@ class KaPostsViewModel @Inject constructor(
                 target = if (text.isEmpty()) n.contentId else n.id
             }
             "follow" -> { kind = NotificationItem.Kind.FOLLOW; target = null }
+            "mention" -> { kind = NotificationItem.Kind.MENTION; target = n.contentId }
             else -> { kind = NotificationItem.Kind.OTHER; target = n.contentId }
         }
         return NotificationItem(

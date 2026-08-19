@@ -40,6 +40,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -603,6 +604,7 @@ fun KaPostsScreen(
                 showComposer = false
                 viewModel.schedulePost(text)
             },
+            viewModel = viewModel,
         )
     }
 
@@ -616,6 +618,7 @@ fun KaPostsScreen(
                 quoteTarget = null
                 viewModel.scheduleQuote(target, text)
             },
+            viewModel = viewModel,
         )
     }
 
@@ -987,7 +990,7 @@ fun KaPostCell(
                 }
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = post.text,
+                    text = annotatedPostText(post.text),
                     color = colors.textPrimary,
                     fontSize = 15.sp,
                     lineHeight = 20.sp,
@@ -1260,11 +1263,29 @@ fun KaPostComposerDialog(
     quotedDisplayName: String = "",
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
+    /** Enables @mention autocomplete (chips of 1:1 KNS-domain contacts) when provided. */
+    viewModel: KaPostsViewModel? = null,
 ) {
     val colors = LocalAppColors.current
     var text by remember { mutableStateOf("") }
     val limit = KaPostDraft.POST_CHARACTER_LIMIT
     val canPost = text.isNotBlank() && text.length <= limit
+
+    // Warm the KNS caches so typing @ has domains to offer.
+    LaunchedEffect(Unit) { viewModel?.prefetchMentionCandidates() }
+    // The @token being typed at the END of the text ("" right after "@"), or null.
+    val mentionQuery = remember(text) {
+        Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]*)$", RegexOption.IGNORE_CASE)
+            .find(text)?.groupValues?.get(2)?.lowercase()
+    }
+    val mentionSuggestions = remember(text) {
+        val query = mentionQuery
+        if (query == null || viewModel == null) emptyList()
+        else viewModel.mentionCandidates()
+            .map { it.first }
+            .filter { query.isEmpty() || it.startsWith(query) }
+            .take(6)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1318,6 +1339,32 @@ fun KaPostComposerDialog(
                     inner()
                 },
             )
+            // @mention autocomplete chips: tapping replaces the trailing @token with "@domain ".
+            if (mentionSuggestions.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    mentionSuggestions.forEach { domain ->
+                        Text(
+                            "@$domain",
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(KaspaTeal.copy(alpha = 0.14f))
+                                .clickable {
+                                    text = text.replace(Regex("@[a-z0-9-]*$", RegexOption.IGNORE_CASE), "@$domain ")
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+                }
+            }
             quoted?.let {
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     QuotedEmbedCard(
@@ -2131,6 +2178,22 @@ fun KaPostsNotificationsOverlay(
     }
 }
 
+/** Post text with @mention tokens tinted teal (same token rule as the send-side parser). */
+private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedString =
+    androidx.compose.ui.text.buildAnnotatedString {
+        append(text)
+        for (match in KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text)) {
+            val domain = match.groups[2] ?: continue
+            val start = domain.range.first - 1 // include the '@'
+            if (start < 0) continue
+            addStyle(
+                androidx.compose.ui.text.SpanStyle(color = KaspaTeal, fontWeight = FontWeight.SemiBold),
+                start,
+                domain.range.last + 1,
+            )
+        }
+    }
+
 private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind): String = when (kind) {
     KaPostsViewModel.NotificationItem.Kind.LIKE -> "liked your post"
     KaPostsViewModel.NotificationItem.Kind.DISLIKE -> "disliked your post"
@@ -2138,6 +2201,7 @@ private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind)
     KaPostsViewModel.NotificationItem.Kind.QUOTE -> "quoted your post"
     KaPostsViewModel.NotificationItem.Kind.REPOST -> "reposted your post"
     KaPostsViewModel.NotificationItem.Kind.FOLLOW -> "followed you"
+    KaPostsViewModel.NotificationItem.Kind.MENTION -> "mentioned you in a post"
     KaPostsViewModel.NotificationItem.Kind.OTHER -> "interacted with your post"
 }
 
