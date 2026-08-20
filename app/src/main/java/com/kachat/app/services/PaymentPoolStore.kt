@@ -188,6 +188,12 @@ class PaymentPoolStore @Inject constructor(
         save(s, walletAddress)
     }
 
+    /** The spending-chain index of one of our reservations, by address — used to unhide the
+     *  address (pool reservations are born hidden) once a payment_notice marks it funded. */
+    @Synchronized
+    fun reservationIndex(address: String, walletAddress: String): Int? =
+        state(walletAddress).myReservations.values.flatten().firstOrNull { it.address == address }?.index
+
     /** Every reserved-and-offered address across all contacts - belongs in any own-address
      *  watched set so incoming pool payments are noticed promptly. */
     @Synchronized

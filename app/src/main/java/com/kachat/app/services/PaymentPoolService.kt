@@ -129,6 +129,9 @@ class PaymentPoolService @Inject constructor(
                 Log.w(TAG, "Pool offer aborted - could not reserve fresh spending addresses")
                 return
             }
+            // Pool reservations are internal plumbing: born HIDDEN so each offer batch doesn't
+            // flood Manage Addresses with 5 fresh "Unused" rows; unhidden the moment one is funded.
+            fresh.forEach { (index, _) -> walletManager.setSpendingAddressHidden(walletAddress, index, true) }
             val entries = fresh.map { (index, address) ->
                 PaymentPoolStore.ReservedAddress(address = address, index = index, offered = false, funded = null)
             }
@@ -448,6 +451,11 @@ class PaymentPoolService @Inject constructor(
         // outstanding-unfunded-offers cap reflects genuine pool usage (no-op if the address
         // isn't one of our reservations for this contact).
         store.markReservationFunded(content.address, contact.id, myAddress)
+        // The reserved address now holds money — funded addresses are always visible
+        // (reservations are born hidden, see the allocation site).
+        store.reservationIndex(content.address, myAddress)?.let { index ->
+            walletManager.setSpendingAddressHidden(myAddress, index, false)
+        }
 
         if (database.messageDao().exists(txId, myAddress)) return
 
