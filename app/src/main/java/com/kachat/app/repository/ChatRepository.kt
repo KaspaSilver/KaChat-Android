@@ -357,14 +357,26 @@ class ChatRepository @Inject constructor(
      * decrypting both with the same KasiaCipher/MessageProtocol code already
      * built for sending — no separate crypto path for receiving.
      */
+    /**
+     * See [AppSettingsRepository.liveNotificationBaseline]: anything on-chain older than this
+     * is history being backfilled (e.g. right after an account import) — inserted as read and
+     * never notified. Long.MAX_VALUE until the first sweep resolves it, so nothing can slip a
+     * notification out before the baseline is known.
+     */
+    private var liveBaselineMs: Long = Long.MAX_VALUE
+
     suspend fun syncMessages() {
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
         val api = networkService.indexerApi.value ?: return
+        liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
 
         syncHandshakes(myAddress, api)
         syncContextualMessages(myAddress, api)
         networkService.kaspaRestApi.value?.let { syncPayments(myAddress, it) }
     }
+
+    /** True when [blockTime] predates this account's first sync on this device — backfilled history, not live traffic. */
+    private fun isBackfill(blockTime: Long?): Boolean = (blockTime ?: 0L) < liveBaselineMs
 
     private suspend fun syncHandshakes(myAddress: String, api: KasiaIndexerApi) {
         // block_time cursor — see AppSettingsRepository.handshakeSyncCursor's doc comment. Only
@@ -423,6 +435,7 @@ class ChatRepository @Inject constructor(
                 )
         )
 
+        val backfill = isBackfill(handshake.blockTime)
         insertMessage(
             MessageEntity(
                 id = handshake.txId,
@@ -433,12 +446,13 @@ class ChatRepository @Inject constructor(
                 plaintextBody = "${theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(handshake.sender)} wants to connect",
                 encryptedPayload = handshake.messagePayload,
                 amountSompi = null,
-                blockTimestamp = handshake.blockTime
+                blockTimestamp = handshake.blockTime,
+                isRead = backfill
             )
         )
 
         val displayName = theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(handshake.sender)
-        if (!pushState.isActive) { // handshake pushes come from the server in remote-push mode
+        if (!backfill && !pushState.isActive) { // handshake pushes come from the server in remote-push mode
             notificationHelper.show(
                 contactId = handshake.sender,
                 title = if (newStatus == "pending") "Request to communicate" else "Connected",
@@ -544,6 +558,7 @@ class ChatRepository @Inject constructor(
             return
         }
 
+        val backfill = isBackfill(message.blockTime)
         insertMessage(
             MessageEntity(
                 id = message.txId,
@@ -554,7 +569,8 @@ class ChatRepository @Inject constructor(
                 plaintextBody = plaintext,
                 encryptedPayload = message.messagePayload,
                 amountSompi = null,
-                blockTimestamp = message.blockTime
+                blockTimestamp = message.blockTime,
+                isRead = backfill
             )
         )
 
@@ -568,7 +584,7 @@ class ChatRepository @Inject constructor(
             com.kachat.app.util.ChessMessage.parseOrNull(plaintext) != null -> "♟️ Chess game"
             else -> plaintext
         }
-        if (!pushState.isActive) { // contextual-message pushes come from the server in remote-push mode
+        if (!backfill && !pushState.isActive) { // contextual-message pushes come from the server in remote-push mode
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.alias ?: contact.id.takeLast(8),
@@ -663,6 +679,7 @@ class ChatRepository @Inject constructor(
             }
         }
 
+        val backfill = isBackfill(blockTime)
         insertMessage(
             MessageEntity(
                 id = tx.transactionId,
@@ -673,11 +690,12 @@ class ChatRepository @Inject constructor(
                 plaintextBody = displayText,
                 encryptedPayload = "",
                 amountSompi = receivedSompi,
-                blockTimestamp = blockTime
+                blockTimestamp = blockTime,
+                isRead = backfill
             )
         )
 
-        if (!pushState.isActive) { // payment pushes come from the server in remote-push mode
+        if (!backfill && !pushState.isActive) { // payment pushes come from the server in remote-push mode
             notificationHelper.show(
                 contactId = conversationId,
                 title = "Payment received",

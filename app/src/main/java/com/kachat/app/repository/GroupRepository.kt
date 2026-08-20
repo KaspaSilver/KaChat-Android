@@ -638,6 +638,12 @@ class GroupRepository @Inject constructor(
             // already-seen txId (e.g. catch-up re-fetching something the live scan already
             // processed) - only notify for a genuinely new, incoming (not our own) message.
             if (rowId != -1L && !isOutgoing) {
+                if (isBackfill(blockTimestamp)) {
+                    // History being backfilled (e.g. right after an account import): keep the
+                    // group read and silent - only live traffic notifies or counts unread.
+                    markGroupRead(group.groupId)
+                    return
+                }
                 // Global notification center (Profile bell): list this message when it
                 // @mentions the wallet's own KNS domain (deduped by txId inside the store).
                 notificationCenter.recordGroupMentionIfNeeded(
@@ -682,7 +688,7 @@ class GroupRepository @Inject constructor(
         Log.w("GroupRepository", "Rejected gcomm: no local group matched blindedGroupId ${parsed.blindedGroupId.toHexString()}")
     }
 
-    suspend fun handleIncomingControlMessage(payloadString: String, senderAddress: String) {
+    suspend fun handleIncomingControlMessage(payloadString: String, senderAddress: String, blockTime: Long? = null) {
         val walletAddress = walletManager.getAddress()
         if (senderAddress == walletAddress) return
         val privateKey = walletManager.getPrivateKeyBytes()
@@ -699,14 +705,22 @@ class GroupRepository @Inject constructor(
 
         val rootPayload = GroupCipher.rootPayloadFromJson(plaintext)
         if (rootPayload != null && rootPayload.type == "gctl_root" && GroupCipher.verifyRootPayload(rootPayload)) {
-            completeJoin(rootPayload)
+            completeJoin(rootPayload, blockTime)
         }
         // gctl_epoch is an advance-notice heads-up only (state updates on gctl_root arrival,
         // not on gctl_epoch) - no local state change needed here in the data layer.
     }
 
+    /** See [AppSettingsRepository.liveNotificationBaseline]: history older than this account's
+     *  first sync on this device is backfill — kept read and silent. A null [blockTime]
+     *  (live block scan, no timestamp in hand) always counts as live. */
+    private suspend fun isBackfill(blockTime: Long?): Boolean {
+        val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { return true }
+        return (blockTime ?: Long.MAX_VALUE) < settings.liveNotificationBaseline(walletAddress)
+    }
+
     /** Applies a verified gctl_root payload: creates or updates the local group secrets + roster. Refuses to downgrade to an older epoch than what's already stored (replay protection). */
-    private suspend fun completeJoin(payload: GroupCipher.GroupRootPayload) {
+    private suspend fun completeJoin(payload: GroupCipher.GroupRootPayload, blockTime: Long? = null) {
         val walletAddress = walletManager.getAddress()
         val existingBag = groupSecretStore.loadBag(walletAddress, payload.groupId)
         if (existingBag != null && existingBag.currentEpoch > payload.epoch) return
@@ -745,7 +759,7 @@ class GroupRepository @Inject constructor(
         )
         database.groupDao().upsertGroup(entity)
 
-        if (isFirstTimeJoin) {
+        if (isFirstTimeJoin && !isBackfill(blockTime)) {
             notificationHelper.showGroup(payload.groupId, "", "You were added to \"${payload.name}\"")
         }
     }
@@ -823,7 +837,7 @@ class GroupRepository @Inject constructor(
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
             val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
-            handleIncomingControlMessage(payloadString, msg.sender)
+            handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
         }
     }
 
@@ -843,7 +857,7 @@ class GroupRepository @Inject constructor(
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
             val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
-            handleIncomingControlMessage(payloadString, msg.sender)
+            handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
         }
     }
 

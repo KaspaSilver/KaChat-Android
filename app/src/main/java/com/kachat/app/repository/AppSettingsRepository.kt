@@ -458,6 +458,22 @@ class AppSettingsRepository @Inject constructor(
     }
 
     /**
+     * Per-account "live" baseline: the first moment this account ever synced on THIS device —
+     * which is exactly the import/restore moment for a freshly imported account. Anything
+     * on-chain OLDER than it is history being backfilled: inserted as already-read and never
+     * notified, so importing an account doesn't replay every past 1:1/group message as a fresh
+     * unread notification. Anything newer is live traffic and behaves normally. Get-or-init:
+     * the first caller stamps "now".
+     */
+    suspend fun liveNotificationBaseline(address: String): Long {
+        val key = liveNotificationBaselineKey(address)
+        dataStore.data.first()[key]?.let { return it }
+        val now = System.currentTimeMillis()
+        dataStore.edit { it[key] = now }
+        return now
+    }
+
+    /**
      * How far into the `handshakes/by-receiver` stream this wallet has already synced — the
      * indexer's `block_time` cursor, so a sync only asks for what's genuinely new since last time
      * instead of re-fetching the same recent window every cycle. Keyed per-address like
@@ -622,6 +638,7 @@ class AppSettingsRepository @Inject constructor(
 
     private fun chatsPaymentPrivacyKey(address: String) = booleanPreferencesKey("chats_payment_privacy_$address")
     private fun paymentSyncBaselineKey(address: String) = longPreferencesKey("payment_sync_baseline_$address")
+    private fun liveNotificationBaselineKey(address: String) = longPreferencesKey("live_notification_baseline_$address")
     private fun handshakeSyncCursorKey(address: String) = longPreferencesKey("handshake_sync_cursor_$address")
     private fun showSetupGuidesKey(address: String) = booleanPreferencesKey("show_setup_guides_$address")
 }

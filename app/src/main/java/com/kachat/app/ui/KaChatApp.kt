@@ -389,8 +389,15 @@ fun MainShell(
     // added — whether created or imported — see `WalletViewModel.pendingWelcomeGuide`. Always shown
     // on create/import, independent of the "show setup guides" setting.
     val pendingWelcomeGuide by walletViewModel.pendingWelcomeGuide.collectAsState()
+    // Guards the interrupted-run re-presenter below against racing the auto-present:
+    // markOnboardingWizardPending() persists BEFORE the navigation composes, so the marker
+    // flow could re-fire that effect while the top route was still the old tab page - which
+    // stacked a SECOND welcome_guide under the first and made a fresh import walk the whole
+    // wizard twice. Once auto-presented, re-presenting is only ever a next-launch concern.
+    var welcomeGuidePresentedThisSession by remember { mutableStateOf(false) }
     LaunchedEffect(pendingWelcomeGuide) {
         if (pendingWelcomeGuide) {
+            welcomeGuidePresentedThisSession = true
             // First-run auto-present: the "Who will use KaChat?" step is now owed an answer -
             // persist the marker so killing the app mid-wizard re-presents the step at next
             // launch. Never downgrades an already-"chosen" device (see markUserTypePending), and
@@ -411,7 +418,7 @@ fun MainShell(
     val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
     val onboardingWizardPendingMarker by walletViewModel.onboardingWizardPending.collectAsState()
     LaunchedEffect(userTypePendingMarker, onboardingWizardPendingMarker, pendingWelcomeGuide, currentTopRoute) {
-        if (pendingWelcomeGuide) return@LaunchedEffect
+        if (pendingWelcomeGuide || welcomeGuidePresentedThisSession) return@LaunchedEffect
         if (currentTopRoute == null || currentTopRoute.startsWith("welcome_guide")) return@LaunchedEffect
         if (userTypePendingMarker == true) {
             navController.navigate("welcome_guide?startAtUserType=true&onboarding=true")
