@@ -15,7 +15,11 @@ data class ChatHistoryArchive(
     // Cross-platform group key material (optional; older archives omit it). Carries the full
     // bag - including the admin's groupSeed - so another device of the same account recovers
     // admin groups that have no on-chain invite addressed to it.
-    val groups: List<ChatHistoryArchiveGroup>? = null
+    val groups: List<ChatHistoryArchiveGroup>? = null,
+    // Deletion tombstones (optional; older archives omit it): addresses whose chats the user
+    // deleted. A restore - local file, Google Drive, or Nextcloud - must never resurrect
+    // them, even on a fresh install with no local tombstones. Field name matches iOS.
+    val deletedContactAddresses: List<String>? = null
 ) {
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1

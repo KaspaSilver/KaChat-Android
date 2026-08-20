@@ -2454,9 +2454,9 @@ fun KaPostTipDialog(
     }
 
     LaunchedEffect(address) {
-        // Auto-add the poster as a contact so the payment bubble has a home, then load the
-        // privacy-appropriate funding UTXOs and the destination indicator.
-        chatViewModel.addContact(address, displayName.takeIf { it.isNotBlank() && !it.startsWith("kaspa:") })
+        // Deliberately does NOT create a contact here: opening the tip dialog and cancelling
+        // must leave no trace in the Chats list. The contact is created in the Send Tip
+        // click, right before the payment goes out.
         chatViewModel.refreshFreshPoolIndicator(address)
         chatViewModel.refreshSpendingUtxos()
         chatViewModel.setFeeRateOverride(null)
@@ -2575,6 +2575,9 @@ fun KaPostTipDialog(
                 onClick = {
                     isSending = true
                     errorText = null
+                    // The chat with the poster is created HERE, on an actual send - not when
+                    // the dialog opened - so a cancelled tip never leaves an orphan chat.
+                    chatViewModel.addContact(address, displayName.takeIf { it.isNotBlank() && !it.startsWith("kaspa:") })
                     // Re-apply the tier right before the send (sendPayment consumes the override).
                     chatViewModel.setFeeTierMultiplier(feeTier)
                     chatViewModel.sendPayment(address, amountText.trim()) { ok, error ->

@@ -78,10 +78,14 @@ class ChatHistoryExportImportService @Inject constructor(
         val myAddress = walletManager.getAddress()
         val contactsById = chatRepository.getContacts().first().associateBy { it.id }
         val messages = chatRepository.getAllMessages()
+        // Deleted chats are excluded from the export AND their tombstones travel with the
+        // archive, so restoring anywhere (fresh install included) never brings them back.
+        val deletedIds = chatRepository.getAllDeletedContactIds().toSet()
 
         val conversations = messages
             .groupBy { it.contactId }
             .mapNotNull { (contactId, contactMessages) ->
+                if (contactId in deletedIds) return@mapNotNull null
                 // Pending placeholders are transient local-only state, not confirmed history.
                 val exportable = contactMessages.filter { it.deliveryStatus != "pending" }
                 if (exportable.isEmpty()) return@mapNotNull null
@@ -102,7 +106,8 @@ class ChatHistoryExportImportService @Inject constructor(
             exportedAt = isoSeconds(System.currentTimeMillis()),
             walletAddress = myAddress,
             conversations = conversations,
-            groups = groupRepository.exportArchiveGroups()
+            groups = groupRepository.exportArchiveGroups(),
+            deletedContactAddresses = deletedIds.sorted().takeIf { it.isNotEmpty() }
         )
     }
 
@@ -188,9 +193,14 @@ class ChatHistoryExportImportService @Inject constructor(
         var importedCount = 0
         var conversationCount = 0
 
+        val archivedTombstones = archive.deletedContactAddresses.orEmpty().toSet()
         for (conversation in archive.conversations) {
             if (conversation.messages.isEmpty()) continue
             val contactAddress = conversation.contactAddress
+            // Never resurrect a deleted chat: honor this device's tombstones AND the ones the
+            // archive itself carries (covers restoring onto a fresh install).
+            if (contactAddress in archivedTombstones) continue
+            if (chatRepository.hasDeletionTombstone(contactAddress)) continue
 
             val importedPhoto = conversation.contactPhoto?.takeIf { it.isNotBlank() }
             val existingContact = chatRepository.getContact(contactAddress)
@@ -553,8 +563,19 @@ class ChatHistoryExportImportService @Inject constructor(
             absorb(remote, isRemote = true)
             absorb(local, isRemote = false)
 
+            // Deletion tombstones: union of both sides, and any tombstoned conversation is
+            // dropped from the merged backup - a chat deleted on one device stays deleted in
+            // the shared history instead of resurrecting from the other side's copy.
+            val tombstones = sortedSetOf<String>()
+            for (side in listOf(local, remote)) {
+                (side.get("deletedContactAddresses") as? JsonArray)?.forEach { el ->
+                    runCatching { el.asString }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { tombstones.add(it) }
+                }
+            }
+
             val conversations = JsonArray()
             for (entry in merged.values.sortedBy { it.contactAddress }) {
+                if (entry.contactAddress in tombstones) continue
                 val conversation = entry.base   // already a deep copy — keeps any unknown keys
                 // conversationId is normalized too: iOS decodes it as UUID?, so a non-UUID one
                 // written by another client would throw on its restore.
@@ -590,6 +611,13 @@ class ChatHistoryExportImportService @Inject constructor(
                 }
             }
             if (mergedGroups.size() > 0) result.add("groups", mergedGroups) else result.remove("groups")
+            if (tombstones.isNotEmpty()) {
+                val tombstoneArray = JsonArray()
+                tombstones.forEach { tombstoneArray.add(it) }
+                result.add("deletedContactAddresses", tombstoneArray)
+            } else {
+                result.remove("deletedContactAddresses")
+            }
             return result
         }
     }

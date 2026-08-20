@@ -194,6 +194,14 @@ class ChatRepository @Inject constructor(
         database.contactDao().insert(contact)
     }
 
+    /** Every tombstoned contact address for the active wallet — carried in backups so restores skip deleted chats. */
+    suspend fun getAllDeletedContactIds(): List<String> =
+        database.contactDao().getAllDeletedContactIds(walletManager.getAddress())
+
+    /** Whether the user deleted the chat with [contactId] — restores must never resurrect it. */
+    suspend fun hasDeletionTombstone(contactId: String): Boolean =
+        database.contactDao().getDeletedContact(contactId, walletManager.getAddress()) != null
+
     suspend fun getContact(id: String): ContactEntity? {
         return database.contactDao().getContact(id, walletManager.getAddress())
     }
@@ -637,15 +645,28 @@ class ChatRepository @Inject constructor(
         if (isTombstoned(deleted, tx.transactionId, blockTime)) return
 
         val existingContact = database.contactDao().getContact(sender, myAddress)
+        var conversationId = sender
+        var displayText = "Received ${formatKas(receivedSompi)} KAS"
         if (existingContact == null) {
-            database.contactDao().insert(ContactEntity(id = sender, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+            // A plain payment from an address we have NO contact for must not open a chat
+            // with the stranger. Internal moves from our own spending chain surface nowhere
+            // in chats; genuinely unknown senders collect in the SELF-chat (the conversation
+            // with our own chatting address) with the sender noted in the bubble. The wallet
+            // notification below still fires either way.
+            if (walletManager.isOwnSpendingAddress(sender)) return
+            val selfDeleted = database.contactDao().getDeletedContact(myAddress, myAddress)
+            if (isTombstoned(selfDeleted, tx.transactionId, blockTime)) return
+            conversationId = myAddress
+            displayText += "\nFrom: $sender"
+            if (database.contactDao().getContact(myAddress, myAddress) == null) {
+                database.contactDao().insert(ContactEntity(id = myAddress, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+            }
         }
 
-        val displayText = "Received ${formatKas(receivedSompi)} KAS"
         insertMessage(
             MessageEntity(
                 id = tx.transactionId,
-                contactId = sender,
+                contactId = conversationId,
                 walletAddress = myAddress,
                 type = "pay",
                 direction = "received",
@@ -658,7 +679,7 @@ class ChatRepository @Inject constructor(
 
         if (!pushState.isActive) { // payment pushes come from the server in remote-push mode
             notificationHelper.show(
-                contactId = sender,
+                contactId = conversationId,
                 title = "Payment received",
                 text = displayText,
                 notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride)
