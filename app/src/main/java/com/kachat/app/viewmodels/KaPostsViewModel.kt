@@ -1459,7 +1459,9 @@ class KaPostsViewModel @Inject constructor(
                 target = if (text.isEmpty()) n.contentId else n.id
             }
             "follow" -> { kind = NotificationItem.Kind.FOLLOW; target = null }
-            "mention" -> { kind = NotificationItem.Kind.MENTION; target = n.contentId }
+            // A mention's acting content IS the post/comment mentioning you — fall back to
+            // the notification's own txid when contentId is empty, else the row has no target.
+            "mention" -> { kind = NotificationItem.Kind.MENTION; target = n.contentId?.takeIf { it.isNotEmpty() } ?: n.id }
             else -> { kind = NotificationItem.Kind.OTHER; target = n.contentId }
         }
         return NotificationItem(

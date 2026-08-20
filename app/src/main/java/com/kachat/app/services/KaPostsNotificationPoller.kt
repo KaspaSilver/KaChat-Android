@@ -103,6 +103,9 @@ class KaPostsNotificationPoller @Inject constructor(
                     "reply" -> n.id
                     "quote" -> if (text.isEmpty()) n.contentId else n.id
                     "follow" -> null
+                    // A mention's acting content IS the post/comment mentioning you — fall back
+                    // to the notification's own txid when contentId is empty, else no target.
+                    "mention" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
                     else -> n.contentId
                 },
             )
@@ -132,6 +135,8 @@ class KaPostsNotificationPoller @Inject constructor(
                     "reply" -> n.id
                     "quote" -> if (text.isEmpty()) n.contentId else n.id
                     "follow" -> null
+                    // Same mention fallback as the bell targetId above.
+                    "mention" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
                     else -> n.contentId
                 },
             )
