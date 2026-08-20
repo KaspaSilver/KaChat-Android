@@ -970,6 +970,9 @@ private fun groupMessagePreviewText(message: GroupMessage?, members: List<GroupM
     }
     if (VoiceMessage.parseOrNull(body) != null) return "🎤 Audio message"
     if (ImageMessage.parseOrNull(body) != null) return "📷 Photo"
+    VoiceMessage.parseAnyFileOrNull(body)?.let {
+        return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
+    }
     return GroupMentionCodec.decodeForDisplay(body, members, resolve)
 }
 
@@ -988,6 +991,9 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
     if (VoiceMessage.parseOrNull(body) != null) return "🎤 Audio message"
     if (ImageMessage.parseOrNull(body) != null) return "📷 Photo"
     if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
+    VoiceMessage.parseAnyFileOrNull(body)?.let {
+        return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
+    }
     return body
 }
 
