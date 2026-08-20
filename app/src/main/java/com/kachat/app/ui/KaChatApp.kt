@@ -455,6 +455,12 @@ fun MainShell(
             // the whole screen with their own Scaffold and must not have this
             // overlaid on top of them (it was blocking the chat input entirely).
             if (onTabRoute && !hideBottomBar) {
+                // Red dot on the Profile tab while the notification bell (which lives on the
+                // Profile screen) holds unread entries.
+                val dockNotifVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
+                val dockNotifEntries by dockNotifVm.store.entries.collectAsState()
+                val dockNotifLastSeen by dockNotifVm.store.lastSeenAt.collectAsState()
+                val dockNotifUnread = dockNotifEntries.count { it.timestampMs > dockNotifLastSeen }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -645,12 +651,23 @@ fun MainShell(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(
-                                            imageVector = chatsSlotMorph?.icon ?: screen.icon,
-                                            contentDescription = chatsSlotMorph?.label ?: screen.label,
-                                            tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
+                                        Box {
+                                            Icon(
+                                                imageVector = chatsSlotMorph?.icon ?: screen.icon,
+                                                contentDescription = chatsSlotMorph?.label ?: screen.label,
+                                                tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            if (screen == Screen.Profile && dockNotifUnread > 0) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .size(8.dp)
+                                                        .clip(RoundedCornerShape(50))
+                                                        .background(Color(0xFFE0245E)),
+                                                )
+                                            }
+                                        }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = chatsSlotMorph?.label ?: screen.label,

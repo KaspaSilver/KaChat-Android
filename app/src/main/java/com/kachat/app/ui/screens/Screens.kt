@@ -2735,16 +2735,13 @@ fun ProfileScreen(
                             modifier = Modifier.size(22.dp),
                         )
                         if (notifUnread > 0) {
-                            Text(
-                                if (notifUnread > 99) "99+" else "$notifUnread",
-                                color = Color.White,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
+                            // A plain red DOT (no count) - "there is something unread" is the signal.
+                            Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
+                                    .size(8.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFE0245E))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                                    .background(Color(0xFFE0245E)),
                             )
                         }
                     }
@@ -7201,15 +7198,6 @@ fun SettingsScreen(
                     onClick = { navController.navigate("quick_reaction_settings") }
                 )
             }
-            // Per-account fresh-address payment pool toggle - its own card below the Chats
-            // items, mirroring iOS's separate unnamed section on the Chats settings page.
-            SettingsSection(title = null) {
-                val chatsPaymentPrivacyEnabled by settingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
-                SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
-                    settingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
-                }
-                SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one.")
-            }
             }
 
             if (sectionKey == "contacts") {
@@ -7775,6 +7763,15 @@ fun SecuritySettingsItems(
         if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
         onClick = onNavigateToChildMode
     )
+    SettingsDivider()
+    // Per-account fresh-address payment pool toggle - moved here from the Chats page
+    // (all 3 platforms keep it under Security now).
+    val privacySettingsViewModel: SettingsViewModel = hiltViewModel()
+    val chatsPaymentPrivacyEnabled by privacySettingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
+    SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
+        privacySettingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
+    }
+    SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one.")
 }
 
 /**

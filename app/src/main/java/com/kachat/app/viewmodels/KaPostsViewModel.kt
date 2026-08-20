@@ -606,8 +606,24 @@ class KaPostsViewModel @Inject constructor(
     fun undoPendingPost() {
         val toast = _undoToast.value ?: return
         cancelUndoable(toast.key)
-        _localPosts.value = _localPosts.value.filterNot { it.id == toast.postId }
+        // Only compose-style actions have an optimistic CARD to remove; a cancelled
+        // like/dislike/repost simply never happens (their mutation fires post-countdown),
+        // and a cancelled comment removes its optimistic reply from the thread.
+        when {
+            toast.key.startsWith("post:") ->
+                _localPosts.value = _localPosts.value.filterNot { it.id == toast.postId }
+            toast.key.startsWith("comment:") -> removeReplyEverywhere(toast.postId)
+        }
         _undoToast.value = null
+    }
+
+    /** Strips an optimistic comment out of every post tree that holds it —
+     *  the same collections mutateEverywhere() searches. */
+    private fun removeReplyEverywhere(commentId: String) {
+        fun strip(list: List<KaPostDraft>): List<KaPostDraft> = list.map { post ->
+            post.copy(comments = strip(post.comments.filterNot { it.id == commentId }))
+        }
+        for (flow in allPostLists()) flow.value = strip(flow.value)
     }
 
     private suspend fun submitScheduledPost(localId: String, text: String) {
@@ -936,7 +952,13 @@ class KaPostsViewModel @Inject constructor(
             deliveryStatus = KaPostDraft.Delivery.PENDING,
         )
         mutateEverywhere(parent.id) { it.copy(comments = it.comments + comment) }
-        viewModelScope.launch {
+        // Same 5s undo TOAST as every other interaction: the optimistic comment shows
+        // immediately, the on-chain submit fires when the countdown ends, and Undo removes
+        // the comment before anything hits the network.
+        val key = "comment:${comment.id}"
+        _undoToast.value = UndoToast(key, comment.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting comment")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
             try {
                 val parentRemoteId = parent.remoteId ?: error("Post is not on-chain yet")
                 // @mentions work in comments exactly like in posts: resolved client-side to pubkeys.
@@ -956,7 +978,14 @@ class KaPostsViewModel @Inject constructor(
             performLike(post)   // local-only unlike, instant
             return
         }
-        scheduleUndoable("like:${post.id}") { performLike(post) }
+        // Every interaction raises the always-visible undo TOAST (the in-icon countdown
+        // alone can scroll out of view).
+        val key = "like:${post.id}"
+        _undoToast.value = UndoToast(key, post.id, System.currentTimeMillis() + UNDO_DELAY_MS, if (post.likedByMe) "Removing like" else "Liking")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            performLike(post)
+        }
     }
 
     private fun performLike(post: KaPostDraft) {
@@ -995,7 +1024,12 @@ class KaPostsViewModel @Inject constructor(
             performDislike(post)
             return
         }
-        scheduleUndoable("dislike:${post.id}") { performDislike(post) }
+        val key = "dislike:${post.id}"
+        _undoToast.value = UndoToast(key, post.id, System.currentTimeMillis() + UNDO_DELAY_MS, if (post.dislikedByMe) "Removing dislike" else "Disliking")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            performDislike(post)
+        }
     }
 
     private fun performDislike(post: KaPostDraft) {
@@ -1033,7 +1067,12 @@ class KaPostsViewModel @Inject constructor(
 
     /** Plain repost: no optimistic card, 5s undo on the target's repost icon. */
     fun scheduleRepost(target: KaPostDraft) {
-        scheduleUndoable("repost:${target.id}") { performRepost(target, text = null, localQuoteId = null) }
+        val key = "repost:${target.id}"
+        _undoToast.value = UndoToast(key, target.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Reposting")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            performRepost(target, text = null, localQuoteId = null)
+        }
     }
 
     /** Quote with commentary: optimistic quote card in the feed + undo toast, like posting. */

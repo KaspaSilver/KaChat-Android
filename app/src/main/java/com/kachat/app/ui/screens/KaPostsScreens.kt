@@ -410,9 +410,21 @@ fun KaPostsScreen(
     LaunchedEffect(Unit) {
         // Entering KaPosts always lands on the MOST RECENT feed: reload page one and snap every
         // tab's list to the top (the saved scroll state would otherwise restore last visit's
-        // position deep in older posts).
+        // position deep in older posts). Each snap runs in its OWN coroutine: scrollToItem is
+        // a SUSPENDING call, and on a pager page that isn't composed yet it can park until
+        // that page attaches - run sequentially, a parked hidden-tab snap blocked the visible
+        // list's snap forever, which is why entry kept restoring the old position.
         viewModel.loadFeed()
-        feedListStates.forEach { state -> runCatching { state.scrollToItem(0) } }
+        feedListStates.forEach { state -> launch { runCatching { state.scrollToItem(0) } } }
+    }
+    // The reload above swaps the list contents asynchronously - snap again once the fresh
+    // feed actually lands, so a restored scroll offset can't survive the data swap.
+    var snapOnNextFeed by remember { mutableStateOf(true) }
+    LaunchedEffect(visiblePosts) {
+        if (snapOnNextFeed && visiblePosts.isNotEmpty()) {
+            snapOnNextFeed = false
+            feedListStates.forEach { state -> launch { runCatching { state.scrollToItem(0) } } }
+        }
     }
     LaunchedEffect(deepLinkTxId) {
         val txId = deepLinkTxId ?: return@LaunchedEffect
