@@ -4470,28 +4470,31 @@ fun AddressVisibilityScreen(
                     }
                 }
                 val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
+                // The WHOLE row toggles, not just the checkmark.
+                val toggleVisibility: () -> Unit = {
+                    when {
+                        entry.isCurrent ->
+                            Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
+                        funded && visible ->
+                            Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                        entry.index > listMax ->
+                            viewModel.revealSpendingAddress(entry.index)
+                        else ->
+                            viewModel.setManageAddressHidden(entry.index, !entry.hidden)
+                    }
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
                         .background(LocalAppColors.current.surface)
+                        .clickable(onClick = toggleVisibility)
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                         .alpha(if (visible) 1f else 0.55f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = {
-                            when {
-                                entry.isCurrent ->
-                                    Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
-                                funded && visible ->
-                                    Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
-                                entry.index > listMax ->
-                                    viewModel.revealSpendingAddress(entry.index)
-                                else ->
-                                    viewModel.setManageAddressHidden(entry.index, !entry.hidden)
-                            }
-                        },
+                        onClick = toggleVisibility,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
