@@ -42,9 +42,36 @@ class KaPostsNotificationPoller @Inject constructor(
     // Global notification center (bell on the Profile screen): every fresh KaPosts action is
     // listed there, independent of the per-kind OS-banner gates below.
     private val notificationCenter: GlobalNotificationCenterStore,
+    // Actor naming (iOS parity): your saved contact name wins, then their KNS domain,
+    // then the shortened address — never a bare address when a better name exists.
+    private val chatRepository: com.kachat.app.repository.ChatRepository,
+    private val knsService: KnsService,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollJob: Job? = null
+
+    /** Session cache: one alias/KNS resolution per actor per process, not one per poll. */
+    private val actorNameCache = mutableMapOf<String, String>()
+
+    private suspend fun actorDisplayName(address: String): String {
+        actorNameCache[address]?.let { return it }
+        val contact = try { chatRepository.getContacts().first().find { it.id == address } } catch (_: Exception) { null }
+        val alias = contact?.alias?.trim().orEmpty()
+        val fallback = address.takeLast(10)
+        val name = if (alias.isNotEmpty()) {
+            alias.removeSuffix(".kas")
+        } else {
+            val domain = contact?.knsName?.trim().orEmpty().ifEmpty {
+                try { knsService.getExplicitPrimaryDomain(address) ?: knsService.reverseResolve(address) ?: "" }
+                catch (_: Exception) { "" }
+            }
+            if (domain.isNotEmpty()) domain.removeSuffix(".kas") else fallback
+        }
+        // Only cache real resolutions — a network miss must not pin the short-address
+        // fallback for the rest of the session.
+        if (name != fallback) actorNameCache[address] = name
+        return name
+    }
 
     private fun lastSeenKey(address: String) = longPreferencesKey("kaposts_notifs_last_seen_$address")
 
@@ -94,7 +121,7 @@ class KaPostsNotificationPoller @Inject constructor(
             notificationCenter.record(
                 id = "kaposts-${n.id}",
                 source = "kaposts",
-                title = "${actor.takeLast(10)} ${actionText(n.contentType, n.voteType, text)}",
+                title = "${actorDisplayName(actor)} ${actionText(n.contentType, n.voteType, text)}",
                 body = text.take(90),
                 timestampMs = n.timestamp,
                 // Same per-kind target rule as the banner + in-app overlay, so a bell-row
@@ -125,7 +152,7 @@ class KaPostsNotificationPoller @Inject constructor(
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue
             if (actor == address) continue
             val text = KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
-            val name = actor.takeLast(10)
+            val name = actorDisplayName(actor)
             notificationHelper.showKaPosts(
                 text = "$name ${actionText(n.contentType, n.voteType, text)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
                 actionTxId = n.id,

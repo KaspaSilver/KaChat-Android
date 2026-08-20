@@ -1851,6 +1851,25 @@ class KaPostsViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Shared-post own-content fetch failed", e)
         }
+        findPostByRemoteId(txId)?.let { return it }
+        // Still unresolved: the txid is usually a notification's ACTING content - someone
+        // ELSE's reply/quote/mentioning post, which neither the feed window nor the own-
+        // content fetch above ever returns (there is no fetch-post-by-id endpoint). The
+        // notification stream knows who wrote it: pull THAT author's posts+replies, then
+        // fall back to the parent conversation when the acting content itself still hides.
+        try {
+            val n = kaPostsService.fetchNotifications(limit = 100).find { it.id == txId }
+            if (n != null) {
+                loadProfileTab(n.userPublicKey, isMine = false, replies = false)
+                loadProfileTab(n.userPublicKey, isMine = false, replies = true)
+                findPostByRemoteId(txId)?.let { return it }
+                n.contentId?.takeIf { it.isNotEmpty() }?.let { parentId ->
+                    findPostByRemoteId(parentId)?.let { return it }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Shared-post actor-content fetch failed", e)
+        }
         return findPostByRemoteId(txId)
     }
 }

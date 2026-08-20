@@ -1,6 +1,7 @@
 package com.kachat.app.ui.screens
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -946,6 +947,10 @@ fun KaPostCell(
     val following by viewModel.following.collectAsState()
     val deadlines by viewModel.undoDeadlines.collectAsState()
     var showOverflow by remember { mutableStateOf(false) }
+    // Tapped link awaiting the Copy/Open choice (iOS parity: links never auto-open).
+    var tappedLinkUrl by remember { mutableStateOf<String?>(null) }
+    val uriHandler = LocalUriHandler.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     val name = contactAliases[post.posterAddress]?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
         ?: senderKnsNames[post.posterAddress]?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
@@ -1062,7 +1067,8 @@ fun KaPostCell(
                 }
                 Spacer(modifier = Modifier.height(3.dp))
                 // ClickableText (not Text): tapping an @mention resolves the KNS domain and
-                // opens that user's profile; taps elsewhere in the body do nothing.
+                // opens that user's profile, tapping a link opens the Copy/Open dialog (iOS
+                // parity - links never auto-open); taps elsewhere in the body do nothing.
                 val postAnnotated = remember(post.text) { annotatedPostText(post.text) }
                 androidx.compose.foundation.text.ClickableText(
                     text = postAnnotated,
@@ -1070,11 +1076,39 @@ fun KaPostCell(
                     maxLines = if (foldText) 8 else Int.MAX_VALUE,
                     overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
                     onClick = { offset ->
-                        postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset)
-                            .firstOrNull()
-                            ?.let { viewModel.openMentionProfile(it.item) }
+                        val mention = postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset).firstOrNull()
+                        if (mention != null) {
+                            viewModel.openMentionProfile(mention.item)
+                        } else {
+                            postAnnotated.getStringAnnotations(LINK_ANNOTATION_TAG, offset, offset)
+                                .firstOrNull()
+                                ?.let { tappedLinkUrl = it.item }
+                        }
                     },
                 )
+                tappedLinkUrl?.let { url ->
+                    AlertDialog(
+                        onDismissRequest = { tappedLinkUrl = null },
+                        containerColor = colors.surface,
+                        title = { Text(url, color = colors.textPrimary, fontSize = 14.sp) },
+                        confirmButton = {
+                            Column(horizontalAlignment = Alignment.End) {
+                                TextButton(onClick = {
+                                    tappedLinkUrl = null
+                                    uriHandler.openUri(url)
+                                }) { Text("Open Link", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                                TextButton(onClick = {
+                                    tappedLinkUrl = null
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                    Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                                }) { Text("Copy Link", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                                TextButton(onClick = { tappedLinkUrl = null }) {
+                                    Text("Cancel", color = colors.textSecondary)
+                                }
+                            }
+                        },
+                    )
+                }
                 if (foldText) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -2733,7 +2767,15 @@ fun KaPostTipDialog(
 /** Annotation tag carried by @mention ranges - ClickableText resolves it to a profile. */
 const val MENTION_ANNOTATION_TAG = "mention"
 
-/** Post text with @mention tokens tinted teal AND annotated for tap-to-profile. */
+/** Annotation tag carried by URL ranges - ClickableText opens a Copy/Open dialog (iOS parity:
+ *  a link tap never auto-opens the browser). Value = normalized (https-prefixed) URL. */
+const val LINK_ANNOTATION_TAG = "link"
+
+/** Detected links in post text: http(s) URLs plus bare www. hosts, like iOS's linkifier. */
+private val POST_URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)\S+""")
+
+/** Post text with @mention tokens tinted teal AND annotated for tap-to-profile, and URLs
+ *  tinted+underlined AND annotated for the tap-to-Copy/Open dialog. */
 private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedString =
     androidx.compose.ui.text.buildAnnotatedString {
         append(text)
@@ -2750,6 +2792,27 @@ private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedS
             addStringAnnotation(
                 MENTION_ANNOTATION_TAG,
                 domain.value.lowercase().removeSuffix(".kas"),
+                start,
+                end,
+            )
+        }
+        for (match in POST_URL_REGEX.findAll(text)) {
+            // Trailing sentence punctuation isn't part of the link ("see https://kaspa.org.").
+            val raw = match.value.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '}', '"', '\'')
+            if (raw.isEmpty()) continue
+            val start = match.range.first
+            val end = start + raw.length
+            addStyle(
+                androidx.compose.ui.text.SpanStyle(
+                    color = KaspaTeal,
+                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                ),
+                start,
+                end,
+            )
+            addStringAnnotation(
+                LINK_ANNOTATION_TAG,
+                if (raw.startsWith("www.", ignoreCase = true)) "https://$raw" else raw,
                 start,
                 end,
             )
