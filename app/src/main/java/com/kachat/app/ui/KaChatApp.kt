@@ -431,9 +431,13 @@ fun MainShell(
     // page (so it never covers onboarding or the Welcome Guide - fresh installs see the setup
     // wizard first, then this). Any dismissal is permanent.
     val dockWizardDismissed by walletViewModel.dockWizardDismissed.collectAsState()
+    val dockWizardChildMode by walletViewModel.childModeEnabled.collectAsState()
     var showDockWizard by remember { mutableStateOf(false) }
-    LaunchedEffect(dockWizardDismissed, pendingWelcomeGuide, currentTopRoute) {
+    LaunchedEffect(dockWizardDismissed, pendingWelcomeGuide, currentTopRoute, dockWizardChildMode) {
+        // Child Mode skips the wizard entirely - it teaches the Chats cycle, which
+        // Child Mode removes (KaPosts/Broadcasts are hidden).
         if (dockWizardDismissed == false && !pendingWelcomeGuide && !showDockWizard &&
+            dockWizardChildMode != true &&
             bottomNavItems.any { it.route == currentTopRoute }
         ) {
             kotlinx.coroutines.delay(1_200)

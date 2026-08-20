@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
@@ -145,6 +146,20 @@ fun WelcomeGuideScreen(
                     if (canSkip) {
                         IconButton(onClick = onFinished) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
+                        }
+                    }
+                    // Previous-step navigation: every run (onboarding included) can go BACK —
+                    // only skipping forward stays forbidden. Backing INTO the answered
+                    // Adult/Child step is not allowed (its choice applies immediately), so
+                    // from Language the button returns to Welcome.
+                    if (step != WelcomeGuideStep.WELCOME) {
+                        IconButton(onClick = {
+                            step = when (step) {
+                                WelcomeGuideStep.USER_TYPE, WelcomeGuideStep.LANGUAGE -> WelcomeGuideStep.WELCOME
+                                else -> WelcomeGuideStep.entries[step.ordinal - 1]
+                            }
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous", tint = KaspaTeal)
                         }
                     }
                 },
