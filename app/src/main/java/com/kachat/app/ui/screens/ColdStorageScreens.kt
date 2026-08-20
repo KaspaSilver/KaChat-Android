@@ -22,6 +22,10 @@ import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -42,6 +46,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -467,7 +472,6 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
         val fresh = rest.filter { it.balanceSompi == 0L && it.address !in domainOwningAddresses }
         active + fresh
     }
-    val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
     // A hidden address is excluded on purpose (a "put this aside" gesture) — it shouldn't keep
     // inflating the balance you actually think of as available.
     val totalBalanceKas = visibleAddresses.sumOf { it.balanceSompi } / 100_000_000.0
@@ -493,6 +497,11 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     }
                 },
                 actions = {
+                    // Bulk visibility manager: compact checkmark list of EVERY address, so dozens
+                    // can be toggled off the main list in one sitting (same tool as Manage Addresses).
+                    IconButton(onClick = { navController.navigate("cold_storage_visibility/$accountId") }) {
+                        Icon(Icons.Default.Checklist, "Manage address visibility", tint = KaspaTeal)
+                    }
                     IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(Icons.Default.Delete, "Remove account", tint = Color.Red)
                     }
@@ -537,7 +546,9 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                 ) {
                     PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_more_addresses)) {
                         showActionsMenu = false
-                        if (!isDiscovering) viewModel.generateMoreAddresses(accountId)
+                        if (!isDiscovering) viewModel.generateMoreAddresses(accountId) { index ->
+                            Toast.makeText(context, "Address #$index is ready.", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                     PopupMenuRow(Icons.Default.Search, stringResource(R.string.discover_addresses)) {
@@ -632,35 +643,12 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        stringResource(R.string.addresses),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        if (hiddenAddresses.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier.clickable { navController.navigate("cold_storage_hidden/$accountId") },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.VisibilityOff, "Hidden addresses", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    "Hidden (${hiddenAddresses.size})",
-                                    color = LocalAppColors.current.textSecondary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
+                Text(
+                    stringResource(R.string.addresses),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
 
             if (isDiscovering && addresses.isEmpty()) {
@@ -685,8 +673,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         onLabelClick = { labelingRow = row; labelInput = row.label ?: "" },
                         onCopyClick = { clipboardManager.setText(AnnotatedString(row.address)) },
                         onSendClick = { if (row.balanceSompi > 0) sendFromRow = row },
-                        onShowQrClick = { qrRow = row },
-                        onHideToggleClick = { viewModel.setAddressHidden(accountId, row.index, true) }
+                        onShowQrClick = { qrRow = row }
                     )
                 }
             }
@@ -821,138 +808,183 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
 }
 
 /**
- * Every address hidden under one Cold Storage account, reached via the "Hidden (N)" link on
- * [ColdStorageDetailScreen] — the only place a hidden address can be unhidden again. Hidden
- * addresses are excluded from [ColdStorageDetailScreen]'s Total Balance (see that screen's
- * `totalBalanceKas`), but nothing here ever deletes them — hiding is purely a display preference.
+ * Address Visibility for one Cold Storage account (the same tool Manage Addresses has) — a
+ * compact checkmark list of EVERY derived address, paged 50 at a time, so dozens can be toggled
+ * off the main list in one sitting. The right arrow never runs out: future pages derive
+ * addresses beyond the derived bound on the fly, and toggling one on raises the bound while
+ * keeping the intermediate indices hidden. Funded addresses are locked visible. Shares
+ * [ColdStorageDetailScreen]'s ViewModel instance (see KaChatApp.kt) so edits show on the detail
+ * list the moment this screen pops.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ColdStorageHiddenAddressesScreen(accountId: String, navController: NavController, viewModel: ColdStorageViewModel = hiltViewModel()) {
+fun ColdStorageAddressVisibilityScreen(
+    accountId: String,
+    viewModel: ColdStorageViewModel,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
     val addresses by viewModel.addresses.collectAsState()
-    val clipboardManager = LocalClipboardManager.current
-    var sendFromRow by remember { mutableStateOf<ColdStorageViewModel.AddressRow?>(null) }
-    var labelingRow by remember { mutableStateOf<ColdStorageViewModel.AddressRow?>(null) }
-    var labelInput by remember { mutableStateOf("") }
-    var qrRow by remember { mutableStateOf<ColdStorageViewModel.AddressRow?>(null) }
+    var page by remember { mutableStateOf(0) }
+    val pageSize = 50
+    val byIndex = remember(addresses) { addresses.associateBy { it.index } }
+    val listMax = remember(addresses) { addresses.maxOfOrNull { it.index } ?: -1 }
+    // Lazily filled Used/Unused results for rows derived beyond the loaded list.
+    val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
 
-    // No refresh-on-entry here on purpose — [viewModel] is the same instance ColdStorageDetailScreen
-    // already loaded (shared via the nav graph, see KaChatApp.kt), so its address list (and each
-    // row's `hidden` flag) is already current the moment this screen appears.
-    val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
-
-    sendFromRow?.let { row ->
-        ColdSendFlow(
-            fromAddress = row.address,
-            availableBalanceSompi = row.balanceSompi,
-            viewModel = viewModel,
-            onDone = { sendFromRow = null; viewModel.refreshAddressesSoonAfterSend(accountId) }
-        )
-        return
+    val start = page * pageSize
+    val end = start + pageSize - 1
+    val pageEntries = remember(byIndex, page) {
+        (start..end).map { index ->
+            byIndex[index] ?: ColdStorageViewModel.AddressRow(
+                index = index,
+                address = viewModel.coldAddressAt(accountId, index) ?: "",
+                balanceSompi = 0L,
+                hasHistory = false,
+                label = null,
+                hidden = true
+            )
+        }
     }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.hidden_addresses), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onBack) {
+                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(LocalAppColors.current.background)
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(onClick = { if (page > 0) page -= 1 }, enabled = page > 0) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        "Previous page",
+                        tint = if (page > 0) KaspaTeal else LocalAppColors.current.textSecondary.copy(alpha = 0.4f)
+                    )
+                }
+                Text(
+                    "#$start - #$end",
+                    color = LocalAppColors.current.textSecondary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                IconButton(onClick = { page += 1 }) {
+                    Icon(Icons.Default.ChevronRight, "Next page", tint = KaspaTeal)
+                }
+            }
         }
     ) { padding ->
-        if (hiddenAddresses.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(Icons.Default.VisibilityOff, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.no_hidden_addresses), color = LocalAppColors.current.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            }
-        } else {
-            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(hiddenAddresses, key = { it.index }) { row ->
-                    ColdAddressRow(
-                        row = row,
-                        onAddressClick = { navController.navigate("cold_storage_tx_history/${row.address}") },
-                        onLabelClick = { labelingRow = row; labelInput = row.label ?: "" },
-                        onCopyClick = { clipboardManager.setText(AnnotatedString(row.address)) },
-                        onSendClick = { if (row.balanceSompi > 0) sendFromRow = row },
-                        onShowQrClick = { qrRow = row },
-                        onHideToggleClick = { viewModel.setAddressHidden(accountId, row.index, false) }
-                    )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(pageEntries, key = { it.index }) { entry ->
+                val visible = entry.index <= listMax && !entry.hidden
+                val funded = entry.balanceSompi > 0
+                // Used-state for derived rows the list loader has never seen.
+                if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
+                    LaunchedEffect(entry.index) {
+                        usedCache[entry.index] = viewModel.hasColdAddressBeenUsed(accountId, entry.index)
+                    }
                 }
-            }
-            qrRow?.let { row ->
-                QrCodeOverlay(value = row.address, onDismiss = { qrRow = null })
-            }
+                val used = if (entry.index <= listMax) entry.hasHistory else usedCache[entry.index]
+                // The WHOLE row toggles, not just the checkmark. No primary-address rule here —
+                // a watch-only kpub account has no primary; only "funded stays visible" applies.
+                val toggleVisibility: () -> Unit = {
+                    when {
+                        funded && visible ->
+                            Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                        entry.index > listMax ->
+                            viewModel.revealColdAddress(accountId, entry.index)
+                        else ->
+                            viewModel.setColdVisibilityHidden(accountId, entry.index, !entry.hidden)
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(LocalAppColors.current.surface)
+                        .clickable(onClick = toggleVisibility)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .alpha(if (visible) 1f else 0.55f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = toggleVisibility,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            if (visible) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            if (visible) "Visible" else "Hidden",
+                            tint = if (visible) KaspaTeal else LocalAppColors.current.textSecondary
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "#${entry.index}",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            entry.label?.takeIf { it.isNotBlank() }?.let { label ->
+                                Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                        Text(
+                            if (entry.address.isNotEmpty()) "${entry.address.take(14)}...${entry.address.takeLast(6)}" else "deriving...",
+                            color = LocalAppColors.current.textPrimary,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    when {
+                        funded -> Text(
+                            "%.4f KAS".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        used != null -> Text(
+                            if (used) "Used" else "Unused",
+                            color = if (used) Color(0xFFF39C12) else Color(0xFF4CD964),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
-    }
-
-    labelingRow?.let { row ->
-        AlertDialog(
-            onDismissRequest = { labelingRow = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.name_this_address), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Text(row.address, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = labelInput,
-                        onValueChange = { labelInput = it },
-                        label = { Text(stringResource(R.string.name)) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                            focusedLabelColor = KaspaTeal,
-                            unfocusedLabelColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.setAddressLabel(accountId, row.index, labelInput)
-                        labelingRow = null
-                    }
-                ) {
-                    Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { labelingRow = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
     }
 }
 
 /**
- * One address row — shared by the visible and "Hidden Addresses" sections of [ColdStorageDetailScreen],
- * differing only in whether [ColdStorageViewModel.AddressRow.hidden] shows a hide or an unhide action.
- * Hiding/unhiding is a swipe-left action (matching Chats' swipe-to-delete) rather than a permanent
- * icon button, since it's not something reached for as often as copy/send/QR. Unhiding is always
- * available, but an address can't be hidden while it still holds a balance — see
- * [ColdStorageViewModel.setAddressHidden], which enforces the same rule as a backstop.
+ * One address row on [ColdStorageDetailScreen]. Swipe-to-hide was retired when the Address
+ * Visibility checklist ([ColdStorageAddressVisibilityScreen]) became the one place to manage
+ * visibility — the same redesign Manage Addresses' spending rows got.
  */
 @Composable
 private fun ColdAddressRow(
@@ -962,24 +994,14 @@ private fun ColdAddressRow(
     onCopyClick: () -> Unit,
     onSendClick: () -> Unit,
     onShowQrClick: () -> Unit,
-    onHideToggleClick: () -> Unit,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false
 ) {
     val kas = row.balanceSompi / 100_000_000.0
-    val canHide = row.hidden || row.balanceSompi == 0L
     var showMenu by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
-    SwipeActionRow(
-        enabled = canHide,
-        cornerRadius = 12.dp,
-        trailingIcon = if (row.hidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-        trailingLabel = if (row.hidden) "Unhide" else "Hide",
-        trailingColor = Color(0xFF48484A),
-        onTrailingClick = onHideToggleClick
-    ) {
-        Row(
+    Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
@@ -1032,7 +1054,6 @@ private fun ColdAddressRow(
                 Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
             }
         }
-    }
 
     if (showMenu) {
         CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {

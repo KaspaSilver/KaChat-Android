@@ -922,21 +922,22 @@ fun MainShell(
             }
 
             composable(
-                "cold_storage_hidden/{accountId}",
+                "cold_storage_visibility/{accountId}",
                 arguments = listOf(navArgument("accountId") { type = NavType.StringType })
             ) { backStackEntry ->
                 // Shares ColdStorageDetailScreen's own ViewModel instance (the only screen this
                 // one is ever reached from) rather than getting a fresh one scoped to this
                 // destination — a fresh instance would need its own full gap-limit rescan just to
                 // reconstruct a list the detail screen already has loaded, showing an empty state
-                // the whole time that rescan is in flight.
+                // the whole time that rescan is in flight. Sharing also means visibility edits
+                // show on the detail list the instant this screen pops.
                 val parentEntry = remember(backStackEntry) {
                     navController.getBackStackEntry("cold_storage_detail/{accountId}")
                 }
-                ColdStorageHiddenAddressesScreen(
+                ColdStorageAddressVisibilityScreen(
                     accountId = backStackEntry.arguments?.getString("accountId") ?: "",
-                    navController = navController,
-                    viewModel = hiltViewModel(parentEntry)
+                    viewModel = hiltViewModel(parentEntry),
+                    onBack = { navController.popBackStack() }
                 )
             }
 

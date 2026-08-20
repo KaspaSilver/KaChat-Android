@@ -182,42 +182,124 @@ class ColdStorageViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Derives and shows one more address past whatever's currently listed — for pulling up a
-     * fresh unused address on demand, without waiting for it to gain history first. Checks only
-     * this one new index rather than going through [refreshAddresses]'s full gap-limit rescan
-     * (which sequentially re-checks every already-known address too) — that made the new address
-     * take as long to appear as a full account re-scan, when only one address actually changed.
-     */
-    fun generateMoreAddresses(accountId: String) {
-        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
-        val nextIndex = (_addresses.value.maxOfOrNull { it.index } ?: -1) + 1
-        coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, nextIndex)
-        _accounts.value = coldStorageManager.getAccounts()
+    // Parsed kpub root keys, cached per account — the Address Visibility pager derives 50
+    // addresses per page on demand, and re-parsing the kpub for each would be wasted work
+    // (mirrors WalletManager.spendingChainKey's caching on the spending side).
+    private val rootKeyCache = mutableMapOf<String, org.bitcoinj.crypto.DeterministicKey>()
 
+    private fun rootKeyFor(accountId: String): org.bitcoinj.crypto.DeterministicKey? {
+        rootKeyCache[accountId]?.let { return it }
+        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return null
+        return KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
+            ?.let { KaspaExtendedPublicKey.toDeterministicKey(it) }
+            ?.also { rootKeyCache[accountId] = it }
+    }
+
+    /** On-demand watch-only derivation of a single receive address — the cold twin of
+     *  WalletViewModel.spendingAddressAt, used by the visibility pager's beyond-bound rows. */
+    fun coldAddressAt(accountId: String, index: Int): String? {
+        val rootKey = rootKeyFor(accountId) ?: return null
+        return runCatching { KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index) }.getOrNull()
+    }
+
+    /** One-off used check for a pager-derived index (balance or history). Degrades to false
+     *  on network failure, matching WalletService.hasSpendingAddressBeenUsed. */
+    suspend fun hasColdAddressBeenUsed(accountId: String, index: Int): Boolean {
+        val rootKey = rootKeyFor(accountId) ?: return false
+        val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index)
+        return discovered != null && (discovered.hasHistory || discovered.balanceSompi > 0)
+    }
+
+    /**
+     * Reveals a specific index from the Address Visibility pager, extending the derived chain
+     * when the index is beyond the current bound — intermediate newly-covered indices are marked
+     * hidden so checking ONE far-out row doesn't flood the main list with everything below it.
+     * The cold twin of WalletViewModel.revealSpendingAddress.
+     */
+    fun revealColdAddress(accountId: String, index: Int) {
+        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
+        val currentMax = maxOf(account.maxDerivedIndex, _addresses.value.maxOfOrNull { it.index } ?: -1)
+        if (index > currentMax) {
+            coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, index)
+            for (i in (currentMax + 1) until index) coldStorageManager.setAddressHidden(accountId, i, true)
+            _accounts.value = coldStorageManager.getAccounts()
+        }
+        coldStorageManager.setAddressHidden(accountId, index, false)
+        if (_addresses.value.any { it.index == index }) {
+            _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = false) else it }
+            return
+        }
+        // Stamp a placeholder row into the loaded list so the detail screen (which shares this
+        // ViewModel) shows it the moment the sheet closes, then backfill its real balance/history.
+        val address = coldAddressAt(accountId, index) ?: return
+        val label = coldStorageManager.getAddressLabels(accountId)[index]
+        _addresses.value = (_addresses.value + AddressRow(index, address, 0L, false, label, false))
+            .sortedByDescending { it.index }
+        viewModelScope.launch {
+            val rootKey = rootKeyFor(accountId) ?: return@launch
+            addressDiscovery.checkAddress(rootKey, chain = 0, index = index)?.let { d ->
+                _addresses.value = _addresses.value.map {
+                    if (it.index == index) it.copy(balanceSompi = d.balanceSompi, hasHistory = d.hasHistory) else it
+                }
+            }
+        }
+    }
+
+    /**
+     * Visibility-checklist toggle that also works for rows the loaded list has never seen
+     * (a hidden intermediate whose one-off check failed, say) — [setAddressHidden] requires a
+     * loaded row. The funded guard still applies whenever the row IS loaded.
+     */
+    fun setColdVisibilityHidden(accountId: String, index: Int, hidden: Boolean) {
+        val row = _addresses.value.find { it.index == index }
+        if (hidden && row != null && row.balanceSompi > 0) return
+        coldStorageManager.setAddressHidden(accountId, index, hidden)
+        if (row != null) {
+            _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = hidden) else it }
+        }
+    }
+
+    /**
+     * "Generate More Addresses", recycling-aware (the same fix the spending chain's Generate
+     * got): picks the LOWEST listed index that is truly unused — zero balance, no on-chain
+     * history — un-hiding it rather than growing the chain; only when every listed index is
+     * spoken for does it derive one past the end. Reports the ready index via [onResult].
+     */
+    fun generateMoreAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
+        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         viewModelScope.launch {
             _isDiscovering.value = true
             try {
-                val parsed = KaspaExtendedPublicKey.parse(account.kpub).getOrThrow()
-                val rootKey = KaspaExtendedPublicKey.toDeterministicKey(parsed)
-                val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = nextIndex)
+                val recycled = _addresses.value.sortedBy { it.index }
+                    .firstOrNull { it.balanceSompi == 0L && !it.hasHistory }
+                if (recycled != null) {
+                    coldStorageManager.setAddressHidden(accountId, recycled.index, false)
+                    _addresses.value = _addresses.value.map {
+                        if (it.index == recycled.index) it.copy(hidden = false) else it
+                    }
+                    onResult(recycled.index)
+                    return@launch
+                }
+                val nextIndex = maxOf(account.maxDerivedIndex, _addresses.value.maxOfOrNull { it.index } ?: -1) + 1
+                coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, nextIndex)
+                coldStorageManager.setAddressHidden(accountId, nextIndex, false)
+                _accounts.value = coldStorageManager.getAccounts()
+                val rootKey = rootKeyFor(accountId)
+                val discovered = rootKey?.let { addressDiscovery.checkAddress(it, chain = 0, index = nextIndex) }
                 if (discovered != null) {
                     val labels = coldStorageManager.getAddressLabels(accountId)
-                    val hiddenIndices = coldStorageManager.getHiddenIndices(accountId)
                     val newRow = AddressRow(
                         discovered.index,
                         discovered.address,
                         discovered.balanceSompi,
                         discovered.hasHistory,
                         labels[discovered.index],
-                        discovered.index in hiddenIndices
+                        hidden = false
                     )
                     _addresses.value = (_addresses.value.filterNot { it.index == nextIndex } + newRow)
                         .sortedByDescending { it.index }
                 }
-            } catch (e: Exception) {
-                // Leave the existing list as-is — the next full refreshAddresses (e.g. re-entering
-                // this screen) will pick up the new address if this one-off check failed.
+                onResult(nextIndex)
             } finally {
                 _isDiscovering.value = false
             }
