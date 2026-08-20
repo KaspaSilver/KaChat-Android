@@ -338,6 +338,15 @@ fun KaPostsScreen(
     var repostTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var quoteTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var engagementTarget by remember { mutableStateOf<KaPostDraft?>(null) }
+    // The X-style repost menu's Quote choice can be raised from ANY cell (feed, thread,
+    // profile, bookmarks) - the VM relays it here where the quote composer lives.
+    val quoteRequest by viewModel.quoteRequest.collectAsState()
+    LaunchedEffect(quoteRequest) {
+        quoteRequest?.let {
+            quoteTarget = it
+            viewModel.consumeQuoteRequest()
+        }
+    }
     var showMyProfile by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
@@ -1121,6 +1130,10 @@ fun KaPostCell(
                     onBookmark = { viewModel.toggleBookmark(post) },
                     onCancelCountdown = { viewModel.cancelUndoable(it) },
                     onTip = if (!isMine) onTip else null,
+                    // X-style anchored repost menu; quote routes through the VM's quoteRequest
+                    // flow so the main screen's composer opens from any cell.
+                    onRepostConfirm = { viewModel.scheduleRepost(post) },
+                    onQuote = { viewModel.requestQuote(post) },
                 )
             }
         }
@@ -1168,6 +1181,10 @@ private fun EngagementRow(
     onBookmark: () -> Unit,
     onCancelCountdown: (String) -> Unit,
     onTip: (() -> Unit)? = null,
+    // X-style repost menu: when BOTH are set (and the post is on-chain), tapping repost opens
+    // a compact anchored two-row menu (Repost / Quote) instead of the old dialog.
+    onRepostConfirm: (() -> Unit)? = null,
+    onQuote: (() -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     Row(
@@ -1183,20 +1200,52 @@ private fun EngagementRow(
             onCancel = onCancelCountdown,
         )
         Spacer(modifier = Modifier.weight(1f))
-        EngagementAction(
-            countdownKey = "repost:${post.id}",
-            deadlines = deadlines,
-            icon = {
-                Icon(
-                    Icons.Default.Repeat, null,
-                    tint = if (post.repostedByMe) KaspaTeal else colors.textSecondary,
-                    modifier = Modifier.size(18.dp),
+        Box {
+            var repostMenuOpen by remember { mutableStateOf(false) }
+            EngagementAction(
+                countdownKey = "repost:${post.id}",
+                deadlines = deadlines,
+                icon = {
+                    Icon(
+                        Icons.Default.Repeat, null,
+                        tint = if (post.repostedByMe) KaspaTeal else colors.textSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                count = post.reposts,
+                onTap = {
+                    // X-style: a compact menu floating over the tapped button.
+                    if (onRepostConfirm != null && onQuote != null && post.remoteId != null) {
+                        repostMenuOpen = true
+                    } else {
+                        onRepost()
+                    }
+                },
+                onCancel = onCancelCountdown,
+            )
+            DropdownMenu(
+                expanded = repostMenuOpen,
+                onDismissRequest = { repostMenuOpen = false },
+                modifier = Modifier.background(colors.surface),
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Repost", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = { Icon(Icons.Default.Repeat, null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        repostMenuOpen = false
+                        onRepostConfirm?.invoke()
+                    },
                 )
-            },
-            count = post.reposts,
-            onTap = onRepost,
-            onCancel = onCancelCountdown,
-        )
+                DropdownMenuItem(
+                    text = { Text("Quote", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = { Icon(Icons.Default.Edit, null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
+                    onClick = {
+                        repostMenuOpen = false
+                        onQuote?.invoke()
+                    },
+                )
+            }
+        }
         Spacer(modifier = Modifier.weight(1f))
         EngagementAction(
             countdownKey = "like:${post.id}",

@@ -1066,6 +1066,15 @@ class KaPostsViewModel @Inject constructor(
     // MARK: - Reposts/quotes (K's repost mechanism IS the quote action)
 
     /** Plain repost: no optimistic card, 5s undo on the target's repost icon. */
+    /** The X-style repost menu's Quote choice, raised from any cell — the main KaPosts screen
+     *  collects this and opens its quote composer for the post. */
+    private val _quoteRequest = MutableStateFlow<KaPostDraft?>(null)
+    val quoteRequest: StateFlow<KaPostDraft?> = _quoteRequest.asStateFlow()
+
+    fun requestQuote(post: KaPostDraft) { _quoteRequest.value = post }
+
+    fun consumeQuoteRequest() { _quoteRequest.value = null }
+
     fun scheduleRepost(target: KaPostDraft) {
         val key = "repost:${target.id}"
         _undoToast.value = UndoToast(key, target.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Reposting")
