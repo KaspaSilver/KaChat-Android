@@ -447,7 +447,7 @@ class ChatRepository @Inject constructor(
                 encryptedPayload = handshake.messagePayload,
                 amountSompi = null,
                 blockTimestamp = handshake.blockTime,
-                isRead = backfill
+                isRead = backfill || notificationHelper.isViewingContact(handshake.sender)
             )
         )
 
@@ -570,7 +570,9 @@ class ChatRepository @Inject constructor(
                 encryptedPayload = message.messagePayload,
                 amountSompi = null,
                 blockTimestamp = message.blockTime,
-                isRead = backfill
+                // Read when it's backfilled history OR the user is looking at this thread
+                // right now - watching a message arrive must not leave an unread badge.
+                isRead = backfill || notificationHelper.isViewingContact(contact.id)
             )
         )
 
@@ -691,7 +693,7 @@ class ChatRepository @Inject constructor(
                 encryptedPayload = "",
                 amountSompi = receivedSompi,
                 blockTimestamp = blockTime,
-                isRead = backfill
+                isRead = backfill || notificationHelper.isViewingContact(conversationId)
             )
         )
 
