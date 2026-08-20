@@ -97,7 +97,14 @@ class KaPostsNotificationPoller @Inject constructor(
                 title = "${actor.takeLast(10)} ${actionText(n.contentType, n.voteType, text)}",
                 body = text.take(90),
                 timestampMs = n.timestamp,
-                targetId = n.contentId,
+                // Same per-kind target rule as the banner + in-app overlay, so a bell-row
+                // tap opens the reply itself for replies and the containing post otherwise.
+                targetId = when (n.contentType) {
+                    "reply" -> n.id
+                    "quote" -> if (text.isEmpty()) n.contentId else n.id
+                    "follow" -> null
+                    else -> n.contentId
+                },
             )
         }
         // Per-kind toggle filter (Likes/Reposts/Follows/Dislikes/Comments) applied at the
@@ -119,6 +126,14 @@ class KaPostsNotificationPoller @Inject constructor(
             notificationHelper.showKaPosts(
                 text = "$name ${actionText(n.contentType, n.voteType, text)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
                 actionTxId = n.id,
+                // Same per-kind target rule as the in-app notifications overlay: reply/quote-with-
+                // text open the reply itself; vote/mention open the containing post.
+                postTxId = when (n.contentType) {
+                    "reply" -> n.id
+                    "quote" -> if (text.isEmpty()) n.contentId else n.id
+                    "follow" -> null
+                    else -> n.contentId
+                },
             )
         }
     }

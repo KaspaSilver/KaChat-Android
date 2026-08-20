@@ -218,6 +218,13 @@ class MainActivity : AppCompatActivity() {
      * post's thread.
      */
     private fun handleKaPostDeepLink(intent: Intent) {
+        // A KaPosts notification tap: deep-open the exact post/comment the notification was
+        // about (EXTRA_KAPOST_TXID), falling back to just fronting the KaPosts tab ("").
+        if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_KAPOSTS, false)) {
+            KaPostsDeepLink.pendingPostTxId.value =
+                intent.getStringExtra(NotificationHelper.EXTRA_KAPOST_TXID) ?: ""
+            return
+        }
         if (intent.action != Intent.ACTION_VIEW) return
         val uri = intent.data ?: return
         val txId = when {

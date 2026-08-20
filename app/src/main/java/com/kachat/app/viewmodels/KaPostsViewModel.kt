@@ -745,7 +745,7 @@ class KaPostsViewModel @Inject constructor(
                     val segment = current.segments.firstOrNull() ?: break
                     val parent = current.parentTxId ?: break
                     kotlinx.coroutines.delay(1_500) // let the previous change settle (~1s blocks)
-                    val txId = submitWithUtxoRetry { kaPostsService.submitReply(segment, parent, myPubkey) }
+                    val txId = submitWithUtxoRetry { kaPostsService.submitReply(segment, parent, myPubkey, mentionedPubkeys(segment)) }
                     threadRemainders[localId] = current.copy(segments = current.segments.drop(1), parentTxId = txId)
                 }
                 threadRemainders.remove(localId)
@@ -836,7 +836,7 @@ class KaPostsViewModel @Inject constructor(
                 val parent = findParent(post.id)
                 val txId = if (parent != null) {
                     val parentRemoteId = parent.remoteId ?: error("Parent post is not on-chain yet")
-                    kaPostsService.submitReply(post.text, parentRemoteId, parent.posterPubkey)
+                    kaPostsService.submitReply(post.text, parentRemoteId, parent.posterPubkey, mentionedPubkeys(post.text))
                 } else {
                     kaPostsService.submitPost(post.text, mentionedPubkeys(post.text))
                 }
@@ -939,7 +939,8 @@ class KaPostsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val parentRemoteId = parent.remoteId ?: error("Post is not on-chain yet")
-                val txId = kaPostsService.submitReply(text, parentRemoteId, parent.posterPubkey)
+                // @mentions work in comments exactly like in posts: resolved client-side to pubkeys.
+                val txId = kaPostsService.submitReply(text, parentRemoteId, parent.posterPubkey, mentionedPubkeys(text))
                 mutateEverywhere(comment.id) { it.copy(remoteId = txId, deliveryStatus = KaPostDraft.Delivery.SENT) }
             } catch (e: Exception) {
                 mutateEverywhere(comment.id) { it.copy(deliveryStatus = KaPostDraft.Delivery.FAILED) }

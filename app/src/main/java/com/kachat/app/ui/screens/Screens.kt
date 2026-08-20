@@ -2769,7 +2769,20 @@ fun ProfileScreen(
                                 ) {
                                     items(notifEntries.size) { index ->
                                         val entry = notifEntries[index]
-                                        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                // KaPosts rows deep-open the exact post/comment via the
+                                                // same deep-link flow notification taps use.
+                                                .let {
+                                                    if (entry.source == "kaposts") it.clickable {
+                                                        notifCenterVm.store.markAllSeen()
+                                                        showNotifCenter = false
+                                                        KaPostsDeepLink.pendingPostTxId.value = entry.targetId ?: ""
+                                                    } else it
+                                                }
+                                                .padding(vertical = 6.dp),
+                                        ) {
                                             Text(
                                                 entry.title,
                                                 color = LocalAppColors.current.textPrimary,

@@ -417,7 +417,9 @@ fun KaPostsScreen(
     LaunchedEffect(deepLinkTxId) {
         val txId = deepLinkTxId ?: return@LaunchedEffect
         KaPostsDeepLink.pendingPostTxId.value = null
-        openShared(txId)
+        // "" is the tab-only sentinel (a notification with no target txid): landing on the
+        // freshly-loaded feed is the whole job, nothing to deep-open.
+        if (txId.isNotEmpty()) openShared(txId)
     }
 
     val repostHandler: (KaPostDraft) -> Unit = { post ->
@@ -1892,6 +1894,68 @@ fun KaPostThreadOverlay(
                                     .size(16.dp)
                                     .clickable { replyTargetId = null },
                             )
+                        }
+                    }
+                    // @mention autocomplete for COMMENTS - identical machinery to the post
+                    // composer: KNS domains of everyone you've chatted with, plus a live
+                    // any-KNS resolve of the typed query. Shown above the input so the
+                    // keyboard can never hide it.
+                    LaunchedEffect(Unit) { viewModel.prefetchMentionCandidates() }
+                    val replyMentionQuery = remember(replyText) {
+                        Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]*)$", RegexOption.IGNORE_CASE)
+                            .find(replyText)?.groupValues?.get(2)?.lowercase()
+                    }
+                    var replyResolvedAnyDomain by remember { mutableStateOf<String?>(null) }
+                    LaunchedEffect(replyMentionQuery) {
+                        replyResolvedAnyDomain = null
+                        val query = replyMentionQuery ?: return@LaunchedEffect
+                        if (query.length < 2) return@LaunchedEffect
+                        kotlinx.coroutines.delay(400)
+                        replyResolvedAnyDomain = viewModel.resolveMentionQuery(query)
+                    }
+                    val replyMentionSuggestions = remember(replyText, replyResolvedAnyDomain) {
+                        val query = replyMentionQuery
+                        if (query == null) emptyList()
+                        else {
+                            val contacts = viewModel.mentionCandidates()
+                                .map { it.first }
+                                .filter { query.isEmpty() || it.startsWith(query) }
+                                .sorted()
+                                .take(6)
+                            val extra = replyResolvedAnyDomain
+                            if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
+                                contacts + extra
+                            } else contacts
+                        }
+                    }
+                    if (replyMentionSuggestions.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .widthIn(max = 280.dp)
+                                .heightIn(max = 168.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(colors.surface)
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            replyMentionSuggestions.forEachIndexed { index, domain ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            replyText = replyText.replace(Regex("@[a-z0-9-]*$", RegexOption.IGNORE_CASE), "@$domain ")
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                                ) {
+                                    Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(domain, color = colors.textPrimary, fontSize = 14.sp)
+                                }
+                                if (index != replyMentionSuggestions.lastIndex) {
+                                    HorizontalDivider(color = colors.surfaceVariant)
+                                }
+                            }
                         }
                     }
                     Row(

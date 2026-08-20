@@ -76,7 +76,13 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
                     "kaposts" -> {
                         val txId = data["tx_id"].orEmpty()
-                        notificationHelper.showKaPosts(text = body.ifEmpty { title }, actionTxId = txId)
+                        // Prefer the containing post's id when the server sends one; fall back to
+                        // the action txid so the tap still deep-opens something relevant.
+                        notificationHelper.showKaPosts(
+                            text = body.ifEmpty { title },
+                            actionTxId = txId,
+                            postTxId = data["content_id"]?.takeIf { it.isNotBlank() } ?: txId.takeIf { it.isNotBlank() },
+                        )
                     }
 
                     "group_message" -> {

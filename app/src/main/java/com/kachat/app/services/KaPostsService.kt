@@ -448,12 +448,23 @@ class KaPostsService @Inject constructor(
         return submitPayloadTx(KaPostsProtocol.postPayload(pubkey, signature, b64, mentions))
     }
 
-    /** Replies to a post (its K txid). Mention rule per spec: parent author, deduped. */
-    suspend fun submitReply(text: String, postId: String, parentAuthorPubkey: String?): String {
+    /**
+     * Replies to a post (its K txid). mentioned_pubkeys carries the parent author (the spec's
+     * reply-notification hook) PLUS any @mentions the comment text resolved to — same dedupe/
+     * validate/self-drop rules as [submitPost], so @someone works in comments exactly like in
+     * top-level posts.
+     */
+    suspend fun submitReply(text: String, postId: String, parentAuthorPubkey: String?, mentionedPubkeys: List<String> = emptyList()): String {
         val b64 = KaPostsProtocol.b64(KaPostsProtocol.KACHAT_MARKER + text)
-        val mentions = if (!parentAuthorPubkey.isNullOrEmpty()) "[\"$parentAuthorPubkey\"]" else "[]"
+        val pubkey = requesterPubkey()
+        val me = pubkey.lowercase()
+        val clean = (listOfNotNull(parentAuthorPubkey) + mentionedPubkeys)
+            .map { it.lowercase() }
+            .filter { it.matches(Regex("^0[23][0-9a-f]{64}$")) && it != me }
+            .distinct()
+        val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
         val signature = sign(KaPostsProtocol.replySigningString(postId, b64, mentions))
-        return submitPayloadTx(KaPostsProtocol.replyPayload(requesterPubkey(), signature, postId, b64, mentions))
+        return submitPayloadTx(KaPostsProtocol.replyPayload(pubkey, signature, postId, b64, mentions))
     }
 
     /** Casts an upvote/downvote on a post. */
