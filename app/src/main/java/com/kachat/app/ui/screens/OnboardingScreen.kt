@@ -336,7 +336,7 @@ fun WelcomeScreen(
 @Composable
 fun SavedAccountCard(
     account: WalletManager.Account,
-    requireBiometricLogin: Boolean = true,
+    requireBiometricLogin: Boolean = false,
     onLogin: () -> Unit,
     onRename: (String) -> Unit,
     onDelete: () -> Unit

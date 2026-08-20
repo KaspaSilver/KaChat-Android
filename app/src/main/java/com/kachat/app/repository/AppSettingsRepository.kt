@@ -323,7 +323,8 @@ class AppSettingsRepository @Inject constructor(
     val currency: Flow<String> = dataStore.data.map { it[KEY_CURRENCY] ?: "usd" }
 
     val biometricSeedPhraseEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_BIOMETRIC_SEED_PHRASE_ENABLED] ?: true }
-    val biometricAccountLoginEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_BIOMETRIC_ACCOUNT_LOGIN_ENABLED] ?: true }
+    // Account-login biometrics are opt-in (off by default) on every platform.
+    val biometricAccountLoginEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_BIOMETRIC_ACCOUNT_LOGIN_ENABLED] ?: false }
     /** Gates the "Export" button on a spending address's own screen - separate from
      *  [biometricSeedPhraseEnabled] since revealing one address's own derived key is lower-stakes
      *  than the wallet's whole seed phrase, but still sensitive enough to gate independently. */
