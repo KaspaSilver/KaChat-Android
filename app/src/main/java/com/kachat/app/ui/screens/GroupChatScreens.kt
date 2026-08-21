@@ -766,6 +766,7 @@ fun GroupChatThreadScreen(
                             onJumpToReply = jumpToReply,
                             isHighlighted = message.txId == highlightedMessageId,
                             resolveMentionName = resolveDisplayName,
+                            mentionDomains = primaryKnsByAddress,
                             isMuted = message.senderAddress?.let { chatViewModel.isGroupMemberMuted(groupId, it) } ?: false,
                             onMute = { address -> chatViewModel.muteGroupMember(groupId, address) },
                             onUnmute = { address -> chatViewModel.unmuteGroupMember(groupId, address) },
@@ -1038,6 +1039,8 @@ private fun GroupMessageBubble(
     onJumpToReply: (String) -> Unit = {},
     isHighlighted: Boolean = false,
     resolveMentionName: (String) -> String = { it.takeLast(10) },
+    /** Address → explicit-primary KNS domain, so @mentions render as the domain (what the user asked). */
+    mentionDomains: Map<String, String> = emptyMap(),
     isMuted: Boolean = false,
     onMute: (String) -> Unit = {},
     onUnmute: (String) -> Unit = {},
@@ -1064,8 +1067,13 @@ private fun GroupMessageBubble(
         member?.displayName?.takeIf { it.isNotBlank() } ?: address.takeLast(10)
     }
     val replyContent = remember(message.content) { MessageReply.parseOrNull(message.content) }
-    val displayContent = remember(replyContent, message.content, groupMembersForMentions) {
-        GroupMentionCodec.decodeForDisplay(replyContent?.text ?: message.content, groupMembersForMentions, resolveMentionName)
+    // Mentions display as the person's KNS domain when known (what the user asked to see), else the
+    // friendly name. Used for both the decoded body text and the clickable-mention annotation below.
+    val resolveMentionLabel: (String) -> String = { addr ->
+        mentionDomains[addr]?.takeIf { it.isNotBlank() } ?: resolveMentionName(addr)
+    }
+    val displayContent = remember(replyContent, message.content, groupMembersForMentions, mentionDomains) {
+        GroupMentionCodec.decodeForDisplay(replyContent?.text ?: message.content, groupMembersForMentions, resolveMentionLabel)
     }
     val replySenderName = remember(replyContent, groupMembersForMentions, myAddress) {
         val reply = replyContent ?: return@remember null
@@ -1176,9 +1184,22 @@ private fun GroupMessageBubble(
                     // Sent bubbles are teal with black text/links for contrast - matches 1:1 chat's
                     // MessageBubble (Screens.kt) treatment of the same case.
                     val groupLinkColor = if (isSent) Color.Black else KaspaTeal
-                    val annotatedGroupBody = remember(displayContent, isSent) {
+                    val annotatedGroupBody = remember(displayContent, isSent, groupMembersForMentions, mentionDomains) {
                         buildAnnotatedString {
                             append(displayContent)
+                            // Clickable @mentions: link each member's @label run to their address (tap opens a 1:1).
+                            for (member in groupMembersForMentions) {
+                                if (member.address == myAddress) continue
+                                val label = resolveMentionLabel(member.address)
+                                if (label.isBlank()) continue
+                                val token = "@$label"
+                                var idx = displayContent.indexOf(token)
+                                while (idx >= 0) {
+                                    addStyle(SpanStyle(color = if (isSent) Color.Black else KaspaTeal), idx, idx + token.length)
+                                    addStringAnnotation("MENTION", member.address, idx, idx + token.length)
+                                    idx = displayContent.indexOf(token, idx + token.length)
+                                }
+                            }
                             for (match in TextLinkify.findUrls(displayContent)) {
                                 addStyle(SpanStyle(color = groupLinkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
@@ -1215,8 +1236,13 @@ private fun GroupMessageBubble(
                                             onTap = { offset ->
                                                 val layout = groupTextLayoutResult ?: return@detectTapGestures
                                                 val charOffset = layout.getOffsetForPosition(offset)
-                                                annotatedGroupBody.getStringAnnotations("URL", charOffset, charOffset)
-                                                    .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                                val mention = annotatedGroupBody.getStringAnnotations("MENTION", charOffset, charOffset).firstOrNull()
+                                                if (mention != null) {
+                                                    navController.navigate("chat/${mention.item}") // straight to a 1:1 with that person
+                                                } else {
+                                                    annotatedGroupBody.getStringAnnotations("URL", charOffset, charOffset)
+                                                        .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                                }
                                             }
                                         )
                                     },
