@@ -1476,6 +1476,9 @@ fun GroupChatInfoScreen(
     val photoContext = LocalContext.current
     val photoScope = rememberCoroutineScope()
     var groupPhotoError by remember { mutableStateOf<String?>(null) }
+    // Confirm (with fee) before committing a photo change.
+    var pendingPhotoHex by remember { mutableStateOf<String?>(null) }
+    var showRemovePhotoConfirm by remember { mutableStateOf(false) }
     val groupPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             photoScope.launch {
@@ -1484,7 +1487,8 @@ fun GroupChatInfoScreen(
                         val prepared = ImagePrep.prepareForChatMessage(photoContext, uri, targetBytes = 10 * 1024)
                         prepared.bytes.joinToString("") { "%02x".format(it) }
                     }
-                    chatViewModel.setGroupPhoto(groupId, hex) { err -> groupPhotoError = err }
+                    // Stash it and confirm (with the estimated fee) before sending.
+                    pendingPhotoHex = hex
                 } catch (e: Exception) {
                     groupPhotoError = e.message ?: "Could not set group photo"
                 }
@@ -1560,7 +1564,7 @@ fun GroupChatInfoScreen(
                     fontSize = 12.sp
                 )
                 if (isGroupAdmin && group?.photoHex != null) {
-                    TextButton(onClick = { chatViewModel.setGroupPhoto(groupId, "") { err -> groupPhotoError = err } }) {
+                    TextButton(onClick = { showRemovePhotoConfirm = true }) {
                         Text("Remove photo", color = Color(0xFFFF3B30))
                     }
                 }
@@ -1775,7 +1779,8 @@ fun GroupChatInfoScreen(
             text = {
                 Column {
                     Text(
-                        stringResource(R.string.every_member_will_see_the_new),
+                        stringResource(R.string.every_member_will_see_the_new) +
+                            groupFeeText((members.size - 1).coerceAtLeast(0) + 1, 0),
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -1910,6 +1915,47 @@ fun GroupChatInfoScreen(
             title = { Text("Group photo", color = LocalAppColors.current.textPrimary) },
             text = { Text(groupPhotoError ?: "", color = LocalAppColors.current.textSecondary) },
             confirmButton = { TextButton(onClick = { groupPhotoError = null }) { Text(stringResource(R.string.ok), color = KaspaTeal) } }
+        )
+    }
+
+    // Confirm setting a NEW group photo (Send/Cancel), estimated from the photo's own size.
+    pendingPhotoHex?.let { hex ->
+        val others = (members.size - 1).coerceAtLeast(0)
+        val perPhoto = if (others > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * (hex.length + 300)) else 0L
+        val feeLine = "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(perPhoto * others)} KAS across $others transaction${if (others == 1) "" else "s"}."
+        AlertDialog(
+            onDismissRequest = { pendingPhotoHex = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Set group photo", color = LocalAppColors.current.textPrimary) },
+            text = { Text("Set this as the group photo for everyone?$feeLine", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    chatViewModel.setGroupPhoto(groupId, hex) { err -> groupPhotoError = err }
+                    pendingPhotoHex = null
+                }) { Text("Send", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingPhotoHex = null }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
+            }
+        )
+    }
+
+    // Confirm removing the group photo (Remove/Cancel).
+    if (showRemovePhotoConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemovePhotoConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Remove group photo", color = LocalAppColors.current.textPrimary) },
+            text = { Text("Remove the group photo for everyone?${groupFeeText((members.size - 1).coerceAtLeast(0), 0)}", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    chatViewModel.setGroupPhoto(groupId, "") { err -> groupPhotoError = err }
+                    showRemovePhotoConfirm = false
+                }) { Text("Remove", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemovePhotoConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
+            }
         )
     }
 

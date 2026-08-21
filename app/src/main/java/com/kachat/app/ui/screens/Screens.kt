@@ -9382,6 +9382,32 @@ fun CreateChatScreen(
     }
 
     val canCreateGroup = groupName.trim().isNotEmpty() && selectedMemberAddresses.isNotEmpty()
+    var showCreateGroupConfirm by remember { mutableStateOf(false) }
+    if (showCreateGroupConfirm) {
+        val k = selectedMemberAddresses.size
+        val txCount = k + 1
+        val fee = chatViewModel.estimateGroupControlTxFeeSompi(1600) * txCount
+        AlertDialog(
+            onDismissRequest = { showCreateGroupConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Create group", color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    "Create \"${groupName.trim()}\" and invite $k member${if (k == 1) "" else "s"}?\n\nEstimated network fee ≈ ${com.kachat.app.repository.ChatRepository.formatKas(fee)} KAS across $txCount transaction${if (txCount == 1) "" else "s"}.",
+                    color = LocalAppColors.current.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCreateGroupConfirm = false
+                    chatViewModel.createGroupChat(groupName, selectedMemberAddresses.toList()) { groupId -> onGroupCreated(groupId) }
+                }) { Text(stringResource(R.string.create), color = KaspaTeal, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateGroupConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -9406,12 +9432,7 @@ fun CreateChatScreen(
                             Spacer(Modifier.width(16.dp))
                         } else {
                             TextButton(
-                                onClick = {
-                                    val resolvedAddresses = selectedMemberAddresses.toList()
-                                    chatViewModel.createGroupChat(groupName, resolvedAddresses) { groupId ->
-                                        onGroupCreated(groupId)
-                                    }
-                                },
+                                onClick = { showCreateGroupConfirm = true },
                                 enabled = canCreateGroup
                             ) {
                                 Text(stringResource(R.string.create), color = if (canCreateGroup) KaspaTeal else Color.DarkGray, fontWeight = FontWeight.Bold)
