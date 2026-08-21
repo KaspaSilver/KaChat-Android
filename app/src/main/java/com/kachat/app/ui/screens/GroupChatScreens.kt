@@ -1491,6 +1491,14 @@ fun GroupChatInfoScreen(
             }
         }
     }
+    // " Estimated network fee ≈ X KAS across N transactions." for a confirm dialog. Pure mass math.
+    val groupFeeText: (Int, Int) -> String = { controlTx, photoTx ->
+        val perControl = if (controlTx > 0) chatViewModel.estimateGroupControlTxFeeSompi(1600) else 0L
+        val perPhoto = if (photoTx > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * ((group?.photoHex?.length ?: 0) + 300)) else 0L
+        val totalSompi = perControl * controlTx + perPhoto * photoTx
+        val n = controlTx + photoTx
+        "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(totalSompi)} KAS across $n transaction${if (n == 1) "" else "s"}."
+    }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -1844,7 +1852,7 @@ fun GroupChatInfoScreen(
             onDismissRequest = { memberToResend = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Resend invite", color = LocalAppColors.current.textPrimary) },
-            text = { Text("Resend the group invite to $label?", color = LocalAppColors.current.textSecondary) },
+            text = { Text("Resend the group invite to $label?${groupFeeText(1, 0)}", color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     val addr = member.address
@@ -1871,7 +1879,11 @@ fun GroupChatInfoScreen(
             onDismissRequest = { memberToRemove = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Remove member", color = LocalAppColors.current.textPrimary) },
-            text = { Text("Remove $label from the group chat? A fresh group key is issued to everyone who stays.", color = LocalAppColors.current.textSecondary) },
+            text = {
+                val afterN = (members.size - 2).coerceAtLeast(0)
+                val hasPhoto = group?.photoHex != null
+                Text("Remove $label from the group chat? A fresh group key is issued to everyone who stays.${groupFeeText(2 * afterN + 1, if (hasPhoto) afterN else 0)}", color = LocalAppColors.current.textSecondary)
+            },
             confirmButton = {
                 TextButton(onClick = {
                     val m = member
@@ -1907,7 +1919,11 @@ fun GroupChatInfoScreen(
             onDismissRequest = { showResendAllConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Resend invites to all", color = LocalAppColors.current.textPrimary) },
-            text = { Text("Resend the group invite to every member? Use this if someone didn't receive the group.", color = LocalAppColors.current.textSecondary) },
+            text = {
+                val others = (members.size - 1).coerceAtLeast(0)
+                val hasPhoto = group?.photoHex != null
+                Text("Resend the group invite to every member? Use this if someone didn't receive the group.${groupFeeText(others + 1, if (hasPhoto) others else 0)}", color = LocalAppColors.current.textSecondary)
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showResendAllConfirm = false

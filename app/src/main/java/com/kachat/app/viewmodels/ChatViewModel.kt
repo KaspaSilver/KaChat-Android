@@ -930,6 +930,19 @@ class ChatViewModel @Inject constructor(
         com.kachat.app.util.KaspaMass.calculateFee(mass, rate.toLong())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
+    /** Synchronous mass-based fee estimate (sompi) for ONE group control tx of the given payload
+     *  size, using the current network fee rate — mirrors [groupEstimatedFeeSompi]'s math. Lets the
+     *  group-info confirmations show the on-chain cost of an action before committing. */
+    fun estimateGroupControlTxFeeSompi(payloadBytes: Int): Long {
+        val rate = _feeRateOverride.value?.toDouble() ?: _networkFeeRate.value
+        var total = 0L; var count = 0
+        for (u in _currentUtxos.value) { total += u.utxoEntry.amount; count++; if (total >= 1000) break }
+        val mass = com.kachat.app.util.KaspaMass.calculateMass(
+            numInputs = count.coerceAtLeast(1), outputScriptLens = listOf(34), payloadSize = payloadBytes
+        )
+        return com.kachat.app.util.KaspaMass.calculateFee(mass, rate.toLong())
+    }
+
     fun setMessageText(text: String) {
         _messageText.value = text
     }
