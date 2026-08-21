@@ -370,6 +370,14 @@ class ChatRepository @Inject constructor(
         val api = networkService.indexerApi.value ?: return
         liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
 
+        // Self-chat ("Note to Self"): ensure a contact for your own address (unless you deleted it)
+        // so your self→self notes are swept by syncContextualMessages (default status "active") and
+        // there's an entry point in the chat list. Mirrors the payment-path self-create + tombstone.
+        if (database.contactDao().getContact(myAddress, myAddress) == null &&
+            database.contactDao().getDeletedContact(myAddress, myAddress) == null) {
+            database.contactDao().insert(ContactEntity(id = myAddress, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+        }
+
         syncHandshakes(myAddress, api)
         syncContextualMessages(myAddress, api)
         networkService.kaspaRestApi.value?.let { syncPayments(myAddress, it) }
@@ -565,7 +573,9 @@ class ChatRepository @Inject constructor(
                 contactId = contact.id,
                 walletAddress = myAddress,
                 type = MessageProtocol.TYPE_COMM,
-                direction = "received",
+                // Self-chat: a note you sent to yourself is outgoing on every device (decryption
+                // already scopes the by-sender(self) query to your own self->self messages).
+                direction = if (contact.id == myAddress) "sent" else "received",
                 plaintextBody = plaintext,
                 encryptedPayload = message.messagePayload,
                 amountSompi = null,
