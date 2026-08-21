@@ -58,7 +58,8 @@ class AddressActivityNotifier @Inject constructor(
     private val paymentPoolStore: PaymentPoolStore,
     private val networkService: NetworkService,
     private val settingsRepository: AppSettingsRepository,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    private val notificationCenter: GlobalNotificationCenterStore
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runMutex = Mutex()
@@ -260,16 +261,20 @@ class AddressActivityNotifier @Inject constructor(
             text = describe(address, coldLabels),
             dedupeKey = dedupeKey
         )
+        // Also list it in the Profile notifications bell.
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} KAS", describe(address, coldLabels), System.currentTimeMillis(), null)
         Log.i(TAG, "Notified external receive $dedupeKey")
     }
 
     private suspend fun postBalanceIncreased(address: String, delta: Long, coldLabels: Map<String, String>) {
         if (delta <= 0) return
+        val dedupeKey = "bal-${address.takeLast(12)}-${System.currentTimeMillis()}"
         notificationHelper.showAddressActivity(
             title = "Balance increased by ${formatKas(delta)} KAS",
             text = describe(address, coldLabels),
-            dedupeKey = "bal-${address.takeLast(12)}-${System.currentTimeMillis()}"
+            dedupeKey = dedupeKey
         )
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} KAS", describe(address, coldLabels), System.currentTimeMillis(), null)
     }
 
     private fun describe(address: String, coldLabels: Map<String, String>): String {
