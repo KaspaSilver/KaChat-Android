@@ -230,6 +230,9 @@ class ChatHistoryExportImportService @Inject constructor(
 
             var addedAny = false
             for (archiveMessage in conversation.messages) {
+                // "\ud83d\udce4 Sent via another device" placeholders never surface on any platform -
+                // skip them at import; an archive that later carries the real body inserts it then.
+                if (archiveMessage.content == "\ud83d\udce4 Sent via another device") continue
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)
                 if (chatRepository.messageExists(entity.id)) continue
                 chatRepository.insertMessage(entity)
