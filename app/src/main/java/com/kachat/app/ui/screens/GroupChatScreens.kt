@@ -1426,6 +1426,8 @@ fun GroupChatInfoScreen(
     var memberToRemove by remember { mutableStateOf<com.kachat.app.models.GroupMember?>(null) }
     // Members list is a collapsed-by-default dropdown, not an always-open list.
     var membersExpanded by remember { mutableStateOf(false) }
+    // Confirm before resending invites to everyone.
+    var showResendAllConfirm by remember { mutableStateOf(false) }
     val conversations by chatViewModel.conversations.collectAsState()
 
     Scaffold(
@@ -1449,6 +1451,30 @@ fun GroupChatInfoScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
+            // Group header: avatar + name at the very top, showing what the group currently is.
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                ContactAvatar(
+                    imageUrl = null,
+                    fallbackText = group?.name ?: "Group",
+                    size = 76.dp
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = group?.name ?: "Group",
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "${members.size} members",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
             // Members dropdown header — collapsed by default; tap to expand the list.
             Row(
@@ -1514,7 +1540,7 @@ fun GroupChatInfoScreen(
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            Icons.AutoMirrored.Filled.Send,
+                                            Icons.Default.Refresh,
                                             contentDescription = "Resend invite",
                                             tint = KaspaTeal,
                                             modifier = Modifier.size(18.dp)
@@ -1552,9 +1578,9 @@ fun GroupChatInfoScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = LocalAppColors.current.textPrimary)
+                Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = KaspaTeal)
                 Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.hidden_users), color = LocalAppColors.current.textPrimary)
+                Text(stringResource(R.string.hidden_users), color = KaspaTeal)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1597,9 +1623,9 @@ fun GroupChatInfoScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = LocalAppColors.current.textPrimary)
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal)
                     Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.rename_group), color = LocalAppColors.current.textPrimary)
+                    Text(stringResource(R.string.rename_group), color = KaspaTeal)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1608,15 +1634,13 @@ fun GroupChatInfoScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(LocalAppColors.current.surface)
-                        .clickable {
-                            chatViewModel.resendGroupInvites(groupId) { msg -> resendMessage = msg }
-                        }
+                        .clickable { showResendAllConfirm = true }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = LocalAppColors.current.textPrimary)
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = KaspaTeal)
                     Spacer(Modifier.width(12.dp))
-                    Text("Resend invites to all", color = LocalAppColors.current.textPrimary)
+                    Text("Resend invites to all", color = KaspaTeal)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1629,9 +1653,9 @@ fun GroupChatInfoScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = LocalAppColors.current.textPrimary)
+                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = KaspaTeal)
                     Spacer(Modifier.width(12.dp))
-                    Text("Add members", color = LocalAppColors.current.textPrimary)
+                    Text("Add members", color = KaspaTeal)
                 }
             }
 
@@ -1779,6 +1803,29 @@ fun GroupChatInfoScreen(
             },
             dismissButton = {
                 TextButton(onClick = { memberToRemove = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+
+    // Confirm resending invites to everyone (Cancel / Send).
+    if (showResendAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResendAllConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Resend invites to all", color = LocalAppColors.current.textPrimary) },
+            text = { Text("Resend the group invite to every member? Use this if someone didn't receive the group.", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResendAllConfirm = false
+                    chatViewModel.resendGroupInvites(groupId) { msg -> resendMessage = msg }
+                }) {
+                    Text("Send", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResendAllConfirm = false }) {
                     Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
