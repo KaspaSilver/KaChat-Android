@@ -27,3 +27,13 @@ keystore.properties
 # Self-hosted gift faucet backend — runs only on the operator's machine, holds the hot-wallet
 # private key and Play Integrity secrets. MUST never be committed/published.
 /gift-server/
+
+# Release binaries live on the GitHub Releases page, never in the repo (142 MB of
+# stale v3.0 APKs/AABs used to be tracked here).
+/release-builds/
+
+# Machine-local Android Studio state
+.idea/caches/
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/appInsightsSettings.xml
