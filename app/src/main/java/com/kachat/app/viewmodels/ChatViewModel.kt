@@ -1699,7 +1699,8 @@ class ChatViewModel @Inject constructor(
                     )
                 )
 
-                // Encrypt + send handshake (if needed) + encrypted message
+                // Encrypt + self-stash the message. Sending a message NEVER sends a handshake —
+                // handshakes are only ever sent by an explicit user tap (sendHandshakeToNewContact).
                 val result = walletService.sendKasiaMessage(contactId, payload, feeRateOverride = feeRate)
 
                 chatRepository.deleteMessage(pendingId)

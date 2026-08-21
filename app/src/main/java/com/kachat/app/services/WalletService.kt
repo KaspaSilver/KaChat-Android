@@ -444,9 +444,10 @@ class WalletService @Inject constructor(
     }
 
     /**
-     * Manually sends an initial (non-response) handshake to a brand new contact —
-     * the explicit "start a conversation" action, as opposed to [sendKasiaMessage]'s
-     * auto-send-if-needed behavior when the first message goes out.
+     * Sends an initial (non-response) handshake to a brand new contact — ONLY ever called from an
+     * explicit user tap ("Send Handshake" / "start a conversation"). A handshake is an on-chain tx
+     * and must never be auto-sent on login, launch, sync, or import. NOTE: [sendKasiaMessage] does
+     * NOT auto-send a handshake — messages self-stash with a deterministic alias and need none.
      */
     suspend fun sendHandshakeToNewContact(contactId: String): String {
         val recipientPubKey = KaspaAddress.decode(contactId).second
