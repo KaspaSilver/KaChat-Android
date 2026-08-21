@@ -323,6 +323,9 @@ class GroupRepository @Inject constructor(
 
         val updatedEntity = entity.copy(name = newName)
         database.groupDao().upsertGroup(updatedEntity)
+        if (entity.name != newName) {
+            insertGroupSystemMessage(groupId, walletAddress, "You changed the group name to \"$newName\"", System.currentTimeMillis())
+        }
 
         var failures = 0
         for (member in roster) {
@@ -365,6 +368,9 @@ class GroupRepository @Inject constructor(
         if (!entity.isAdmin) throw IllegalStateException("Only the group admin can change the group photo.")
         val privateKey = walletManager.getPrivateKeyBytes()
         database.groupDao().upsertGroup(entity.copy(photoHex = photoHex.ifEmpty { null }))
+        insertGroupSystemMessage(groupId, walletAddress,
+            if (photoHex.isEmpty()) "You removed the group photo" else "You changed the group photo",
+            System.currentTimeMillis())
         distributeGroupPhoto(entity, membersOf(entity), photoHex, privateKey)
     }
 
@@ -855,7 +861,16 @@ class GroupRepository @Inject constructor(
         if (photo != null && photo.type == "gctl_photo") {
             val entity = database.groupDao().getGroup(photo.groupId, walletAddress) ?: return
             if (photo.signingPub == entity.adminXOnlyPubKeyHex && GroupCipher.verifyPhotoPayload(photo)) {
-                database.groupDao().upsertGroup(entity.copy(photoHex = photo.photo.ifEmpty { null }))
+                val newHex = photo.photo.ifEmpty { null }
+                val changed = entity.photoHex != newHex
+                database.groupDao().upsertGroup(entity.copy(photoHex = newHex))
+                // iMessage-style line for members (the admin emits its own in setGroupPhoto).
+                if (changed && !isBackfill(blockTime)) {
+                    val adminLabel = groupMemberLabel(entity.adminAddress, walletAddress, null)
+                    insertGroupSystemMessage(photo.groupId, walletAddress,
+                        if (newHex == null) "$adminLabel removed the group photo" else "$adminLabel changed the group photo",
+                        blockTime ?: System.currentTimeMillis())
+                }
             }
             return
         }
@@ -931,22 +946,26 @@ class GroupRepository @Inject constructor(
         // root updates it, so a receiving member sees "X was added"/"Y was removed" when the admin
         // rotates the key. Skipped on a first-time join and on backfill (no false "added" storm for
         // the members who were already there when we joined).
+        val existingEntity = database.groupDao().getGroup(payload.groupId, walletAddress)
         val previousRosterForDiff: List<GroupMember>? =
-            if (!isFirstTimeJoin && !isBackfill(blockTime))
-                database.groupDao().getGroup(payload.groupId, walletAddress)?.let(::membersOf)
-            else null
+            if (!isFirstTimeJoin && !isBackfill(blockTime)) existingEntity?.let(::membersOf) else null
 
         val entity = GroupEntity(
             groupId = payload.groupId, walletAddress = walletAddress, name = payload.name, adminAddress = adminAddress,
             adminXOnlyPubKeyHex = payload.adminSigningPub, currentEpoch = payload.epoch, isAdmin = walletAddress == adminAddress,
             membersJson = gson.toJson(members),
             // Group photo rides a separate gctl_photo control, not the root - preserve any we hold.
-            photoHex = database.groupDao().getGroup(payload.groupId, walletAddress)?.photoHex
+            photoHex = existingEntity?.photoHex
         )
         database.groupDao().upsertGroup(entity)
 
         previousRosterForDiff?.let { prev ->
             emitMembershipSystemMessages(payload.groupId, walletAddress, prev, members, blockTime ?: System.currentTimeMillis())
+        }
+        // iMessage-style rename line for members (the admin emits its own in renameGroup).
+        if (existingEntity != null && existingEntity.name != payload.name && !isBackfill(blockTime)) {
+            val adminLabel = groupMemberLabel(adminAddress, walletAddress, null)
+            insertGroupSystemMessage(payload.groupId, walletAddress, "$adminLabel changed the group name to \"${payload.name}\"", blockTime ?: System.currentTimeMillis())
         }
 
         if (isFirstTimeJoin && !isBackfill(blockTime)) {

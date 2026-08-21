@@ -394,13 +394,16 @@ fun GroupChatThreadScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        GroupAvatar(photoHex = group?.photoHex, size = 30.dp)
-                        Spacer(Modifier.width(8.dp))
+                    // Photo above the name, like the 1:1 chat header shows the contact's avatar.
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        GroupAvatar(photoHex = group?.photoHex, size = 36.dp)
+                        Spacer(Modifier.height(2.dp))
                         Text(
                             group?.name ?: "Group",
                             color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            maxLines = 1
                         )
                     }
                 },
