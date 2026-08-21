@@ -677,17 +677,27 @@ class KaPostsViewModel @Inject constructor(
     // indexer turns each pubkey in mentioned_pubkeys into a "mention" notification)
 
     /** Mentionable = your 1:1 contacts with a KNS domain and a derivable pubkey: (bareDomain, pubkey). */
+    // Memoized against the inputs that can change it — the composer calls this per KEYSTROKE
+    // while an @ token is active, and the unmemoized version decoded an address + derived a
+    // pubkey for every contact on the main thread each time.
+    private var mentionCandidatesCache: Triple<Map<String, String>, Map<String, String?>, List<Pair<String, String>>>? = null
     fun mentionCandidates(): List<Pair<String, String>> {
+        val aliases = contactAliases.value
+        val knsNames = _senderKnsNames.value
+        mentionCandidatesCache?.let { (a, k, cached) ->
+            if (a === aliases && k === knsNames) return cached
+        }
         val out = mutableListOf<Pair<String, String>>()
         val seen = mutableSetOf<String>()
-        for ((address, _) in contactAliases.value) {
-            val domain = _senderKnsNames.value[address]?.takeIf { it.isNotBlank() } ?: continue
+        for ((address, _) in aliases) {
+            val domain = knsNames[address]?.takeIf { it.isNotBlank() } ?: continue
             val bare = strippingKasSuffix(domain).lowercase()
             if (bare.isEmpty() || bare in seen) continue
             val pubkey = KaPostsService.kapostPubkeyFromAddress(address) ?: continue
             seen.add(bare)
             out.add(bare to pubkey)
         }
+        mentionCandidatesCache = Triple(aliases, knsNames, out)
         return out
     }
 

@@ -1779,7 +1779,6 @@ fun KaPostThreadOverlay(
         LaunchedEffect(postId) { onClose() }
         return
     }
-    var replyText by remember(postId) { mutableStateOf("") }
     /** Which post in this thread the composer targets; null = the thread root. */
     var replyTargetId by remember(postId) { mutableStateOf<String?>(null) }
     // Tapping a comment's reply bubble retargets the composer AND raises the keyboard in the
@@ -1988,185 +1987,37 @@ fun KaPostThreadOverlay(
             // While the funding gate is active the reply row renders dimmed and any tap on it
             // opens the funding card instead of focusing the field — same "no composer until
             // funded" rule as the New Post FAB above.
-            Box {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .alpha(if (fundingGate.active) 0.35f else 1f),
-                ) {
-                    // "Replying to <name> x" - the composer targets a comment rather than the
-                    // thread root (desktop's reply-context chip). Clearing it aims at the root.
-                    if (replyingToComment) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 12.dp, top = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Replying to ${viewModel.posterDisplayName(replyTarget.posterAddress)}",
-                                color = KaspaTeal,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Reply to the original post instead",
-                                tint = colors.textSecondary,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { replyTargetId = null },
-                            )
-                        }
+            ThreadReplyComposer(
+                viewModel = viewModel,
+                postId = postId,
+                replyingToComment = replyingToComment,
+                replyTargetName = if (replyingToComment) viewModel.posterDisplayName(replyTarget.posterAddress) else "",
+                fundingGateActive = fundingGate.active,
+                focusRequester = replyFieldFocus,
+                onShowFundingGate = { showFundingGate = true },
+                onClearReplyTarget = { replyTargetId = null },
+                onSubmit = { text ->
+                    // Replies nest against their IMMEDIATE parent (postId + mention = that
+                    // comment and its author), which is what the indexer keys get-replies on.
+                    val target = replyTarget
+                    viewModel.submitReply(target, text)
+                    // Reveal the new reply straight away: a comment's children only render
+                    // while it's expanded.
+                    if (target.id != post.id && target.id !in expandedIds) {
+                        viewModel.expandReplies(target)
+                        expandedIds = expandedIds + target.id
                     }
-                    // @mention autocomplete for COMMENTS - identical machinery to the post
-                    // composer: KNS domains of everyone you've chatted with, plus a live
-                    // any-KNS resolve of the typed query. Shown above the input so the
-                    // keyboard can never hide it.
-                    LaunchedEffect(Unit) { viewModel.prefetchMentionCandidates() }
-                    val replyMentionQuery = remember(replyText) {
-                        MENTION_QUERY_REGEX
-                            .find(replyText)?.groupValues?.get(2)?.lowercase()
-                    }
-                    var replyResolvedAnyDomain by remember { mutableStateOf<String?>(null) }
-                    LaunchedEffect(replyMentionQuery) {
-                        replyResolvedAnyDomain = null
-                        val query = replyMentionQuery ?: return@LaunchedEffect
-                        if (query.length < 2) return@LaunchedEffect
-                        kotlinx.coroutines.delay(400)
-                        replyResolvedAnyDomain = viewModel.resolveMentionQuery(query)
-                    }
-                    val replyMentionSuggestions = remember(replyText, replyResolvedAnyDomain) {
-                        val query = replyMentionQuery
-                        if (query == null) emptyList()
-                        else {
-                            val contacts = viewModel.mentionCandidates()
-                                .map { it.first }
-                                .filter { query.isEmpty() || it.startsWith(query) }
-                                .sorted()
-                                .take(6)
-                            val extra = replyResolvedAnyDomain
-                            if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
-                                contacts + extra
-                            } else contacts
-                        }
-                    }
-                    if (replyMentionSuggestions.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                .widthIn(max = 280.dp)
-                                .heightIn(max = 168.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(colors.surface)
-                                .verticalScroll(rememberScrollState()),
-                        ) {
-                            replyMentionSuggestions.forEachIndexed { index, domain ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            replyText = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
-                                        }
-                                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                                ) {
-                                    Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(domain, color = colors.textPrimary, fontSize = 14.sp)
-                                }
-                                if (index != replyMentionSuggestions.lastIndex) {
-                                    HorizontalDivider(color = colors.surfaceVariant)
-                                }
-                            }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        BasicTextField(
-                            value = replyText,
-                            onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
-                            textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
-                            cursorBrush = SolidColor(KaspaTeal),
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(replyFieldFocus)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(colors.surface)
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            decorationBox = { inner ->
-                                if (replyText.isEmpty()) {
-                                    Text(
-                                        if (replyingToComment) "Post your reply to this comment" else "Post your reply",
-                                        color = colors.textSecondary,
-                                        fontSize = 15.sp,
-                                    )
-                                }
-                                inner()
-                            },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        KaPostCharacterMeter(count = replyText.length)
-                        TextButton(
-                            onClick = {
-                                // Replies nest against their IMMEDIATE parent (postId + mention =
-                                // that comment and its author), which is what the indexer keys
-                                // get-replies on - same rule as iOS/desktop.
-                                val target = replyTarget
-                                viewModel.submitReply(target, replyText.trim())
-                                // Reveal the new reply straight away: a comment's children only
-                                // render while it's expanded. Pull its existing chain in too, so
-                                // the expansion isn't just our own reply on its own.
-                                if (target.id != post.id && target.id !in expandedIds) {
-                                    viewModel.expandReplies(target)
-                                    expandedIds = expandedIds + target.id
-                                }
-                                replyText = ""
-                                replyTargetId = null
-                            },
-                            enabled = replyText.isNotBlank(),
-                        ) {
-                            Text(
-                                "Reply",
-                                color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                }
-                if (fundingGate.active) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { showFundingGate = true }
-                    )
-                }
-            }
+                    replyTargetId = null
+                },
+            )
         }
         // The main screen's toast layer sits BEHIND this opaque overlay — without a copy in
         // here, a like/repost/reply made from an open thread showed no undo toast and no
         // network confirmation, which read as the buttons doing nothing at all for the whole
-        // 5-second undo window (and made Undo unreachable).
-        val undoToast by viewModel.undoToast.collectAsState()
-        val actionToast by viewModel.actionToast.collectAsState()
-        val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
-        val uriHandler = LocalUriHandler.current
-        KaPostsToastOverlay(
-            undoToast = undoToast,
-            actionToast = actionToast,
-            onUndo = { viewModel.undoPendingPost() },
-            onViewTx = { uriHandler.openUri(kaspaExplorer.txUrl(it)) },
+        // 5-second undo window (and made Undo unreachable). Its flows are collected inside
+        // ThreadToastLayer's own restart scope so toast emissions never recompose the overlay.
+        ThreadToastLayer(
+            viewModel = viewModel,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
         )
     }
@@ -2178,6 +2029,198 @@ fun KaPostThreadOverlay(
             walletAddress = fundingGate.chattingAddress,
             onDismiss = { showFundingGate = false },
         )
+    }
+}
+
+
+
+/** Thread-overlay copy of the undo/confirmation toast stack, in its own restart scope. */
+@Composable
+private fun ThreadToastLayer(viewModel: KaPostsViewModel, modifier: Modifier = Modifier) {
+    val undoToast by viewModel.undoToast.collectAsState()
+    val actionToast by viewModel.actionToast.collectAsState()
+    val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
+    val uriHandler = LocalUriHandler.current
+    KaPostsToastOverlay(
+        undoToast = undoToast,
+        actionToast = actionToast,
+        onUndo = { viewModel.undoPendingPost() },
+        onViewTx = { uriHandler.openUri(kaspaExplorer.txUrl(it)) },
+        modifier = modifier,
+    )
+}
+
+/**
+ * The thread's pinned reply composer, extracted into its OWN restart scope: replyText lives
+ * here, so a keystroke recomposes only this composable — previously every character re-ran the
+ * whole thread overlay (every visible comment included), which was the reported typing lag.
+ */
+@Composable
+private fun ThreadReplyComposer(
+    viewModel: KaPostsViewModel,
+    postId: String,
+    replyingToComment: Boolean,
+    replyTargetName: String,
+    fundingGateActive: Boolean,
+    focusRequester: FocusRequester,
+    onShowFundingGate: () -> Unit,
+    onClearReplyTarget: () -> Unit,
+    onSubmit: (String) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    var replyText by remember(postId) { mutableStateOf("") }
+    Box {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(if (fundingGateActive) 0.35f else 1f),
+        ) {
+            // "Replying to <name> x" - the composer targets a comment rather than the
+            // thread root (desktop's reply-context chip). Clearing it aims at the root.
+            if (replyingToComment) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 12.dp, top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Replying to ${replyTargetName}",
+                        color = KaspaTeal,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Reply to the original post instead",
+                        tint = colors.textSecondary,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onClearReplyTarget() },
+                    )
+                }
+            }
+            // @mention autocomplete for COMMENTS - identical machinery to the post
+            // composer: KNS domains of everyone you've chatted with, plus a live
+            // any-KNS resolve of the typed query. Shown above the input so the
+            // keyboard can never hide it.
+            LaunchedEffect(Unit) { viewModel.prefetchMentionCandidates() }
+            val replyMentionQuery = remember(replyText) {
+                MENTION_QUERY_REGEX
+                    .find(replyText)?.groupValues?.get(2)?.lowercase()
+            }
+            var replyResolvedAnyDomain by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(replyMentionQuery) {
+                replyResolvedAnyDomain = null
+                val query = replyMentionQuery ?: return@LaunchedEffect
+                if (query.length < 2) return@LaunchedEffect
+                kotlinx.coroutines.delay(400)
+                replyResolvedAnyDomain = viewModel.resolveMentionQuery(query)
+            }
+            val replyMentionSuggestions = remember(replyText, replyResolvedAnyDomain) {
+                val query = replyMentionQuery
+                if (query == null) emptyList()
+                else {
+                    val contacts = viewModel.mentionCandidates()
+                        .map { it.first }
+                        .filter { query.isEmpty() || it.startsWith(query) }
+                        .sorted()
+                        .take(6)
+                    val extra = replyResolvedAnyDomain
+                    if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
+                        contacts + extra
+                    } else contacts
+                }
+            }
+            if (replyMentionSuggestions.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .widthIn(max = 280.dp)
+                        .heightIn(max = 168.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.surface)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    replyMentionSuggestions.forEachIndexed { index, domain ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    replyText = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                                }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                        ) {
+                            Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(domain, color = colors.textPrimary, fontSize = 14.sp)
+                        }
+                        if (index != replyMentionSuggestions.lastIndex) {
+                            HorizontalDivider(color = colors.surfaceVariant)
+                        }
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = replyText,
+                    onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
+                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
+                    cursorBrush = SolidColor(KaspaTeal),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(colors.surface)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    decorationBox = { inner ->
+                        if (replyText.isEmpty()) {
+                            Text(
+                                if (replyingToComment) "Post your reply to this comment" else "Post your reply",
+                                color = colors.textSecondary,
+                                fontSize = 15.sp,
+                            )
+                        }
+                        inner()
+                    },
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                KaPostCharacterMeter(count = replyText.length)
+                TextButton(
+                    onClick = {
+                        onSubmit(replyText.trim())
+                        replyText = ""
+                    },
+                    enabled = replyText.isNotBlank(),
+                ) {
+                    Text(
+                        "Reply",
+                        color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+        if (fundingGateActive) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onShowFundingGate() }
+            )
+        }
     }
 }
 
