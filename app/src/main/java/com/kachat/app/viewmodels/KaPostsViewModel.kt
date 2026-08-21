@@ -431,7 +431,44 @@ class KaPostsViewModel @Inject constructor(
      * swiping to Following while the global feed is still loading has to be able to load
      * Following, and the two write to different lists anyway.
      */
+    /**
+     * One-shot per session: rebuild the LOCAL follow set from the on-chain follow graph.
+     * The local set is what every Follow button and the Following feed filter read, and it
+     * lives only in DataStore — so an upgrade/reinstall that clears app data left users
+     * "following 0 friends" with Follow buttons beside people they already follow on-chain.
+     * Chain entries are only ever ADDED (never removed), so a just-tapped local unfollow the
+     * indexer hasn't caught up on can't be resurrected mid-session.
+     */
+    private var followingChainSyncStarted = false
+    fun syncFollowingFromChain() {
+        if (followingChainSyncStarted) return
+        followingChainSyncStarted = true
+        viewModelScope.launch {
+            try {
+                val pubkey = kaPostsService.requesterPubkey()
+                val chain = mutableSetOf<String>()
+                var cursor: String? = null
+                var pagesLeft = 10 // up to 10 pages of PAGE_LIMIT — far beyond any real follow list
+                while (pagesLeft-- > 0) {
+                    val page = kaPostsService.fetchFollowListPage(pubkey, followers = false, PAGE_LIMIT, cursor)
+                    page.items.forEach { user ->
+                        KaPostsService.kaspaAddressFromPubkey(user.userPublicKey)?.let { chain += it }
+                    }
+                    cursor = page.cursor
+                    if (!page.hasMore || cursor == null) break
+                }
+                val local = following.value
+                val merged = local + chain - (myAddress() ?: "")
+                if (merged != local) settings.setKapostsFollowing(merged)
+            } catch (e: Exception) {
+                followingChainSyncStarted = false // network miss — retry on the next feed load
+                Log.w(TAG, "Follow-set chain sync failed", e)
+            }
+        }
+    }
+
     suspend fun loadFeed(tab: FeedTab = _selectedFeed.value) {
+        syncFollowingFromChain()
         val key = feedKey(tab)
         if (pagingState(key).isLoadingMore) return
         val generation = resetSurface(key)

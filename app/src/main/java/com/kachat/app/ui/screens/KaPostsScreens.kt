@@ -1746,11 +1746,23 @@ fun KaPostThreadOverlay(
     onViewEngagement: (KaPostDraft) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    // Resolving against the collected tree (rather than taking a KaPostDraft parameter) is what
-    // makes the thread live: fetched replies, inline-expanded sub-threads and optimistic replies
-    // all land inside the view model's post lists, and this is what re-reads them.
-    val tree by viewModel.postTree.collectAsState()
-    val post = remember(postId, tree) { viewModel.findPost(postId) }
+    // Resolving against the post tree (rather than taking a KaPostDraft parameter) is what
+    // makes the thread live: fetched replies, inline-expanded sub-threads and optimistic
+    // replies all land inside the view model's post lists, and this re-reads them. The tree
+    // is deliberately NOT read in composition: it re-emits on every background mutation
+    // (feed polls, sender-profile fetches, undo timers anywhere in KaPosts), and each
+    // emission recomposed this whole overlay — which is what made the reply box need several
+    // taps before it would focus (a tap landing mid-recomposition gets its press cancelled).
+    // Collecting in an effect and republishing only STRUCTURALLY CHANGED posts means the
+    // overlay recomposes exactly when this thread's content actually changed.
+    var postState by remember(postId) { mutableStateOf(viewModel.findPost(postId)) }
+    LaunchedEffect(postId) {
+        viewModel.postTree.collect {
+            val fresh = viewModel.findPost(postId)
+            if (fresh != postState) postState = fresh
+        }
+    }
+    val post = postState
     if (post == null) {
         // The thread's post vanished (feed refresh dropped it) - pop this level.
         LaunchedEffect(postId) { onClose() }
@@ -1776,7 +1788,7 @@ fun KaPostThreadOverlay(
         it.posterAddress !in hidden && (it.remoteId == null || it.remoteId !in chainRemoteIds)
     }
     // Falls back to the root whenever the targeted comment is gone (a refresh replaced it).
-    val replyTarget = remember(replyTargetId, tree, post) {
+    val replyTarget = remember(replyTargetId, post) {
         replyTargetId?.let { viewModel.findPost(it) } ?: post
     }
     val replyingToComment = replyTarget.id != post.id
@@ -2122,6 +2134,21 @@ fun KaPostThreadOverlay(
                 }
             }
         }
+        // The main screen's toast layer sits BEHIND this opaque overlay — without a copy in
+        // here, a like/repost/reply made from an open thread showed no undo toast and no
+        // network confirmation, which read as the buttons doing nothing at all for the whole
+        // 5-second undo window (and made Undo unreachable).
+        val undoToast by viewModel.undoToast.collectAsState()
+        val actionToast by viewModel.actionToast.collectAsState()
+        val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
+        val uriHandler = LocalUriHandler.current
+        KaPostsToastOverlay(
+            undoToast = undoToast,
+            actionToast = actionToast,
+            onUndo = { viewModel.undoPendingPost() },
+            onViewTx = { uriHandler.openUri(kaspaExplorer.txUrl(it)) },
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
+        )
     }
 
     // Also conditioned on the gate itself so the dialog vanishes reactively the moment the
