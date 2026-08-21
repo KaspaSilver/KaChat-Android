@@ -326,6 +326,8 @@ class GroupRepository @Inject constructor(
         if (entity.name != newName) {
             insertGroupSystemMessage(groupId, walletAddress, "You changed the group name to \"$newName\"", System.currentTimeMillis())
         }
+        // Self-addressed root so the SAME account's OTHER devices pick up the new name.
+        try { sendSelfRootControlMessage(updatedEntity, roster, bag, privateKey) } catch (e: Exception) {}
 
         var failures = 0
         for (member in roster) {
@@ -385,6 +387,10 @@ class GroupRepository @Inject constructor(
             if (member.address == walletAddress) continue
             val recipientXOnlyPub = xOnlyPubKeyOrNull(member.address) ?: continue
             try { sendControlPayload(json, recipientXOnlyPub, adminPrivateKey) } catch (e: Exception) {}
+        }
+        // Also send a self-addressed copy so the SAME account's OTHER devices sync the photo change.
+        xOnlyPubKeyOrNull(walletAddress)?.let { selfPub ->
+            try { sendControlPayload(json, selfPub, adminPrivateKey) } catch (e: Exception) {}
         }
     }
 
@@ -866,9 +872,9 @@ class GroupRepository @Inject constructor(
                 database.groupDao().upsertGroup(entity.copy(photoHex = newHex))
                 // iMessage-style line for members (the admin emits its own in setGroupPhoto).
                 if (changed && !isBackfill(blockTime)) {
-                    val adminLabel = groupMemberLabel(entity.adminAddress, walletAddress, null)
+                    val who = if (entity.isAdmin) "You" else groupMemberLabel(entity.adminAddress, walletAddress, null)
                     insertGroupSystemMessage(photo.groupId, walletAddress,
-                        if (newHex == null) "$adminLabel removed the group photo" else "$adminLabel changed the group photo",
+                        if (newHex == null) "$who removed the group photo" else "$who changed the group photo",
                         blockTime ?: System.currentTimeMillis())
                 }
             }
@@ -964,8 +970,8 @@ class GroupRepository @Inject constructor(
         }
         // iMessage-style rename line for members (the admin emits its own in renameGroup).
         if (existingEntity != null && existingEntity.name != payload.name && !isBackfill(blockTime)) {
-            val adminLabel = groupMemberLabel(adminAddress, walletAddress, null)
-            insertGroupSystemMessage(payload.groupId, walletAddress, "$adminLabel changed the group name to \"${payload.name}\"", blockTime ?: System.currentTimeMillis())
+            val who = if (walletAddress == adminAddress) "You" else groupMemberLabel(adminAddress, walletAddress, null)
+            insertGroupSystemMessage(payload.groupId, walletAddress, "$who changed the group name to \"${payload.name}\"", blockTime ?: System.currentTimeMillis())
         }
 
         if (isFirstTimeJoin && !isBackfill(blockTime)) {

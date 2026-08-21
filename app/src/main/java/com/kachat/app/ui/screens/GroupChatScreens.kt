@@ -1994,6 +1994,8 @@ fun GroupChatInfoScreen(
         var addSelected by remember { mutableStateOf(setOf<String>()) }
         var addBusy by remember { mutableStateOf(false) }
         var addError by remember { mutableStateOf<String?>(null) }
+        var showAddFeeConfirm by remember { mutableStateOf(false) }
+        var addChosen by remember { mutableStateOf<List<com.kachat.app.models.ContactEntity>>(emptyList()) }
         val existingAddresses = remember(members) { members.map { it.address }.toSet() }
         val query = addSearch.trim().lowercase()
         val candidates = remember(conversations, existingAddresses, query) {
@@ -2080,15 +2082,10 @@ fun GroupChatInfoScreen(
                 TextButton(
                     enabled = addSelected.isNotEmpty() && !addBusy,
                     onClick = {
-                        val chosen = candidates.filter { it.id in addSelected }
+                        // Confirm with the estimated fee first — each add rotates the group key.
+                        addChosen = candidates.filter { it.id in addSelected }
                             .ifEmpty { conversations.map { it.contact }.distinctBy { it.id }.filter { it.id in addSelected } }
-                        addBusy = true
-                        addError = null
-                        chatViewModel.addGroupMembers(chosen, groupId) { added, failed ->
-                            addBusy = false
-                            if (failed == 0) showAddMembers = false
-                            else addError = "$failed member(s) could not be added ($added added). Please try again."
-                        }
+                        showAddFeeConfirm = true
                     }
                 ) {
                     Text(if (addSelected.isEmpty()) "Add" else "Add (${addSelected.size})", color = KaspaTeal)
@@ -2100,6 +2097,33 @@ fun GroupChatInfoScreen(
                 }
             }
         )
+        // Fee confirmation shown after tapping Add — each added member rotates the group key.
+        if (showAddFeeConfirm) {
+            val k = addChosen.size
+            val finalOthers = (members.size - 1).coerceAtLeast(0) + k
+            val hasPhoto = group?.photoHex != null
+            AlertDialog(
+                onDismissRequest = { showAddFeeConfirm = false },
+                containerColor = LocalAppColors.current.surface,
+                title = { Text("Add members", color = LocalAppColors.current.textPrimary) },
+                text = { Text("Add $k member${if (k == 1) "" else "s"} to the group?${groupFeeText(k * (2 * finalOthers + 1), if (hasPhoto) k * finalOthers else 0)}", color = LocalAppColors.current.textSecondary) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showAddFeeConfirm = false
+                        addBusy = true
+                        addError = null
+                        chatViewModel.addGroupMembers(addChosen, groupId) { added, failed ->
+                            addBusy = false
+                            if (failed == 0) showAddMembers = false
+                            else addError = "$failed member(s) could not be added ($added added). Please try again."
+                        }
+                    }) { Text("Add", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAddFeeConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
+                }
+            )
+        }
     }
 
     if (showHiddenUsers) {
