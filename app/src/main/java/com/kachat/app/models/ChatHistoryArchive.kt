@@ -38,7 +38,20 @@ data class ChatHistoryArchiveGroup(
     val groupRootEpoch: String?,
     val blindingKey: String?,
     val currentEpoch: Long,
-    val members: List<ChatHistoryArchiveGroupMember>
+    val members: List<ChatHistoryArchiveGroupMember>,
+    // Decrypted message history so it survives even if the indexer has pruned old messages
+    // (older archives omit it). Cross-platform shape shared with desktop/iOS.
+    val messages: List<ChatHistoryArchiveGroupMessage>? = null
+)
+
+data class ChatHistoryArchiveGroupMessage(
+    val msgIdHex: String?,
+    val txId: String?,
+    val senderAddress: String?,
+    val senderIdHex: String?,
+    val content: String,     // decrypted plaintext
+    val blockTime: Long,
+    val isOutgoing: Boolean
 )
 
 data class ChatHistoryArchiveGroupMember(

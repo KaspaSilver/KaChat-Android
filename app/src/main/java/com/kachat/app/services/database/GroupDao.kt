@@ -41,6 +41,10 @@ interface GroupDao {
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     fun getMessages(groupId: String, walletAddress: String): Flow<List<GroupMessageEntity>>
 
+    /** One-shot variant for backup export (no Flow subscription). */
+    @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
+    suspend fun getMessagesOnce(groupId: String, walletAddress: String): List<GroupMessageEntity>
+
     /** Returns the Room-generated row id, or -1 if the insert was ignored as a duplicate (same txId+walletAddress already present) — lets callers detect "was this genuinely new" without a separate existence query. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMessage(message: GroupMessageEntity): Long

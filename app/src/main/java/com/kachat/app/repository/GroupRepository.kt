@@ -7,6 +7,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.kachat.app.models.ChatHistoryArchiveGroup
 import com.kachat.app.models.ChatHistoryArchiveGroupMember
+import com.kachat.app.models.ChatHistoryArchiveGroupMessage
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.GroupEntity
 import com.kachat.app.models.GroupMember
@@ -152,6 +153,16 @@ class GroupRepository @Inject constructor(
     }
 
     private fun decryptEntity(entity: GroupMessageEntity, bag: GroupBag, groupIdBytes: ByteArray): GroupMessage? {
+        // Imported-from-backup rows carry decrypted plaintext (hex of UTF-8) under a negative
+        // epoch sentinel — no group key or ciphertext involved. Preserves message history that
+        // the indexer may have pruned.
+        if (entity.epoch < 0) {
+            val plaintext = try { String(entity.contentEncryptedHex.hexToByteArray(), Charsets.UTF_8) } catch (e: Exception) { return null }
+            return GroupMessage(
+                txId = entity.txId, groupId = entity.groupId, senderAddress = entity.senderAddress, senderIdHex = entity.senderIdHex,
+                content = plaintext, blockTimestamp = entity.blockTimestamp, isOutgoing = entity.isOutgoing, deliveryStatus = entity.deliveryStatus
+            )
+        }
         val root = groupRootEpochFor(entity.epoch, bag, groupIdBytes) ?: return null
         val senderId = try { entity.senderIdHex.hexToByteArray() } catch (e: Exception) { return null }
         val msgId = try { entity.msgIdHex.hexToByteArray() } catch (e: Exception) { return null }
@@ -1013,7 +1024,18 @@ class GroupRepository @Inject constructor(
                 groupRootEpoch = bag.groupRootEpoch,
                 blindingKey = bag.blindingKey,
                 currentEpoch = bag.currentEpoch,
-                members = members.map { ChatHistoryArchiveGroupMember(it.address, it.xOnlyPubKeyHex, it.isAdmin) }
+                members = members.map { ChatHistoryArchiveGroupMember(it.address, it.xOnlyPubKeyHex, it.isAdmin) },
+                messages = run {
+                    val groupIdBytes = try { entity.groupId.hexToByteArray() } catch (e: Exception) { return@run emptyList() }
+                    database.groupDao().getMessagesOnce(entity.groupId, walletAddress).mapNotNull { row ->
+                        val decoded = decryptEntity(row, bag, groupIdBytes) ?: return@mapNotNull null
+                        ChatHistoryArchiveGroupMessage(
+                            msgIdHex = row.msgIdHex.ifEmpty { null }, txId = row.txId.takeUnless { it.startsWith("pending_") },
+                            senderAddress = decoded.senderAddress, senderIdHex = row.senderIdHex.ifEmpty { null },
+                            content = decoded.content, blockTime = decoded.blockTimestamp, isOutgoing = decoded.isOutgoing
+                        )
+                    }
+                }
             )
         }
     }
@@ -1027,6 +1049,8 @@ class GroupRepository @Inject constructor(
         val walletAddress = walletManager.getAddress()
         if (walletAddress.isEmpty()) return
         for (g in groups) {
+            // Never resurrect a group you deleted (tombstoned) — same rule as the on-chain path.
+            if (groupSecretStore.isTombstoned(walletAddress, g.groupId)) continue
             val groupRootEpoch = g.groupRootEpoch ?: continue
             val blindingKey = g.blindingKey ?: continue
             val existingBag = groupSecretStore.loadBag(walletAddress, g.groupId)
@@ -1047,6 +1071,21 @@ class GroupRepository @Inject constructor(
                 lastReadAt = existingEntity?.lastReadAt
             )
             database.groupDao().upsertGroup(entity)
+
+            // Restore decrypted message history as negative-epoch sentinel rows (content hex =
+            // UTF-8 plaintext), deduped by txId via the DAO's IGNORE-on-conflict insert.
+            for (m in g.messages.orEmpty()) {
+                val txId = m.txId?.takeIf { it.isNotEmpty() } ?: ("imported_" + (m.msgIdHex ?: java.util.UUID.randomUUID().toString()))
+                val contentHex = m.content.toByteArray(Charsets.UTF_8).toHexString()
+                database.groupDao().insertMessage(
+                    GroupMessageEntity(
+                        txId = txId, walletAddress = walletAddress, groupId = g.groupId,
+                        senderAddress = m.senderAddress, senderIdHex = m.senderIdHex ?: "", epoch = -1L,
+                        msgIdHex = m.msgIdHex ?: "", contentEncryptedHex = contentHex,
+                        blockTimestamp = m.blockTime, isOutgoing = m.isOutgoing, deliveryStatus = "sent"
+                    )
+                )
+            }
         }
     }
 
