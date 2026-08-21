@@ -225,6 +225,9 @@ class GroupRepository @Inject constructor(
                 // failed member doesn't abort the rest.
             }
         }
+        // Self-addressed recovery copy so a seedless re-import finds this group. Best-effort;
+        // the sync backfill retries if it fails here.
+        try { sendSelfRootControlMessage(entity, roster, bag, privateKey) } catch (e: Exception) {}
 
         return entity
     }
@@ -526,6 +529,24 @@ class GroupRepository @Inject constructor(
         sendControlPayload(json, recipientXOnlyPub, adminPrivateKey)
     }
 
+    /** Self-addressed recovery copy carrying the group seed (ECIES to our own key, so members
+     *  never see it). A seedless re-import rediscovers the group via the by-recipient scan and
+     *  rebuilds it as admin. Marks selfInviteEpoch on the bag. */
+    private suspend fun sendSelfRootControlMessage(entity: GroupEntity, roster: List<GroupMember>, bag: GroupBag, adminPrivateKey: ByteArray) {
+        val walletAddress = walletManager.getAddress()
+        val seedHex = bag.groupSeed ?: return
+        val selfXOnlyPub = xOnlyPubKeyOrNull(walletAddress) ?: return
+        val rootPayload = GroupCipher.buildSignedRootPayload(
+            groupId = entity.groupId.hexToByteArray(), epoch = bag.currentEpoch, groupRootEpoch = bag.groupRootEpoch.hexToByteArray(),
+            blindingKey = bag.blindingKey.hexToByteArray(), adminSigningPub = entity.adminXOnlyPubKeyHex.hexToByteArray(),
+            members = roster.map { it.address }, name = entity.name, adminPrivateKey = adminPrivateKey,
+            groupSeed = seedHex.hexToByteArray()
+        )
+        val json = GroupCipher.rootPayloadToJson(rootPayload)
+        sendControlPayload(json, selfXOnlyPub, adminPrivateKey)
+        groupSecretStore.saveBag(walletAddress, bag.copy(selfInviteEpoch = bag.currentEpoch))
+    }
+
     private suspend fun sendEpochControlMessage(groupIdBytes: ByteArray, epoch: Long, reason: String, recipientAddress: String, adminPrivateKey: ByteArray) {
         val recipientXOnlyPub = xOnlyPubKeyOrNull(recipientAddress) ?: throw IllegalArgumentException("Invalid address")
         val epochPayload = GroupCipher.buildSignedEpochPayload(groupIdBytes, epoch, reason, adminPrivateKey)
@@ -690,7 +711,10 @@ class GroupRepository @Inject constructor(
 
     suspend fun handleIncomingControlMessage(payloadString: String, senderAddress: String, blockTime: Long? = null) {
         val walletAddress = walletManager.getAddress()
-        if (senderAddress == walletAddress) return
+        // Normally ignore our own echoed controls — EXCEPT the self-addressed recovery root
+        // (sender == us, carries group_seed), which is how a seedless import rebuilds an admin
+        // group. A non-recovery self-echo is dropped in completeJoin below.
+        val isSelfSent = senderAddress == walletAddress
         val privateKey = walletManager.getPrivateKeyBytes()
         // Dual-read: strip whichever gctl root the payload carries (new kchat: or legacy).
         val prefix = when {
@@ -705,6 +729,7 @@ class GroupRepository @Inject constructor(
 
         val rootPayload = GroupCipher.rootPayloadFromJson(plaintext)
         if (rootPayload != null && rootPayload.type == "gctl_root" && GroupCipher.verifyRootPayload(rootPayload)) {
+            if (isSelfSent && rootPayload.groupSeed == null) return // our own member-copy echo
             completeJoin(rootPayload, blockTime)
         }
         // gctl_epoch is an advance-notice heads-up only (state updates on gctl_root arrival,
@@ -736,9 +761,24 @@ class GroupRepository @Inject constructor(
         // admin secrets for this group.
         val deviceId = existingBag?.deviceId ?: GroupCipher.generateDeviceId().toHexString()
         val preservedCounter = if (existingBag?.currentEpoch == payload.epoch) existingBag.msgCounter else 0
+        // Admin self-recovery: a self-addressed root carries the group seed. Trust it ONLY if it
+        // re-derives the SIGNED group_id + blinding_key (that binding authenticates the otherwise
+        // unsigned seed). When valid, this is our own group and we hold admin secrets again.
+        var recoveredSeedHex: String? = null
+        val seedHex = payload.groupSeed
+        val myXOnlyPubHex = try { Schnorr.publicKeyXOnly(walletManager.getPrivateKeyBytes()).toHexString() } catch (e: Exception) { null }
+        if (seedHex != null && myXOnlyPubHex != null && payload.adminSigningPub == myXOnlyPubHex) {
+            try {
+                val seed = seedHex.hexToByteArray()
+                val derivedId = GroupCipher.deriveGroupId(seed).toHexString()
+                val derivedBlinding = GroupCipher.deriveBlindingKey(seed, payload.groupId.hexToByteArray()).toHexString()
+                if (derivedId == payload.groupId && derivedBlinding == payload.blindingKey) recoveredSeedHex = seedHex
+            } catch (e: Exception) { recoveredSeedHex = null }
+        }
         val bag = GroupBag(
-            groupId = payload.groupId, groupSeed = existingBag?.groupSeed, groupRootEpoch = payload.groupRootEpoch,
-            blindingKey = payload.blindingKey, currentEpoch = payload.epoch, deviceId = deviceId, msgCounter = preservedCounter
+            groupId = payload.groupId, groupSeed = recoveredSeedHex ?: existingBag?.groupSeed, groupRootEpoch = payload.groupRootEpoch,
+            blindingKey = payload.blindingKey, currentEpoch = payload.epoch, deviceId = deviceId, msgCounter = preservedCounter,
+            selfInviteEpoch = if (recoveredSeedHex != null) payload.epoch else existingBag?.selfInviteEpoch
         )
         groupSecretStore.saveBag(walletAddress, bag)
 
@@ -788,6 +828,21 @@ class GroupRepository @Inject constructor(
         // account yet, and getAddress() would throw IllegalStateException. Bail out the same way
         // as the missing-api guard above rather than crashing the on-foreground catch-up.
         val walletAddress = walletManager.getActiveAccount()?.address ?: return
+
+        // Backfill recovery invites for any admin group lacking one for its current epoch — i.e.
+        // every group created before this feature existed. One-time per group per epoch; once on
+        // chain, a seedless import of this wallet rediscovers the group with no cloud backup.
+        val privateKeyForBackfill = try { walletManager.getPrivateKeyBytes() } catch (e: Exception) { null }
+        if (privateKeyForBackfill != null) {
+            for (group in database.groupDao().getGroupsOnce(walletAddress)) {
+                if (!group.isAdmin) continue
+                val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
+                if (bag.groupSeed == null || bag.selfInviteEpoch == bag.currentEpoch) continue
+                try { sendSelfRootControlMessage(group, membersOf(group), bag, privateKeyForBackfill) } catch (e: Exception) {
+                    Log.w("GroupRepository", "Group self-invite backfill failed for ${group.groupId.take(12)}", e)
+                }
+            }
+        }
 
         syncGroupControlByRecipient(api, walletAddress)
 

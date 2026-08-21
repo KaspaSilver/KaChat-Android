@@ -151,7 +151,12 @@ object GroupCipher {
         @SerializedName("admin_signing_pub") val adminSigningPub: String,
         val members: List<String>,
         val name: String,
-        val sig: String
+        val sig: String,
+        // Present ONLY in the admin's self-addressed recovery copy (Gson omits null fields, so
+        // members' copies never carry it). Not signed; authenticated by re-deriving group_id +
+        // blinding_key from it (see GroupRepository.completeJoin). Lets a seedless re-import
+        // rebuild the group as admin.
+        @SerializedName("group_seed") val groupSeed: String? = null
     )
 
     /** gctl_epoch - admin announces a membership/epoch change ahead of sending a fresh root. */
@@ -174,7 +179,8 @@ object GroupCipher {
         adminSigningPub: ByteArray,
         members: List<String>,
         name: String,
-        adminPrivateKey: ByteArray
+        adminPrivateKey: ByteArray,
+        groupSeed: ByteArray? = null
     ): GroupRootPayload {
         val signingPayload = buildRootSigningPayload(1, groupId, epoch, groupRootEpoch, blindingKey, adminSigningPub)
         val sig = sign(signingPayload, adminPrivateKey)
@@ -186,7 +192,8 @@ object GroupCipher {
             adminSigningPub = adminSigningPub.toHexString(),
             members = members,
             name = name,
-            sig = sig.toHexString()
+            sig = sig.toHexString(),
+            groupSeed = groupSeed?.toHexString()
         )
     }
 

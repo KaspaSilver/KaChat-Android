@@ -20,7 +20,9 @@ data class GroupBag(
     val blindingKey: String,      // hex
     val currentEpoch: Long,
     val deviceId: String,         // hex, 16 bytes
-    val msgCounter: Long          // monotonic per (group_id, epoch, device_id)
+    val msgCounter: Long,         // monotonic per (group_id, epoch, device_id)
+    // Epoch for which this admin has published its self-addressed recovery invite (null = none).
+    val selfInviteEpoch: Long? = null
 )
 
 /**

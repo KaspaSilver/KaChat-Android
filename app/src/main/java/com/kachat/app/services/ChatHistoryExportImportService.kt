@@ -102,11 +102,15 @@ class ChatHistoryExportImportService @Inject constructor(
                 )
             }
 
+        // Groups are no longer backed up: member groups (their on-chain invite) and admin groups
+        // (the self-addressed recovery invite) both rediscover from chain on a seedless import, so
+        // shipping their secret keys to Google Drive/the shared archive is unnecessary. Old
+        // archives carrying a groups array are still imported (below), so nobody loses data.
         return ChatHistoryArchive(
             exportedAt = isoSeconds(System.currentTimeMillis()),
             walletAddress = myAddress,
             conversations = conversations,
-            groups = groupRepository.exportArchiveGroups(),
+            groups = null,
             deletedContactAddresses = deletedIds.sorted().takeIf { it.isNotEmpty() }
         )
     }
