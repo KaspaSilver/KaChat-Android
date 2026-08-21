@@ -352,7 +352,34 @@ class GroupRepository @Inject constructor(
             if (member.address == walletAddress) continue
             try { sendRootControlMessage(entity, roster, bag, member.address, privateKey) } catch (e: Exception) { failures++ }
         }
+        // Also re-push the group photo so anyone who missed it catches up.
+        entity.photoHex?.let { try { distributeGroupPhoto(entity, roster, it, privateKey) } catch (e: Exception) {} }
         if (failures > 0) throw IllegalStateException("$failures invite(s) still could not be sent.")
+    }
+
+    /** Admin: set (photoHex = hex of a compressed JPEG) or clear (photoHex = "") the group photo,
+     *  then push it to every member via a signed gctl_photo control message. */
+    suspend fun setGroupPhoto(groupId: String, photoHex: String) {
+        val walletAddress = walletManager.getAddress()
+        val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        if (!entity.isAdmin) throw IllegalStateException("Only the group admin can change the group photo.")
+        val privateKey = walletManager.getPrivateKeyBytes()
+        database.groupDao().upsertGroup(entity.copy(photoHex = photoHex.ifEmpty { null }))
+        distributeGroupPhoto(entity, membersOf(entity), photoHex, privateKey)
+    }
+
+    /** Send the current group photo to every member (admin). Best-effort per member. */
+    private suspend fun distributeGroupPhoto(entity: GroupEntity, roster: List<GroupMember>, photoHex: String, adminPrivateKey: ByteArray) {
+        val walletAddress = walletManager.getAddress()
+        val payload = GroupCipher.buildSignedPhotoPayload(
+            entity.groupId.hexToByteArray(), photoHex, entity.adminXOnlyPubKeyHex.hexToByteArray(), adminPrivateKey
+        )
+        val json = GroupCipher.photoPayloadToJson(payload)
+        for (member in roster) {
+            if (member.address == walletAddress) continue
+            val recipientXOnlyPub = xOnlyPubKeyOrNull(member.address) ?: continue
+            try { sendControlPayload(json, recipientXOnlyPub, adminPrivateKey) } catch (e: Exception) {}
+        }
     }
 
     /** Re-broadcast the current root to ONE member (admin) - a targeted retry of a single invite. */
@@ -401,6 +428,8 @@ class GroupRepository @Inject constructor(
                 // Best effort, same as createGroup - one member's failed delivery doesn't block the rest.
             }
         }
+        // A newly-added member should also receive the current group photo (root doesn't carry it).
+        updatedEntity.photoHex?.let { try { distributeGroupPhoto(updatedEntity, roster, it, privateKey) } catch (e: Exception) {} }
     }
 
     /**
@@ -821,6 +850,15 @@ class GroupRepository @Inject constructor(
             }
             return
         }
+        // An admin-set group photo — apply ONLY if signed by THIS group's known admin.
+        val photo = GroupCipher.photoPayloadFromJson(plaintext)
+        if (photo != null && photo.type == "gctl_photo") {
+            val entity = database.groupDao().getGroup(photo.groupId, walletAddress) ?: return
+            if (photo.signingPub == entity.adminXOnlyPubKeyHex && GroupCipher.verifyPhotoPayload(photo)) {
+                database.groupDao().upsertGroup(entity.copy(photoHex = photo.photo.ifEmpty { null }))
+            }
+            return
+        }
         val rootPayload = GroupCipher.rootPayloadFromJson(plaintext)
         if (rootPayload != null && rootPayload.type == "gctl_root" && GroupCipher.verifyRootPayload(rootPayload)) {
             if (isSelfSent && rootPayload.groupSeed == null) return // our own member-copy echo
@@ -901,7 +939,9 @@ class GroupRepository @Inject constructor(
         val entity = GroupEntity(
             groupId = payload.groupId, walletAddress = walletAddress, name = payload.name, adminAddress = adminAddress,
             adminXOnlyPubKeyHex = payload.adminSigningPub, currentEpoch = payload.epoch, isAdmin = walletAddress == adminAddress,
-            membersJson = gson.toJson(members)
+            membersJson = gson.toJson(members),
+            // Group photo rides a separate gctl_photo control, not the root - preserve any we hold.
+            photoHex = database.groupDao().getGroup(payload.groupId, walletAddress)?.photoHex
         )
         database.groupDao().upsertGroup(entity)
 
@@ -1101,7 +1141,8 @@ class GroupRepository @Inject constructor(
                             content = decoded.content, blockTime = decoded.blockTimestamp, isOutgoing = decoded.isOutgoing
                         )
                     }
-                }
+                },
+                photo = entity.photoHex
             )
         }
     }
@@ -1134,7 +1175,8 @@ class GroupRepository @Inject constructor(
                 groupId = g.groupId, walletAddress = walletAddress, name = g.name,
                 adminAddress = g.adminAddress ?: "", adminXOnlyPubKeyHex = g.adminSigningPub ?: "",
                 currentEpoch = g.currentEpoch, isAdmin = g.isAdmin, membersJson = gson.toJson(roster),
-                lastReadAt = existingEntity?.lastReadAt
+                lastReadAt = existingEntity?.lastReadAt,
+                photoHex = g.photo ?: existingEntity?.photoHex
             )
             database.groupDao().upsertGroup(entity)
 

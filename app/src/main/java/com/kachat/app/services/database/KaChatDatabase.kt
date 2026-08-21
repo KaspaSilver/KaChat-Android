@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -389,6 +389,13 @@ abstract class KaChatDatabase : RoomDatabase() {
         val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `contacts` ADD COLUMN `backupPhotoBase64` TEXT DEFAULT NULL")
+            }
+        }
+
+        // Admin-set group photo (hex of a compressed JPEG), distributed to members via gctl_photo.
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `groups` ADD COLUMN `photoHex` TEXT DEFAULT NULL")
             }
         }
     }

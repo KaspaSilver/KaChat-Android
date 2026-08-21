@@ -1346,6 +1346,14 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Admin: set (photoHex = compressed-JPEG hex) or clear (photoHex = "") the group photo. */
+    fun setGroupPhoto(groupId: String, photoHex: String, onResult: (String?) -> Unit = {}) {
+        viewModelScope.launch {
+            try { groupRepository.setGroupPhoto(groupId, photoHex); onResult(null) }
+            catch (e: Exception) { onResult(e.message ?: "Failed to update group photo") }
+        }
+    }
+
     /** Re-broadcast the group invite to ONE member (admin) - a targeted retry. */
     fun resendGroupInviteToMember(groupId: String, address: String, onResult: (String) -> Unit = {}) {
         viewModelScope.launch {

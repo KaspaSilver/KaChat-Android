@@ -39,9 +39,12 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import android.graphics.BitmapFactory
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
@@ -104,13 +107,49 @@ import com.kachat.app.util.TextLinkify
 import com.kachat.app.util.VoiceMessage
 import com.kachat.app.viewmodels.ChatViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.kachat.app.util.ImagePrep
 
 // Shared, reused across every parseGroupMembers call. Allocating a fresh Gson + TypeToken per call
 // (the old behaviour) was measurable: parseGroupMembers runs inside chat-list item builders and per
 // message bubble, i.e. on hot recomposition paths - see the memoized call sites.
 private val groupMembersGson = com.google.gson.Gson()
 private val groupMembersType = object : com.google.gson.reflect.TypeToken<List<GroupMember>>() {}.type
+
+/** Decodes an admin-set group photo (hex of a compressed JPEG) into a Bitmap, or null. */
+fun decodeGroupPhotoHex(photoHex: String?): android.graphics.Bitmap? {
+    if (photoHex.isNullOrEmpty()) return null
+    return try {
+        val bytes = ByteArray(photoHex.length / 2) { i ->
+            ((Character.digit(photoHex[i * 2], 16) shl 4) + Character.digit(photoHex[i * 2 + 1], 16)).toByte()
+        }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    } catch (e: Exception) { null }
+}
+
+/** Group avatar: the admin-set photo when present, else the generic Groups glyph. Used in the
+ *  group list, the thread header, and Group Info so a group looks the same everywhere. */
+@Composable
+fun GroupAvatar(photoHex: String?, size: Dp, modifier: Modifier = Modifier) {
+    val bitmap = remember(photoHex) { decodeGroupPhotoHex(photoHex) }
+    Box(
+        modifier = modifier.size(size).clip(CircleShape).background(LocalAppColors.current.surface),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(Icons.Default.Groups, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(size * 0.5f))
+        }
+    }
+}
 
 /** Parses a [com.kachat.app.models.GroupEntity]'s stored roster JSON, or empty on failure - shared by every screen below instead of each re-implementing the same try/catch. */
 fun parseGroupMembers(group: com.kachat.app.models.GroupEntity): List<GroupMember> {
@@ -355,11 +394,15 @@ fun GroupChatThreadScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        group?.name ?: "Group",
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        GroupAvatar(photoHex = group?.photoHex, size = 30.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            group?.name ?: "Group",
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -1429,6 +1472,25 @@ fun GroupChatInfoScreen(
     // Confirm before resending invites to everyone.
     var showResendAllConfirm by remember { mutableStateOf(false) }
     val conversations by chatViewModel.conversations.collectAsState()
+    // Group photo (admin): pick an image, compress it, and push it to every member.
+    val photoContext = LocalContext.current
+    val photoScope = rememberCoroutineScope()
+    var groupPhotoError by remember { mutableStateOf<String?>(null) }
+    val groupPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            photoScope.launch {
+                try {
+                    val hex = withContext(Dispatchers.IO) {
+                        val prepared = ImagePrep.prepareForChatMessage(photoContext, uri, targetBytes = 10 * 1024)
+                        prepared.bytes.joinToString("") { "%02x".format(it) }
+                    }
+                    chatViewModel.setGroupPhoto(groupId, hex) { err -> groupPhotoError = err }
+                } catch (e: Exception) {
+                    groupPhotoError = e.message ?: "Could not set group photo"
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -1457,11 +1519,26 @@ fun GroupChatInfoScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ContactAvatar(
-                    imageUrl = null,
-                    fallbackText = group?.name ?: "Group",
-                    size = 76.dp
-                )
+                val isGroupAdmin = group?.isAdmin == true
+                Box(
+                    modifier = Modifier
+                        .then(if (isGroupAdmin) Modifier.clickable { groupPhotoPicker.launch("image/*") } else Modifier)
+                ) {
+                    GroupAvatar(photoHex = group?.photoHex, size = 88.dp)
+                    if (isGroupAdmin) {
+                        // Edit badge over the bottom-right of the avatar.
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(KaspaTeal),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Change group photo", tint = Color.Black, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = group?.name ?: "Group",
@@ -1474,6 +1551,11 @@ fun GroupChatInfoScreen(
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 12.sp
                 )
+                if (isGroupAdmin && group?.photoHex != null) {
+                    TextButton(onClick = { chatViewModel.setGroupPhoto(groupId, "") { err -> groupPhotoError = err } }) {
+                        Text("Remove photo", color = Color(0xFFFF3B30))
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
             // Members dropdown header — collapsed by default; tap to expand the list.
@@ -1806,6 +1888,16 @@ fun GroupChatInfoScreen(
                     Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
+        )
+    }
+
+    if (groupPhotoError != null) {
+        AlertDialog(
+            onDismissRequest = { groupPhotoError = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Group photo", color = LocalAppColors.current.textPrimary) },
+            text = { Text(groupPhotoError ?: "", color = LocalAppColors.current.textSecondary) },
+            confirmButton = { TextButton(onClick = { groupPhotoError = null }) { Text(stringResource(R.string.ok), color = KaspaTeal) } }
         )
     }
 

@@ -41,7 +41,9 @@ data class ChatHistoryArchiveGroup(
     val members: List<ChatHistoryArchiveGroupMember>,
     // Decrypted message history so it survives even if the indexer has pruned old messages
     // (older archives omit it). Cross-platform shape shared with desktop/iOS.
-    val messages: List<ChatHistoryArchiveGroupMessage>? = null
+    val messages: List<ChatHistoryArchiveGroupMessage>? = null,
+    // Admin-set group photo (hex of a compressed JPEG); null = none. Cross-platform field.
+    val photo: String? = null
 )
 
 data class ChatHistoryArchiveGroupMessage(

@@ -28,7 +28,10 @@ data class GroupEntity(
      * we're not the one who created it). Set via a dedicated UPDATE query (markGroupRead), not
      * upsertGroup's REPLACE - upsertGroup call sites use entity.copy() for existing groups, so
      * this is naturally preserved across roster/epoch updates and naturally null for new groups. */
-    val lastReadAt: Long? = null
+    val lastReadAt: Long? = null,
+    /** Hex of the admin-set group photo (compressed JPEG), distributed to all members via
+     * gctl_photo. Null = no photo. Preserved across roster/epoch updates like lastReadAt. */
+    val photoHex: String? = null
 )
 
 /**

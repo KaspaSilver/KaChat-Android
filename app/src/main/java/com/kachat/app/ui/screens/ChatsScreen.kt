@@ -855,20 +855,7 @@ fun GroupListBody(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                             }
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(LocalAppColors.current.surface),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Groups,
-                                    contentDescription = null,
-                                    tint = KaspaTeal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            GroupAvatar(photoHex = convo.group.photoHex, size = 48.dp)
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(

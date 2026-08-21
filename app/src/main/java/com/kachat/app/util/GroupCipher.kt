@@ -140,6 +140,10 @@ object GroupCipher {
         return byteArrayOf(v.toByte()) + "gctl_tombstone".toByteArray(Charsets.UTF_8) + groupId
     }
 
+    fun buildPhotoSigningPayload(v: Int, groupId: ByteArray, photo: ByteArray): ByteArray {
+        return byteArrayOf(v.toByte()) + "gctl_photo".toByteArray(Charsets.UTF_8) + groupId + photo
+    }
+
     // -------------------------------------------------------------------------
     // Control payloads (sent over the existing 1:1 encrypted COMM channel, JSON)
     // -------------------------------------------------------------------------
@@ -265,6 +269,38 @@ object GroupCipher {
     fun tombstonePayloadToJson(payload: GroupTombstonePayload): String = gson.toJson(payload)
     fun tombstonePayloadFromJson(json: String): GroupTombstonePayload? =
         try { gson.fromJson(json, GroupTombstonePayload::class.java) } catch (e: Exception) { null }
+
+    /** gctl_photo - admin sets the group photo (hex of a compressed JPEG; "" clears it) for all
+     *  members. A separate signed control type, so it never touches the gctl_root signature. */
+    data class GroupPhotoPayload(
+        val type: String = "gctl_photo",
+        val v: Int = 1,
+        @SerializedName("group_id") val groupId: String,
+        val photo: String,
+        @SerializedName("signing_pub") val signingPub: String,
+        val sig: String
+    )
+
+    fun buildSignedPhotoPayload(groupId: ByteArray, photoHex: String, signingPub: ByteArray, privateKey: ByteArray): GroupPhotoPayload {
+        val photoBytes = try { photoHex.hexToByteArray() } catch (e: Exception) { ByteArray(0) }
+        val sig = sign(buildPhotoSigningPayload(1, groupId, photoBytes), privateKey)
+        return GroupPhotoPayload(groupId = groupId.toHexString(), photo = photoHex, signingPub = signingPub.toHexString(), sig = sig.toHexString())
+    }
+
+    // Verifies the signature only. The caller must also check signing_pub is the group's admin.
+    fun verifyPhotoPayload(payload: GroupPhotoPayload): Boolean {
+        return try {
+            val groupId = payload.groupId.hexToByteArray()
+            val photoBytes = try { payload.photo.hexToByteArray() } catch (e: Exception) { ByteArray(0) }
+            val signingPub = payload.signingPub.hexToByteArray()
+            val sig = payload.sig.hexToByteArray()
+            verify(sig, buildPhotoSigningPayload(payload.v, groupId, photoBytes), signingPub)
+        } catch (e: Exception) { false }
+    }
+
+    fun photoPayloadToJson(payload: GroupPhotoPayload): String = gson.toJson(payload)
+    fun photoPayloadFromJson(json: String): GroupPhotoPayload? =
+        try { gson.fromJson(json, GroupPhotoPayload::class.java) } catch (e: Exception) { null }
 
     fun rootPayloadToJson(payload: GroupRootPayload): String = gson.toJson(payload)
     fun rootPayloadFromJson(json: String): GroupRootPayload? =
