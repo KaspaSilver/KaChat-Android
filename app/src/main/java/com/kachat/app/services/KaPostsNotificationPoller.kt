@@ -68,7 +68,8 @@ class KaPostsNotificationPoller @Inject constructor(
             if (domain.isNotEmpty()) domain.removeSuffix(".kas") else fallback
         }
         // Only cache real resolutions — a network miss must not pin the short-address
-        // fallback for the rest of the session.
+        // fallback for the rest of the session. Bounded: clear wholesale past 500 entries.
+        if (actorNameCache.size > 500) actorNameCache.clear()
         if (name != fallback) actorNameCache[address] = name
         return name
     }

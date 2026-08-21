@@ -344,9 +344,15 @@ class KaPostsViewModel @Inject constructor(
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /** Oldest-first cap for the per-address sender maps below — every address ever seen in
+     *  any feed lands in them, and an infinite-scroll session grew them without bound (this
+     *  codebase has been OOM-bitten by exactly this pattern before, see NodePoolManager). */
+    private fun <V> Map<String, V>.cappedForSenders(): Map<String, V> =
+        if (size <= 800) this else entries.drop(size - 600).associate { it.key to it.value }
+
     fun ensureSenderProfileFetched(address: String) {
         if (address.isEmpty() || _senderProfiles.value.containsKey(address)) return
-        _senderProfiles.value = _senderProfiles.value + (address to null)
+        _senderProfiles.value = (_senderProfiles.value + (address to null)).cappedForSenders()
         viewModelScope.launch {
             try {
                 val ownedAssets = knsService.getOwnedDomains(address)
@@ -354,7 +360,7 @@ class KaPostsViewModel @Inject constructor(
                 val ownedNames = ownedAssets.mapNotNull { it.asset }
                 val primary = knsService.reverseResolve(address)
                 val activeName = KnsService.pickActiveDomain(ownedNames, null, primary)
-                _senderKnsNames.value = _senderKnsNames.value + (address to activeName)
+                _senderKnsNames.value = (_senderKnsNames.value + (address to activeName)).cappedForSenders()
                 val activeAsset = ownedAssets.firstOrNull { it.asset == activeName }
                 val checkOrder = listOfNotNull(activeAsset) + ownedAssets.filterNot { it.asset == activeName }
                 for (asset in checkOrder) {
@@ -363,10 +369,10 @@ class KaPostsViewModel @Inject constructor(
                         _senderProfiles.value = _senderProfiles.value + (address to profile.avatarUrl)
                     }
                     if (_senderBanners.value[address] == null && profile.bannerUrl != null) {
-                        _senderBanners.value = _senderBanners.value + (address to profile.bannerUrl)
+                        _senderBanners.value = (_senderBanners.value + (address to profile.bannerUrl)).cappedForSenders()
                     }
                     if (_senderBios.value[address] == null && !profile.bio.isNullOrBlank()) {
-                        _senderBios.value = _senderBios.value + (address to profile.bio)
+                        _senderBios.value = (_senderBios.value + (address to profile.bio)).cappedForSenders()
                     }
                     if (_senderProfiles.value[address] != null && _senderBanners.value[address] != null) break
                 }
