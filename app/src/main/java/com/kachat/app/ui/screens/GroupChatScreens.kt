@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
@@ -88,8 +90,10 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.kachat.app.models.GroupMember
+import androidx.compose.ui.text.style.TextAlign
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.repository.GroupMessage
+import com.kachat.app.repository.isSystemMessage
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.ChatTimeFormat
@@ -680,6 +684,18 @@ fun GroupChatThreadScreen(
                             }
                         }
                     }
+                    if (message.isSystemMessage()) {
+                        // iMessage-style membership line — centered, no bubble/avatar.
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                message.content,
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
+                    } else
                     Box {
                         GroupMessageBubble(
                             message = message,
@@ -1400,6 +1416,11 @@ fun GroupChatInfoScreen(
     var renameError by remember { mutableStateOf<String?>(null) }
     var resendMessage by remember { mutableStateOf<String?>(null) }
     var showAddMembers by remember { mutableStateOf(false) }
+    // Per-member confirmations (match iOS/desktop): resend one invite, or remove one member.
+    var memberToResend by remember { mutableStateOf<com.kachat.app.models.GroupMember?>(null) }
+    var memberToRemove by remember { mutableStateOf<com.kachat.app.models.GroupMember?>(null) }
+    // Members list is a collapsed-by-default dropdown, not an always-open list.
+    var membersExpanded by remember { mutableStateOf(false) }
     val conversations by chatViewModel.conversations.collectAsState()
 
     Scaffold(
@@ -1420,69 +1441,98 @@ fun GroupChatInfoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Members (${members.size})",
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Column(
+            // Members dropdown header — collapsed by default; tap to expand the list.
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { membersExpanded = !membersExpanded }
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                members.forEachIndexed { index, member ->
-                    val memberLabel = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
-                        ?: member.displayName?.takeIf { it.isNotBlank() }
-                        ?: member.address.takeLast(10)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { navController.navigate("chat_info/${member.address}?fromBroadcast=true") }
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ContactAvatar(
-                                imageUrl = contactAvatarsByAddress[member.address],
-                                deviceContactPhotoUri = contactPhotoUrisByAddress[member.address],
-                                fallbackText = memberLabel,
-                                size = 32.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = memberLabel, color = LocalAppColors.current.textPrimary)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (member.isAdmin) {
-                                Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                Text(
+                    text = "Members (${members.size})",
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Icon(
+                    imageVector = if (membersExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (membersExpanded) "Collapse members" else "Expand members",
+                    tint = LocalAppColors.current.textSecondary
+                )
+            }
+            if (membersExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(LocalAppColors.current.surface)
+                ) {
+                    members.forEachIndexed { index, member ->
+                        val memberLabel = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
+                            ?: member.displayName?.takeIf { it.isNotBlank() }
+                            ?: member.address.takeLast(10)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { navController.navigate("chat_info/${member.address}?fromBroadcast=true") }
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                ContactAvatar(
+                                    imageUrl = contactAvatarsByAddress[member.address],
+                                    deviceContactPhotoUri = contactPhotoUrisByAddress[member.address],
+                                    fallbackText = memberLabel,
+                                    size = 32.dp
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(text = memberLabel, color = LocalAppColors.current.textPrimary, maxLines = 1)
                             }
-                            // Admins can re-send this one member's invite (targeted retry for a member who never received it)
-                            if (group?.isAdmin == true && !member.isAdmin) {
-                                Spacer(Modifier.width(8.dp))
-                                IconButton(
-                                    onClick = {
-                                        chatViewModel.resendGroupInviteToMember(groupId, member.address) { msg -> resendMessage = msg }
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.Send,
-                                        contentDescription = "Resend invite",
-                                        tint = KaspaTeal,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (member.isAdmin) {
+                                    Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                                }
+                                // Admins can re-send one member's invite (targeted retry) — confirmed first.
+                                if (group?.isAdmin == true && !member.isAdmin) {
+                                    Spacer(Modifier.width(4.dp))
+                                    IconButton(
+                                        onClick = { memberToResend = member },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.Send,
+                                            contentDescription = "Resend invite",
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    // Remove this member from the group — confirmed first.
+                                    IconButton(
+                                        onClick = { memberToRemove = member },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Remove from group",
+                                            tint = Color(0xFFFF3B30),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                    if (index < members.size - 1) {
-                        HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.3f))
+                        if (index < members.size - 1) {
+                            HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.3f))
+                        }
                     }
                 }
             }
@@ -1669,6 +1719,62 @@ fun GroupChatInfoScreen(
             confirmButton = {
                 TextButton(onClick = { resendMessage = null }) {
                     Text(stringResource(R.string.ok), color = KaspaTeal)
+                }
+            }
+        )
+    }
+
+    // Confirm resending one member's invite (Cancel / Send).
+    memberToResend?.let { member ->
+        val label = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
+            ?: member.displayName?.takeIf { it.isNotBlank() }
+            ?: member.address.takeLast(10)
+        AlertDialog(
+            onDismissRequest = { memberToResend = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Resend invite", color = LocalAppColors.current.textPrimary) },
+            text = { Text("Resend the group invite to $label?", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val addr = member.address
+                    memberToResend = null
+                    chatViewModel.resendGroupInviteToMember(groupId, addr) { msg -> resendMessage = msg }
+                }) {
+                    Text("Send", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberToResend = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+
+    // Confirm removing one member from the group (Cancel / Yes).
+    memberToRemove?.let { member ->
+        val label = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
+            ?: member.displayName?.takeIf { it.isNotBlank() }
+            ?: member.address.takeLast(10)
+        AlertDialog(
+            onDismissRequest = { memberToRemove = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Remove member", color = LocalAppColors.current.textPrimary) },
+            text = { Text("Remove $label from the group chat? A fresh group key is issued to everyone who stays.", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val m = member
+                    memberToRemove = null
+                    chatViewModel.removeGroupMember(m, groupId) { ok, err ->
+                        if (!ok) resendMessage = err ?: "Could not remove member. Please try again."
+                    }
+                }) {
+                    Text("Yes", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { memberToRemove = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
         )

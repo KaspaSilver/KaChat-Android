@@ -56,6 +56,12 @@ data class GroupMessage(
     val deliveryStatus: String
 )
 
+/** Reserved sender marker for iMessage-style membership system lines ("X was added/removed").
+ *  Stored as a negative-epoch plaintext row; the group thread renders these centered, not as bubbles. */
+const val GROUP_SYSTEM_SENDER = "system"
+
+fun GroupMessage.isSystemMessage(): Boolean = senderAddress == GROUP_SYSTEM_SENDER
+
 /** In-memory model for the Group Chats tab's list - mirrors [com.kachat.app.models.Conversation]'s shape for 1:1 chats. */
 data class GroupConversation(
     val group: GroupEntity,
@@ -132,6 +138,45 @@ class GroupRepository @Inject constructor(
 
     fun membersOf(group: GroupEntity): List<GroupMember> =
         try { gson.fromJson<List<GroupMember>>(group.membersJson, membersListType) ?: emptyList() } catch (e: Exception) { emptyList() }
+
+    /** Best display name for a membership system line: live contact alias → roster snapshot name → short address. */
+    private suspend fun groupMemberLabel(address: String, walletAddress: String, fallbackDisplayName: String?): String {
+        val alias = try { database.contactDao().getContact(address, walletAddress)?.alias?.trim() } catch (e: Exception) { null }
+        if (!alias.isNullOrEmpty()) return alias
+        val snap = fallbackDisplayName?.trim()
+        if (!snap.isNullOrEmpty()) return snap
+        return address.takeLast(10)
+    }
+
+    /** Insert an iMessage-style membership line into the group thread, stored as a negative-epoch
+     *  plaintext row keyed on the reserved [GROUP_SYSTEM_SENDER] so the UI renders it centered. */
+    private suspend fun insertGroupSystemMessage(groupId: String, walletAddress: String, text: String, blockTime: Long) {
+        val txId = "sys_${groupId.take(8)}_${blockTime}_${text.hashCode()}"
+        database.groupDao().insertMessage(
+            GroupMessageEntity(
+                txId = txId, walletAddress = walletAddress, groupId = groupId,
+                senderAddress = GROUP_SYSTEM_SENDER, senderIdHex = "", epoch = -1L,
+                msgIdHex = "", contentEncryptedHex = text.toByteArray(Charsets.UTF_8).toHexString(),
+                blockTimestamp = blockTime, isOutgoing = false, deliveryStatus = "sent"
+            )
+        )
+    }
+
+    /** Emit "X was added" / "Y was removed" lines for a roster change (old → new), for both the
+     *  admin who made the change and any member who receives the rotated root. */
+    private suspend fun emitMembershipSystemMessages(
+        groupId: String, walletAddress: String, oldMembers: List<GroupMember>, newMembers: List<GroupMember>, blockTime: Long
+    ) {
+        val oldAddrs = oldMembers.map { it.address }.toSet()
+        val newAddrs = newMembers.map { it.address }.toSet()
+        var t = blockTime
+        for (m in newMembers) if (m.address !in oldAddrs) {
+            insertGroupSystemMessage(groupId, walletAddress, "${groupMemberLabel(m.address, walletAddress, m.displayName)} was added to the group chat", t++)
+        }
+        for (m in oldMembers) if (m.address !in newAddrs) {
+            insertGroupSystemMessage(groupId, walletAddress, "${groupMemberLabel(m.address, walletAddress, m.displayName)} was removed from the group chat", t++)
+        }
+    }
 
     /** Decrypted messages for a group, oldest first - decryption happens here, on read, from stored ciphertext. */
     fun getMessages(groupId: String): Flow<List<GroupMessage>> {
@@ -331,7 +376,8 @@ class GroupRepository @Inject constructor(
         val groupIdBytes = groupId.hexToByteArray()
         val privateKey = walletManager.getPrivateKeyBytes()
 
-        val roster = membersOf(entity).toMutableList()
+        val previousRoster = membersOf(entity)
+        val roster = previousRoster.toMutableList()
         mutateRoster(roster)
 
         val newEpoch = bag.currentEpoch + 1
@@ -341,6 +387,10 @@ class GroupRepository @Inject constructor(
 
         val updatedEntity = entity.copy(currentEpoch = newEpoch, membersJson = gson.toJson(roster))
         database.groupDao().upsertGroup(updatedEntity)
+
+        // iMessage-style membership lines for the admin who made the change (other members get
+        // theirs when they receive the rotated root — see completeJoin).
+        emitMembershipSystemMessages(groupId, walletAddress, previousRoster, roster, System.currentTimeMillis())
 
         for (member in roster) {
             if (member.address == walletAddress) continue
@@ -839,12 +889,25 @@ class GroupRepository @Inject constructor(
             members.firstOrNull { it.isAdmin }?.address ?: ""
         }
 
+        // Membership diff for iMessage-style system lines: capture the roster we held BEFORE this
+        // root updates it, so a receiving member sees "X was added"/"Y was removed" when the admin
+        // rotates the key. Skipped on a first-time join and on backfill (no false "added" storm for
+        // the members who were already there when we joined).
+        val previousRosterForDiff: List<GroupMember>? =
+            if (!isFirstTimeJoin && !isBackfill(blockTime))
+                database.groupDao().getGroup(payload.groupId, walletAddress)?.let(::membersOf)
+            else null
+
         val entity = GroupEntity(
             groupId = payload.groupId, walletAddress = walletAddress, name = payload.name, adminAddress = adminAddress,
             adminXOnlyPubKeyHex = payload.adminSigningPub, currentEpoch = payload.epoch, isAdmin = walletAddress == adminAddress,
             membersJson = gson.toJson(members)
         )
         database.groupDao().upsertGroup(entity)
+
+        previousRosterForDiff?.let { prev ->
+            emitMembershipSystemMessages(payload.groupId, walletAddress, prev, members, blockTime ?: System.currentTimeMillis())
+        }
 
         if (isFirstTimeJoin && !isBackfill(blockTime)) {
             notificationHelper.showGroup(payload.groupId, "", "You were added to \"${payload.name}\"")
@@ -1029,6 +1092,9 @@ class GroupRepository @Inject constructor(
                     val groupIdBytes = try { entity.groupId.hexToByteArray() } catch (e: Exception) { return@run emptyList() }
                     database.groupDao().getMessagesOnce(entity.groupId, walletAddress).mapNotNull { row ->
                         val decoded = decryptEntity(row, bag, groupIdBytes) ?: return@mapNotNull null
+                        // Membership system lines are re-derived from roster changes on each device —
+                        // don't ship them in the backup (they'd re-appear out of context on restore).
+                        if (decoded.isSystemMessage()) return@mapNotNull null
                         ChatHistoryArchiveGroupMessage(
                             msgIdHex = row.msgIdHex.ifEmpty { null }, txId = row.txId.takeUnless { it.startsWith("pending_") },
                             senderAddress = decoded.senderAddress, senderIdHex = row.senderIdHex.ifEmpty { null },
