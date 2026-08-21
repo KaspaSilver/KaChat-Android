@@ -100,7 +100,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -194,8 +197,12 @@ private val KaPostsOverlayInsets: WindowInsets
 @Composable
 private fun ForceFullScreenDialogWindow() {
     val view = LocalView.current
-    SideEffect {
-        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+    // LaunchedEffect, NOT SideEffect: these window attributes only need setting once per
+    // dialog. As a SideEffect this re-ran after EVERY recomposition — in the composer
+    // dialogs that meant a WindowManager relayout + soft-input re-assert per keystroke,
+    // which is real typing lag under an attached IME.
+    LaunchedEffect(Unit) {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@LaunchedEffect
         window.setLayout(
             android.view.WindowManager.LayoutParams.MATCH_PARENT,
             android.view.WindowManager.LayoutParams.MATCH_PARENT,
@@ -541,6 +548,12 @@ fun KaPostsScreen(
                         EndlessScroll(listState = feedListStates[page], key = tab) {
                             viewModel.loadMoreFeed(tab)
                         }
+                        // Collected ONCE per tab, not per visible row: these were previously
+                        // collected inside each LazyColumn item, so every thread-root probe
+                        // result recomposed every visible row — scroll stutter that got worse
+                        // the faster you flicked.
+                        val threadRootFlags by viewModel.threadRootFlags.collectAsState()
+                        val localThreadRoots by viewModel.localThreadRoots.collectAsState()
                         LazyColumn(
                             // Hoisted per tab so each feed keeps its own scroll position when you
                             // swipe away and back (the pager disposes off-screen pages).
@@ -567,8 +580,6 @@ fun KaPostsScreen(
                                 )
                                 // X-style "View thread" under a thread root - opens the detail,
                                 // where the full continuation renders as a connected section.
-                                val threadRootFlags by viewModel.threadRootFlags.collectAsState()
-                                val localThreadRoots by viewModel.localThreadRoots.collectAsState()
                                 if (post.id in localThreadRoots ||
                                     (post.remoteId != null && threadRootFlags[post.remoteId] == true)
                                 ) {
@@ -1437,7 +1448,7 @@ fun KaPostComposerDialog(
     LaunchedEffect(Unit) { viewModel?.prefetchMentionCandidates() }
     // The @token being typed at the END of the text ("" right after "@"), or null.
     val mentionQuery = remember(text) {
-        Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]*)$", RegexOption.IGNORE_CASE)
+        MENTION_QUERY_REGEX
             .find(text)?.groupValues?.get(2)?.lowercase()
     }
     // Anyone-with-a-KNS-domain mentions: debounce-resolve the typed query live.
@@ -1596,7 +1607,7 @@ fun KaPostComposerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    text = text.replace(Regex("@[a-z0-9-]*$", RegexOption.IGNORE_CASE), "@$domain ")
+                                    text = text.replace(MENTION_REPLACE_REGEX, "@$domain ")
                                 }
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                         ) {
@@ -1771,6 +1782,14 @@ fun KaPostThreadOverlay(
     var replyText by remember(postId) { mutableStateOf("") }
     /** Which post in this thread the composer targets; null = the thread root. */
     var replyTargetId by remember(postId) { mutableStateOf<String?>(null) }
+    // Tapping a comment's reply bubble retargets the composer AND raises the keyboard in the
+    // same gesture — before this, the user had to land a second tap on the field itself.
+    val replyFieldFocus = remember { FocusRequester() }
+    LaunchedEffect(replyTargetId) {
+        if (replyTargetId != null) {
+            runCatching { replyFieldFocus.requestFocus() }
+        }
+    }
     // Zero-balance funding gate — tapping the reply composer while the chatting balance is a
     // confirmed 0 KAS opens the shared funding card instead of the reply field/keyboard.
     val fundingGate = rememberZeroBalanceFundingGate()
@@ -1778,14 +1797,16 @@ fun KaPostThreadOverlay(
     var expandedIds by remember(postId) { mutableStateOf(setOf<String>()) }
     val muted by viewModel.muted.collectAsState()
     val blocked by viewModel.blocked.collectAsState()
-    val hidden = muted + blocked
+    val hidden = remember(muted, blocked) { muted + blocked }
     // The author's own continuation renders as a connected Thread section under the root;
     // its segments are excluded from the comment list (segment 2 IS a direct reply).
     val threadChains by viewModel.threadChains.collectAsState()
     val threadChain = threadChains[post.id].orEmpty()
     val chainRemoteIds = remember(threadChain) { threadChain.mapNotNull { it.remoteId }.toSet() }
-    val visibleComments = post.comments.filter {
-        it.posterAddress !in hidden && (it.remoteId == null || it.remoteId !in chainRemoteIds)
+    val visibleComments = remember(post, hidden, chainRemoteIds) {
+        post.comments.filter {
+            it.posterAddress !in hidden && (it.remoteId == null || it.remoteId !in chainRemoteIds)
+        }
     }
     // Falls back to the root whenever the targeted comment is gone (a refresh replaced it).
     val replyTarget = remember(replyTargetId, post) {
@@ -1818,17 +1839,15 @@ fun KaPostThreadOverlay(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background)
-            // Opaque AND gesture-claiming: the feed pager and the post cells behind this overlay
-            // must never see a touch that landed on the thread. Children are dispatched first in
-            // the Main pass, so the list, buttons and the text field keep working normally; this
-            // only swallows whatever they left unclaimed - notably horizontal drags, which the
-            // pager would otherwise read as a tab swipe.
+            // Claim ONLY horizontal drags (which the ancestor feed pager would otherwise read
+            // as a tab swipe). The previous blanket every-unconsumed-change consumer here also
+            // ate MOVE events — and a descendant TextField's tap detector cancels the moment it
+            // sees a consumed change mid-gesture, so any tap on the reply box with a pixel of
+            // finger drift silently did nothing (the "tap several times before I can type" bug).
+            // Taps never fall through: sibling content behind this opaque overlay loses the
+            // hit test, and the pager ignores taps.
             .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent().changes.forEach { if (!it.isConsumed) it.consume() }
-                    }
-                }
+                detectHorizontalDragGestures { _, _ -> }
             },
     ) {
         // Header (wrap) / thread (weight 1f, the only scrolling region) / composer (wrap, pinned
@@ -2010,7 +2029,7 @@ fun KaPostThreadOverlay(
                     // keyboard can never hide it.
                     LaunchedEffect(Unit) { viewModel.prefetchMentionCandidates() }
                     val replyMentionQuery = remember(replyText) {
-                        Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]*)$", RegexOption.IGNORE_CASE)
+                        MENTION_QUERY_REGEX
                             .find(replyText)?.groupValues?.get(2)?.lowercase()
                     }
                     var replyResolvedAnyDomain by remember { mutableStateOf<String?>(null) }
@@ -2052,7 +2071,7 @@ fun KaPostThreadOverlay(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            replyText = replyText.replace(Regex("@[a-z0-9-]*$", RegexOption.IGNORE_CASE), "@$domain ")
+                                            replyText = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
                                         }
                                         .padding(horizontal = 12.dp, vertical = 9.dp),
                                 ) {
@@ -2079,6 +2098,7 @@ fun KaPostThreadOverlay(
                             cursorBrush = SolidColor(KaspaTeal),
                             modifier = Modifier
                                 .weight(1f)
+                                .focusRequester(replyFieldFocus)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(colors.surface)
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -2790,6 +2810,10 @@ fun KaPostTipDialog(
         },
     )
 }
+
+/** @mention machinery, hoisted: these were compiled per keystroke inside remember blocks. */
+private val MENTION_QUERY_REGEX = Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]*)$", RegexOption.IGNORE_CASE)
+private val MENTION_REPLACE_REGEX = Regex("@[a-z0-9-]*$", RegexOption.IGNORE_CASE)
 
 /** Annotation tag carried by @mention ranges - ClickableText resolves it to a profile. */
 const val MENTION_ANNOTATION_TAG = "mention"
