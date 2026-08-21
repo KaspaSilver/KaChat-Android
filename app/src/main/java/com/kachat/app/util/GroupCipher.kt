@@ -136,6 +136,10 @@ object GroupCipher {
         return byteArrayOf(v.toByte()) + "gctl_epoch".toByteArray(Charsets.UTF_8) + groupId + leBytes(epoch) + reason.toByteArray(Charsets.UTF_8)
     }
 
+    fun buildTombstoneSigningPayload(v: Int, groupId: ByteArray): ByteArray {
+        return byteArrayOf(v.toByte()) + "gctl_tombstone".toByteArray(Charsets.UTF_8) + groupId
+    }
+
     // -------------------------------------------------------------------------
     // Control payloads (sent over the existing 1:1 encrypted COMM channel, JSON)
     // -------------------------------------------------------------------------
@@ -232,6 +236,35 @@ object GroupCipher {
             false
         }
     }
+
+    /** gctl_tombstone - a self-addressed "I deleted this group" marker so a delete survives a
+     *  seedless re-import (the recovery invite would otherwise resurrect it). Signed by the
+     *  deleter, honored ONLY when signed by + addressed to the reader's own key. */
+    data class GroupTombstonePayload(
+        val type: String = "gctl_tombstone",
+        val v: Int = 1,
+        @SerializedName("group_id") val groupId: String,
+        @SerializedName("signing_pub") val signingPub: String,
+        val sig: String
+    )
+
+    fun buildSignedTombstonePayload(groupId: ByteArray, signingPub: ByteArray, privateKey: ByteArray): GroupTombstonePayload {
+        val sig = sign(buildTombstoneSigningPayload(1, groupId), privateKey)
+        return GroupTombstonePayload(groupId = groupId.toHexString(), signingPub = signingPub.toHexString(), sig = sig.toHexString())
+    }
+
+    fun verifyTombstonePayload(payload: GroupTombstonePayload): Boolean {
+        return try {
+            val groupId = payload.groupId.hexToByteArray()
+            val signingPub = payload.signingPub.hexToByteArray()
+            val sig = payload.sig.hexToByteArray()
+            verify(sig, buildTombstoneSigningPayload(payload.v, groupId), signingPub)
+        } catch (e: Exception) { false }
+    }
+
+    fun tombstonePayloadToJson(payload: GroupTombstonePayload): String = gson.toJson(payload)
+    fun tombstonePayloadFromJson(json: String): GroupTombstonePayload? =
+        try { gson.fromJson(json, GroupTombstonePayload::class.java) } catch (e: Exception) { null }
 
     fun rootPayloadToJson(payload: GroupRootPayload): String = gson.toJson(payload)
     fun rootPayloadFromJson(json: String): GroupRootPayload? =

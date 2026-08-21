@@ -355,6 +355,25 @@ class GroupRepository @Inject constructor(
         database.groupDao().deleteMessagesForGroup(groupId, walletAddress)
         database.reactionDao().deleteAllForGroup(groupId, walletAddress)
         database.groupDao().deleteGroup(groupId, walletAddress)
+        // Tombstone it so discovery/recovery never re-adds it, and publish an on-chain delete
+        // marker (best-effort; the sync backfill retries) so the delete survives a seedless
+        // re-import too. Local intent is recorded now; the chain write is best-effort.
+        groupSecretStore.recordTombstone(walletAddress, groupId, published = false)
+        try { publishGroupTombstone(walletAddress, groupId) } catch (e: Exception) {
+            Log.w("GroupRepository", "Group tombstone publish failed for ${groupId.take(12)}", e)
+        }
+    }
+
+    /** Self-addressed, self-signed delete marker — only our key can produce one, only our key
+     *  can read it (see the signing_pub == self + verify check in handleIncomingControlMessage). */
+    private suspend fun publishGroupTombstone(walletAddress: String, groupId: String) {
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val signingPub = Schnorr.publicKeyXOnly(privateKey)
+        val selfXOnlyPub = xOnlyPubKeyOrNull(walletAddress) ?: return
+        val payload = GroupCipher.buildSignedTombstonePayload(groupId.hexToByteArray(), signingPub, privateKey)
+        val json = GroupCipher.tombstonePayloadToJson(payload)
+        sendControlPayload(json, selfXOnlyPub, privateKey)
+        groupSecretStore.markTombstonePublished(walletAddress, groupId)
     }
 
     /** Deletes individual messages from this device only - local-only, never on-chain (other
@@ -727,6 +746,20 @@ class GroupRepository @Inject constructor(
         val encrypted = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes) ?: return
         val plaintext = try { KasiaCipher.decrypt(encrypted, privateKey) } catch (e: Exception) { return }
 
+        // A self-addressed delete marker — honor ONLY our own (signed by + addressed to us).
+        val tomb = GroupCipher.tombstonePayloadFromJson(plaintext)
+        if (tomb != null && tomb.type == "gctl_tombstone") {
+            val myPub = try { Schnorr.publicKeyXOnly(privateKey).toHexString() } catch (e: Exception) { null }
+            if (tomb.signingPub == myPub && GroupCipher.verifyTombstonePayload(tomb)) {
+                groupSecretStore.recordTombstone(walletAddress, tomb.groupId, published = true)
+                // Remove locally WITHOUT re-publishing (record already done above).
+                groupSecretStore.deleteBag(walletAddress, tomb.groupId)
+                database.groupDao().deleteMessagesForGroup(tomb.groupId, walletAddress)
+                database.reactionDao().deleteAllForGroup(tomb.groupId, walletAddress)
+                database.groupDao().deleteGroup(tomb.groupId, walletAddress)
+            }
+            return
+        }
         val rootPayload = GroupCipher.rootPayloadFromJson(plaintext)
         if (rootPayload != null && rootPayload.type == "gctl_root" && GroupCipher.verifyRootPayload(rootPayload)) {
             if (isSelfSent && rootPayload.groupSeed == null) return // our own member-copy echo
@@ -747,6 +780,9 @@ class GroupRepository @Inject constructor(
     /** Applies a verified gctl_root payload: creates or updates the local group secrets + roster. Refuses to downgrade to an older epoch than what's already stored (replay protection). */
     private suspend fun completeJoin(payload: GroupCipher.GroupRootPayload, blockTime: Long? = null) {
         val walletAddress = walletManager.getAddress()
+        // A tombstoned group must never be re-added — this makes a delete survive a seedless
+        // re-import against the recovery invite.
+        if (groupSecretStore.isTombstoned(walletAddress, payload.groupId)) return
         val existingBag = groupSecretStore.loadBag(walletAddress, payload.groupId)
         if (existingBag != null && existingBag.currentEpoch > payload.epoch) return
         val isFirstTimeJoin = existingBag == null
@@ -841,6 +877,14 @@ class GroupRepository @Inject constructor(
                 try { sendSelfRootControlMessage(group, membersOf(group), bag, privateKeyForBackfill) } catch (e: Exception) {
                     Log.w("GroupRepository", "Group self-invite backfill failed for ${group.groupId.take(12)}", e)
                 }
+            }
+        }
+        // Backfill delete markers for groups deleted while offline (or whose publish failed).
+        val tombState = groupSecretStore.loadTombstones(walletAddress)
+        for (groupId in tombState.deleted) {
+            if (groupId in tombState.published) continue
+            try { publishGroupTombstone(walletAddress, groupId) } catch (e: Exception) {
+                Log.w("GroupRepository", "Group tombstone backfill failed for ${groupId.take(12)}", e)
             }
         }
 

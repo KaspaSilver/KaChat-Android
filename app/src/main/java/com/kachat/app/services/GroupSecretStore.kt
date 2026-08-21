@@ -70,4 +70,27 @@ class GroupSecretStore @Inject constructor(
         val prefix = "bag_${walletAddress}_"
         return sharedPrefs.all.keys.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }
     }
+
+    // --- deletion tombstones: which groups this wallet deleted, and which delete markers are
+    // already on chain (so a delete survives a seedless re-import). ---
+    data class TombstoneState(val deleted: List<String> = emptyList(), val published: List<String> = emptyList())
+    private fun tombstoneKey(walletAddress: String) = "tombstones_$walletAddress"
+    fun loadTombstones(walletAddress: String): TombstoneState {
+        val json = sharedPrefs.getString(tombstoneKey(walletAddress), null) ?: return TombstoneState()
+        return try { gson.fromJson(json, TombstoneState::class.java) } catch (e: Exception) { TombstoneState() }
+    }
+    private fun saveTombstones(walletAddress: String, state: TombstoneState) {
+        sharedPrefs.edit().putString(tombstoneKey(walletAddress), gson.toJson(state)).apply()
+    }
+    fun isTombstoned(walletAddress: String, groupId: String) = loadTombstones(walletAddress).deleted.contains(groupId)
+    fun recordTombstone(walletAddress: String, groupId: String, published: Boolean) {
+        val s = loadTombstones(walletAddress)
+        val deleted = if (groupId in s.deleted) s.deleted else s.deleted + groupId
+        val pub = if (published && groupId !in s.published) s.published + groupId else s.published
+        saveTombstones(walletAddress, TombstoneState(deleted, pub))
+    }
+    fun markTombstonePublished(walletAddress: String, groupId: String) {
+        val s = loadTombstones(walletAddress)
+        if (groupId !in s.published) saveTombstones(walletAddress, TombstoneState(s.deleted, s.published + groupId))
+    }
 }
