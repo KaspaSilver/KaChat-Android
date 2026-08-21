@@ -1121,6 +1121,7 @@ private fun GroupMessageBubble(
                 }
             }
 
+            Box {
             when {
                 voiceContent != null -> AudioBubble(voiceContent = voiceContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { showQuickReactionBar = true })
                 imageContent != null -> ImageBubble(imageContent = imageContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { showQuickReactionBar = true }, senderDisplayName = senderName)
@@ -1181,6 +1182,18 @@ private fun GroupMessageBubble(
                             LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
                         }
                     }
+                }
+            }
+                // Reaction pill anchored to the bubble's inner-bottom corner (overlaps ~10dp),
+                // exactly like 1:1 chat - not floated off to the side of the row.
+                if (reactions.isNotEmpty()) {
+                    ReactionPill(
+                        reactions = reactions,
+                        myAddress = myAddress,
+                        modifier = Modifier
+                            .align(if (isSent) Alignment.BottomStart else Alignment.BottomEnd)
+                            .offset(y = 10.dp)
+                    )
                 }
             }
 
@@ -1256,18 +1269,10 @@ private fun GroupMessageBubble(
                 )
             }
 
+            // The pill (anchored to the bubble's inner-bottom corner above) is offset ~10dp down,
+            // and offset reserves no layout space, so reserve it here - otherwise it overlaps the
+            // content/next message below it. Matches 1:1 chat (Screens.kt).
             if (reactions.isNotEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    ReactionPill(
-                        reactions = reactions,
-                        myAddress = myAddress,
-                        modifier = Modifier
-                            .align(if (isSent) Alignment.CenterStart else Alignment.CenterEnd)
-                            .offset(y = 10.dp)
-                    )
-                }
-                // The pill is offset ~10dp down (offset reserves no layout space), so reserve it
-                // here - otherwise the pill overlaps the content/next message below it.
                 Spacer(modifier = Modifier.height(14.dp))
             }
 
