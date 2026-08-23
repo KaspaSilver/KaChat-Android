@@ -168,8 +168,16 @@ class WalletViewModel @Inject constructor(
 
     fun loadManageAddresses() {
         viewModelScope.launch {
-            _manageAddressesLoading.value = true
-            _manageAddresses.value = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
+            // Instant paint from the persisted snapshot of the last full load (balances may be
+            // a refresh stale — the live load below replaces them). Only seeds when the screen
+            // has nothing yet, so a live list never regresses to older data.
+            if (_manageAddresses.value.isEmpty()) {
+                val cached = try { walletService.cachedSpendingAddressList() } catch (e: Exception) { emptyList() }
+                if (cached.isNotEmpty()) _manageAddresses.value = cached
+            }
+            _manageAddressesLoading.value = _manageAddresses.value.isEmpty()
+            val live = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
+            if (live.isNotEmpty() || _manageAddresses.value.isEmpty()) _manageAddresses.value = live
             _manageAddressesLoading.value = false
             // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
             refreshDomainOwningAddresses(_manageAddresses.value.map { it.address })

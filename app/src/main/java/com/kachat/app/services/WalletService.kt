@@ -2,6 +2,7 @@ package com.kachat.app.services
 
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.HandshakePayload
 import com.kachat.app.models.MessageEntity
@@ -37,6 +38,8 @@ class WalletService @Inject constructor(
     private val knsService: KnsService,
     private val knsInscriptionEngine: KnsInscriptionEngine
 ) {
+    private val gson = Gson()
+
     private val _balance = MutableStateFlow(0L)
     val balance: StateFlow<Long> = _balance.asStateFlow()
 
@@ -152,12 +155,22 @@ class WalletService @Inject constructor(
         // Each address's balance+history is an independent network round-trip — fetching them
         // concurrently instead of one-by-one is what keeps this fast enough to feel live as the
         // list grows past a couple of generated addresses.
-        return coroutineScope {
+        val entries = coroutineScope {
             (0..maxIndex).map { index ->
                 async {
                     val address = walletManager.deriveSpendingAddress(index)
                     val balance = try { api.getBalance(address).balance } catch (e: Exception) { 0L }
-                    val everUsed = try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { false }
+                    // "Used" is monotonic — a persisted positive answer skips the history probe
+                    // forever; only never-used addresses re-probe (they can become used anytime).
+                    val everUsed = when {
+                        walletManager.isAddressKnownUsed(address) -> true
+                        balance > 0L -> { walletManager.markAddressUsed(address); true }
+                        else -> {
+                            val used = try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { false }
+                            if (used) walletManager.markAddressUsed(address)
+                            used
+                        }
+                    }
                     SpendingAddressEntry(
                         index, address, balance, everUsed,
                         isCurrent = index == account.spendingAddressIndex,
@@ -167,13 +180,29 @@ class WalletService @Inject constructor(
                 }
             }.awaitAll()
         }
+        // Persist the snapshot so the next open paints instantly (see cachedSpendingAddressList).
+        try { walletManager.setManageAddressesSnapshot(account.address, gson.toJson(entries)) } catch (e: Exception) { /* best-effort */ }
+        return entries
+    }
+
+    /** Last fully-loaded Manage Addresses list for the active account — instant-paint cache;
+     *  balances may be a refresh stale, the live load replaces them. */
+    fun cachedSpendingAddressList(): List<SpendingAddressEntry> {
+        val account = walletManager.getActiveAccount() ?: return emptyList()
+        val json = walletManager.getManageAddressesSnapshot(account.address) ?: return emptyList()
+        val type = object : TypeToken<List<SpendingAddressEntry>>() {}.type
+        return try { gson.fromJson(json, type) } catch (e: Exception) { emptyList() }
     }
 
     /** Whether [address] has any on-chain history — the same single-tx probe the list loader
-     *  uses, exposed for Address Visibility rows derived beyond the loaded list. */
+     *  uses, exposed for Address Visibility rows derived beyond the loaded list. Positive
+     *  answers persist (monotonic) so re-opens skip the round-trip. */
     suspend fun hasSpendingAddressBeenUsed(address: String): Boolean {
+        if (walletManager.isAddressKnownUsed(address)) return true
         val api = readyApi() ?: return false
-        return try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { false }
+        val used = try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { false }
+        if (used) walletManager.markAddressUsed(address)
+        return used
     }
 
     /**

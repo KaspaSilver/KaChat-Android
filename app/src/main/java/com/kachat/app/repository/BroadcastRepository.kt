@@ -216,26 +216,51 @@ class BroadcastRepository @Inject constructor(
     // indexer, so history sent while the app was closed appears on room open. Merge is
     // dedupe-by-txId via the DAO's REPLACE insert; hidden-sender filtering happens at read.
 
-    /** Fetches a page of history for [channelName] and merges it into the local cache. Returns the number of rows fetched, or -1 when the indexer is unreachable (callers treat that as "no backfill", nothing user-facing breaks). */
+    /** Channels whose full 30-day history was already paged in this process — the deep backfill
+     *  runs once per room per launch; the 8s poll then only needs the newest page. */
+    private val deepBackfilledChannels = mutableSetOf<String>()
+
+    /** Fetches history for [channelName] and merges it into the local cache. The FIRST call per
+     *  channel per launch pages backwards (`before` = oldest blockTime seen) through the
+     *  indexer's whole 30-day window — a single newest page (200 rows) meant busy rooms never
+     *  loaded anywhere near what the indexer holds. Later calls fetch just the newest page.
+     *  Returns the number of rows fetched, or -1 when the indexer is unreachable (callers treat
+     *  that as "no backfill", nothing user-facing breaks). */
     suspend fun backfillFromIndexer(channelName: String): Int {
         val api = networkService.broadcastIndexerApi.value ?: return -1
         return try {
-            val response = api.getBroadcasts(channel = channelName, limit = 200)
-            val messages = response.messages.orEmpty()
-            for (row in messages) {
-                if (row.txId.isNullOrBlank() || row.senderAddress.isNullOrBlank() || row.content == null) continue
-                database.broadcastDao().insertMessage(
-                    BroadcastMessageEntity(
-                        id = row.txId,
-                        channelName = channelName,
-                        senderAddress = row.senderAddress,
-                        content = row.content,
-                        blockTimestamp = row.blockTime ?: System.currentTimeMillis(),
-                        deliveryStatus = "sent"
+            var fetched = 0
+            var before: Long? = null
+            val deep = channelName !in deepBackfilledChannels
+            val cutoff = System.currentTimeMillis() - BroadcastRetention.INDEXER_MILLIS
+            var pagesLeft = if (deep) 50 else 1 // 50 × 200 = 10k rows, far beyond any real room
+            while (pagesLeft > 0) {
+                pagesLeft -= 1
+                val response = api.getBroadcasts(channel = channelName, limit = 200, before = before)
+                val messages = response.messages.orEmpty()
+                for (row in messages) {
+                    if (row.txId.isNullOrBlank() || row.senderAddress.isNullOrBlank() || row.content == null) continue
+                    database.broadcastDao().insertMessage(
+                        BroadcastMessageEntity(
+                            id = row.txId,
+                            channelName = channelName,
+                            senderAddress = row.senderAddress,
+                            content = row.content,
+                            blockTimestamp = row.blockTime ?: System.currentTimeMillis(),
+                            deliveryStatus = "sent"
+                        )
                     )
-                )
+                }
+                fetched += messages.size
+                if (!deep || response.hasMore != true || messages.isEmpty()) break
+                val oldest = messages.mapNotNull { it.blockTime }.minOrNull() ?: break
+                if (oldest < cutoff) break // older pages would be pruned anyway
+                before = oldest
             }
-            messages.size
+            // Marked done only after the pager finishes — a thrown page lands in the catch and
+            // the next 8s poll retries the whole deep backfill.
+            if (deep) deepBackfilledChannels.add(channelName)
+            fetched
         } catch (e: Exception) {
             android.util.Log.w("BroadcastRepository", "Indexer backfill failed for $channelName", e)
             -1

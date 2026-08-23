@@ -41,6 +41,9 @@ class WalletManager @Inject constructor(
         private const val PREF_HIDDEN_SPENDING_ADDRESSES = "hidden_spending_addresses"
         private const val PREF_SPENDING_ADDRESS_LABELS = "spending_address_labels"
         private const val PREF_SPENDING_UTXO_LABELS = "spending_utxo_labels"
+        private const val PREF_SPENDING_ADDRESS_CACHE = "spending_address_cache"
+        private const val PREF_USED_SPENDING_ADDRESSES = "used_spending_addresses"
+        private const val PREF_MANAGE_ADDRESSES_SNAPSHOT = "manage_addresses_snapshot"
 
         // bitcoinj's own `MnemonicCode.INSTANCE` static initializer loads its wordlist via
         // `Class.getResourceAsStream`, which is documented by bitcoinj itself as "Won't work on
@@ -574,8 +577,37 @@ class WalletManager @Inject constructor(
     private fun activeMnemonicWords(): List<String> =
         getActiveMnemonic()?.split(" ") ?: throw IllegalStateException("No active account")
 
-    fun deriveSpendingAddress(index: Int): String =
-        addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()))
+    /** One derived spending-chain ADDRESS (never a key), persisted so repeat lookups skip the
+     *  PBKDF2 seed derivation entirely. Addresses are deterministic per (wallet, index) — the
+     *  wallet address already encodes mnemonic+passphrase, so entries never go stale. Flat
+     *  (walletAddress, index) keying, same pattern as [HiddenSpendingAddress]. */
+    private data class CachedSpendingAddress(val walletAddress: String, val index: Int, val address: String)
+
+    private fun getAllCachedSpendingAddresses(): List<CachedSpendingAddress> {
+        val json = sharedPrefs.getString(PREF_SPENDING_ADDRESS_CACHE, null) ?: return emptyList()
+        val type = object : TypeToken<List<CachedSpendingAddress>>() {}.type
+        return try { gson.fromJson(json, type) } catch (e: Exception) { emptyList() }
+    }
+
+    private fun cacheSpendingAddresses(walletAddress: String, byIndex: Map<Int, String>) {
+        if (byIndex.isEmpty()) return
+        val existing = getAllCachedSpendingAddresses()
+            .filterNot { it.walletAddress == walletAddress && byIndex.containsKey(it.index) }
+        val added = byIndex.map { (index, address) -> CachedSpendingAddress(walletAddress, index, address) }
+        sharedPrefs.edit().putString(PREF_SPENDING_ADDRESS_CACHE, gson.toJson(existing + added)).apply()
+    }
+
+    fun deriveSpendingAddress(index: Int): String {
+        val walletAddress = getActiveAccount()?.address
+        if (walletAddress != null) {
+            getAllCachedSpendingAddresses()
+                .firstOrNull { it.walletAddress == walletAddress && it.index == index }
+                ?.let { return it.address }
+        }
+        val address = addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()))
+        if (walletAddress != null) cacheSpendingAddresses(walletAddress, mapOf(index to address))
+        return address
+    }
 
     /**
      * The shared spending-chain node (m/44'/111111'/1'/0), derived once — each
@@ -599,10 +631,48 @@ class WalletManager @Inject constructor(
     fun allSpendingAddresses(): List<String> {
         val account = getActiveAccount() ?: return emptyList()
         val maxIndex = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        // Cache-first: this runs on the 30s address-activity poll, and the full PBKDF2 seed
+        // derivation per pass was pure waste once every index has been derived once.
+        val cached = getAllCachedSpendingAddresses()
+            .filter { it.walletAddress == account.address }
+            .associate { it.index to it.address }
+        if ((0..maxIndex).all { cached.containsKey(it) }) {
+            return (0..maxIndex).map { cached.getValue(it) }
+        }
         val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyList() }
-        return (0..maxIndex).map { index ->
+        val derived = (0..maxIndex).associateWith { index ->
             addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
         }
+        cacheSpendingAddresses(account.address, derived)
+        return (0..maxIndex).map { derived.getValue(it) }
+    }
+
+    // --- "Ever used" cache: monotonic (a used address can never become unused), so positive
+    // answers persist forever and skip the network history probe — mirrors iOS. Address-keyed:
+    // used-ness is intrinsic to the address, not the wallet.
+    fun isAddressKnownUsed(address: String): Boolean {
+        val json = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null) ?: return false
+        val type = object : TypeToken<Set<String>>() {}.type
+        return try { gson.fromJson<Set<String>>(json, type).contains(address) } catch (e: Exception) { false }
+    }
+
+    fun markAddressUsed(address: String) {
+        if (address.isBlank()) return
+        val type = object : TypeToken<Set<String>>() {}.type
+        val current: Set<String> = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null)
+            ?.let { try { gson.fromJson(it, type) } catch (e: Exception) { emptySet<String>() } } ?: emptySet()
+        if (address in current) return
+        sharedPrefs.edit().putString(PREF_USED_SPENDING_ADDRESSES, gson.toJson(current + address)).apply()
+    }
+
+    // --- Manage Addresses snapshot: opaque JSON of the last fully-loaded entry list, persisted
+    // per wallet so the screen paints instantly while the live refresh runs (WalletService owns
+    // the entry type and its serialization; this is just the per-wallet keyed store).
+    fun getManageAddressesSnapshot(walletAddress: String): String? =
+        sharedPrefs.getString("${PREF_MANAGE_ADDRESSES_SNAPSHOT}_$walletAddress", null)
+
+    fun setManageAddressesSnapshot(walletAddress: String, json: String) {
+        sharedPrefs.edit().putString("${PREF_MANAGE_ADDRESSES_SNAPSHOT}_$walletAddress", json).apply()
     }
 
     /** True if [address] is one of this wallet's own revealed spending-chain addresses — used to

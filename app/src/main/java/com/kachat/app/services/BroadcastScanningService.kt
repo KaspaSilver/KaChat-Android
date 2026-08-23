@@ -2,6 +2,8 @@ package com.kachat.app.services
 
 import android.util.Log
 import com.kachat.app.models.BroadcastMessageEntity
+import com.kachat.app.models.BroadcastRetention
+import com.kachat.app.models.FeaturedBroadcastChannels
 import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.services.database.KaChatDatabase
 import com.kachat.app.util.MessageReaction
@@ -297,7 +299,15 @@ class BroadcastScanningService @Inject constructor(
         if (now - lastPruneAt > pruneInterval) {
             lastPruneAt = now
             retentions.forEach { retention ->
-                database.broadcastDao().deleteOlderThan(retention.channelName, now - retention.retentionMillis)
+                // Featured indexer-backed rooms keep the indexer's FULL 30-day window regardless
+                // of the stored per-channel value (their retention gear is hidden in the UI) —
+                // the 3-day cap was pruning history the backfill had just fetched.
+                val effective = if (retention.channelName in FeaturedBroadcastChannels.NAMES) {
+                    BroadcastRetention.INDEXER_MILLIS
+                } else {
+                    retention.retentionMillis
+                }
+                database.broadcastDao().deleteOlderThan(retention.channelName, now - effective)
             }
         }
     }

@@ -746,7 +746,10 @@ fun KaPostsScreen(
             viewModel = viewModel,
             navController = navController,
             onClose = { showMyProfile = false },
-            onOpenThread = { openThread(it) },
+            // Close the profile dialog FIRST: the thread overlay composes inside the screen,
+            // which a Dialog window always covers — without this the thread opened invisibly
+            // behind the profile (same close-then-open pattern as the bookmarks overlay).
+            onOpenThread = { showMyProfile = false; openThread(it) },
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openShared(it) },
@@ -762,7 +765,9 @@ fun KaPostsScreen(
             viewModel = viewModel,
             navController = navController,
             onClose = { viewModel.closePosterProfile() },
-            onOpenThread = { openThread(it) },
+            // Same close-then-open as the my-profile/bookmarks overlays: the thread composes
+            // behind this Dialog window, so commenting from a profile showed nothing.
+            onOpenThread = { viewModel.closePosterProfile(); openThread(it) },
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openShared(it) },

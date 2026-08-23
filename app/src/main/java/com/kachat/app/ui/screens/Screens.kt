@@ -4130,7 +4130,16 @@ fun ManageAddressesScreen(
                         onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
                         onQrClick = { qrAddress = entry.address },
                         onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
-                        onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
+                        onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
+                        onHideClick = {
+                            // Same guards + copy as the Address Visibility checklist toggle.
+                            if (entry.balanceSompi > 0) {
+                                Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.setManageAddressHidden(entry.index, true)
+                                Toast.makeText(context, "Address hidden. Re-enable it in Address Visibility.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
                 }
             }
@@ -6104,6 +6113,9 @@ private fun ManageAddressRow(
     onQrClick: () -> Unit,
     onActivateClick: () -> Unit,
     onRenameClick: () -> Unit,
+    /** Row-menu "Hide Address" (iOS parity) — same flag the Address Visibility checklist edits.
+     *  Null hides the menu entry (e.g. the picker variant of this row). */
+    onHideClick: (() -> Unit)? = null,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false
 ) {
@@ -6193,6 +6205,15 @@ private fun ManageAddressRow(
                 PopupMenuRow(Icons.Default.Star, stringResource(R.string.set_as_primary_address)) {
                     showMenu = false
                     onActivateClick()
+                }
+            }
+            // Hide straight from the row (iOS parity) — never offered for the primary address;
+            // the funded guard lives in the caller so it can toast the reason.
+            if (onHideClick != null && !entry.isCurrent) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.VisibilityOff, "Hide Address") {
+                    showMenu = false
+                    onHideClick()
                 }
             }
         }
