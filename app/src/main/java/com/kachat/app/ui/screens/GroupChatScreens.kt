@@ -1040,7 +1040,7 @@ private fun GroupMessageBubble(
     isHighlighted: Boolean = false,
     resolveMentionName: (String) -> String = { it.takeLast(10) },
     /** Address → explicit-primary KNS domain, so @mentions render as the domain (what the user asked). */
-    mentionDomains: Map<String, String> = emptyMap(),
+    mentionDomains: Map<String, String?> = emptyMap(),
     isMuted: Boolean = false,
     onMute: (String) -> Unit = {},
     onUnmute: (String) -> Unit = {},
