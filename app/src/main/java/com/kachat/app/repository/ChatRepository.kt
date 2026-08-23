@@ -356,6 +356,7 @@ class ChatRepository @Inject constructor(
         // re-import runs as a silent read backfill, not a notification storm.
         settingsRepository.setPaymentSyncBaseline(address, 0L)
         settingsRepository.setHandshakeSyncCursor(address, 0L)
+        settingsRepository.setHandshakeOutSyncCursor(address, 0L)
         settingsRepository.clearLiveNotificationBaseline(address)
     }
 
@@ -387,8 +388,72 @@ class ChatRepository @Inject constructor(
         }
 
         syncHandshakes(myAddress, api)
+        syncOutgoingHandshakes(myAddress, api)
         syncContextualMessages(myAddress, api)
         networkService.kaspaRestApi.value?.let { syncPayments(myAddress, it) }
+    }
+
+    /**
+     * Restore-parity pass (matches iOS): handshakes YOU sent — requests you initiated AND your
+     * acceptances of others' requests. After a fresh import these are the only on-chain proof a
+     * conversation was mutual: your acceptance never appears in handshakes/by-receiver, so
+     * without this pass every peer-initiated conversation you'd accepted re-surfaced as a
+     * stranger request. Creates/promotes the contact to active+handshakeComplete and inserts a
+     * "[Handshake sent]" row (the payload is encrypted for the recipient — undecryptable by us).
+     */
+    private suspend fun syncOutgoingHandshakes(myAddress: String, api: KasiaIndexerApi) {
+        val cursor = settingsRepository.handshakeOutSyncCursor(myAddress).first()
+        val handshakes = try {
+            api.getHandshakesBySender(myAddress, blockTime = cursor)
+        } catch (e: Exception) {
+            Log.w("ChatRepository", "Failed to fetch outgoing handshakes", e)
+            return
+        }
+
+        for (handshake in handshakes) {
+            try {
+                val peer = handshake.receiver
+                if (peer.isBlank() || peer == myAddress || !KaspaAddress.isValid(peer)) continue
+                val deleted = database.contactDao().getDeletedContact(peer, myAddress)
+                if (isTombstoned(deleted, handshake.txId, handshake.blockTime)) continue
+
+                val existing = database.contactDao().getContact(peer, myAddress)
+                if (existing == null) {
+                    database.contactDao().insert(
+                        ContactEntity(
+                            id = peer, walletAddress = myAddress, alias = null, knsName = null,
+                            publicKeyHex = null, conversationStatus = "active", handshakeComplete = true
+                        )
+                    )
+                } else if (existing.conversationStatus != "active" || !existing.handshakeComplete) {
+                    database.contactDao().insert(existing.copy(conversationStatus = "active", handshakeComplete = true))
+                }
+
+                if (!database.messageDao().exists(handshake.txId, myAddress)) {
+                    insertMessage(
+                        MessageEntity(
+                            id = handshake.txId,
+                            contactId = peer,
+                            walletAddress = myAddress,
+                            type = MessageProtocol.TYPE_HANDSHAKE,
+                            direction = "sent",
+                            plaintextBody = "[Handshake sent]",
+                            encryptedPayload = handshake.messagePayload,
+                            amountSompi = null,
+                            blockTimestamp = handshake.blockTime,
+                            isRead = true
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Failed to process outgoing handshake ${handshake.txId}", e)
+            }
+        }
+
+        val maxBlockTime = handshakes.maxOfOrNull { it.blockTime }
+        if (maxBlockTime != null && maxBlockTime > (cursor ?: 0L)) {
+            settingsRepository.setHandshakeOutSyncCursor(myAddress, maxBlockTime)
+        }
     }
 
     /** True when [blockTime] predates this account's first sync on this device — backfilled history, not live traffic. */

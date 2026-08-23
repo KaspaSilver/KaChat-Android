@@ -241,11 +241,25 @@ class KaspaWalletEngine @Inject constructor(
                 try {
                     nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
                 } catch (e: Exception) {
-                    if (!usesUnconfirmedInputs && e.message?.contains("orphan", ignoreCase = true) == true) {
-                        Log.w("KaspaWalletEngine", "Submit rejected as orphan (node behind), retrying with allowOrphan=true", e)
-                        nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = true)
-                    } else {
-                        throw e
+                    val isOrphanRejection = e.message?.contains("orphan", ignoreCase = true) == true
+                    // Transport-shaped failure (timeout / dead gRPC stream) — NOT a node verdict.
+                    // The cached connection can die silently and only gets reaped by the 30s probe
+                    // cycle; every send in that window failed after the full timeout while the app
+                    // looked connected. Reconnect fresh and retry ONCE. Definitive node rejections
+                    // (mass/fee/double-spend) are rethrown untouched — blind-retrying those is wrong.
+                    val isTransportFailure = e is kotlinx.coroutines.TimeoutCancellationException ||
+                        e is io.grpc.StatusException || e is io.grpc.StatusRuntimeException
+                    when {
+                        !usesUnconfirmedInputs && isOrphanRejection -> {
+                            Log.w("KaspaWalletEngine", "Submit rejected as orphan (node behind), retrying with allowOrphan=true", e)
+                            nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = true)
+                        }
+                        isTransportFailure -> {
+                            Log.w("KaspaWalletEngine", "Submit transport failure, reconnecting and retrying once", e)
+                            nodePoolManager.refreshBroadcastConnection()
+                            nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                        }
+                        else -> throw e
                     }
                 }
             } else {

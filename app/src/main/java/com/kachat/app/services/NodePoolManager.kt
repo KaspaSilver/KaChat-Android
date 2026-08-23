@@ -426,6 +426,22 @@ class NodePoolManager @Inject constructor(
         return connectionFor(fallbackAddress)
     }
 
+    /**
+     * Drops the cached connection the next [getBroadcastConnection] would return, so it dials
+     * fresh. A silently-died gRPC stream is otherwise only reaped by the 30s probe cycle — any
+     * submit in that window queued onto the dead stream and ate the full 15s timeout, failing
+     * the message while the app still looked "connected" (in trusted-node mode the health
+     * readout is pinned Active). The send path uses this for its one-shot reconnect retry.
+     */
+    fun refreshBroadcastConnection() {
+        val address = trustedNodeAddress.value
+            ?: registry.snapshot()
+                .filter { registry.statusOf(it) == "Active" }
+                .minByOrNull { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }?.address
+            ?: dnsResolvedEndpoints.firstOrNull() ?: seeds.firstOrNull() ?: return
+        connections.remove(address)?.let { runCatching { it.close() } }
+    }
+
     /** Triggers an immediate out-of-cycle probe pass — "Refresh Pool". */
     fun refreshNow() {
         scope.launch { probeCycle() }

@@ -188,6 +188,16 @@ interface KasiaIndexerApi {
         @Query("block_time") blockTime: Long? = null
     ): List<HandshakeIndexerResponse>
 
+    /** Handshakes YOU sent (requests you initiated + acceptances of others' requests) — the
+     *  restore-parity pass: after a fresh import these prove which conversations were mutual so
+     *  they don't resurface as stranger requests (matches iOS's getHandshakesBySender). */
+    @GET("handshakes/by-sender")
+    suspend fun getHandshakesBySender(
+        @Query("address") address: String,
+        @Query("limit") limit: Int = 50,
+        @Query("block_time") blockTime: Long? = null
+    ): List<HandshakeIndexerResponse>
+
     /**
      * [aliasHex] is the SENDER's own alias (from their handshake), UTF-8-encoded then hex-encoded.
      * [blockTime], when given, returns only messages at or after that block time (same cursor

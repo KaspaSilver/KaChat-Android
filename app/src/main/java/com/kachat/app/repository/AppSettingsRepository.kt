@@ -641,11 +641,19 @@ class AppSettingsRepository @Inject constructor(
     suspend fun clearPendingKnsCommit() = dataStore.edit { it.remove(KEY_PENDING_KNS_COMMIT) }
     suspend fun setPaymentSyncBaseline(address: String, value: Long) = dataStore.edit { it[paymentSyncBaselineKey(address)] = value }
     suspend fun setHandshakeSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeSyncCursorKey(address)] = value }
+
+    /** Cursor for the OUTGOING handshakes/by-sender restore pass — separate stream, separate cursor. */
+    fun handshakeOutSyncCursor(address: String): Flow<Long?> = dataStore.data.map {
+        it[handshakeOutSyncCursorKey(address)]
+    }
+
+    suspend fun setHandshakeOutSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeOutSyncCursorKey(address)] = value }
     suspend fun setShowSetupGuides(address: String, value: Boolean) = dataStore.edit { it[showSetupGuidesKey(address)] = value }
 
     private fun chatsPaymentPrivacyKey(address: String) = booleanPreferencesKey("chats_payment_privacy_$address")
     private fun paymentSyncBaselineKey(address: String) = longPreferencesKey("payment_sync_baseline_$address")
     private fun liveNotificationBaselineKey(address: String) = longPreferencesKey("live_notification_baseline_$address")
     private fun handshakeSyncCursorKey(address: String) = longPreferencesKey("handshake_sync_cursor_$address")
+    private fun handshakeOutSyncCursorKey(address: String) = longPreferencesKey("handshake_out_sync_cursor_$address")
     private fun showSetupGuidesKey(address: String) = booleanPreferencesKey("show_setup_guides_$address")
 }
