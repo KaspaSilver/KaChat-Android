@@ -474,6 +474,12 @@ class AppSettingsRepository @Inject constructor(
         return now
     }
 
+    /** Removes the baseline so the NEXT sync stamps a fresh "now" — used when an account's local
+     *  data is wiped, so a later re-import treats the whole history as silent read backfill. */
+    suspend fun clearLiveNotificationBaseline(address: String) {
+        dataStore.edit { it.remove(liveNotificationBaselineKey(address)) }
+    }
+
     /**
      * How far into the `handshakes/by-receiver` stream this wallet has already synced — the
      * indexer's `block_time` cursor, so a sync only asks for what's genuinely new since last time

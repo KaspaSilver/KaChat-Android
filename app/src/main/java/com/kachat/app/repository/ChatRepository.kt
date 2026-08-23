@@ -349,6 +349,14 @@ class ChatRepository @Inject constructor(
         database.messageDao().deleteSyncCursorsForWallet(address)
         database.contactDao().deleteAllForWallet(address)
         database.contactDao().deleteTombstonesForWallet(address)
+        // The DataStore sync cursors MUST reset with the data: they survived account deletion,
+        // so re-importing an account previously held on this device resumed the handshake scan
+        // at the old cursor — ZERO historical handshakes came back and no contacts were
+        // recreated ("the account doesn't sync anymore"). The live baseline resets too so the
+        // re-import runs as a silent read backfill, not a notification storm.
+        settingsRepository.setPaymentSyncBaseline(address, 0L)
+        settingsRepository.setHandshakeSyncCursor(address, 0L)
+        settingsRepository.clearLiveNotificationBaseline(address)
     }
 
     /**
@@ -471,9 +479,16 @@ class ChatRepository @Inject constructor(
     }
 
     private suspend fun syncContextualMessages(myAddress: String, api: KasiaIndexerApi) {
-        val activeContacts = database.contactDao().getContactsByStatus("active", myAddress)
+        // Fetch for BOTH active and pending contacts. Gating the FETCH on "active" made a
+        // mis-classified conversation unrecoverable: after a fresh import every peer-initiated
+        // conversation derives "pending" (the local evidence that you accepted it was wiped),
+        // and its history was then never requested at all — the thread stayed empty forever.
+        // "Pending" still gates DISPLAY (the stranger banner hides messages until accepted);
+        // rejected contacts stay excluded.
+        val syncableContacts = database.contactDao().getContactsByStatus("active", myAddress) +
+            database.contactDao().getContactsByStatus("pending", myAddress)
 
-        for (contact in activeContacts) {
+        for (contact in syncableContacts) {
             // See processHandshake's identical tombstone check — still needed even with the
             // block_time cursor below, since a newly re-created contact's first-ever sync has no
             // cursor yet and could otherwise surface old pre-deletion messages.
