@@ -202,6 +202,7 @@ class ChatHistoryExportImportService @Inject constructor(
         val myAddress = walletManager.getAddress()
         var importedCount = 0
         var conversationCount = 0
+        val restoredTxIds = HashSet<String>()
 
         val archivedTombstones = archive.deletedContactAddresses.orEmpty().toSet()
         val progressTotal = archive.conversations.count { it.messages.isNotEmpty() }
@@ -244,18 +245,22 @@ class ChatHistoryExportImportService @Inject constructor(
                 if (updated != existingContact) chatRepository.addContact(updated)
             }
 
-            var addedAny = false
+            // iOS-style counts: the summary reports what the archive RESTORED (distinct txIds
+            // across this conversation, whether or not the rows already existed locally), so a
+            // re-restore of the same backup still reads "Restored 812 messages from 12 chats"
+            // instead of zeros.
+            var restoredAny = false
             for (archiveMessage in conversation.messages) {
                 // "\ud83d\udce4 Sent via another device" placeholders never surface on any platform -
                 // skip them at import; an archive that later carries the real body inserts it then.
                 if (archiveMessage.content == "\ud83d\udce4 Sent via another device") continue
+                if (restoredTxIds.add(archiveMessage.txId)) importedCount++
+                restoredAny = true
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)
                 if (chatRepository.messageExists(entity.id)) continue
                 chatRepository.insertMessage(entity)
-                importedCount++
-                addedAny = true
             }
-            if (addedAny) conversationCount++
+            if (restoredAny) conversationCount++
             onConversationProgress?.invoke(progressDone, progressTotal)
         }
 
