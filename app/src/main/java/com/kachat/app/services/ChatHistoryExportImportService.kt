@@ -175,10 +175,18 @@ class ChatHistoryExportImportService @Inject constructor(
 
     /**
      * Parses and merges an archive JSON string into the active account's local data — the shared
-     * core used by both the local file-picker import and Google Drive restore. Throws with a
-     * user-facing message on any validation failure.
+     * core used by the local file-picker import and the Google Drive / Nextcloud restores. Throws
+     * with a user-facing message on any validation failure.
+     *
+     * [onConversationProgress] (optional) fires as `(done, total)` after each conversation's
+     * messages land (real work, not simulated) — total counts the archive's non-empty
+     * conversations. Drives the blocking restore modal's determinate bar
+     * (see [BackupRestoreCoordinator]).
      */
-    suspend fun importChatHistory(json: String): ImportResult {
+    suspend fun importChatHistory(
+        json: String,
+        onConversationProgress: ((done: Int, total: Int) -> Unit)? = null
+    ): ImportResult {
         val archive = try {
             gson.fromJson(json, ChatHistoryArchive::class.java) ?: throw IllegalStateException("empty")
         } catch (e: Exception) {
@@ -196,13 +204,19 @@ class ChatHistoryExportImportService @Inject constructor(
         var conversationCount = 0
 
         val archivedTombstones = archive.deletedContactAddresses.orEmpty().toSet()
+        val progressTotal = archive.conversations.count { it.messages.isNotEmpty() }
+        var progressDone = 0
         for (conversation in archive.conversations) {
             if (conversation.messages.isEmpty()) continue
+            progressDone++
             val contactAddress = conversation.contactAddress
             // Never resurrect a deleted chat: honor this device's tombstones AND the ones the
-            // archive itself carries (covers restoring onto a fresh install).
-            if (contactAddress in archivedTombstones) continue
-            if (chatRepository.hasDeletionTombstone(contactAddress)) continue
+            // archive itself carries (covers restoring onto a fresh install). Skipped
+            // conversations still count as progress — done/total must reach total.
+            if (contactAddress in archivedTombstones || chatRepository.hasDeletionTombstone(contactAddress)) {
+                onConversationProgress?.invoke(progressDone, progressTotal)
+                continue
+            }
 
             val importedPhoto = conversation.contactPhoto?.takeIf { it.isNotBlank() }
             val existingContact = chatRepository.getContact(contactAddress)
@@ -242,6 +256,7 @@ class ChatHistoryExportImportService @Inject constructor(
                 addedAny = true
             }
             if (addedAny) conversationCount++
+            onConversationProgress?.invoke(progressDone, progressTotal)
         }
 
         // Groups (cross-platform recovery): restore full group key material so this device

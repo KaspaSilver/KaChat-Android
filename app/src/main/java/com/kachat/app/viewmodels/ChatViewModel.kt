@@ -55,6 +55,7 @@ class ChatViewModel @Inject constructor(
     private val voiceRecorderService: VoiceRecorderService,
     private val googleDriveBackupService: GoogleDriveBackupService,
     private val nextcloudService: NextcloudService,
+    private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
     private val paymentPoolService: com.kachat.app.services.PaymentPoolService,
@@ -235,8 +236,14 @@ class ChatViewModel @Inject constructor(
     private val _googleBackupOpState = MutableStateFlow(GoogleBackupUiState())
     val googleBackupOpState: StateFlow<GoogleBackupUiState> = _googleBackupOpState.asStateFlow()
 
-    private val _restoreState = MutableStateFlow(ChatHistoryOpState())
-    val restoreState: StateFlow<ChatHistoryOpState> = _restoreState.asStateFlow()
+    /**
+     * The singleton that owns cloud restores (Google Drive + Nextcloud) end to end — exposed so
+     * the storage screens can observe its phase/progress and render the blocking full-screen
+     * modal. The restore job lives on the coordinator's own scope, NOT viewModelScope: this
+     * viewmodel is nav-entry scoped on the storage pages, and popping the screen must never
+     * cancel a half-written import.
+     */
+    val restoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator get() = backupRestoreCoordinator
 
     /** One-shot: the UI observes this and launches the intent via `ActivityResultContracts.StartIntentSenderForResult()` when non-null, then calls [consentIntentLaunched] and [completeGoogleDriveAuthorization]. */
     private val _pendingConsentIntent = MutableStateFlow<PendingIntent?>(null)
@@ -321,24 +328,10 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Manual only — never triggered automatically. Merges into local data via the same logic as local file import. */
+    /** Manual only — never triggered automatically. Hands the whole restore (download, import,
+     *  terminal state) to [restoreCoordinator], which drives the blocking progress modal. */
     fun restoreFromGoogleDrive() {
-        if (_restoreState.value.status == ChatHistoryOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _restoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
-            try {
-                val json = googleDriveBackupService.downloadBackup(walletManager.getAddress())
-                    ?: throw IllegalStateException("No Google Drive backup found")
-                val result = chatHistoryExportImportService.importChatHistory(json)
-                _restoreState.value = ChatHistoryOpState(
-                    status = ChatHistoryOpStatus.SUCCESS,
-                    message = "Imported ${result.importedMessageCount} messages from ${result.conversationCount} chats."
-                )
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Google Drive restore failed", e)
-                _restoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Restore failed")
-            }
-        }
+        backupRestoreCoordinator.startGoogleDriveRestore()
     }
 
     // -------------------------------------------------------------------------
@@ -372,7 +365,6 @@ class ChatViewModel @Inject constructor(
         nextcloudService.disconnect()
         _nextcloudConnectState.value = ChatHistoryOpState()
         _nextcloudBackupState.value = ChatHistoryOpState()
-        _nextcloudRestoreState.value = ChatHistoryOpState()
         _nextcloudBackupInfo.value = null
     }
 
@@ -397,26 +389,10 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private val _nextcloudRestoreState = MutableStateFlow(ChatHistoryOpState())
-    val nextcloudRestoreState: StateFlow<ChatHistoryOpState> = _nextcloudRestoreState.asStateFlow()
-
-    /** Manual only — never triggered automatically. Merges via the same logic as [restoreFromGoogleDrive]. */
+    /** Manual only — never triggered automatically. Hands the whole restore to
+     *  [restoreCoordinator], same as [restoreFromGoogleDrive]. */
     fun restoreFromNextcloud() {
-        if (_nextcloudRestoreState.value.status == ChatHistoryOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _nextcloudRestoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
-            try {
-                val json = nextcloudService.downloadBackup()
-                val result = chatHistoryExportImportService.importChatHistory(json)
-                _nextcloudRestoreState.value = ChatHistoryOpState(
-                    status = ChatHistoryOpStatus.SUCCESS,
-                    message = "Imported ${result.importedMessageCount} messages from ${result.conversationCount} chats."
-                )
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Nextcloud restore failed", e)
-                _nextcloudRestoreState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Restore failed")
-            }
-        }
+        backupRestoreCoordinator.startNextcloudRestore()
     }
 
     private val _nextcloudBackupInfo = MutableStateFlow<NextcloudFile?>(null)
@@ -524,6 +500,11 @@ class ChatViewModel @Inject constructor(
             try {
                 chatRepository.wipeAllLocalDataForAddress(address)
                 groupRepository.clearAllLocalData(address)
+                // Both danger-zone entries to this flow delete the wallet itself right after the
+                // local wipe (onLocalWipeComplete -> deleteWallet), so the account's Nextcloud
+                // login and settings must go with it — mirrors iOS's purgeStoredState in the
+                // WalletManager account-deletion flows.
+                nextcloudService.purgeStoredState(address)
                 if (alsoDeleteCloud) {
                     googleDriveBackupService.deleteBackup(address)
                     settings.setGoogleBackupEnabled(false)

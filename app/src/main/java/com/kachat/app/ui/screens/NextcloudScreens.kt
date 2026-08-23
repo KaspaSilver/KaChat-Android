@@ -707,7 +707,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     val mediaSendEnabled by service.mediaSendEnabled.collectAsState()
     val connectState by chatViewModel.nextcloudConnectState.collectAsState()
     val backupState by chatViewModel.nextcloudBackupState.collectAsState()
-    val restoreState by chatViewModel.nextcloudRestoreState.collectAsState()
+    val restorePhase by chatViewModel.restoreCoordinator.phase.collectAsState()
     val backupInfo by chatViewModel.nextcloudBackupInfo.collectAsState()
 
     var showStartFolderPicker by remember { mutableStateOf(false) }
@@ -812,7 +812,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             )
 
             val backupInFlight = backupState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-            val restoreInFlight = restoreState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+            val restoreInFlight = restorePhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
 
             SettingsDivider()
             SettingsActionItem(
@@ -844,13 +844,9 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 icon = Icons.Default.CloudDownload,
                 color = if (restoreInFlight) Color.Gray else KaspaTeal
             ) {
+                // Progress and terminal states (success/failure) show in the blocking restore
+                // modal (ChatRestoreProgressOverlay), not as footer rows here.
                 if (!restoreInFlight) showRestoreConfirm = true
-            }
-            if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
-                SettingsFooter(restoreState.message ?: "Restore complete.")
-            }
-            if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                SettingsFooter(restoreState.message ?: "Restore failed.")
             }
 
             SettingsDivider()

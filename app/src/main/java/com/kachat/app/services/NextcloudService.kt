@@ -7,10 +7,16 @@ import android.util.Xml
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.HttpUrl
@@ -100,14 +106,24 @@ data class NextcloudThumbnailRequest(val url: String, val authorization: String)
  * pushing file bytes through the on-chain payload. Credentials live in their own
  * `EncryptedSharedPreferences` file (same secure-prefs pattern as [ColdStorageManager]) — a
  * completely separate trust domain from the wallet's own storage.
+ *
+ * Everything here is scoped to the ACTIVE WALLET ACCOUNT, matching iOS and desktop: every stored
+ * key (credentials, folders, toggles, throttle stamp) carries the active wallet's 8-byte SHA256
+ * hash suffix (same scheme as iOS's `KeychainService.walletHashSuffix`), and the service follows
+ * [WalletManager.activeAddressFlow] so an account switch/logout/delete swaps the whole state and
+ * one account's login never leaks into another. A single legacy (pre-per-account) global entry
+ * migrates once to the first active wallet that sees it, then the global copy is deleted.
  */
 @Singleton
 class NextcloudService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val walletManager: WalletManager
 ) {
     companion object {
         private const val TAG = "NextcloudService"
         private const val SECURE_PREFS_NAME = "nextcloud_secure_prefs"
+        // Base names only: the active wallet's hash suffix is appended via `scopedKey`. The bare
+        // names are the LEGACY pre-per-account entries, read once by the migration then deleted.
         private const val PREF_SERVER = "server"
         private const val PREF_USERNAME = "username"
         private const val PREF_APP_PASSWORD = "app_password"
@@ -116,6 +132,20 @@ class NextcloudService @Inject constructor(
         private const val PREF_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
         private const val PREF_LAST_AUTO_BACKUP_MS = "last_auto_backup_ms"
         private const val PREF_MEDIA_SEND_ENABLED = "media_send_enabled"
+
+        /** Every per-wallet key base — the unit `disconnect`/`purgeStoredState`/migration act on. */
+        private val ALL_PREF_BASES = listOf(
+            PREF_SERVER, PREF_USERNAME, PREF_APP_PASSWORD, PREF_START_FOLDER, PREF_BACKUP_FOLDER,
+            PREF_AUTO_BACKUP_ENABLED, PREF_LAST_AUTO_BACKUP_MS, PREF_MEDIA_SEND_ENABLED
+        )
+
+        /** First 8 bytes of SHA256(walletAddress) as hex — byte-identical to iOS's
+         *  `KeychainService.walletHashSuffix` and desktop's per-account scheme. */
+        fun walletHashSuffix(walletAddress: String): String =
+            java.security.MessageDigest.getInstance("SHA-256")
+                .digest(walletAddress.toByteArray(Charsets.UTF_8))
+                .take(8)
+                .joinToString("") { "%02x".format(it) }
 
         const val BACKUP_FOLDER_NAME = "KaChat"
         /** Where "Send Media via Nextcloud" uploads land: a fixed KaChat/Media folder at the files root. */
@@ -172,42 +202,175 @@ class NextcloudService @Inject constructor(
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    private val _account = MutableStateFlow(loadAccount())
+    private val _account = MutableStateFlow<NextcloudAccount?>(null)
     val account: StateFlow<NextcloudAccount?> = _account.asStateFlow()
 
-    private val _autoBackupEnabled = MutableStateFlow(prefs.getBoolean(PREF_AUTO_BACKUP_ENABLED, false))
+    private val _autoBackupEnabled = MutableStateFlow(false)
     val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
 
-    private val _mediaSendEnabled = MutableStateFlow(prefs.getBoolean(PREF_MEDIA_SEND_ENABLED, false))
+    private val _mediaSendEnabled = MutableStateFlow(false)
     /** "Send Media via Nextcloud": photos/voice notes upload to the server and the chat message is the share link. */
     val mediaSendEnabled: StateFlow<Boolean> = _mediaSendEnabled.asStateFlow()
+
+    /** The active wallet's address — every credential/settings read and write is scoped to it.
+     *  Null (signed out / no wallet yet) presents as disconnected and persists nothing. */
+    @Volatile
+    private var currentWalletAddress: String? = null
+
+    /** Cached per-wallet suffix (8-byte SHA256 hex, see [walletHashSuffix]) for the pref keys. */
+    @Volatile
+    private var currentSuffix: String? = null
+
+    /** Owns the in-flight automatic backup so a wallet switch can cancel it — account A's
+     *  archive must never upload while account B is active. */
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var autoBackupJob: Job? = null
+
+    init {
+        // Load the current wallet's state synchronously (the settings screens may compose before
+        // the collector's first dispatch), then follow every switch/logout/delete after that.
+        setCurrentWallet(walletManager.activeAddressFlow.value, force = true)
+        serviceScope.launch {
+            walletManager.activeAddressFlow.collect { setCurrentWallet(it) }
+        }
+    }
 
     val isConnected: Boolean get() = _account.value != null
 
     /** The folder backups actually go to — the user's chosen folder, or "KaChat" by default. */
     val backupFolderPath: String get() = _account.value?.backupFolder ?: BACKUP_FOLDER_NAME
 
+    // -------------------------------------------------------------------------
+    // Wallet scoping
+    // -------------------------------------------------------------------------
+
+    /** The active wallet's pref key for [base], or null when signed out (in which case nothing
+     *  is read or written). */
+    private fun scopedKey(base: String): String? = currentSuffix?.let { "${base}_$it" }
+
+    private fun scopedKey(base: String, suffix: String): String = "${base}_$suffix"
+
+    /**
+     * Points the service at [walletAddress]'s stored Nextcloud state, or clears everything for
+     * null. Driven by [WalletManager.activeAddressFlow], which fires on every wallet load,
+     * account switch, logout and delete. Cancels any in-flight automatic backup first.
+     */
+    private fun setCurrentWallet(walletAddress: String?, force: Boolean = false) {
+        if (!force && walletAddress == currentWalletAddress) return
+
+        autoBackupJob?.cancel()
+        autoBackupJob = null
+
+        currentWalletAddress = walletAddress
+        currentSuffix = walletAddress?.let { walletHashSuffix(it) }
+
+        if (walletAddress == null) {
+            _account.value = null
+            _autoBackupEnabled.value = false
+            _mediaSendEnabled.value = false
+            return
+        }
+
+        migrateLegacyGlobalStateIfNeeded()
+
+        _account.value = loadAccount()
+        _autoBackupEnabled.value = scopedKey(PREF_AUTO_BACKUP_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
+        _mediaSendEnabled.value = scopedKey(PREF_MEDIA_SEND_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
+    }
+
+    /**
+     * One-time migration off the pre-per-wallet storage: the single global credential entry and
+     * the global toggles/throttle stamp move to the active wallet's scoped keys — the account
+     * that was actually using the login keeps it — then the global entries are deleted so no
+     * other account ever sees them again.
+     */
+    private fun migrateLegacyGlobalStateIfNeeded() {
+        val suffix = currentSuffix ?: return
+        var migratedAnything = false
+        val editor = prefs.edit()
+
+        val legacyServer = prefs.getString(PREF_SERVER, null)
+        val legacyUsername = prefs.getString(PREF_USERNAME, null)
+        val legacyPassword = prefs.getString(PREF_APP_PASSWORD, null)
+        if (legacyServer != null && legacyUsername != null && legacyPassword != null) {
+            if (prefs.getString(scopedKey(PREF_SERVER, suffix), null) == null) {
+                editor.putString(scopedKey(PREF_SERVER, suffix), legacyServer)
+                editor.putString(scopedKey(PREF_USERNAME, suffix), legacyUsername)
+                editor.putString(scopedKey(PREF_APP_PASSWORD, suffix), legacyPassword)
+                prefs.getString(PREF_START_FOLDER, null)?.let { editor.putString(scopedKey(PREF_START_FOLDER, suffix), it) }
+                prefs.getString(PREF_BACKUP_FOLDER, null)?.let { editor.putString(scopedKey(PREF_BACKUP_FOLDER, suffix), it) }
+            }
+            migratedAnything = true
+        }
+
+        if (prefs.contains(PREF_AUTO_BACKUP_ENABLED)) {
+            if (!prefs.contains(scopedKey(PREF_AUTO_BACKUP_ENABLED, suffix))) {
+                editor.putBoolean(scopedKey(PREF_AUTO_BACKUP_ENABLED, suffix), prefs.getBoolean(PREF_AUTO_BACKUP_ENABLED, false))
+            }
+            migratedAnything = true
+        }
+        if (prefs.contains(PREF_MEDIA_SEND_ENABLED)) {
+            if (!prefs.contains(scopedKey(PREF_MEDIA_SEND_ENABLED, suffix))) {
+                editor.putBoolean(scopedKey(PREF_MEDIA_SEND_ENABLED, suffix), prefs.getBoolean(PREF_MEDIA_SEND_ENABLED, false))
+            }
+            migratedAnything = true
+        }
+        if (prefs.contains(PREF_LAST_AUTO_BACKUP_MS)) {
+            if (!prefs.contains(scopedKey(PREF_LAST_AUTO_BACKUP_MS, suffix))) {
+                editor.putLong(scopedKey(PREF_LAST_AUTO_BACKUP_MS, suffix), prefs.getLong(PREF_LAST_AUTO_BACKUP_MS, 0L))
+            }
+            migratedAnything = true
+        }
+
+        if (migratedAnything) {
+            for (base in ALL_PREF_BASES) editor.remove(base)
+            editor.apply()
+            Log.i(TAG, "Migrated the global Nextcloud login/settings to the active wallet's per-account storage")
+        }
+    }
+
+    /**
+     * Deletes a wallet's stored Nextcloud login and settings outright — used when that account
+     * is removed from this device entirely (the danger-zone wipe-account flow). Storage only;
+     * if the wallet is still the active one, the in-memory state clears too (the account switch
+     * that follows deletion reloads state for whichever wallet becomes active).
+     */
+    fun purgeStoredState(walletAddress: String) {
+        val suffix = walletHashSuffix(walletAddress)
+        val editor = prefs.edit()
+        for (base in ALL_PREF_BASES) editor.remove(scopedKey(base, suffix))
+        editor.apply()
+        if (walletAddress == currentWalletAddress) {
+            autoBackupJob?.cancel()
+            autoBackupJob = null
+            _account.value = null
+            _autoBackupEnabled.value = false
+            _mediaSendEnabled.value = false
+        }
+    }
+
     private fun loadAccount(): NextcloudAccount? {
-        val server = prefs.getString(PREF_SERVER, null) ?: return null
-        val username = prefs.getString(PREF_USERNAME, null) ?: return null
-        val appPassword = prefs.getString(PREF_APP_PASSWORD, null) ?: return null
+        val server = scopedKey(PREF_SERVER)?.let { prefs.getString(it, null) } ?: return null
+        val username = scopedKey(PREF_USERNAME)?.let { prefs.getString(it, null) } ?: return null
+        val appPassword = scopedKey(PREF_APP_PASSWORD)?.let { prefs.getString(it, null) } ?: return null
         return NextcloudAccount(
             server = server,
             username = username,
             appPassword = appPassword,
-            startFolder = prefs.getString(PREF_START_FOLDER, null),
-            backupFolder = prefs.getString(PREF_BACKUP_FOLDER, null)
+            startFolder = scopedKey(PREF_START_FOLDER)?.let { prefs.getString(it, null) },
+            backupFolder = scopedKey(PREF_BACKUP_FOLDER)?.let { prefs.getString(it, null) }
         )
     }
 
     private fun persistAccount(account: NextcloudAccount) {
+        val suffix = currentSuffix ?: return
         prefs.edit()
-            .putString(PREF_SERVER, account.server)
-            .putString(PREF_USERNAME, account.username)
-            .putString(PREF_APP_PASSWORD, account.appPassword)
+            .putString(scopedKey(PREF_SERVER, suffix), account.server)
+            .putString(scopedKey(PREF_USERNAME, suffix), account.username)
+            .putString(scopedKey(PREF_APP_PASSWORD, suffix), account.appPassword)
             .apply {
-                if (account.startFolder != null) putString(PREF_START_FOLDER, account.startFolder) else remove(PREF_START_FOLDER)
-                if (account.backupFolder != null) putString(PREF_BACKUP_FOLDER, account.backupFolder) else remove(PREF_BACKUP_FOLDER)
+                if (account.startFolder != null) putString(scopedKey(PREF_START_FOLDER, suffix), account.startFolder) else remove(scopedKey(PREF_START_FOLDER, suffix))
+                if (account.backupFolder != null) putString(scopedKey(PREF_BACKUP_FOLDER, suffix), account.backupFolder) else remove(scopedKey(PREF_BACKUP_FOLDER, suffix))
             }
             .apply()
         _account.value = account
@@ -218,6 +381,7 @@ class NextcloudService @Inject constructor(
      * then persists them. Throws with a user-facing message — a 401 says exactly what's wrong.
      */
     suspend fun connect(serverInput: String, username: String, appPassword: String) {
+        if (currentWalletAddress == null) throw IOException("Open a wallet account before connecting to Nextcloud.")
         val server = normalizeServer(serverInput)
             ?: throw IOException("That doesn't look like a valid server URL.")
         val user = username.trim()
@@ -248,7 +412,17 @@ class NextcloudService @Inject constructor(
     }
 
     fun disconnect() {
-        prefs.edit().clear().apply()
+        val editor = prefs.edit()
+        // Only the active wallet's entries — other accounts' logins stay untouched.
+        currentSuffix?.let { suffix ->
+            for (base in ALL_PREF_BASES) editor.remove(scopedKey(base, suffix))
+        }
+        // Belt and braces: if a legacy global entry somehow still exists, remove it too so
+        // disconnect can never appear to "come back" via migration.
+        for (base in ALL_PREF_BASES) editor.remove(base)
+        editor.apply()
+        autoBackupJob?.cancel()
+        autoBackupJob = null
         _account.value = null
         _autoBackupEnabled.value = false
         _mediaSendEnabled.value = false
@@ -267,12 +441,14 @@ class NextcloudService @Inject constructor(
     }
 
     fun setAutoBackupEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(PREF_AUTO_BACKUP_ENABLED, enabled).apply()
+        val key = scopedKey(PREF_AUTO_BACKUP_ENABLED) ?: return
+        prefs.edit().putBoolean(key, enabled).apply()
         _autoBackupEnabled.value = enabled
     }
 
     fun setMediaSendEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(PREF_MEDIA_SEND_ENABLED, enabled).apply()
+        val key = scopedKey(PREF_MEDIA_SEND_ENABLED) ?: return
+        prefs.edit().putBoolean(key, enabled).apply()
         _mediaSendEnabled.value = enabled
     }
 
@@ -287,15 +463,37 @@ class NextcloudService @Inject constructor(
         minIntervalMs: Long = AUTO_BACKUP_MIN_INTERVAL_MS,
         buildJson: suspend (String?) -> String
     ) {
-        if (!_autoBackupEnabled.value || !isConnected) return
-        val last = prefs.getLong(PREF_LAST_AUTO_BACKUP_MS, 0L)
+        if (!_autoBackupEnabled.value) return
+        // Snapshot the wallet AND its account/folder up front: the work runs in a service-owned
+        // job that a wallet switch cancels, and every await re-checks the wallet before touching
+        // the server — account A's archive must never upload while account B is active.
+        val walletAtStart = currentWalletAddress ?: return
+        val accountAtStart = _account.value ?: return
+        val folderAtStart = accountAtStart.backupFolder ?: BACKUP_FOLDER_NAME
+        val lastKey = scopedKey(PREF_LAST_AUTO_BACKUP_MS) ?: return
+        val last = prefs.getLong(lastKey, 0L)
         if (System.currentTimeMillis() - last < minIntervalMs) return
-        try {
-            runBackup(buildJson)
-            prefs.edit().putLong(PREF_LAST_AUTO_BACKUP_MS, System.currentTimeMillis()).apply()
-        } catch (e: Exception) {
-            Log.w(TAG, "Automatic Nextcloud backup failed (will retry on the next trigger)", e)
+
+        autoBackupJob?.cancel()
+        val job = serviceScope.launch(Dispatchers.IO) {
+            try {
+                val existingRemoteJson = downloadExistingBackup(accountAtStart, folderAtStart)
+                val json = buildJson(existingRemoteJson)
+                // The export awaited: if the wallet switched meanwhile (or the switch cancelled
+                // this job), drop the upload — this archive belongs to the previous account.
+                if (!isActive || currentWalletAddress != walletAtStart) return@launch
+                uploadBackup(json, accountAtStart, folderAtStart)
+                if (isActive && currentWalletAddress == walletAtStart) {
+                    prefs.edit().putLong(lastKey, System.currentTimeMillis()).apply()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Automatic Nextcloud backup failed (will retry on the next trigger)", e)
+            }
         }
+        autoBackupJob = job
+        job.join()
     }
 
     private fun basicAuth(account: NextcloudAccount): String =
@@ -595,8 +793,11 @@ class NextcloudService @Inject constructor(
      * corrupt or a different wallet — throws BEFORE the PUT, leaving the existing file untouched.
      */
     suspend fun runBackup(buildJson: suspend (String?) -> String) {
-        val existingRemoteJson = downloadExistingBackup()
-        uploadBackup(buildJson(existingRemoteJson))
+        // Snapshot the account/folder so a wallet switch mid-backup can't redirect the upload.
+        val account = requireAccount()
+        val folder = backupFolderPath
+        val existingRemoteJson = downloadExistingBackup(account, folder)
+        uploadBackup(buildJson(existingRemoteJson), account, folder)
     }
 
     /**
@@ -604,10 +805,9 @@ class NextcloudService @Inject constructor(
      * Any OTHER failure throws, because "couldn't read it" must abort the backup rather than let
      * the caller overwrite a file whose contents are unknown.
      */
-    private suspend fun downloadExistingBackup(): String? = withContext(Dispatchers.IO) {
-        val account = requireAccount()
+    private suspend fun downloadExistingBackup(account: NextcloudAccount, folder: String): String? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url(davUrl(account, "$backupFolderPath/$BACKUP_FILE_NAME"))
+            .url(davUrl(account, "$folder/$BACKUP_FILE_NAME"))
             .header("Authorization", basicAuth(account))
             .build()
         client.newCall(request).execute().use { response ->
@@ -628,9 +828,8 @@ class NextcloudService @Inject constructor(
      * exists since it was chosen through the folder browser). Overwrites in place: callers that
      * back chat history up must go through [runBackup] so the body is a merge, not a replacement.
      */
-    suspend fun uploadBackup(archiveJson: String) = withContext(Dispatchers.IO) {
-        val account = requireAccount()
-        val folderUrl = davUrl(account, backupFolderPath)
+    private suspend fun uploadBackup(archiveJson: String, account: NextcloudAccount, folder: String) = withContext(Dispatchers.IO) {
+        val folderUrl = davUrl(account, folder)
 
         val mkcol = Request.Builder()
             .url(folderUrl)
@@ -661,8 +860,12 @@ class NextcloudService @Inject constructor(
         return listing.firstOrNull { it.name == BACKUP_FILE_NAME && !it.isDirectory }
     }
 
-    /** Downloads the backup archive JSON. 404 -> "no backup was found". */
-    suspend fun downloadBackup(): String = withContext(Dispatchers.IO) {
+    /**
+     * Downloads the backup archive JSON. 404 -> "no backup was found". [onProgress] (optional)
+     * streams (receivedBytes, totalBytes) as the body downloads — totalBytes is null when the
+     * server sends no Content-Length. Drives the restore modal's download stage.
+     */
+    suspend fun downloadBackup(onProgress: ((receivedBytes: Long, totalBytes: Long?) -> Unit)? = null): String = withContext(Dispatchers.IO) {
         val account = requireAccount()
         val request = Request.Builder()
             .url(davUrl(account, "$backupFolderPath/$BACKUP_FILE_NAME"))
@@ -672,7 +875,19 @@ class NextcloudService @Inject constructor(
             if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
             if (response.code == 404) throw IOException("No KaChat backup was found on this Nextcloud server.")
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
-            response.body?.string()?.takeIf { it.isNotEmpty() }
+            val body = response.body ?: throw IOException("Unexpected response from the Nextcloud server.")
+            val totalBytes = body.contentLength().takeIf { it > 0 }
+            val out = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(64 * 1024)
+            body.byteStream().use { input ->
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    out.write(buffer, 0, read)
+                    onProgress?.invoke(out.size().toLong(), totalBytes)
+                }
+            }
+            out.toString("UTF-8").takeIf { it.isNotEmpty() }
                 ?: throw IOException("Unexpected response from the Nextcloud server.")
         }
     }

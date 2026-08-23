@@ -2,10 +2,15 @@ package com.kachat.app.ui.screens
 
 import android.app.Activity
 import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,24 +19,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,15 +52,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.R
 import com.kachat.app.models.BackupRetention
+import com.kachat.app.services.BackupRestoreCoordinator
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ChatViewModel
@@ -85,7 +102,7 @@ fun GoogleDriveStorageScreen(
     val context = LocalContext.current
     val googleBackupEnabled by chatViewModel.googleBackupEnabled.collectAsState()
     val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
-    val restoreState by chatViewModel.restoreState.collectAsState()
+    val restorePhase by chatViewModel.restoreCoordinator.phase.collectAsState()
     val pendingConsentIntent by chatViewModel.pendingConsentIntent.collectAsState()
     val driveBackupSizeState by chatViewModel.driveBackupSizeState.collectAsState()
     val activity = context.findActivity()
@@ -104,8 +121,9 @@ fun GoogleDriveStorageScreen(
     }
 
     val backupInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
-    val restoreInFlight = restoreState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+    val restoreInFlight = restorePhase is BackupRestoreCoordinator.Phase.Running
 
+    Box(modifier = Modifier.fillMaxSize()) {
     StoragePageScaffold(title = stringResource(R.string.google_drive), onBack = onBack) {
         SettingsSection(title = null) {
             SettingsSwitchItem(
@@ -174,16 +192,14 @@ fun GoogleDriveStorageScreen(
                     icon = Icons.Default.CloudDownload,
                     color = if (restoreInFlight) Color.Gray else KaspaTeal
                 ) {
+                    // Terminal states (success/failure) show in the blocking restore modal, not
+                    // as footer rows here.
                     if (!restoreInFlight) chatViewModel.restoreFromGoogleDrive()
-                }
-                if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
-                    SettingsFooter(restoreState.message ?: "Restore complete.")
-                }
-                if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                    SettingsFooter(restoreState.message ?: "Restore failed.")
                 }
             }
         }
+    }
+    ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
     }
 }
 
@@ -246,8 +262,153 @@ fun NextcloudStorageScreen(
     onBack: () -> Unit,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
-    StoragePageScaffold(title = stringResource(R.string.nextcloud), onBack = onBack) {
-        NextcloudSettingsSection(chatViewModel)
+    Box(modifier = Modifier.fillMaxSize()) {
+        StoragePageScaffold(title = stringResource(R.string.nextcloud), onBack = onBack) {
+            NextcloudSettingsSection(chatViewModel)
+        }
+        ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
+    }
+}
+
+/**
+ * The blocking chat-restore modal — the Android port of iOS's `ChatRestoreProgressModal`
+ * (SettingsView.swift). Rendered as an in-composition full-screen Box over the storage page
+ * (same pattern as the KaPosts thread overlay — a Compose Dialog would never honor MATCH_PARENT
+ * here), so while a restore runs the user cannot leave:
+ *   * the opaque overlay claims the hit test for the whole screen, so the page underneath
+ *     (including the top bar's back arrow) is unreachable;
+ *   * [BackHandler] swallows system back — [BackupRestoreCoordinator.dismiss] refuses to fire
+ *     while the restore is running, and acts as Done/Close on a terminal state;
+ *   * the storage pages are not tab routes, so there is no bottom bar to block.
+ * The restore itself is owned by the [BackupRestoreCoordinator] singleton, so even if this
+ * composition died the import would keep running to completion.
+ */
+@Composable
+fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
+    val phase by coordinator.phase.collectAsState()
+    if (phase is BackupRestoreCoordinator.Phase.Idle) return
+    val fraction by coordinator.fraction.collectAsState()
+    val stageText by coordinator.stageText.collectAsState()
+    val colors = LocalAppColors.current
+
+    BackHandler { coordinator.dismiss() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            // Claims the hit test so nothing behind the overlay is tappable; the card's own
+            // buttons sit above this and keep working.
+            .pointerInput(Unit) { detectTapGestures { } },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .widthIn(max = 340.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.surface)
+                .padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            when (val current = phase) {
+                is BackupRestoreCoordinator.Phase.Idle -> {}
+                is BackupRestoreCoordinator.Phase.Running -> {
+                    Icon(
+                        Icons.Default.CloudDownload,
+                        contentDescription = null,
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Text("Restoring Backup", color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val animatedFraction by animateFloatAsState(fraction, label = "restoreProgress")
+                        LinearProgressIndicator(
+                            progress = { animatedFraction },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = KaspaTeal,
+                            trackColor = colors.surfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                stageText,
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(Modifier.size(12.dp))
+                            Text(
+                                "${(fraction * 100).toInt()}%",
+                                color = colors.textSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Text(
+                        "Please keep the app open. Leaving now could corrupt your chat history.",
+                        color = colors.textSecondary,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                is BackupRestoreCoordinator.Phase.Success -> {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF34C759),
+                        modifier = Modifier.size(44.dp)
+                    )
+                    Text("Restore Complete", color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Restored ${current.messages} messages from ${current.conversations} chats.",
+                        color = colors.textSecondary,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Button(
+                        onClick = { coordinator.dismiss() },
+                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Done", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+                is BackupRestoreCoordinator.Phase.Failure -> {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFFF9500),
+                        modifier = Modifier.size(44.dp)
+                    )
+                    Text("Restore Failed", color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        current.message,
+                        color = colors.textSecondary,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { coordinator.retry() },
+                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Try Again", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = { coordinator.dismiss() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Close", color = colors.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
