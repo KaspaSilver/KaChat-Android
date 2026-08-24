@@ -103,6 +103,20 @@ class ColdStorageViewModel @Inject constructor(
     private val _addresses = MutableStateFlow<List<AddressRow>>(emptyList())
     val addresses: StateFlow<List<AddressRow>> = _addresses.asStateFlow()
 
+    // Which account [_addresses] currently belongs to. The rows are shared VM state across every
+    // cold account's detail screen, so opening account B while A's rows were still loaded used to
+    // merge A's balances/used flags into B's list (refreshAddresses seeds its "known" map from
+    // whatever is painted) and let Generate recycle indices using A's data. Loading a different
+    // account now starts from an empty list.
+    private var loadedAccountId: String? = null
+
+    private fun resetAddressesIfAccountChanged(accountId: String) {
+        if (loadedAccountId != accountId) {
+            _addresses.value = emptyList()
+            loadedAccountId = accountId
+        }
+    }
+
     private val _isDiscovering = MutableStateFlow(false)
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
 
@@ -118,6 +132,7 @@ class ColdStorageViewModel @Inject constructor(
      */
     fun refreshAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
+        resetAddressesIfAccountChanged(accountId)
         val previousCount = _addresses.value.size
         viewModelScope.launch {
             _isDiscovering.value = true
@@ -386,21 +401,25 @@ class ColdStorageViewModel @Inject constructor(
     }
 
     /**
-     * "Generate More Addresses", recycling-aware (the same fix the spending chain's Generate
-     * got): picks the LOWEST listed index that is truly unused — zero balance, no on-chain
-     * history — un-hiding it rather than growing the chain; only when every listed index is
-     * spoken for does it derive one past the end. Reports the ready index via [onResult].
+     * "Generate More Addresses" — a SEQUENCE: every press must land another unused row on the
+     * visible list, forever. A press first un-hides the LOWEST HIDDEN index this session
+     * live-confirmed as truly unused (zero balance, no on-chain history); the hidden requirement
+     * is what makes press N+1 different from press N — a row that is already visible is already
+     * "generated", and re-picking it (the old behavior) made the second press a silent no-op.
+     * When no hidden unused row remains, it derives one past the all-time max, which is always a
+     * distinct new index. Reports the ready index via [onResult]; null means the kpub could not
+     * derive an address at all (nothing was landed or persisted).
      */
-    fun generateMoreAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
+    fun generateMoreAddresses(accountId: String, onResult: (Int?) -> Unit = {}) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         viewModelScope.launch {
             _isDiscovering.value = true
             try {
-                // Recycle only rows this session live-confirmed as empty and unused — a
+                // Recycle only HIDDEN rows this session live-confirmed as empty and unused — a
                 // snapshot-painted row could be funded since; deriving past the end (below) is
                 // always safe, so unconfirmed rows are skipped rather than trusted.
                 val recycled = _addresses.value.sortedBy { it.index }
-                    .firstOrNull { it.liveChecked && it.balanceSompi == 0L && !it.hasHistory }
+                    .firstOrNull { it.hidden && it.liveChecked && it.balanceSompi == 0L && !it.hasHistory }
                 if (recycled != null) {
                     coldStorageManager.setAddressHidden(accountId, recycled.index, false)
                     _addresses.value = _addresses.value.map {
@@ -410,6 +429,13 @@ class ColdStorageViewModel @Inject constructor(
                     return@launch
                 }
                 val nextIndex = maxOf(account.maxDerivedIndex, _addresses.value.maxOfOrNull { it.index } ?: -1) + 1
+                // Derive BEFORE persisting anything: if the kpub can't produce this address the
+                // press must refuse cleanly instead of toasting an index that never appears.
+                val address = coldAddressAt(accountId, nextIndex)
+                if (address == null) {
+                    onResult(null)
+                    return@launch
+                }
                 coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, nextIndex)
                 coldStorageManager.setAddressHidden(accountId, nextIndex, false)
                 _accounts.value = coldStorageManager.getAccounts()
@@ -417,14 +443,11 @@ class ColdStorageViewModel @Inject constructor(
                 // the new row lands on screen NOW — its address derives locally — so the toast
                 // never names a row the list doesn't show. The live check afterwards only
                 // backfills balance/used flags; its failure no longer makes the row vanish.
-                val address = coldAddressAt(accountId, nextIndex)
-                if (address != null) {
-                    val labels = coldStorageManager.getAddressLabels(accountId)
-                    _addresses.value = (
-                        _addresses.value.filterNot { it.index == nextIndex } +
-                            AddressRow(nextIndex, address, 0L, false, labels[nextIndex], hidden = false)
-                        ).sortedByDescending { it.index }
-                }
+                val labels = coldStorageManager.getAddressLabels(accountId)
+                _addresses.value = (
+                    _addresses.value.filterNot { it.index == nextIndex } +
+                        AddressRow(nextIndex, address, 0L, false, labels[nextIndex], hidden = false)
+                    ).sortedByDescending { it.index }
                 onResult(nextIndex)
                 val rootKey = rootKeyFor(accountId)
                 val discovered = rootKey?.let { addressDiscovery.checkAddress(it, chain = 0, index = nextIndex) }

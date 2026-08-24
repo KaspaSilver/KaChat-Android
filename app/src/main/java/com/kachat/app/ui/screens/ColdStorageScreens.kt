@@ -547,7 +547,12 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_more_addresses)) {
                         showActionsMenu = false
                         if (!isDiscovering) viewModel.generateMoreAddresses(accountId) { index ->
-                            Toast.makeText(context, "Address #$index is ready.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                if (index != null) "Address #$index is ready."
+                                else "Could not derive a new address.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
@@ -1071,9 +1076,18 @@ private fun ColdAddressRow(
                 )
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Same three-state rule as the spending list: "Used" is monotonic, "Unused"
+                    // only when this session's live pass confirmed the row, and a neutral
+                    // "Unverified" for snapshot-painted or failed-check rows — a failed check
+                    // must not masquerade as a fresh address.
+                    val (usedTagText, usedTagColor) = when {
+                        row.hasHistory -> "Used" to Color(0xFFF39C12)
+                        row.liveChecked -> "Unused" to Color(0xFF4CD964)
+                        else -> "Unverified" to LocalAppColors.current.textSecondary
+                    }
                     Text(
-                        text = if (row.hasHistory) "Used" else "Unused",
-                        color = if (row.hasHistory) Color(0xFFF39C12) else Color(0xFF4CD964),
+                        text = usedTagText,
+                        color = usedTagColor,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )

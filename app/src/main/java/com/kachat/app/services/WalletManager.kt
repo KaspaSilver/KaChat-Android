@@ -126,6 +126,11 @@ class WalletManager @Inject constructor(
     private fun saveAccounts(accounts: List<Account>) {
         val json = gson.toJson(accounts)
         sharedPrefs.edit().putString(PREF_ACCOUNTS, json).apply()
+        // saveAccounts is the single choke point every spendingAddressIndex write goes through
+        // (send rotation via setSpendingAddressIndex, advanceSpendingAddressIndex, manual
+        // activation, import), so refreshing here keeps primarySpendingIndexFlow current no
+        // matter which path rotated the primary.
+        refreshPrimarySpendingIndexFlow()
     }
 
     /**
@@ -144,9 +149,26 @@ class WalletManager @Inject constructor(
         _activeAddress.value = computeActiveAddress()
     }
 
+    /**
+     * The active account's primary ("Pay in Kaspa") spending index, reactive to every rotation —
+     * a successful spending send advances it (see KaspaWalletEngine.sendSpendingPayment), and the
+     * Manage Addresses screen needs to notice PROMPTLY so the old primary row loses its star and
+     * becomes hideable without waiting for a full list reload. Updated from [saveAccounts] (the
+     * choke point for all account mutations) and on account switches.
+     */
+    private val _primarySpendingIndex = MutableStateFlow(computePrimarySpendingIndex())
+    val primarySpendingIndexFlow: StateFlow<Int?> = _primarySpendingIndex.asStateFlow()
+
+    private fun computePrimarySpendingIndex(): Int? = getActiveAccount()?.spendingAddressIndex
+
+    private fun refreshPrimarySpendingIndexFlow() {
+        _primarySpendingIndex.value = computePrimarySpendingIndex()
+    }
+
     fun setActiveAccount(address: String) {
         sharedPrefs.edit().putString(PREF_ACTIVE_ADDRESS, address).apply()
         refreshActiveAddressFlow()
+        refreshPrimarySpendingIndexFlow()
     }
 
     fun getActiveAccount(): Account? {

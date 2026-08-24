@@ -166,6 +166,42 @@ class WalletViewModel @Inject constructor(
     private val _manageAddressesLoading = MutableStateFlow(false)
     val manageAddressesLoading: StateFlow<Boolean> = _manageAddressesLoading.asStateFlow()
 
+    init {
+        // Primary freshness: a successful "Pay in Kaspa" send rotates the primary spending index
+        // (KaspaWalletEngine.sendSpendingPayment -> setSpendingAddressIndex), and the Manage
+        // Addresses rows carry a stale isCurrent until the next full reload — which left the OLD
+        // primary starred and unhideable for as long as the reload took. Observe the rotation and
+        // restar the rows immediately: the new primary gains the star (and is forced visible, the
+        // same self-heal rule the list loader applies), the old primary loses it and its
+        // just-swept balance so the funded-row hide guard stops blocking it. The full
+        // loadManageAddresses reload stays the authoritative reconciler; the storage-level
+        // primary-hide backstop in WalletManager.setSpendingAddressHidden is untouched.
+        viewModelScope.launch {
+            walletManager.primarySpendingIndexFlow.collect { primary ->
+                _spendingAddress.value = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
+                if (primary == null) return@collect
+                val current = _manageAddresses.value
+                if (current.none { it.isCurrent && it.index != primary } &&
+                    current.none { it.index == primary && !it.isCurrent }
+                ) return@collect
+                val sweptFromOldPrimary = current.firstOrNull { it.isCurrent && it.index != primary }?.balanceSompi ?: 0L
+                _manageAddresses.value = current.map { entry ->
+                    when {
+                        entry.index == primary && !entry.isCurrent ->
+                            entry.copy(isCurrent = true, hidden = false, balanceSompi = entry.balanceSompi + sweptFromOldPrimary)
+                        entry.index != primary && entry.isCurrent ->
+                            // The rotation sweep moved this row's whole balance to the new primary.
+                            entry.copy(isCurrent = false, balanceSompi = 0L)
+                        else -> entry
+                    }
+                }
+                // Background reconcile with real on-chain state (also adds the new primary row
+                // when it was a freshly derived index the list has never shown).
+                if (current.isNotEmpty()) loadManageAddresses()
+            }
+        }
+    }
+
     fun loadManageAddresses() {
         viewModelScope.launch {
             // Instant paint from the persisted snapshot of the last full load (balances may be
@@ -280,10 +316,14 @@ class WalletViewModel @Inject constructor(
                 onResult(null)
                 return@launch
             }
-            // Only rows whose balance and used-ness were both live-confirmed this load are
-            // recyclable; unconfirmed rows are skipped rather than trusted.
+            // Generate is a SEQUENCE: each press must land a NEW row on the list, forever. So a
+            // recycle pick is the lowest truly-unused index that is still HIDDEN — un-hiding it
+            // adds a row the user can see. A visible unused row is already on screen; re-picking
+            // it made press two a silent no-op (the stall this replaces). Only rows whose balance
+            // and used-ness were both live-confirmed this load are recyclable; unconfirmed rows
+            // are skipped rather than trusted.
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
-                entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
+                entry.hidden && entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
                     entry.balanceSompi == 0L && !entry.everUsed &&
                     !paymentPoolStore.isReservedAddress(entry.address, walletAddress)
             }
@@ -315,9 +355,11 @@ class WalletViewModel @Inject constructor(
                     isCurrent = false,
                     hidden = false,
                     label = null,
-                    // Brand-new derivation, not yet balance-confirmed live: honest false, the
-                    // reload below confirms it.
-                    liveChecked = false
+                    // Past the all-time max index, so provably never revealed, funded, offered,
+                    // or reserved — unused by construction, no network needed. Marking it
+                    // live-confirmed lets the row show "Unused" (not the neutral unverified
+                    // state) and hide instantly; the reload below still reconciles.
+                    liveChecked = true
                 )
             }
             loadManageAddresses()

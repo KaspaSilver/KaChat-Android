@@ -6191,9 +6191,19 @@ private fun ManageAddressRow(
             )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Three honest states, never a guess: "Used" is monotonic (persisted used-memory
+                // plus live probes, so a confirmed-used address can never flip back), "Unused"
+                // only when THIS load's live check actually confirmed it, and a neutral
+                // "Unverified" when the probe failed or the row was painted from the snapshot —
+                // a failed check must not masquerade as a fresh address.
+                val (usedTagText, usedTagColor) = when {
+                    entry.everUsed -> "Used" to Color(0xFFF39C12)
+                    entry.liveChecked -> "Unused" to Color(0xFF4CD964)
+                    else -> "Unverified" to LocalAppColors.current.textSecondary
+                }
                 Text(
-                    text = if (entry.everUsed) "Used" else "Unused",
-                    color = if (entry.everUsed) Color(0xFFF39C12) else Color(0xFF4CD964),
+                    text = usedTagText,
+                    color = usedTagColor,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
