@@ -252,10 +252,32 @@ class ColdStorageViewModel @Inject constructor(
      */
     fun setColdVisibilityHidden(accountId: String, index: Int, hidden: Boolean) {
         val row = _addresses.value.find { it.index == index }
-        if (hidden && row != null && row.balanceSompi > 0) return
-        coldStorageManager.setAddressHidden(accountId, index, hidden)
-        if (row != null) {
-            _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = hidden) else it }
+        if (!hidden) {
+            coldStorageManager.setAddressHidden(accountId, index, false)
+            if (row != null) {
+                _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = false) else it }
+            }
+            return
+        }
+        // Hiding fails CLOSED: the cached row balance can be stale (funds received since the
+        // last refresh) and a missing row proves nothing, so a hide only commits after a live
+        // zero-balance confirmation. No network answer means no hide.
+        if (row != null && row.balanceSompi > 0) return
+        viewModelScope.launch {
+            val rootKey = rootKeyFor(accountId) ?: return@launch
+            val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index) ?: return@launch
+            if (discovered.balanceSompi > 0) {
+                if (row != null) {
+                    _addresses.value = _addresses.value.map {
+                        if (it.index == index) it.copy(balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory) else it
+                    }
+                }
+                return@launch
+            }
+            coldStorageManager.setAddressHidden(accountId, index, true)
+            _addresses.value = _addresses.value.map {
+                if (it.index == index) it.copy(hidden = true, balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory) else it
+            }
         }
     }
 
@@ -326,12 +348,8 @@ class ColdStorageViewModel @Inject constructor(
      * a case you'd want to keep an eye on, not tuck away.
      */
     fun setAddressHidden(accountId: String, index: Int, hidden: Boolean) {
-        val row = _addresses.value.find { it.index == index } ?: return
-        if (hidden && row.balanceSompi > 0) return
-        coldStorageManager.setAddressHidden(accountId, index, hidden)
-        _addresses.value = _addresses.value.map {
-            if (it.index == index) it.copy(hidden = hidden) else it
-        }
+        // Same live-balance fail-closed rule as the checklist path; one implementation.
+        setColdVisibilityHidden(accountId, index, hidden)
     }
 
     // -------------------------------------------------------------------------
