@@ -953,13 +953,23 @@ class GroupRepository @Inject constructor(
         // rotates the key. Skipped on a first-time join and on backfill (no false "added" storm for
         // the members who were already there when we joined).
         val existingEntity = database.groupDao().getGroup(payload.groupId, walletAddress)
+        val backfill = isBackfill(blockTime)
         val previousRosterForDiff: List<GroupMember>? =
-            if (!isFirstTimeJoin && !isBackfill(blockTime)) existingEntity?.let(::membersOf) else null
+            if (!isFirstTimeJoin && !backfill) existingEntity?.let(::membersOf) else null
 
         val entity = GroupEntity(
             groupId = payload.groupId, walletAddress = walletAddress, name = payload.name, adminAddress = adminAddress,
             adminXOnlyPubKeyHex = payload.adminSigningPub, currentEpoch = payload.epoch, isAdmin = walletAddress == adminAddress,
             membersJson = gson.toJson(members),
+            // upsertGroup is a whole-row REPLACE and this path builds a fresh entity (it can't use
+            // entity.copy() - there may be no existing row), so read state and creation time must
+            // carry over explicitly. Without this, every received root (rename, roster change,
+            // epoch rotation, recovery root) reset lastReadAt to null and flipped the whole
+            // thread's messages back to unread. A backfilled first-time join (group re-discovered
+            // during an import's history sync) stamps "now" so restored history never surfaces as
+            // an unread badge - only a genuinely live invite stays null ("new group" badge).
+            createdAt = existingEntity?.createdAt ?: System.currentTimeMillis(),
+            lastReadAt = existingEntity?.lastReadAt ?: if (backfill) System.currentTimeMillis() else null,
             // Group photo rides a separate gctl_photo control, not the root - preserve any we hold.
             photoHex = existingEntity?.photoHex
         )
@@ -969,12 +979,12 @@ class GroupRepository @Inject constructor(
             emitMembershipSystemMessages(payload.groupId, walletAddress, prev, members, blockTime ?: System.currentTimeMillis())
         }
         // iMessage-style rename line for members (the admin emits its own in renameGroup).
-        if (existingEntity != null && existingEntity.name != payload.name && !isBackfill(blockTime)) {
+        if (existingEntity != null && existingEntity.name != payload.name && !backfill) {
             val who = if (walletAddress == adminAddress) "You" else groupMemberLabel(adminAddress, walletAddress, null)
             insertGroupSystemMessage(payload.groupId, walletAddress, "$who changed the group name to \"${payload.name}\"", blockTime ?: System.currentTimeMillis())
         }
 
-        if (isFirstTimeJoin && !isBackfill(blockTime)) {
+        if (isFirstTimeJoin && !backfill) {
             notificationHelper.showGroup(payload.groupId, "", "You were added to \"${payload.name}\"")
         }
     }
@@ -1200,7 +1210,16 @@ class GroupRepository @Inject constructor(
                 groupId = g.groupId, walletAddress = walletAddress, name = g.name,
                 adminAddress = g.adminAddress ?: "", adminXOnlyPubKeyHex = g.adminSigningPub ?: "",
                 currentEpoch = g.currentEpoch, isAdmin = g.isAdmin, membersJson = gson.toJson(roster),
-                lastReadAt = existingEntity?.lastReadAt,
+                createdAt = existingEntity?.createdAt ?: System.currentTimeMillis(),
+                // Restored history is never unread: advance lastReadAt past every message this
+                // archive carries (never backward - a newer read marker this device already holds
+                // wins). Without this, restoring onto a fresh install left lastReadAt null, so the
+                // whole restored thread counted as unread (plus the "never opened" badge). A group
+                // restored with no messages stamps "now" - a restore is history, not a new invite.
+                lastReadAt = maxOf(
+                    existingEntity?.lastReadAt ?: 0L,
+                    g.messages.orEmpty().maxOfOrNull { it.blockTime } ?: 0L
+                ).takeIf { it > 0L } ?: System.currentTimeMillis(),
                 photoHex = g.photo ?: existingEntity?.photoHex
             )
             database.groupDao().upsertGroup(entity)

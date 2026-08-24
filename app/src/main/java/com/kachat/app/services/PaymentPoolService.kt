@@ -459,6 +459,11 @@ class PaymentPoolService @Inject constructor(
 
         if (database.messageDao().exists(txId, myAddress)) return
 
+        // See AppSettingsRepository.liveNotificationBaseline: a notice older than this account's
+        // first sync on this device is history being replayed (e.g. right after a seed import) -
+        // insert it already-read and skip the notification, matching every other backfill insert
+        // path (ChatRepository.isBackfill).
+        val backfill = noticeBlockTime < settingsRepository.liveNotificationBaseline(myAddress)
         val displayText = "Received ${ChatRepository.formatKas(content.amountSompi)} KAS"
         chatRepositoryLazy.get().insertMessage(
             MessageEntity(
@@ -470,12 +475,13 @@ class PaymentPoolService @Inject constructor(
                 plaintextBody = displayText,
                 encryptedPayload = "",
                 amountSompi = content.amountSompi,
-                blockTimestamp = noticeBlockTime
+                blockTimestamp = noticeBlockTime,
+                isRead = backfill || notificationHelper.isViewingContact(contact.id)
             )
         )
         Log.i(TAG, "Created payment bubble from payment_notice ${txId.take(12)}")
 
-        if (!pushState.isActive) { // payment pushes come from the server in remote-push mode
+        if (!backfill && !pushState.isActive) { // payment pushes come from the server in remote-push mode
             notificationHelper.show(
                 contactId = contact.id,
                 title = "Payment received",
