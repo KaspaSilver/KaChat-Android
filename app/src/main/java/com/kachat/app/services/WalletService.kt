@@ -233,7 +233,10 @@ class WalletService @Inject constructor(
         val raw: List<SpendingAddressEntry> = try { gson.fromJson(json, type) ?: emptyList() } catch (e: Exception) { emptyList() }
         return raw.map { entry ->
             val isCurrent = entry.index == account.spendingAddressIndex
-            entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent && entry.balanceSompi <= 0L)
+            // liveChecked means "confirmed by the fetch that produced THIS object" — a snapshot
+            // row was confirmed in some PREVIOUS session at best, so it comes back untrusted.
+            // Only a fresh getSpendingAddressList load can mark rows live-confirmed.
+            entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent && entry.balanceSompi <= 0L, liveChecked = false)
         }
     }
 

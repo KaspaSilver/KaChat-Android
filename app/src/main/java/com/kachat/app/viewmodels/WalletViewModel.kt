@@ -188,26 +188,55 @@ class WalletViewModel @Inject constructor(
      * Hiding is purely a display preference — the address and its label are untouched; it's just
      * filtered out of the main Manage Addresses list. Unhiding is always allowed, but an address
      * can never be hidden while it holds a balance or is the primary ("Pay in Kaspa") spending
-     * address — both are cases you'd want to keep an eye on, not tuck away. The quick checks here
-     * use the freshest row plus the AUTHORITATIVE primary index (the row's isCurrent can be stale
-     * after a send rotates the primary); [WalletService.setSpendingAddressHidden] then re-verifies
-     * with a live balance fetch and fails closed, so [onResult] reports whether the hide actually
-     * committed.
+     * address — both are cases you'd want to keep an eye on, not tuck away. The guards check the
+     * freshest row plus the AUTHORITATIVE primary index (a row's isCurrent can be stale after a
+     * send rotates the primary). Hides against a row this session live-confirmed commit instantly
+     * (see the toggle rule inline); only rows with no live-confirmed data fall back to
+     * [WalletService.setSpendingAddressHidden]'s fail-closed live re-check. [onResult] reports
+     * whether the hide actually committed.
      */
     fun setManageAddressHidden(index: Int, hidden: Boolean, onResult: (Boolean) -> Unit = {}) {
-        if (hidden) {
-            val entry = _manageAddresses.value.find { it.index == index }
-            val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
-            if (index == primaryIndex || entry?.isCurrent == true || (entry?.balanceSompi ?: 0L) > 0L) {
-                onResult(false)
-                return
+        val account = walletManager.getActiveAccount()
+        if (account == null) {
+            onResult(false)
+            return
+        }
+        if (!hidden) {
+            // Unhide is always allowed and needs no network: commit and flip instantly.
+            walletManager.setSpendingAddressHidden(account.address, index, false)
+            _manageAddresses.value = _manageAddresses.value.map {
+                if (it.index == index) it.copy(hidden = false) else it
             }
+            onResult(true)
+            return
+        }
+        val entry = _manageAddresses.value.find { it.index == index }
+        if (index == account.spendingAddressIndex || entry?.isCurrent == true || (entry?.balanceSompi ?: 0L) > 0L) {
+            onResult(false)
+            return
+        }
+        // THE TOGGLE RULE: a hide trusts the fresh in-session row when one exists. This screen
+        // batch-loads live balances when it opens (loadManageAddresses), so a row marked
+        // liveChecked was balance-confirmed moments ago — the hide commits instantly and
+        // optimistically with no per-toggle network round trip (that per-tap fetch is what made
+        // the checklist feel like it couldn't select). The funded/primary guards above were just
+        // enforced against that same fresh data, and WalletManager's storage-level backstop still
+        // refuses a primary hide from any caller. Only when NO live-confirmed row exists for the
+        // index (list painted from cache, live load failed) does the fail-closed path below run:
+        // one live balance fetch, and no answer means no hide.
+        if (entry != null && entry.liveChecked) {
+            walletManager.setSpendingAddressHidden(account.address, index, true)
+            _manageAddresses.value = _manageAddresses.value.map {
+                if (it.index == index) it.copy(hidden = true) else it
+            }
+            onResult(true)
+            return
         }
         viewModelScope.launch {
-            val ok = walletService.setSpendingAddressHidden(index, hidden)
+            val ok = walletService.setSpendingAddressHidden(index, true)
             if (ok) {
                 _manageAddresses.value = _manageAddresses.value.map {
-                    if (it.index == index) it.copy(hidden = hidden) else it
+                    if (it.index == index) it.copy(hidden = true) else it
                 }
             }
             onResult(ok)
@@ -265,7 +294,31 @@ class WalletViewModel @Inject constructor(
                 // Every listed index is spoken for (or unconfirmed): extend the chain. A brand-new
                 // index past the all-time max has never been revealed, funded, or offered, so it
                 // is always safe to hand out — and this branch only runs off a LOADED live list.
-                walletService.generateNextSpendingAddress()
+                val newIndex = walletService.generateNextSpendingAddress()
+                // iOS parity (lowestUnusedSpendingAddress's tail): explicitly clear any hidden
+                // flag on the new slot so it can never arrive pre-hidden. Instant, no network.
+                walletManager.setSpendingAddressHidden(walletAddress, newIndex, false)
+                newIndex
+            }
+            // iOS parity (ManageAddressesView.generateNew awaits its reload before toasting): the
+            // ready row must be ON SCREEN when the toast names it. We just fetched the live list,
+            // so commit it now with the ready row unhidden — recycled picks flip visible in place,
+            // a newly derived index is appended as a fresh row (its address derives locally) — and
+            // let the background reload only reconcile flags afterwards.
+            val fresh = entries.map { if (it.index == readyIndex) it.copy(hidden = false) else it }
+            _manageAddresses.value = if (fresh.any { it.index == readyIndex }) fresh else {
+                fresh + com.kachat.app.services.WalletService.SpendingAddressEntry(
+                    index = readyIndex,
+                    address = spendingAddressAt(readyIndex) ?: "",
+                    balanceSompi = 0L,
+                    everUsed = false,
+                    isCurrent = false,
+                    hidden = false,
+                    label = null,
+                    // Brand-new derivation, not yet balance-confirmed live: honest false, the
+                    // reload below confirms it.
+                    liveChecked = false
+                )
             }
             loadManageAddresses()
             onResult(readyIndex)

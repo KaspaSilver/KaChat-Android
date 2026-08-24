@@ -675,12 +675,21 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         onSendClick = { if (row.balanceSompi > 0) sendFromRow = row },
                         onShowQrClick = { qrRow = row },
                         onHideClick = {
-                            // Same guards + copy as the Address Visibility checklist toggle.
+                            // Same guards + copy as the Address Visibility checklist toggle. The
+                            // toast waits for the real result: rows this session live-confirmed
+                            // commit instantly, anything else runs the fail-closed live check and
+                            // may refuse.
                             if (row.balanceSompi > 0) {
                                 Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
                             } else {
-                                viewModel.setColdVisibilityHidden(accountId, row.index, true)
-                                Toast.makeText(context, "Address hidden. Re-enable it in Address Visibility.", Toast.LENGTH_SHORT).show()
+                                viewModel.setColdVisibilityHidden(accountId, row.index, true) { ok ->
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Address hidden. Re-enable it in Address Visibility."
+                                        else "This address stays visible. It holds a balance or its balance could not be confirmed.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         }
                     )
@@ -841,6 +850,12 @@ fun ColdStorageAddressVisibilityScreen(
     // Lazily filled Used/Unused results for rows derived beyond the loaded list.
     val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
 
+    // Batch-load fresh balances on entry (one round trip for the whole derived list): the toggle
+    // rule trusts rows THIS load confirms, letting every checkmark flip instantly with no
+    // per-toggle network wait. Rows the load could not confirm fall back to the fail-closed
+    // per-address check. Mirrors the spending checklist's same refresh-on-entry.
+    LaunchedEffect(Unit) { viewModel.refreshAddresses(accountId) }
+
     val start = page * pageSize
     val end = start + pageSize - 1
     val pageEntries = remember(byIndex, page) {
@@ -925,8 +940,18 @@ fun ColdStorageAddressVisibilityScreen(
                             Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
                         entry.index > listMax ->
                             viewModel.revealColdAddress(accountId, entry.index)
-                        else ->
-                            viewModel.setColdVisibilityHidden(accountId, entry.index, !entry.hidden)
+                        else -> {
+                            val hiding = !entry.hidden
+                            viewModel.setColdVisibilityHidden(accountId, entry.index, hiding) { ok ->
+                                if (hiding && !ok) {
+                                    Toast.makeText(
+                                        context,
+                                        "This address stays visible. It holds a balance or its balance could not be confirmed.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
                     }
                 }
                 Row(

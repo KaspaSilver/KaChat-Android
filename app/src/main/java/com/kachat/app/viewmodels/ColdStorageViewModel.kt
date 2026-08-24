@@ -92,7 +92,12 @@ class ColdStorageViewModel @Inject constructor(
         val balanceSompi: Long,
         val hasHistory: Boolean,
         val label: String? = null,
-        val hidden: Boolean = false
+        val hidden: Boolean = false,
+        // Whether THIS session's live load (the batched balance pass or a per-address check)
+        // actually confirmed the row's balance. Snapshot-painted rows come back false — the
+        // spending list's identical rule — so visibility toggles know when they can trust the
+        // row instantly versus when they must fall back to a fail-closed live check.
+        val liveChecked: Boolean = false
     )
 
     private val _addresses = MutableStateFlow<List<AddressRow>>(emptyList())
@@ -125,7 +130,11 @@ class ColdStorageViewModel @Inject constructor(
                 // labels/hidden always come from their own live stores, not the snapshot.
                 if (_addresses.value.isEmpty()) {
                     snapshotRows(accountId)?.let { rows ->
-                        _addresses.value = rows.map { it.copy(label = labels[it.index], hidden = it.index in hiddenIndices) }
+                        _addresses.value = rows.map {
+                            // A snapshot row's confirmation belonged to a previous session:
+                            // untrusted until the live pass below re-confirms it.
+                            it.copy(label = labels[it.index], hidden = it.index in hiddenIndices, liveChecked = false)
+                        }
                     }
                 }
                 val rootKey = rootKeyFor(accountId)
@@ -149,14 +158,16 @@ class ColdStorageViewModel @Inject constructor(
                     return@launch
                 }
                 _addresses.value = derived.map { (index, address) ->
-                    val balance = balances[address] ?: known[index]?.balanceSompi ?: 0L
+                    val liveBalance = balances[address]
+                    val balance = liveBalance ?: known[index]?.balanceSompi ?: 0L
                     AddressRow(
                         index, address, balance,
                         // Used-ness is monotonic, and a live balance also proves it; the
                         // backfill below fills in the rest.
                         hasHistory = known[index]?.hasHistory == true || balance > 0L,
                         label = labels[index],
-                        hidden = index in hiddenIndices
+                        hidden = index in hiddenIndices,
+                        liveChecked = liveBalance != null
                     )
                 }.sortedByDescending { it.index }
 
@@ -174,7 +185,13 @@ class ColdStorageViewModel @Inject constructor(
                     }
                     _addresses.value = (
                         _addresses.value.filterNot { row -> beyond.any { it.index == row.index } } +
-                            beyond.map { AddressRow(it.index, it.address, it.balanceSompi, it.hasHistory, labels[it.index], it.index in hiddenIndices) }
+                            beyond.map {
+                                AddressRow(
+                                    it.index, it.address, it.balanceSompi, it.hasHistory,
+                                    labels[it.index], it.index in hiddenIndices,
+                                    liveChecked = true
+                                )
+                            }
                         ).sortedByDescending { it.index }
                 }
                 loaded = _addresses.value
@@ -301,7 +318,7 @@ class ColdStorageViewModel @Inject constructor(
             val rootKey = rootKeyFor(accountId) ?: return@launch
             addressDiscovery.checkAddress(rootKey, chain = 0, index = index)?.let { d ->
                 _addresses.value = _addresses.value.map {
-                    if (it.index == index) it.copy(balanceSompi = d.balanceSompi, hasHistory = d.hasHistory) else it
+                    if (it.index == index) it.copy(balanceSompi = d.balanceSompi, hasHistory = d.hasHistory, liveChecked = true) else it
                 }
             }
         }
@@ -310,36 +327,61 @@ class ColdStorageViewModel @Inject constructor(
     /**
      * Visibility-checklist toggle that also works for rows the loaded list has never seen
      * (a hidden intermediate whose one-off check failed, say) — [setAddressHidden] requires a
-     * loaded row. The funded guard still applies whenever the row IS loaded.
+     * loaded row.
+     *
+     * THE TOGGLE RULE (same as the spending checklist's): the screen batch-loads live balances
+     * when it opens, so a hide against a row that load confirmed ([AddressRow.liveChecked])
+     * commits instantly and optimistically — no per-toggle network round trip; the funded guard
+     * is enforced from that same fresh row. Only when no live-confirmed row exists (list painted
+     * from the snapshot, live load failed, or the row was never loaded) does hiding fall back to
+     * the fail-closed live check: one balance fetch, and no network answer means no hide.
+     * Unhiding is always instant. [onResult] reports whether the flag actually committed.
      */
-    fun setColdVisibilityHidden(accountId: String, index: Int, hidden: Boolean) {
+    fun setColdVisibilityHidden(accountId: String, index: Int, hidden: Boolean, onResult: (Boolean) -> Unit = {}) {
         val row = _addresses.value.find { it.index == index }
         if (!hidden) {
             coldStorageManager.setAddressHidden(accountId, index, false)
             if (row != null) {
                 _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = false) else it }
             }
+            onResult(true)
             return
         }
-        // Hiding fails CLOSED: the cached row balance can be stale (funds received since the
-        // last refresh) and a missing row proves nothing, so a hide only commits after a live
-        // zero-balance confirmation. No network answer means no hide.
-        if (row != null && row.balanceSompi > 0) return
+        if (row != null && row.balanceSompi > 0) {
+            onResult(false)
+            return
+        }
+        if (row != null && row.liveChecked) {
+            coldStorageManager.setAddressHidden(accountId, index, true)
+            _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = true) else it }
+            onResult(true)
+            return
+        }
         viewModelScope.launch {
-            val rootKey = rootKeyFor(accountId) ?: return@launch
-            val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index) ?: return@launch
+            val rootKey = rootKeyFor(accountId)
+            if (rootKey == null) {
+                onResult(false)
+                return@launch
+            }
+            val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index)
+            if (discovered == null) {
+                onResult(false)
+                return@launch
+            }
             if (discovered.balanceSompi > 0) {
                 if (row != null) {
                     _addresses.value = _addresses.value.map {
-                        if (it.index == index) it.copy(balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory) else it
+                        if (it.index == index) it.copy(balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory, liveChecked = true) else it
                     }
                 }
+                onResult(false)
                 return@launch
             }
             coldStorageManager.setAddressHidden(accountId, index, true)
             _addresses.value = _addresses.value.map {
-                if (it.index == index) it.copy(hidden = true, balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory) else it
+                if (it.index == index) it.copy(hidden = true, balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory, liveChecked = true) else it
             }
+            onResult(true)
         }
     }
 
@@ -354,8 +396,11 @@ class ColdStorageViewModel @Inject constructor(
         viewModelScope.launch {
             _isDiscovering.value = true
             try {
+                // Recycle only rows this session live-confirmed as empty and unused — a
+                // snapshot-painted row could be funded since; deriving past the end (below) is
+                // always safe, so unconfirmed rows are skipped rather than trusted.
                 val recycled = _addresses.value.sortedBy { it.index }
-                    .firstOrNull { it.balanceSompi == 0L && !it.hasHistory }
+                    .firstOrNull { it.liveChecked && it.balanceSompi == 0L && !it.hasHistory }
                 if (recycled != null) {
                     coldStorageManager.setAddressHidden(accountId, recycled.index, false)
                     _addresses.value = _addresses.value.map {
@@ -368,22 +413,28 @@ class ColdStorageViewModel @Inject constructor(
                 coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, nextIndex)
                 coldStorageManager.setAddressHidden(accountId, nextIndex, false)
                 _accounts.value = coldStorageManager.getAccounts()
+                // iOS parity (ColdStorageView.generateMore awaits its reload before toasting):
+                // the new row lands on screen NOW — its address derives locally — so the toast
+                // never names a row the list doesn't show. The live check afterwards only
+                // backfills balance/used flags; its failure no longer makes the row vanish.
+                val address = coldAddressAt(accountId, nextIndex)
+                if (address != null) {
+                    val labels = coldStorageManager.getAddressLabels(accountId)
+                    _addresses.value = (
+                        _addresses.value.filterNot { it.index == nextIndex } +
+                            AddressRow(nextIndex, address, 0L, false, labels[nextIndex], hidden = false)
+                        ).sortedByDescending { it.index }
+                }
+                onResult(nextIndex)
                 val rootKey = rootKeyFor(accountId)
                 val discovered = rootKey?.let { addressDiscovery.checkAddress(it, chain = 0, index = nextIndex) }
                 if (discovered != null) {
-                    val labels = coldStorageManager.getAddressLabels(accountId)
-                    val newRow = AddressRow(
-                        discovered.index,
-                        discovered.address,
-                        discovered.balanceSompi,
-                        discovered.hasHistory,
-                        labels[discovered.index],
-                        hidden = false
-                    )
-                    _addresses.value = (_addresses.value.filterNot { it.index == nextIndex } + newRow)
-                        .sortedByDescending { it.index }
+                    _addresses.value = _addresses.value.map {
+                        if (it.index == nextIndex) {
+                            it.copy(balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory, liveChecked = true)
+                        } else it
+                    }
                 }
-                onResult(nextIndex)
             } finally {
                 _isDiscovering.value = false
             }
