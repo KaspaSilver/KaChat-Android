@@ -316,6 +316,20 @@ private fun pagingStateOf(viewModel: KaPostsViewModel, key: String): KaPostsView
 
 // MARK: - Main screen
 
+/**
+ * Where back should land after closing a thread that was opened FROM a profile overlay.
+ * The profile Dialog has to close before the in-composition thread can show (see the
+ * close-then-open comments at the overlay call sites), so without remembering it, backing
+ * out of that thread dumped the user on the main feed instead of the profile they came from.
+ */
+private sealed interface KaPostsProfileReturn {
+    /** My own profile (the side menu's Profile entry). */
+    object Mine : KaPostsProfileReturn
+
+    /** Another poster's profile. */
+    data class Poster(val address: String, val pubkey: String?) : KaPostsProfileReturn
+}
+
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun KaPostsScreen(
@@ -344,6 +358,10 @@ fun KaPostsScreen(
     var showFundingGate by remember { mutableStateOf(false) }
     /** Thread stack: each entry is a post's LOCAL id; tapping nested comments pushes deeper. */
     var threadStack by remember { mutableStateOf(listOf<String>()) }
+    // Keyed by the thread-stack INDEX of the entry that was opened from a profile, so nested
+    // threads pushed on top pop normally and only closing that exact entry re-opens the
+    // profile it came from (a thread opened from the feed never restores anything).
+    var profileReturns by remember { mutableStateOf(mapOf<Int, KaPostsProfileReturn>()) }
     var repostTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var quoteTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var engagementTarget by remember { mutableStateOf<KaPostDraft?>(null) }
@@ -412,6 +430,32 @@ fun KaPostsScreen(
         threadStack = threadStack + post.id
     }
 
+    /** Pops the topmost thread; if that entry was opened from a profile, re-opens the profile. */
+    fun closeTopThread() {
+        val closingIndex = threadStack.size - 1
+        if (closingIndex < 0) return
+        threadStack = threadStack.dropLast(1)
+        val returnTo = profileReturns[closingIndex] ?: return
+        profileReturns = profileReturns - closingIndex
+        when (returnTo) {
+            KaPostsProfileReturn.Mine -> {
+                showMyProfile = true
+                viewModel.loadMyProfile()
+            }
+            is KaPostsProfileReturn.Poster -> viewModel.openPosterProfile(returnTo.address, returnTo.pubkey)
+        }
+    }
+
+    /** Close-then-open (the profile Dialog covers the in-composition thread), remembering the way back. */
+    fun openThreadFromProfile(returnTo: KaPostsProfileReturn, post: KaPostDraft) {
+        profileReturns = profileReturns + (threadStack.size to returnTo)
+        when (returnTo) {
+            KaPostsProfileReturn.Mine -> showMyProfile = false
+            is KaPostsProfileReturn.Poster -> viewModel.closePosterProfile()
+        }
+        openThread(post)
+    }
+
     fun openShared(txId: String) {
         scope.launch {
             val post = viewModel.openSharedPost(txId)
@@ -422,6 +466,17 @@ fun KaPostsScreen(
                 delay(3_000)
                 notFoundNotice = false
             }
+        }
+    }
+
+    /** [openShared] for quoted embeds tapped inside a profile overlay: resolves the post first,
+     *  then closes the profile and opens the thread with the way back remembered - without this
+     *  the thread composed invisibly behind the profile's Dialog window. Not found: the profile
+     *  just stays open (the feed's toast would be hidden behind the Dialog anyway). */
+    fun openSharedFromProfile(returnTo: KaPostsProfileReturn, txId: String) {
+        scope.launch {
+            val post = viewModel.openSharedPost(txId)
+            if (post != null) openThreadFromProfile(returnTo, post)
         }
     }
 
@@ -729,7 +784,7 @@ fun KaPostsScreen(
         KaPostThreadOverlay(
             postId = topId,
             viewModel = viewModel,
-            onClose = { threadStack = threadStack.dropLast(1) },
+            onClose = { closeTopThread() },
             onOpenNested = { nested -> openThread(nested) },
             onOpenProfile = { address, pubkey -> viewModel.openPosterProfile(address, pubkey) },
             onOpenShared = { txId -> openShared(txId) },
@@ -749,10 +804,12 @@ fun KaPostsScreen(
             // Close the profile dialog FIRST: the thread overlay composes inside the screen,
             // which a Dialog window always covers — without this the thread opened invisibly
             // behind the profile (same close-then-open pattern as the bookmarks overlay).
-            onOpenThread = { showMyProfile = false; openThread(it) },
+            // openThreadFromProfile also remembers the way back, so closing that thread
+            // returns here instead of dumping the user on the feed.
+            onOpenThread = { openThreadFromProfile(KaPostsProfileReturn.Mine, it) },
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
-            onOpenQuoted = { openShared(it) },
+            onOpenQuoted = { openSharedFromProfile(KaPostsProfileReturn.Mine, it) },
             onOpenFollowList = { followListPubkey = null; followListKind = it },
         )
     }
@@ -766,11 +823,13 @@ fun KaPostsScreen(
             navController = navController,
             onClose = { viewModel.closePosterProfile() },
             // Same close-then-open as the my-profile/bookmarks overlays: the thread composes
-            // behind this Dialog window, so commenting from a profile showed nothing.
-            onOpenThread = { viewModel.closePosterProfile(); openThread(it) },
+            // behind this Dialog window, so commenting from a profile showed nothing. The
+            // helper also remembers the way back, so closing that thread returns to this
+            // profile instead of dumping the user on the feed.
+            onOpenThread = { openThreadFromProfile(KaPostsProfileReturn.Poster(profile.address, profile.pubkey), it) },
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
-            onOpenQuoted = { openShared(it) },
+            onOpenQuoted = { openSharedFromProfile(KaPostsProfileReturn.Poster(profile.address, profile.pubkey), it) },
             onOpenFollowList = { followListPubkey = profile.pubkey; followListKind = it },
             onTip = { tipTarget = it.posterAddress to viewModel.posterDisplayName(it.posterAddress) },
         )
@@ -1087,7 +1146,11 @@ fun KaPostCell(
                 Spacer(modifier = Modifier.height(3.dp))
                 // ClickableText (not Text): tapping an @mention resolves the KNS domain and
                 // opens that user's profile, tapping a link opens the Copy/Open dialog (iOS
-                // parity - links never auto-open); taps elsewhere in the body do nothing.
+                // parity - links never auto-open). ClickableText consumes EVERY tap on the
+                // body though, so plain-text taps must fall through to the row's open-thread
+                // action by hand - the body covers most of the cell, and without this
+                // "tap the post to open its thread" only worked on the padding around it.
+                // Root cells keep body taps inert, matching their disabled row clickable.
                 val postAnnotated = remember(post.text) { annotatedPostText(post.text) }
                 androidx.compose.foundation.text.ClickableText(
                     text = postAnnotated,
@@ -1096,12 +1159,11 @@ fun KaPostCell(
                     overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
                     onClick = { offset ->
                         val mention = postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset).firstOrNull()
-                        if (mention != null) {
-                            viewModel.openMentionProfile(mention.item)
-                        } else {
-                            postAnnotated.getStringAnnotations(LINK_ANNOTATION_TAG, offset, offset)
-                                .firstOrNull()
-                                ?.let { tappedLinkUrl = it.item }
+                        val link = postAnnotated.getStringAnnotations(LINK_ANNOTATION_TAG, offset, offset).firstOrNull()
+                        when {
+                            mention != null -> viewModel.openMentionProfile(mention.item)
+                            link != null -> tappedLinkUrl = link.item
+                            !isRoot -> onOpenThread()
                         }
                     },
                 )

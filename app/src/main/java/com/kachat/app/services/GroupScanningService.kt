@@ -53,6 +53,13 @@ class GroupScanningService @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
+    // True once a live block scan has ever been established this process. Any scan started
+    // after that point follows a gap (stream error, node failover, empty-pool window) during
+    // which group txs may have been mined unseen - the block scan is purely live, so without
+    // an indexer catch-up those messages would not appear until the next app foreground,
+    // 15-min SyncWorker run, or manual pull-to-refresh (iOS runs the same catch-up on its
+    // .rpcSubscriptionsRestored signal).
+    private var hadLiveScan = false
 
     // Dual-read: write the new `kchat:` root, still scan for the legacy `ciph_msg:` root too.
     private val gcommPrefixHex = hexPrefix("kchat:1:gcomm:")
@@ -90,6 +97,16 @@ class GroupScanningService @Inject constructor(
             while (true) {
                 try {
                     val blocks = nodePoolManager.getBroadcastConnection().subscribeToBlockAdded()
+                    // Re-establishing after a gap: backfill from the indexer what the dead
+                    // stream missed, then go live again - see hadLiveScan's doc comment.
+                    if (hadLiveScan) {
+                        try {
+                            groupRepository.syncGroups()
+                        } catch (e: Exception) {
+                            Log.w("GroupScanningService", "Post-reconnect group catch-up failed", e)
+                        }
+                    }
+                    hadLiveScan = true
                     blocks.collect { block -> processBlock(block) }
                 } catch (e: Exception) {
                     Log.w("GroupScanningService", "Block scanning interrupted, retrying", e)

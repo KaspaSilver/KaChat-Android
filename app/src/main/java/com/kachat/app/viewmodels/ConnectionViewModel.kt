@@ -98,6 +98,17 @@ class ConnectionViewModel @Inject constructor(
     val broadcastIndexerUrl: StateFlow<String> = settings.broadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val pushIndexerUrl: StateFlow<String> = settings.pushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val trustedNodeAddress: StateFlow<String> = settings.trustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    /**
+     * True when node selection is AUTOMATIC (no pinned node, the pool discovers and picks),
+     * false when pinned to a specific node (the shipped default or the user's own) - see
+     * [AppSettingsRepository.trustedNodeAddress]: blank means discovery, non-blank means pinned.
+     * Null until the stored value has actually been read, so the connection status screen can
+     * keep pool-only sections hidden for that first frame instead of flashing them at a pinned
+     * user (or vice versa) while DataStore loads.
+     */
+    val nodeSelectionIsAutomatic: StateFlow<Boolean?> = settings.trustedNodeAddress
+        .map { it.trim().isBlank() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val savedNodeAddresses: StateFlow<List<com.kachat.app.models.SavedNodeAddress>> =
         settings.savedNodeAddresses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
 

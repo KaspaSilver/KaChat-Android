@@ -87,9 +87,22 @@ class ChatRepository @Inject constructor(
         // (nothing keeps it alive anymore, by design) — FCM push is the only background
         // delivery path for DMs, so push failures surface instead of being masked.
         scope.launch {
-            pruneOldMessages() // once on startup, matching iOS's on-launch retention prune
+            try {
+                pruneOldMessages() // once on startup, matching iOS's on-launch retention prune
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Startup prune failed", e)
+            }
             while (true) {
-                syncMessages()
+                // Guarded: this loop is the ONLY live 1:1 receive path while the app is open,
+                // and it runs for the whole process lifetime. syncMessages() catches its own
+                // network errors, but one uncaught throw anywhere in it (a DataStore read, a
+                // Room call outside the per-item guards) would kill this coroutine and
+                // silently stop all live chat refresh until the process is restarted.
+                try {
+                    syncMessages()
+                } catch (e: Exception) {
+                    Log.w("ChatRepository", "Poll-loop sync cycle failed", e)
+                }
                 delay(POLL_INTERVAL_MS)
             }
         }

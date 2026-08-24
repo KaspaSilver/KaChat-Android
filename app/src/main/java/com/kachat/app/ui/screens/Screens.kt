@@ -7995,6 +7995,13 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
     val activeNodes by viewModel.activeNodes.collectAsState()
     val allNodes by viewModel.allNodes.collectAsState()
+    // Pool sections only make sense when the POOL is choosing the node. Pinned to a specific
+    // node (the shipped default or the user's own), there is no pool at work - discovery is
+    // off and the app only ever talks to that one address - so pool status, pool actions, and
+    // the node lists would just show a pool of one. Null (not yet loaded) hides them too, so
+    // a pinned user never sees them flash on screen entry.
+    val nodeSelectionIsAutomatic by viewModel.nodeSelectionIsAutomatic.collectAsState()
+    val showPoolSections = nodeSelectionIsAutomatic == true
     // "Other Nodes" means genuinely other than what's already listed above under Active
     // Nodes — allNodes includes every known node (active and not), so without this filter
     // the same active nodes showed up twice, once in each section.
@@ -8072,33 +8079,39 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                 ConnectionInfoRow(stringResource(R.string.last_sync), lastSyncAt)
             }
 
-            SettingsSection(title = stringResource(R.string.pool_status)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    PoolStatItem(stringResource(R.string.active), activeNodes.size.toString(), Color(0xFF4CD964))
-                    PoolStatItem(stringResource(R.string.verified), verifiedCount.toString(), Color(0xFF2196F3))
-                    PoolStatItem(stringResource(R.string.total), allNodes.size.toString(), Color.Gray)
-                }
-                SettingsDivider()
-                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(R.string.pool_health), color = LocalAppColors.current.textPrimary)
-                    Text(poolHealthText, color = statusColor)
+            if (showPoolSections) {
+                SettingsSection(title = stringResource(R.string.pool_status)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        PoolStatItem(stringResource(R.string.active), activeNodes.size.toString(), Color(0xFF4CD964))
+                        PoolStatItem(stringResource(R.string.verified), verifiedCount.toString(), Color(0xFF2196F3))
+                        PoolStatItem(stringResource(R.string.total), allNodes.size.toString(), Color.Gray)
+                    }
+                    SettingsDivider()
+                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.pool_health), color = LocalAppColors.current.textPrimary)
+                        Text(poolHealthText, color = statusColor)
+                    }
                 }
             }
 
             SettingsSection(title = stringResource(R.string.actions)) {
-                SettingsActionItem(stringResource(R.string.refresh_pool), Icons.Default.Refresh, KaspaTeal, onClick = {
-                    viewModel.refreshPool()
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Refreshing pool…") }
-                })
-                SettingsDivider()
-                SettingsActionItem(stringResource(R.string.clear_connection_pool), Icons.Default.DeleteSweep, Color.Red, onClick = {
-                    viewModel.clearPool()
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Pool cleared, reconnecting to seed nodes") }
-                })
-                SettingsDivider()
+                // Refresh/Clear operate on pool discovery, which is off while pinned to a
+                // specific node - only Reconnect still means something there.
+                if (showPoolSections) {
+                    SettingsActionItem(stringResource(R.string.refresh_pool), Icons.Default.Refresh, KaspaTeal, onClick = {
+                        viewModel.refreshPool()
+                        coroutineScope.launch { snackbarHostState.showSnackbar("Refreshing pool…") }
+                    })
+                    SettingsDivider()
+                    SettingsActionItem(stringResource(R.string.clear_connection_pool), Icons.Default.DeleteSweep, Color.Red, onClick = {
+                        viewModel.clearPool()
+                        coroutineScope.launch { snackbarHostState.showSnackbar("Pool cleared, reconnecting to seed nodes") }
+                    })
+                    SettingsDivider()
+                }
                 SettingsActionItem(stringResource(R.string.reconnect), Icons.Default.Replay, KaspaTeal, onClick = {
                     viewModel.reconnect()
                     coroutineScope.launch { snackbarHostState.showSnackbar("Reconnecting…") }
@@ -8107,62 +8120,65 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
             KaspaNodeQuickAccessSection(viewModel)
 
-            Text(
-                text = "Primary: ${activeNodes.firstOrNull()?.ip ?: "None"}",
-                color = LocalAppColors.current.textSecondary,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(start = 8.dp)
-            )
+            if (showPoolSections) {
+                Text(
+                    text = "Primary: ${activeNodes.firstOrNull()?.ip ?: "None"}",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CD964), CircleShape))
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.active_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CD964), CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.active_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                    }
+                    Text(text = activeNodes.size.toString(), color = LocalAppColors.current.textSecondary)
                 }
-                Text(text = activeNodes.size.toString(), color = LocalAppColors.current.textSecondary)
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
-            ) {
-                activeNodes.forEachIndexed { index, node ->
-                    ActiveNodeRow(node)
-                    if (index < activeNodes.size - 1) SettingsDivider()
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
+                ) {
+                    activeNodes.forEachIndexed { index, node ->
+                        ActiveNodeRow(node)
+                        if (index < activeNodes.size - 1) SettingsDivider()
+                    }
                 }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).background(Color.Gray, CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.other_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                    }
+                    Text(text = otherNodes.size.toString(), color = LocalAppColors.current.textSecondary)
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
+                ) {
+                    otherNodes.forEachIndexed { index, node ->
+                        AllNodeRow(node)
+                        if (index < otherNodes.size - 1) SettingsDivider()
+                    }
+                }
+
+                Text(
+                    text = stringResource(R.string.all_discovered_nodes_sorted_by_state),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).background(Color.Gray, CircleShape))
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.other_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
-                }
-                Text(text = otherNodes.size.toString(), color = LocalAppColors.current.textSecondary)
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
-            ) {
-                otherNodes.forEachIndexed { index, node ->
-                    AllNodeRow(node)
-                    if (index < otherNodes.size - 1) SettingsDivider()
-                }
-            }
 
-            Text(
-                text = stringResource(R.string.all_discovered_nodes_sorted_by_state),
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalAppColors.current.textSecondary,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            
             Spacer(modifier = Modifier.height(100.dp))
         }
     }

@@ -689,50 +689,6 @@ fun ChatsScreen(
                     )
                 }
 
-                if (showBulkDeleteConfirmation) {
-                    val count = if (isOnGroupsTab) selectedGroupIds.size else selectedContactIds.size
-                    AlertDialog(
-                        onDismissRequest = { showBulkDeleteConfirmation = false },
-                        containerColor = LocalAppColors.current.surface,
-                        title = {
-                            Text(
-                                if (isOnGroupsTab) "Delete $count Group${if (count == 1) "" else "s"}?" else "Delete $count Chat${if (count == 1) "" else "s"}?",
-                                color = LocalAppColors.current.textPrimary
-                            )
-                        },
-                        text = {
-                            Text(
-                                if (isOnGroupsTab) {
-                                    "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
-                                } else {
-                                    "This permanently deletes every message in each selected chat, including from iCloud, so they're removed from your other devices too. This cannot be undone."
-                                },
-                                color = LocalAppColors.current.textSecondary
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                if (isOnGroupsTab) {
-                                    chatViewModel.deleteGroupChats(selectedGroupIds)
-                                } else {
-                                    chatViewModel.deleteChats(selectedContactIds)
-                                }
-                                showBulkDeleteConfirmation = false
-                                isSelectionMode = false
-                                selectedContactIds = emptySet()
-                                selectedGroupIds = emptySet()
-                            }) {
-                                Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showBulkDeleteConfirmation = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                            }
-                        }
-                    )
-                }
-
             }
 
             PullRefreshIndicator(
@@ -745,6 +701,55 @@ fun ChatsScreen(
 
         }
         }
+        }
+
+        // Screen-scoped, NOT inside a pager page: this used to compose inside the 1:1 Chats
+        // page's non-empty branch, so on the Group Chats tab (page 0 not composed) tapping the
+        // bulk Delete button set the flag but no dialog ever appeared - group bulk delete
+        // silently did nothing. Same for an empty or fully filtered 1:1 list. Dialogs render
+        // in their own window, so screen scope shows it regardless of which tab is visible.
+        if (showBulkDeleteConfirmation) {
+            val count = if (isOnGroupsTab) selectedGroupIds.size else selectedContactIds.size
+            AlertDialog(
+                onDismissRequest = { showBulkDeleteConfirmation = false },
+                containerColor = LocalAppColors.current.surface,
+                title = {
+                    Text(
+                        if (isOnGroupsTab) "Delete $count Group${if (count == 1) "" else "s"}?" else "Delete $count Chat${if (count == 1) "" else "s"}?",
+                        color = LocalAppColors.current.textPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        if (isOnGroupsTab) {
+                            "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
+                        } else {
+                            "This permanently deletes every message in each selected chat, including from iCloud, so they're removed from your other devices too. This cannot be undone."
+                        },
+                        color = LocalAppColors.current.textSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (isOnGroupsTab) {
+                            chatViewModel.deleteGroupChats(selectedGroupIds)
+                        } else {
+                            chatViewModel.deleteChats(selectedContactIds)
+                        }
+                        showBulkDeleteConfirmation = false
+                        isSelectionMode = false
+                        selectedContactIds = emptySet()
+                        selectedGroupIds = emptySet()
+                    }) {
+                        Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBulkDeleteConfirmation = false }) {
+                        Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                    }
+                }
+            )
         }
     }
 }
