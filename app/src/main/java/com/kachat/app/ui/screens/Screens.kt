@@ -860,38 +860,33 @@ fun ChatThreadScreen(
                                 ),
                                 // Quick-access camera, replacing what used to be a "Camera" entry
                                 // in the "+" menu - living right in the message bubble instead
-                                // since it's the most common non-text action.
+                                // since it's the most common non-text action. The Kaspa logo
+                                // beside it jumps straight into payment mode - the exact same
+                                // switch the "+" menu's Send Kaspa entry flips, one tap instead
+                                // of two (iOS places the same shortcut inside its input bubble).
                                 trailingIcon = {
-                                    IconButton(onClick = { startCameraCapture() }) {
-                                        Icon(
-                                            Icons.Default.CameraAlt,
-                                            contentDescription = stringResource(R.string.camera),
-                                            tint = LocalAppColors.current.textSecondary
-                                        )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(onClick = { startCameraCapture() }) {
+                                            Icon(
+                                                Icons.Default.CameraAlt,
+                                                contentDescription = stringResource(R.string.camera),
+                                                tint = LocalAppColors.current.textSecondary
+                                            )
+                                        }
+                                        IconButton(onClick = { paymentMode = true }) {
+                                            Icon(
+                                                painterResource(R.drawable.ic_kaspa_logo),
+                                                contentDescription = stringResource(R.string.send_kaspa),
+                                                tint = Color.Unspecified,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
                                     }
                                 },
                                 maxLines = 4
                             )
 
                             if (messageText.isEmpty()) {
-                                // Kaspa-logo shortcut straight into payment mode - the exact
-                                // same switch the "+" menu's Send Kaspa entry flips, just one
-                                // tap instead of two. Hidden while payment mode is active by
-                                // construction: the paymentMode branch above replaces this
-                                // whole composer row, the composer's usual mode-swap pattern.
-                                IconButton(
-                                    onClick = { paymentMode = true },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(LocalAppColors.current.surface, CircleShape)
-                                ) {
-                                    Icon(
-                                        painterResource(R.drawable.ic_kaspa_logo),
-                                        contentDescription = stringResource(R.string.send_kaspa),
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
                                 Box(
                                     modifier = Modifier.onGloballyPositioned { coords ->
                                         // Top edge, not bottom — this button sits near the bottom of the
