@@ -397,6 +397,9 @@ class WalletViewModel @Inject constructor(
             }
             val readyIndex = if (pick != null) {
                 walletService.setSpendingAddressHidden(pick.index, false)
+                // A recycled reverted reservation is now a personal address: never re-offer
+                // it to its original contact on a privacy re-enable.
+                paymentPoolStore.markReclaimed(pick.address, walletAddress)
                 pick.index
             } else {
                 // Every listed index is spoken for (or unconfirmed): extend the chain. A brand-new

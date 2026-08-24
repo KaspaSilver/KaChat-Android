@@ -66,7 +66,11 @@ class PaymentPoolStore @Inject constructor(
         /** True once the addr_pool envelope carrying this address was actually submitted. */
         val offered: Boolean,
         /** True once a payment_notice from the contact named this address as a payment destination. */
-        val funded: Boolean? = null
+        val funded: Boolean? = null,
+        /** True once Generate reclaimed this reverted reservation as a personal fresh address.
+         *  Reclaimed entries are never re-offered to their original contact on a privacy
+         *  re-enable; the entry stays so watching and payment rendering keep covering it. */
+        val reclaimed: Boolean? = null
     )
 
     data class TheirPoolAddress(
@@ -165,7 +169,25 @@ class PaymentPoolStore @Inject constructor(
      *  indices each time (never-funded means re-offering creates no address reuse). */
     @Synchronized
     fun reofferableReservations(contactAddress: String, walletAddress: String): List<ReservedAddress> =
-        (state(walletAddress).myReservations[contactAddress] ?: emptyList()).filter { it.funded != true }
+        (state(walletAddress).myReservations[contactAddress] ?: emptyList()).filter { it.funded != true && it.reclaimed != true }
+
+    /** Generate recycled a reverted reservation for personal use: never re-offer it to its
+     *  original contact. No-op for addresses that were never reservations. */
+    @Synchronized
+    fun markReclaimed(address: String, walletAddress: String) {
+        val s = state(walletAddress)
+        var changed = false
+        for ((contact, entries) in s.myReservations) {
+            val updated = entries.map { entry ->
+                if (entry.address == address && entry.reclaimed != true) {
+                    changed = true
+                    entry.copy(reclaimed = true)
+                } else entry
+            }
+            if (changed) s.myReservations[contact] = updated.toMutableList()
+        }
+        if (changed) save(s, walletAddress)
+    }
 
     @Synchronized
     fun markReservationsOffered(addresses: List<String>, contactAddress: String, walletAddress: String) {
