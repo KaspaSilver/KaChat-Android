@@ -137,7 +137,13 @@ class WalletService @Inject constructor(
         val everUsed: Boolean,
         val isCurrent: Boolean,
         val hidden: Boolean = false,
-        val label: String? = null
+        val label: String? = null,
+        // Whether this load actually confirmed the row's balance AND used-ness live. A throttled
+        // or failed lookup used to be swallowed as balance=0/everUsed=false — indistinguishable
+        // from a genuinely fresh address, which is how Generate kept re-offering the same low
+        // index. Old persisted snapshots lack this field (Gson defaults it to false), which is
+        // safe: only Generate consults it, and Generate only ever reads the live list.
+        val liveChecked: Boolean = true
     )
 
     /**
@@ -145,6 +151,11 @@ class WalletService @Inject constructor(
      * the higher of the current active index and the highest one the Manage Addresses screen has
      * generated — each with its live balance and whether it's ever had any on-chain history
      * (so the UI can steer the user away from reusing an already-used address).
+     *
+     * Returns an EMPTY list only when nothing could be loaded live (no account, API unreachable,
+     * or every balance lookup failed) — a real wallet always lists at least index 0, so callers
+     * can treat empty as "the live check failed", and [WalletViewModel.generateNewSpendingAddress]
+     * does exactly that. A failed load never overwrites the persisted snapshot.
      */
     suspend fun getSpendingAddressList(): List<SpendingAddressEntry> {
         val account = walletManager.getActiveAccount() ?: return emptyList()
@@ -152,33 +163,48 @@ class WalletService @Inject constructor(
         val api = readyApi() ?: return emptyList()
         val hiddenIndices = walletManager.getHiddenSpendingIndices(account.address)
         val labels = walletManager.getSpendingAddressLabels(account.address)
-        // Each address's balance+history is an independent network round-trip — fetching them
-        // concurrently instead of one-by-one is what keeps this fast enough to feel live as the
-        // list grows past a couple of generated addresses.
+        val addressByIndex = (0..maxIndex).associateWith { walletManager.deriveSpendingAddress(it) }
+        // Balances in ONE batched round trip (with fetchBalancesBatched's own per-address
+        // fallback) instead of the old per-index burst — 2x(maxIndex+1) simultaneous requests
+        // against the shared REST host routinely got throttled, and every swallowed failure
+        // painted a funded/used row as fresh. An entirely-empty result means the host answered
+        // nothing: bail out as a failed load rather than fabricate an all-zero list.
+        val balances = fetchBalancesBatched(addressByIndex.values.toList())
+        if (balances.isEmpty()) return emptyList()
+        // "Used" is monotonic — a persisted positive answer skips the history probe forever;
+        // only never-used addresses re-probe (they can become used anytime). Probes run in small
+        // chunks, not one big burst, for the same rate-limit reason as above.
         val entries = coroutineScope {
-            (0..maxIndex).map { index ->
-                async {
-                    val address = walletManager.deriveSpendingAddress(index)
-                    val balance = try { api.getBalance(address).balance } catch (e: Exception) { 0L }
-                    // "Used" is monotonic — a persisted positive answer skips the history probe
-                    // forever; only never-used addresses re-probe (they can become used anytime).
-                    val everUsed = when {
-                        walletManager.isAddressKnownUsed(address) -> true
-                        balance > 0L -> { walletManager.markAddressUsed(address); true }
-                        else -> {
-                            val used = try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { false }
-                            if (used) walletManager.markAddressUsed(address)
-                            used
+            (0..maxIndex).chunked(4).flatMap { chunk ->
+                chunk.map { index ->
+                    async {
+                        val address = addressByIndex.getValue(index)
+                        val balance = balances[address]
+                        var confirmed = balance != null
+                        val everUsed = when {
+                            walletManager.isAddressKnownUsed(address) -> true
+                            (balance ?: 0L) > 0L -> { walletManager.markAddressUsed(address); true }
+                            else -> {
+                                val used = try {
+                                    api.getTransactions(address, limit = 1).isNotEmpty()
+                                } catch (e: Exception) {
+                                    confirmed = false
+                                    false
+                                }
+                                if (used) walletManager.markAddressUsed(address)
+                                used
+                            }
                         }
+                        SpendingAddressEntry(
+                            index, address, balance ?: 0L, everUsed,
+                            isCurrent = index == account.spendingAddressIndex,
+                            hidden = index in hiddenIndices,
+                            label = labels[index],
+                            liveChecked = confirmed
+                        )
                     }
-                    SpendingAddressEntry(
-                        index, address, balance, everUsed,
-                        isCurrent = index == account.spendingAddressIndex,
-                        hidden = index in hiddenIndices,
-                        label = labels[index]
-                    )
-                }
-            }.awaitAll()
+                }.awaitAll()
+            }
         }
         // Self-heal: the primary and any funded address must ALWAYS be visible. If the persisted
         // hidden set ever caught one (e.g. a hide committed against a stale row from before the
@@ -292,8 +318,8 @@ class WalletService @Inject constructor(
             val out = mutableMapOf<String, Long>()
             for (chunk in addresses.chunked(8)) {
                 chunk.map { address ->
-                    async { address to (try { api.getBalance(address).balance } catch (e: Exception) { 0L }) }
-                }.awaitAll().forEach { (address, balance) -> out[address] = balance }
+                    async { address to (try { api.getBalance(address).balance } catch (e: Exception) { null }) }
+                }.awaitAll().forEach { (address, balance) -> if (balance != null) out[address] = balance }
             }
             out
         }

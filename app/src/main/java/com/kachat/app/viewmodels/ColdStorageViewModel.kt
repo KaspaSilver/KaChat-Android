@@ -102,54 +102,116 @@ class ColdStorageViewModel @Inject constructor(
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
 
     /**
-     * Gap-limit scan for used/funded addresses, plus every index up to [ColdStorageManager.ColdAccount.maxDerivedIndex]
-     * regardless of whether the scan itself reached that far — an index a user manually generated
-     * via [generateMoreAddresses] sits past where a fresh unused-account scan would ever stop,
-     * so it'd otherwise vanish again on the very next refresh.
+     * Loads the account's address list the way iOS does (ColdStorageManager.getAddressList +
+     * ColdStorageView.loadEntries): instant paint from the persisted snapshot of the last full
+     * load, then every index up to [ColdStorageManager.ColdAccount.maxDerivedIndex] derived
+     * locally with ONE batched balance call — funded addresses always land in that first live
+     * commit — then a gap-limit scan past the bound for addresses used before they were ever
+     * shown here, and finally a background Used backfill. The old shape (a full sequential
+     * 2-calls-per-index scan, committed only at the very end, wiped to an empty list on any
+     * error) meant one failed or throttled history lookup at index 0 showed NOTHING at all.
      */
     fun refreshAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         val previousCount = _addresses.value.size
         viewModelScope.launch {
             _isDiscovering.value = true
+            var loaded: List<AddressRow>? = null
             try {
-                val parsed = KaspaExtendedPublicKey.parse(account.kpub).getOrThrow()
-                val rootKey = KaspaExtendedPublicKey.toDeterministicKey(parsed)
                 val labels = coldStorageManager.getAddressLabels(accountId)
                 val hiddenIndices = coldStorageManager.getHiddenIndices(accountId)
-                val byIndex = mutableMapOf<Int, ColdStorageAddressDiscovery.DiscoveredAddress>()
-
-                addressDiscovery.discoverAddresses(rootKey).forEach { byIndex[it.index] = it }
-
-                for (index in 0..account.maxDerivedIndex) {
-                    if (index !in byIndex) {
-                        addressDiscovery.checkAddress(rootKey, chain = 0, index = index)?.let {
-                            byIndex[it.index] = it
-                        }
+                // Instant paint from the snapshot (balances may be a refresh stale — the live
+                // pass replaces them). Only seeds an empty screen so live data never regresses;
+                // labels/hidden always come from their own live stores, not the snapshot.
+                if (_addresses.value.isEmpty()) {
+                    snapshotRows(accountId)?.let { rows ->
+                        _addresses.value = rows.map { it.copy(label = labels[it.index], hidden = it.index in hiddenIndices) }
                     }
                 }
-
-                val maxIndex = maxOf(account.maxDerivedIndex, byIndex.keys.maxOrNull() ?: 0)
-                coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, maxIndex)
-
-                // Single commit once everything's ready, not one per address as each REST check
-                // resolved — that made rows visibly trickle in one at a time instead of the whole
-                // list appearing together like iOS (whose balance fetch is one batched gRPC call,
-                // so it has nothing to trickle). Newest (highest index) first — a just-generated
-                // address should be immediately visible at the top.
-                _addresses.value = byIndex.values.sortedByDescending { it.index }.map {
-                    AddressRow(it.index, it.address, it.balanceSompi, it.hasHistory, labels[it.index], it.index in hiddenIndices)
+                val rootKey = rootKeyFor(accountId)
+                if (rootKey == null) {
+                    onResult(0)
+                    return@launch
                 }
+
+                // Pass 1 — fast: derive 0..maxDerivedIndex locally, one batched balance round
+                // trip for all of them (iOS's single getUtxosByAddresses call).
+                val known = _addresses.value.associateBy { it.index }
+                val derived = (0..account.maxDerivedIndex).mapNotNull { index ->
+                    runCatching { KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index) }
+                        .getOrNull()?.let { index to it }
+                }
+                val balances = addressDiscovery.fetchBalances(derived.map { it.second })
+                if (balances == null) {
+                    // Nothing could be checked live. Keep whatever is painted (snapshot or
+                    // previous rows) — a stale list beats a blank screen claiming no addresses.
+                    onResult(0)
+                    return@launch
+                }
+                _addresses.value = derived.map { (index, address) ->
+                    val balance = balances[address] ?: known[index]?.balanceSompi ?: 0L
+                    AddressRow(
+                        index, address, balance,
+                        // Used-ness is monotonic, and a live balance also proves it; the
+                        // backfill below fills in the rest.
+                        hasHistory = known[index]?.hasHistory == true || balance > 0L,
+                        label = labels[index],
+                        hidden = index in hiddenIndices
+                    )
+                }.sortedByDescending { it.index }
+
+                // Pass 2 — discovery: gap-limit scan BEYOND the derived bound for addresses
+                // funded/used before they were ever shown here (plus the scan's trailing fresh
+                // rows, same as before). A failed lookup stops only this scan; pass 1's rows
+                // stay put.
+                val beyond = addressDiscovery.discoverAddresses(rootKey, startIndex = account.maxDerivedIndex + 1)
+                if (beyond.isNotEmpty()) {
+                    // Raise the persisted bound only to cover USED/funded finds — raising it to
+                    // the scan's trailing unused rows would grow it by another gap every refresh.
+                    beyond.filter { it.hasHistory || it.balanceSompi > 0 }.maxOfOrNull { it.index }?.let { usedMax ->
+                        coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, usedMax)
+                        _accounts.value = coldStorageManager.getAccounts()
+                    }
+                    _addresses.value = (
+                        _addresses.value.filterNot { row -> beyond.any { it.index == row.index } } +
+                            beyond.map { AddressRow(it.index, it.address, it.balanceSompi, it.hasHistory, labels[it.index], it.index in hiddenIndices) }
+                        ).sortedByDescending { it.index }
+                }
+                loaded = _addresses.value
                 onResult((_addresses.value.size - previousCount).coerceAtLeast(0))
                 // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
                 refreshDomainOwningAddresses(_addresses.value.map { it.address })
             } catch (e: Exception) {
-                _addresses.value = emptyList()
+                // Never wipe the list on failure — that was exactly the "cold wallet shows
+                // nothing" bug.
                 onResult(0)
             } finally {
                 _isDiscovering.value = false
             }
+
+            // Pass 3 — background Used backfill for zero-balance rows, sequential on purpose
+            // (same rate-limit reasoning as iOS's loadEntries backfill), then persist the
+            // snapshot so the next open paints instantly.
+            val rows = loaded ?: return@launch
+            for (row in rows) {
+                if (row.balanceSompi > 0L || row.hasHistory) continue
+                val used = addressDiscovery.hasHistory(row.address) ?: continue
+                if (used) {
+                    _addresses.value = _addresses.value.map { if (it.index == row.index) it.copy(hasHistory = true) else it }
+                }
+            }
+            try { coldStorageManager.setAddressSnapshot(accountId, gson.toJson(_addresses.value)) } catch (e: Exception) { /* best-effort */ }
         }
+    }
+
+    private val gson = com.google.gson.Gson()
+
+    /** Last fully-loaded row list for [accountId], from [ColdStorageManager.getAddressSnapshot] —
+     *  the instant-paint cache behind [refreshAddresses]. Null when absent or unreadable. */
+    private fun snapshotRows(accountId: String): List<AddressRow>? {
+        val json = coldStorageManager.getAddressSnapshot(accountId) ?: return null
+        val type = object : com.google.gson.reflect.TypeToken<List<AddressRow>>() {}.type
+        return try { gson.fromJson<List<AddressRow>>(json, type) } catch (e: Exception) { null }
     }
 
     // -------------------------------------------------------------------------

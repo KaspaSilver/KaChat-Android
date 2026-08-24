@@ -2,6 +2,12 @@ package com.kachat.app.services
 
 import android.util.Log
 import com.kachat.app.util.KaspaExtendedPublicKey
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import org.bitcoinj.crypto.DeterministicKey
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,18 +26,58 @@ class ColdStorageAddressDiscovery @Inject constructor(
     data class DiscoveredAddress(val index: Int, val address: String, val balanceSompi: Long, val hasHistory: Boolean)
 
     /**
+     * Same brief bounded wait as WalletService.readyApi: right after a cold app launch the REST
+     * client can still be null for the first moments while the persisted URL loads, and every
+     * caller here used to just fail instantly on that null — which on the detail screen read as
+     * "this cold wallet has no addresses".
+     */
+    private suspend fun readyApi(): KaspaRestApi? =
+        networkService.kaspaRestApi.value ?: withTimeoutOrNull(10_000) { networkService.kaspaRestApi.filterNotNull().first() }
+
+    /**
+     * Live balances for many addresses in ONE round trip (the same batched endpoint iOS's cold
+     * storage list uses via getUtxosByAddresses) — this is what lets funded addresses paint fast
+     * instead of waiting out a per-index sequential scan. Falls back to a small-chunk concurrent
+     * sweep when the configured REST host doesn't implement the batch endpoint; addresses whose
+     * lookup failed are simply absent from the result. Returns null when the API is unreachable
+     * outright, so callers can tell "could not check" apart from "zero balance".
+     */
+    suspend fun fetchBalances(addresses: List<String>): Map<String, Long>? {
+        if (addresses.isEmpty()) return emptyMap()
+        val api = readyApi() ?: return null
+        return try {
+            api.getBalances(BalancesRequest(addresses)).associate { it.address to it.balance }
+        } catch (e: Exception) {
+            Log.w("ColdStorageAddressDiscovery", "Batched balances unavailable, falling back to per-address sweep", e)
+            val out = mutableMapOf<String, Long>()
+            coroutineScope {
+                for (chunk in addresses.chunked(8)) {
+                    chunk.map { address ->
+                        async { address to (try { api.getBalance(address).balance } catch (e: Exception) { null }) }
+                    }.awaitAll().forEach { (address, balance) -> if (balance != null) out[address] = balance }
+                }
+            }
+            if (out.isEmpty()) null else out
+        }
+    }
+
+    /**
      * @param chain 0 = external/receive, 1 = internal/change (KaChat only ever sources sends/
      * change from chain 0 for cold storage — see [KaspaExtendedPublicKey] doc).
+     * @param startIndex first index to scan — the detail screen's refresh paints 0..maxDerivedIndex
+     * from a batched balance call first and only gap-scans BEYOND that bound, so a failed lookup
+     * here can no longer blank the already-known addresses.
      */
     suspend fun discoverAddresses(
         rootKey: DeterministicKey,
         chain: Int = 0,
-        gapLimit: Int = 5
+        gapLimit: Int = 5,
+        startIndex: Int = 0
     ): List<DiscoveredAddress> {
-        networkService.kaspaRestApi.value ?: return emptyList()
+        readyApi() ?: return emptyList()
         val results = mutableListOf<DiscoveredAddress>()
         var consecutiveUnused = 0
-        var index = 0
+        var index = startIndex
 
         // Sequential, one address at a time - a prior attempt at concurrent/batched lookups here
         // (firing several addresses' history+balance calls at once against the shared public REST
@@ -58,7 +104,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
      * [discoverAddresses] alone would never reach on a fresh unused-account rescan.
      */
     suspend fun checkAddress(rootKey: DeterministicKey, chain: Int, index: Int): DiscoveredAddress? {
-        val api = networkService.kaspaRestApi.value ?: return null
+        val api = readyApi() ?: return null
         val address = try {
             KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain, index)
         } catch (e: Exception) {
@@ -76,6 +122,19 @@ class ColdStorageAddressDiscovery @Inject constructor(
             0L
         }
         return DiscoveredAddress(index, address, balance, hasHistory)
+    }
+
+    /** History-only probe for the detail screen's background Used backfill — the balance is
+     *  already known from the batched fetch, so this skips the second round trip [checkAddress]
+     *  would make. Null means the lookup failed (NOT "unused"). */
+    suspend fun hasHistory(address: String): Boolean? {
+        val api = readyApi() ?: return null
+        return try {
+            api.getTransactions(address, limit = 1).isNotEmpty()
+        } catch (e: Exception) {
+            Log.w("ColdStorageAddressDiscovery", "History probe failed for $address", e)
+            null
+        }
     }
 
     data class AddressTransaction(

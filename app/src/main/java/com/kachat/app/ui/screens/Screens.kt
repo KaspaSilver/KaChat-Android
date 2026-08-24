@@ -4032,7 +4032,12 @@ fun ManageAddressesScreen(
                     PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_new_spending_address)) {
                         showActionsMenu = false
                         viewModel.generateNewSpendingAddress { index ->
-                            Toast.makeText(context, "Spending address #$index is ready.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                if (index != null) "Spending address #$index is ready."
+                                else "Could not check addresses. Try again when connected.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))

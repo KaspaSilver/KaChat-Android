@@ -227,26 +227,44 @@ class WalletViewModel @Inject constructor(
      * index — skipping the primary, anything holding a balance or with on-chain history, and
      * payment-pool reservations (promised to a contact, never re-offered) — unhiding it so it
      * shows on the main list. Falls back to deriving maxIndex+1 when every existing index is
-     * spoken for. [onResult] receives the index that is now ready.
+     * spoken for. [onResult] receives the index that is now ready, or null when the live check
+     * failed and Generate refused (never derive or recycle blind — a wrongly re-offered index
+     * could already be funded or promised to a contact).
      */
-    fun generateNewSpendingAddress(onResult: (Int) -> Unit = {}) {
+    fun generateNewSpendingAddress(onResult: (Int?) -> Unit = {}) {
         viewModelScope.launch {
-            val walletAddress = walletManager.getAddress()
+            val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { null }
+            if (walletAddress == null) {
+                onResult(null)
+                return@launch
+            }
             // LIVE list only, never the cached rows in _manageAddresses: the instant-paint
             // snapshot carries stale balance/used/isCurrent flags (the primary rotates after
             // every send), which is exactly how a used, funded, or even the primary index could
-            // be re-offered as "fresh". Offline, the live list is empty and the fallback below
-            // derives a brand-new index, which is always safe to offer.
+            // be re-offered as "fresh".
             val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
             val entries = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
+            // A real wallet always lists at least index 0, so an empty live list means the check
+            // FAILED (offline, unreachable or throttled API), never a wallet with no addresses.
+            // Refuse instead of deriving from nothing.
+            if (entries.isEmpty()) {
+                onResult(null)
+                return@launch
+            }
+            // Only rows whose balance and used-ness were both live-confirmed this load are
+            // recyclable; unconfirmed rows are skipped rather than trusted.
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
-                entry.index != primaryIndex && !entry.isCurrent && entry.balanceSompi == 0L && !entry.everUsed &&
+                entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
+                    entry.balanceSompi == 0L && !entry.everUsed &&
                     !paymentPoolStore.isReservedAddress(entry.address, walletAddress)
             }
             val readyIndex = if (pick != null) {
                 walletService.setSpendingAddressHidden(pick.index, false)
                 pick.index
             } else {
+                // Every listed index is spoken for (or unconfirmed): extend the chain. A brand-new
+                // index past the all-time max has never been revealed, funded, or offered, so it
+                // is always safe to hand out — and this branch only runs off a LOADED live list.
                 walletService.generateNextSpendingAddress()
             }
             loadManageAddresses()
