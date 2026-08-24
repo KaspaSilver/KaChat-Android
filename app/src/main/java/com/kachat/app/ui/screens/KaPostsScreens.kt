@@ -2481,13 +2481,135 @@ fun KaPostsProfileOverlay(
         // navigation-bar inset on the list's bottom instead of padding the whole Column.
         ForceFullScreenDialogWindow()
         Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
-            // The same HorizontalPager the feed tabs use, wrapping the WHOLE profile list so the
-            // banner and header keep scrolling away with the posts exactly as before - each page
-            // repeats them, so a swipe reads as the whole profile sliding across. Draggable
-            // paging is safe here for the same reason as the feed: post cells carry no row-level
-            // horizontal gestures, and the menus a cell opens are separate Dialog windows that
-            // never see this pager's drags. Vertical scrolling nests inside the pager the same
-            // way the feed's lists do.
+            // Fixed chrome: banner, avatar row, header, and the tab row stay pinned while only
+            // the content below slides between Posts and Replies (matching iOS's profile tabs).
+            // Divergence from iOS worth knowing: iOS puts the whole profile in one ScrollView,
+            // so its banner scrolls away with the posts; here the chrome is static so the pager
+            // underneath can own the horizontal swipe.
+            Box {
+                val bannerUrl = senderBanners[address]
+                if (bannerUrl != null) {
+                    SubcomposeAsyncImage(
+                        model = bannerUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(140.dp),
+                        loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
+                        error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
+                    )
+                } else {
+                    Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
+                }
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(4.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.35f)),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Box(modifier = Modifier.offset(y = (-38).dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(82.dp)
+                            .clip(CircleShape)
+                            .background(colors.background),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ContactAvatar(
+                            imageUrl = senderProfiles[address],
+                            fallbackText = name,
+                            size = 76.dp,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                if (!isMine) {
+                    val isFollowing = address in following
+                    TextButton(onClick = { viewModel.toggleFollow(address, pubkey) }) {
+                        Text(
+                            if (isFollowing) "Following" else "Follow",
+                            color = if (isFollowing) colors.textSecondary else KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    TextButton(onClick = {
+                        viewModel.ensureContactExists(address) { contactId ->
+                            onClose()
+                            navController.navigate("chat/$contactId")
+                        }
+                    }) {
+                        Text("Chat", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
+                Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+                senderBios[address]?.let { bio ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(bio, color = colors.textSecondary, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row {
+                    val followingCount = if (isMine) following.size else posterProfile?.followingCount ?: 0
+                    val followersCount = if (isMine) (myFollowersCount ?: 0) else posterProfile?.followersCount ?: 0
+                    Row(
+                        modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(false) },
+                    ) {
+                        Text("$followingCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Following", color = colors.textSecondary, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Row(
+                        modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(true) },
+                    ) {
+                        Text("$followersCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Followers", color = colors.textSecondary, fontSize = 14.sp)
+                    }
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                listOf("Posts", "Replies").forEachIndexed { index, label ->
+                    val isSelected = index == selectedTab
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = index }
+                            .padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            label,
+                            color = if (isSelected) colors.textPrimary else colors.textSecondary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 15.sp,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(48.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(if (isSelected) KaspaTeal else Color.Transparent),
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(color = colors.surfaceVariant)
+            // The same HorizontalPager the feed tabs use, holding ONLY the per-tab post list
+            // under the fixed chrome. Draggable paging is safe here for the same reason as the
+            // feed: post cells carry no row-level horizontal gestures, and the menus a cell
+            // opens are separate Dialog windows that never see this pager's drags. Vertical
+            // scrolling nests inside the pager the same way the feed's lists do.
             HorizontalPager(
                 state = profilePagerState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -2507,131 +2629,6 @@ fun KaPostsProfileOverlay(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = WindowInsets.navigationBars.asPaddingValues(),
                 ) {
-                    item(key = "banner") {
-                        Box {
-                            val bannerUrl = senderBanners[address]
-                            if (bannerUrl != null) {
-                                SubcomposeAsyncImage(
-                                    model = bannerUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxWidth().height(140.dp),
-                                    loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                                    error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                                )
-                            } else {
-                                Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
-                            }
-                            IconButton(
-                                onClick = onClose,
-                                modifier = Modifier
-                                    .statusBarsPadding()
-                                    .padding(4.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.35f)),
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                            }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.Bottom,
-                        ) {
-                            Box(modifier = Modifier.offset(y = (-38).dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(82.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.background),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    ContactAvatar(
-                                        imageUrl = senderProfiles[address],
-                                        fallbackText = name,
-                                        size = 76.dp,
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            if (!isMine) {
-                                val isFollowing = address in following
-                                TextButton(onClick = { viewModel.toggleFollow(address, pubkey) }) {
-                                    Text(
-                                        if (isFollowing) "Following" else "Follow",
-                                        color = if (isFollowing) colors.textSecondary else KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                                TextButton(onClick = {
-                                    viewModel.ensureContactExists(address) { contactId ->
-                                        onClose()
-                                        navController.navigate("chat/$contactId")
-                                    }
-                                }) {
-                                    Text("Chat", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                    item(key = "header") {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
-                            Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
-                            senderBios[address]?.let { bio ->
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(bio, color = colors.textSecondary, fontSize = 14.sp)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row {
-                                val followingCount = if (isMine) following.size else posterProfile?.followingCount ?: 0
-                                val followersCount = if (isMine) (myFollowersCount ?: 0) else posterProfile?.followersCount ?: 0
-                                Row(
-                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(false) },
-                                ) {
-                                    Text("$followingCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Following", color = colors.textSecondary, fontSize = 14.sp)
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Row(
-                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(true) },
-                                ) {
-                                    Text("$followersCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Followers", color = colors.textSecondary, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-                    item(key = "tabs") {
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            listOf("Posts", "Replies").forEachIndexed { index, label ->
-                                val isSelected = index == selectedTab
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { selectedTab = index }
-                                        .padding(vertical = 10.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        label,
-                                        color = if (isSelected) colors.textPrimary else colors.textSecondary,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 15.sp,
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .width(48.dp)
-                                            .height(3.dp)
-                                            .clip(RoundedCornerShape(2.dp))
-                                            .background(if (isSelected) KaspaTeal else Color.Transparent),
-                                    )
-                                }
-                            }
-                        }
-                        HorizontalDivider(color = colors.surfaceVariant)
-                    }
                     val items = pageItems
                     if (items.isEmpty()) {
                         item(key = "empty") {
