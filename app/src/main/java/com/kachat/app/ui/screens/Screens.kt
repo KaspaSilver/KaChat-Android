@@ -874,6 +874,24 @@ fun ChatThreadScreen(
                             )
 
                             if (messageText.isEmpty()) {
+                                // Kaspa-logo shortcut straight into payment mode - the exact
+                                // same switch the "+" menu's Send Kaspa entry flips, just one
+                                // tap instead of two. Hidden while payment mode is active by
+                                // construction: the paymentMode branch above replaces this
+                                // whole composer row, the composer's usual mode-swap pattern.
+                                IconButton(
+                                    onClick = { paymentMode = true },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(LocalAppColors.current.surface, CircleShape)
+                                ) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_kaspa_logo),
+                                        contentDescription = stringResource(R.string.send_kaspa),
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                                 Box(
                                     modifier = Modifier.onGloballyPositioned { coords ->
                                         // Top edge, not bottom — this button sits near the bottom of the
