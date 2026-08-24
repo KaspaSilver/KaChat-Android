@@ -293,16 +293,54 @@ class PaymentPoolService @Inject constructor(
      * Deliberately NOT gated on the sender's Chats Payment Privacy toggle: the RECIPIENT'S
      * privacy governs the destination - if they shared fresh addresses, money arrives on one
      * no matter the sender's setting. The sender's toggle only governs the FUNDING side.
+     *
+     * Cross-device double-pay protection: the `used` flags are DEVICE-LOCAL, so the same seed
+     * on a second device never learns which pool addresses this device already consumed (and
+     * vice versa) - its next payment would land on the SAME address, the exact on-chain reuse
+     * this feature exists to prevent. Before consuming a candidate, a cheap on-chain history
+     * probe (one tx, limit 1) checks whether ANY device already paid it; a hit marks it used
+     * locally (persisting the skip) and walks to the next unused. A failed probe (network)
+     * falls back to consuming the candidate - a possibly-reused destination beats a failed
+     * payment. At most [MAX_SEND_PROBES] sequential probes per send; if the pool walks empty,
+     * the chatting-address fallback below is the existing exhausted-pool path (the post-payment
+     * low-water hook then requests a fresh batch).
      */
     suspend fun poolPaymentDestination(contactId: String, pendingTxId: String): String {
         val walletAddress = walletAddressOrNull() ?: return contactId
         store.paymentDestination(pendingTxId)?.let { return it }
-        val poolAddress = store.nextUnusedPoolAddress(contactId, walletAddress) ?: return contactId
-        if (!KaspaAddress.isValid(poolAddress)) return contactId
-        store.markPoolAddressUsed(poolAddress, contactId, walletAddress)
-        store.rememberPaymentDestination(poolAddress, pendingTxId)
-        Log.i(TAG, "Payment to ${contactId.takeLast(10)} will use fresh pool address ${poolAddress.takeLast(10)}")
-        return poolAddress
+        var probesLeft = MAX_SEND_PROBES
+        while (true) {
+            val poolAddress = store.nextUnusedPoolAddress(contactId, walletAddress) ?: return contactId
+            if (!KaspaAddress.isValid(poolAddress)) return contactId
+            if (probesLeft > 0) {
+                probesLeft--
+                if (poolAddressHasOnChainHistory(poolAddress) == true) {
+                    // Another device on this seed (or the recipient reusing it themselves)
+                    // already put this address on-chain - burn it locally and try the next.
+                    store.markPoolAddressUsed(poolAddress, contactId, walletAddress)
+                    Log.i(TAG, "Pool address ${poolAddress.takeLast(10)} for ${contactId.takeLast(10)} already has on-chain history (consumed by another device?) - skipping")
+                    continue
+                }
+                // false: confirmed clean. null: probe failed - fall back to current behavior
+                // rather than failing the payment.
+            }
+            store.markPoolAddressUsed(poolAddress, contactId, walletAddress)
+            store.rememberPaymentDestination(poolAddress, pendingTxId)
+            Log.i(TAG, "Payment to ${contactId.takeLast(10)} will use fresh pool address ${poolAddress.takeLast(10)}")
+            return poolAddress
+        }
+    }
+
+    /**
+     * Plain uncached on-chain history probe for a CONTACT'S pool address: true/false on a
+     * definitive answer, null when the network probe failed. Deliberately does NOT route
+     * through [WalletService.hasSpendingAddressBeenUsed] or [WalletManager.markAddressUsed] -
+     * those persist into OUR OWN wallet's used-address cache, and a foreign pool address must
+     * never pollute it.
+     */
+    private suspend fun poolAddressHasOnChainHistory(address: String): Boolean? {
+        val api = networkService.kaspaRestApi.value ?: return null
+        return try { api.getTransactions(address, limit = 1).isNotEmpty() } catch (e: Exception) { null }
     }
 
     /** True when the NEXT payment to this contact would go to a fresh pool address - drives the
@@ -577,5 +615,8 @@ class PaymentPoolService @Inject constructor(
 
     companion object {
         private const val TAG = "PaymentPoolService"
+
+        /** Send-time probe budget - one full offer batch (the typical live pool size). */
+        private const val MAX_SEND_PROBES = PaymentPoolStore.OFFER_BATCH_SIZE
     }
 }
