@@ -2996,99 +2996,43 @@ fun ProfileScreen(
                 }
             }
 
-            val chattingAddressClipboardManager = LocalClipboardManager.current
-            CollapsibleAddressSection(title = "Chatting Address", balance = balance) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                address?.let { chattingAddressClipboardManager.setText(AnnotatedString(it)) }
-                                Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            // Compact action cards (iOS parity: ContactsView.addressDropdownsSection), one per
+            // address role. Each shows the role title, the shortened monospaced address and its
+            // balance, plus three labeled icon buttons: Copy, Send, Manage. Replaces the old
+            // expanding dropdown sections that hid the exact same three actions behind a chevron
+            // tap; the rich management screens stay reachable via Manage exactly as before.
+            val addressCardClipboardManager = LocalClipboardManager.current
+            ProfileAddressActionCard(
+                title = "Chatting Address",
+                address = address,
+                balanceText = balance,
+                onCopy = {
+                    address?.let {
+                        addressCardClipboardManager.setText(AnnotatedString(it))
+                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
                     }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showWithdrawDialog = true }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.send_kaspa), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-                    if (address != null) {
-                        HorizontalDivider(color = LocalAppColors.current.divider)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigate("identity_address_detail") }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Receipt, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.manage_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
+                },
+                onSend = { if (address != null) showWithdrawDialog = true },
+                onManage = { if (address != null) navController.navigate("identity_address_detail") }
+            )
 
             // Separate from the identity address above, purely for payment privacy — "Pay in
             // Kaspa" sends always come out of this address, never the identity one above. It
             // rotates to a freshly derived address after every send (see WalletManager's
             // spending-address doc comment), so this always shows whichever one is current.
-            val spendingAddressClipboardManager = LocalClipboardManager.current
-            CollapsibleAddressSection(title = "Spending Address", balance = spendingBalance) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                spendingAddress?.let { spendingAddressClipboardManager.setText(AnnotatedString(it)) }
-                                Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            ProfileAddressActionCard(
+                title = "Spending Address",
+                address = spendingAddress,
+                balanceText = spendingBalance,
+                onCopy = {
+                    spendingAddress?.let {
+                        addressCardClipboardManager.setText(AnnotatedString(it))
+                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
                     }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showSpendingWithdrawDialog = true }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.send_kaspa), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { navController.navigate("manage_addresses") }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.List, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.manage_addresses), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+                },
+                onSend = { showSpendingWithdrawDialog = true },
+                onManage = { navController.navigate("manage_addresses") }
+            )
 
             if (pendingKnsCommit != null) {
                 SettingsSection(title = null) {
@@ -3923,10 +3867,20 @@ fun ManageAddressesScreen(
     // re-partition once the batched KNS lookups land.
     val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
     // "Chat privacy address" rows: reserved and offered to a contact by the fresh-address
-    // payment pool. Tagged, and never offered a Hide action while the offer stands.
+    // payment pool. On the normal manage screen these live on their own read-only "Chat
+    // Privacy" tab instead of the main Addresses list (iOS parity); the Swap address picker
+    // variant keeps them inline with their tag. Never offered a Hide action while the offer
+    // stands. A reverted offer (revoke, superseding re-offer, or funding) leaves the set and
+    // its row moves back to the main list as a normal address again.
     val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
-    val visibleAddresses = remember(addresses, domainOwningAddresses) {
-        val visible = addresses.filterNot { it.hidden }
+    // 0 = Addresses, 1 = Chat Privacy. Tabs exist only on the normal screen, not the picker.
+    var selectedManageTab by remember { mutableStateOf(0) }
+    val showingChatPrivacyTab = onAddressPicked == null && selectedManageTab == 1
+    val chatPrivacyAddresses = remember(addresses, privacyReservedAddresses) {
+        addresses.filter { it.address in privacyReservedAddresses }.sortedBy { it.index }
+    }
+    val visibleAddresses = remember(addresses, domainOwningAddresses, privacyReservedAddresses) {
+        val visible = addresses.filterNot { it.hidden || (onAddressPicked == null && it.address in privacyReservedAddresses) }
         val primary = visible.filter { it.isCurrent }
         val rest = visible.filterNot { it.isCurrent }
             .sortedWith(compareByDescending<com.kachat.app.services.WalletService.SpendingAddressEntry> { it.balanceSompi > 0 }.thenByDescending { it.index })
@@ -3996,8 +3950,10 @@ fun ManageAddressesScreen(
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             // Hidden while the QR overlay is up — its Dialog window doesn't fully cover the
-            // screen, so the FAB would otherwise still show through around the QR card.
-            if (qrAddress == null) {
+            // screen, so the FAB would otherwise still show through around the QR card. Also
+            // hidden entirely on the Chat Privacy tab: that tab is purely a viewer, so
+            // Generate/Discover/Consolidate disappear there (iOS parity).
+            if (qrAddress == null && !showingChatPrivacyTab) {
             FloatingActionButton(
                 onClick = { showActionsMenu = true },
                 containerColor = KaspaTeal,
@@ -4063,12 +4019,83 @@ fun ManageAddressesScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding).nestedScroll(pullRefreshState.nestedScrollConnection)) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Top-of-screen tab switch, same TabRow treatment as the address-details screen's
+        // History/UTXOs/KNS Domains tabs. "Addresses" is the normal spending-address list;
+        // "Chat Privacy" is the read-only view of addresses actively offered to contacts as
+        // Chats Payment Privacy pool reservations. The Swap address picker keeps the plain list.
+        if (onAddressPicked == null) {
+            TabRow(
+                selectedTabIndex = selectedManageTab,
+                containerColor = LocalAppColors.current.background,
+                contentColor = KaspaTeal
+            ) {
+                Tab(
+                    selected = selectedManageTab == 0,
+                    onClick = { selectedManageTab = 0 },
+                    text = { Text("Addresses") }
+                )
+                Tab(
+                    selected = selectedManageTab == 1,
+                    onClick = { selectedManageTab = 1 },
+                    text = { Text("Chat Privacy") }
+                )
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize().nestedScroll(pullRefreshState.nestedScrollConnection)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (showingChatPrivacyTab) {
+                // Read-only viewer for addresses currently offered to contacts in LIVE Chats
+                // Payment Privacy pools. Rows expose only Copy Address and Show QR Code; the
+                // offer lifecycle (revoke/supersede/fund) manages these rows, not the user.
+                if (loading && addresses.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                } else if (chatPrivacyAddresses.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = LocalAppColors.current.textSecondary,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "No Chat Privacy Addresses",
+                                color = LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "When you chat with someone while Chats Payment Privacy is on, the fresh addresses offered to them appear here.",
+                                color = LocalAppColors.current.textSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    items(chatPrivacyAddresses, key = { it.index }) { entry ->
+                        ChatPrivacyAddressRow(
+                            entry = entry,
+                            onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
+                            onQrClick = { qrAddress = entry.address }
+                        )
+                    }
+                }
+            } else {
             if (onAddressPicked != null) {
                 item {
                     Text(
@@ -4170,6 +4197,7 @@ fun ManageAddressesScreen(
                 // Leaves room so the last address row isn't hidden behind the FAB.
                 Spacer(Modifier.height(64.dp))
             }
+            }
         }
 
         PullToRefreshContainer(
@@ -4179,6 +4207,7 @@ fun ManageAddressesScreen(
 
         qrAddress?.let { address ->
             QrCodeOverlay(value = address, onDismiss = { qrAddress = null })
+        }
         }
         }
     }
@@ -4435,7 +4464,7 @@ fun AddressVisibilityScreen(
 
     val start = page * pageSize
     val end = start + pageSize - 1
-    val pageEntries = remember(byIndex, page) {
+    val pageEntries = remember(byIndex, page, privacyReservedAddresses) {
         (start..end).map { index ->
             byIndex[index] ?: com.kachat.app.services.WalletService.SpendingAddressEntry(
                 index = index,
@@ -4446,7 +4475,10 @@ fun AddressVisibilityScreen(
                 hidden = true,
                 label = null
             )
-        }
+        // Active chat-privacy reservations don't get a checklist row at all (iOS parity):
+        // they live on Manage Addresses' Chat Privacy tab and can't be toggled anyway. The
+        // reserved toggle/tag branches below stay as a backstop for a mid-load race.
+        }.filterNot { it.address.isNotEmpty() && it.address in privacyReservedAddresses }
     }
 
     Scaffold(
@@ -6299,6 +6331,93 @@ private fun ManageAddressRow(
     }
 }
 
+/**
+ * One read-only row on [ManageAddressesScreen]'s Chat Privacy tab: an address reserved and
+ * actively offered to a contact by the fresh-address payment pool (Chats Payment Privacy).
+ * Same card styling as [ManageAddressRow], but the overflow menu offers ONLY Copy Address and
+ * Show QR Code - no rename, hide, set-primary, or history navigation; the offer lifecycle
+ * (revoke/supersede/fund) manages these rows, not the user. Balance shows only once funds
+ * arrive, so a funded-but-still-active offer displays what came in.
+ */
+@Composable
+private fun ChatPrivacyAddressRow(
+    entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
+    onCopyClick: () -> Unit,
+    onQrClick: () -> Unit
+) {
+    val kas = entry.balanceSompi / 100_000_000.0
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Address #${entry.index}",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                entry.label?.takeIf { it.isNotBlank() }?.let { label ->
+                    Text(
+                        text = label,
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp,
+                maxLines = 1
+            )
+            if (entry.balanceSompi > 0) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "%.8f KAS".format(java.util.Locale.US, kas),
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        IconButton(
+            onClick = { showMenu = true },
+            modifier = Modifier
+                .size(44.dp)
+                .onGloballyPositioned { coords ->
+                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+                }
+        ) {
+            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
+                showMenu = false
+                onCopyClick()
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.QrCode, stringResource(R.string.show_qr_code)) {
+                showMenu = false
+                onQrClick()
+            }
+        }
+    }
+}
+
 /** Default tapback-style set, not a full emoji keyboard - user-customizable via Settings > Chats
  *  > Quick Reactions (see [com.kachat.app.repository.AppSettingsRepository.quickReactionEmojis]),
  *  this is just the fallback [QuickReactionBar] uses until then. */
@@ -7682,6 +7801,93 @@ private fun ProfileCircleAction(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+/**
+ * One compact address card on [ProfileScreen] (iOS parity: ContactsView's addressActionRow),
+ * one per address role (Chatting Address / Spending Address): the role title, the shortened
+ * monospaced address, its balance, and three labeled icon buttons on the right: Copy, Send,
+ * Manage. Replaces the old [CollapsibleAddressSection] dropdowns that hid the same three
+ * actions behind an expand chevron. `address` is nullable because the current spending address
+ * can be momentarily unresolvable right after wallet load; in that state the row shows a
+ * loading placeholder and the caller's actions guard against the nil address.
+ */
+@Composable
+private fun ProfileAddressActionCard(
+    title: String,
+    address: String?,
+    balanceText: String?,
+    onCopy: () -> Unit,
+    onSend: () -> Unit,
+    onManage: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                color = LocalAppColors.current.textPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1
+            )
+            Spacer(Modifier.height(3.dp))
+            if (address != null) {
+                Text(
+                    "${address.take(12)}...${address.takeLast(6)}",
+                    color = LocalAppColors.current.textSecondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    maxLines = 1
+                )
+            } else {
+                Text(
+                    "Loading...",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+            if (!balanceText.isNullOrBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    balanceText,
+                    color = KaspaTeal,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
+        }
+        ProfileAddressCardAction(Icons.Default.ContentCopy, "Copy", onCopy)
+        ProfileAddressCardAction(Icons.AutoMirrored.Filled.Send, "Send", onSend)
+        ProfileAddressCardAction(Icons.Default.Settings, "Manage", onManage)
+    }
+}
+
+/** One labeled circular icon button inside [ProfileAddressActionCard] — a smaller sibling of [ProfileCircleAction] with the same teal-on-circle look. */
+@Composable
+private fun ProfileAddressCardAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(KaspaTeal.copy(alpha = 0.15f))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = label, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = LocalAppColors.current.textSecondary, fontSize = 11.sp, maxLines = 1)
     }
 }
 
