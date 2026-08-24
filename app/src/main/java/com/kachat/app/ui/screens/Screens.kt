@@ -870,7 +870,8 @@ fun ChatThreadScreen(
                                             Icon(
                                                 Icons.Default.CameraAlt,
                                                 contentDescription = stringResource(R.string.camera),
-                                                tint = LocalAppColors.current.textSecondary
+                                                tint = LocalAppColors.current.textSecondary,
+                                                modifier = Modifier.size(28.dp)
                                             )
                                         }
                                         IconButton(onClick = { paymentMode = true }) {
@@ -878,7 +879,7 @@ fun ChatThreadScreen(
                                                 painterResource(R.drawable.ic_kaspa_logo),
                                                 contentDescription = stringResource(R.string.send_kaspa),
                                                 tint = Color.Unspecified,
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = Modifier.size(28.dp)
                                             )
                                         }
                                     }
@@ -895,7 +896,8 @@ fun ChatThreadScreen(
                                         composerMenuAnchor = coords.positionInWindow()
                                     }
                                 ) {
-                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true })
+                                    // Slightly smaller than the stock 40dp so the input bubble gets the width.
+                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true }, size = 34.dp, iconSize = 18.dp)
                                 }
                                 if (showComposerMenu) {
                                     CenteredOptionsMenu(onDismissRequest = { showComposerMenu = false }, anchor = composerMenuAnchor) {
@@ -2595,14 +2597,14 @@ fun ImageBubble(
 }
 
 @Composable
-fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}) {
+fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}, size: Dp = 40.dp, iconSize: Dp = 20.dp) {
     IconButton(
         onClick = onClick,
         modifier = Modifier
-            .size(40.dp)
+            .size(size)
             .background(LocalAppColors.current.surface, CircleShape)
     ) {
-        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(iconSize))
     }
 }
 
