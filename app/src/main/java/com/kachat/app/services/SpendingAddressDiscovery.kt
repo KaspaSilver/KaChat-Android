@@ -42,6 +42,9 @@ class SpendingAddressDiscovery @Inject constructor(
                 break
             }
             if (everUsed) {
+                // Warm the monotonic used-cache while we're here: the rebuilt install's first
+                // Manage Addresses load then labels these "Used" instantly with no re-probe.
+                walletManager.markAddressUsed(address)
                 lastUsedIndex = index
                 consecutiveUnused = 0
             } else {

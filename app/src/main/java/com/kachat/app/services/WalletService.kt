@@ -171,6 +171,12 @@ class WalletService @Inject constructor(
         // nothing: bail out as a failed load rather than fabricate an all-zero list.
         val balances = fetchBalancesBatched(addressByIndex.values.toList())
         if (balances.isEmpty()) return emptyList()
+        // Re-read the primary index AFTER the slow balance round trip — a send can rotate it
+        // mid-load, and stamping rows with the index captured before the fetch is how a stale
+        // isCurrent used to land in the committed list and the persisted snapshot. Display
+        // derives isCurrent live anyway (WalletViewModel.manageAddresses); this keeps the
+        // built rows and the self-heal below as fresh as possible too.
+        val primaryNow = walletManager.getActiveAccount()?.spendingAddressIndex ?: account.spendingAddressIndex
         // "Used" is monotonic — a persisted positive answer skips the history probe forever;
         // only never-used addresses re-probe (they can become used anytime). Probes run in small
         // chunks, not one big burst, for the same rate-limit reason as above.
@@ -197,7 +203,7 @@ class WalletService @Inject constructor(
                         }
                         SpendingAddressEntry(
                             index, address, balance ?: 0L, everUsed,
-                            isCurrent = index == account.spendingAddressIndex,
+                            isCurrent = index == primaryNow,
                             hidden = index in hiddenIndices,
                             label = labels[index],
                             liveChecked = confirmed
@@ -237,6 +243,39 @@ class WalletService @Inject constructor(
             // row was confirmed in some PREVIOUS session at best, so it comes back untrusted.
             // Only a fresh getSpendingAddressList load can mark rows live-confirmed.
             entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent && entry.balanceSompi <= 0L, liveChecked = false)
+        }
+    }
+
+    /**
+     * One-time visibility seeding right after an import's spending-index recovery
+     * ([WalletViewModel.commitImport] -> [SpendingAddressDiscovery.discoverIndex]): the recovery
+     * raises the index bounds to cover every previously used slot, and with a brand-new install's
+     * EMPTY hidden set the default "visible unless hidden" painted all of 0..maxIndex — burned
+     * change indices, gap addresses, old rotated primaries — as rows the user never revealed
+     * here. The expected initial set is the primary plus anything holding a balance; every other
+     * recovered index starts hidden (it stays reachable via Address Visibility and Generate's
+     * recycling, which un-hides the lowest hidden unused index).
+     *
+     * Explicit user state always wins: if this wallet already has hidden entries or a Manage
+     * Addresses snapshot on this device (e.g. restored from an OS backup), the user curated their
+     * visibility before and nothing is rewritten. When the balance fetch fails entirely, seeding
+     * still hides the non-primary rows — hiding a funded row is self-healing (the list loader
+     * force-unhides primary/funded rows on every successful load), while painting dozens of
+     * random rows is not.
+     */
+    suspend fun seedImportedSpendingVisibility() {
+        val account = walletManager.getActiveAccount() ?: return
+        val primary = account.spendingAddressIndex
+        val maxIndex = maxOf(primary, account.maxSpendingAddressIndex)
+        if (maxIndex <= 0) return
+        if (walletManager.getHiddenSpendingIndices(account.address).isNotEmpty()) return
+        if (walletManager.getManageAddressesSnapshot(account.address) != null) return
+        val addressByIndex = (0..maxIndex).associateWith { walletManager.deriveSpendingAddress(it) }
+        val balances = fetchBalancesBatched(addressByIndex.values.toList())
+        for ((index, address) in addressByIndex) {
+            if (index == primary) continue
+            if ((balances[address] ?: 0L) > 0L) continue
+            walletManager.setSpendingAddressHidden(account.address, index, true)
         }
     }
 

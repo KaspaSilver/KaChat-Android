@@ -160,63 +160,94 @@ class WalletViewModel @Inject constructor(
     // find/copy an old one that might still hold a stray balance.
     // -------------------------------------------------------------------------
 
-    private val _manageAddresses = MutableStateFlow<List<WalletService.SpendingAddressEntry>>(emptyList())
-    val manageAddresses: StateFlow<List<WalletService.SpendingAddressEntry>> = _manageAddresses.asStateFlow()
+    // Raw rows as loaded/edited. NEVER exposed directly: their isCurrent (and a hidden flag that
+    // wrongly caught the primary) can be stale — built from a pre-rotation read, painted from a
+    // persisted snapshot, or overwritten by an in-flight load that started before a send rotated
+    // the primary. The public [manageAddresses] below re-derives those flags on every emission.
+    private val _manageAddressesRaw = MutableStateFlow<List<WalletService.SpendingAddressEntry>>(emptyList())
+
+    /**
+     * THE isCurrent SINGLE-SOURCE RULE: the star is DERIVED, never stored. Rendered rows stamp
+     * isCurrent purely from [WalletManager.primarySpendingIndexFlow] (the authoritative live
+     * primary index) at combine time, and force the primary visible — so no persisted or
+     * captured isCurrent is ever trusted, and a send rotating the primary re-stars every open
+     * screen instantly, no matter which stale list commit lands afterwards. Guard paths follow
+     * the same rule: they compare against the authoritative index, never a row's flag.
+     */
+    val manageAddresses: StateFlow<List<WalletService.SpendingAddressEntry>> =
+        combine(_manageAddressesRaw, walletManager.primarySpendingIndexFlow) { rows, primary ->
+            rows.map { entry ->
+                val isCurrent = primary != null && entry.index == primary
+                if (entry.isCurrent == isCurrent && !(isCurrent && entry.hidden)) entry
+                else entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent)
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _manageAddressesLoading = MutableStateFlow(false)
     val manageAddressesLoading: StateFlow<Boolean> = _manageAddressesLoading.asStateFlow()
 
+    // Monotonic ticket for loadManageAddresses commits: only the NEWEST in-flight live load may
+    // write its result, so a slow load that started before a rotation/newer refresh can never
+    // overwrite fresher rows with pre-rotation balances.
+    private var manageAddressesLoadGeneration = 0
+
     init {
         // Primary freshness: a successful "Pay in Kaspa" send rotates the primary spending index
-        // (KaspaWalletEngine.sendSpendingPayment -> setSpendingAddressIndex), and the Manage
-        // Addresses rows carry a stale isCurrent until the next full reload — which left the OLD
-        // primary starred and unhideable for as long as the reload took. Observe the rotation and
-        // restar the rows immediately: the new primary gains the star (and is forced visible, the
-        // same self-heal rule the list loader applies), the old primary loses it and its
-        // just-swept balance so the funded-row hide guard stops blocking it. The full
-        // loadManageAddresses reload stays the authoritative reconciler; the storage-level
-        // primary-hide backstop in WalletManager.setSpendingAddressHidden is untouched.
+        // (KaspaWalletEngine.sendSpendingPayment -> setSpendingAddressIndex). The star itself is
+        // handled by the derived [manageAddresses] stamping above; this collector only does what
+        // derivation can't: refresh the displayed spending address, move the swept balance from
+        // the old primary row to the new one (so the funded-row hide guard stops blocking the
+        // old primary immediately), and kick a reconciling reload. The storage-level primary-hide
+        // backstop in WalletManager.setSpendingAddressHidden is untouched.
         viewModelScope.launch {
+            var lastPrimary: Int? = null
             walletManager.primarySpendingIndexFlow.collect { primary ->
                 _spendingAddress.value = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
-                if (primary == null) return@collect
-                val current = _manageAddresses.value
-                if (current.none { it.isCurrent && it.index != primary } &&
-                    current.none { it.index == primary && !it.isCurrent }
-                ) return@collect
-                val sweptFromOldPrimary = current.firstOrNull { it.isCurrent && it.index != primary }?.balanceSompi ?: 0L
-                _manageAddresses.value = current.map { entry ->
-                    when {
-                        entry.index == primary && !entry.isCurrent ->
-                            entry.copy(isCurrent = true, hidden = false, balanceSompi = entry.balanceSompi + sweptFromOldPrimary)
-                        entry.index != primary && entry.isCurrent ->
-                            // The rotation sweep moved this row's whole balance to the new primary.
-                            entry.copy(isCurrent = false, balanceSompi = 0L)
+                val previous = lastPrimary
+                lastPrimary = primary
+                if (primary == null || previous == null || previous == primary) return@collect
+                val current = _manageAddressesRaw.value
+                if (current.isEmpty()) return@collect
+                // The rotation sweep moved the old primary's whole balance to the new primary.
+                // (Manual activation already moved it optimistically in setActiveSpendingAddress,
+                // in which case the old row's balance is 0 here and this adds nothing.)
+                val sweptFromOldPrimary = current.firstOrNull { it.index == previous }?.balanceSompi ?: 0L
+                _manageAddressesRaw.value = current.map { entry ->
+                    when (entry.index) {
+                        primary -> entry.copy(hidden = false, balanceSompi = entry.balanceSompi + sweptFromOldPrimary)
+                        previous -> entry.copy(balanceSompi = 0L)
                         else -> entry
                     }
                 }
                 // Background reconcile with real on-chain state (also adds the new primary row
                 // when it was a freshly derived index the list has never shown).
-                if (current.isNotEmpty()) loadManageAddresses()
+                loadManageAddresses()
             }
         }
     }
 
     fun loadManageAddresses() {
         viewModelScope.launch {
+            val generation = ++manageAddressesLoadGeneration
             // Instant paint from the persisted snapshot of the last full load (balances may be
             // a refresh stale — the live load below replaces them). Only seeds when the screen
             // has nothing yet, so a live list never regresses to older data.
-            if (_manageAddresses.value.isEmpty()) {
+            if (_manageAddressesRaw.value.isEmpty()) {
                 val cached = try { walletService.cachedSpendingAddressList() } catch (e: Exception) { emptyList() }
-                if (cached.isNotEmpty()) _manageAddresses.value = cached
+                if (cached.isNotEmpty()) _manageAddressesRaw.value = cached
             }
-            _manageAddressesLoading.value = _manageAddresses.value.isEmpty()
+            _manageAddressesLoading.value = _manageAddressesRaw.value.isEmpty()
             val live = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
-            if (live.isNotEmpty() || _manageAddresses.value.isEmpty()) _manageAddresses.value = live
+            // Stale-load fence: a newer load (or the post-rotation reconcile) superseded this one
+            // while its network round trip ran — its rows are pre-rotation, drop them.
+            if (generation == manageAddressesLoadGeneration &&
+                (live.isNotEmpty() || _manageAddressesRaw.value.isEmpty())
+            ) {
+                _manageAddressesRaw.value = live
+            }
             _manageAddressesLoading.value = false
             // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
-            refreshDomainOwningAddresses(_manageAddresses.value.map { it.address })
+            refreshDomainOwningAddresses(_manageAddressesRaw.value.map { it.address })
         }
     }
 
@@ -240,14 +271,17 @@ class WalletViewModel @Inject constructor(
         if (!hidden) {
             // Unhide is always allowed and needs no network: commit and flip instantly.
             walletManager.setSpendingAddressHidden(account.address, index, false)
-            _manageAddresses.value = _manageAddresses.value.map {
+            _manageAddressesRaw.value = _manageAddressesRaw.value.map {
                 if (it.index == index) it.copy(hidden = false) else it
             }
             onResult(true)
             return
         }
-        val entry = _manageAddresses.value.find { it.index == index }
-        if (index == account.spendingAddressIndex || entry?.isCurrent == true || (entry?.balanceSompi ?: 0L) > 0L) {
+        val entry = _manageAddressesRaw.value.find { it.index == index }
+        // Primary guard: ONLY the authoritative live index decides — never entry.isCurrent. A
+        // row's flag can be stale after a send rotates the primary (a pre-rotation list commit
+        // landing late), and trusting it left the OLD primary un-hideable until a full reload.
+        if (index == account.spendingAddressIndex || (entry?.balanceSompi ?: 0L) > 0L) {
             onResult(false)
             return
         }
@@ -262,7 +296,7 @@ class WalletViewModel @Inject constructor(
         // one live balance fetch, and no answer means no hide.
         if (entry != null && entry.liveChecked) {
             walletManager.setSpendingAddressHidden(account.address, index, true)
-            _manageAddresses.value = _manageAddresses.value.map {
+            _manageAddressesRaw.value = _manageAddressesRaw.value.map {
                 if (it.index == index) it.copy(hidden = true) else it
             }
             onResult(true)
@@ -271,7 +305,7 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch {
             val ok = walletService.setSpendingAddressHidden(index, true)
             if (ok) {
-                _manageAddresses.value = _manageAddresses.value.map {
+                _manageAddressesRaw.value = _manageAddressesRaw.value.map {
                     if (it.index == index) it.copy(hidden = true) else it
                 }
             }
@@ -282,7 +316,7 @@ class WalletViewModel @Inject constructor(
     /** Sets or clears (blank/null) a nickname for one spending-chain address, shown in place of "Address #N". */
     fun setManageAddressLabel(index: Int, label: String?) {
         walletService.setSpendingAddressLabel(index, label)
-        _manageAddresses.value = _manageAddresses.value.map {
+        _manageAddressesRaw.value = _manageAddressesRaw.value.map {
             if (it.index == index) it.copy(label = label?.trim()?.takeIf { l -> l.isNotBlank() }) else it
         }
     }
@@ -303,7 +337,7 @@ class WalletViewModel @Inject constructor(
                 onResult(null)
                 return@launch
             }
-            // LIVE list only, never the cached rows in _manageAddresses: the instant-paint
+            // LIVE list only, never the cached rows in _manageAddressesRaw: the instant-paint
             // snapshot carries stale balance/used/isCurrent flags (the primary rotates after
             // every send), which is exactly how a used, funded, or even the primary index could
             // be re-offered as "fresh".
@@ -346,7 +380,7 @@ class WalletViewModel @Inject constructor(
             // a newly derived index is appended as a fresh row (its address derives locally) — and
             // let the background reload only reconcile flags afterwards.
             val fresh = entries.map { if (it.index == readyIndex) it.copy(hidden = false) else it }
-            _manageAddresses.value = if (fresh.any { it.index == readyIndex }) fresh else {
+            _manageAddressesRaw.value = if (fresh.any { it.index == readyIndex }) fresh else {
                 fresh + com.kachat.app.services.WalletService.SpendingAddressEntry(
                     index = readyIndex,
                     address = spendingAddressAt(readyIndex) ?: "",
@@ -401,12 +435,15 @@ class WalletViewModel @Inject constructor(
      * [loadManageAddresses] then reconciles with the real on-chain state once they're done.
      */
     fun setActiveSpendingAddress(index: Int) {
-        val current = _manageAddresses.value
-        val previous = current.firstOrNull { it.isCurrent }
-        _manageAddresses.value = current.map { entry ->
+        // The AUTHORITATIVE index names the outgoing primary — never a row's isCurrent flag,
+        // which can be stale (single-source rule, see [manageAddresses]).
+        val previousIndex = walletManager.getActiveAccount()?.spendingAddressIndex
+        val current = _manageAddressesRaw.value
+        val previousBalance = current.firstOrNull { it.index == previousIndex }?.balanceSompi ?: 0L
+        _manageAddressesRaw.value = current.map { entry ->
             when (entry.index) {
-                index -> entry.copy(isCurrent = true, balanceSompi = entry.balanceSompi + (previous?.balanceSompi ?: 0L))
-                previous?.index -> entry.copy(isCurrent = false, balanceSompi = 0L)
+                index -> entry.copy(isCurrent = true, hidden = false, balanceSompi = entry.balanceSompi + previousBalance)
+                previousIndex -> entry.copy(isCurrent = false, balanceSompi = 0L)
                 else -> entry
             }
         }
@@ -837,6 +874,10 @@ class WalletViewModel @Inject constructor(
                     try {
                         val recoveredIndex = spendingAddressDiscovery.discoverIndex()
                         walletManager.setSpendingAddressIndex(importedAddress, recoveredIndex)
+                        // Initial visibility: only the primary and funded addresses paint on
+                        // Manage Addresses after a rebuild; every other recovered index starts
+                        // hidden (see seedImportedSpendingVisibility's doc for the full rule).
+                        walletService.seedImportedSpendingVisibility()
                     } catch (e: Exception) {
                         android.util.Log.w("WalletViewModel", "Spending address discovery failed", e)
                     }
