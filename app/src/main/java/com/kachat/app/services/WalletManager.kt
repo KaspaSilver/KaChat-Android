@@ -174,6 +174,11 @@ class WalletManager @Inject constructor(
         getAllHiddenSpendingAddresses().filter { it.walletAddress == walletAddress }.map { it.index }.toSet()
 
     fun setSpendingAddressHidden(walletAddress: String, index: Int, hidden: Boolean) {
+        // Storage-level backstop for EVERY write path: the primary ("Pay in Kaspa") spending
+        // index must always stay visible, so a hide of it never persists no matter which caller
+        // asked. (Live-balance guarding lives in WalletService.setSpendingAddressHidden; bulk
+        // paths that only touch never-funded fresh indices come straight here.)
+        if (hidden && getAccounts().any { it.address == walletAddress && it.spendingAddressIndex == index }) return
         val remaining = getAllHiddenSpendingAddresses().filterNot { it.walletAddress == walletAddress && it.index == index }
         saveHiddenSpendingAddresses(if (hidden) remaining + HiddenSpendingAddress(walletAddress, index) else remaining)
     }

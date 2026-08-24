@@ -187,15 +187,30 @@ class WalletViewModel @Inject constructor(
     /**
      * Hiding is purely a display preference — the address and its label are untouched; it's just
      * filtered out of the main Manage Addresses list. Unhiding is always allowed, but an address
-     * can't be hidden in the first place while it still holds a balance or is the primary
-     * ("Pay in Kaspa") spending address — both are cases you'd want to keep an eye on, not tuck away.
+     * can never be hidden while it holds a balance or is the primary ("Pay in Kaspa") spending
+     * address — both are cases you'd want to keep an eye on, not tuck away. The quick checks here
+     * use the freshest row plus the AUTHORITATIVE primary index (the row's isCurrent can be stale
+     * after a send rotates the primary); [WalletService.setSpendingAddressHidden] then re-verifies
+     * with a live balance fetch and fails closed, so [onResult] reports whether the hide actually
+     * committed.
      */
-    fun setManageAddressHidden(index: Int, hidden: Boolean) {
-        val entry = _manageAddresses.value.find { it.index == index } ?: return
-        if (hidden && (entry.balanceSompi > 0 || entry.isCurrent)) return
-        walletService.setSpendingAddressHidden(index, hidden)
-        _manageAddresses.value = _manageAddresses.value.map {
-            if (it.index == index) it.copy(hidden = hidden) else it
+    fun setManageAddressHidden(index: Int, hidden: Boolean, onResult: (Boolean) -> Unit = {}) {
+        if (hidden) {
+            val entry = _manageAddresses.value.find { it.index == index }
+            val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
+            if (index == primaryIndex || entry?.isCurrent == true || (entry?.balanceSompi ?: 0L) > 0L) {
+                onResult(false)
+                return
+            }
+        }
+        viewModelScope.launch {
+            val ok = walletService.setSpendingAddressHidden(index, hidden)
+            if (ok) {
+                _manageAddresses.value = _manageAddresses.value.map {
+                    if (it.index == index) it.copy(hidden = hidden) else it
+                }
+            }
+            onResult(ok)
         }
     }
 
@@ -217,11 +232,15 @@ class WalletViewModel @Inject constructor(
     fun generateNewSpendingAddress(onResult: (Int) -> Unit = {}) {
         viewModelScope.launch {
             val walletAddress = walletManager.getAddress()
-            val entries = _manageAddresses.value.ifEmpty {
-                try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
-            }
+            // LIVE list only, never the cached rows in _manageAddresses: the instant-paint
+            // snapshot carries stale balance/used/isCurrent flags (the primary rotates after
+            // every send), which is exactly how a used, funded, or even the primary index could
+            // be re-offered as "fresh". Offline, the live list is empty and the fallback below
+            // derives a brand-new index, which is always safe to offer.
+            val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
+            val entries = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
-                !entry.isCurrent && entry.balanceSompi == 0L && !entry.everUsed &&
+                entry.index != primaryIndex && !entry.isCurrent && entry.balanceSompi == 0L && !entry.everUsed &&
                     !paymentPoolStore.isReservedAddress(entry.address, walletAddress)
             }
             val readyIndex = if (pick != null) {

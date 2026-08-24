@@ -4139,8 +4139,14 @@ fun ManageAddressesScreen(
                             if (entry.balanceSompi > 0) {
                                 Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
                             } else {
-                                viewModel.setManageAddressHidden(entry.index, true)
-                                Toast.makeText(context, "Address hidden. Re-enable it in Address Visibility.", Toast.LENGTH_SHORT).show()
+                                viewModel.setManageAddressHidden(entry.index, true) { ok ->
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Address hidden. Re-enable it in Address Visibility."
+                                        else "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         }
                     )
@@ -4405,6 +4411,12 @@ fun AddressVisibilityScreen(
     // Lazily filled Used/Unused results for rows derived beyond the loaded list.
     val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
 
+    // Refresh on entry: rows inherited from a previous screen visit can carry a stale
+    // isCurrent/balance (the primary rotates after every send), and the toggle guards below
+    // read those flags. The live reload also runs the self-heal purge for any wrongly hidden
+    // primary/funded index.
+    LaunchedEffect(Unit) { viewModel.loadManageAddresses() }
+
     val start = page * pageSize
     val end = start + pageSize - 1
     val pageEntries = remember(byIndex, page) {
@@ -4491,8 +4503,18 @@ fun AddressVisibilityScreen(
                             Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
                         entry.index > listMax ->
                             viewModel.revealSpendingAddress(entry.index)
-                        else ->
-                            viewModel.setManageAddressHidden(entry.index, !entry.hidden)
+                        else -> {
+                            val hiding = !entry.hidden
+                            viewModel.setManageAddressHidden(entry.index, hiding) { ok ->
+                                if (hiding && !ok) {
+                                    Toast.makeText(
+                                        context,
+                                        "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
                     }
                 }
                 Row(

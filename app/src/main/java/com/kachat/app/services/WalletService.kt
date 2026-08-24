@@ -180,18 +180,35 @@ class WalletService @Inject constructor(
                 }
             }.awaitAll()
         }
+        // Self-heal: the primary and any funded address must ALWAYS be visible. If the persisted
+        // hidden set ever caught one (e.g. a hide committed against a stale row from before the
+        // primary rotated on a send), purge it here so the corruption repairs itself on the next
+        // list load instead of leaving the primary invisible forever.
+        val wronglyHidden = entries.filter { it.hidden && (it.isCurrent || it.balanceSompi > 0) }
+        val healed = if (wronglyHidden.isEmpty()) entries else {
+            wronglyHidden.forEach { walletManager.setSpendingAddressHidden(account.address, it.index, false) }
+            Log.w("WalletService", "Purged wrongly hidden spending indices (primary or funded): ${wronglyHidden.map { it.index }}")
+            entries.map { if (it.hidden && (it.isCurrent || it.balanceSompi > 0)) it.copy(hidden = false) else it }
+        }
         // Persist the snapshot so the next open paints instantly (see cachedSpendingAddressList).
-        try { walletManager.setManageAddressesSnapshot(account.address, gson.toJson(entries)) } catch (e: Exception) { /* best-effort */ }
-        return entries
+        try { walletManager.setManageAddressesSnapshot(account.address, gson.toJson(healed)) } catch (e: Exception) { /* best-effort */ }
+        return healed
     }
 
     /** Last fully-loaded Manage Addresses list for the active account — instant-paint cache;
-     *  balances may be a refresh stale, the live load replaces them. */
+     *  balances may be a refresh stale, the live load replaces them. `isCurrent` is recomputed
+     *  against the LIVE primary index (the snapshot's copy goes stale the moment a send rotates
+     *  the primary), and the primary/funded rows are forced visible so a corrupted hidden set
+     *  can never blank the primary even on the cached first paint. */
     fun cachedSpendingAddressList(): List<SpendingAddressEntry> {
         val account = walletManager.getActiveAccount() ?: return emptyList()
         val json = walletManager.getManageAddressesSnapshot(account.address) ?: return emptyList()
         val type = object : TypeToken<List<SpendingAddressEntry>>() {}.type
-        return try { gson.fromJson(json, type) } catch (e: Exception) { emptyList() }
+        val raw: List<SpendingAddressEntry> = try { gson.fromJson(json, type) ?: emptyList() } catch (e: Exception) { emptyList() }
+        return raw.map { entry ->
+            val isCurrent = entry.index == account.spendingAddressIndex
+            entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent && entry.balanceSompi <= 0L)
+        }
     }
 
     /** Whether [address] has any on-chain history — the same single-tx probe the list loader
@@ -290,10 +307,27 @@ class WalletService @Inject constructor(
      */
     fun switchChattingAddress(index: Int): String = walletManager.switchChattingAddress(index)
 
-    /** Toggles whether one spending-chain address is hidden from the main Manage Addresses list — see [WalletManager.setSpendingAddressHidden]. */
-    fun setSpendingAddressHidden(index: Int, hidden: Boolean) {
-        val account = walletManager.getActiveAccount() ?: return
-        walletManager.setSpendingAddressHidden(account.address, index, hidden)
+    /**
+     * Toggles whether one spending-chain address is hidden from the main Manage Addresses list.
+     * Hiding is guarded HERE at the write, regardless of what the UI already checked: the primary
+     * ("Pay in Kaspa") index can never be hidden, and a hide commits only after a LIVE
+     * zero-balance confirmation, since cached rows go stale the moment a send rotates the primary
+     * or funds arrive. No network answer means no hide (fails closed, same rule as Cold
+     * Storage's setColdVisibilityHidden). Unhiding is always allowed.
+     * @return whether the flag was actually persisted.
+     */
+    suspend fun setSpendingAddressHidden(index: Int, hidden: Boolean): Boolean {
+        val account = walletManager.getActiveAccount() ?: return false
+        if (!hidden) {
+            walletManager.setSpendingAddressHidden(account.address, index, false)
+            return true
+        }
+        if (index == account.spendingAddressIndex) return false
+        val api = readyApi() ?: return false
+        val liveBalance = try { api.getBalance(walletManager.deriveSpendingAddress(index)).balance } catch (e: Exception) { return false }
+        if (liveBalance > 0L) return false
+        walletManager.setSpendingAddressHidden(account.address, index, true)
+        return true
     }
 
     /** Sets or clears (blank/null) a user nickname for one spending-chain address — see [WalletManager.setSpendingAddressLabel]. */
