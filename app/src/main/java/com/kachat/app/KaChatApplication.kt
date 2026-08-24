@@ -75,6 +75,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var chatHistoryExportImportService: com.kachat.app.services.ChatHistoryExportImportService
 
+    // For mirroring the persisted "Verbose API Logging" toggle into ApiLogging.verbose (a plain
+    // volatile flag the OkHttp logging interceptor reads per request) — see onCreate below.
+    @Inject
+    lateinit var appSettingsRepository: com.kachat.app.repository.AppSettingsRepository
+
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
 
@@ -95,6 +100,14 @@ class KaChatApplication : Application(), Configuration.Provider {
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES).build()
         )
+
+        // Keep ApiLogging.verbose (read by the OkHttp interceptors in AppModule on every request)
+        // in sync with the persisted Verbose API Logging toggle for the process's whole lifetime.
+        // A volatile flag instead of collecting the Flow inside the interceptor because that code
+        // runs on OkHttp threads for every request of the 2s sync loop.
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
+            appSettingsRepository.verboseApiLogging.collect { com.kachat.app.util.ApiLogging.verbose = it }
+        }
 
         // Foreground/background transitions. There is deliberately NO mechanism here keeping the
         // process alive while backgrounded: FCM push (see PushRegistrationManager) is the only

@@ -112,6 +112,10 @@ class ConnectionViewModel @Inject constructor(
     val savedNodeAddresses: StateFlow<List<com.kachat.app.models.SavedNodeAddress>> =
         settings.savedNodeAddresses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
 
+    /** Opt-in per-request HTTP logging (Diagnostics section), default OFF. */
+    val verboseApiLogging: StateFlow<Boolean> =
+        settings.verboseApiLogging.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     private val _discoverNewPeers = MutableStateFlow(true)
     val discoverNewPeers: StateFlow<Boolean> = _discoverNewPeers
 
@@ -121,6 +125,7 @@ class ConnectionViewModel @Inject constructor(
     fun setKaspaRestApiUrl(value: String) { viewModelScope.launch { settings.setKaspaRestUrl(value) } }
     fun setTrustedNodeAddress(value: String) { viewModelScope.launch { settings.setTrustedNodeAddress(value) } }
     fun setDiscoverNewPeers(value: Boolean) { _discoverNewPeers.value = value }
+    fun setVerboseApiLogging(value: Boolean) { viewModelScope.launch { settings.setVerboseApiLogging(value) } }
     fun addSavedNodeAddress(label: String, address: String) {
         viewModelScope.launch {
             settings.addSavedNodeAddress(com.kachat.app.models.SavedNodeAddress(label = label, address = address))

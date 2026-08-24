@@ -8866,6 +8866,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
     val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
+    val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -8934,6 +8935,15 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
 
             KaspaNodeQuickAccessSection(viewModel)
             AddressBookSection(viewModel)
+
+            SettingsSection(title = "Diagnostics") {
+                SettingsSwitchItem(
+                    label = "Verbose API Logging",
+                    checked = verboseApiLogging,
+                    onCheckedChange = { viewModel.setVerboseApiLogging(it) }
+                )
+                SettingsFooter("Logs every API request and response to the system log. Failures and slow requests are always logged. Leave off for normal use.")
+            }
 
             Spacer(modifier = Modifier.height(100.dp))
         }

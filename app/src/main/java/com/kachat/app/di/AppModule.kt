@@ -1,7 +1,9 @@
 package com.kachat.app.di
 
 import android.content.Context
+import android.util.Log
 import com.kachat.app.BuildConfig
+import com.kachat.app.util.ApiLogging
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -78,21 +80,53 @@ object AppModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        // Per-request success logging is deliberately absent: the chat sync loop fires a request
+        // roughly every 2 seconds, so success lines are pure logcat noise. Two interceptors below:
+        //
+        // 1. An always-on line for failures (exceptions, non-2xx) and slow requests (> 2s, tagged
+        //    SLOW) — the only per-request logging in normal operation, matching iOS.
+        // 2. HttpLoggingInterceptor, gated behind the persisted "Verbose API Logging" toggle
+        //    (Settings > Connection Settings > Diagnostics, default OFF — see ApiLogging).
+        //    Request/response bodies include encrypted message payloads and signed transaction
+        //    data — BODY level is only useful for local debugging and must never ship in a
+        //    release build (logcat is readable by anything with log access on a rooted device,
+        //    or captured in bug reports), so release verbose logging caps at BASIC (one line per
+        //    request/response, no bodies).
+        val verboseLogger = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.BASIC
+        }
         return OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
-            .addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    // Request/response bodies include encrypted message payloads and signed
-                    // transaction data — full body logging is only useful for local debugging
-                    // and must never ship in a release build (logcat is readable by anything
-                    // with log access on a rooted device, or captured in bug reports).
-                    level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val startNs = System.nanoTime()
+                val response = try {
+                    chain.proceed(request)
+                } catch (e: Exception) {
+                    val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+                    Log.w(API_LOG_TAG, "FAIL ${request.method} ${request.url} after ${elapsedMs}ms: $e")
+                    throw e
                 }
-            )
+                val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+                if (!response.isSuccessful) {
+                    Log.w(API_LOG_TAG, "HTTP ${response.code} ${request.method} ${request.url} in ${elapsedMs}ms")
+                } else if (elapsedMs > SLOW_REQUEST_THRESHOLD_MS) {
+                    Log.w(API_LOG_TAG, "SLOW ${request.method} ${request.url} took ${elapsedMs}ms")
+                }
+                response
+            }
+            .addInterceptor { chain ->
+                if (ApiLogging.verbose) verboseLogger.intercept(chain) else chain.proceed(chain.request())
+            }
             .build()
     }
+
+    private const val API_LOG_TAG = "ApiLog"
+
+    /** Anything slower than this on a healthy endpoint is worth a line even on success. */
+    private const val SLOW_REQUEST_THRESHOLD_MS = 2_000L
 
     @Provides
     @Singleton

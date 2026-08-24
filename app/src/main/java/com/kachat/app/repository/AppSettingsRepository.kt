@@ -182,6 +182,11 @@ class AppSettingsRepository @Inject constructor(
         val KEY_BIOMETRIC_SPENDING_KEY_ENABLED = booleanPreferencesKey("biometric_spending_key_enabled")
         // One-time ChangeNOW terms/liability disclaimer shown the first time Swap is opened.
         val KEY_SWAP_DISCLAIMER_AGREED = booleanPreferencesKey("swap_disclaimer_agreed")
+        // Settings > Connection Settings > Diagnostics. Default OFF: at the 2s sync-loop cadence,
+        // per-request success logging is pure logcat noise, so only failures and slow requests are
+        // logged unconditionally (see AppModule.provideOkHttpClient). This opt-in turns the full
+        // per-request HttpLoggingInterceptor back on for debugging. Matches the iOS toggle.
+        val KEY_VERBOSE_API_LOGGING = booleanPreferencesKey("verbose_api_logging")
         // Settings > Customization > Currency. Fiat currency for Portfolio's live KAS price/value
         // display - lowercase ISO 4217 code, doubling as the literal CoinGecko `vs_currency` value
         // (see CoinGeckoApi). Global, not per-account, matching darkModeEnabled/hiddenTabs.
@@ -336,6 +341,8 @@ class AppSettingsRepository @Inject constructor(
     /** True while an auto-presented onboarding wizard run hasn't reached Finish — see [KEY_ONBOARDING_WIZARD_PENDING]. */
     val onboardingWizardPending: Flow<Boolean> = dataStore.data.map { it[KEY_ONBOARDING_WIZARD_PENDING] ?: false }
     val swapDisclaimerAgreed: Flow<Boolean> = dataStore.data.map { it[KEY_SWAP_DISCLAIMER_AGREED] ?: false }
+    /** Opt-in per-request HTTP logging, default OFF — see [KEY_VERBOSE_API_LOGGING]. */
+    val verboseApiLogging: Flow<Boolean> = dataStore.data.map { it[KEY_VERBOSE_API_LOGGING] ?: false }
 
     val notificationsEnabled: Flow<Boolean> = dataStore.data.map {
         it[KEY_NOTIFICATIONS_ENABLED] ?: true
@@ -563,6 +570,7 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_REVEALED_PHOTO_TX_IDS] = (it[KEY_REVEALED_PHOTO_TX_IDS] ?: emptySet()) + txId
     }
     suspend fun setBroadcastPopularEnabled(value: Boolean) = dataStore.edit { it[KEY_BROADCAST_POPULAR_ENABLED] = value }
+    suspend fun setVerboseApiLogging(value: Boolean) = dataStore.edit { it[KEY_VERBOSE_API_LOGGING] = value }
     suspend fun setBroadcastShowKnsAvatars(value: Boolean) = dataStore.edit { it[KEY_BROADCAST_SHOW_KNS_AVATARS] = value }
     suspend fun setTabOrder(routes: List<String>) = dataStore.edit { prefs ->
         val address = prefs[KEY_ACTIVE_ADDRESS]
