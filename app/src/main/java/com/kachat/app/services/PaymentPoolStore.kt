@@ -88,7 +88,14 @@ class PaymentPoolStore @Inject constructor(
         /** contactAddress -> last time (epoch ms) we SERVED an addr_pool send (inbound abuse throttle). */
         var lastPoolServeAt: MutableMap<String, Long> = mutableMapOf(),
         /** Contacts whose pool of OUR addresses we revoked (empty replace:true sent) on toggle-off. */
-        var revokedContacts: MutableSet<String> = mutableSetOf()
+        var revokedContacts: MutableSet<String> = mutableSetOf(),
+        /** True while this wallet's Chats Payment Privacy toggle is OFF: every offered
+         *  reservation is RELEASED - the whole active offered set empties at once, instantly,
+         *  while the per-contact revoke envelopes still go out behind it (see
+         *  PaymentPoolService.revokePoolsForToggleOff). Mirrored from the settings toggle by
+         *  handleChatsPrivacyToggleChanged. Gson defaults old persisted state to false
+         *  (privacy on), matching the toggle's per-account default. */
+        var poolsReleased: Boolean = false
     )
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -172,6 +179,28 @@ class PaymentPoolStore @Inject constructor(
         save(s, walletAddress)
     }
 
+    /** Replace-offer bookkeeping: [addresses] is now the contact's ENTIRE live pool, so any
+     *  unfunded reservation NOT in the batch was just superseded (the contact's replace:true
+     *  pool no longer includes it) - its offered flag drops, taking it out of the active
+     *  "Chat privacy address" set, while the entry itself stays in the historical mapping (a
+     *  payment racing the supersession still renders and gets noticed). Funded entries keep
+     *  their flags untouched. */
+    @Synchronized
+    fun markReservationsOfferedExclusive(addresses: List<String>, contactAddress: String, walletAddress: String) {
+        val s = state(walletAddress)
+        val entries = s.myReservations[contactAddress] ?: return
+        val target = addresses.toSet()
+        for (i in entries.indices) {
+            val e = entries[i]
+            entries[i] = when {
+                e.address in target -> e.copy(offered = true)
+                e.funded != true -> e.copy(offered = false)
+                else -> e
+            }
+        }
+        save(s, walletAddress)
+    }
+
     @Synchronized
     fun lifetimeReservationCount(contactAddress: String, walletAddress: String): Int =
         state(walletAddress).myReservations[contactAddress]?.size ?: 0
@@ -188,22 +217,78 @@ class PaymentPoolStore @Inject constructor(
         save(s, walletAddress)
     }
 
-    /** The spending-chain index of one of our reservations, by address — used to unhide the
-     *  address (pool reservations are born hidden) once a payment_notice marks it funded. */
+    /** The spending-chain index of one of our reservations, by address - used to make sure the
+     *  address is visible once a payment_notice marks it funded (reservations are born visible
+     *  now, but rows hidden under the old born-hidden design self-heal through this). */
     @Synchronized
     fun reservationIndex(address: String, walletAddress: String): Int? =
         state(walletAddress).myReservations.values.flatten().firstOrNull { it.address == address }?.index
 
-    /** Every reserved-and-offered address across all contacts - belongs in any own-address
-     *  watched set so incoming pool payments are noticed promptly. */
+    /** Every reservation address ever recorded for this wallet - the HISTORICAL mapping for the
+     *  own-address watched set. Deliberately ignores offered/funded/revoked/released state: a
+     *  contact that ever held one of these addresses may still pay it (a payment racing a revoke
+     *  or supersession), and that payment must be noticed promptly no matter what the active
+     *  offered set says today. */
     @Synchronized
-    fun allOfferedReservationAddresses(walletAddress: String): List<String> =
-        state(walletAddress).myReservations.values.flatten().filter { it.offered }.map { it.address }
+    fun allReservationAddresses(walletAddress: String): List<String> =
+        state(walletAddress).myReservations.values.flatten().map { it.address }
 
     /** True if [address] is reserved (for ANY contact) by this wallet. */
     @Synchronized
     fun isReservedAddress(address: String, walletAddress: String): Boolean =
         state(walletAddress).myReservations.values.any { entries -> entries.any { it.address == address } }
+
+    /**
+     * Addresses ACTIVELY offered to a contact for private payments right now - the
+     * "Chat privacy address" set: tagged and locked visible in Manage Addresses, refused by every
+     * hide path, and excluded from Generate's recycling. Fully DERIVED from existing persisted
+     * pool state (no parallel set), and deliberately NOT monotonic - an address leaves it when:
+     *
+     * - our Chats Payment Privacy toggle goes off ([setPoolsReleased] empties the whole set
+     *   instantly, ahead of the per-contact revoke envelopes),
+     * - its contact's pool was individually revoked ([markPoolRevoked]),
+     * - a replace:true re-offer superseded it (the contact's live pool no longer includes it -
+     *   [markReservationsOfferedExclusive] drops its offered flag), or
+     * - it got funded (funded rows stay un-hideable through the balance rule; the tag drops).
+     *
+     * After leaving the set the address is a normal row: no tag, hideable, reclaimable by
+     * Generate once hidden. The HISTORICAL reservation mapping ([reservationIndex],
+     * [markReservationFunded], [allReservationAddresses]) is untouched by every one of these
+     * transitions, so a payment racing a revoke still lands, renders, and gets noticed.
+     */
+    @Synchronized
+    fun activeOfferedReservationAddresses(walletAddress: String): Set<String> {
+        val s = state(walletAddress)
+        if (s.poolsReleased) return emptySet()
+        return s.myReservations
+            .filterKeys { it !in s.revokedContacts }
+            .values
+            .flatMap { entries -> entries.filter { it.offered && it.funded != true }.map { it.address } }
+            .toSet()
+    }
+
+    /** Index variant of [activeOfferedReservationAddresses] - the authoritative "is this row
+     *  locked visible for chat privacy" check every hide path's backstop queries (the pool store
+     *  decides, never a cached row flag). */
+    @Synchronized
+    fun isIndexOfferedForPrivacy(index: Int, walletAddress: String): Boolean {
+        val s = state(walletAddress)
+        if (s.poolsReleased) return false
+        return s.myReservations.any { (contact, entries) ->
+            contact !in s.revokedContacts && entries.any { it.index == index && it.offered && it.funded != true }
+        }
+    }
+
+    /** Mirrors the wallet's Chats Payment Privacy toggle into the pool state: released = toggle
+     *  OFF. Releasing empties the active offered set at once; un-releasing restores whatever the
+     *  per-contact state still says (revocations are cleared separately on toggle-on). */
+    @Synchronized
+    fun setPoolsReleased(released: Boolean, walletAddress: String) {
+        val s = state(walletAddress)
+        if (s.poolsReleased == released) return
+        s.poolsReleased = released
+        save(s, walletAddress)
+    }
 
     // --- Revocation lifecycle (Chats Payment Privacy toggle) ----------------------------
 

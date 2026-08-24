@@ -36,7 +36,10 @@ class WalletService @Inject constructor(
     private val walletEngine: KaspaWalletEngine,
     private val chatRepository: ChatRepository,
     private val knsService: KnsService,
-    private val knsInscriptionEngine: KnsInscriptionEngine
+    private val knsInscriptionEngine: KnsInscriptionEngine,
+    /** Fresh-address payment-pool reservations - offered ones are locked visible ("Chat privacy
+     *  address" rows), so every visibility write/read here consults the store. */
+    private val paymentPoolStore: PaymentPoolStore
 ) {
     private val gson = Gson()
 
@@ -212,15 +215,19 @@ class WalletService @Inject constructor(
                 }.awaitAll()
             }
         }
-        // Self-heal: the primary and any funded address must ALWAYS be visible. If the persisted
-        // hidden set ever caught one (e.g. a hide committed against a stale row from before the
-        // primary rotated on a send), purge it here so the corruption repairs itself on the next
-        // list load instead of leaving the primary invisible forever.
-        val wronglyHidden = entries.filter { it.hidden && (it.isCurrent || it.balanceSompi > 0) }
+        // Self-heal: the primary, any funded address, and any address currently offered to a
+        // contact for private payments must ALWAYS be visible. If the persisted hidden set ever
+        // caught one (e.g. a hide committed against a stale row from before the primary rotated
+        // on a send), purge it here so the corruption repairs itself on the next list load
+        // instead of leaving the row invisible forever. The reservation leg doubles as the
+        // one-time migration for pool reservations hidden under the old born-hidden design.
+        val reservedVisible = paymentPoolStore.activeOfferedReservationAddresses(account.address)
+        fun mustBeVisible(e: SpendingAddressEntry) = e.isCurrent || e.balanceSompi > 0 || e.address in reservedVisible
+        val wronglyHidden = entries.filter { it.hidden && mustBeVisible(it) }
         val healed = if (wronglyHidden.isEmpty()) entries else {
             wronglyHidden.forEach { walletManager.setSpendingAddressHidden(account.address, it.index, false) }
-            Log.w("WalletService", "Purged wrongly hidden spending indices (primary or funded): ${wronglyHidden.map { it.index }}")
-            entries.map { if (it.hidden && (it.isCurrent || it.balanceSompi > 0)) it.copy(hidden = false) else it }
+            Log.w("WalletService", "Purged wrongly hidden spending indices (primary, funded, or chat privacy reservation): ${wronglyHidden.map { it.index }}")
+            entries.map { if (it.hidden && mustBeVisible(it)) it.copy(hidden = false) else it }
         }
         // Persist the snapshot so the next open paints instantly (see cachedSpendingAddressList).
         try { walletManager.setManageAddressesSnapshot(account.address, gson.toJson(healed)) } catch (e: Exception) { /* best-effort */ }
@@ -237,12 +244,18 @@ class WalletService @Inject constructor(
         val json = walletManager.getManageAddressesSnapshot(account.address) ?: return emptyList()
         val type = object : TypeToken<List<SpendingAddressEntry>>() {}.type
         val raw: List<SpendingAddressEntry> = try { gson.fromJson(json, type) ?: emptyList() } catch (e: Exception) { emptyList() }
+        val reservedVisible = paymentPoolStore.activeOfferedReservationAddresses(account.address)
         return raw.map { entry ->
             val isCurrent = entry.index == account.spendingAddressIndex
             // liveChecked means "confirmed by the fetch that produced THIS object" — a snapshot
             // row was confirmed in some PREVIOUS session at best, so it comes back untrusted.
-            // Only a fresh getSpendingAddressList load can mark rows live-confirmed.
-            entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent && entry.balanceSompi <= 0L, liveChecked = false)
+            // Only a fresh getSpendingAddressList load can mark rows live-confirmed. Offered
+            // chat-privacy reservations paint visible even from a pre-migration snapshot.
+            entry.copy(
+                isCurrent = isCurrent,
+                hidden = entry.hidden && !isCurrent && entry.balanceSompi <= 0L && entry.address !in reservedVisible,
+                liveChecked = false
+            )
         }
     }
 
@@ -272,9 +285,15 @@ class WalletService @Inject constructor(
         if (walletManager.getManageAddressesSnapshot(account.address) != null) return
         val addressByIndex = (0..maxIndex).associateWith { walletManager.deriveSpendingAddress(it) }
         val balances = fetchBalancesBatched(addressByIndex.values.toList())
+        // Chat-privacy reservations are per-device pool state and normally empty right after an
+        // import, but when the store DOES carry offered reservations at seed time (e.g. a
+        // re-import over live device state) they stay visible - WalletManager's backstop would
+        // refuse the hide anyway; skipping here keeps the seed loop honest.
+        val reservedVisible = paymentPoolStore.activeOfferedReservationAddresses(account.address)
         for ((index, address) in addressByIndex) {
             if (index == primary) continue
             if ((balances[address] ?: 0L) > 0L) continue
+            if (address in reservedVisible) continue
             walletManager.setSpendingAddressHidden(account.address, index, true)
         }
     }
@@ -378,7 +397,8 @@ class WalletService @Inject constructor(
     /**
      * Toggles whether one spending-chain address is hidden from the main Manage Addresses list.
      * Hiding is guarded HERE at the write, regardless of what the UI already checked: the primary
-     * ("Pay in Kaspa") index can never be hidden, and a hide commits only after a LIVE
+     * ("Pay in Kaspa") index and any address currently offered to a contact for private payments
+     * (chat-privacy pool reservation) can never be hidden, and a hide commits only after a LIVE
      * zero-balance confirmation, since cached rows go stale the moment a send rotates the primary
      * or funds arrive. No network answer means no hide (fails closed, same rule as Cold
      * Storage's setColdVisibilityHidden). Unhiding is always allowed.
@@ -391,6 +411,10 @@ class WalletService @Inject constructor(
             return true
         }
         if (index == account.spendingAddressIndex) return false
+        // Offered chat-privacy reservations are locked visible (see PaymentPoolService) - refuse
+        // authoritatively here too, mirroring WalletManager's storage backstop, so callers get
+        // an honest false instead of a silently ignored write.
+        if (paymentPoolStore.isIndexOfferedForPrivacy(index, account.address)) return false
         val api = readyApi() ?: return false
         val liveBalance = try { api.getBalance(walletManager.deriveSpendingAddress(index)).balance } catch (e: Exception) { return false }
         if (liveBalance > 0L) return false

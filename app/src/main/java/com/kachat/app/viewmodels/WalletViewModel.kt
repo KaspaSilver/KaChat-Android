@@ -44,8 +44,8 @@ class WalletViewModel @Inject constructor(
     private val knsService: KnsService,
     private val settings: AppSettingsRepository,
     private val spendingAddressDiscovery: SpendingAddressDiscovery,
-    /** Fresh-address payment-pool reservations — consulted so Generate never recycles an
-     *  index already promised to a contact (the never-re-offered invariant). */
+    /** Fresh-address payment-pool reservations — consulted so Generate never recycles an index
+     *  actively offered to a contact, and for the "Chat privacy address" tag/lock set. */
     private val paymentPoolStore: PaymentPoolStore,
     /** Reused purely for its address-string-keyed REST fetchers (`getTransactionHistory`/
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
@@ -186,6 +186,14 @@ class WalletViewModel @Inject constructor(
     private val _manageAddressesLoading = MutableStateFlow(false)
     val manageAddressesLoading: StateFlow<Boolean> = _manageAddressesLoading.asStateFlow()
 
+    /** Addresses currently offered to a contact for private payments (fresh-address payment-pool
+     *  reservations, minus revoked ones) - tagged "Chat privacy address" and locked visible in
+     *  Manage Addresses and the Address Visibility checklist. Refreshed on every
+     *  [loadManageAddresses]; the authoritative refusal lives in [setManageAddressHidden] plus
+     *  the WalletService/WalletManager backstops, all querying the pool store directly. */
+    private val _privacyReservedAddresses = MutableStateFlow<Set<String>>(emptySet())
+    val privacyReservedAddresses: StateFlow<Set<String>> = _privacyReservedAddresses.asStateFlow()
+
     // Monotonic ticket for loadManageAddresses commits: only the NEWEST in-flight live load may
     // write its result, so a slow load that started before a rotation/newer refresh can never
     // overwrite fresher rows with pre-rotation balances.
@@ -229,6 +237,17 @@ class WalletViewModel @Inject constructor(
     fun loadManageAddresses() {
         viewModelScope.launch {
             val generation = ++manageAddressesLoadGeneration
+            // Chat-privacy reservations: cheap synchronous store read, refreshed with the list.
+            // First reconcile the store's released mirror with the actual Chats Payment Privacy
+            // toggle - the toggle handler normally keeps it in sync, but accounts that flipped
+            // the toggle before the mirror existed (or a process death mid-handler) would
+            // otherwise keep stale tags/locks until the next flip. Runs before the live list
+            // load below, so the loader's visibility migration sees the reconciled active set.
+            _privacyReservedAddresses.value = walletManager.getActiveAccount()?.address?.let { addr ->
+                val privacyOn = try { settings.chatsPaymentPrivacyEnabled(addr).first() } catch (e: Exception) { true }
+                paymentPoolStore.setPoolsReleased(!privacyOn, addr)
+                paymentPoolStore.activeOfferedReservationAddresses(addr)
+            } ?: emptySet()
             // Instant paint from the persisted snapshot of the last full load (balances may be
             // a refresh stale — the live load below replaces them). Only seeds when the screen
             // has nothing yet, so a live list never regresses to older data.
@@ -254,8 +273,9 @@ class WalletViewModel @Inject constructor(
     /**
      * Hiding is purely a display preference — the address and its label are untouched; it's just
      * filtered out of the main Manage Addresses list. Unhiding is always allowed, but an address
-     * can never be hidden while it holds a balance or is the primary ("Pay in Kaspa") spending
-     * address — both are cases you'd want to keep an eye on, not tuck away. The guards check the
+     * can never be hidden while it holds a balance, is the primary ("Pay in Kaspa") spending
+     * address, or is currently offered to a contact for private payments (chat-privacy pool
+     * reservation) — all are cases you'd want to keep an eye on, not tuck away. The guards check the
      * freshest row plus the AUTHORITATIVE primary index (a row's isCurrent can be stale after a
      * send rotates the primary). Hides against a row this session live-confirmed commit instantly
      * (see the toggle rule inline); only rows with no live-confirmed data fall back to
@@ -275,6 +295,13 @@ class WalletViewModel @Inject constructor(
                 if (it.index == index) it.copy(hidden = false) else it
             }
             onResult(true)
+            return
+        }
+        // Chat-privacy lock: an address currently offered to a contact for private payments can
+        // never be hidden while the offer stands. Authoritative pool-store query by index -
+        // never a cached row flag - so the refusal holds even against a stale list.
+        if (paymentPoolStore.isIndexOfferedForPrivacy(index, account.address)) {
+            onResult(false)
             return
         }
         val entry = _manageAddressesRaw.value.find { it.index == index }
@@ -324,7 +351,8 @@ class WalletViewModel @Inject constructor(
     /**
      * iOS parity (lowestUnusedSpendingAddress): Generate recycles the LOWEST truly-unused
      * index — skipping the primary, anything holding a balance or with on-chain history, and
-     * payment-pool reservations (promised to a contact, never re-offered) — unhiding it so it
+     * ACTIVELY offered payment-pool reservations (promised to a contact right now; reverted
+     * ones are ordinary rows and may be reclaimed) — unhiding it so it
      * shows on the main list. Falls back to deriving maxIndex+1 when every existing index is
      * spoken for. [onResult] receives the index that is now ready, or null when the live check
      * failed and Generate refused (never derive or recycle blind — a wrongly re-offered index
@@ -356,10 +384,16 @@ class WalletViewModel @Inject constructor(
             // it made press two a silent no-op (the stall this replaces). Only rows whose balance
             // and used-ness were both live-confirmed this load are recyclable; unconfirmed rows
             // are skipped rather than trusted.
+            // Chat-privacy exclusion checks the ACTIVE offered set only: an actively offered
+            // reservation is promised to a contact and never recycled, but once it reverts
+            // (privacy off, revoked, or superseded) it is a normal row - after the user hides
+            // it, recycling may reclaim it. The historical reservation mapping still renders
+            // and notices any payment racing that revert.
+            val activeReservations = paymentPoolStore.activeOfferedReservationAddresses(walletAddress)
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
                 entry.hidden && entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
                     entry.balanceSompi == 0L && !entry.everUsed &&
-                    !paymentPoolStore.isReservedAddress(entry.address, walletAddress)
+                    entry.address !in activeReservations
             }
             val readyIndex = if (pick != null) {
                 walletService.setSpendingAddressHidden(pick.index, false)

@@ -144,9 +144,11 @@ class AddressActivityNotifier @Inject constructor(
         val watched = spending + coldLabels.keys
         if (watched.isEmpty()) return@withLock
 
-        // NOTIFIABLE = watched minus chatting address minus offered pool reservations - pool
-        // payments already notify via their payment_notice envelope.
-        val poolReserved = paymentPoolStore.allOfferedReservationAddresses(walletAddress).toSet()
+        // NOTIFIABLE = watched minus chatting address minus pool reservations - pool payments
+        // already notify via their payment_notice envelope. Uses the HISTORICAL reservation
+        // mapping (not the active offered set): a payment racing a revoke/supersession still
+        // arrives with a payment_notice, so it must stay suppressed here too.
+        val poolReserved = paymentPoolStore.allReservationAddresses(walletAddress).toSet()
         val notifiable = watched - walletAddress - poolReserved
         // "Ours" for the self-send input test includes the chatting address too.
         val ownAll = watched + walletAddress

@@ -129,9 +129,11 @@ class PaymentPoolService @Inject constructor(
                 Log.w(TAG, "Pool offer aborted - could not reserve fresh spending addresses")
                 return
             }
-            // Pool reservations are internal plumbing: born HIDDEN so each offer batch doesn't
-            // flood Manage Addresses with 5 fresh "Unused" rows; unhidden the moment one is funded.
-            fresh.forEach { (index, _) -> walletManager.setSpendingAddressHidden(walletAddress, index, true) }
+            // Pool reservations are born VISIBLE: they are real spending-chain addresses a
+            // contact may fund at any time, so Manage Addresses shows them tagged
+            // "Chat privacy address" instead of hiding them. While offered they cannot be
+            // hidden at all (authoritative backstop in WalletManager.setSpendingAddressHidden);
+            // a revoke releases them back to normal hideable rows.
             val entries = fresh.map { (index, address) ->
                 PaymentPoolStore.ReservedAddress(address = address, index = index, offered = false, funded = null)
             }
@@ -145,7 +147,19 @@ class PaymentPoolService @Inject constructor(
         )
         sendInvisibleEnvelope(contact.id, payload, walletAddress)
 
-        store.markReservationsOffered(pending.map { it.address }, contactId, walletAddress)
+        if (replace) {
+            // A replace batch is the contact's ENTIRE live pool from here on - unfunded
+            // reservations left out of it are superseded and drop out of the active
+            // "Chat privacy address" set (they revert to normal hideable rows).
+            store.markReservationsOfferedExclusive(pending.map { it.address }, contactId, walletAddress)
+        } else {
+            store.markReservationsOffered(pending.map { it.address }, contactId, walletAddress)
+        }
+        // Actively offered reservations are always visible: freshly allocated indices were never
+        // hidden, but a re-offered one may have been hidden while released (privacy off /
+        // post-revoke) or by the old born-hidden design - a successful offer clears any
+        // lingering hidden flag.
+        pending.forEach { walletManager.setSpendingAddressHidden(walletAddress, it.index, false) }
         store.markPoolOffered(contactId, walletAddress)
         store.recordPoolOfferServed(contactId, walletAddress)
         store.clearPoolRevocation(contactId, walletAddress)
@@ -174,6 +188,11 @@ class PaymentPoolService @Inject constructor(
     fun handleChatsPrivacyToggleChanged(enabled: Boolean) {
         val walletAddress = walletAddressOrNull() ?: return
         scope.launch {
+            // Mirror the toggle into the pool store FIRST: toggle off releases every offered
+            // reservation instantly (tags drop, rows become hideable) without waiting for the
+            // per-contact revoke envelopes below - which can be slow, gap-deferred, or fail.
+            // The historical mapping and address watching are untouched either way.
+            store.setPoolsReleased(!enabled, walletAddress)
             if (enabled) {
                 store.clearAllPoolRevocations(walletAddress)
                 reofferPoolsForToggleOn(walletAddress)
@@ -451,8 +470,9 @@ class PaymentPoolService @Inject constructor(
         // outstanding-unfunded-offers cap reflects genuine pool usage (no-op if the address
         // isn't one of our reservations for this contact).
         store.markReservationFunded(content.address, contact.id, myAddress)
-        // The reserved address now holds money — funded addresses are always visible
-        // (reservations are born hidden, see the allocation site).
+        // The reserved address now holds money - funded addresses are always visible.
+        // Reservations are born visible now; this self-heals rows hidden by the old
+        // born-hidden design (the list loader's migration purge covers the rest).
         store.reservationIndex(content.address, myAddress)?.let { index ->
             walletManager.setSpendingAddressHidden(myAddress, index, false)
         }
@@ -544,13 +564,15 @@ class PaymentPoolService @Inject constructor(
         store.markEnvelopeHandled(result.txId, walletAddress)
     }
 
-    /** Every reserved-and-offered address across all contacts for the active wallet - included in
-     *  the own-address watch set (see AddressActivityNotifier) so incoming pool payments are
-     *  noticed promptly. Reservations also live on the spending chain within the revealed index
-     *  range, so [WalletManager.allSpendingAddresses] covers them structurally as well. */
+    /** Every reservation address ever recorded for the active wallet - included in the
+     *  own-address watch set (see AddressActivityNotifier) so incoming pool payments are noticed
+     *  promptly. Uses the HISTORICAL mapping, never the active offered set: a contact may pay a
+     *  reservation racing a revoke/supersession, and that payment must still be noticed.
+     *  Reservations also live on the spending chain within the revealed index range, so
+     *  [WalletManager.allSpendingAddresses] covers them structurally as well. */
     fun offeredReservationAddresses(): List<String> {
         val walletAddress = walletAddressOrNull() ?: return emptyList()
-        return store.allOfferedReservationAddresses(walletAddress)
+        return store.allReservationAddresses(walletAddress)
     }
 
     companion object {

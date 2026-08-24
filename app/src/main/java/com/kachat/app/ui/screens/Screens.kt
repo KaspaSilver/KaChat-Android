@@ -3922,6 +3922,9 @@ fun ManageAddressesScreen(
     // group), then fresh addresses. Domain knowledge fills in asynchronously, so rows may
     // re-partition once the batched KNS lookups land.
     val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
+    // "Chat privacy address" rows: reserved and offered to a contact by the fresh-address
+    // payment pool. Tagged, and never offered a Hide action while the offer stands.
+    val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
     val visibleAddresses = remember(addresses, domainOwningAddresses) {
         val visible = addresses.filterNot { it.hidden }
         val primary = visible.filter { it.isCurrent }
@@ -4134,14 +4137,19 @@ fun ManageAddressesScreen(
                     ManageAddressRow(
                         entry = entry,
                         showsDomainTag = entry.address in domainOwningAddresses,
+                        showsPrivacyTag = entry.address in privacyReservedAddresses,
                         onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
                         onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
                         onQrClick = { qrAddress = entry.address },
                         onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
                         onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
                         onHideClick = {
-                            // Same guards + copy as the Address Visibility checklist toggle.
-                            if (entry.balanceSompi > 0) {
+                            // Same guards + copy as the Address Visibility checklist toggle. The
+                            // reserved branch is a backstop only - reserved rows don't show the
+                            // Hide menu entry at all.
+                            if (entry.address in privacyReservedAddresses) {
+                                Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
+                            } else if (entry.balanceSompi > 0) {
                                 Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.setManageAddressHidden(entry.index, true) { ok ->
@@ -4399,7 +4407,8 @@ fun ManageAddressesHiddenScreen(
  * EVERY spending address, paged 50 at a time, so dozens can be toggled off the main Manage
  * Addresses list in one sitting. The right arrow never runs out: future pages derive addresses
  * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
- * intermediate indices hidden. The primary and funded addresses are locked visible.
+ * intermediate indices hidden. The primary, funded addresses, and addresses offered to a contact
+ * for private payments ("Chat privacy address") are locked visible.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -4409,6 +4418,8 @@ fun AddressVisibilityScreen(
 ) {
     val context = LocalContext.current
     val addresses by viewModel.manageAddresses.collectAsState()
+    // Chat-privacy pool reservations: locked visible (like primary/funded) and tagged.
+    val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
     var page by remember { mutableStateOf(0) }
     val pageSize = 50
     val byIndex = remember(addresses) { addresses.associateBy { it.index } }
@@ -4492,6 +4503,7 @@ fun AddressVisibilityScreen(
             items(pageEntries, key = { it.index }) { entry ->
                 val visible = entry.index <= listMax && !entry.hidden
                 val funded = entry.balanceSompi > 0
+                val reserved = entry.address in privacyReservedAddresses
                 // Used-state for derived rows the list loader has never seen.
                 if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
                     LaunchedEffect(entry.index) {
@@ -4504,6 +4516,10 @@ fun AddressVisibilityScreen(
                     when {
                         entry.isCurrent ->
                             Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
+                        // Locked like primary/funded: offered chat-privacy reservations stay
+                        // visible (unhiding a hidden one is still allowed, hence "&& visible").
+                        reserved && visible ->
+                            Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
                         funded && visible ->
                             Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
                         entry.index > listMax ->
@@ -4567,6 +4583,15 @@ fun AddressVisibilityScreen(
                     }
                     Spacer(Modifier.width(8.dp))
                     when {
+                        // The tag mirrors the lock order above. A funded reservation leaves the
+                        // active set (reserved is false), so it falls through to the balance
+                        // display and stays locked through the funded rule instead.
+                        reserved -> Text(
+                            "Chat privacy address",
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         funded -> Text(
                             "%.4f KAS".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
                             color = KaspaTeal,
@@ -6147,7 +6172,11 @@ private fun ManageAddressRow(
      *  Null hides the menu entry (e.g. the picker variant of this row). */
     onHideClick: (() -> Unit)? = null,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
-    showsDomainTag: Boolean = false
+    showsDomainTag: Boolean = false,
+    /** "Chat privacy address" tag — this address is reserved and currently offered to a contact
+     *  for private payments (fresh-address payment pool). Such rows never offer Hide; the
+     *  authoritative refusal lives in the pool-store-backed guards below the UI. */
+    showsPrivacyTag: Boolean = false
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
     var showMenu by remember { mutableStateOf(false) }
@@ -6207,6 +6236,15 @@ private fun ManageAddressRow(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
+                if (showsPrivacyTag) {
+                    // Same plain-badge styling as the Used/Unused/Unverified states above.
+                    Text(
+                        text = "Chat privacy address",
+                        color = KaspaTeal,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 if (showsDomainTag) {
                     ContainsDomainTag()
                 }
@@ -6247,9 +6285,10 @@ private fun ManageAddressRow(
                     onActivateClick()
                 }
             }
-            // Hide straight from the row (iOS parity) — never offered for the primary address;
-            // the funded guard lives in the caller so it can toast the reason.
-            if (onHideClick != null && !entry.isCurrent) {
+            // Hide straight from the row (iOS parity) — never offered for the primary address or
+            // for a chat-privacy reservation (offered to a contact, locked visible); the funded
+            // guard lives in the caller so it can toast the reason.
+            if (onHideClick != null && !entry.isCurrent && !showsPrivacyTag) {
                 HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                 PopupMenuRow(Icons.Default.VisibilityOff, "Hide Address") {
                     showMenu = false
