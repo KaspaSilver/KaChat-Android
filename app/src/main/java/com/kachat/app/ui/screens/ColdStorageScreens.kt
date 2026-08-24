@@ -673,7 +673,16 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         onLabelClick = { labelingRow = row; labelInput = row.label ?: "" },
                         onCopyClick = { clipboardManager.setText(AnnotatedString(row.address)) },
                         onSendClick = { if (row.balanceSompi > 0) sendFromRow = row },
-                        onShowQrClick = { qrRow = row }
+                        onShowQrClick = { qrRow = row },
+                        onHideClick = {
+                            // Same guards + copy as the Address Visibility checklist toggle.
+                            if (row.balanceSompi > 0) {
+                                Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.setColdVisibilityHidden(accountId, row.index, true)
+                                Toast.makeText(context, "Address hidden. Re-enable it in Address Visibility.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
                 }
             }
@@ -984,7 +993,9 @@ fun ColdStorageAddressVisibilityScreen(
 /**
  * One address row on [ColdStorageDetailScreen]. Swipe-to-hide was retired when the Address
  * Visibility checklist ([ColdStorageAddressVisibilityScreen]) became the one place to manage
- * visibility — the same redesign Manage Addresses' spending rows got.
+ * visibility — the same redesign Manage Addresses' spending rows got. A quick "Hide Address"
+ * lives in the row's overflow menu (same as spending rows), writing the same hidden flag the
+ * checklist edits.
  */
 @Composable
 private fun ColdAddressRow(
@@ -994,6 +1005,9 @@ private fun ColdAddressRow(
     onCopyClick: () -> Unit,
     onSendClick: () -> Unit,
     onShowQrClick: () -> Unit,
+    /** Row-menu "Hide Address" (same as spending rows) — same flag the Address Visibility
+     *  checklist edits. Null hides the menu entry. */
+    onHideClick: (() -> Unit)? = null,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false
 ) {
@@ -1070,6 +1084,16 @@ private fun ColdAddressRow(
             PopupMenuRow(Icons.Default.QrCode, stringResource(R.string.show_qr_code)) {
                 showMenu = false
                 onShowQrClick()
+            }
+            // Hide straight from the row (same as spending rows) — no primary-address rule for a
+            // watch-only kpub account; the funded guard lives in the caller so it can toast the
+            // reason.
+            if (onHideClick != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.VisibilityOff, "Hide Address") {
+                    showMenu = false
+                    onHideClick()
+                }
             }
         }
     }
