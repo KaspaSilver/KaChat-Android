@@ -874,6 +874,14 @@ fun ChatThreadScreen(
                                                 modifier = Modifier.size(28.dp)
                                             )
                                         }
+                                        IconButton(onClick = { startVoiceRecordingIfPermitted() }) {
+                                            Icon(
+                                                Icons.Default.Mic,
+                                                contentDescription = stringResource(R.string.send_audio_message),
+                                                tint = LocalAppColors.current.textSecondary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
                                         IconButton(onClick = { paymentMode = true }) {
                                             Icon(
                                                 painterResource(R.drawable.ic_kaspa_logo),
@@ -917,11 +925,8 @@ fun ChatThreadScreen(
                                             showComposerMenu = false
                                             startVoiceRecordingIfPermitted()
                                         }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(painterResource(R.drawable.ic_kaspa_logo), stringResource(R.string.send_kaspa), iconTint = Color.Unspecified) {
-                                            showComposerMenu = false
-                                            paymentMode = true
-                                        }
+                                        // Send Kaspa left this menu: the Kaspa logo inside the
+                                        // input bubble is the one entry point to payment mode now.
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.Apps, stringResource(R.string.play_chess)) {
                                             showComposerMenu = false
