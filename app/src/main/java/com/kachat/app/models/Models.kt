@@ -29,7 +29,28 @@ data class MessageEntity(
     val isRead: Boolean = false,
     val syncedAt: Long = System.currentTimeMillis(),
     val deliveryStatus: String = "sent"     // "pending" | "sent" | "failed" — only meaningful for direction="sent"
-)
+) {
+    /** See [isSentPlaceholder]. */
+    val isSentPlaceholder: Boolean
+        get() = isSentPlaceholder(plaintextBody)
+
+    companion object {
+        /**
+         * Exact content of the cross-device fill-in row iOS creates when a device discovers this
+         * wallet's own outgoing message on-chain but cannot decrypt it (own sends are encrypted
+         * for the recipient). Android never creates these itself, but archives written by iOS can
+         * carry them, and builds before the import-time skip (see
+         * ChatHistoryExportImportService.importArchive) inserted them as real rows. They must
+         * NEVER be visible in any UI. Mirrors iOS's ChatMessage.sentViaOtherDevicePlaceholder -
+         * single source of truth for the literal; do not duplicate the string.
+         */
+        const val SENT_VIA_OTHER_DEVICE_PLACEHOLDER = "📤 Sent via another device"
+
+        /** True if [content] is exactly the cross-device placeholder above. Use this everywhere
+         *  the placeholder is matched or hidden - mirrors iOS's ChatMessage.isSentPlaceholder. */
+        fun isSentPlaceholder(content: String?): Boolean = content == SENT_VIA_OTHER_DEVICE_PLACEHOLDER
+    }
+}
 
 /**
  * A reaction (tapback) sent or received on a message — 1:1 ([contactId] set) or group ([groupId]

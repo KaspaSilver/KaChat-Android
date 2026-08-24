@@ -128,6 +128,10 @@ fun ChessGameScreen(
     // it here as text would just be clutter.
     val chatMessages = remember(messages) {
         messages.filter { message ->
+            // Cross-device "sent via another device" fill-ins must never render here - Android
+            // doesn't create them, but rows restored from an iOS archive by builds predating the
+            // import-time skip can still be in the DB (see MessageEntity.isSentPlaceholder).
+            if (message.isSentPlaceholder) return@filter false
             val unwrapped = MessageReply.parseOrNull(message.plaintextBody)?.text ?: message.plaintextBody
             ChessMessage.parseOrNull(unwrapped) == null
         }.sortedBy { it.blockTimestamp }

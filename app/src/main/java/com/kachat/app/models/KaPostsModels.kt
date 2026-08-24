@@ -1,5 +1,6 @@
 package com.kachat.app.models
 
+import androidx.compose.runtime.Immutable
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -7,7 +8,14 @@ import java.util.UUID
  * UI model for a KaPost - mirrors iOS KaPostsView.DraftPost. Immutable: every engagement
  * change produces a new copy via [mutatePostIn], so Compose recomposition stays cheap and
  * list row identity is stable.
+ *
+ * `@Immutable` is a promise the class already keeps (all vals; [comments] is never mutated in
+ * place, copies only). It matters for feed scroll: without it the `List` field makes the class
+ * unstable, so strong skipping falls back to instance identity - and a refresh/mutateEverywhere
+ * pass that rebuilds equal-content instances recomposed every visible KaPostCell. With it,
+ * data-class equality lets unchanged rows skip.
  */
+@Immutable
 data class KaPostDraft(
     /**
      * Local session posts get a random id; indexer-fetched posts get a STABLE id derived from
@@ -48,6 +56,7 @@ data class KaPostDraft(
 ) {
     enum class Delivery { PENDING, SENT, FAILED }
 
+    @Immutable
     data class QuotedRef(
         val remoteId: String?,
         val text: String,

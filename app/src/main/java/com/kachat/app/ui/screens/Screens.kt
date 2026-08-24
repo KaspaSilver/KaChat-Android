@@ -173,7 +173,10 @@ fun ChatThreadScreen(
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val conversations by chatViewModel.conversations.collectAsState()
     val conversation = conversations.find { it.contact.id == contactId }
-    val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
+    val allMessages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
+    // "Sent via another device" rows are backup fill-in slots, never UI (matches iOS and the
+    // chess mini chat); legacy restores from pre-1d236ba builds can still hold such rows.
+    val messages = remember(allMessages) { allMessages.filterNot { it.isSentPlaceholder } }
     val reactions by chatViewModel.getReactions(contactId).collectAsState(initial = emptyList())
     val reactionsByTxId = remember(reactions) { reactions.groupBy { it.targetTxId } }
     val handshakeSendInFlight by chatViewModel.handshakeSendInFlight.collectAsState()

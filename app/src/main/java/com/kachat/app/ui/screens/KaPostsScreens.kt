@@ -1005,7 +1005,10 @@ fun KaPostCell(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = relativePostTime(post.timestamp),
+                        // Remembered per timestamp: the >7d branch allocates a SimpleDateFormat,
+                        // which is not something to redo on every cell recomposition mid-scroll
+                        // (same pattern as the chat thread's remembered ChatTimeFormat call).
+                        text = remember(post.timestamp) { relativePostTime(post.timestamp) },
                         color = colors.textSecondary,
                         fontSize = 13.sp,
                     )

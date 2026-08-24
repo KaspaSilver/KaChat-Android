@@ -253,7 +253,7 @@ class ChatHistoryExportImportService @Inject constructor(
             for (archiveMessage in conversation.messages) {
                 // "\ud83d\udce4 Sent via another device" placeholders never surface on any platform -
                 // skip them at import; an archive that later carries the real body inserts it then.
-                if (archiveMessage.content == "\ud83d\udce4 Sent via another device") continue
+                if (com.kachat.app.models.MessageEntity.isSentPlaceholder(archiveMessage.content)) continue
                 if (restoredTxIds.add(archiveMessage.txId)) importedCount++
                 restoredAny = true
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)
@@ -280,7 +280,8 @@ class ChatHistoryExportImportService @Inject constructor(
         private val STATUS_PRIORITY = mapOf("pending" to 0, "warning" to 1, "failed" to 2, "sent" to 3)
 
         /** Bodies that mean "we know a message exists but not what it says" — a real body always wins over these. */
-        private val PLACEHOLDER_BODIES = setOf("📤 Sent via another device", "[Encrypted message]")
+        private val PLACEHOLDER_BODIES =
+            setOf(com.kachat.app.models.MessageEntity.SENT_VIA_OTHER_DEVICE_PLACEHOLDER, "[Encrypted message]")
 
         private val UUID_PATTERN =
             Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")

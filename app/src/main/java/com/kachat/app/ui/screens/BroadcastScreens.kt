@@ -686,21 +686,25 @@ fun BroadcastChannelScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Same green connection dot as the Chats header (matches iOS).
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(Color(roomDotColorHex))
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                    }
+                    Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    // Left-side clickable connection dot (matches iOS's navigationBarLeading
+                    // ConnectionStatusIndicator - tapping it opens the connection status page),
+                    // same back-arrow + dot Row as the 1:1 chat thread header.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(LocalAppColors.current.surface, CircleShape)
+                                .clickable { navController.navigate("connection_status") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(modifier = Modifier.size(10.dp).background(Color(roomDotColorHex), CircleShape))
+                        }
                     }
                 },
                 actions = {

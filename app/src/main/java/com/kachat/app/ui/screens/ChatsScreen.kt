@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -551,6 +552,10 @@ fun ChatsScreen(
                 // unlike the old archive (reversible, one tap to undo) a delete permanently wipes
                 // local message history and a mis-swipe would be unrecoverable.
                 var contactToDelete by remember { mutableStateOf<String?>(null) }
+                // Long-press quick menu target - which conversation's DropdownMenu is open.
+                // Same Box-anchored DropdownMenu pattern as PortfolioPickerHeader's cards
+                // (no onGloballyPositioned anchor math, which fillMaxWidth children corrupt).
+                var menuContactId by remember { mutableStateOf<String?>(null) }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     // 4.0: the Broadcasts entry card is gone - Broadcasts is a dock tab now,
@@ -575,33 +580,69 @@ fun ChatsScreen(
                             trailingColor = Color(0xFFFF3B30),
                             onTrailingClick = { contactToDelete = convo.contact.id }
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().background(LocalAppColors.current.background)
-                            ) {
-                                if (isSelectionMode) {
-                                    Icon(
-                                        imageVector = if (convo.contact.id in selectedContactIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                                        contentDescription = stringResource(R.string.select_chat),
-                                        tint = if (convo.contact.id in selectedContactIds) KaspaTeal else Color.Gray,
-                                        modifier = Modifier.padding(start = 16.dp).size(22.dp)
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    ConversationRow(convo, latestReactionByContact[convo.contact.id], myAddress) {
-                                        if (isSelectionMode) {
-                                            selectedContactIds = if (convo.contact.id in selectedContactIds) {
-                                                selectedContactIds - convo.contact.id
-                                            } else {
-                                                selectedContactIds + convo.contact.id
-                                            }
-                                        } else {
-                                            navController.navigate("chat/${convo.contact.id}")
-                                        }
+                            Box {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().background(LocalAppColors.current.background)
+                                ) {
+                                    if (isSelectionMode) {
+                                        Icon(
+                                            imageVector = if (convo.contact.id in selectedContactIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                            contentDescription = stringResource(R.string.select_chat),
+                                            tint = if (convo.contact.id in selectedContactIds) KaspaTeal else Color.Gray,
+                                            modifier = Modifier.padding(start = 16.dp).size(22.dp)
+                                        )
                                     }
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(start = 72.dp),
-                                        color = Color.DarkGray.copy(alpha = 0.5f)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        ConversationRow(
+                                            convo,
+                                            latestReactionByContact[convo.contact.id],
+                                            myAddress,
+                                            onLongClick = { if (!isSelectionMode) menuContactId = convo.contact.id }
+                                        ) {
+                                            if (isSelectionMode) {
+                                                selectedContactIds = if (convo.contact.id in selectedContactIds) {
+                                                    selectedContactIds - convo.contact.id
+                                                } else {
+                                                    selectedContactIds + convo.contact.id
+                                                }
+                                            } else {
+                                                navController.navigate("chat/${convo.contact.id}")
+                                            }
+                                        }
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 72.dp),
+                                            color = Color.DarkGray.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = menuContactId == convo.contact.id,
+                                    onDismissRequest = { menuContactId = null }
+                                ) {
+                                    if (convo.unreadCount > 0) {
+                                        DropdownMenuItem(
+                                            text = { Text("Mark as Read") },
+                                            onClick = {
+                                                menuContactId = null
+                                                chatViewModel.markAsRead(convo.contact.id)
+                                            }
+                                        )
+                                    } else {
+                                        DropdownMenuItem(
+                                            text = { Text("Mark as Unread") },
+                                            onClick = {
+                                                menuContactId = null
+                                                chatViewModel.markAsUnread(convo.contact.id)
+                                            }
+                                        )
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text("Delete", color = Color(0xFFFF3B30)) },
+                                        onClick = {
+                                            menuContactId = null
+                                            contactToDelete = convo.contact.id
+                                        }
                                     )
                                 }
                             }
@@ -737,6 +778,7 @@ private fun TabBadge(count: Int, content: @Composable () -> Unit) {
  * branch, which meant it silently couldn't render whenever there were zero 1:1 chats; now
  * self-contained regardless of what the Chats page shows.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun GroupListBody(
     navController: NavController,
@@ -753,6 +795,8 @@ fun GroupListBody(
     onMarkGroupUnread: (String) -> Unit = {}
 ) {
     var groupToDelete by remember { mutableStateOf<String?>(null) }
+    // Long-press quick menu target - same Box-anchored DropdownMenu pattern as the 1:1 list.
+    var menuGroupId by remember { mutableStateOf<String?>(null) }
 
     if (groupConversations.isEmpty() && hasAnyGroups && searchQuery.isNotBlank()) {
         Column(
@@ -833,16 +877,20 @@ fun GroupListBody(
                     // through as a stray line at the bottom of every row. Matches the regular Chats
                     // tab's identical row, which already scopes its background this way.
                     Column(modifier = Modifier.background(LocalAppColors.current.background)) {
+                        Box {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    if (isSelectionMode) {
-                                        onToggleGroupSelected(convo.group.groupId)
-                                    } else {
-                                        navController.navigate("group_chat/${convo.group.groupId}")
-                                    }
-                                }
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            onToggleGroupSelected(convo.group.groupId)
+                                        } else {
+                                            navController.navigate("group_chat/${convo.group.groupId}")
+                                        }
+                                    },
+                                    onLongClick = { if (!isSelectionMode) menuGroupId = convo.group.groupId }
+                                )
                                 .padding(horizontal = 16.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -893,6 +941,36 @@ fun GroupListBody(
                                     )
                                 }
                             }
+                        }
+                        DropdownMenu(
+                            expanded = menuGroupId == convo.group.groupId,
+                            onDismissRequest = { menuGroupId = null }
+                        ) {
+                            if (convo.unreadCount > 0) {
+                                DropdownMenuItem(
+                                    text = { Text("Mark as Read") },
+                                    onClick = {
+                                        menuGroupId = null
+                                        onMarkGroupRead(convo.group.groupId)
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Mark as Unread") },
+                                    onClick = {
+                                        menuGroupId = null
+                                        onMarkGroupUnread(convo.group.groupId)
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = Color(0xFFFF3B30)) },
+                                onClick = {
+                                    menuGroupId = null
+                                    groupToDelete = convo.group.groupId
+                                }
+                            )
+                        }
                         }
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 88.dp),
@@ -1099,17 +1177,19 @@ fun SwipeActionRow(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ConversationRow(
     convo: Conversation,
     latestReaction: com.kachat.app.services.database.LatestReactionRow?,
     myAddress: String?,
+    onLongClick: () -> Unit = {},
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

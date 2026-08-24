@@ -350,9 +350,20 @@ class KaPostsViewModel @Inject constructor(
     private fun <V> Map<String, V>.cappedForSenders(): Map<String, V> =
         if (size <= 800) this else entries.drop(size - 600).associate { it.key to it.value }
 
+    /**
+     * Addresses already probed this session (in-flight or done) - a PLAIN set, not compose state.
+     * The dedupe claim used to be written into [_senderProfiles] itself (address -> null), which
+     * meant merely composing a feed row with a not-yet-seen author ticked the whole map StateFlow,
+     * and every visible KaPostCell collects that map - so each new row scrolled in recomposed all
+     * visible rows (feed scroll jank). Now the map only ticks when a real avatar URL arrives.
+     */
+    private val probedSenderProfiles = mutableSetOf<String>()
+
     fun ensureSenderProfileFetched(address: String) {
         if (address.isEmpty() || _senderProfiles.value.containsKey(address)) return
-        _senderProfiles.value = (_senderProfiles.value + (address to null)).cappedForSenders()
+        // Same unbounded-growth guard as cappedForSenders - a reset just re-allows a probe.
+        if (probedSenderProfiles.size > 4000) probedSenderProfiles.clear()
+        if (!probedSenderProfiles.add(address)) return
         viewModelScope.launch {
             try {
                 val ownedAssets = knsService.getOwnedDomains(address)
@@ -366,7 +377,7 @@ class KaPostsViewModel @Inject constructor(
                 for (asset in checkOrder) {
                     val profile = asset.assetId?.let { knsService.getProfile(it) } ?: continue
                     if (_senderProfiles.value[address] == null && profile.avatarUrl != null) {
-                        _senderProfiles.value = _senderProfiles.value + (address to profile.avatarUrl)
+                        _senderProfiles.value = (_senderProfiles.value + (address to profile.avatarUrl)).cappedForSenders()
                     }
                     if (_senderBanners.value[address] == null && profile.bannerUrl != null) {
                         _senderBanners.value = (_senderBanners.value + (address to profile.bannerUrl)).cappedForSenders()
@@ -853,12 +864,18 @@ class KaPostsViewModel @Inject constructor(
         post.id in _localThreadRoots.value ||
             (post.remoteId != null && _threadRootFlags.value[post.remoteId] == true)
 
+    /** RemoteIds already probed this session - a PLAIN set, not compose state. The claim used to
+     *  be written into [_threadRootFlags] itself (remoteId -> false), so composing each commented
+     *  post row ticked the flags StateFlow the feed collects, recomposing the whole tab per new
+     *  row scrolled in. Now the flags map only ticks when a post actually IS a thread root. */
+    private val probedThreadRoots = mutableSetOf<String>()
+
     /** Cheap once-per-post probe: first reply page, any self-authored reply = thread root. */
     fun probeThreadRoot(post: KaPostDraft) {
         val remoteId = post.remoteId ?: return
         if (_threadRootFlags.value.containsKey(remoteId)) return
         if (commentCount(post) <= 0) return
-        _threadRootFlags.value = _threadRootFlags.value + (remoteId to false) // claim
+        if (!probedThreadRoots.add(remoteId)) return
         viewModelScope.launch {
             val page = try { kaPostsService.fetchRepliesPage(remoteId, 10, null) } catch (_: Exception) { return@launch }
             val isThread = page.items.any { KaPostsService.kaspaAddressFromPubkey(it.userPublicKey) == post.posterAddress }
