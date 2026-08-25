@@ -55,10 +55,12 @@ class ChatRepository @Inject constructor(
     private val walletManager: WalletManager,
     private val settingsRepository: AppSettingsRepository,
     private val notificationHelper: NotificationHelper,
-    // Consulted ONLY at the notification-posting sites below: while native FCM push is active,
-    // the server is the notification source for 1:1 handshakes/messages/payments
-    // (PUSH_EXTENSIONS.md §4) and posting here too would duplicate every banner. The sync work
-    // itself is never gated on it — it still powers the live UI and the local store.
+    // Consulted ONLY at the notification-posting sites below: while native FCM push is active
+    // AND the app is backgrounded, the server is the notification source for 1:1 handshakes/
+    // messages/payments (PUSH_EXTENSIONS.md §4). While the app is foregrounded the local poll
+    // posts its own banners (only the open thread is suppressed, inside NotificationHelper) —
+    // txId dedupe there collapses a racing push for the same message. The sync work itself is
+    // never gated on it — it still powers the live UI and the local store.
     private val pushState: PushState,
     // Lazy because GoogleDriveSyncService depends (via the export service) on ChatRepository —
     // a direct circular constructor dependency Dagger can't resolve. Lazy<T> defers
@@ -601,12 +603,17 @@ class ChatRepository @Inject constructor(
         )
 
         val displayName = theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(handshake.sender)
-        if (!backfill && !pushState.isActive) { // handshake pushes come from the server in remote-push mode
+        // Foreground policy: while the app is on screen the local poll posts the banner itself
+        // (only the open conversation is suppressed, inside NotificationHelper); backgrounded
+        // with push active, the server is the notification source. txId dedupe collapses the
+        // race where both paths fire for the same handshake.
+        if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
             notificationHelper.show(
                 contactId = handshake.sender,
                 title = if (newStatus == "pending") "Request to communicate" else "Connected",
                 text = if (newStatus == "pending") "$displayName wants to connect" else "$displayName accepted your request",
-                notificationOverride = ContactNotificationMode.fromName(existing?.notificationOverride)
+                notificationOverride = ContactNotificationMode.fromName(existing?.notificationOverride),
+                dedupeTxId = handshake.txId
             )
         }
     }
@@ -758,12 +765,16 @@ class ChatRepository @Inject constructor(
             com.kachat.app.util.ChessMessage.parseOrNull(plaintext) != null -> "♟️ Chess game"
             else -> plaintext
         }
-        if (!backfill && !pushState.isActive) { // contextual-message pushes come from the server in remote-push mode
+        // Foreground policy: local banner while the app is on screen (open thread suppressed in
+        // NotificationHelper); defer to the server push only while backgrounded. txId-deduped
+        // against a racing push for the same message.
+        if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.alias ?: contact.id.takeLast(8),
                 text = notificationText,
-                notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride)
+                notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride),
+                dedupeTxId = message.txId
             )
         }
     }
@@ -869,12 +880,16 @@ class ChatRepository @Inject constructor(
             )
         )
 
-        if (!backfill && !pushState.isActive) { // payment pushes come from the server in remote-push mode
+        // Foreground policy: local banner while the app is on screen (open thread suppressed in
+        // NotificationHelper); defer to the server push only while backgrounded. txId-deduped
+        // against a racing push for the same payment.
+        if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
             notificationHelper.show(
                 contactId = conversationId,
                 title = "Payment received",
                 text = displayText,
-                notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride)
+                notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride),
+                dedupeTxId = tx.transactionId
             )
         }
     }

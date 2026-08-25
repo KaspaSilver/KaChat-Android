@@ -86,6 +86,13 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var appSettingsRepository: com.kachat.app.repository.AppSettingsRepository
 
+    // Foreground-policy flag: the local poll/scan notification paths post banners while the app
+    // is on screen (only the open conversation is suppressed, inside NotificationHelper itself),
+    // and defer to remote push only while backgrounded. The lifecycle observer below keeps the
+    // flag current.
+    @Inject
+    lateinit var notificationHelper: com.kachat.app.services.NotificationHelper
+
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
 
@@ -123,6 +130,9 @@ class KaChatApplication : Application(), Configuration.Provider {
         // broadcast/group scanners) simply freeze with the process and resume on foreground.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
+                // Backgrounded: remote push takes over as the notification source for the
+                // push-covered surfaces — the local paths stop posting their own banners.
+                notificationHelper.setAppForeground(false)
                 // In-app KaPosts pings are a foreground concern only — the push service covers
                 // KaPosts while backgrounded/closed.
                 kaPostsNotificationPoller.stop()
@@ -138,6 +148,10 @@ class KaChatApplication : Application(), Configuration.Provider {
             }
 
             override fun onStart(owner: LifecycleOwner) {
+                // Foregrounded: local poll/scan banners fire again (only the conversation open
+                // on screen is suppressed); a racing push for the same tx collapses via the
+                // txId dedupe inside NotificationHelper.
+                notificationHelper.setAppForeground(true)
                 // KaPosts pings while the app is actually open (60s poll) — iOS parity.
                 kaPostsNotificationPoller.start()
                 // Immediate catch-up diff for address activity (external receipts while the app

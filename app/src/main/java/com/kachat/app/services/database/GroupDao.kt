@@ -49,6 +49,14 @@ interface GroupDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMessage(message: GroupMessageEntity): Long
 
+    /** One message by tx id — backs the reaction notification's "does this reaction target one of OUR messages?" check. */
+    @Query("SELECT * FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress LIMIT 1")
+    suspend fun getMessage(txId: String, walletAddress: String): GroupMessageEntity?
+
+    /** Existence check by tx id — see GroupRepository.isGroupTxIngested (FCM fallback decision). */
+    @Query("SELECT COUNT(*) FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress")
+    suspend fun countMessagesByTxId(txId: String, walletAddress: String): Int
+
     /** Removes a single message by id — used to drop a "pending_<uuid>" placeholder once its real send resolves. */
     @Query("DELETE FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress")
     suspend fun deleteMessage(txId: String, walletAddress: String)

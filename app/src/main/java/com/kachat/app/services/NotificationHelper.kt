@@ -41,6 +41,20 @@ class NotificationHelper @Inject constructor(
     // Same idea for group chats — set by GroupChatViewModel as GroupChatThreadScreen opens/closes.
     private val activeGroupId = MutableStateFlow<String?>(null)
 
+    // Whether the app is on screen right now — set by KaChatApplication's process lifecycle
+    // observer. Foreground notification policy: banners DO fire while the user is elsewhere in
+    // the app (chat list, another thread, Settings); only the conversation currently open on
+    // screen is suppressed, via the activeContactId/activeChannelName/activeGroupId checks above.
+    private val appForeground = MutableStateFlow(false)
+
+    // Recently-notified transaction ids, so the same message reaching two delivery paths at once
+    // (in-app poll/scan AND an FCM push, both live while the app is foregrounded) posts exactly
+    // one banner. LRU-capped; access is synchronized because the claimants run on IO coroutines
+    // and the FCM service thread.
+    private val notifiedTxIds = object : LinkedHashMap<String, Boolean>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 200
+    }
+
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // A channel's sound/vibration is fixed by the OS once created — the app can't
@@ -57,7 +71,32 @@ class NotificationHelper @Inject constructor(
                 }
                 manager?.createNotificationChannel(channel)
             }
+            // The pre-4.0 background-sync foreground service ("KaChat - Checking for new
+            // messages") is gone — remote push is the closed-app delivery path now. Deleting its
+            // channel removes the stale "Background sync" entry from the system's notification
+            // settings on devices that upgraded, and guarantees nothing can post through it.
+            manager?.deleteNotificationChannel("kachat_sync_service")
         }
+    }
+
+    /** See [appForeground] — driven by KaChatApplication's ProcessLifecycleOwner observer. */
+    fun setAppForeground(foreground: Boolean) {
+        appForeground.value = foreground
+    }
+
+    /** Read by the local poll/scan notification gates: while the app is foregrounded, local
+     *  banners fire even in remote-push mode (dupes with a racing push collapse via [claimTxId]). */
+    val isAppInForeground: Boolean get() = appForeground.value
+
+    /**
+     * Claims [txId] for notification purposes. Returns true when this caller is the first to
+     * claim it (post the banner); false when another path already did (skip — it's a duplicate).
+     * A null/blank id always claims successfully (nothing to dedupe on).
+     */
+    @Synchronized
+    private fun claimTxId(txId: String?): Boolean {
+        if (txId.isNullOrBlank()) return true
+        return notifiedTxIds.put(txId, true) == null
     }
 
     fun setActiveContact(contactId: String?) {
@@ -80,10 +119,11 @@ class NotificationHelper @Inject constructor(
      *  already-read, so leaving the chat doesn't show an unread badge for messages you watched arrive. */
     fun isViewingContact(contactId: String): Boolean = activeContactId.value == contactId
 
-    suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null) {
+    suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null, dedupeTxId: String? = null) {
         if (activeContactId.value == contactId) return // already looking at this conversation
         if (!settings.notificationsEnabled.first()) return
         if (notificationOverride == ContactNotificationMode.OFF) return
+        if (!claimTxId(dedupeTxId)) return // the other delivery path (poll vs push) got here first
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -133,6 +173,7 @@ class NotificationHelper @Inject constructor(
      *  post/comment when [postTxId] is known, else just the KaPosts tab. */
     suspend fun showKaPosts(text: String, actionTxId: String, postTxId: String? = null) {
         if (!settings.notificationsEnabled.first()) return
+        if (!claimTxId("kaposts_$actionTxId")) return // poller and FCM push can both see the same action
         // Child Mode removes KaPosts entirely - no notification pings for it either. Guarding
         // here covers every source at once: the foreground poller AND the FCM receive handler
         // (push registration already drops kaposts_pubkey, but a push can race re-registration).
@@ -196,13 +237,14 @@ class NotificationHelper @Inject constructor(
         } catch (_: SecurityException) {}
     }
 
-    suspend fun showBroadcast(channelName: String, title: String, text: String) {
+    suspend fun showBroadcast(channelName: String, title: String, text: String, dedupeTxId: String? = null) {
         if (activeChannelName.value == channelName) return // already looking at this channel
         if (!settings.notificationsEnabled.first()) return
         // Child Mode removes Broadcasts entirely - no local banners for them either. Covers the
         // scan-driven path (BroadcastScanningService) AND the FCM receive handler in one place
         // (registration already drops watched_broadcast_channels, but a push can race it).
         if (settings.childModeEnabled.first()) return
+        if (!claimTxId(dedupeTxId)) return // the other delivery path (scan vs push) got here first
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -240,9 +282,10 @@ class NotificationHelper @Inject constructor(
     }
 
     /** Per-group opt-in notification for a new `gcomm` message or a "you were added" `gctl_root` join — see [EXTRA_GROUP_ID]/GroupRepository. */
-    suspend fun showGroup(groupId: String, title: String, text: String) {
+    suspend fun showGroup(groupId: String, title: String, text: String, dedupeTxId: String? = null) {
         if (activeGroupId.value == groupId) return // already looking at this group's thread
         if (!settings.notificationsEnabled.first()) return
+        if (!claimTxId(dedupeTxId)) return // the other delivery path (scan/sync vs push) got here first
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

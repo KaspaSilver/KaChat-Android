@@ -104,6 +104,7 @@ fun ChatsScreen(
     val conversations by chatViewModel.conversations.collectAsState()
     val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
+    val latestReactionByGroup by chatViewModel.latestReactionByGroup.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     val isRefreshing by chatViewModel.isRefreshing.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -457,6 +458,8 @@ fun ChatsScreen(
                 groupConversations = filteredGroupConversations,
                 hasAnyGroups = groupConversations.isNotEmpty(),
                 searchQuery = searchQuery,
+                latestReactionByGroup = latestReactionByGroup,
+                myAddress = myAddress,
                 onDeleteGroup = { chatViewModel.deleteGroupChat(it) },
                 isSelectionMode = isSelectionMode,
                 selectedGroupIds = selectedGroupIds,
@@ -792,6 +795,10 @@ fun GroupListBody(
      *  genuinely empty account from a search that just matched nothing. */
     hasAnyGroups: Boolean = groupConversations.isNotEmpty(),
     searchQuery: String = "",
+    /** groupId -> newest reaction, for the "Alice reacted to a message" card preview - see
+     *  [ChatViewModel.latestReactionByGroup]. */
+    latestReactionByGroup: Map<String, com.kachat.app.services.database.LatestGroupReactionRow> = emptyMap(),
+    myAddress: String? = null,
     onDeleteGroup: (String) -> Unit,
     isSelectionMode: Boolean = false,
     selectedGroupIds: Set<String> = emptySet(),
@@ -920,8 +927,31 @@ fun GroupListBody(
                                 // Memoized on the roster JSON so scrolling / unread-count changes
                                 // don't re-parse the whole member list (with a fresh Gson) per row.
                                 val groupMembers = remember(convo.group.membersJson) { parseGroupMembers(convo.group) }
+                                // A reaction more recent than the last message gets shown instead
+                                // - mirrors the 1:1 list's reaction preview (see ConversationRow),
+                                // since reactions never become message rows.
+                                val reactionPreview = latestReactionByGroup[convo.group.groupId]?.let { reaction ->
+                                    if (convo.lastMessage != null && convo.lastMessage.blockTimestamp >= reaction.blockTimestamp) {
+                                        return@let null
+                                    }
+                                    val reactorLabel = if (reaction.reactorAddress == myAddress) {
+                                        "You"
+                                    } else {
+                                        groupMembers.firstOrNull { it.address == reaction.reactorAddress }
+                                            ?.displayName?.takeIf { it.isNotBlank() }
+                                            ?: reaction.reactorAddress.takeLast(8)
+                                    }
+                                    val target = if (reaction.reactorAddress != myAddress && reaction.targetIsOutgoing == true) {
+                                        "your message"
+                                    } else {
+                                        "a message"
+                                    }
+                                    "$reactorLabel reacted to $target"
+                                }
                                 Text(
-                                    text = groupMessagePreviewText(convo.lastMessage, groupMembers) ?: "No messages yet",
+                                    text = reactionPreview
+                                        ?: groupMessagePreviewText(convo.lastMessage, groupMembers)
+                                        ?: "No messages yet",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.Gray,
                                     maxLines = 1,

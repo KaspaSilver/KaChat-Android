@@ -267,7 +267,10 @@ class BroadcastScanningService @Inject constructor(
                 )
             }
 
-            if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive) {
+            // Foreground policy: while the app is on screen the scan posts the banner itself
+            // (the channel open on screen is suppressed inside NotificationHelper); backgrounded
+            // with push active, the server is the source. txId-deduped against a racing push.
+            if (isChannelNotifyEnabled(parsed.channel) && (notificationHelper.isAppInForeground || !pushState.isActive)) {
                 // A reaction's raw JSON must never surface in a notification — humanize it.
                 // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
                 // message" too, rather than showing the raw reply JSON (see MessageReply).
@@ -281,7 +284,8 @@ class BroadcastScanningService @Inject constructor(
                 notificationHelper.showBroadcast(
                     channelName = parsed.channel,
                     title = "#${parsed.channel}",
-                    text = notificationText
+                    text = notificationText,
+                    dedupeTxId = txId
                 )
             }
         }

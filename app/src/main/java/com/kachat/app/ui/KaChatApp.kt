@@ -185,8 +185,17 @@ fun KaChatApp(
 ) {
     val isLoggedIn by walletViewModel.isLoggedIn.collectAsState()
     val mnemonic by walletViewModel.mnemonic.collectAsState()
+    val startupResolved by walletViewModel.startupResolved.collectAsState()
 
-    if (!isLoggedIn || mnemonic != null) {
+    if (!startupResolved) {
+        // Cold start, routing decision still loading (the async biometrics-for-login read that
+        // gates auto-login into the last-used account). Compose NOTHING yet — composing the
+        // Onboarding/accounts screen as a transient default flashed the account list for a few
+        // frames before jumping into the account. The themed Surface behind this composable
+        // keeps the window seamlessly on the background color, iOS-style; the wait is a few
+        // milliseconds of DataStore read.
+        Box(modifier = Modifier.fillMaxSize())
+    } else if (!isLoggedIn || mnemonic != null) {
         OnboardingScreen(walletViewModel)
     } else {
         MainShell(

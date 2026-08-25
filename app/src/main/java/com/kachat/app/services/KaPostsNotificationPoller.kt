@@ -145,9 +145,11 @@ class KaPostsNotificationPoller @Inject constructor(
             settingsRepository.shouldNotifyKaPostsAction(it.contentType, it.voteType)
         }
         if (fresh.isEmpty()) return
-        // Remote-push mode: the server already pushed these (PUSH_EXTENSIONS.md §4) — advance
-        // last-seen as usual, but don't post duplicate local pings.
-        if (pushState.isActive) return
+        // Foreground policy: this poller only runs while the app is on screen, and in-app pings
+        // must fire there too — so remote-push mode no longer silences it wholesale. The
+        // actionTxId dedupe inside NotificationHelper.showKaPosts collapses a racing push for
+        // the same action into one banner.
+        if (pushState.isActive && !notificationHelper.isAppInForeground) return
         // Oldest first, capped so a viral post can't fire fifty pings at once.
         for (n in fresh.sortedBy { it.timestamp }.takeLast(5)) {
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue

@@ -20,6 +20,17 @@ data class LatestReactionRow(
     val targetDirection: String?
 )
 
+/** Group-chat sibling of [LatestReactionRow]: one group's newest reaction, joined against the
+ *  target group message's `isOutgoing` - backs the Group Chats tab's "Alice reacted to a message"
+ *  card preview. `targetIsOutgoing` is null if the reacted-to message can't be found. */
+data class LatestGroupReactionRow(
+    val groupId: String,
+    val emoji: String,
+    val reactorAddress: String,
+    val blockTimestamp: Long,
+    val targetIsOutgoing: Boolean?
+)
+
 @Dao
 interface ReactionDao {
 
@@ -54,6 +65,28 @@ interface ReactionDao {
 
     @Query("SELECT * FROM reactions WHERE walletAddress = :walletAddress AND groupId = :groupId")
     fun getReactionsForGroup(groupId: String, walletAddress: String): Flow<List<ReactionEntity>>
+
+    /** One row per groupId - whichever reaction has the most recent blockTimestamp, joined to
+     *  whether the target message is one of ours. Mirrors [getLatestReactionPerContact]'s exact
+     *  "max blockTimestamp grouped by owner" shape, scoped to group reactions instead. */
+    @Query(
+        """
+        SELECT r.groupId AS groupId, r.emoji AS emoji, r.reactorAddress AS reactorAddress,
+               r.blockTimestamp AS blockTimestamp, m.isOutgoing AS targetIsOutgoing
+        FROM reactions r
+        LEFT JOIN group_messages m ON m.txId = r.targetTxId AND m.walletAddress = r.walletAddress
+        WHERE r.walletAddress = :walletAddress AND r.groupId IS NOT NULL AND r.blockTimestamp IN (
+            SELECT MAX(blockTimestamp) FROM reactions
+            WHERE walletAddress = :walletAddress AND groupId IS NOT NULL
+            GROUP BY groupId
+        )
+        """
+    )
+    fun getLatestReactionPerGroup(walletAddress: String): Flow<List<LatestGroupReactionRow>>
+
+    /** Existence check by the reaction's own tx id - see GroupRepository.isGroupTxIngested. */
+    @Query("SELECT COUNT(*) FROM reactions WHERE reactionTxId = :txId AND walletAddress = :walletAddress")
+    suspend fun countByReactionTxId(txId: String, walletAddress: String): Int
 
     @Query("SELECT * FROM reactions WHERE targetTxId = :targetTxId AND walletAddress = :walletAddress AND reactorAddress = :reactorAddress LIMIT 1")
     suspend fun getReaction(targetTxId: String, walletAddress: String, reactorAddress: String): ReactionEntity?

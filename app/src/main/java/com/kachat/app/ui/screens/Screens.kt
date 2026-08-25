@@ -1044,6 +1044,17 @@ fun ChatThreadScreen(
         // BroadcastScreens.kt for the full rationale; kept in sync with it.
         val revealOffsetPx = remember { Animatable(0f) }
         val maxRevealOffsetPx = with(LocalDensity.current) { 64.dp.toPx() }
+        // True only while a finger is actively dragging the reveal. Guards every snapTo so a
+        // straggler delta (launched during the drag but dispatched after release) can never
+        // cancel the settle animation — Animatable mutations are mutually exclusive, and that
+        // cancellation is exactly what used to leave the reveal stuck mid-swipe.
+        val isRevealDragging = remember { mutableStateOf(false) }
+        // Release ALWAYS springs the rows back; a vertical scroll stealing the gesture (which
+        // can end the drag without a clean stop) forces the same settle.
+        LaunchedEffect(isRevealDragging.value, scrollState.isScrollInProgress) {
+            if (scrollState.isScrollInProgress) isRevealDragging.value = false
+            if (!isRevealDragging.value) revealOffsetPx.animateTo(0f)
+        }
 
         // Computed here (not inside the LazyColumn content below) - LazyListScope's item-builder
         // lambda isn't a real @Composable context, so a bare remember() call in it fails to
@@ -1068,10 +1079,15 @@ fun ChatThreadScreen(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
                         coroutineScope.launch {
-                            revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
+                            if (isRevealDragging.value) {
+                                revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
+                            }
                         }
                     },
-                    onDragStopped = { coroutineScope.launch { revealOffsetPx.animateTo(0f) } }
+                    onDragStarted = { isRevealDragging.value = true },
+                    // The settle LaunchedEffect above owns the spring-back — flipping the flag
+                    // both triggers it and disarms any still-queued snapTo deltas.
+                    onDragStopped = { isRevealDragging.value = false }
                 )
         ) {
             LazyColumn(

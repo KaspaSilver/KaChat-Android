@@ -632,6 +632,14 @@ class ChatViewModel @Inject constructor(
             .map { rows -> rows.associateBy { it.contactId } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /** Group sibling of [latestReactionByContact]: groupId -> that group's newest reaction, for
+     *  the Group Chats tab's "Alice reacted to a message" card preview when it's more recent than
+     *  the last real message. */
+    val latestReactionByGroup: StateFlow<Map<String, com.kachat.app.services.database.LatestGroupReactionRow>> =
+        groupRepository.getLatestGroupReactions()
+            .map { rows -> rows.associateBy { it.groupId } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     /**
      * Fetches KNS name + avatar for every member of a group - group rosters cache a `displayName`
      * snapshot taken at add/join time (`GroupMember.displayName`), which never reflects a KNS name

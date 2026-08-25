@@ -41,6 +41,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     @Inject lateinit var pushRegistrationManager: PushRegistrationManager
     @Inject lateinit var walletManager: WalletManager
     @Inject lateinit var chatRepository: ChatRepository
+    @Inject lateinit var groupRepository: com.kachat.app.repository.GroupRepository
 
     override fun onNewToken(token: String) {
         // FCM rotated the token — re-register it with the indexer (signed with the wallet key).
@@ -71,6 +72,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             channelName = channel,
                             title = title.ifEmpty { "#$channel" },
                             text = body,
+                            // Collapses with the live block scan's banner when the app is
+                            // foregrounded and both paths see the same message.
+                            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
                         )
                     }
 
@@ -87,13 +91,30 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
                     "group_message" -> {
                         // Group decryption is stateful (needs the local group seed + a ciphertext
-                        // fetch), so keep generic text for now — the notification still fires.
+                        // fetch), so a push can't be decrypted inline the way a DM's enc_payload
+                        // can. Instead, run the normal indexer catch-up sync: it fetches the
+                        // ciphertext, decrypts it, and posts the PRECISE banner itself through
+                        // NotificationHelper ("Alice: hi", "Alice reacted 👍 to your message") —
+                        // or deliberately stays silent (e.g. a reaction to someone else's
+                        // message, a muted member). Only when the sync could not ingest the tx
+                        // at all (indexer lag, no network) does the generic fallback fire.
                         val groupId = data["blinded_group_id"] ?: return@runBlocking
-                        notificationHelper.showGroup(
-                            groupId = groupId,
-                            title = title.ifEmpty { "Group" },
-                            text = body.ifEmpty { "New group message" },
-                        )
+                        val txId = data["tx_id"].orEmpty()
+                        val ingested = try {
+                            groupRepository.syncGroups()
+                            txId.isNotBlank() && groupRepository.isGroupTxIngested(txId)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Push-triggered group sync failed: ${e.message}")
+                            false
+                        }
+                        if (!ingested) {
+                            notificationHelper.showGroup(
+                                groupId = groupId,
+                                title = title.ifEmpty { "Group" },
+                                text = body.ifEmpty { "New group message" },
+                                dedupeTxId = txId.takeIf { it.isNotBlank() },
+                            )
+                        }
                     }
 
                     "group_control" -> {
@@ -104,6 +125,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             groupId = key,
                             title = title.ifEmpty { "Group" },
                             text = body.ifEmpty { "Group update" },
+                            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
                         )
                     }
 
@@ -117,6 +139,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             contactId = sender,
                             title = contactTitle(sender, sender),
                             text = body.ifEmpty { "New message" },
+                            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
                         )
                     }
 
@@ -152,6 +175,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             title = contactTitle(sender, data["title"].orEmpty().ifEmpty { sender }),
             text = text,
             notificationOverride = contactOverride(sender),
+            // Collapses with the in-app poll's banner when the app is foregrounded and both
+            // paths see the same message.
+            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
         )
     }
 

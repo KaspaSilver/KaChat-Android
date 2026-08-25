@@ -118,6 +118,48 @@ class GroupRepository @Inject constructor(
 
     fun getGroupCount(): Flow<Int> = getGroups().map { it.size }
 
+    /** groupId -> that group's newest reaction (with whether it targets one of our own messages) —
+     *  backs the Group Chats tab's "Alice reacted to a message" card preview, mirroring
+     *  [ChatRepository.getLatestReactions] for 1:1 rows. Reactions never become message rows, so
+     *  without this the card silently shows a stale last message when the truly newest activity
+     *  was a reaction. */
+    fun getLatestGroupReactions(): Flow<List<com.kachat.app.services.database.LatestGroupReactionRow>> {
+        return walletManager.activeAddressFlow.flatMapLatest { address ->
+            if (address == null) flowOf(emptyList()) else database.reactionDao().getLatestReactionPerGroup(address)
+        }
+    }
+
+    // Recently-ingested gcomm txIds (messages AND reactions, including reaction removals that
+    // leave no row behind) — lets the FCM group push handler ask "did the local pipeline already
+    // handle this tx?" without a DB shape that covers every case. LRU-capped; synchronized
+    // because the live scan, catch-up sync, and FCM-triggered sync run on different coroutines.
+    private val handledGroupTxIds = object : LinkedHashMap<String, Boolean>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 256
+    }
+
+    @Synchronized
+    private fun markGroupTxHandled(txId: String) {
+        handledGroupTxIds[txId] = true
+    }
+
+    @Synchronized
+    private fun isGroupTxHandledInMemory(txId: String): Boolean = handledGroupTxIds.containsKey(txId)
+
+    /**
+     * Whether [txId] has been ingested by the group pipeline — as a decrypted message row, an
+     * applied reaction, or an in-memory record of processing it this session. The FCM handler
+     * calls this after a push-triggered [syncGroups]: true means the local path already posted
+     * the precise banner (or deliberately stayed silent, e.g. a reaction to someone else's
+     * message), so the generic "New group message" fallback must not fire.
+     */
+    suspend fun isGroupTxIngested(txId: String): Boolean {
+        if (txId.isBlank()) return false
+        if (isGroupTxHandledInMemory(txId)) return true
+        val walletAddress = walletManager.getActiveAccount()?.address ?: return false
+        return database.groupDao().countMessagesByTxId(txId, walletAddress) > 0 ||
+            database.reactionDao().countByReactionTxId(txId, walletAddress) > 0
+    }
+
     /** Marks a group's thread as read as of now - backs the Group Chats tab's unread badge. Call when its thread screen opens. */
     suspend fun markGroupRead(groupId: String) {
         val walletAddress = walletManager.getAddress()
@@ -749,6 +791,11 @@ class GroupRepository @Inject constructor(
                 return
             }
 
+            // Decrypted successfully for a known group: remember the txId so the FCM group push
+            // handler knows this tx was ingested locally (and can skip its generic fallback
+            // banner) — see isGroupTxIngested.
+            markGroupTxHandled(txId)
+
             // Reactions are never shown as their own chat bubble - just attached to the message
             // they target - so intercept and route to the reactions table before this ever
             // becomes a GroupMessageEntity row. Our own outgoing reactions already apply their
@@ -756,12 +803,42 @@ class GroupRepository @Inject constructor(
             val reaction = MessageReaction.parseOrNull(plaintext)
             if (reaction != null) {
                 if (reaction.action == "add") {
+                    // Same reaction txId already applied by another delivery path (live scan vs
+                    // catch-up sync vs push-triggered sync) - must not notify a second time.
+                    val alreadyApplied = database.reactionDao()
+                        .getReaction(reaction.targetTxId, walletAddress, senderAddress)?.reactionTxId == txId
                     database.reactionDao().upsertReaction(
                         ReactionEntity(
                             targetTxId = reaction.targetTxId, walletAddress = walletAddress, reactorAddress = senderAddress,
                             emoji = reaction.emoji, reactionTxId = txId, blockTimestamp = blockTimestamp, groupId = group.groupId
                         )
                     )
+                    // "Alice reacted 👍 to your message" / "... to a message" for a live,
+                    // incoming reaction (matches iOS: title is the group name, emoji omitted
+                    // when absent). Muted members stay silent. In a mentions-only group, only a
+                    // reaction to YOUR OWN message notifies - it's as personal as a reply to you
+                    // - while reactions to others' messages stay silent there.
+                    // NotificationHelper's txId dedupe additionally collapses a racing FCM push
+                    // for the same reaction.
+                    if (!alreadyApplied && senderAddress != walletAddress && !isBackfill(blockTimestamp)) {
+                        val target = database.groupDao().getMessage(reaction.targetTxId, walletAddress)
+                        val targetIsMine = target?.isOutgoing == true
+                        val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
+                        val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
+                        if (!isMuted && (targetIsMine || !mentionsOnly)) {
+                            val senderLabel = database.contactDao().getContact(senderAddress, walletAddress)?.alias
+                                ?: membersOf(group).firstOrNull { it.address == senderAddress }?.displayName
+                                ?: senderAddress.takeLast(8)
+                            val emojiPart = reaction.emoji.trim().takeIf { it.isNotEmpty() }?.let { " $it" } ?: ""
+                            val targetPhrase = if (targetIsMine) "your message" else "a message"
+                            notificationHelper.showGroup(
+                                groupId = group.groupId,
+                                title = group.name,
+                                text = "$senderLabel reacted$emojiPart to $targetPhrase",
+                                dedupeTxId = txId
+                            )
+                        }
+                    }
                 } else {
                     database.reactionDao().deleteReaction(reaction.targetTxId, walletAddress, senderAddress)
                 }
@@ -822,7 +899,7 @@ class GroupRepository @Inject constructor(
                         ImageMessage.parseOrNull(plaintext) != null -> "$senderLabel sent a photo"
                         else -> "$senderLabel: $plaintext"
                     }
-                    notificationHelper.showGroup(group.groupId, group.name, notificationText)
+                    notificationHelper.showGroup(group.groupId, group.name, notificationText, dedupeTxId = txId)
                 }
             }
             return

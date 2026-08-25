@@ -710,6 +710,17 @@ class WalletViewModel @Inject constructor(
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
+    /**
+     * False until the cold-start routing decision is known: with a wallet present, the auto-login
+     * gate below has to read the (async, DataStore-backed) biometrics-for-login setting before
+     * `isLoggedIn` reflects where startup should land. KaChatApp holds off composing either the
+     * accounts/Welcome screen or the main shell until this flips true — otherwise every cold
+     * start briefly flashed the saved-accounts list before jumping into the last-used account.
+     * With no wallet at all, onboarding is the right destination immediately.
+     */
+    private val _startupResolved = MutableStateFlow(false)
+    val startupResolved: StateFlow<Boolean> = _startupResolved
+
     /** Sentinel for "no activeAddressFlow emission observed yet" — distinct from null, which is a
      *  real state (logged out / no wallet). See the account-change collector in [init]. */
     private object NoAddressYet
@@ -784,7 +795,12 @@ class WalletViewModel @Inject constructor(
                 if (!settings.biometricAccountLoginEnabled.first()) {
                     _isLoggedIn.value = true
                 }
+                // Only now is the start destination known — see startupResolved's doc comment.
+                _startupResolved.value = true
             }
+        } else {
+            // No wallet: onboarding is the correct first screen, nothing async to wait for.
+            _startupResolved.value = true
         }
     }
 

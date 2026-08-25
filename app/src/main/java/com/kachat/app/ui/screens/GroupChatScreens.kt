@@ -333,6 +333,14 @@ fun GroupChatThreadScreen(
     // rooms (see ChatThreadScreen in Screens.kt), kept in sync with it.
     val revealOffsetPx = remember { Animatable(0f) }
     val maxRevealOffsetPx = with(LocalDensity.current) { 64.dp.toPx() }
+    // Guards every snapTo so a straggler delta dispatched after release can't cancel the settle
+    // animation and leave the reveal stuck — see ChatThreadScreen's identical block.
+    val isRevealDragging = remember { mutableStateOf(false) }
+    // Release ALWAYS springs the rows back; a vertical scroll stealing the gesture forces it too.
+    LaunchedEffect(isRevealDragging.value, listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) isRevealDragging.value = false
+        if (!isRevealDragging.value) revealOffsetPx.animateTo(0f)
+    }
 
     LaunchedEffect(Unit) {
         chatViewModel.refreshUtxos()
@@ -703,10 +711,15 @@ fun GroupChatThreadScreen(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
                         coroutineScope.launch {
-                            revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
+                            if (isRevealDragging.value) {
+                                revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
+                            }
                         }
                     },
-                    onDragStopped = { coroutineScope.launch { revealOffsetPx.animateTo(0f) } }
+                    onDragStarted = { isRevealDragging.value = true },
+                    // The settle LaunchedEffect above owns the spring-back — flipping the flag
+                    // both triggers it and disarms any still-queued snapTo deltas.
+                    onDragStopped = { isRevealDragging.value = false }
                 )
         ) {
             LazyColumn(
