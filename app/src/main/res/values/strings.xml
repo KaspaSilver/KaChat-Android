@@ -496,6 +496,8 @@
     <string name="default_recommended">Default (Recommended)</string>
     <string name="automatic_scan">Automatic Scan</string>
     <string name="kaspa_node_quick_access_footer">Automatic Scan discovers and connects to the best available nodes. Choosing a specific node connects only to it, without falling back to others. Manage saved addresses in Connection Settings &gt; IP Address Book.</string>
+    <string name="node_connections_blocked">Node connections appear blocked on this network. Receiving messages still works over the indexer and plain payments still go through the REST API, but sending chat messages needs a node connection.</string>
+    <string name="address_removed_from_book">Address removed from book</string>
     <string name="last_sync">Last Sync</string>
     <string name="latency">Latency</string>
     <string name="message_indexer_service_for_chat_functionality">Message indexer service for chat functionality</string>

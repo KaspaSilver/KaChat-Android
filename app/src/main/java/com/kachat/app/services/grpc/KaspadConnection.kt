@@ -210,12 +210,14 @@ class KaspadConnection internal constructor(
         }
     }
 
-    suspend fun getInfo(): Rpc.GetInfoResponseMessage = call(
+    suspend fun getInfo(timeoutMs: Long = 5000): Rpc.GetInfoResponseMessage = call(
+        timeoutMs = timeoutMs,
         build = { id -> kaspadRequest { this.id = id; getInfoRequest = getInfoRequestMessage {} } },
         extract = { it.getInfoResponse }
     )
 
-    suspend fun getBlockDagInfo(): Rpc.GetBlockDagInfoResponseMessage = call(
+    suspend fun getBlockDagInfo(timeoutMs: Long = 5000): Rpc.GetBlockDagInfoResponseMessage = call(
+        timeoutMs = timeoutMs,
         build = { id -> kaspadRequest { this.id = id; getBlockDagInfoRequest = getBlockDagInfoRequestMessage {} } },
         extract = { it.getBlockDagInfoResponse }
     )

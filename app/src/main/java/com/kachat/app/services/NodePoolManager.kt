@@ -1,8 +1,13 @@
 package com.kachat.app.services
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.util.Log
 import com.kachat.app.repository.AppSettingsRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.kachat.app.services.grpc.KaspadConnection
+import com.kachat.app.services.grpc.NodeProbeResult
 import com.kachat.app.services.grpc.NodeRecord
 import com.kachat.app.services.grpc.NodeRegistry
 import com.kachat.app.services.grpc.probeExisting
@@ -43,6 +48,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class NodePoolManager @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settings: AppSettingsRepository
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -74,13 +80,23 @@ class NodePoolManager @Inject constructor(
     private val _allNodes = MutableStateFlow<List<NodeInfo>>(emptyList())
     val allNodes: StateFlow<List<NodeInfo>> = _allNodes.asStateFlow()
 
+    // Bundled bootstrap-of-last-resort node IPs. These exist for networks where the DNS
+    // seeders below are blocked or poisoned (captive portals, restrictive firewalls, hostile
+    // resolvers) — with DNS dead and nothing persisted yet, they are the only way into the
+    // network. All addresses come from live-resolving the same community DNS seeders listed
+    // in [dnsSeedHostnames] (the source the whole Kaspa ecosystem already trusts for
+    // bootstrap) and keeping only the ones that actually answered on the public gRPC port.
+    // Last refreshed 2026-08-25; the previous six entries had ALL gone stale. Public node
+    // IPs churn, which is why these are a last resort: the persisted last-known-good list
+    // (see [persistKnownGoodNodes]) and the DNS seeders are always preferred, and this list
+    // should be re-verified against the seeders' current answers whenever it is touched.
     private val seeds = listOf(
-        "67.235.212.32:16110",
-        "147.135.70.51:16110",
-        "187.124.234.86:16110",
-        "152.53.52.37:16110",
-        "84.32.32.37:16110",
-        "198.52.142.150:16110"
+        "212.227.144.45:16110",
+        "87.236.31.226:16110",
+        "82.66.82.52:16110",
+        "72.28.135.10:16110",
+        "23.118.8.164:16110",
+        "218.81.36.168:16110"
     )
 
     // Same DNS seeders the iOS reference app (KaChat) uses — see NodeModels.swift's
@@ -128,6 +144,39 @@ class NodePoolManager @Inject constructor(
     // Per-hostname bound for resolveDnsSeedsIfNeeded()'s parallel lookups.
     private val dnsLookupTimeoutMillis = 5_000L
 
+    // Per-candidate RPC timeout while racing discovery probes in parallel — tight (vs the 5s
+    // RPC default the pinned trusted node keeps) because the first responder is published
+    // immediately (see probeCycle) and a dead candidate should not hold a cycle open long.
+    private val discoveryProbeTimeoutMillis = 3_000L
+
+    // Consecutive completed automatic-mode cycles in which not a single probed node was
+    // reachable — drives both the exponential probe backoff in startProbing() (a fully
+    // blocked network must not burn battery on a 5s retry loop forever) and, from the
+    // second such cycle on, the nodeConnectionsBlocked flag below.
+    private var consecutiveDeadCycles = 0
+    private val maxDeadCycleBackoffMillis = 120_000L
+
+    // True once probing has concluded that no Kaspa gRPC node is reachable at all on the
+    // current network (every candidate dead for 2+ consecutive automatic-mode cycles, or the
+    // pinned trusted node failing 2+ probes in a row). Cleared by the very first successful
+    // probe and on any network-path change. Surfaced on the connection screen so a user on a
+    // firewalled network gets an honest "gRPC is blocked here" explanation instead of an
+    // eternally red dot: indexer-based receiving still works over HTTPS, but sending cannot
+    // (payload-carrying transactions only submit over gRPC — see KaspaWalletEngine.sendKaspa).
+    private val _nodeConnectionsBlocked = MutableStateFlow(false)
+    val nodeConnectionsBlocked: StateFlow<Boolean> = _nodeConnectionsBlocked.asStateFlow()
+
+    // Persisted-known-good bookkeeping — see persistKnownGoodNodes().
+    private var lastPersistedKnownGood: Set<String> = emptySet()
+    private val maxPersistedKnownGood = 8
+
+    // Network-path-change tracking (WiFi <-> cellular, VPN up/down) — see the
+    // ConnectivityManager callback registered in init and onNetworkPathChanged().
+    @Volatile
+    private var lastNetworkHandle: Long? = null
+    @Volatile
+    private var lastNetworkResetAt = 0L
+
     private var probeJob: Job? = null
 
     init {
@@ -145,6 +194,12 @@ class NodePoolManager @Inject constructor(
             probeEpoch++
             if (initial != null) {
                 registry.resetTo(listOf(initial), "Trusted")
+            } else {
+                // Cold start in automatic mode: dial the persisted last-known-good nodes from
+                // the previous run alongside the bundled seeds on the very first cycle —
+                // recently-proven addresses connect near-instantly, where the bundled seeds
+                // may have gone stale and DNS resolution takes a round trip.
+                seedFromPersistedKnownGood()
             }
             startProbing()
 
@@ -166,18 +221,131 @@ class NodePoolManager @Inject constructor(
                     dnsResolvedEndpoints.clear()
                     lastDnsResolveAt = 0L
                     registry.resetTo(seeds, "Seed")
+                    // Pinned -> automatic must connect near-instantly: race the persisted
+                    // last-known-good nodes from previous automatic sessions in the immediate
+                    // refreshNow() below instead of starting from the bundled seeds alone.
+                    seedFromPersistedKnownGood()
                 }
+                consecutiveDeadCycles = 0
+                _nodeConnectionsBlocked.value = false
                 publish()
                 refreshNow()
             }
         }
+
+        registerNetworkCallback()
+    }
+
+    /**
+     * Loads the persisted last-known-good node addresses (written by [persistKnownGoodNodes]
+     * at the end of every healthy automatic-mode cycle) into [discoveredEndpoints], so the next
+     * probe cycle dials them immediately. They intentionally enter as ordinary "Discovered"
+     * entries: if one has died since the last run it racks up failures like any other candidate
+     * and gets pruned, so a stale persisted list can never wedge the pool.
+     */
+    private suspend fun seedFromPersistedKnownGood() {
+        val persisted = try {
+            settings.knownGoodNodeAddresses.first()
+        } catch (e: Exception) {
+            Log.w("NodePoolManager", "Could not load persisted known-good nodes: ${e.message}")
+            emptyList()
+        }
+        lastPersistedKnownGood = persisted.toSet()
+        for (address in persisted) {
+            if (discoveredEndpoints.size >= maxDiscoveredEndpoints) break
+            if (address !in seeds) discoveredEndpoints.add(address)
+        }
+        if (persisted.isNotEmpty()) {
+            Log.i("NodePoolManager", "Seeded pool with ${persisted.size} persisted known-good node(s)")
+        }
+    }
+
+    /**
+     * Persists the pool's current best Active nodes (best-latency first, capped at
+     * [maxPersistedKnownGood]) whenever the set actually changed — the other half of
+     * [seedFromPersistedKnownGood]'s instant-reconnect path. Automatic mode only; the pinned
+     * trusted node is its own persisted setting.
+     */
+    private fun persistKnownGoodNodes() {
+        if (trustedNodeAddress.value != null) return
+        val best = registry.snapshot()
+            .filter { registry.statusOf(it) == "Active" }
+            .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+            .take(maxPersistedKnownGood)
+            .map { it.address }
+        if (best.isEmpty() || best.toSet() == lastPersistedKnownGood) return
+        lastPersistedKnownGood = best.toSet()
+        scope.launch {
+            try {
+                settings.setKnownGoodNodeAddresses(best)
+            } catch (e: Exception) {
+                Log.w("NodePoolManager", "Could not persist known-good nodes: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Watches the device's default network (WiFi <-> cellular handoffs, VPN up/down) and resets
+     * node health the moment the path changes. Without this, verdicts formed on the OLD path
+     * poison the new one: nodes quarantined behind a captive WiFi portal stayed quarantined
+     * after switching to working cellular, connections silently bound to a dead VPN tunnel ate
+     * full RPC timeouts, and a fully-blocked verdict ([nodeConnectionsBlocked]) outlived the
+     * network that earned it. Mirrors the "network epoch" idea from iOS's POOLS_v2.
+     */
+    private fun registerNetworkCallback() {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        try {
+            cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    val handle = network.networkHandle
+                    val prior = lastNetworkHandle
+                    lastNetworkHandle = handle
+                    // First sighting after process start is not a change; same handle re-announced
+                    // (capability churn on one network) is not a change either.
+                    if (prior == null || prior == handle) return
+                    onNetworkPathChanged()
+                }
+            })
+        } catch (e: Exception) {
+            // Missing permission or an OEM quirk — the pool still works, just without
+            // instant path-change recovery (the probe loop eventually re-probes everything).
+            Log.w("NodePoolManager", "Could not register network callback: ${e.message}")
+        }
+    }
+
+    /**
+     * The default network actually changed — scrap per-path state and re-probe immediately.
+     * Debounced so a flapping VPN (rapid up/down/up) collapses into one reset every 2s instead
+     * of a teardown storm that would itself wedge discovery.
+     */
+    private fun onNetworkPathChanged() {
+        val now = System.currentTimeMillis()
+        if (now - lastNetworkResetAt < 2_000L) return
+        lastNetworkResetAt = now
+        Log.i("NodePoolManager", "Default network changed - resetting node health and reconnecting")
+        // In-flight probe results belong to the old path; discard them.
+        probeEpoch++
+        // Failure verdicts are per-network: a node dead on WiFi gets a fresh 3-strike
+        // allowance on the VPN/cellular path instead of staying Quarantined.
+        registry.forgiveFailures()
+        // Sockets are bound to the old path; dial fresh on the new one.
+        connections.values.forEach { it.close() }
+        connections.clear()
+        // Re-resolve DNS on the new path (a poisoned/blocked resolver may now work, and
+        // split-horizon answers can differ per network), and restart backoff from hot.
+        lastDnsResolveAt = 0L
+        consecutiveDeadCycles = 0
+        _nodeConnectionsBlocked.value = false
+        publish()
+        refreshNow()
     }
 
     private fun startProbing() {
         probeJob?.cancel()
         probeJob = scope.launch {
             while (true) {
-                probeCycle()
+                val anyReachable = probeCycle()
+                if (anyReachable) consecutiveDeadCycles = 0 else consecutiveDeadCycles++
                 val delayMillis = if (trustedNodeAddress.value != null) {
                     // Trusted mode's registry only ever holds the one pinned node, so
                     // activeCount below can never reach targetActiveNodes (8) - comparing
@@ -192,8 +360,22 @@ class NodePoolManager @Inject constructor(
                     // much sooner than the normal steady-state cadence — a flat 30s here meant a cold
                     // launch could sit on "Disconnected"/0 active for a full 30-90+ seconds even
                     // though a retry a few seconds later would very likely succeed.
+                    //
+                    // BUT: if entire cycles are coming back with zero reachable nodes (gRPC blocked
+                    // outright on this network, airplane mode, dead uplink), that aggressive 5s
+                    // cadence must not run forever — dialing ~26 dead endpoints every 5s is pure
+                    // battery burn that cannot succeed. Back off exponentially (10s, 20s, 40s, 80s,
+                    // capped at 2 min) until something answers; a network-path change resets to hot
+                    // immediately (see onNetworkPathChanged), as does refreshNow() via the user.
                     val activeCount = registry.snapshot().count { registry.statusOf(it) == "Active" }
-                    if (activeCount < targetActiveNodes) unhealthyRetryDelayMillis else 30_000L
+                    when {
+                        consecutiveDeadCycles > 0 -> {
+                            val shifts = minOf(consecutiveDeadCycles, 5)
+                            minOf(unhealthyRetryDelayMillis shl shifts, maxDeadCycleBackoffMillis)
+                        }
+                        activeCount < targetActiveNodes -> unhealthyRetryDelayMillis
+                        else -> 30_000L
+                    }
                 }
                 delay(delayMillis)
             }
@@ -252,7 +434,43 @@ class NodePoolManager @Inject constructor(
         }
     }
 
-    private suspend fun probeCycle() {
+    /** Classification for registry rows — depends on which tracked set the address lives in. */
+    private fun typeOf(address: String): String = when {
+        seeds.contains(address) -> "Seed"
+        manualEndpoints.contains(address) -> "Manual"
+        dnsResolvedEndpoints.contains(address) -> "DNS"
+        else -> "Discovered"
+    }
+
+    /**
+     * Races probes of [addresses] in parallel (each bounded by [discoveryProbeTimeoutMillis])
+     * and publishes every SUCCESS the moment it lands — the first responder starts serving
+     * status/broadcast duty immediately while the slower candidates are still being profiled,
+     * instead of the old await-everything-then-publish shape where one dead candidate's full
+     * timeout held the whole pool at "Disconnected". Failures are only written by the caller
+     * after the wave completes (and only if the epoch still matches), keeping the stale-cycle
+     * discard semantics for everything except early good news.
+     */
+    private suspend fun probeWave(addresses: List<String>, epoch: Int): List<NodeProbeResult> =
+        addresses.map { address ->
+            scope.async {
+                val result = probeExisting(address, connectionFor(address), discoveryProbeTimeoutMillis)
+                if (!result.reachable) {
+                    // The underlying stream likely died — drop it so the next cycle
+                    // opens a fresh connection instead of retrying a broken one forever.
+                    connections.remove(address)?.close()
+                } else if (epoch == probeEpoch) {
+                    registry.update(address, typeOf(address), result)
+                    _nodeConnectionsBlocked.value = false
+                    publish()
+                }
+                result
+            }
+        }.awaitAll()
+
+    /** Returns true when at least one probed node was reachable this cycle (epoch-discarded
+     *  cycles report true so they stay neutral for the dead-cycle backoff in startProbing). */
+    private suspend fun probeCycle(): Boolean {
         // Captured up front so a mode switch (trusted <-> normal discovery) that happens
         // *while this cycle's own probes are in flight* can be detected below and the whole
         // cycle's results discarded instead of writing stale seed/discovered entries into the
@@ -265,13 +483,18 @@ class NodePoolManager @Inject constructor(
         if (trusted != null) {
             connections.keys.filter { it != trusted }.forEach { addr -> connections.remove(addr)?.close() }
             val result = probeExisting(trusted, connectionFor(trusted))
-            if (epoch != probeEpoch) return
+            if (epoch != probeEpoch) return true
             if (!result.reachable) {
                 connections.remove(trusted)?.close()
             }
             registry.update(trusted, "Trusted", result)
+            // With discovery off, the pinned node is the only reachability signal there is:
+            // 2+ consecutive failed probes is the honest "node connections look blocked or
+            // down here" threshold for the connection screen (one failure could be a blip).
+            val failures = registry.snapshot().firstOrNull { it.address == trusted }?.consecutiveFailures ?: 0
+            _nodeConnectionsBlocked.value = !result.reachable && failures >= 2
             publish()
-            return
+            return result.reachable
         }
 
         // Gated on truly *Active* count, not just "not yet Quarantined" — a fresh/unprobed seed
@@ -283,42 +506,37 @@ class NodePoolManager @Inject constructor(
         // fires on the very first cycle whenever there isn't already a healthy pool. Compared
         // against targetActiveNodes (not a small fixed number) so this keeps refreshing DNS
         // seeds until the pool is genuinely healthy, not just "a few seeds happened to respond."
+        //
+        // Launched CONCURRENTLY with the first probe wave below (it used to be awaited first),
+        // so a slow resolver never delays dialing the seeds/persisted known-good nodes we
+        // already have in hand — fresh DNS answers get their own probe wave later this cycle.
         val activeCount = registry.snapshot().count { registry.statusOf(it) == "Active" }
-        if (activeCount < targetActiveNodes) {
-            resolveDnsSeedsIfNeeded()
-        }
+        val dnsJob = if (activeCount < targetActiveNodes) scope.async { resolveDnsSeedsIfNeeded() } else null
 
-        val addresses = (seeds + manualEndpoints + discoveredEndpoints + dnsResolvedEndpoints).distinct()
+        val firstWave = (seeds + manualEndpoints + discoveredEndpoints + dnsResolvedEndpoints).distinct()
+        val firstResults = probeWave(firstWave, epoch)
 
-        // Drop connections for addresses no longer tracked (e.g. after clearPool()).
-        connections.keys.filter { it !in addresses }.forEach { addr -> connections.remove(addr)?.close() }
-
-        val results = addresses.map { address ->
-            scope.async {
-                val result = probeExisting(address, connectionFor(address))
-                if (!result.reachable) {
-                    // The underlying stream likely died — drop it so the next cycle
-                    // opens a fresh connection instead of retrying a broken one forever.
-                    connections.remove(address)?.close()
-                }
-                result
-            }
-        }.awaitAll()
+        // Probe whatever the concurrent DNS resolution just added in this same cycle rather
+        // than sitting on it until the next tick — on a cold start where the bundled seeds
+        // have all gone stale, these fresh answers ARE the pool.
+        dnsJob?.await()
+        val secondWave = dnsResolvedEndpoints.filter { it !in firstWave }
+        val secondResults = if (secondWave.isNotEmpty()) probeWave(secondWave, epoch) else emptyList()
 
         // The user may have switched into trusted-node mode while these probes were still in
         // flight - resetTo("Trusted") already ran for that switch, so writing this normal-mode
         // cycle's results now would just re-populate the registry with stale seed/discovered
         // entries right after they were supposed to be cleared.
-        if (epoch != probeEpoch) return
+        if (epoch != probeEpoch) return true
+
+        val results = firstResults + secondResults
+        val probedAddresses = firstWave + secondWave
+
+        // Drop connections for addresses no longer tracked (e.g. after clearPool()).
+        connections.keys.filter { it !in probedAddresses }.forEach { addr -> connections.remove(addr)?.close() }
 
         results.forEach { result ->
-            val type = when {
-                seeds.contains(result.address) -> "Seed"
-                manualEndpoints.contains(result.address) -> "Manual"
-                dnsResolvedEndpoints.contains(result.address) -> "DNS"
-                else -> "Discovered"
-            }
-            registry.update(result.address, type, result)
+            registry.update(result.address, typeOf(result.address), result)
         }
 
         // Prune discovered/DNS-resolved nodes that have gone bad, freeing room for potentially
@@ -373,6 +591,22 @@ class NodePoolManager @Inject constructor(
         }
 
         publish()
+
+        // Remember today's best Active nodes for tomorrow's cold start / pinned->automatic
+        // switch — the other half of the instant-connect path (see seedFromPersistedKnownGood).
+        persistKnownGoodNodes()
+
+        val anyReachable = results.any { it.reachable }
+        if (anyReachable) {
+            _nodeConnectionsBlocked.value = false
+        } else if (results.size >= 3 && consecutiveDeadCycles >= 1) {
+            // A meaningful candidate set (seeds + persisted + DNS answers) came back 100% dead
+            // for the second-plus consecutive cycle: the gRPC port is almost certainly blocked
+            // on this network (or the uplink is gone). Surfaced on the connection screen; any
+            // single success or a network-path change clears it instantly.
+            _nodeConnectionsBlocked.value = true
+        }
+        return anyReachable
     }
 
     private fun publish() {

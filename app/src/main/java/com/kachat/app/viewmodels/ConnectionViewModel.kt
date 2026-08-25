@@ -60,6 +60,11 @@ class ConnectionViewModel @Inject constructor(
     val activeNodes: StateFlow<List<NodeInfo>> = nodePoolManager.activeNodes
     val allNodes: StateFlow<List<NodeInfo>> = nodePoolManager.allNodes
 
+    /** True when probing has concluded no Kaspa gRPC node is reachable at all on this network
+     *  (port blocked, poisoned DNS with dead seeds, or no uplink) — drives the honest
+     *  explanation on the connection status screen. See NodePoolManager.nodeConnectionsBlocked. */
+    val nodeConnectionsBlocked: StateFlow<Boolean> = nodePoolManager.nodeConnectionsBlocked
+
     /** Real status derived from the live node pool — no more hardcoded CONNECTED. */
     val status: StateFlow<ConnectionStatus> = activeNodes
         .map(::deriveConnectionStatus)

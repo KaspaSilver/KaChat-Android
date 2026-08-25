@@ -26,10 +26,19 @@ data class NodeProbeResult(
  * OOM-killed by the OS every ~90-140 seconds. Connection lifecycle is now owned by
  * whoever holds the persistent connection — see NodePoolManager.)
  */
-suspend fun probeExisting(address: String, connection: KaspadConnection): NodeProbeResult {
+suspend fun probeExisting(
+    address: String,
+    connection: KaspadConnection,
+    // Discovery races many candidates in parallel and serves the first responder (see
+    // NodePoolManager.probeCycle) — a tighter bound there keeps one dead candidate from
+    // holding the "all probed" verdict open for the full default RPC timeout. The pinned
+    // trusted node keeps the default: it is the only node, often TLS behind slower home
+    // links, and a spuriously failed probe there flips the whole app's status dot.
+    timeoutMs: Long = 5000
+): NodeProbeResult {
     val start = System.currentTimeMillis()
     val info = try {
-        connection.getInfo()
+        connection.getInfo(timeoutMs)
     } catch (e: Exception) {
         // Logged (not just captured in NodeProbeResult.error, which nothing currently reads) —
         // every prior "why is the pool empty" investigation had to add this ad hoc since probe
@@ -55,7 +64,7 @@ suspend fun probeExisting(address: String, connection: KaspadConnection): NodePr
     // real success and mark an otherwise-healthy node "Suspect"/unreachable. Its fields
     // (networkName/virtualDaaScore) just come back null if it fails.
     val dagInfo = try {
-        connection.getBlockDagInfo()
+        connection.getBlockDagInfo(timeoutMs)
     } catch (e: Exception) {
         Log.w("NodeProfiler", "GetBlockDagInfo failed for $address (GetInfo still OK): ${e.javaClass.simpleName}: ${e.message}")
         null

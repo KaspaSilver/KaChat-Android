@@ -8532,6 +8532,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
     val status by viewModel.status.collectAsState()
     val dotColorHex by viewModel.dotColorHex.collectAsState()
     val lastSyncAt by viewModel.lastSyncAt.collectAsState()
+    val nodeConnectionsBlocked by viewModel.nodeConnectionsBlocked.collectAsState()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -8600,6 +8601,20 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                 ConnectionInfoRow(stringResource(R.string.indexer), indexerUrl.substringAfter("://").substringBefore("/"))
                 SettingsDivider()
                 ConnectionInfoRow(stringResource(R.string.last_sync), lastSyncAt)
+                // Honest all-blocked explanation: only shown once the pool has concluded that
+                // NO node answers at all on this network (see NodePoolManager's
+                // nodeConnectionsBlocked doc) - a plain red "Disconnected" with no reason
+                // otherwise reads as an app bug on firewalled/captive networks.
+                if (nodeConnectionsBlocked && status == ConnStatus.DISCONNECTED) {
+                    SettingsDivider()
+                    Text(
+                        stringResource(R.string.node_connections_blocked),
+                        color = Color(0xFFF39C12),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
 
             if (showPoolSections) {
@@ -9369,7 +9384,20 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
                             Text(entry.address, color = LocalAppColors.current.textPrimary, fontFamily = FontFamily.Monospace)
                         }
                     }
-                    IconButton(onClick = { viewModel.removeSavedNodeAddress(entry.id) }) {
+                    // Immediate delete (matching this screen's convention: row taps copy with a
+                    // toast, no confirm dialogs anywhere), so a toast confirms the removal.
+                    // Deleting the entry the Kaspa Node dropdown currently pins does NOT touch
+                    // node selection: only the book entry goes, the pinned address stays set
+                    // and the dropdown falls back to showing the raw address (see
+                    // KaspaNodeQuickAccessSection's selectedLabel).
+                    IconButton(onClick = {
+                        viewModel.removeSavedNodeAddress(entry.id)
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.address_removed_from_book),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }) {
                         Icon(Icons.Default.Delete, null, tint = LocalAppColors.current.textSecondary)
                     }
                 }

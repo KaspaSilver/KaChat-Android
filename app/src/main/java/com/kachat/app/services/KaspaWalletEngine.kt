@@ -257,7 +257,21 @@ class KaspaWalletEngine @Inject constructor(
                         isTransportFailure -> {
                             Log.w("KaspaWalletEngine", "Submit transport failure, reconnecting and retrying once", e)
                             nodePoolManager.refreshBroadcastConnection()
-                            nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                            try {
+                                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                            } catch (e2: Exception) {
+                                // Payload-carrying sends have no REST fallback (the REST gateway
+                                // rejects them, see the broadcast comment above), so when the pool
+                                // has already concluded the whole network blocks gRPC, surface that
+                                // honestly instead of a raw DEADLINE_EXCEEDED string.
+                                if (nodePoolManager.nodeConnectionsBlocked.value) {
+                                    throw IllegalStateException(
+                                        "No Kaspa node is reachable on this network. Node connections appear blocked, so the message could not be sent.",
+                                        e2
+                                    )
+                                }
+                                throw e2
+                            }
                         }
                         else -> throw e
                     }

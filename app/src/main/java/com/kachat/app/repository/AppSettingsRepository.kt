@@ -49,6 +49,12 @@ class AppSettingsRepository @Inject constructor(
         // User-saved node addresses for quick copy/paste into the Kaspa Node field above -
         // Gson-encoded list, same pattern as KEY_PENDING_KNS_COMMIT below.
         val KEY_SAVED_NODE_ADDRESSES = stringPreferencesKey("saved_node_addresses")
+        // NodePoolManager's persisted last-known-good gRPC nodes (comma-joined "host:port"
+        // list, best-latency first). Written whenever the automatic-discovery pool has Active
+        // nodes; read back on cold start and on a pinned->automatic switch so the pool dials
+        // recently-proven nodes immediately instead of waiting on the hardcoded bootstrap
+        // seeds (which go stale) or a fresh DNS-seed resolution.
+        val KEY_KNOWN_GOOD_NODES = stringPreferencesKey("known_good_node_addresses")
 
         // Defaults matching the iOS app
         const val DEFAULT_NETWORK        = "mainnet"
@@ -262,6 +268,11 @@ class AppSettingsRepository @Inject constructor(
     // empty (normal discovery) instead of snapping back to the default on every read.
     val trustedNodeAddress: Flow<String> = dataStore.data.map {
         it[KEY_TRUSTED_NODE_ADDRESS] ?: DEFAULT_TRUSTED_NODE_ADDRESS
+    }
+
+    // Last-known-good automatic-discovery nodes — see KEY_KNOWN_GOOD_NODES.
+    val knownGoodNodeAddresses: Flow<List<String>> = dataStore.data.map { prefs ->
+        prefs[KEY_KNOWN_GOOD_NODES]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
     }
 
     val savedNodeAddresses: Flow<List<com.kachat.app.models.SavedNodeAddress>> = dataStore.data.map { prefs ->
@@ -542,6 +553,9 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKapostsBlocked(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_BLOCKED] = value }
     suspend fun setDockWizardDismissed() = dataStore.edit { it[KEY_DOCK_WIZARD_DISMISSED] = true }
     suspend fun setTrustedNodeAddress(value: String) = dataStore.edit { it[KEY_TRUSTED_NODE_ADDRESS] = value }
+    suspend fun setKnownGoodNodeAddresses(addresses: List<String>) = dataStore.edit {
+        it[KEY_KNOWN_GOOD_NODES] = addresses.joinToString(",")
+    }
     suspend fun addSavedNodeAddress(entry: com.kachat.app.models.SavedNodeAddress) = dataStore.edit { prefs ->
         val current = prefs[KEY_SAVED_NODE_ADDRESSES]?.let { json ->
             try {
