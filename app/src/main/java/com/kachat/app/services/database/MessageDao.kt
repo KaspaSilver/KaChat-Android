@@ -29,6 +29,64 @@ interface MessageDao {
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE id = :id AND walletAddress = :walletAddress)")
     suspend fun exists(id: String, walletAddress: String): Boolean
 
+    @Query("SELECT * FROM messages WHERE id = :id AND walletAddress = :walletAddress")
+    suspend fun getById(id: String, walletAddress: String): MessageEntity?
+
+    /**
+     * Every outgoing row still carrying a provisional local id ("pending_<uuid>", the optimistic
+     * placeholder the send flow inserts before the broadcast returns) for this conversation —
+     * pending AND failed, since a timed-out broadcast marks the row failed even when the tx
+     * actually landed on-chain. Ordered oldest first so an archive row upgrades the earliest
+     * matching placeholder. See ChatRepository.findProvisionalOutgoingMatch.
+     */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE contactId = :contactId AND walletAddress = :walletAddress
+          AND direction = 'sent' AND id LIKE 'pending\_%' ESCAPE '\'
+        ORDER BY blockTimestamp ASC
+        """
+    )
+    suspend fun getProvisionalOutgoingForContact(contactId: String, walletAddress: String): List<MessageEntity>
+
+    /** Wallet-wide variant of [getProvisionalOutgoingForContact] — the one-time stuck-pair repair sweep. */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE walletAddress = :walletAddress
+          AND direction = 'sent' AND id LIKE 'pending\_%' ESCAPE '\'
+        ORDER BY blockTimestamp ASC
+        """
+    )
+    suspend fun getProvisionalOutgoingForWallet(walletAddress: String): List<MessageEntity>
+
+    /**
+     * Whether a DELIVERED copy of the same logical outgoing message already exists in this
+     * conversation: same content, real (non-provisional) id, delivery status "sent", and a
+     * blockTimestamp within [windowMs] of the provisional row's — the send and its confirmed
+     * sibling are minutes apart in the same clock domain, so the window keeps an old identical
+     * text from being mistaken for the pair. Backs the stuck-provisional repair sweep.
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM messages
+            WHERE contactId = :contactId AND walletAddress = :walletAddress
+              AND direction = 'sent' AND deliveryStatus = 'sent'
+              AND plaintextBody = :body
+              AND id NOT LIKE 'pending\_%' ESCAPE '\'
+              AND ABS(blockTimestamp - :nearTimestamp) <= :windowMs
+        )
+        """
+    )
+    suspend fun hasDeliveredDuplicate(
+        contactId: String,
+        walletAddress: String,
+        body: String,
+        nearTimestamp: Long,
+        windowMs: Long
+    ): Boolean
+
     /** Whether any message with [direction] ("sent"/"received") exists in this conversation —
      *  backs the payment pool feature's established-conversation check (one of each required). */
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND direction = :direction)")

@@ -291,6 +291,113 @@ class ChatRepository @Inject constructor(
         return database.messageDao().exists(id, walletManager.getAddress())
     }
 
+    // -------------------------------------------------------------------------
+    // Provisional-send reconciliation
+    //
+    // The optimistic send flow inserts a placeholder row under a local id
+    // ("pending_<uuid>") BEFORE the broadcast returns, then swaps it for the real
+    // txId row. If the process dies (or the send coroutine is cancelled, or the
+    // broadcast times out locally but lands on-chain) between those two steps, the
+    // placeholder is orphaned — and when the same message later arrives under its
+    // real txId via a backup mirror import (another device saw it on-chain and
+    // uploaded it), the plain txId-exists dedupe can't connect the two: the user
+    // sees the delivered bubble AND a stuck "sending…" twin. These three helpers
+    // close every side of that hole:
+    //   * findProvisionalOutgoingMatch + upgradeProvisionalMessage — import side;
+    //   * finalizeProvisionalMessage — send-completion side;
+    //   * repairStuckProvisionalMessages — one-time sweep healing pairs that
+    //     already exist from before the fix.
+    // -------------------------------------------------------------------------
+
+    /**
+     * The oldest still-provisional (pending/failed placeholder-id) outgoing row in
+     * [contactId]'s conversation that carries exactly [plaintextBody] and sits within
+     * [PROVISIONAL_MATCH_WINDOW_MS] of [nearTimestamp] (an on-chain blockTime; 0/negative skips
+     * the window check) — i.e. the local twin of an archive row about to be imported. Null when
+     * the archive row is genuinely new to this device.
+     */
+    suspend fun findProvisionalOutgoingMatch(contactId: String, plaintextBody: String?, nearTimestamp: Long): MessageEntity? {
+        val body = plaintextBody ?: return null
+        return database.messageDao()
+            .getProvisionalOutgoingForContact(contactId, walletManager.getAddress())
+            .firstOrNull {
+                it.plaintextBody == body &&
+                    (nearTimestamp <= 0L || kotlin.math.abs(it.blockTimestamp - nearTimestamp) <= PROVISIONAL_MATCH_WINDOW_MS)
+            }
+    }
+
+    /**
+     * Import-side collapse: the archive carries the confirmed copy ([imported], id = real txId)
+     * of a message this device still holds as [provisional]. The placeholder is upgraded in
+     * place — its own richer fields (amountSompi for a payment, the exact local body) survive,
+     * the id becomes the real txId, the timestamp becomes the chain's, and the status becomes
+     * "sent" — and the placeholder row is removed. Insert-then-delete on purpose: a crash
+     * between the two leaves both rows, which [repairStuckProvisionalMessages] heals, whereas
+     * the reverse order could lose the message entirely.
+     */
+    suspend fun upgradeProvisionalMessage(provisional: MessageEntity, imported: MessageEntity) {
+        database.messageDao().insert(
+            provisional.copy(
+                id = imported.id,
+                deliveryStatus = "sent",
+                blockTimestamp = if (imported.blockTimestamp > 0) imported.blockTimestamp else provisional.blockTimestamp,
+                encryptedPayload = provisional.encryptedPayload.ifEmpty { imported.encryptedPayload },
+                isRead = true
+            )
+        )
+        database.messageDao().deleteById(provisional.id, provisional.walletAddress)
+        scheduleAutoBackupIfEnabled()
+    }
+
+    /**
+     * Send-completion side: swaps the optimistic placeholder for the confirmed row. If a mirror
+     * import already inserted the txId row (the import won the race), the two are MERGED — the
+     * imported row's chain blockTimestamp is kept, the local row's richer fields (plaintext
+     * body, encrypted payload, payment amount) win — instead of blindly overwriting, and the
+     * placeholder is deleted either way so a pending twin can never linger. Insert-then-delete
+     * for the same crash-safety reason as [upgradeProvisionalMessage].
+     */
+    suspend fun finalizeProvisionalMessage(provisionalId: String, final: MessageEntity) {
+        val existing = database.messageDao().getById(final.id, final.walletAddress)
+        val merged = if (existing == null) final else existing.copy(
+            plaintextBody = final.plaintextBody ?: existing.plaintextBody,
+            encryptedPayload = final.encryptedPayload.ifEmpty { existing.encryptedPayload },
+            amountSompi = final.amountSompi ?: existing.amountSompi,
+            deliveryStatus = "sent"
+        )
+        database.messageDao().insert(merged)
+        database.messageDao().deleteById(provisionalId, final.walletAddress)
+        scheduleAutoBackupIfEnabled()
+    }
+
+    /** Wallets already swept this process — the repair is one-time per wallet per app run. */
+    private val provisionalRepairDone = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * One-time (per wallet, per process) repair for stuck pairs that already exist: an orphaned
+     * provisional outgoing row whose delivered sibling — same conversation, same content, real
+     * txId, status "sent", within [PROVISIONAL_MATCH_WINDOW_MS] — is also present. The
+     * placeholder is deleted; the delivered row is the message. Runs from the poll loop's first
+     * cycle for the wallet, so existing duplicates heal on load without any manual cleanup.
+     */
+    private suspend fun repairStuckProvisionalMessages(myAddress: String) {
+        if (!provisionalRepairDone.add(myAddress)) return
+        try {
+            for (row in database.messageDao().getProvisionalOutgoingForWallet(myAddress)) {
+                val body = row.plaintextBody ?: continue
+                val hasDelivered = database.messageDao().hasDeliveredDuplicate(
+                    row.contactId, myAddress, body, row.blockTimestamp, PROVISIONAL_MATCH_WINDOW_MS
+                )
+                if (hasDelivered) {
+                    database.messageDao().deleteById(row.id, myAddress)
+                    Log.i("ChatRepository", "Repaired stuck provisional duplicate ${row.id} (delivered sibling exists)")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("ChatRepository", "Stuck-provisional repair sweep failed", e)
+        }
+    }
+
     suspend fun updateMessageStatus(id: String, status: String) {
         database.messageDao().updateStatus(id, walletManager.getAddress(), status)
     }
@@ -446,6 +553,8 @@ class ChatRepository @Inject constructor(
 
     suspend fun syncMessages() {
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
+        // Before the indexer gate on purpose: healing stuck send-placeholders needs no network.
+        repairStuckProvisionalMessages(myAddress)
         val api = networkService.indexerApi.value ?: return
         liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
 
@@ -960,5 +1069,15 @@ class ChatRepository @Inject constructor(
             s.toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it) }
 
         private const val POLL_INTERVAL_MS = 2_000L
+
+        /**
+         * How far apart a provisional placeholder's wall-clock timestamp and its confirmed
+         * sibling's chain blockTime may sit and still count as the same logical message. The
+         * real pair is minutes apart at most (both are epoch ms around the moment of sending;
+         * only the IMPORT may happen days later, and import time doesn't enter the comparison),
+         * so 48 hours is generous headroom for clock skew while keeping an old identical text
+         * ("ok", a repeated payment amount) from being mistaken for the twin.
+         */
+        internal const val PROVISIONAL_MATCH_WINDOW_MS = 48L * 60 * 60 * 1000
     }
 }

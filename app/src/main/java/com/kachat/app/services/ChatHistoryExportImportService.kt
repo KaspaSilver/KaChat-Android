@@ -305,6 +305,22 @@ class ChatHistoryExportImportService @Inject constructor(
                 restoredAny = true
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)
                 if (chatRepository.messageExists(entity.id)) continue
+                // Outgoing archive rows can be THIS device's own send coming back around under
+                // its real txId (another device saw it on-chain and uploaded it) while the local
+                // copy still sits under its provisional "pending_<uuid>" placeholder id — the
+                // send flow's finalize step never ran (process death / cancelled coroutine /
+                // local timeout on a broadcast that actually landed). A plain insert would
+                // create a delivered twin next to a forever-"sending" placeholder. Instead the
+                // placeholder is upgraded in place to the real txId + "sent".
+                if (archiveMessage.isOutgoing) {
+                    val provisional = chatRepository.findProvisionalOutgoingMatch(
+                        contactAddress, entity.plaintextBody, entity.blockTimestamp
+                    )
+                    if (provisional != null) {
+                        chatRepository.upgradeProvisionalMessage(provisional, entity)
+                        continue
+                    }
+                }
                 chatRepository.insertMessage(entity)
             }
             if (restoredAny) conversationCount++

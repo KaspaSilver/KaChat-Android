@@ -1754,8 +1754,10 @@ class ChatViewModel @Inject constructor(
                 // handshakes are only ever sent by an explicit user tap (sendHandshakeToNewContact).
                 val result = walletService.sendKasiaMessage(contactId, payload, feeRateOverride = feeRate)
 
-                chatRepository.deleteMessage(pendingId)
-                chatRepository.insertMessage(
+                // Merge-aware finalize: if a backup mirror import inserted the txId row first,
+                // this merges into it (never a second copy) and always removes the placeholder.
+                chatRepository.finalizeProvisionalMessage(
+                    pendingId,
                     MessageEntity(
                         id = result.txId,
                         contactId = contactId,
@@ -2214,8 +2216,8 @@ class ChatViewModel @Inject constructor(
             try {
                 chatRepository.updateMessageStatus(message.id, "pending")
                 val result = walletService.sendKasiaMessage(message.contactId, text)
-                chatRepository.deleteMessage(message.id)
-                chatRepository.insertMessage(
+                chatRepository.finalizeProvisionalMessage(
+                    message.id,
                     MessageEntity(
                         id = result.txId,
                         contactId = message.contactId,
@@ -2313,8 +2315,8 @@ class ChatViewModel @Inject constructor(
                     addressActivityNotifier.requestRefresh()
                 }
 
-                chatRepository.deleteMessage(pendingId)
-                chatRepository.insertMessage(
+                chatRepository.finalizeProvisionalMessage(
+                    pendingId,
                     MessageEntity(
                         id = txId,
                         contactId = contactId,
