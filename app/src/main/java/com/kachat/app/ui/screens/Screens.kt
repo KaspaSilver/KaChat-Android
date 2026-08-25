@@ -7868,7 +7868,13 @@ private fun ProfileAddressActionCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        // The title + balance block IS the copy affordance: tapping it copies the address,
+        // replacing the old dedicated Copy button.
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(enabled = address != null) { onCopy() }
+        ) {
             Text(
                 title,
                 color = LocalAppColors.current.textPrimary,
@@ -7894,7 +7900,6 @@ private fun ProfileAddressActionCard(
                 )
             }
         }
-        ProfileAddressCardAction(Icons.Default.ContentCopy, "Copy", onCopy)
         ProfileAddressCardAction(Icons.AutoMirrored.Filled.Send, "Send", onSend)
         ProfileAddressCardAction(Icons.Default.Settings, "Manage", onManage)
     }
