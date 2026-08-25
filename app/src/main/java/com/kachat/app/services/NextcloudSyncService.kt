@@ -112,13 +112,13 @@ class NextcloudSyncService @Inject constructor(
          *  paired with the remote change watcher this is what makes the cross-device mirror feel
          *  near-live (send on one phone, see it on the other within ~45s). Merge semantics make
          *  frequent uploads safe; the debounce only coalesces bursts. */
-        const val DEBOUNCE_MS = 15 * 1000L
+        const val DEBOUNCE_MS = 5 * 1000L
 
         /** Remote change watcher cadence (foreground only): one Depth-0 PROPFIND per tick. */
-        const val WATCHER_POLL_MS = 10_000L
+        const val WATCHER_POLL_MS = 5_000L
 
         /** Watcher backoff after consecutive failed polls: 10s, then 30s, then capped at 60s. */
-        private val WATCHER_BACKOFF_MS = longArrayOf(10_000L, 30_000L, 60_000L)
+        private val WATCHER_BACKOFF_MS = longArrayOf(5_000L, 15_000L, 60_000L)
 
         /** Periodic WorkManager fallback cadence for uploads the in-process paths missed. */
         const val PERIODIC_INTERVAL_HOURS = 6L
