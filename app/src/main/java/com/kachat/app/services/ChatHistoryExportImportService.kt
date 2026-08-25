@@ -66,13 +66,25 @@ class ChatHistoryExportImportService @Inject constructor(
     data class ImportResult(val importedMessageCount: Int, val conversationCount: Int)
 
     /**
-     * Builds the archive JSON for the active account — the shared payload for every backup
-     * transport (local file share, Google Drive, ...). Callers that need a shareable file use
-     * [exportChatHistory]; callers that just need the bytes (e.g. a Drive upload) call this
-     * directly. Backup transports that write the SHARED `kachat-backup.json` must go through
-     * [buildBackupJson] instead, so they merge rather than overwrite.
+     * Builds the archive for the active account, ENCRYPTED into the cross-platform v1 backup
+     * envelope ([BackupCrypto]) — the shared payload for every backup transport (local file
+     * share, Google Drive manual backup and automatic sync, ...). Callers that need a shareable
+     * file use [exportChatHistory]; callers that just need the bytes (e.g. a Drive upload) call
+     * this directly. Backup transports that write the SHARED `kachat-backup.json` must go
+     * through [buildBackupJson] instead, so they merge rather than overwrite.
      */
-    suspend fun buildArchiveJson(): String = gson.toJson(buildLocalArchive())
+    suspend fun buildArchiveJson(): String {
+        val archive = buildLocalArchive()
+        return BackupCrypto.encrypt(gson.toJson(archive), backupEncryptionKey(), walletManager.getAddress())
+    }
+
+    /**
+     * The envelope key for the active account: derived from the identity/chatting-address
+     * private key via [WalletManager.getPrivateKeyBytes] — the exact accessor every other
+     * identity consumer (ECIES, handshakes, message signing) already funnels through — per the
+     * cross-platform derivation in [BackupCrypto.deriveKey].
+     */
+    private fun backupEncryptionKey(): ByteArray = BackupCrypto.deriveKey(walletManager.getPrivateKeyBytes())
 
     private suspend fun buildLocalArchive(): ChatHistoryArchive {
         val myAddress = walletManager.getAddress()
@@ -121,12 +133,31 @@ class ChatHistoryExportImportService @Inject constructor(
      *
      * Every validation failure THROWS: the caller must abort the upload, leaving a foreign or
      * unreadable file exactly as it was rather than destroying it.
+     *
+     * Encrypted end to end: an enveloped remote file ([BackupCrypto.isEnvelope]) is
+     * walletHint-checked (a foreign wallet's file aborts without even decrypting) then decrypted
+     * before the merge — a failed decrypt throws HERE, before any upload — while a legacy
+     * plaintext remote file merges as-is. The upload body is ALWAYS a fresh v1 envelope.
      */
     suspend fun buildBackupJson(existingRemoteJson: String?): String {
+        val myAddress = walletManager.getAddress()
+        val key = backupEncryptionKey()
         val local = gson.toJsonTree(buildLocalArchive()).asJsonObject
-        val remoteJson = existingRemoteJson?.takeIf { it.isNotBlank() } ?: return gson.toJson(local)
-        val remote = parseRemoteArchive(remoteJson, walletManager.getAddress())
-        return gson.toJson(mergeArchives(remote, local))
+        val remoteRaw = existingRemoteJson?.takeIf { it.isNotBlank() }
+            ?: return BackupCrypto.encrypt(gson.toJson(local), key, myAddress)
+        val remoteJson = if (BackupCrypto.isEnvelope(remoteRaw)) {
+            val hint = BackupCrypto.envelopeWalletHint(remoteRaw)
+            if (hint != null && hint != BackupCrypto.walletHint(myAddress)) {
+                throw IllegalStateException(
+                    "The backup already on the server belongs to a different account. Nothing was uploaded and it was left untouched. Choose a separate backup folder for this account."
+                )
+            }
+            BackupCrypto.decrypt(remoteRaw, key)
+        } else {
+            remoteRaw
+        }
+        val remote = parseRemoteArchive(remoteJson, myAddress)
+        return BackupCrypto.encrypt(gson.toJson(mergeArchives(remote, local)), key, myAddress)
     }
 
     /**
@@ -156,7 +187,9 @@ class ChatHistoryExportImportService @Inject constructor(
         }
     }
 
-    /** Builds the archive for the active account, writes it to app-private cache, and returns a content:// URI ready to hand to a share sheet. */
+    /** Builds the archive for the active account (encrypted into the v1 backup envelope, like every
+     *  cloud copy), writes it to app-private cache, and returns a content:// URI ready to hand to a
+     *  share sheet. [importChatHistory] accepts both this format and legacy plaintext exports. */
     suspend fun exportChatHistory(): Uri {
         val exportDir = File(context.cacheDir, "chat_exports").apply { mkdirs() }
         val fileTimestamp = isoSeconds(System.currentTimeMillis()).replace(":", "-")
@@ -182,13 +215,27 @@ class ChatHistoryExportImportService @Inject constructor(
      * messages land (real work, not simulated) — total counts the archive's non-empty
      * conversations. Drives the blocking restore modal's determinate bar
      * (see [BackupRestoreCoordinator]).
+     *
+     * Accepts BOTH file formats: a v1 encrypted envelope ([BackupCrypto.isEnvelope]) is
+     * walletHint-checked (a foreign wallet's file is refused without decrypting) and decrypted
+     * first — a wrong-key or corrupt file throws [BackupCrypto.DECRYPT_FAILED_MESSAGE] — while
+     * a legacy plaintext archive parses exactly as before, so old backups restore forever.
      */
     suspend fun importChatHistory(
         json: String,
         onConversationProgress: ((done: Int, total: Int) -> Unit)? = null
     ): ImportResult {
+        val archiveJson = if (BackupCrypto.isEnvelope(json)) {
+            val hint = BackupCrypto.envelopeWalletHint(json)
+            if (hint != null && hint != BackupCrypto.walletHint(walletManager.getAddress())) {
+                throw IllegalStateException("This backup belongs to a different account.")
+            }
+            BackupCrypto.decrypt(json, backupEncryptionKey())
+        } else {
+            json
+        }
         val archive = try {
-            gson.fromJson(json, ChatHistoryArchive::class.java) ?: throw IllegalStateException("empty")
+            gson.fromJson(archiveJson, ChatHistoryArchive::class.java) ?: throw IllegalStateException("empty")
         } catch (e: Exception) {
             throw IllegalStateException("This file isn't a valid chat history export")
         }

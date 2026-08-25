@@ -337,12 +337,23 @@ class NextcloudSyncService @Inject constructor(
                 if (walletManager.activeAddressFlow.value != address) return
 
                 // The shared file carries its wallet: never import another wallet's history.
-                val remoteWallet = runCatching {
-                    org.json.JSONObject(json).optString("walletAddress").trim()
-                }.getOrNull()
-                if (!remoteWallet.isNullOrEmpty() && remoteWallet != address) {
-                    Log.w(TAG, "Nextcloud backup belongs to a different wallet; automatic restore skipped")
-                    return
+                // Encrypted envelopes expose only the walletHint (checked here without
+                // decrypting; importChatHistory decrypts and re-checks); legacy plaintext files
+                // still carry walletAddress in the clear.
+                if (BackupCrypto.isEnvelope(json)) {
+                    val hint = BackupCrypto.envelopeWalletHint(json)
+                    if (hint != null && hint != BackupCrypto.walletHint(address)) {
+                        Log.w(TAG, "Nextcloud backup belongs to a different wallet; automatic restore skipped")
+                        return
+                    }
+                } else {
+                    val remoteWallet = runCatching {
+                        org.json.JSONObject(json).optString("walletAddress").trim()
+                    }.getOrNull()
+                    if (!remoteWallet.isNullOrEmpty() && remoteWallet != address) {
+                        Log.w(TAG, "Nextcloud backup belongs to a different wallet; automatic restore skipped")
+                        return
+                    }
                 }
 
                 val result = chatHistoryExportImportServiceLazy.get().importChatHistory(json)
