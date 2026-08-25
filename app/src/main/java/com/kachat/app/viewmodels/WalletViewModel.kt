@@ -245,8 +245,26 @@ class WalletViewModel @Inject constructor(
     }
 
     fun loadManageAddresses() {
-        viewModelScope.launch {
-            val generation = ++manageAddressesLoadGeneration
+        viewModelScope.launch { loadManageAddressesInternal() }
+    }
+
+    /**
+     * Awaited variant for the Manage Addresses pull-to-refresh: the screen keeps its refresh
+     * spinner up exactly as long as THIS call runs and dismisses it when the call returns —
+     * never by watching [manageAddressesLoading], which background reloads (the rotation
+     * collector, Generate, Activate, Withdraw) also drive and which never even flips on a warm
+     * refresh (it only signals the empty-list initial load). The load itself still runs in
+     * [viewModelScope], so backing out of the screen mid-refresh cancels only the wait, not the
+     * load. Returning is always safe even when a newer load superseded this one and the
+     * generation fence dropped its commit: the fresher rows are already on their way.
+     */
+    suspend fun loadManageAddressesAndAwait() {
+        viewModelScope.launch { loadManageAddressesInternal() }.join()
+    }
+
+    private suspend fun loadManageAddressesInternal() {
+        val generation = ++manageAddressesLoadGeneration
+        try {
             // Chat-privacy reservations: cheap synchronous store read, refreshed with the list.
             // First reconcile the store's released mirror with the actual Chats Payment Privacy
             // toggle - the toggle handler normally keeps it in sync, but accounts that flipped
@@ -274,9 +292,12 @@ class WalletViewModel @Inject constructor(
             ) {
                 _manageAddressesRaw.value = live
             }
-            _manageAddressesLoading.value = false
             // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
             refreshDomainOwningAddresses(_manageAddressesRaw.value.map { it.address })
+        } finally {
+            // try/finally so no exit — success, a throw from the pool-store reconcile, or
+            // cancellation — can strand the initial-load spinner.
+            _manageAddressesLoading.value = false
         }
     }
 

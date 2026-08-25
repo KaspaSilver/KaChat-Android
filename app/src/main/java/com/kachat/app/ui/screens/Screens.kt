@@ -3935,14 +3935,14 @@ fun ManageAddressesScreen(
         }
     }
 
+    // Pull-to-refresh owns its spinner end-to-end (same pattern as the Profile and Domains
+    // screens): await the refresh, then dismiss. NEVER keyed off manageAddressesLoading — that
+    // flag only flips on the empty-list initial load (a warm pull leaves it false the whole
+    // time, so a spinner waiting on it spun forever) and is also driven by background reloads,
+    // which must not surface or dismiss the pull indicator.
     LaunchedEffect(pullRefreshState.isRefreshing) {
         if (pullRefreshState.isRefreshing) {
-            viewModel.loadManageAddresses()
-        }
-    }
-
-    LaunchedEffect(loading) {
-        if (!loading && pullRefreshState.isRefreshing) {
+            viewModel.loadManageAddressesAndAwait()
             pullRefreshState.endRefresh()
         }
     }
