@@ -3023,7 +3023,7 @@ fun ProfileScreen(
             // screens stay reachable via Manage exactly as before.
             val addressCardClipboardManager = LocalClipboardManager.current
             ProfileAddressActionCard(
-                title = "Chatting Address",
+                title = "Chatting",
                 address = address,
                 balanceText = balance,
                 onCopy = {
@@ -3041,7 +3041,7 @@ fun ProfileScreen(
             // rotates to a freshly derived address after every send (see WalletManager's
             // spending-address doc comment), so this always shows whichever one is current.
             ProfileAddressActionCard(
-                title = "Spending Address",
+                title = "Spending",
                 address = spendingAddress,
                 balanceText = spendingBalance,
                 onCopy = {
