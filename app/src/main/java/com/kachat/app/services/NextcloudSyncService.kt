@@ -350,11 +350,8 @@ class NextcloudSyncService @Inject constructor(
                         "in ${result.conversationCount} chats"
                 )
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        "Restored ${result.importedMessageCount} messages from Nextcloud",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // Fully silent by design: sync is invisible background plumbing like
+                    // iCloud; the log line is the only trace.
                 }
             }
         } catch (e: CancellationException) {
