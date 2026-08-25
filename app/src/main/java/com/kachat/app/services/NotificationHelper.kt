@@ -14,6 +14,8 @@ import com.kachat.app.models.ContactNotificationMode
 import com.kachat.app.repository.AppSettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -87,6 +89,10 @@ class NotificationHelper @Inject constructor(
     /** Read by the local poll/scan notification gates: while the app is foregrounded, local
      *  banners fire even in remote-push mode (dupes with a racing push collapse via [claimTxId]). */
     val isAppInForeground: Boolean get() = appForeground.value
+
+    /** Reactive form of [isAppInForeground] — drives lifecycle-scoped loops that must start on
+     *  foreground and stop on background (e.g. NextcloudSyncService's remote change watcher). */
+    val appForegroundFlow: StateFlow<Boolean> = appForeground.asStateFlow()
 
     /**
      * Claims [txId] for notification purposes. Returns true when this caller is the first to

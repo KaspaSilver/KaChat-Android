@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -23,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -62,7 +64,15 @@ import javax.inject.Singleton
  *      + battery not low) — catches uploads the in-process paths missed because the process died
  *      first. Enqueued exactly while an account is connected AND the wallet's Automatic Sync
  *      toggle is on; disconnect/sign-out/toggle-off cancels it.
- *   4. **Automatic restore** — when a wallet becomes active with Nextcloud connected (app start,
+ *   4. **Remote change watcher** — while the app is FOREGROUND with an account connected and the
+ *      toggle on, a ~10s Depth-0 PROPFIND polls the shared file's ETag (headers only, no body).
+ *      When the ETag moves, another device wrote the file: download, decrypt, and merge-import
+ *      through the same additive txId-deduped import the restore paths use — silently, one log
+ *      line. The last-known ETag persists per wallet and updates after every import AND every
+ *      upload this device makes (automatic or manual), so a device never re-imports its own
+ *      write. Together with the 15s upload debounce this makes two phones a near-live mirror:
+ *      a message sent on one appears on the other in well under a minute.
+ *   5. **Automatic restore** — when a wallet becomes active with Nextcloud connected (app start,
  *      wallet switch) and when an account is first connected, the shared file (if it exists) is
  *      imported silently through the same additive, txId-deduped import the manual restore uses.
  *      Once per wallet ([restoreDoneKey], set only on a successful import; a missing file leaves
@@ -85,6 +95,9 @@ class NextcloudSyncService @Inject constructor(
     private val walletManager: WalletManager,
     private val nextcloudService: NextcloudService,
     private val backupRestoreCoordinator: BackupRestoreCoordinator,
+    // Foreground flag source for the remote change watcher (KaChatApplication's process
+    // lifecycle observer drives it) — the watcher polls only while the app is on screen.
+    private val notificationHelper: NotificationHelper,
     // Lazy: ChatHistoryExportImportService depends on ChatRepository, which depends (lazily)
     // back on this service for noteMessageActivity — same cycle-break as GoogleDriveSyncService.
     private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>,
@@ -95,8 +108,17 @@ class NextcloudSyncService @Inject constructor(
     companion object {
         private const val TAG = "NextcloudSync"
 
-        /** Quiet time after the last message before the automatic upload runs. */
-        const val DEBOUNCE_MS = 2 * 60 * 1000L
+        /** Quiet time after the last message before the automatic upload runs. Short on purpose:
+         *  paired with the remote change watcher this is what makes the cross-device mirror feel
+         *  near-live (send on one phone, see it on the other within ~45s). Merge semantics make
+         *  frequent uploads safe; the debounce only coalesces bursts. */
+        const val DEBOUNCE_MS = 15 * 1000L
+
+        /** Remote change watcher cadence (foreground only): one Depth-0 PROPFIND per tick. */
+        const val WATCHER_POLL_MS = 10_000L
+
+        /** Watcher backoff after consecutive failed polls: 10s, then 30s, then capped at 60s. */
+        private val WATCHER_BACKOFF_MS = longArrayOf(10_000L, 30_000L, 60_000L)
 
         /** Periodic WorkManager fallback cadence for uploads the in-process paths missed. */
         const val PERIODIC_INTERVAL_HOURS = 6L
@@ -112,6 +134,7 @@ class NextcloudSyncService @Inject constructor(
         private const val KEY_LAST_SYNC_MS = "nextcloud_auto_sync_last_ms"
         private const val KEY_PENDING_CHANGES = "nextcloud_auto_sync_pending"
         private const val KEY_RESTORE_DONE = "nextcloud_auto_restore_done"
+        private const val KEY_LAST_ETAG = "nextcloud_auto_sync_etag"
 
         private fun lastSyncKey(address: String) =
             longPreferencesKey("${KEY_LAST_SYNC_MS}_${NextcloudService.walletHashSuffix(address)}")
@@ -121,6 +144,11 @@ class NextcloudSyncService @Inject constructor(
 
         private fun restoreDoneKey(address: String) =
             booleanPreferencesKey("${KEY_RESTORE_DONE}_${NextcloudService.walletHashSuffix(address)}")
+
+        /** The backup file's last-known WebDAV ETag for this wallet — the watcher's change
+         *  detector AND its own-write guard (updated after every import and every upload). */
+        private fun etagKey(address: String) =
+            stringPreferencesKey("${KEY_LAST_ETAG}_${NextcloudService.walletHashSuffix(address)}")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -169,6 +197,24 @@ class NextcloudSyncService @Inject constructor(
                     val address = walletManager.activeAddressFlow.value
                     if (address != null) launch { maybeAutoRestore(address) }
                 }
+            }
+        }
+
+        // Remote change watcher lifecycle: runs exactly while the app is FOREGROUND, an account
+        // is connected, the Automatic Sync toggle is on, and a wallet is active. Backgrounding,
+        // disconnecting, toggling off (including the Drive exclusivity cross-disable, which goes
+        // through the real setter and so flips this flow), and wallet switches all cancel the
+        // loop via collectLatest; a wallet switch restarts it for the new wallet.
+        scope.launch {
+            combine(
+                notificationHelper.appForegroundFlow,
+                nextcloudService.account,
+                nextcloudService.autoBackupEnabled,
+                walletManager.activeAddressFlow
+            ) { foreground, account, auto, address ->
+                if (foreground && account != null && auto) address else null
+            }.distinctUntilChanged().collectLatest { address ->
+                if (address != null) watchRemoteChanges(address)
             }
         }
 
@@ -272,7 +318,7 @@ class NextcloudSyncService @Inject constructor(
                 // re-marks it, so nothing is lost; clearing after would swallow that signal.
                 dataStore.edit { it[pendingKey(address)] = false }
 
-                nextcloudService.runBackup { remote ->
+                val newEtag = nextcloudService.runBackup { remote ->
                     // Before building the merged archive (the remote copy just downloaded)...
                     if (walletManager.activeAddressFlow.value != address) {
                         throw IOException("The active account changed during the sync.")
@@ -284,7 +330,13 @@ class NextcloudSyncService @Inject constructor(
                     }
                     json
                 }
-                dataStore.edit { it[lastSyncKey(address)] = System.currentTimeMillis() }
+                dataStore.edit {
+                    it[lastSyncKey(address)] = System.currentTimeMillis()
+                    // Own-write guard: the watcher compares against this, so this device's own
+                    // upload never reads as "another device changed the file". A null ETag (rare
+                    // server) just means one harmless re-import of our own merge.
+                    if (newEtag != null) it[etagKey(address)] = newEtag
+                }
                 Log.i(TAG, "Automatic Nextcloud sync uploaded the merged archive")
             }
         } catch (e: CancellationException) {
@@ -333,31 +385,22 @@ class NextcloudSyncService @Inject constructor(
 
                 // No file yet is not an error, and does NOT mark restore done.
                 nextcloudService.fetchBackupInfo() ?: return
+                // Baseline the watcher BEFORE downloading: if the file changes mid-restore, the
+                // stored ETag is the older one and the next watcher poll imports the newer write.
+                val etag = runCatching { nextcloudService.fetchBackupEtag() }.getOrNull()
                 val json = nextcloudService.downloadBackup()
                 if (walletManager.activeAddressFlow.value != address) return
 
-                // The shared file carries its wallet: never import another wallet's history.
-                // Encrypted envelopes expose only the walletHint (checked here without
-                // decrypting; importChatHistory decrypts and re-checks); legacy plaintext files
-                // still carry walletAddress in the clear.
-                if (BackupCrypto.isEnvelope(json)) {
-                    val hint = BackupCrypto.envelopeWalletHint(json)
-                    if (hint != null && hint != BackupCrypto.walletHint(address)) {
-                        Log.w(TAG, "Nextcloud backup belongs to a different wallet; automatic restore skipped")
-                        return
-                    }
-                } else {
-                    val remoteWallet = runCatching {
-                        org.json.JSONObject(json).optString("walletAddress").trim()
-                    }.getOrNull()
-                    if (!remoteWallet.isNullOrEmpty() && remoteWallet != address) {
-                        Log.w(TAG, "Nextcloud backup belongs to a different wallet; automatic restore skipped")
-                        return
-                    }
+                if (!backupBelongsToWallet(address, json)) {
+                    Log.w(TAG, "Nextcloud backup belongs to a different wallet; automatic restore skipped")
+                    return
                 }
 
                 val result = chatHistoryExportImportServiceLazy.get().importChatHistory(json)
-                dataStore.edit { it[restoreDoneKey(address)] = true }
+                dataStore.edit {
+                    it[restoreDoneKey(address)] = true
+                    if (etag != null) it[etagKey(address)] = etag
+                }
                 Log.i(
                     TAG,
                     "Automatic Nextcloud restore finished: ${result.importedMessageCount} messages " +
@@ -373,6 +416,115 @@ class NextcloudSyncService @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Automatic Nextcloud restore failed (will retry on next wallet activation)", e)
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Remote change watcher (the near-live cross-device mirror)
+    // -------------------------------------------------------------------------
+
+    /**
+     * The continuous half of the mirror (the once-per-wallet auto-restore is only the bootstrap):
+     * every [WATCHER_POLL_MS] a Depth-0 PROPFIND asks the server for the shared file's ETag —
+     * headers and a few hundred XML bytes, never the file. A moved ETag means another device
+     * wrote the file; [importRemoteChange] then downloads and merge-imports it. Runs only while
+     * the init observer's conditions hold (foreground + connected + toggle on + this wallet
+     * active) and is cancelled by collectLatest the moment any of them breaks.
+     *
+     * Failed polls back off through [WATCHER_BACKOFF_MS] (10s, 30s, 60s cap) and recover to the
+     * normal cadence on the first success. A tick that would race a manual restore/resync
+     * ([BackupRestoreCoordinator.isRunning]) is skipped, not queued.
+     */
+    private suspend fun watchRemoteChanges(address: String) {
+        var consecutiveFailures = 0
+        while (true) {
+            val delayMs = if (consecutiveFailures == 0) WATCHER_POLL_MS
+            else WATCHER_BACKOFF_MS[minOf(consecutiveFailures, WATCHER_BACKOFF_MS.size) - 1]
+            delay(delayMs)
+            try {
+                if (!isAutoSyncActive(address)) continue
+                if (backupRestoreCoordinator.isRunning) continue
+
+                val etag = nextcloudService.fetchBackupEtag()
+                consecutiveFailures = 0
+                if (etag == null) continue // No backup file yet — nothing to mirror.
+
+                val known = dataStore.data.first()[etagKey(address)]
+                when {
+                    known == null ->
+                        // First observation for this wallet: record the baseline without
+                        // importing — the once-per-wallet auto-restore already covers (or will
+                        // cover) the bootstrap; the watcher only mirrors changes from here on.
+                        dataStore.edit { it[etagKey(address)] = etag }
+                    etag != known ->
+                        importRemoteChange(address, etag)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                consecutiveFailures++
+                Log.w(TAG, "Nextcloud change watcher poll failed (backing off)", e)
+            }
+        }
+    }
+
+    /**
+     * Another device wrote the shared file: download, decrypt, and merge-import it through the
+     * same additive txId-deduped [ChatHistoryExportImportService.importChatHistory] the restore
+     * paths use (imported messages land read), silently — one log line, no UI. Serialized behind
+     * [syncMutex] so it can never interleave with an upload or the auto-restore, with the same
+     * wallet-snapshot re-checks around the import. The stored ETag advances even when the file
+     * turns out to belong to a foreign wallet — that version was seen and judged, so the watcher
+     * must not re-download it every tick. Throws on failure so the caller's backoff engages
+     * (and the ETag stays put, so the next successful poll retries the import).
+     */
+    private suspend fun importRemoteChange(address: String, etag: String) {
+        syncMutex.withLock {
+            if (walletManager.activeAddressFlow.value != address) return
+            if (!isAutoSyncActive(address)) return
+            if (backupRestoreCoordinator.isRunning) return
+
+            val json = nextcloudService.downloadBackup()
+            if (walletManager.activeAddressFlow.value != address) return
+
+            if (backupBelongsToWallet(address, json)) {
+                val result = chatHistoryExportImportServiceLazy.get().importChatHistory(json)
+                Log.i(
+                    TAG,
+                    "Nextcloud change watcher merged another device's update: " +
+                        "${result.importedMessageCount} new messages in ${result.conversationCount} chats"
+                )
+            } else {
+                Log.w(TAG, "Nextcloud backup belongs to a different wallet; watcher import skipped")
+            }
+            dataStore.edit { it[etagKey(address)] = etag }
+        }
+    }
+
+    /**
+     * Records the ETag of a backup THIS device just wrote outside the automatic path (the manual
+     * Back Up Now button) so the change watcher never mistakes the device's own write for
+     * another device's change. Null (server sent no ETag) is a no-op — worst case is one
+     * harmless re-import of our own merge.
+     */
+    fun noteOwnUpload(etag: String?) {
+        if (etag == null) return
+        val address = walletManager.activeAddressFlow.value ?: return
+        scope.launch { dataStore.edit { it[etagKey(address)] = etag } }
+    }
+
+    /** True when the shared file's contents belong to [address] (or carry no wallet marker).
+     *  Encrypted envelopes expose only the walletHint (checked without decrypting;
+     *  importChatHistory decrypts and re-checks); legacy plaintext files carry walletAddress
+     *  in the clear. Shared by the auto-restore and the change watcher. */
+    private fun backupBelongsToWallet(address: String, json: String): Boolean {
+        if (BackupCrypto.isEnvelope(json)) {
+            val hint = BackupCrypto.envelopeWalletHint(json)
+            return hint == null || hint == BackupCrypto.walletHint(address)
+        }
+        val remoteWallet = runCatching {
+            org.json.JSONObject(json).optString("walletAddress").trim()
+        }.getOrNull()
+        return remoteWallet.isNullOrEmpty() || remoteWallet == address
     }
 
     // -------------------------------------------------------------------------
@@ -422,6 +574,7 @@ class NextcloudSyncService @Inject constructor(
                 it.remove(lastSyncKey(walletAddress))
                 it.remove(pendingKey(walletAddress))
                 it.remove(restoreDoneKey(walletAddress))
+                it.remove(etagKey(walletAddress))
             }
         }
     }

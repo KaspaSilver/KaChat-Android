@@ -434,7 +434,10 @@ class ChatViewModel @Inject constructor(
             try {
                 // Merges with whatever is already on the server (and aborts without uploading if
                 // that file can't be read or belongs to another wallet) — see runBackup.
-                nextcloudService.runBackup { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
+                val etag = nextcloudService.runBackup { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
+                // Own-write guard for the automatic change watcher: this manual upload must not
+                // read as "another device changed the file" on the next ETag poll.
+                nextcloudSyncService.noteOwnUpload(etag)
                 _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS, message = "Backed up just now")
                 refreshNextcloudBackupInfo()
             } catch (e: Exception) {

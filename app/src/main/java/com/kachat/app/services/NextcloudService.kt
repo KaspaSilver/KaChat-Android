@@ -738,13 +738,19 @@ class NextcloudService @Inject constructor(
      * The only "just upload" case is a genuine 404 (no backup yet). Every other failure — an
      * unreadable server response, or a [buildJson] that rejects the remote file as foreign,
      * corrupt or a different wallet — throws BEFORE the PUT, leaving the existing file untouched.
+     *
+     * Returns the uploaded file's WebDAV ETag (from the PUT response header, with a Depth-0
+     * PROPFIND fallback for servers that omit it), or null when neither source yielded one.
+     * [NextcloudSyncService] records it so its remote change watcher never mistakes this
+     * device's own write for another device's change.
      */
-    suspend fun runBackup(buildJson: suspend (String?) -> String) {
+    suspend fun runBackup(buildJson: suspend (String?) -> String): String? {
         // Snapshot the account/folder so a wallet switch mid-backup can't redirect the upload.
         val account = requireAccount()
         val folder = backupFolderPath
         val existingRemoteJson = downloadExistingBackup(account, folder)
-        uploadBackup(buildJson(existingRemoteJson), account, folder)
+        val putEtag = uploadBackup(buildJson(existingRemoteJson), account, folder)
+        return putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
     }
 
     /**
@@ -774,8 +780,9 @@ class NextcloudService @Inject constructor(
      * (MKCOL answers 405 when it already exists — fine; a user-picked folder always already
      * exists since it was chosen through the folder browser). Overwrites in place: callers that
      * back chat history up must go through [runBackup] so the body is a merge, not a replacement.
+     * Returns the new file's ETag when the server sends one on the PUT response, else null.
      */
-    private suspend fun uploadBackup(archiveJson: String, account: NextcloudAccount, folder: String) = withContext(Dispatchers.IO) {
+    private suspend fun uploadBackup(archiveJson: String, account: NextcloudAccount, folder: String): String? = withContext(Dispatchers.IO) {
         val folderUrl = davUrl(account, folder)
 
         val mkcol = Request.Builder()
@@ -798,8 +805,77 @@ class NextcloudService @Inject constructor(
         client.newCall(put).execute().use { response ->
             if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
+            normalizeEtag(response.header("ETag") ?: response.header("OC-ETag"))
         }
     }
+
+    /**
+     * The backup file's current WebDAV ETag via a Depth-0 PROPFIND asking for `getetag` only —
+     * headers and a tiny multistatus body, never the file itself. This is the change watcher's
+     * ~10s poll ([NextcloudSyncService]), so it must stay this cheap. Null means no backup file
+     * exists yet (404 on the file or its folder); any other failure throws so the watcher can
+     * back off instead of mistaking an outage for "no change".
+     */
+    suspend fun fetchBackupEtag(): String? {
+        val account = requireAccount()
+        return fetchBackupEtag(account, backupFolderPath)
+    }
+
+    private suspend fun fetchBackupEtag(account: NextcloudAccount, folder: String): String? = withContext(Dispatchers.IO) {
+        val body = """
+            <?xml version="1.0"?>
+            <d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>
+        """.trimIndent().toRequestBody("application/xml".toMediaType())
+        val request = Request.Builder()
+            .url(davUrl(account, "$folder/$BACKUP_FILE_NAME"))
+            .method("PROPFIND", body)
+            .header("Depth", "0")
+            .header("Authorization", basicAuth(account))
+            .build()
+        client.newCall(request).execute().use { response ->
+            when {
+                response.code == 404 -> null
+                response.code == 401 -> throw IOException("Nextcloud rejected the username or app password.")
+                response.code != 207 -> throw IOException("Nextcloud returned HTTP ${response.code}.")
+                else -> {
+                    val xml = response.body?.string() ?: throw IOException("Unexpected response from the Nextcloud server.")
+                    parseEtagFromMultistatus(xml)
+                        ?: throw IOException("Unexpected response from the Nextcloud server.")
+                }
+            }
+        }
+    }
+
+    /** Pulls the first `getetag` value out of a PROPFIND multistatus (namespace-agnostic). */
+    private fun parseEtagFromMultistatus(xml: String): String? {
+        val parser = Xml.newPullParser().apply {
+            setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+            setInput(xml.reader())
+        }
+        var inEtag = false
+        val text = StringBuilder()
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            when (event) {
+                XmlPullParser.START_TAG -> if (parser.name == "getetag") {
+                    inEtag = true
+                    text.setLength(0)
+                }
+                XmlPullParser.TEXT -> if (inEtag) text.append(parser.text)
+                XmlPullParser.END_TAG -> if (parser.name == "getetag") {
+                    normalizeEtag(text.toString())?.let { return it }
+                    inEtag = false
+                }
+            }
+            event = parser.next()
+        }
+        return null
+    }
+
+    /** Strips the weak-validator prefix and surrounding quotes so PUT-header and PROPFIND forms
+     *  of the same ETag compare equal. */
+    private fun normalizeEtag(raw: String?): String? =
+        raw?.trim()?.removePrefix("W/")?.trim('"')?.takeIf { it.isNotEmpty() }
 
     /** The backup file's server-side metadata (null = no backup yet). A missing folder lists as a 404, which also just means "no backup yet". */
     suspend fun fetchBackupInfo(): NextcloudFile? {
