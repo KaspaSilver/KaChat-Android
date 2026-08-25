@@ -4072,6 +4072,15 @@ fun ManageAddressesScreen(
                 // Read-only viewer for addresses currently offered to contacts in LIVE Chats
                 // Payment Privacy pools. Rows expose only Copy Address and Show QR Code; the
                 // offer lifecycle (revoke/supersede/fund) manages these rows, not the user.
+                item {
+                    Text(
+                        "These are fresh addresses offered to your contacts for private payments. Each contact gets their own, so your payment history stays unlinkable. KaChat keeps at least 2 fresh addresses per chat and replaces them as they are used.",
+                        fontSize = 13.sp,
+                        color = LocalAppColors.current.textSecondary,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)
+                    )
+                }
                 if (loading && addresses.isEmpty()) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
