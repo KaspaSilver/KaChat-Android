@@ -504,26 +504,15 @@ class ChatViewModel @Inject constructor(
     enum class DangerZoneOpStatus { IDLE, IN_PROGRESS, SUCCESS, FAILED }
     data class DangerZoneOpState(val status: DangerZoneOpStatus = DangerZoneOpStatus.IDLE, val message: String? = null)
 
-    private val _wipeIncomingState = MutableStateFlow(DangerZoneOpState())
-    val wipeIncomingState: StateFlow<DangerZoneOpState> = _wipeIncomingState.asStateFlow()
-
-    /** Deletes only incoming messages for the active account, then re-syncs full history from the blockchain — sent messages, contacts, and the wallet's keys are untouched. */
-    fun wipeIncomingMessages() {
-        if (_wipeIncomingState.value.status == DangerZoneOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _wipeIncomingState.value = DangerZoneOpState(status = DangerZoneOpStatus.IN_PROGRESS)
-            try {
-                chatRepository.wipeIncomingMessagesAndResync()
-                _wipeIncomingState.value = DangerZoneOpState(status = DangerZoneOpStatus.SUCCESS, message = "Incoming messages wiped. Re-syncing from the blockchain.")
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Wipe incoming messages failed", e)
-                _wipeIncomingState.value = DangerZoneOpState(status = DangerZoneOpStatus.FAILED, message = e.message ?: "Failed")
-            }
-        }
-    }
-
-    fun resetWipeIncomingState() {
-        _wipeIncomingState.value = DangerZoneOpState()
+    /**
+     * "Wipe and Re-sync Incoming Messages" — deletes received messages (all chats when
+     * [contactIds] is null, otherwise just the selected 1:1 conversations), then re-fetches
+     * their history from the blockchain. The whole flow is handed to [restoreCoordinator],
+     * which owns the job in its own scope and drives the same blocking progress modal as a
+     * backup restore — sent messages, contacts, and the wallet's keys are untouched.
+     */
+    fun wipeAndResyncIncomingMessages(contactIds: List<String>?) {
+        backupRestoreCoordinator.startIncomingResync(contactIds)
     }
 
     private val _wipeAccountState = MutableStateFlow(DangerZoneOpState())

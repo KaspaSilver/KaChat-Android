@@ -322,21 +322,88 @@ class ChatRepository @Inject constructor(
         return database.reactionDao().getReactionsForContact(contactId, walletManager.getAddress())
     }
 
+    /** Chats re-fetched + how many received messages exist for the scope once the resync lands — the success summary of a wipe-and-resync. */
+    data class IncomingResyncResult(val chatCount: Int, val messageCount: Int)
+
     /**
-     * "Wipe and re-sync incoming messages" — deletes only received messages for the active
-     * account (sent messages, contacts, and the wallet itself are untouched), resets every sync
-     * cursor back to the start (payment baseline, handshake block_time cursor, and every
-     * per-contact-per-alias message cursor — see [MessageSyncCursorEntity]) so a full re-fetch
-     * happens on the sync that follows instead of picking up where the now-deleted local cache
-     * left off, then triggers that sync immediately. Matches iOS's `wipeIncomingMessagesAndResync`.
+     * The account this destructive flow was started for must still be the active one — a
+     * mid-flow account switch would otherwise wipe/decrypt with the NEW account's keys while
+     * writing rows pinned to the old address. Thrown as a plain failure the caller surfaces.
      */
-    suspend fun wipeIncomingMessagesAndResync() {
-        val myAddress = walletManager.getAddress()
-        database.messageDao().deleteReceivedForWallet(myAddress)
-        database.messageDao().deleteSyncCursorsForWallet(myAddress)
-        settingsRepository.setPaymentSyncBaseline(myAddress, 0L)
-        settingsRepository.setHandshakeSyncCursor(myAddress, 0L)
-        syncMessages()
+    private fun ensureStillActive(address: String) {
+        val current = try { walletManager.getAddress() } catch (e: Exception) { null }
+        if (current != address) {
+            throw IllegalStateException("The active account changed. Switch back to that account and try again.")
+        }
+    }
+
+    /**
+     * Wipe half of "Wipe and re-sync incoming messages" — deletes received messages for
+     * [address] (sent messages, contacts, and the wallet itself are untouched) and resets the
+     * sync cursors so [resyncIncomingMessages] re-fetches full history instead of picking up
+     * where the now-deleted local cache left off. Matches iOS's `wipeIncomingMessagesAndResync`.
+     *
+     * [contactIds] scopes it: null wipes every 1:1 conversation and resets every cursor
+     * (payment baseline, handshake block_time cursor, and every per-contact-per-alias message
+     * cursor — see [MessageSyncCursorEntity]); a list wipes only those conversations' received
+     * messages and resets only their per-contact cursors. The handshake cursor is wallet-global
+     * (no per-contact variant exists), so a scoped wipe rewinds it too — the re-scan is purely
+     * additive for unselected chats because their handshake rows still exist and every insert
+     * is txId-deduped. The payment baseline is left alone in scoped mode: it is a fixed
+     * first-run floor, not a moving cursor, so the selected chats' deleted payment bubbles
+     * re-fetch anyway, and rewinding it to 0 would dredge up pre-install payment history from
+     * strangers the user never selected.
+     */
+    suspend fun wipeIncomingMessages(address: String, contactIds: List<String>?) {
+        ensureStillActive(address)
+        if (contactIds == null) {
+            database.messageDao().deleteReceivedForWallet(address)
+            database.messageDao().deleteSyncCursorsForWallet(address)
+            settingsRepository.setPaymentSyncBaseline(address, 0L)
+        } else {
+            if (contactIds.isEmpty()) return
+            database.messageDao().deleteReceivedForContacts(address, contactIds)
+            database.messageDao().deleteSyncCursorsForContacts(address, contactIds)
+        }
+        settingsRepository.setHandshakeSyncCursor(address, 0L)
+    }
+
+    /**
+     * Re-fetch half of "Wipe and re-sync incoming messages" — the same passes as [syncMessages]
+     * (handshakes in/out, contextual messages, payments) but pinned to the [address] the flow
+     * started with, scoped to [contactIds] (null = all), and reporting per-chat progress for
+     * the blocking modal. Aborts (throws) if the active account changes mid-flow — every write
+     * so far is pinned to [address] and the poll loop finishes the job when that account is
+     * active again, so stopping is always safe.
+     */
+    suspend fun resyncIncomingMessages(
+        address: String,
+        contactIds: List<String>?,
+        onChatProgress: suspend (done: Int, total: Int) -> Unit
+    ): IncomingResyncResult {
+        ensureStillActive(address)
+        val api = networkService.indexerApi.value
+            ?: throw IllegalStateException("Not connected to the message indexer. Check your connection and try again.")
+        liveBaselineMs = settingsRepository.liveNotificationBaseline(address)
+
+        syncHandshakes(address, api)
+        syncOutgoingHandshakes(address, api)
+        val chatCount = syncContextualMessages(
+            address, api,
+            onlyContactIds = contactIds?.toSet()
+        ) { done, total ->
+            ensureStillActive(address)
+            onChatProgress(done, total)
+        }
+        ensureStillActive(address)
+        networkService.kaspaRestApi.value?.let { syncPayments(address, it) }
+
+        val messageCount = if (contactIds == null) {
+            database.messageDao().countReceivedForWallet(address)
+        } else {
+            database.messageDao().countReceivedForContacts(address, contactIds)
+        }
+        return IncomingResyncResult(chatCount = chatCount, messageCount = messageCount)
     }
 
     /** Deletes every local message and contact for [address] — used when wiping an account entirely. Does not touch the wallet's keys (see WalletManager.deleteAccount) or any Google Drive backup. */
@@ -540,17 +607,29 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    private suspend fun syncContextualMessages(myAddress: String, api: KasiaIndexerApi) {
+    /**
+     * [onlyContactIds] (a wipe-and-resync scope) restricts the fetch to just those contacts;
+     * null (every normal sync) syncs them all. [onContactDone] fires after each contact's
+     * streams finish — the per-chat progress feed for the blocking resync modal (it may throw
+     * to abort the loop, e.g. on an account switch). Returns how many contacts were synced.
+     */
+    private suspend fun syncContextualMessages(
+        myAddress: String,
+        api: KasiaIndexerApi,
+        onlyContactIds: Set<String>? = null,
+        onContactDone: (suspend (done: Int, total: Int) -> Unit)? = null
+    ): Int {
         // Fetch for BOTH active and pending contacts. Gating the FETCH on "active" made a
         // mis-classified conversation unrecoverable: after a fresh import every peer-initiated
         // conversation derives "pending" (the local evidence that you accepted it was wiped),
         // and its history was then never requested at all — the thread stayed empty forever.
         // "Pending" still gates DISPLAY (the stranger banner hides messages until accepted);
         // rejected contacts stay excluded.
-        val syncableContacts = database.contactDao().getContactsByStatus("active", myAddress) +
+        var syncableContacts = database.contactDao().getContactsByStatus("active", myAddress) +
             database.contactDao().getContactsByStatus("pending", myAddress)
+        onlyContactIds?.let { ids -> syncableContacts = syncableContacts.filter { it.id in ids } }
 
-        for (contact in syncableContacts) {
+        for ((index, contact) in syncableContacts.withIndex()) {
             // See processHandshake's identical tombstone check — still needed even with the
             // block_time cursor below, since a newly re-created contact's first-ever sync has no
             // cursor yet and could otherwise surface old pre-deletion messages.
@@ -594,7 +673,9 @@ class ChatRepository @Inject constructor(
                     )
                 }
             }
+            onContactDone?.invoke(index + 1, syncableContacts.size)
         }
+        return syncableContacts.size
     }
 
     /**

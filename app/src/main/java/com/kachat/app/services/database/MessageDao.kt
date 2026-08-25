@@ -80,6 +80,18 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE walletAddress = :walletAddress AND direction = 'received'")
     suspend fun deleteReceivedForWallet(walletAddress: String)
 
+    /** Scoped variant of [deleteReceivedForWallet] — only the selected conversations' received messages. */
+    @Query("DELETE FROM messages WHERE walletAddress = :walletAddress AND direction = 'received' AND contactId IN (:contactIds)")
+    suspend fun deleteReceivedForContacts(walletAddress: String, contactIds: List<String>)
+
+    /** Post-resync count for the success summary ("Re-synced N messages"). */
+    @Query("SELECT COUNT(*) FROM messages WHERE walletAddress = :walletAddress AND direction = 'received'")
+    suspend fun countReceivedForWallet(walletAddress: String): Int
+
+    /** Scoped variant of [countReceivedForWallet] for a chat-scoped resync. */
+    @Query("SELECT COUNT(*) FROM messages WHERE walletAddress = :walletAddress AND direction = 'received' AND contactId IN (:contactIds)")
+    suspend fun countReceivedForContacts(walletAddress: String, contactIds: List<String>): Int
+
     /** Every message with one specific contact, gone — used by ChatRepository.deleteChat's full-removal flow. */
     @Query("DELETE FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress")
     suspend fun deleteAllForContact(contactId: String, walletAddress: String)
@@ -126,4 +138,8 @@ interface MessageDao {
     /** Clears this one contact's sync cursors — used by ChatRepository.deleteChat so a later re-handshake with the same address starts its indexer sync clean instead of resuming from a stale cursor left over from before the deletion. */
     @Query("DELETE FROM message_sync_cursors WHERE contactId = :contactId AND walletAddress = :walletAddress")
     suspend fun deleteSyncCursorsForContact(contactId: String, walletAddress: String)
+
+    /** Multi-contact variant of [deleteSyncCursorsForContact] — a chat-scoped "wipe and re-sync" resets only the selected conversations' cursors so only their history re-fetches. */
+    @Query("DELETE FROM message_sync_cursors WHERE walletAddress = :walletAddress AND contactId IN (:contactIds)")
+    suspend fun deleteSyncCursorsForContacts(walletAddress: String, contactIds: List<String>)
 }

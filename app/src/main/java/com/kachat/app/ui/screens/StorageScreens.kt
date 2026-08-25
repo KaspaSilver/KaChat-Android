@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cached
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
@@ -341,7 +342,10 @@ fun NextcloudStorageScreen(
 
 /**
  * The blocking chat-restore modal — the Android port of iOS's `ChatRestoreProgressModal`
- * (SettingsView.swift). Rendered as an in-composition full-screen Box over the storage page
+ * (SettingsView.swift). Also fronts the Danger Zone's "Wipe and Re-sync Incoming Messages"
+ * ([BackupRestoreCoordinator.startIncomingResync]) with the same phases and buttons —
+ * [BackupRestoreCoordinator.kind] just swaps the copy. Rendered as an in-composition
+ * full-screen Box over the storage page
  * (same pattern as the KaPosts thread overlay — a Compose Dialog would never honor MATCH_PARENT
  * here), so while a restore runs the user cannot leave:
  *   * the opaque overlay claims the hit test for the whole screen, so the page underneath
@@ -358,6 +362,8 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
     if (phase is BackupRestoreCoordinator.Phase.Idle) return
     val fraction by coordinator.fraction.collectAsState()
     val stageText by coordinator.stageText.collectAsState()
+    val kind by coordinator.kind.collectAsState()
+    val isResync = kind == BackupRestoreCoordinator.Kind.RESYNC
     val colors = LocalAppColors.current
 
     BackHandler { coordinator.dismiss() }
@@ -385,12 +391,15 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                 is BackupRestoreCoordinator.Phase.Idle -> {}
                 is BackupRestoreCoordinator.Phase.Running -> {
                     Icon(
-                        Icons.Default.CloudDownload,
+                        if (isResync) Icons.Default.Cached else Icons.Default.CloudDownload,
                         contentDescription = null,
                         tint = KaspaTeal,
                         modifier = Modifier.size(40.dp)
                     )
-                    Text("Restoring Backup", color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (isResync) "Re-syncing Messages" else "Restoring Backup",
+                        color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                    )
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val animatedFraction by animateFloatAsState(fraction, label = "restoreProgress")
                         LinearProgressIndicator(
@@ -418,7 +427,11 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         }
                     }
                     Text(
-                        "Please keep the app open. Leaving now could corrupt your chat history.",
+                        if (isResync) {
+                            "Please keep the app open. Leaving now could leave your chat history incomplete."
+                        } else {
+                            "Please keep the app open. Leaving now could corrupt your chat history."
+                        },
                         color = colors.textSecondary,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center
@@ -431,9 +444,16 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         tint = Color(0xFF34C759),
                         modifier = Modifier.size(44.dp)
                     )
-                    Text("Restore Complete", color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "Restored ${current.messages} messages from ${current.conversations} chats.",
+                        if (isResync) "Re-sync Complete" else "Restore Complete",
+                        color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        if (isResync) {
+                            "Re-synced ${current.messages} incoming messages across ${current.conversations} chats."
+                        } else {
+                            "Restored ${current.messages} messages from ${current.conversations} chats."
+                        },
                         color = colors.textSecondary,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
@@ -453,7 +473,10 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         tint = Color(0xFFFF9500),
                         modifier = Modifier.size(44.dp)
                     )
-                    Text("Restore Failed", color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (isResync) "Re-sync Failed" else "Restore Failed",
+                        color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                    )
                     Text(
                         current.message,
                         color = colors.textSecondary,

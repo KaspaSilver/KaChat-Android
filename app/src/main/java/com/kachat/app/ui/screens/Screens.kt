@@ -7297,6 +7297,12 @@ fun SettingsScreen(
         walletViewModel.refreshBalance()
     }
 
+    // Danger Zone "Wipe and Re-sync" flow: the chat picker and the blocking progress modal
+    // render as full-screen overlays over the whole Scaffold (same in-composition Box pattern
+    // as ChatRestoreProgressOverlay on the storage pages), so their visibility lives up here.
+    var showResyncChatPicker by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -7583,131 +7589,99 @@ fun SettingsScreen(
 
             if (sectionKey == "danger_zone") {
             SettingsSection(title = stringResource(R.string.danger_zone)) {
-                val activeAddress by walletViewModel.address.collectAsState()
-                val wipeIncomingState by chatViewModel.wipeIncomingState.collectAsState()
-                val wipeAccountState by chatViewModel.wipeAccountState.collectAsState()
-                var showWipeIncomingConfirm by remember { mutableStateOf(false) }
-                var showWipeAccountConfirm by remember { mutableStateOf(false) }
-                var showWipeAccountCloudConfirm by remember { mutableStateOf(false) }
+                val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
+                val resyncPhase by chatViewModel.restoreCoordinator.phase.collectAsState()
+                var showResyncScopeDialog by remember { mutableStateOf(false) }
+                var showDriveWipeConfirm by remember { mutableStateOf(false) }
+                // The shared Drive op state also carries backup/restore results from the storage
+                // pages; only surface it here once a wipe was actually requested from this row.
+                var driveWipeRequested by remember { mutableStateOf(false) }
 
-                val wipeIncomingInFlight = wipeIncomingState.status == ChatViewModel.DangerZoneOpStatus.IN_PROGRESS
-                val wipeAccountInFlight = wipeAccountState.status == ChatViewModel.DangerZoneOpStatus.IN_PROGRESS
+                val resyncInFlight = resyncPhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
+                val driveWipeInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
 
+                // Runs through the BackupRestoreCoordinator: scope chooser first (All Chats or a
+                // multi-select of conversations), then the same un-leavable progress modal as a
+                // backup restore. See the overlays after this Scaffold.
                 SettingsActionItem(
-                    label = if (wipeIncomingInFlight) "Wiping..." else "Wipe and re-sync incoming messages",
+                    label = "Wipe and Re-sync Incoming Messages",
                     icon = Icons.Default.Cached,
-                    color = if (wipeIncomingInFlight) Color.Gray else Color.Red
+                    color = if (resyncInFlight) Color.Gray else Color.Red
                 ) {
-                    if (!wipeIncomingInFlight) showWipeIncomingConfirm = true
-                }
-                if (wipeIncomingState.status == ChatViewModel.DangerZoneOpStatus.SUCCESS || wipeIncomingState.status == ChatViewModel.DangerZoneOpStatus.FAILED) {
-                    SettingsFooter(wipeIncomingState.message ?: "Done")
+                    if (!resyncInFlight) showResyncScopeDialog = true
                 }
                 SettingsDivider()
+                // 4.0 (matches iOS): the old combined "wipe account & messages (& Cloud)"
+                // entries are gone. This row touches ONLY the current wallet's Google Drive
+                // backup file (ChatViewModel.deleteDriveBackup); the account, local messages,
+                // and other wallets' backups stay. Account removal keeps its own flow on the
+                // accounts screen (WalletViewModel.deleteWallet).
                 SettingsActionItem(
-                    label = if (wipeAccountInFlight) "Wiping..." else "Wipe account & messages",
-                    icon = Icons.Default.PersonRemoveAlt1,
-                    color = if (wipeAccountInFlight) Color.Gray else Color.Red
-                ) {
-                    if (!wipeAccountInFlight && activeAddress != null) showWipeAccountConfirm = true
-                }
-                SettingsDivider()
-                SettingsActionItem(
-                    label = if (wipeAccountInFlight) "Wiping..." else "Wipe account & messages & Cloud",
+                    label = if (driveWipeInFlight) "Wiping..." else "Wipe Google Drive Backup",
                     icon = Icons.Default.CloudOff,
-                    color = if (wipeAccountInFlight) Color.Gray else Color.Red
+                    color = if (driveWipeInFlight) Color.Gray else Color.Red
                 ) {
-                    if (!wipeAccountInFlight && activeAddress != null) showWipeAccountCloudConfirm = true
+                    if (!driveWipeInFlight) showDriveWipeConfirm = true
                 }
-                if (wipeAccountState.status == ChatViewModel.DangerZoneOpStatus.FAILED) {
-                    SettingsFooter(wipeAccountState.message ?: "Failed")
+                if (driveWipeRequested && (googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.SUCCESS || googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.FAILED)) {
+                    SettingsFooter(googleBackupOpState.message ?: "Done")
                 }
 
-                if (showWipeIncomingConfirm) {
+                if (showResyncScopeDialog) {
                     AlertDialog(
-                        onDismissRequest = { showWipeIncomingConfirm = false },
+                        onDismissRequest = { showResyncScopeDialog = false },
                         containerColor = LocalAppColors.current.surface,
-                        title = { Text(stringResource(R.string.wipe_and_re_sync_incoming_messages), color = LocalAppColors.current.textPrimary) },
+                        title = { Text("Wipe and Re-sync Incoming Messages", color = LocalAppColors.current.textPrimary) },
                         text = {
                             Text(
-                                stringResource(R.string.this_removes_all_incoming_messages_locally),
+                                "This removes incoming messages from this device, then re-syncs them from the blockchain. Your account info and sent messages are preserved. Re-sync every chat, or only chats you select.",
                                 color = LocalAppColors.current.textSecondary
                             )
                         },
                         confirmButton = {
-                            TextButton(onClick = {
-                                showWipeIncomingConfirm = false
-                                chatViewModel.wipeIncomingMessages()
-                            }) {
-                                Text(stringResource(R.string.wipe_incoming_messages), color = Color.Red, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showWipeIncomingConfirm = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                            Column(horizontalAlignment = Alignment.End) {
+                                TextButton(onClick = {
+                                    showResyncScopeDialog = false
+                                    chatViewModel.wipeAndResyncIncomingMessages(null)
+                                }) {
+                                    Text("All Chats", color = Color.Red, fontWeight = FontWeight.Bold)
+                                }
+                                TextButton(onClick = {
+                                    showResyncScopeDialog = false
+                                    showResyncChatPicker = true
+                                }) {
+                                    Text("Select Chats", color = KaspaTeal)
+                                }
+                                TextButton(onClick = { showResyncScopeDialog = false }) {
+                                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                                }
                             }
                         }
                     )
                 }
 
-                if (showWipeAccountConfirm) {
-                    val address = activeAddress
+                if (showDriveWipeConfirm) {
                     AlertDialog(
-                        onDismissRequest = { showWipeAccountConfirm = false },
+                        onDismissRequest = { showDriveWipeConfirm = false },
                         containerColor = LocalAppColors.current.surface,
-                        title = { Text(stringResource(R.string.wipe_account_messages), color = LocalAppColors.current.textPrimary) },
+                        title = { Text("Wipe Google Drive Backup?", color = LocalAppColors.current.textPrimary) },
                         text = {
                             Text(
-                                stringResource(R.string.this_permanently_deletes_this_account_s),
+                                "This deletes this wallet's chat history backup file from your Google Drive. Your account and the messages on this device stay as they are. Only the Drive copy is deleted, and other wallets' backups are not affected.",
                                 color = LocalAppColors.current.textSecondary
                             )
                         },
                         confirmButton = {
                             TextButton(onClick = {
-                                showWipeAccountConfirm = false
-                                if (address != null) {
-                                    chatViewModel.wipeAccountAndMessages(address, alsoDeleteCloud = false) {
-                                        walletViewModel.deleteWallet(address)
-                                    }
-                                }
+                                showDriveWipeConfirm = false
+                                driveWipeRequested = true
+                                chatViewModel.deleteDriveBackup()
                             }) {
-                                Text(stringResource(R.string.wipe_account), color = Color.Red, fontWeight = FontWeight.Bold)
+                                Text("Wipe Backup", color = Color.Red, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showWipeAccountConfirm = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                            }
-                        }
-                    )
-                }
-
-                if (showWipeAccountCloudConfirm) {
-                    val address = activeAddress
-                    AlertDialog(
-                        onDismissRequest = { showWipeAccountCloudConfirm = false },
-                        containerColor = LocalAppColors.current.surface,
-                        title = { Text(stringResource(R.string.wipe_account_messages_cloud), color = LocalAppColors.current.textPrimary) },
-                        text = {
-                            Text(
-                                stringResource(R.string.this_permanently_deletes_this_account_s_2),
-                                color = LocalAppColors.current.textSecondary
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showWipeAccountCloudConfirm = false
-                                if (address != null) {
-                                    chatViewModel.wipeAccountAndMessages(address, alsoDeleteCloud = true) {
-                                        walletViewModel.deleteWallet(address)
-                                    }
-                                }
-                            }) {
-                                Text(stringResource(R.string.wipe_everything), color = Color.Red, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showWipeAccountCloudConfirm = false }) {
+                            TextButton(onClick = { showDriveWipeConfirm = false }) {
                                 Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                             }
                         }
@@ -7717,6 +7691,147 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(100.dp))
+        }
+    }
+
+    // Danger Zone overlays, over the whole settings Scaffold: the scoped-resync chat picker,
+    // and the same blocking progress modal the storage pages use for restores (the coordinator
+    // owns the job in its own scope; the overlay is un-leavable while it runs).
+    if (sectionKey == "danger_zone") {
+        if (showResyncChatPicker) {
+            ResyncChatPickerOverlay(
+                chatViewModel = chatViewModel,
+                onStart = { ids ->
+                    showResyncChatPicker = false
+                    chatViewModel.wipeAndResyncIncomingMessages(ids)
+                },
+                onDismiss = { showResyncChatPicker = false }
+            )
+        }
+        ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
+    }
+    }
+}
+
+/**
+ * Full-screen chooser for a chat-scoped "Wipe and Re-sync Incoming Messages" — the same
+ * in-composition overlay pattern as [ChatRestoreProgressOverlay], listing the account's 1:1
+ * conversations in chat-list row styling (avatar, name, short address) with a checkbox per
+ * chat. Groups are not listed: the wipe has only ever covered 1:1 message history.
+ */
+@Composable
+private fun ResyncChatPickerOverlay(
+    chatViewModel: ChatViewModel,
+    onStart: (List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val conversations by chatViewModel.conversations.collectAsState()
+    val colors = LocalAppColors.current
+    val selected = remember { mutableStateListOf<String>() }
+
+    BackHandler { onDismiss() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            // Claims the hit test so the settings page underneath is unreachable while choosing.
+            .pointerInput(Unit) { detectTapGestures { } }
+            .statusBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel), tint = colors.textPrimary)
+            }
+            Text(
+                "Select Chats to Re-sync",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        }
+        Text(
+            "Only the chats you select are wiped and re-synced from the blockchain. Every other chat keeps its history untouched.",
+            color = colors.textSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(conversations, key = { it.contact.id }) { convo ->
+                val isSelected = convo.contact.id in selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (isSelected) selected.remove(convo.contact.id) else selected.add(convo.contact.id)
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ContactAvatar(
+                        imageUrl = convo.contact.knsAvatarUrl,
+                        deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
+                        backupPhotoBase64 = convo.contact.backupPhotoBase64,
+                        fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
+                        size = 48.dp
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = convo.contact.alias ?: KaspaAddress.shortDisplay(convo.contact.id),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = KaspaAddress.shortDisplay(convo.contact.id),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                if (!isSelected) selected.add(convo.contact.id)
+                            } else {
+                                selected.remove(convo.contact.id)
+                            }
+                        },
+                        colors = CheckboxDefaults.colors(checkedColor = KaspaTeal)
+                    )
+                }
+            }
+        }
+        Button(
+            onClick = { onStart(selected.toList()) },
+            enabled = selected.isNotEmpty(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Red,
+                disabledContainerColor = colors.surfaceVariant
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .navigationBarsPadding()
+        ) {
+            Text(
+                when {
+                    selected.isEmpty() -> "Wipe and Re-sync"
+                    selected.size == 1 -> "Wipe and Re-sync 1 Chat"
+                    else -> "Wipe and Re-sync ${selected.size} Chats"
+                },
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
