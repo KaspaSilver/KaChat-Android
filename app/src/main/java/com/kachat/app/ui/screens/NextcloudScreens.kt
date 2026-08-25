@@ -805,7 +805,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 chatViewModel.setNextcloudAutoSyncEnabled(enabled)
             }
             SettingsFooter(
-                if (autoBackupEnabled) {
+                (if (autoBackupEnabled) {
                     val lastSyncedText = lastAutoSyncMs?.let {
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
                     }
@@ -813,7 +813,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                         if (lastSyncedText != null) "Last synced: $lastSyncedText." else "Waiting for the first sync."
                 } else {
                     "Turn on to keep this server's backup current automatically whenever you send or receive messages."
-                }
+                }) + " Automatic sync works with one cloud service at a time."
             )
             SettingsDivider()
             SettingsSwitchItem("Send Media via Nextcloud", mediaSendEnabled) { enabled ->

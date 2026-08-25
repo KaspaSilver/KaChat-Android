@@ -87,7 +87,10 @@ class NextcloudSyncService @Inject constructor(
     private val backupRestoreCoordinator: BackupRestoreCoordinator,
     // Lazy: ChatHistoryExportImportService depends on ChatRepository, which depends (lazily)
     // back on this service for noteMessageActivity — same cycle-break as GoogleDriveSyncService.
-    private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>
+    private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>,
+    // Lazy: one-cloud-at-a-time exclusivity — the two sync services cross-disable each other
+    // through their real setters, so each holds the other lazily to break the DI cycle.
+    private val googleDriveSyncServiceLazy: dagger.Lazy<GoogleDriveSyncService>
 ) {
     companion object {
         private const val TAG = "NextcloudSync"
@@ -370,8 +373,18 @@ class NextcloudSyncService @Inject constructor(
      * auto-backup switch ([NextcloudService.setAutoBackupEnabled], same stored scoped key).
      * Turning it on marks the archive dirty so the first sync happens promptly (and the
      * worker-scheduling observer reacts to the flow); turning it off drops the pending debounce.
+     *
+     * One cloud at a time: turning this on first turns Automatic Drive Sync off through ITS
+     * real setter (explicit off, pending debounce dropped, its worker observer reacts) —
+     * checked BEFORE the Nextcloud toggle flips, so the Drive state read is the pre-change
+     * snapshot, and only when Drive sync is actually in effect (signed in and resolving on): a
+     * never-signed-in Drive keeps its clean default state.
      */
     fun setAutoSyncEnabled(enabled: Boolean) {
+        if (enabled) {
+            val drive = googleDriveSyncServiceLazy.get()
+            if (drive.isEffectivelyOn) drive.setAutoSyncEnabled(false)
+        }
         nextcloudService.setAutoBackupEnabled(enabled)
         val address = walletManager.activeAddressFlow.value ?: return
         if (enabled) {

@@ -431,6 +431,12 @@ class NextcloudService @Inject constructor(
         _autoBackupEnabled.value = enabled
     }
 
+    /** Reads [walletAddress]'s persisted Automatic Sync toggle straight from storage, without
+     *  waiting for the active-wallet state swap — the timing-independent read the
+     *  one-cloud-at-a-time reconciliation in [GoogleDriveSyncService] uses at wallet activation. */
+    fun isAutoBackupEnabledFor(walletAddress: String): Boolean =
+        prefs.getBoolean(scopedKey(PREF_AUTO_BACKUP_ENABLED, walletHashSuffix(walletAddress)), false)
+
     fun setMediaSendEnabled(enabled: Boolean) {
         val key = scopedKey(PREF_MEDIA_SEND_ENABLED) ?: return
         prefs.edit().putBoolean(key, enabled).apply()

@@ -93,7 +93,12 @@ class GoogleDriveSyncService @Inject constructor(
     // back on this service for noteMessageActivity — same cycle-break as ChatRepository's own
     // chatHistoryExportImportServiceLazy.
     private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>,
-    private val chatRepositoryLazy: dagger.Lazy<ChatRepository>
+    private val chatRepositoryLazy: dagger.Lazy<ChatRepository>,
+    // One-cloud-at-a-time exclusivity: NextcloudService (cycle-free, read-only here) supplies
+    // the other cloud's Automatic Sync state; the sibling sync service is Lazy because the two
+    // sync services cross-disable each other through their real setters.
+    private val nextcloudService: NextcloudService,
+    private val nextcloudSyncServiceLazy: dagger.Lazy<NextcloudSyncService>
 ) {
     companion object {
         private const val TAG = "GoogleDriveSync"
@@ -140,13 +145,39 @@ class GoogleDriveSyncService @Inject constructor(
      * The ACTIVE wallet's "Automatic Drive Sync" toggle. Defaults ON: once the user signs into
      * Drive backup, automatic sync is the expected behavior (iCloud parity), and the master
      * "Back up to Google Drive" switch still gates everything.
+     *
+     * One cloud at a time: automatic sync is mutually exclusive with Nextcloud Automatic Sync.
+     * While the wallet has no explicit choice stored, the default resolves to OFF whenever the
+     * account already has Nextcloud Automatic Sync on — an existing Nextcloud choice is the
+     * user's choice, and the Drive sign-in default must not silently win over it. An explicit
+     * stored value always wins over the default (the setters keep explicit values exclusive).
      */
     val autoSyncEnabled: StateFlow<Boolean> = walletManager.activeAddressFlow
         .flatMapLatest { address ->
             if (address == null) flowOf(false)
-            else dataStore.data.map { it[enabledKey(address)] ?: true }
+            else combine(
+                dataStore.data,
+                nextcloudService.account,
+                nextcloudService.autoBackupEnabled
+            ) { prefs, ncAccount, ncAuto ->
+                prefs[enabledKey(address)] ?: !(ncAccount != null && ncAuto)
+            }
         }
-        .stateIn(scope, SharingStarted.Eagerly, walletManager.activeAddressFlow.value != null)
+        .stateIn(
+            scope,
+            SharingStarted.Eagerly,
+            walletManager.activeAddressFlow.value != null &&
+                !(nextcloudService.isConnected && nextcloudService.autoBackupEnabled.value)
+        )
+
+    /**
+     * Snapshot for the mutual-exclusivity check: signed into Drive backup AND the active
+     * wallet's Automatic Drive Sync toggle currently resolves on. [NextcloudSyncService] reads
+     * this before enabling its own automatic sync so it only cross-disables a Drive sync that
+     * is actually in effect (a never-signed-in Drive keeps its clean default-on state).
+     */
+    val isEffectivelyOn: Boolean
+        get() = googleDriveBackupService.isSignedIn && autoSyncEnabled.value
 
     /** When the ACTIVE wallet's archive last uploaded automatically (epoch ms), null = never. */
     val lastAutoSyncMs: StateFlow<Long?> = walletManager.activeAddressFlow
@@ -176,6 +207,51 @@ class GoogleDriveSyncService @Inject constructor(
                     launch { maybeAutoRestore(address, force = false) }
                 }
             }
+        }
+
+        // One-cloud-at-a-time reconciliation for state persisted by older builds: a wallet that
+        // arrives with BOTH Automatic Drive Sync explicitly on and Nextcloud Automatic Sync on
+        // keeps Drive (the platform-native default) and turns the Nextcloud toggle off through
+        // its real setter. One-shot per wallet activation, from persisted state only — new
+        // states can't need it (each setter cross-disables the other), and a wallet whose Drive
+        // key is ABSENT never triggers it: the default resolution in [autoSyncEnabled] already
+        // treats an existing Nextcloud-on as the user's choice and resolves Drive to off
+        // without writing anything.
+        scope.launch {
+            walletManager.activeAddressFlow.collect { address ->
+                if (address != null) {
+                    launch { reconcileExclusivity(address) }
+                }
+            }
+        }
+    }
+
+    /**
+     * The legacy both-persisted-on cleanup described in the init block. Reads both toggles
+     * straight from persisted storage (timing-independent of the per-wallet state swaps) and
+     * additionally waits for [NextcloudService]'s live flow to agree before acting, so it can
+     * never race a wallet switch or a user's fresh toggle into reverting anything.
+     */
+    private suspend fun reconcileExclusivity(address: String) {
+        try {
+            if (dataStore.data.first()[enabledKey(address)] != true) return
+            if (!nextcloudService.isAutoBackupEnabledFor(address)) return
+            if (!settingsRepository.googleBackupEnabled.first()) return
+
+            // Let the wallet-activation state swaps settle, then require the live flow (the
+            // CURRENT wallet's toggle) to agree with the persisted read; if it doesn't, the
+            // service still points at another wallet — bail, the next activation retries.
+            delay(500)
+            if (walletManager.activeAddressFlow.value != address) return
+            if (!nextcloudService.autoBackupEnabled.value) return
+            if (dataStore.data.first()[enabledKey(address)] != true) return
+
+            Log.i(TAG, "Both cloud auto syncs were persisted on for this wallet; keeping Automatic Drive Sync and turning Nextcloud Automatic Sync off")
+            nextcloudSyncServiceLazy.get().setAutoSyncEnabled(false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "One-cloud-at-a-time reconciliation failed (next wallet activation retries)", e)
         }
     }
 
@@ -284,7 +360,12 @@ class GoogleDriveSyncService @Inject constructor(
      */
     private suspend fun maybeAutoRestore(address: String, force: Boolean) {
         try {
-            if (!isAutoSyncActive(address)) return
+            // Deliberately independent of the Automatic Drive Sync toggle (which is mutually
+            // exclusive with Nextcloud Automatic Sync): being signed into Drive backup is
+            // enough to bring this wallet's own backup down, exactly like the Nextcloud
+            // sibling restores whenever an account is connected.
+            if (!settingsRepository.googleBackupEnabled.first()) return
+            if (!googleDriveBackupService.isSignedIn) return
             if (!force && (dataStore.data.first()[restoreDoneKey(address)] == true)) return
             if (backupRestoreCoordinator.isRunning) return
             if (!googleDriveBackupService.ensureAccessTokenSilently()) return
@@ -327,9 +408,18 @@ class GoogleDriveSyncService @Inject constructor(
     // Settings + lifecycle
     // -------------------------------------------------------------------------
 
-    /** Flips the ACTIVE wallet's Automatic Drive Sync toggle. Turning it on marks the archive dirty so the first upload happens promptly. */
+    /**
+     * Flips the ACTIVE wallet's Automatic Drive Sync toggle. Turning it on marks the archive
+     * dirty so the first upload happens promptly — and, one cloud at a time, turns Nextcloud
+     * Automatic Sync off first through its real setter (explicit off, pending debounce dropped,
+     * its worker observer reacts), BEFORE this wallet's Drive value lands so the reconciliation
+     * observer never sees a both-on window.
+     */
     fun setAutoSyncEnabled(enabled: Boolean) {
         val address = walletManager.activeAddressFlow.value ?: return
+        if (enabled && nextcloudService.autoBackupEnabled.value) {
+            nextcloudSyncServiceLazy.get().setAutoSyncEnabled(false)
+        }
         scope.launch {
             dataStore.edit {
                 it[enabledKey(address)] = enabled
@@ -343,10 +433,16 @@ class GoogleDriveSyncService @Inject constructor(
         }
     }
 
-    /** Called after a successful explicit Drive sign-in: force a restore pass for the active wallet (dedupe makes it additive) and make sure the fallback work is scheduled. */
+    /**
+     * Called after a successful explicit Drive sign-in: force a restore pass for the active
+     * wallet (dedupe makes it additive) and make sure the fallback work is scheduled. The work
+     * is only enqueued when the toggle currently resolves on — if Nextcloud Automatic Sync
+     * already owns automatic sync, the sign-in default resolves off and no worker starts (the
+     * restore pass still runs; restore is independent of the sync toggles).
+     */
     fun onSignedIn() {
         val address = walletManager.activeAddressFlow.value ?: return
-        ensurePeriodicWork()
+        if (autoSyncEnabled.value) ensurePeriodicWork()
         scope.launch { maybeAutoRestore(address, force = true) }
     }
 
@@ -394,11 +490,16 @@ class GoogleDriveSyncService @Inject constructor(
         }
     }
 
-    /** Master switch (signed into Drive backup) AND this wallet's own auto-sync toggle. */
+    /**
+     * Master switch (signed into Drive backup) AND this wallet's own auto-sync toggle. The
+     * no-explicit-value default mirrors [autoSyncEnabled]: ON, unless Nextcloud Automatic Sync
+     * is already on for this account (one cloud service at a time).
+     */
     private suspend fun isAutoSyncActive(address: String): Boolean {
         if (!settingsRepository.googleBackupEnabled.first()) return false
         if (!googleDriveBackupService.isSignedIn) return false
-        return dataStore.data.first()[enabledKey(address)] ?: true
+        return dataStore.data.first()[enabledKey(address)]
+            ?: !(nextcloudService.isConnected && nextcloudService.autoBackupEnabled.value)
     }
 
     private fun ensurePeriodicWork() {

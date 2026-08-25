@@ -198,7 +198,7 @@ fun GoogleDriveStorageScreen(
                     onCheckedChange = { chatViewModel.setDriveAutoSyncEnabled(it) }
                 )
                 SettingsFooter(
-                    if (driveAutoSyncEnabled) {
+                    (if (driveAutoSyncEnabled) {
                         val lastSync = driveLastAutoSyncMs
                         if (lastSync != null) {
                             "Chat history syncs to Drive automatically. Last synced " +
@@ -208,7 +208,7 @@ fun GoogleDriveStorageScreen(
                         }
                     } else {
                         "Automatic sync is off. Only manual backups update the Drive file."
-                    }
+                    }) + " Automatic sync works with one cloud service at a time."
                 )
                 SettingsDivider()
                 SettingsActionItem(
