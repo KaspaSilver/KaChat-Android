@@ -1413,6 +1413,7 @@ private fun groupAvatarButton(
     var showAvatarMenu by remember { mutableStateOf(false) }
     var avatarMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     val clipboardManager = LocalClipboardManager.current
+    val menuContext = LocalContext.current
 
     Box(
         modifier = Modifier.onGloballyPositioned { coords ->
@@ -1442,6 +1443,7 @@ private fun groupAvatarButton(
                 HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                 PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
                     clipboardManager.setText(AnnotatedString(address))
+                    com.kachat.app.util.showAddressCopiedToast(menuContext, address)
                     showAvatarMenu = false
                 }
                 if (!isOwnMessage) {

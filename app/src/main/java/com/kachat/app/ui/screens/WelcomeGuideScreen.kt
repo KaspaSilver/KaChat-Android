@@ -69,6 +69,7 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
+import com.kachat.app.util.showAddressCopiedToast
 
 private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING, PAYMENT_PRIVACY }
 
@@ -743,7 +744,7 @@ private fun WelcomeGuideFundingStep(
                 modifier = Modifier
                     .clickable {
                         clipboardManager.setText(AnnotatedString(chattingAddress))
-                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                        showAddressCopiedToast(context, chattingAddress)
                     }
                     .padding(horizontal = 16.dp)
             )

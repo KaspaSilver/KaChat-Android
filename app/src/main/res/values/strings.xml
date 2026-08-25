@@ -36,6 +36,8 @@
     <string name="address_actions">Address Actions</string>
     <string name="address_actions_2">Address actions</string>
     <string name="address_copied">Address copied</string>
+    <string name="address_copied_short">Address %1$s copied</string>
+    <string name="tap_anywhere_to_copy">Tap anywhere to copy</string>
     <string name="addresses">Addresses</string>
     <string name="adjust_network_fee">Adjust Network Fee</string>
     <string name="admin">Admin</string>

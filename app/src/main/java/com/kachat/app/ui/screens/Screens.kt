@@ -158,6 +158,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import com.kachat.app.util.showAddressCopiedToast
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -3038,7 +3039,7 @@ fun ProfileScreen(
                 onCopy = {
                     address?.let {
                         addressCardClipboardManager.setText(AnnotatedString(it))
-                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                        showAddressCopiedToast(context, it)
                     }
                 },
                 onSend = { if (address != null) showWithdrawDialog = true },
@@ -3056,7 +3057,7 @@ fun ProfileScreen(
                 onCopy = {
                     spendingAddress?.let {
                         addressCardClipboardManager.setText(AnnotatedString(it))
-                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                        showAddressCopiedToast(context, it)
                     }
                 },
                 onSend = { showSpendingWithdrawDialog = true },
@@ -4153,7 +4154,10 @@ fun ManageAddressesScreen(
                     items(chatPrivacyAddresses, key = { it.index }) { entry ->
                         ChatPrivacyAddressRow(
                             entry = entry,
-                            onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
+                            onCopyClick = {
+                                clipboardManager.setText(AnnotatedString(entry.address))
+                                showAddressCopiedToast(context, entry.address)
+                            },
                             onQrClick = { qrAddress = entry.address }
                         )
                     }
@@ -4229,7 +4233,10 @@ fun ManageAddressesScreen(
                         showsDomainTag = entry.address in domainOwningAddresses,
                         showsPrivacyTag = entry.address in privacyReservedAddresses,
                         onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
-                        onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
+                        onCopyClick = {
+                            clipboardManager.setText(AnnotatedString(entry.address))
+                            showAddressCopiedToast(context, entry.address)
+                        },
                         onQrClick = { qrAddress = entry.address },
                         onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
                         onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
@@ -4412,6 +4419,7 @@ fun ManageAddressesHiddenScreen(
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     var activateIndex by remember { mutableStateOf<Int?>(null) }
     var qrAddress by remember { mutableStateOf<String?>(null) }
     var renamingEntry by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
@@ -4468,7 +4476,10 @@ fun ManageAddressesHiddenScreen(
                         ManageAddressRow(
                             entry = entry,
                             onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
-                            onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
+                            onCopyClick = {
+                                clipboardManager.setText(AnnotatedString(entry.address))
+                                showAddressCopiedToast(context, entry.address)
+                            },
                             onQrClick = { qrAddress = entry.address },
                             onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
                             onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
@@ -9300,7 +9311,7 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
                         .fillMaxWidth()
                         .clickable {
                             clipboardManager.setText(AnnotatedString(entry.address))
-                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                            showAddressCopiedToast(context, entry.address)
                         }
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -9683,9 +9694,10 @@ fun AnimatedQrDisplay(frames: List<ByteArray>, modifier: Modifier = Modifier, fr
 }
 
 /** Full-bleed QR overlay over the current screen's content area — matches iOS's push-navigated
- *  QR screens (full-screen white, dismissed via a back arrow/system back, not a tap-anywhere
- *  gesture that could be triggered by mistake). [message], if given, renders as a caption below
- *  the code (e.g. funding guidance). */
+ *  QR screens (full-screen white, dismissed via a back arrow/system back, never by a stray tap).
+ *  Tapping anywhere on the overlay content copies the address — the whole screen is the copy
+ *  target, so there's no dedicated copy button, just the quiet hint under the address. [message],
+ *  if given, renders as a caption below the code (e.g. funding guidance). */
 @Composable
 fun QrCodeOverlay(
     value: String,
@@ -9705,7 +9717,14 @@ fun QrCodeOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White)
+            // The entire overlay is the copy target (no ripple — the whole screen flashing on
+            // tap would look broken). The back arrow below still consumes its own taps, so
+            // dismissal stays on the arrow / system back only.
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                clipboardManager.setText(AnnotatedString(value))
+                com.kachat.app.util.showAddressCopiedToast(context, value)
+            },
         contentAlignment = Alignment.Center
     ) {
         IconButton(
@@ -9747,14 +9766,11 @@ fun QrCodeOverlay(
                     .padding(horizontal = 16.dp)
             )
             Spacer(Modifier.height(12.dp))
-            TextButton(onClick = {
-                clipboardManager.setText(AnnotatedString(value))
-                Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
-            }) {
-                Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                text = stringResource(R.string.tap_anywhere_to_copy),
+                color = Color(0xFF9A9AA0),
+                style = MaterialTheme.typography.bodySmall
+            )
             if (message != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -10837,7 +10853,7 @@ fun ChatInfoScreen(
                         .fillMaxWidth()
                         .clickable {
                             clipboardManager.setText(AnnotatedString(contactId))
-                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                            showAddressCopiedToast(context, contactId)
                         }
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally

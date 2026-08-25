@@ -88,6 +88,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.kachat.app.util.showAddressCopiedToast
 
 /** KAS <-> USDC (Polygon) swaps, powered by ChangeNOW — see [SwapViewModel] and [SwapRepository][com.kachat.app.repository.SwapRepository]. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -385,7 +386,7 @@ fun SwapScreen(
                                     .clickable {
                                         result.payinAddress?.let {
                                             clipboardManager.setText(AnnotatedString(it))
-                                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                                            showAddressCopiedToast(context, it)
                                         }
                                     }
                                     .padding(12.dp),
@@ -401,7 +402,7 @@ fun SwapScreen(
                                 .clickable {
                                     result.payinAddress?.let {
                                         clipboardManager.setText(AnnotatedString(it))
-                                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                                        showAddressCopiedToast(context, it)
                                     }
                                 },
                             verticalAlignment = Alignment.CenterVertically
@@ -701,7 +702,7 @@ private fun SwapDetailDialog(
                         .fillMaxWidth()
                         .clickable {
                             clipboardManager.setText(AnnotatedString(swap.payinAddress))
-                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                            showAddressCopiedToast(context, swap.payinAddress)
                         }
                 )
                 Spacer(Modifier.height(12.dp))

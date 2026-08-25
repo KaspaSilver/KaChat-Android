@@ -960,6 +960,7 @@ fun BroadcastChannelScreen(
                     var showQuickReactionBar by remember { mutableStateOf(false) }
                     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
                     val clipboardManager = LocalClipboardManager.current
+                    val menuContext = LocalContext.current
 
                     LaunchedEffect(message.senderAddress) {
                         broadcastViewModel.ensureSenderProfileFetched(message.senderAddress)
@@ -1000,6 +1001,7 @@ fun BroadcastChannelScreen(
                                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                     PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
                                         clipboardManager.setText(AnnotatedString(message.senderAddress))
+                                        com.kachat.app.util.showAddressCopiedToast(menuContext, message.senderAddress)
                                         showAvatarMenu = false
                                     }
                                     if (!isMine) {

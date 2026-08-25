@@ -676,7 +676,10 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         showsDomainTag = row.address in domainOwningAddresses,
                         onAddressClick = { navController.navigate("cold_storage_tx_history/${row.address}") },
                         onLabelClick = { labelingRow = row; labelInput = row.label ?: "" },
-                        onCopyClick = { clipboardManager.setText(AnnotatedString(row.address)) },
+                        onCopyClick = {
+                            clipboardManager.setText(AnnotatedString(row.address))
+                            com.kachat.app.util.showAddressCopiedToast(context, row.address)
+                        },
                         onSendClick = { if (row.balanceSompi > 0) sendFromRow = row },
                         onShowQrClick = { qrRow = row },
                         onHideClick = {

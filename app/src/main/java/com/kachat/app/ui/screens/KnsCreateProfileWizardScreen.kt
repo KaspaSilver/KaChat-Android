@@ -63,6 +63,7 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.launch
+import com.kachat.app.util.showAddressCopiedToast
 
 private enum class KnsWizardStep { CHECKING_FUNDS, NEEDS_FUNDING, DOMAIN, TRANSFER_EXISTING_DOMAIN, DOMAIN_CONFIRMED, BANNER, AVATAR, DETAILS, FINISHED }
 
@@ -245,7 +246,7 @@ private fun KnsFundingGateStep(
                 modifier = Modifier
                     .clickable {
                         clipboardManager.setText(AnnotatedString(chattingAddress))
-                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                        showAddressCopiedToast(context, chattingAddress)
                     }
                     .padding(horizontal = 16.dp)
             )
@@ -335,7 +336,7 @@ private fun KnsTransferExistingDomainStep(chattingAddress: String?, onNext: () -
                 modifier = Modifier
                     .clickable {
                         clipboardManager.setText(AnnotatedString(chattingAddress))
-                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                        showAddressCopiedToast(context, chattingAddress)
                     }
                     .padding(horizontal = 16.dp)
             )

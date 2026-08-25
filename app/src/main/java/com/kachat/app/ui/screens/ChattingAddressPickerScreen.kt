@@ -62,6 +62,7 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.CHATTING_ADDRESS_SCAN_BATCH
 import com.kachat.app.viewmodels.ChatViewModel
 import com.kachat.app.viewmodels.WalletViewModel
+import com.kachat.app.util.showAddressCopiedToast
 
 /**
  * "Change Chatting Address" scanner, reachable from the Welcome Guide's funding step on IMPORT
@@ -382,7 +383,7 @@ private fun ChattingAddressDetailScreen(
                         .fillMaxWidth()
                         .clickable {
                             clipboard.setText(AnnotatedString(candidate.address))
-                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                            showAddressCopiedToast(context, candidate.address)
                         }
                 ) {
                     Text(

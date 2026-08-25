@@ -61,6 +61,7 @@ import com.kachat.app.viewmodels.ChatViewModel
 import com.kachat.app.viewmodels.GiftViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
+import com.kachat.app.util.showAddressCopiedToast
 
 private val GiftErrorRed = Color(0xFFFF3B30)
 
@@ -275,7 +276,7 @@ fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = {
                     clipboard.setText(AnnotatedString(gateAddress))
-                    Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                    showAddressCopiedToast(context, gateAddress)
                 }) {
                     Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
