@@ -1,6 +1,7 @@
 package com.kachat.app.services
 
 import android.content.Context
+import android.util.Log
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -99,7 +100,15 @@ class ChatHistoryExportImportService @Inject constructor(
             .mapNotNull { (contactId, contactMessages) ->
                 if (contactId in deletedIds) return@mapNotNull null
                 // Pending placeholders are transient local-only state, not confirmed history.
-                val exportable = contactMessages.filter { it.deliveryStatus != "pending" }
+                // The provisional-id check matters just as much as the status check: a FAILED
+                // optimistic send still carries its synthetic "pending_<uuid>" id, and exporting
+                // it published that id as the row's txId in the shared archive. The union merge
+                // then kept that entry forever, and once a successful Retry replaced the local
+                // row with the real txId, the txId dedupe could no longer see the pair, so every
+                // later mirror import resurrected a stalled twin next to the delivered message.
+                val exportable = contactMessages.filter {
+                    it.deliveryStatus != "pending" && !MessageEntity.isProvisionalId(it.id)
+                }
                 if (exportable.isEmpty()) return@mapNotNull null
                 ChatHistoryArchiveConversation(
                     // Android has no conversation identity of its own; the contact address is the
@@ -301,10 +310,28 @@ class ChatHistoryExportImportService @Inject constructor(
                 // "\ud83d\udce4 Sent via another device" placeholders never surface on any platform -
                 // skip them at import; an archive that later carries the real body inserts it then.
                 if (com.kachat.app.models.MessageEntity.isSentPlaceholder(archiveMessage.content)) continue
-                if (restoredTxIds.add(archiveMessage.txId)) importedCount++
+                // Phantom rows never import: a provisional "pending_<uuid>" txId (a failed
+                // optimistic send an older build exported) or a blank txId is not an on-chain
+                // identity, and inserting such a row is exactly what materialized the stalled
+                // "still sending" twins next to their delivered copies.
+                val archiveTxId = archiveMessage.txId.trim()
+                if (archiveTxId.isEmpty() || com.kachat.app.models.MessageEntity.isProvisionalId(archiveTxId)) {
+                    Log.i(TAG, "Import skipped phantom archive row (txId=${archiveTxId.take(20).ifEmpty { "<blank>" }})")
+                    continue
+                }
+                if (restoredTxIds.add(archiveTxId)) importedCount++
                 restoredAny = true
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)
-                if (chatRepository.messageExists(entity.id)) continue
+                val existing = chatRepository.getMessage(entity.id)
+                if (existing != null) {
+                    // Healer: the archive proves this txId was broadcast, so a local copy still
+                    // stuck at pending/failed (a finalize that never ran) flips to sent in place.
+                    if (existing.direction == "sent" && existing.deliveryStatus != "sent" && entity.deliveryStatus == "sent") {
+                        chatRepository.updateMessageStatus(entity.id, "sent")
+                        Log.i(TAG, "Import healed stuck delivery status to sent (txId=${entity.id.take(16)})")
+                    }
+                    continue
+                }
                 // Outgoing archive rows can be THIS device's own send coming back around under
                 // its real txId (another device saw it on-chain and uploaded it) while the local
                 // copy still sits under its provisional "pending_<uuid>" placeholder id — the
@@ -313,12 +340,25 @@ class ChatHistoryExportImportService @Inject constructor(
                 // create a delivered twin next to a forever-"sending" placeholder. Instead the
                 // placeholder is upgraded in place to the real txId + "sent".
                 if (archiveMessage.isOutgoing) {
-                    val provisional = chatRepository.findProvisionalOutgoingMatch(
-                        contactAddress, entity.plaintextBody, entity.blockTimestamp
-                    )
-                    if (provisional != null) {
-                        chatRepository.upgradeProvisionalMessage(provisional, entity)
-                        continue
+                    when (val match = chatRepository.matchProvisionalOutgoing(contactAddress, entity.plaintextBody, entity.blockTimestamp)) {
+                        is ChatRepository.ProvisionalMatch.Exact -> {
+                            chatRepository.upgradeProvisionalMessage(match.row, entity)
+                            continue
+                        }
+                        is ChatRepository.ProvisionalMatch.Sole -> {
+                            // Content drifted (metadata, formatting) but there is exactly one
+                            // in-flight candidate in the window and the archive row is not older
+                            // than it: the archive's delivered copy wins, the placeholder goes
+                            // away. If the placeholder was a genuinely different in-flight send,
+                            // its own finalize re-inserts the real row moments later, so nothing
+                            // is lost either way.
+                            chatRepository.collapseProvisionalInto(match.row, entity)
+                            continue
+                        }
+                        is ChatRepository.ProvisionalMatch.Ambiguous -> {
+                            Log.i(TAG, "Import: multiple provisional candidates for txId=${entity.id.take(16)}; inserted without collapsing")
+                        }
+                        ChatRepository.ProvisionalMatch.None -> Unit
                     }
                 }
                 chatRepository.insertMessage(entity)
@@ -336,6 +376,7 @@ class ChatHistoryExportImportService @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "ChatHistoryImport"
         private val VALID_DELIVERY_STATUSES = setOf("pending", "sent", "failed", "warning")
         private val VALID_MESSAGE_TYPES = setOf("handshake", "contextual", "payment", "audio")
 
@@ -447,7 +488,7 @@ class ChatHistoryExportImportService @Inject constructor(
         /** Imported history is never marked unread — the archive format tracks unread only as a per-conversation count, not per message, so there's nothing meaningful to restore. */
         internal fun toMessageEntity(archiveMessage: ChatHistoryArchiveMessage, contactId: String, myAddress: String): MessageEntity {
             return MessageEntity(
-                id = archiveMessage.txId,
+                id = archiveMessage.txId.trim(),
                 contactId = contactId,
                 walletAddress = myAddress,
                 type = entityMessageType(archiveMessage.messageType),
@@ -457,7 +498,12 @@ class ChatHistoryExportImportService @Inject constructor(
                 amountSompi = null,
                 blockTimestamp = archiveMessage.blockTime,
                 isRead = true,
-                deliveryStatus = archiveMessage.deliveryStatus.takeIf { it in VALID_DELIVERY_STATUSES } ?: "sent"
+                // The importer only ever reaches this for rows with a real txId, and a real txId
+                // means the send WAS broadcast: another device's stale "pending"/"failed"
+                // snapshot must not materialize here as an eternally-waiting row this device
+                // has no send flow to ever resolve. Only "warning" (payment verification) is a
+                // real terminal state worth carrying over.
+                deliveryStatus = if (archiveMessage.deliveryStatus == "warning") "warning" else "sent"
             )
         }
 
@@ -547,6 +593,19 @@ class ChatHistoryExportImportService @Inject constructor(
         private fun messageKey(message: JsonObject): String {
             val txId = message.string("txId").trim()
             return if (txId.isNotEmpty()) "tx:$txId" else "id:${message.string("id").trim()}"
+        }
+
+        /**
+         * True for archive entries that never had (or do not have) a real on-chain identity:
+         * a provisional "pending_<uuid>" txId, or no txId while still marked in-flight
+         * (pending/failed). These are device-local optimistic-send snapshots, not history —
+         * see the scrub in [mergeArchives] and the matching skip in the importer.
+         */
+        internal fun isPhantomArchiveEntry(message: JsonObject): Boolean {
+            val txId = message.string("txId").trim()
+            if (MessageEntity.isProvisionalId(txId)) return true
+            val status = message.string("deliveryStatus").trim().lowercase()
+            return txId.isEmpty() && (status == "pending" || status == "failed")
         }
 
         /**
@@ -640,6 +699,15 @@ class ChatHistoryExportImportService @Inject constructor(
 
                     for (messageElement in conversation.array("messages")) {
                         val message = messageElement as? JsonObject ?: continue
+                        // Phantom scrub: an entry whose txId is a synthetic provisional id, or an
+                        // in-flight (pending/failed) entry with no txId at all, is transient
+                        // device-local state that leaked into the shared file (older Android
+                        // builds exported failed placeholders; iOS can export a not-yet-broadcast
+                        // row with an empty txId). Once the send confirms it re-enters the union
+                        // under its real txId as a DIFFERENT key, so the stale entry would live
+                        // forever and re-import as a stalled twin on every device. Dropping it
+                        // here heals the server copy on this device's next upload.
+                        if (isPhantomArchiveEntry(message)) continue
                         val key = messageKey(message)
                         val existing = entry.messages[key]
                         entry.messages[key] = if (existing == null) message else preferArchiveMessage(existing, message)

@@ -62,10 +62,11 @@ interface MessageDao {
 
     /**
      * Whether a DELIVERED copy of the same logical outgoing message already exists in this
-     * conversation: same content, real (non-provisional) id, delivery status "sent", and a
-     * blockTimestamp within [windowMs] of the provisional row's — the send and its confirmed
-     * sibling are minutes apart in the same clock domain, so the window keeps an old identical
-     * text from being mistaken for the pair. Backs the stuck-provisional repair sweep.
+     * conversation: same trimmed content (pass [body] pre-trimmed), real (non-provisional) id,
+     * delivery status "sent", and a blockTimestamp within [windowMs] of the provisional row's —
+     * the send and its confirmed sibling are minutes apart in the same clock domain, so the
+     * window keeps an old identical text from being mistaken for the pair. Backs the
+     * stuck-provisional repair sweep.
      */
     @Query(
         """
@@ -73,7 +74,7 @@ interface MessageDao {
             SELECT 1 FROM messages
             WHERE contactId = :contactId AND walletAddress = :walletAddress
               AND direction = 'sent' AND deliveryStatus = 'sent'
-              AND plaintextBody = :body
+              AND TRIM(plaintextBody) = :body
               AND id NOT LIKE 'pending\_%' ESCAPE '\'
               AND ABS(blockTimestamp - :nearTimestamp) <= :windowMs
         )

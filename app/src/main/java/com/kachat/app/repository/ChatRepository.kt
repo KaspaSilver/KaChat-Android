@@ -309,21 +309,50 @@ class ChatRepository @Inject constructor(
     //     already exist from before the fix.
     // -------------------------------------------------------------------------
 
+    /** One message row by id for the active account, or null. */
+    suspend fun getMessage(id: String): MessageEntity? =
+        database.messageDao().getById(id, walletManager.getAddress())
+
+    /** Outcome of matching an incoming outgoing-direction archive row against local in-flight placeholders. */
+    sealed class ProvisionalMatch {
+        /** A placeholder with identical (whitespace-trimmed) content — certainly the same message. */
+        data class Exact(val row: MessageEntity) : ProvisionalMatch()
+
+        /** No content match, but exactly ONE placeholder is in the window and the archive row is
+         *  not older than it — treated as the same message with drifted content. */
+        data class Sole(val row: MessageEntity) : ProvisionalMatch()
+
+        /** Several placeholders could be it and none matches by content — do NOT collapse. */
+        object Ambiguous : ProvisionalMatch()
+
+        /** No placeholder in the window at all. */
+        object None : ProvisionalMatch()
+    }
+
     /**
-     * The oldest still-provisional (pending/failed placeholder-id) outgoing row in
-     * [contactId]'s conversation that carries exactly [plaintextBody] and sits within
-     * [PROVISIONAL_MATCH_WINDOW_MS] of [nearTimestamp] (an on-chain blockTime; 0/negative skips
-     * the window check) — i.e. the local twin of an archive row about to be imported. Null when
-     * the archive row is genuinely new to this device.
+     * Matches an outgoing archive row (real txId, [plaintextBody]/[nearTimestamp] from the
+     * archive) against this conversation's still-provisional ("pending_<uuid>"-id, pending or
+     * failed) outgoing rows, within [PROVISIONAL_MATCH_WINDOW_MS] of [nearTimestamp]
+     * (0/negative skips the window check). Preference order per the dedupe rules:
+     * exact trimmed-content equality first (oldest such row), then the sole-candidate fallback
+     * ([ProvisionalMatch.Sole]) which additionally requires the archive row to be no older than
+     * the placeholder (minus [PROVISIONAL_CLOCK_SKEW_MS] of clock skew). Multiple candidates
+     * with no content match report [ProvisionalMatch.Ambiguous] so the caller inserts normally
+     * and logs rather than guessing — two genuinely different messages must never collapse.
      */
-    suspend fun findProvisionalOutgoingMatch(contactId: String, plaintextBody: String?, nearTimestamp: Long): MessageEntity? {
-        val body = plaintextBody ?: return null
-        return database.messageDao()
+    suspend fun matchProvisionalOutgoing(contactId: String, plaintextBody: String?, nearTimestamp: Long): ProvisionalMatch {
+        val candidates = database.messageDao()
             .getProvisionalOutgoingForContact(contactId, walletManager.getAddress())
-            .firstOrNull {
-                it.plaintextBody == body &&
-                    (nearTimestamp <= 0L || kotlin.math.abs(it.blockTimestamp - nearTimestamp) <= PROVISIONAL_MATCH_WINDOW_MS)
-            }
+            .filter { nearTimestamp <= 0L || kotlin.math.abs(it.blockTimestamp - nearTimestamp) <= PROVISIONAL_MATCH_WINDOW_MS }
+        if (candidates.isEmpty()) return ProvisionalMatch.None
+
+        val body = plaintextBody?.trim()
+        if (!body.isNullOrEmpty()) {
+            candidates.firstOrNull { it.plaintextBody?.trim() == body }?.let { return ProvisionalMatch.Exact(it) }
+        }
+        val sole = candidates.singleOrNull() ?: return ProvisionalMatch.Ambiguous
+        val archiveIsNewer = nearTimestamp <= 0L || nearTimestamp >= sole.blockTimestamp - PROVISIONAL_CLOCK_SKEW_MS
+        return if (archiveIsNewer) ProvisionalMatch.Sole(sole) else ProvisionalMatch.None
     }
 
     /**
@@ -347,6 +376,20 @@ class ChatRepository @Inject constructor(
         )
         database.messageDao().deleteById(provisional.id, provisional.walletAddress)
         scheduleAutoBackupIfEnabled()
+        Log.i("ChatRepository", "Upgraded provisional ${provisional.id.take(24)} to txId=${imported.id.take(16)} (exact content match)")
+    }
+
+    /**
+     * Sole-candidate collapse (see [ProvisionalMatch.Sole]): the archive's delivered row wins as
+     * written (its content is the confirmed on-chain form), the lone in-flight placeholder is
+     * removed. If the placeholder was actually a different in-flight send, its own finalize
+     * re-inserts the real row when the broadcast returns, so no message can be lost.
+     */
+    suspend fun collapseProvisionalInto(provisional: MessageEntity, imported: MessageEntity) {
+        database.messageDao().insert(imported)
+        database.messageDao().deleteById(provisional.id, provisional.walletAddress)
+        scheduleAutoBackupIfEnabled()
+        Log.i("ChatRepository", "Collapsed sole provisional ${provisional.id.take(24)} into imported txId=${imported.id.take(16)}")
     }
 
     /**
@@ -368,29 +411,39 @@ class ChatRepository @Inject constructor(
         database.messageDao().insert(merged)
         database.messageDao().deleteById(provisionalId, final.walletAddress)
         scheduleAutoBackupIfEnabled()
+        if (existing != null) {
+            Log.i("ChatRepository", "Finalize merged into import-inserted row txId=${final.id.take(16)} (import won the race)")
+        }
     }
 
-    /** Wallets already swept this process — the repair is one-time per wallet per app run. */
-    private val provisionalRepairDone = java.util.Collections.synchronizedSet(mutableSetOf<String>())
-
     /**
-     * One-time (per wallet, per process) repair for stuck pairs that already exist: an orphaned
-     * provisional outgoing row whose delivered sibling — same conversation, same content, real
-     * txId, status "sent", within [PROVISIONAL_MATCH_WINDOW_MS] — is also present. The
-     * placeholder is deleted; the delivered row is the message. Runs from the poll loop's first
-     * cycle for the wallet, so existing duplicates heal on load without any manual cleanup.
+     * Repair sweep for stuck pairs that already exist: an orphaned provisional outgoing row
+     * whose delivered sibling — same conversation, same trimmed content, real txId, status
+     * "sent", within [PROVISIONAL_MATCH_WINDOW_MS] — is also present. The placeholder is
+     * deleted; the delivered row is the message. Runs on EVERY sync cycle (the query is a cheap
+     * indexed-by-wallet scan and almost always returns nothing), so a pair created after
+     * startup — e.g. an import that raced this cycle — heals within seconds, not on the next
+     * app launch. Placeholders younger than [PROVISIONAL_REPAIR_MIN_AGE_MS] are never touched:
+     * a genuinely in-flight send must not be swept while its broadcast is still returning.
+     *
+     * Deliberately NOT widened to the sole-candidate rule the importer uses: the importer holds
+     * the delivered archive row in hand, so collapsing keeps the content either way, while this
+     * sweep would be deleting a stuck row that may hold content that never made it on-chain —
+     * without a content-equal delivered sibling there is no proof the message survives, so it
+     * stays and keeps its Retry affordance.
      */
     private suspend fun repairStuckProvisionalMessages(myAddress: String) {
-        if (!provisionalRepairDone.add(myAddress)) return
         try {
+            val now = System.currentTimeMillis()
             for (row in database.messageDao().getProvisionalOutgoingForWallet(myAddress)) {
-                val body = row.plaintextBody ?: continue
+                if (now - row.syncedAt < PROVISIONAL_REPAIR_MIN_AGE_MS) continue
+                val body = row.plaintextBody?.trim().takeUnless { it.isNullOrEmpty() } ?: continue
                 val hasDelivered = database.messageDao().hasDeliveredDuplicate(
                     row.contactId, myAddress, body, row.blockTimestamp, PROVISIONAL_MATCH_WINDOW_MS
                 )
                 if (hasDelivered) {
                     database.messageDao().deleteById(row.id, myAddress)
-                    Log.i("ChatRepository", "Repaired stuck provisional duplicate ${row.id} (delivered sibling exists)")
+                    Log.i("ChatRepository", "Sweep collapsed stuck provisional ${row.id.take(24)} (delivered sibling with same content exists)")
                 }
             }
         } catch (e: Exception) {
@@ -1079,5 +1132,13 @@ class ChatRepository @Inject constructor(
          * ("ok", a repeated payment amount) from being mistaken for the twin.
          */
         internal const val PROVISIONAL_MATCH_WINDOW_MS = 48L * 60 * 60 * 1000
+
+        /** Tolerated device-clock vs chain-clock skew when deciding "the archive row is not older
+         *  than the placeholder" in [matchProvisionalOutgoing]'s sole-candidate rule. */
+        internal const val PROVISIONAL_CLOCK_SKEW_MS = 10L * 60 * 1000
+
+        /** Minimum placeholder age before the repair sweep may touch it — anything younger could
+         *  be a live in-flight send whose finalize is about to run. */
+        internal const val PROVISIONAL_REPAIR_MIN_AGE_MS = 2L * 60 * 1000
     }
 }

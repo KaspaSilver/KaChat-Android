@@ -49,6 +49,18 @@ data class MessageEntity(
         /** True if [content] is exactly the cross-device placeholder above. Use this everywhere
          *  the placeholder is matched or hidden - mirrors iOS's ChatMessage.isSentPlaceholder. */
         fun isSentPlaceholder(content: String?): Boolean = content == SENT_VIA_OTHER_DEVICE_PLACEHOLDER
+
+        /**
+         * Prefix of the synthetic local id the optimistic send paths give a row BEFORE the
+         * broadcast returns ("pending_<uuid>", see ChatViewModel.sendMessageAwait/sendPayment).
+         * Such an id is transient device-local state, never an on-chain identity: it must never
+         * be exported into a shared backup archive, never be accepted from one at import, and is
+         * what the stuck-send repair sweep looks for. Single source of truth for the literal.
+         */
+        const val PROVISIONAL_ID_PREFIX = "pending_"
+
+        /** True if [id] is a synthetic pre-broadcast placeholder id rather than a real txId. */
+        fun isProvisionalId(id: String): Boolean = id.startsWith(PROVISIONAL_ID_PREFIX)
     }
 }
 
