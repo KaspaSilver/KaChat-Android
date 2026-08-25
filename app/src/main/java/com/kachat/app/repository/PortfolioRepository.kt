@@ -135,14 +135,52 @@ class PortfolioRepository @Inject constructor(
      */
     data class PriceWithChange(val price: Double, val change24hPercent: Double?)
 
+    /**
+     * Wall-clock time before which CoinGecko told us not to retry (a 429's Retry-After header,
+     * observed live at 59 seconds on the keyless tier) — null when no throttle window is known.
+     * Callers scheduling a deferred retry should wait until this passes rather than retrying
+     * blind; cleared on any successful request.
+     */
+    @Volatile
+    var throttledUntilMillis: Long? = null
+        private set
+
+    private fun recordThrottleWindow(retryAfterSeconds: Double) {
+        throttledUntilMillis = System.currentTimeMillis() + (retryAfterSeconds * 1000).toLong()
+    }
+
+    /**
+     * A 429/5xx gets one in-place retry only when the server's Retry-After fits inside
+     * [MAX_INLINE_RETRY_SECONDS] — CoinGecko's real throttle window is ~59s, and parking a
+     * caller that long just holds a refresh spinner hostage. Longer windows are recorded in
+     * [throttledUntilMillis] for the ViewModel's deferred retry instead. Successes persist to
+     * [readPersistedPrice]'s cache so the UI can paint the last-known price instantly on the
+     * next open even when every fetch in a session is throttled.
+     */
     suspend fun getCurrentPriceUsd(currency: String = "usd"): PriceWithChange? {
-        return try {
-            val kaspa = coinGeckoApi.getSimplePrice(vsCurrencies = currency).kaspa
-            val price = kaspa[currency] ?: return null
-            PriceWithChange(price, kaspa["${currency}_24h_change"])
-        } catch (e: Exception) {
-            null
+        repeat(2) { attempt ->
+            try {
+                val kaspa = coinGeckoApi.getSimplePrice(vsCurrencies = currency).kaspa
+                val price = kaspa[currency] ?: return null
+                val result = PriceWithChange(price, kaspa["${currency}_24h_change"])
+                persistCurrentPrice(result, currency)
+                throttledUntilMillis = null
+                return result
+            } catch (e: HttpException) {
+                if (attempt > 0 || (e.code() != 429 && e.code() < 500)) return null
+                val retryAfterSeconds = e.response()?.headers()?.get("Retry-After")?.toDoubleOrNull() ?: 2.0
+                if (retryAfterSeconds > MAX_INLINE_RETRY_SECONDS) {
+                    recordThrottleWindow(retryAfterSeconds)
+                    return null
+                }
+                delay((retryAfterSeconds * 1000).toLong())
+            } catch (e: Exception) {
+                // Includes coroutine cancellation mid-request — bail out quietly, same
+                // "degrade gracefully" contract as getPriceHistory.
+                return null
+            }
         }
+        return null
     }
 
     /**
@@ -153,7 +191,8 @@ class PortfolioRepository @Inject constructor(
      * CoinGecko's keyless tier throttles bursts hard (429 for a stretch after just a few rapid
      * calls) — a launch plus a couple of chart-range taps was enough to make every subsequent
      * range fetch come back empty, leaving the chart stuck on whatever range loaded first. A
-     * 429/5xx here gets one retry, honoring the response's Retry-After (capped at 10s).
+     * 429/5xx here gets one in-place retry when Retry-After fits [MAX_INLINE_RETRY_SECONDS];
+     * a longer window is recorded in [throttledUntilMillis] for a deferred retry instead.
      */
     suspend fun getPriceHistory(days: Int = 30, currency: String = "usd"): List<Pair<Long, Double>> {
         repeat(2) { attempt ->
@@ -164,7 +203,14 @@ class PortfolioRepository @Inject constructor(
             } catch (e: HttpException) {
                 if (attempt > 0 || (e.code() != 429 && e.code() < 500)) return emptyList()
                 val retryAfterSeconds = e.response()?.headers()?.get("Retry-After")?.toDoubleOrNull() ?: 2.0
-                delay((minOf(retryAfterSeconds, 10.0) * 1000).toLong())
+                if (retryAfterSeconds > MAX_INLINE_RETRY_SECONDS) {
+                    // The real window (observed: 59s) doesn't fit an in-place park — capping the
+                    // delay at 10s just guaranteed the retry landed inside the window and failed
+                    // too. Record the window for the ViewModel's deferred retry and bail now.
+                    recordThrottleWindow(retryAfterSeconds)
+                    return emptyList()
+                }
+                delay((retryAfterSeconds * 1000).toLong())
             } catch (e: Exception) {
                 // Includes coroutine cancellation mid-request — bail out quietly, same
                 // "degrade gracefully" contract as getCurrentPriceUsd.
@@ -216,6 +262,41 @@ class PortfolioRepository @Inject constructor(
         if (points.isEmpty()) return
         val stored = StoredPriceHistory(System.currentTimeMillis(), points.map { StoredPricePoint(it.first, it.second) })
         priceHistoryPrefs.edit().putString(priceHistoryCacheKey(days, currency), gson.toJson(stored)).apply()
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistent current-price cache
+    // -------------------------------------------------------------------------
+    //
+    // The current price previously had no cache and no retry at all — one throttled launch burst
+    // and the portfolio showed a bare dash until the user pulled to refresh (firing another
+    // burst, usually still inside the same throttle window). Persisting every successful fetch
+    // per currency lets the UI paint the last-known price instantly on open; freshness policy
+    // lives with the caller (see PortfolioViewModel.refreshPrice), same split as the history
+    // cache above.
+
+    /** Gson payload persisted per currency — fetchedAt lets callers decide whether a network refresh is even needed. */
+    private data class StoredCurrentPrice(val fetchedAt: Long, val price: Double, val change: Double?)
+
+    /** The last successfully fetched price plus when it was fetched, so callers can apply their own freshness policy (see [CURRENT_PRICE_FRESH_MILLIS]). */
+    data class PersistedPrice(val fetchedAtMillis: Long, val price: Double, val change24hPercent: Double?)
+
+    private fun currentPriceCacheKey(currency: String) = "kachat_current_price_$currency"
+
+    /** Null when no price was ever successfully fetched for this currency (or the payload is corrupt). */
+    fun readPersistedPrice(currency: String): PersistedPrice? {
+        val json = priceHistoryPrefs.getString(currentPriceCacheKey(currency), null) ?: return null
+        return try {
+            val stored = gson.fromJson(json, StoredCurrentPrice::class.java) ?: return null
+            PersistedPrice(stored.fetchedAt, stored.price, stored.change)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun persistCurrentPrice(price: PriceWithChange, currency: String) {
+        val stored = StoredCurrentPrice(System.currentTimeMillis(), price.price, price.change24hPercent)
+        priceHistoryPrefs.edit().putString(currentPriceCacheKey(currency), gson.toJson(stored)).apply()
     }
 
     private val historyDateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.US).apply {
@@ -533,6 +614,19 @@ class PortfolioRepository @Inject constructor(
 
         /** How long a persisted (currency, days) history counts as fresh — long enough to make range cycling and relaunches free, short enough that the chart never looks meaningfully out of date. */
         const val PRICE_HISTORY_CACHE_TTL_MILLIS = 10 * 60 * 1000L
+
+        /** How long a persisted current price counts as fresh enough to skip the network entirely
+         *  on a non-forced refresh — CoinGecko itself caches this endpoint 30-60s server-side
+         *  (Cache-Control max-age=30, s-maxage=60), so refetching inside a minute buys nothing
+         *  and burns keyless-tier rate-limit budget. Every screen that instantiates its own
+         *  PortfolioViewModel (Send, Cold Storage, Portfolio tab) fires a refresh on init, so
+         *  this window is what keeps normal navigation from tripping the throttle. */
+        const val CURRENT_PRICE_FRESH_MILLIS = 60 * 1000L
+
+        /** The longest Retry-After worth honoring with an in-place delay inside a fetch call —
+         *  anything longer (CoinGecko's real throttle window is ~59s) is recorded in
+         *  [throttledUntilMillis] for a deferred, non-blocking retry instead. */
+        const val MAX_INLINE_RETRY_SECONDS = 10.0
     }
 }
 

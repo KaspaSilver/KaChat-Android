@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -158,30 +157,74 @@ class PortfolioViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** The currency code the most recent [refreshPrice] actually fetched in — lets the currency
+     *  collector below distinguish "DataStore just emitted the currency we already fetched" from
+     *  a real change, without drop(1)'s ordering assumption (which skipped the stored currency's
+     *  first emission entirely: a non-USD user's init fetch ran with the "usd" placeholder before
+     *  DataStore had emitted, and the real currency's arrival was then dropped). */
+    private var lastFetchedCurrency: String? = null
+
+    /** Deferred retry after a failed fetch — waits out CoinGecko's Retry-After window when the
+     *  repository recorded one, exponential backoff otherwise. See [scheduleRetry]. */
+    private var retryJob: Job? = null
+    private var retryBackoffMillis = INITIAL_RETRY_BACKOFF_MILLIS
+
     init {
-        refreshPrice()
+        // Non-forced: paints the persisted price/history instantly and only hits the network for
+        // what's actually stale. Every screen that instantiates its own PortfolioViewModel (Send,
+        // Cold Storage, Portfolio tab...) runs this init, and the forced variant's cache-bypassing
+        // triple fetch (price + chart range + 7d cards) was enough to trip CoinGecko's keyless
+        // throttle (429, Retry-After 59s) during ordinary navigation — leaving the price blank
+        // with nothing ever retrying.
+        refreshPrice(force = false)
         // Currency changed elsewhere (Settings, or the Welcome Guide's currency step) while
         // Portfolio is already alive - re-fetch in the new currency rather than leaving stale
-        // numbers on screen mislabeled with a new currency's symbol. drop(1) skips the initial
-        // emission refreshPrice() above already covers.
+        // numbers on screen mislabeled with a new currency's symbol.
         viewModelScope.launch {
-            settings.currency.drop(1).distinctUntilChanged().collect {
-                refreshPrice()
+            settings.currency.distinctUntilChanged().collect { code ->
+                if (code != lastFetchedCurrency) {
+                    refreshPrice()
+                }
             }
         }
     }
 
-    fun refreshPrice() {
+    /**
+     * [force] (the default — pull-to-refresh and currency changes) bypasses every cache; the
+     * init-time call passes false so fresh persisted data short-circuits the network entirely.
+     * Either way the persisted last-known price paints first, so a failed or throttled fetch
+     * degrades to a slightly stale number instead of a blank dash, and any failure schedules a
+     * deferred retry via [scheduleRetry] rather than parking forever.
+     */
+    fun refreshPrice(force: Boolean = true) {
+        retryJob?.cancel()
         val currencyCode = currency.value
+        lastFetchedCurrency = currencyCode
+        // Paint the last-known price immediately — it's the latest successful fetch for this
+        // currency, so it's never worse than what's on screen (and clears a stale currency's
+        // number after a currency switch, since the key is per-currency).
+        val persisted = repository.readPersistedPrice(currencyCode)
+        persisted?.let {
+            _currentPriceUsd.value = it.price
+            _priceChange24h.value = it.change24hPercent
+        }
+        val priceIsFresh = persisted != null &&
+            System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.CURRENT_PRICE_FRESH_MILLIS
         val priceJob = viewModelScope.launch {
+            if (!force && priceIsFresh) return@launch
             val result = repository.getCurrentPriceUsd(currencyCode)
             if (result != null) {
                 _currentPriceUsd.value = result.price
                 _priceChange24h.value = result.change24hPercent
+                retryBackoffMillis = INITIAL_RETRY_BACKOFF_MILLIS
+            } else {
+                scheduleRetry()
             }
         }
-        priceHistoryCache.clear()
-        fetchPriceHistory(_priceRangeDays.value, force = true)
+        if (force) {
+            priceHistoryCache.clear()
+        }
+        fetchPriceHistory(_priceRangeDays.value, force = force)
         fetchSevenDayPriceHistoryForCards()
         val historyJob = priceHistoryJob
         viewModelScope.launch {
@@ -189,6 +232,29 @@ class PortfolioViewModel @Inject constructor(
             priceJob.join()
             historyJob?.join()
             _isRefreshingPortfolio.value = false
+        }
+    }
+
+    /**
+     * Retries a failed fetch after CoinGecko's own Retry-After window when the repository
+     * recorded one ([PortfolioRepository.throttledUntilMillis], observed live at 59 seconds —
+     * far past the old in-place retry's 10s cap, which guaranteed every retry landed inside the
+     * window and failed too), and with exponential backoff for plain failures (offline, DNS).
+     * The retry is a non-forced [refreshPrice], so anything cached fresh in the meantime is
+     * served without burning more rate-limit budget. Re-scheduling with the same window is
+     * idempotent; the job dies with the ViewModel's scope.
+     */
+    private fun scheduleRetry() {
+        val throttleWaitMillis = repository.throttledUntilMillis?.let {
+            maxOf(it - System.currentTimeMillis(), 0L) + 1_000L
+        }
+        val waitMillis = throttleWaitMillis ?: retryBackoffMillis.also {
+            retryBackoffMillis = minOf(it * 2, MAX_RETRY_BACKOFF_MILLIS)
+        }
+        retryJob?.cancel()
+        retryJob = viewModelScope.launch {
+            delay(waitMillis)
+            refreshPrice(force = false)
         }
     }
 
@@ -262,11 +328,14 @@ class PortfolioViewModel @Inject constructor(
         priceHistoryJob?.cancel()
         priceHistoryJob = viewModelScope.launch {
             var result = repository.getPriceHistory(days, currencyCode)
-            if (result.isEmpty()) {
-                // One paced retry — the keyless tier's throttle window usually clears quickly.
+            if (result.isEmpty() && repository.throttledUntilMillis == null) {
+                // One paced retry — worth it only when we're not inside a known throttle window
+                // (a recorded Retry-After means this retry is guaranteed to 429 too; let
+                // scheduleRetry below wait the window out instead).
                 delay(3_000)
                 result = repository.getPriceHistory(days, currencyCode)
             }
+            val networkFailed = result.isEmpty()
             if (result.isNotEmpty()) {
                 repository.persistPriceHistory(result, days, currencyCode)
             } else {
@@ -275,6 +344,12 @@ class PortfolioViewModel @Inject constructor(
             if (result.isNotEmpty()) {
                 priceHistoryCache[days] = result
                 _priceHistory.value = result
+            }
+            if (networkFailed) {
+                // The stale fallback (if any) is on screen; get fresh data once the throttle
+                // window or backoff passes rather than leaving this range stale until the next
+                // manual refresh.
+                scheduleRetry()
             }
         }
     }
@@ -332,6 +407,12 @@ class PortfolioViewModel @Inject constructor(
     }
 
     companion object {
+        /** First deferred-retry wait for a plain (non-throttled) failure — offline, DNS, 5xx with no Retry-After. */
+        private const val INITIAL_RETRY_BACKOFF_MILLIS = 15_000L
+
+        /** Backoff ceiling — a persistent outage retries every 5 minutes, cheap enough to leave running for the ViewModel's lifetime. */
+        private const val MAX_RETRY_BACKOFF_MILLIS = 5 * 60_000L
+
         internal fun computeSummary(transactions: List<PortfolioTransactionEntity>, currentPriceUsd: Double): PortfolioSummary {
             var holdingsSompi = 0L
             var totalInvested = 0.0
