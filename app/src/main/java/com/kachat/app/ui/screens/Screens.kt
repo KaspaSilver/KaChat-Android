@@ -7880,7 +7880,11 @@ private fun ProfileAddressActionCard(
         // replacing the old dedicated Copy button.
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable(enabled = address != null) { onCopy() }
+            // Fixed width so Send and Manage land in the same column on both cards
+            // regardless of title and balance text width.
+            modifier = Modifier
+                .width(140.dp)
+                .clickable(enabled = address != null) { onCopy() }
         ) {
             Text(
                 title,
