@@ -78,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -4066,7 +4067,20 @@ fun ManageAddressesScreen(
                 )
             }
         }
-        Box(modifier = Modifier.fillMaxSize().nestedScroll(pullRefreshState.nestedScrollConnection)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                // Same fix as PortfolioScreen: an idle PullToRefreshContainer "hides" by
+                // translating one full container-height above its own position via graphicsLayer,
+                // and graphicsLayer translation does NOT clip. On screens whose pull Box is the
+                // first child under the Scaffold padding, that resting gray circle lands in the
+                // top-app-bar band and the opaque app bar draws over it - but here the Chat
+                // Privacy TabRow sits above this Box, so without a clip the resting circle drew
+                // right over the tab row, parked there with no pull in progress. clipToBounds
+                // keeps the indicator inside this Box: invisible at rest, revealed by a real pull.
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -4233,10 +4247,16 @@ fun ManageAddressesScreen(
             }
         }
 
-        PullToRefreshContainer(
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
+        // Hard guarantee on top of the clipToBounds above: the indicator is only ever composed
+        // while a pull is actually in progress or a refresh is running. At rest (offset 0, not
+        // refreshing) there is nothing to draw, so no layout quirk can park the gray circle
+        // over the content again.
+        if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
 
         qrAddress?.let { address ->
             QrCodeOverlay(value = address, onDismiss = { qrAddress = null })
