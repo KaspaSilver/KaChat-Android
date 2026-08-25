@@ -7861,19 +7861,20 @@ private fun ProfileAddressActionCard(
     onSend: () -> Unit,
     onManage: () -> Unit
 ) {
+    // Two buttons instead of three now, so the row centers as one cluster instead of
+    // splitting to the screen edges.
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)
     ) {
         // The title + balance block IS the copy affordance: tapping it copies the address,
         // replacing the old dedicated Copy button.
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(enabled = address != null) { onCopy() }
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable(enabled = address != null) { onCopy() }
         ) {
             Text(
                 title,
