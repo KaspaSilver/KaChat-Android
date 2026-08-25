@@ -462,6 +462,11 @@ fun MainShell(
                 // Red dot on the Profile tab while the notification bell (which lives on the
                 // Profile screen) holds unread entries.
                 val dockNotifVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
+                // The store is a singleton keyed per wallet internally; reload whenever the
+                // active account changes so a switch never leaves the previous account's unread
+                // dot (and entries) showing until something else happens to poke it.
+                val dockNotifAddress by walletViewModel.address.collectAsState()
+                LaunchedEffect(dockNotifAddress) { dockNotifVm.store.reloadIfNeeded() }
                 val dockNotifEntries by dockNotifVm.store.entries.collectAsState()
                 val dockNotifLastSeen by dockNotifVm.store.lastSeenAt.collectAsState()
                 val dockNotifUnread = dockNotifEntries.count { it.timestampMs > dockNotifLastSeen }

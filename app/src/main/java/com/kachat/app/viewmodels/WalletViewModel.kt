@@ -689,6 +689,26 @@ class WalletViewModel @Inject constructor(
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
+    /** Sentinel for "no activeAddressFlow emission observed yet" — distinct from null, which is a
+     *  real state (logged out / no wallet). See the account-change collector in [init]. */
+    private object NoAddressYet
+
+    /**
+     * Clears every per-account StateFlow this activity-scoped ViewModel holds, called the moment
+     * the active account changes. Without this, a freshly created account inherits the previous
+     * account's KNS identity on screen (domain name, banner, avatar, bio) until a network fetch
+     * happens to overwrite it — and [_knsProfile] was never overwritten at all for a domainless
+     * account, so the old profile card stuck permanently.
+     */
+    private fun resetPerAccountUiState() {
+        _ownedDomainAssets.value = emptyList()
+        _primaryDomainName.value = null
+        _knsProfile.value = null
+        _addressKnsDomains.value = emptyList()
+        _domainOwningAddresses.value = emptySet()
+        walletService.resetBalancesForAccountSwitch()
+    }
+
     init {
         // One-time 4.0 dock seeding (existing users: KaPosts/Broadcasts/+More enabled, dock
         // preserved via the cap/cycle; fresh installs: minimal Chats/Profile/+More dock).
@@ -700,7 +720,25 @@ class WalletViewModel @Inject constructor(
         // (AppSettingsRepository.tabOrder/hiddenTabs) always resolve against the right account,
         // including immediately after an account switch.
         viewModelScope.launch {
+            // Sentinel distinct from any real address (including null = logged out), so the very
+            // first emission after process start never counts as an account CHANGE — resetting
+            // there would race the init-block refreshes below for no benefit.
+            var lastSeenAddress: Any? = NoAddressYet
             walletManager.activeAddressFlow.collect { address ->
+                if (lastSeenAddress != NoAddressYet && lastSeenAddress != address) {
+                    // Account switched (create/import/switch/logout): this ViewModel outlives the
+                    // account (it's activity-scoped), so every per-account StateFlow must reset
+                    // NOW rather than showing the previous account's data until some screen-entry
+                    // fetch happens to overwrite it. Same disease ColdStorageViewModel had with
+                    // its shared _addresses (fixed by resetAddressesIfAccountChanged).
+                    resetPerAccountUiState()
+                    if (address != null) {
+                        // Repopulate for the new account right away (an account with no domains
+                        // simply stays blank — exactly what a brand-new account should show).
+                        refreshOwnedDomains()
+                    }
+                }
+                lastSeenAddress = address
                 if (address != null) {
                     settings.setActiveAddress(address)
                     // Register (or re-register on account switch) this device's FCM token with
@@ -1102,9 +1140,17 @@ class WalletViewModel @Inject constructor(
     /** Domains + primary only, no profile fetch - used by the Domains screen's pull-to-refresh,
      * which never displays `knsProfile`, so fetching it on every pull was a wasted network call. */
     suspend fun refreshOwnedDomainsAndAwait() {
-        val currentAddress = address.value ?: return
-        _ownedDomainAssets.value = knsService.getOwnedDomains(currentAddress)
-        _primaryDomainName.value = knsService.getExplicitPrimaryDomain(currentAddress)
+        // The WalletManager flow, not this ViewModel's _address mirror: it's the authority and is
+        // updated first on every account create/import/switch, so a refresh fired during the
+        // switch window can never fetch (and then publish) the OLD account's domains.
+        val currentAddress = walletManager.activeAddressFlow.value ?: return
+        val domains = knsService.getOwnedDomains(currentAddress)
+        val primary = knsService.getExplicitPrimaryDomain(currentAddress)
+        // Account switched while the fetch was in flight — these results belong to the previous
+        // account and must not be published under the new one.
+        if (walletManager.activeAddressFlow.value != currentAddress) return
+        _ownedDomainAssets.value = domains
+        _primaryDomainName.value = primary
     }
 
     data class SetPrimaryDomainUiState(val assetId: String? = null, val inFlight: Boolean = false, val errorMessage: String? = null)
@@ -1258,10 +1304,22 @@ class WalletViewModel @Inject constructor(
 
     fun refreshKnsProfile() {
         viewModelScope.launch {
+            val fetchedForAddress = walletManager.activeAddressFlow.value
             val assets = _ownedDomainAssets.value
             val activeName = KnsService.pickActiveDomain(assets.mapNotNull { it.asset }, null, _primaryDomainName.value)
-            val assetId = assets.firstOrNull { it.asset == activeName }?.assetId ?: assets.firstOrNull()?.assetId ?: return@launch
-            _knsProfile.value = knsService.getProfile(assetId)
+            val assetId = assets.firstOrNull { it.asset == activeName }?.assetId ?: assets.firstOrNull()?.assetId
+            if (assetId == null) {
+                // No domain, no profile. Clearing (instead of the old early-return that left the
+                // previous value standing) is what blanks the profile card when the active account
+                // has no KNS identity — the early return let a prior account's banner/avatar/bio
+                // survive an account switch forever.
+                _knsProfile.value = null
+                return@launch
+            }
+            val profile = knsService.getProfile(assetId)
+            // Don't publish a fetch that raced an account switch (same guard as refreshOwnedDomainsAndAwait).
+            if (walletManager.activeAddressFlow.value != fetchedForAddress) return@launch
+            _knsProfile.value = profile
         }
     }
 

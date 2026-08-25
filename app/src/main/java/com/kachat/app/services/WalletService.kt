@@ -49,7 +49,8 @@ class WalletService @Inject constructor(
     // [balance]'s 0L initial value is indistinguishable from a genuinely empty wallet, so
     // consumers that must react only to a *confirmed* zero (ChatThreadScreen's funding gate)
     // check this alongside it — it flips true the first time a balance fetch for the chatting
-    // (identity) address actually succeeds, and never flips back.
+    // (identity) address actually succeeds, and only ever flips back on an account switch
+    // (see resetBalancesForAccountSwitch: the new account's balance is unknown again).
     private val _balanceKnown = MutableStateFlow(false)
     val balanceKnown: StateFlow<Boolean> = _balanceKnown.asStateFlow()
 
@@ -73,12 +74,28 @@ class WalletService @Inject constructor(
     private suspend fun readyApi(): KaspaRestApi? =
         networkService.kaspaRestApi.value ?: withTimeoutOrNull(10_000) { networkService.kaspaRestApi.filterNotNull().first() }
 
+    /**
+     * Account switch: zero the balances and drop [balanceKnown] back to false so the new account
+     * never renders the previous account's numbers while its own first fetch is in flight — a
+     * brand-new account would otherwise flash the old account's balance. Called by
+     * WalletViewModel's activeAddressFlow collector, the same reset point the KNS profile state
+     * uses.
+     */
+    fun resetBalancesForAccountSwitch() {
+        _balance.value = 0L
+        _spendingBalance.value = 0L
+        _balanceKnown.value = false
+    }
+
     suspend fun refreshBalance() {
         val address = try { walletManager.getAddress() } catch (e: Exception) { return }
         val api = readyApi() ?: return
 
         try {
             val response = api.getBalance(address)
+            // A fetch that raced an account switch must not stamp the OLD account's balance
+            // under the new one.
+            if ((try { walletManager.getAddress() } catch (e: Exception) { null }) != address) return
             _balance.value = response.balance
             _balanceKnown.value = true
         } catch (e: Exception) {
@@ -92,6 +109,9 @@ class WalletService @Inject constructor(
 
         try {
             val response = api.getBalance(address)
+            // Same account-switch race guard as refreshBalance (the spending address is
+            // per-account too).
+            if ((try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }) != address) return
             _spendingBalance.value = response.balance
         } catch (e: Exception) {
             Log.e("WalletService", "Error refreshing spending balance", e)

@@ -535,7 +535,15 @@ class ChatViewModel @Inject constructor(
         contacts
             .map { contact ->
                 Conversation(contact, latestByContact[contact.id], unreadByContact[contact.id] ?: 0)
-            }.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }
+            }
+            // The auto-seeded self-chat contact (ChatRepository.syncMessages creates one for your
+            // own address on every sync so self-notes have a sweep target) only earns a chat-list
+            // row once it actually holds a message. Without this, every brand-new account showed
+            // one mystery conversation for its own (unrecognizable) address within seconds of
+            // creation. iOS behaves this way already: it seeds the self CONTACT but only lists
+            // conversations that have messages.
+            .filterNot { it.contact.id == it.contact.walletAddress && it.lastMessage == null }
+            .sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
 
     /**

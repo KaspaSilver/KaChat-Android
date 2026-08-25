@@ -313,12 +313,15 @@ class ChatRepository @Inject constructor(
         database.messageDao().deleteById(id, walletManager.getAddress())
     }
 
-    /** Replaces any previous reaction [reactorAddress] left on [targetTxId] with [emoji] - one reaction per (message, reactor). */
-    suspend fun upsertReaction(targetTxId: String, reactorAddress: String, contactId: String, emoji: String, reactionTxId: String?, blockTimestamp: Long, deliveryStatus: String = "sent", failedAction: String? = null) {
+    /** Replaces any previous reaction [reactorAddress] left on [targetTxId] with [emoji] - one reaction per (message, reactor).
+     *  [walletAddress] pins which account's row this writes - sync paths MUST pass the address the
+     *  sync cycle captured (see processContextualMessage's doc comment on mid-switch stamping);
+     *  null (UI send paths) means the currently active account. */
+    suspend fun upsertReaction(targetTxId: String, reactorAddress: String, contactId: String, emoji: String, reactionTxId: String?, blockTimestamp: Long, deliveryStatus: String = "sent", failedAction: String? = null, walletAddress: String? = null) {
         database.reactionDao().upsertReaction(
             ReactionEntity(
                 targetTxId = targetTxId,
-                walletAddress = walletManager.getAddress(),
+                walletAddress = walletAddress ?: walletManager.getAddress(),
                 reactorAddress = reactorAddress,
                 emoji = emoji,
                 reactionTxId = reactionTxId,
@@ -330,8 +333,9 @@ class ChatRepository @Inject constructor(
         )
     }
 
-    suspend fun removeReaction(targetTxId: String, reactorAddress: String) {
-        database.reactionDao().deleteReaction(targetTxId, walletManager.getAddress(), reactorAddress)
+    /** See [upsertReaction]'s [walletAddress] doc — sync paths pass the captured address, UI paths pass null. */
+    suspend fun removeReaction(targetTxId: String, reactorAddress: String, walletAddress: String? = null) {
+        database.reactionDao().deleteReaction(targetTxId, walletAddress ?: walletManager.getAddress(), reactorAddress)
     }
 
     fun getReactionsForContact(contactId: String): Flow<List<ReactionEntity>> {
@@ -632,9 +636,9 @@ class ChatRepository @Inject constructor(
         val reaction = MessageReaction.parseOrNull(plaintext)
         if (reaction != null) {
             if (reaction.action == "add") {
-                upsertReaction(reaction.targetTxId, contact.id, contact.id, reaction.emoji, message.txId, message.blockTime)
+                upsertReaction(reaction.targetTxId, contact.id, contact.id, reaction.emoji, message.txId, message.blockTime, walletAddress = myAddress)
             } else {
-                removeReaction(reaction.targetTxId, contact.id)
+                removeReaction(reaction.targetTxId, contact.id, walletAddress = myAddress)
             }
             return
         }
