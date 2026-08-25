@@ -54,6 +54,7 @@ class ChatViewModel @Inject constructor(
     private val diagnosticsExportService: com.kachat.app.services.DiagnosticsExportService,
     private val voiceRecorderService: VoiceRecorderService,
     private val googleDriveBackupService: GoogleDriveBackupService,
+    private val googleDriveSyncService: com.kachat.app.services.GoogleDriveSyncService,
     private val nextcloudService: NextcloudService,
     private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
@@ -295,14 +296,57 @@ class ChatViewModel @Inject constructor(
             signedInEmail = googleDriveBackupService.signedInAccountEmail,
             status = GoogleBackupOpStatus.SUCCESS
         )
+        // Sign-in is one of the two automatic-restore moments (the other is wallet activation):
+        // if this wallet's Drive file already exists, its history is imported silently in the
+        // background — txId dedupe makes it purely additive. Also schedules the fallback work.
+        googleDriveSyncService.onSignedIn()
     }
 
-    /** Turns off automatic backup — does not delete the existing Drive file, just stops future uploads. */
+    /** Turns off automatic backup — does not delete the existing Drive file, just stops future uploads (including any scheduled automatic sync work). */
     fun disableGoogleDriveBackup() {
         viewModelScope.launch {
             settings.setGoogleBackupEnabled(false)
             googleDriveBackupService.signOut()
+            googleDriveSyncService.onSignedOut()
             _googleBackupOpState.value = GoogleBackupUiState()
+        }
+    }
+
+    /** The active wallet's "Automatic Drive Sync" toggle (default on once signed in). */
+    val driveAutoSyncEnabled: StateFlow<Boolean> = googleDriveSyncService.autoSyncEnabled
+
+    /** When the active wallet's archive last uploaded automatically, null = never. */
+    val driveLastAutoSyncMs: StateFlow<Long?> = googleDriveSyncService.lastAutoSyncMs
+
+    fun setDriveAutoSyncEnabled(enabled: Boolean) {
+        googleDriveSyncService.setAutoSyncEnabled(enabled)
+    }
+
+    /**
+     * Deletes the CURRENT wallet's backup file from Drive — the Android counterpart of iOS's
+     * "purge this wallet's CloudKit data". Local messages and other wallets' Drive files are
+     * untouched; automatic sync stays on, so the next message re-creates the file.
+     */
+    fun deleteDriveBackup() {
+        if (_googleBackupOpState.value.status == GoogleBackupOpStatus.IN_PROGRESS) return
+        viewModelScope.launch {
+            _googleBackupOpState.value = _googleBackupOpState.value.copy(status = GoogleBackupOpStatus.IN_PROGRESS)
+            val address = try { walletManager.getAddress() } catch (e: Exception) { null }
+            var success = false
+            if (address != null) {
+                success = try {
+                    googleDriveBackupService.deleteBackup(address)
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Drive backup delete failed", e)
+                    false
+                }
+                if (success) googleDriveSyncService.clearLastSyncStamp(address)
+            }
+            _googleBackupOpState.value = _googleBackupOpState.value.copy(
+                status = if (success) GoogleBackupOpStatus.SUCCESS else GoogleBackupOpStatus.FAILED,
+                message = if (success) "Drive backup deleted" else "Could not delete the Drive backup"
+            )
+            refreshDriveBackupSize()
         }
     }
 
@@ -505,10 +549,14 @@ class ChatViewModel @Inject constructor(
                 // login and settings must go with it — mirrors iOS's purgeStoredState in the
                 // WalletManager account-deletion flows.
                 nextcloudService.purgeStoredState(address)
+                // Same per-account hygiene for the automatic Drive sync: this wallet's toggle,
+                // stamps, and pending debounced upload go with it; other wallets are untouched.
+                googleDriveSyncService.purgeStoredState(address)
                 if (alsoDeleteCloud) {
                     googleDriveBackupService.deleteBackup(address)
                     settings.setGoogleBackupEnabled(false)
                     googleDriveBackupService.signOut()
+                    googleDriveSyncService.onSignedOut()
                     _googleBackupOpState.value = GoogleBackupUiState()
                 }
                 _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.SUCCESS)

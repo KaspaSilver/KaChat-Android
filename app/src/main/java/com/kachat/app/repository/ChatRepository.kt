@@ -15,8 +15,6 @@ import com.kachat.app.services.ContextualMessageIndexerResponse
 import com.kachat.app.services.HandshakeIndexerResponse
 import com.kachat.app.services.KasiaIndexerApi
 import com.kachat.app.services.KaspaRestApi
-import com.kachat.app.services.ChatHistoryExportImportService
-import com.kachat.app.services.GoogleDriveBackupService
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PushState
@@ -33,7 +31,6 @@ import com.kachat.app.util.VoiceMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -63,19 +60,17 @@ class ChatRepository @Inject constructor(
     // (PUSH_EXTENSIONS.md §4) and posting here too would duplicate every banner. The sync work
     // itself is never gated on it — it still powers the live UI and the local store.
     private val pushState: PushState,
-    private val googleDriveBackupService: GoogleDriveBackupService,
-    // Lazy because ChatHistoryExportImportService itself depends on ChatRepository (it reads
-    // contacts/messages to build the archive) — a direct circular constructor dependency Dagger
-    // can't resolve. Lazy<T> defers instantiation past construction time, breaking the cycle
-    // while still letting this class call into it once actually needed (auto-backup).
-    private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>,
+    // Lazy because GoogleDriveSyncService depends (via the export service) on ChatRepository —
+    // a direct circular constructor dependency Dagger can't resolve. Lazy<T> defers
+    // instantiation past construction time, breaking the cycle while still letting this class
+    // signal message activity into it (the automatic Drive sync debounce).
+    private val googleDriveSyncServiceLazy: dagger.Lazy<com.kachat.app.services.GoogleDriveSyncService>,
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
     private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
-    private var backupDebounceJob: Job? = null
 
     init {
         // Real-time-ish receive for the LIVE UI while the app is open: poll the indexer
@@ -261,29 +256,14 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Debounced automatic Google Drive backup — every new message (sent or received, from any
-     * insertion path, since all of them now funnel through [insertMessage]) restarts an ~8s
-     * quiet-time timer rather than uploading on every single message, so a rapid exchange only
-     * triggers one upload after things settle. No-ops entirely if backup isn't enabled. Runs on
-     * this repository's own always-alive scope, not any UI-scoped one, so it isn't cut short by
-     * navigating away from whatever screen sent the message.
+     * Automatic Google Drive sync signal — every new message (sent or received, from any
+     * insertion path, since all of them funnel through [insertMessage]) is reported to
+     * [com.kachat.app.services.GoogleDriveSyncService], which owns the debounce, the per-wallet
+     * gating, the wallet snapshotting, and the WorkManager fallback. No-ops inside the service
+     * when Drive backup or the wallet's Automatic Drive Sync toggle is off.
      */
     private fun scheduleAutoBackupIfEnabled() {
-        scope.launch {
-            if (!settingsRepository.googleBackupEnabled.first()) return@launch
-            backupDebounceJob?.cancel()
-            backupDebounceJob = scope.launch {
-                delay(AUTO_BACKUP_DEBOUNCE_MS)
-                try {
-                    val myAddress = walletManager.getAddress()
-                    val json = chatHistoryExportImportServiceLazy.get().buildArchiveJson()
-                    val success = googleDriveBackupService.uploadBackup(myAddress, json)
-                    if (success) pruneOldMessages()
-                } catch (e: Exception) {
-                    Log.w("ChatRepository", "Automatic Google Drive backup failed", e)
-                }
-            }
-        }
+        googleDriveSyncServiceLazy.get().noteMessageActivity()
     }
 
     /**
@@ -880,6 +860,5 @@ class ChatRepository @Inject constructor(
             s.toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it) }
 
         private const val POLL_INTERVAL_MS = 2_000L
-        private const val AUTO_BACKUP_DEBOUNCE_MS = 8_000L
     }
 }

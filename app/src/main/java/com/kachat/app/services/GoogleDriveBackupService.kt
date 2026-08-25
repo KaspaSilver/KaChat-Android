@@ -34,8 +34,11 @@ import javax.inject.Singleton
  * anything else in their Drive.
  *
  * The access token obtained by [requestAuthorization]/[completeAuthorization] is held only in
- * memory (not persisted) — a fresh app process re-authorizes silently via Credential Manager's
- * remembered account, matching how short-lived OAuth access tokens are meant to be handled.
+ * memory (not persisted) — a fresh app process re-authorizes silently via
+ * [ensureAccessTokenSilently] (Play Services remembers the granted `drive.appdata` consent),
+ * matching how short-lived OAuth access tokens are meant to be handled. Only the signed-in
+ * account's email survives restarts (plain SharedPreferences — it is the sign-in marker the
+ * automatic sync service checks, not a credential).
  */
 @Singleton
 class GoogleDriveBackupService @Inject constructor(
@@ -49,7 +52,9 @@ class GoogleDriveBackupService @Inject constructor(
 
     private val credentialManager = CredentialManager.create(context)
 
-    private var signedInEmail: String? = null
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private var signedInEmail: String? = prefs.getString(PREF_SIGNED_IN_EMAIL, null)
     private var cachedAccessToken: String? = null
 
     val isSignedIn: Boolean get() = signedInEmail != null
@@ -74,6 +79,9 @@ class GoogleDriveBackupService @Inject constructor(
             val credential = result.credential
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 signedInEmail = GoogleIdTokenCredential.createFrom(credential.data).id
+                // Persisted so a fresh process still knows Drive backup is signed in (the
+                // automatic sync/restore paths check this before silently re-authorizing).
+                prefs.edit().putString(PREF_SIGNED_IN_EMAIL, signedInEmail).apply()
                 true
             } else {
                 false
@@ -125,6 +133,28 @@ class GoogleDriveBackupService @Inject constructor(
     fun signOut() {
         signedInEmail = null
         cachedAccessToken = null
+        prefs.edit().remove(PREF_SIGNED_IN_EMAIL).apply()
+    }
+
+    /**
+     * Refreshes the in-memory access token WITHOUT any UI — usable from background work
+     * (automatic sync, WorkManager). Play Services remembers the `drive.appdata` consent the
+     * user granted during [requestAuthorization], so `authorize()` from an application context
+     * returns a fresh token silently; if consent would be needed (revoked, never granted) this
+     * just returns false rather than trying to show anything.
+     */
+    suspend fun ensureAccessTokenSilently(): Boolean {
+        if (cachedAccessToken != null) return true
+        if (signedInEmail == null) return false
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(listOf(Scope(DRIVE_APPDATA_SCOPE)))
+            .build()
+        return try {
+            val result = Identity.getAuthorizationClient(context).authorize(request).await()
+            applyAuthorizationResult(result) is AuthOutcome.Success
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**
@@ -135,24 +165,24 @@ class GoogleDriveBackupService @Inject constructor(
      * "not authorized yet".
      */
     suspend fun uploadBackup(walletAddress: String, archiveJson: String): Boolean {
-        val auth = bearerToken() ?: return false
         val fileName = backupFileNameFor(walletAddress)
         return try {
-            val existingFileId = findBackupFileId(auth, fileName)
-            val contentType = "application/json".toMediaTypeOrNull()
-            if (existingFileId != null) {
-                api.updateFileContent(auth, existingFileId, archiveJson.toRequestBody(contentType))
-            } else {
-                val metadata = """{"name":"$fileName","parents":["appDataFolder"]}"""
-                    .toRequestBody("application/json".toMediaTypeOrNull())
-                val content = archiveJson.toRequestBody(contentType)
-                api.createFile(
-                    auth,
-                    MultipartBody.Part.createFormData("metadata", null, metadata),
-                    MultipartBody.Part.createFormData("file", fileName, content)
-                )
-            }
-            true
+            withAuthRetry { auth ->
+                val existingFileId = findBackupFileId(auth, fileName)
+                val contentType = "application/json".toMediaTypeOrNull()
+                if (existingFileId != null) {
+                    api.updateFileContent(auth, existingFileId, archiveJson.toRequestBody(contentType))
+                } else {
+                    val metadata = """{"name":"$fileName","parents":["appDataFolder"]}"""
+                        .toRequestBody("application/json".toMediaTypeOrNull())
+                    val content = archiveJson.toRequestBody(contentType)
+                    api.createFile(
+                        auth,
+                        MultipartBody.Part.createFormData("metadata", null, metadata),
+                        MultipartBody.Part.createFormData("file", fileName, content)
+                    )
+                }
+            } != null
         } catch (e: Exception) {
             false
         }
@@ -160,22 +190,24 @@ class GoogleDriveBackupService @Inject constructor(
 
     /** Fetches [walletAddress]'s own backup file content, or null if none exists yet, isn't authorized, or the request fails. */
     suspend fun downloadBackup(walletAddress: String): String? {
-        val auth = bearerToken() ?: return null
         return try {
-            val fileId = findBackupFileId(auth, backupFileNameFor(walletAddress)) ?: return null
-            api.downloadFile(auth, fileId).string()
+            withAuthRetry { auth ->
+                val fileId = findBackupFileId(auth, backupFileNameFor(walletAddress))
+                if (fileId == null) null else api.downloadFile(auth, fileId).string()
+            }
         } catch (e: Exception) {
             null
         }
     }
 
-    /** Permanently deletes [walletAddress]'s own backup file from Drive — used by the "wipe account & Cloud" danger-zone action. Treats "not signed in" or "no backup exists" as trivially successful, since there's nothing to delete either way. */
+    /** Permanently deletes [walletAddress]'s own backup file from Drive — used by the "wipe account & Cloud" danger-zone action and the storage screen's "Delete Drive Backup". Treats "not signed in" or "no backup exists" as trivially successful, since there's nothing to delete either way. */
     suspend fun deleteBackup(walletAddress: String): Boolean {
-        val auth = bearerToken() ?: return true
+        if (bearerToken() == null) return true
         return try {
-            val fileId = findBackupFileId(auth, backupFileNameFor(walletAddress)) ?: return true
-            api.deleteFile(auth, fileId)
-            true
+            withAuthRetry { auth ->
+                val fileId = findBackupFileId(auth, backupFileNameFor(walletAddress))
+                if (fileId != null) api.deleteFile(auth, fileId)
+            } != null
         } catch (e: Exception) {
             false
         }
@@ -190,19 +222,44 @@ class GoogleDriveBackupService @Inject constructor(
      * if not signed in, no backup exists yet, or the request fails. Drive's API returns file size
      * as a decimal string, hence the parse. */
     suspend fun currentBackupSizeBytes(walletAddress: String): Long? {
-        val auth = bearerToken() ?: return null
         return try {
-            api.listFiles(auth, query = "name='${backupFileNameFor(walletAddress)}' and 'appDataFolder' in parents")
-                .files?.firstOrNull()?.size?.toLongOrNull()
+            withAuthRetry { auth ->
+                api.listFiles(auth, query = "name='${backupFileNameFor(walletAddress)}' and 'appDataFolder' in parents")
+                    .files?.firstOrNull()?.size?.toLongOrNull()
+            }
         } catch (e: Exception) {
             null
         }
     }
 
-    private fun bearerToken(): String? = cachedAccessToken?.let { "Bearer $it" }
+    /** In-memory token first, silent refresh if the process restarted since authorization. */
+    private suspend fun bearerToken(): String? {
+        if (cachedAccessToken == null) ensureAccessTokenSilently()
+        return cachedAccessToken?.let { "Bearer $it" }
+    }
+
+    /**
+     * Runs [block] with a bearer token, retrying exactly once on HTTP 401 after silently
+     * refreshing — Drive access tokens live about an hour, and the automatic sync's debounced
+     * uploads routinely run long after the token that authorized the session expired. Returns
+     * null when no token can be obtained at all.
+     */
+    private suspend fun <T> withAuthRetry(block: suspend (auth: String) -> T): T? {
+        val auth = bearerToken() ?: return null
+        return try {
+            block(auth)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() != 401) throw e
+            cachedAccessToken = null
+            val fresh = bearerToken() ?: return null
+            block(fresh)
+        }
+    }
 
     companion object {
         private const val DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+        private const val PREFS_NAME = "google_drive_backup_prefs"
+        private const val PREF_SIGNED_IN_EMAIL = "signed_in_email"
 
         /**
          * One backup file per account, not one shared file — otherwise switching between

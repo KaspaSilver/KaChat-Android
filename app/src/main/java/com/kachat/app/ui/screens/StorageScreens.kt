@@ -46,10 +46,15 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -120,6 +125,10 @@ fun GoogleDriveStorageScreen(
         }
     }
 
+    val driveAutoSyncEnabled by chatViewModel.driveAutoSyncEnabled.collectAsState()
+    val driveLastAutoSyncMs by chatViewModel.driveLastAutoSyncMs.collectAsState()
+    var showDeleteBackupDialog by remember { mutableStateOf(false) }
+
     val backupInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
     val restoreInFlight = restorePhase is BackupRestoreCoordinator.Phase.Running
 
@@ -178,6 +187,28 @@ fun GoogleDriveStorageScreen(
             }
 
             if (googleBackupEnabled) {
+                // Automatic sync: the Android counterpart of iOS's invisible iCloud persistence.
+                // On keeps the wallet's Drive file current after message activity (debounced,
+                // with a periodic fallback) and restores it automatically on wallet activation.
+                SettingsDivider()
+                SettingsSwitchItem(
+                    "Automatic Drive Sync",
+                    checked = driveAutoSyncEnabled,
+                    onCheckedChange = { chatViewModel.setDriveAutoSyncEnabled(it) }
+                )
+                SettingsFooter(
+                    if (driveAutoSyncEnabled) {
+                        val lastSync = driveLastAutoSyncMs
+                        if (lastSync != null) {
+                            "Chat history syncs to Drive automatically. Last synced " +
+                                android.text.format.DateUtils.getRelativeTimeSpanString(lastSync).toString().lowercase() + "."
+                        } else {
+                            "Chat history syncs to Drive automatically after new messages. Not synced yet."
+                        }
+                    } else {
+                        "Automatic sync is off. Only manual backups update the Drive file."
+                    }
+                )
                 SettingsDivider()
                 SettingsActionItem(
                     label = if (backupInFlight) "Backing Up..." else "Back Up Now",
@@ -196,8 +227,46 @@ fun GoogleDriveStorageScreen(
                     // as footer rows here.
                     if (!restoreInFlight) chatViewModel.restoreFromGoogleDrive()
                 }
+                // Purge: mirrors iOS's "delete this wallet's CloudKit data". Only the current
+                // wallet's Drive file; local messages and other wallets' files are untouched.
+                SettingsDivider()
+                SettingsActionItem(
+                    label = "Delete Drive Backup",
+                    icon = Icons.Default.Delete,
+                    color = if (backupInFlight) Color.Gray else Color(0xFFFF3B30)
+                ) {
+                    if (!backupInFlight) showDeleteBackupDialog = true
+                }
             }
         }
+    }
+
+    if (showDeleteBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteBackupDialog = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Delete Drive Backup?", color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    "This permanently deletes this wallet's chat history backup from your Google Drive. " +
+                        "Messages on this device are not affected. If Automatic Drive Sync stays on, a new backup will be created after the next message.",
+                    color = LocalAppColors.current.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteBackupDialog = false
+                    chatViewModel.deleteDriveBackup()
+                }) {
+                    Text("Delete", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteBackupDialog = false }) {
+                    Text("Cancel", color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
     }
     ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
     }

@@ -75,6 +75,14 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var chatHistoryExportImportService: com.kachat.app.services.ChatHistoryExportImportService
 
+    // Same lazy-singleton reasoning as the scanners above: GoogleDriveSyncService's init block
+    // observes the active wallet (automatic Drive restore on wallet activation) and the Drive
+    // sign-in + auto-sync toggles (schedules/cancels the 6h WorkManager fallback). Field-
+    // injecting it here guarantees those observers run from app startup, not only after the
+    // Google Drive storage screen happens to be opened.
+    @Inject
+    lateinit var googleDriveSyncService: com.kachat.app.services.GoogleDriveSyncService
+
     // For mirroring the persisted "Verbose API Logging" toggle into ApiLogging.verbose (a plain
     // volatile flag the OkHttp logging interceptor reads per request) — see onCreate below.
     @Inject
