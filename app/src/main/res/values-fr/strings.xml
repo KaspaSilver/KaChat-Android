@@ -9,7 +9,6 @@
     <string name="account_name">Nom du compte</string>
     <string name="active_nodes">Nœuds actifs</string>
     <string name="add">Ajouter</string>
-    <string name="add_address">Ajouter une adresse</string>
     <string name="add_contact">Ajouter un contact</string>
     <string name="add_transaction">Ajouter une transaction</string>
     <string name="add_to_portfolio">Ajouter au portefeuille</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">Parametres de diffusion</string>
     <string name="broadcasting">Diffusion en cours...</string>
     <string name="broadcasts">Diffusions</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">Les diffusions sont des canaux publics non chiffres. Toute personne qui rejoint le meme nom de canal voit les memes messages.</string>
     <string name="build_unsigned_transaction">Construire une transaction non signee</string>
     <string name="building_transaction">Construction de la transaction...</string>
     <string name="camera_permission_is_needed_to_scan">L\'acces a la camera est necessaire pour scanner un code QR</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">Annuler la reponse</string>
     <string name="change">Changer</string>
     <string name="changenow_exchange_id">ID d\'echange ChangeNOW</string>
-    <string name="channels">Canaux</string>
     <string name="chats">Discussions</string>
     <string name="chatting_address">Adresse de discussion</string>
     <string name="chatting_address_2">Adresse de discussion</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Sauvegarde Google Drive utilisee</string>
     <string name="grant_permission">Accorder l\'autorisation</string>
     <string name="grant_permission_2">Accorder l\'autorisation</string>
-    <string name="group_chat">Discussion de groupe</string>
     <string name="group_chats">Discussions de groupe</string>
     <string name="group_info">Infos du groupe</string>
     <string name="group_name">Nom du groupe</string>
@@ -169,14 +165,12 @@
     <string name="name">Nom</string>
     <string name="name_optional">Nom (Optionnel)</string>
     <string name="name_this_address">Nommer cette adresse</string>
-    <string name="network">Réseau</string>
     <string name="never_send_kaspa_you_intend_to">Ne jamais envoyer a cette adresse du Kaspa que vous comptez depenser.</string>
     <string name="next">Suivant</string>
     <string name="no_conversations_yet">Aucune conversation pour le moment</string>
     <string name="no_group_chats_yet">Aucune discussion de groupe pour l\'instant</string>
     <string name="no_matching_chats">Aucune discussion correspondante</string>
     <string name="no_matching_groups">Aucun groupe correspondant</string>
-    <string name="no_broadcast_channels_yet">Aucun canal de diffusion pour l\'instant</string>
     <string name="no_cold_storage_accounts_yet_scan">Aucun compte de stockage a froid pour l\'instant. Scannez une kpub exportee depuis votre appareil KasSigner pour surveiller son solde et y envoyer des fonds.</string>
     <string name="no_domains_yet">Aucun domaine pour l\'instant.</string>
     <string name="no_hidden_addresses">Aucune adresse masquee.</string>
@@ -210,8 +204,6 @@
     <string name="photos">Photos</string>
     <string name="polygon_network">Reseau Polygon</string>
     <string name="pool_health">Santé du pool</string>
-    <string name="popular">Populaire</string>
-    <string name="popular_tab">Onglet populaire</string>
     <string name="portfolio">Portefeuille</string>
     <string name="powered_by_changenow">Propulse par ChangeNOW</string>
     <string name="price_per_coin">Prix par piece</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">Domaine reserve : aucuns frais d\'enregistrement, seuls les frais de reseau s\'appliquent.</string>
     <string name="resign">Abandonner</string>
     <string name="resign_this_game">Abandonner cette partie ?</string>
-    <string name="resolving_kns_domain">Resolution du domaine KNS…</string>
     <string name="resolving_domain">Resolution du domaine…</string>
     <string name="resolving">Resolution...</string>
     <string name="retention">Retention</string>
@@ -271,7 +262,6 @@
     <string name="show_more">Voir plus</string>
     <string name="show_photo">Afficher la photo</string>
     <string name="show_qr_code">Afficher le code QR</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Affiche un onglet de salons de diffusion recommandes que vous pouvez rejoindre.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Affiche les avatars KNS des expediteurs dans les salons et les recherche automatiquement a l\'apparition des messages. Desactive affiche des initiales simples pour tout le monde et ne recupere jamais les avatars.</string>
     <string name="skip">Ignorer</string>
     <string name="some_changes_failed_to_save">Certaines modifications n\'ont pas pu etre enregistrees :</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">Cela peut prendre quelques minutes le temps de la confirmation sur la chaine.</string>
     <string name="this_only_removes_it_from_kachat">Cela le retire uniquement de la liste de surveillance de KaChat. Cela n\'a aucun effet sur l\'appareil KasSigner ni sur les fonds qu\'il detient.</string>
     <string name="this_permanently_deletes_every_message_with">Cela supprime definitivement chaque message avec eux sur cet appareil. Cela ne peut pas etre annule; leur reecrire demarre une toute nouvelle conversation.</string>
-    <string name="this_permanently_deletes_this_account_s">Cela supprime definitivement les cles de portefeuille de ce compte ainsi que tous ses messages et contacts locaux de cet appareil. Cela ne peut pas etre annule sauf si vous avez sauvegarde votre phrase de recuperation; sans elle, tout solde restant est irrecuperable.</string>
-    <string name="this_permanently_deletes_this_account_s_2">Cela supprime definitivement les cles de portefeuille de ce compte, tous ses messages et contacts locaux, ainsi que sa sauvegarde Google Drive. Cela ne peut pas etre annule sauf si vous avez sauvegarde votre phrase de recuperation; sans elle, tout solde restant est irrecuperable.</string>
-    <string name="this_removes_all_incoming_messages_locally">Cela supprime tous les messages entrants localement, puis les resynchronise depuis la blockchain. Les informations de votre compte et les messages envoyes sont conserves.</string>
     <string name="this_removes_the_group_and_its">Cela retire le groupe et ses messages de cet appareil. Cela ne peut pas etre annule, et les autres membres ne seront pas notifies.</string>
     <string name="this_signs_out_of_your_account">Cela vous déconnectera de votre compte, mais conservera les données du portefeuille et des messages sur cet appareil.</string>
     <string name="to">Vers</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">Voir sur ChangeNOW</string>
     <string name="waiting_for_camera">En attente de la camera...</string>
     <string name="waiting_on_opponent">En attente de l\'adversaire</string>
-    <string name="wipe_account">Effacer le compte</string>
-    <string name="wipe_everything">Tout effacer</string>
-    <string name="wipe_incoming_messages">Effacer les messages entrants</string>
-    <string name="wipe_account_messages">Effacer le compte et les messages</string>
-    <string name="wipe_account_messages_cloud">Effacer le compte et les messages et le cloud</string>
-    <string name="wipe_and_re_sync_incoming_messages">Effacer et re-synchroniser les messages entrants</string>
     <string name="you_will_be_shown_a_seed">Une phrase de recuperation va vous etre affichee. C\'est le seul moyen de recuperer votre compte. Notez-la uniquement par ecrit. Ne prenez jamais de capture d\'ecran et ne la stockez pas sur votre appareil.</string>
     <string name="channel_name">nom-du-canal</string>
     <string name="host_port_or_grpcs_host">hote:port ou grpcs://hote</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">Echec de l\'echange</string>
     <string name="nothing_to_consolidate">Rien a consolider</string>
     <string name="about">À propos</string>
-    <string name="account">Compte</string>
     <string name="actions">Actions</string>
     <string name="active">Actif</string>
     <string name="autocreate_system_contacts">Création automatique des contacts du téléphone</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">Enregistrer la photo</string>
     <string name="save_your_own_node_addresses_here">Enregistrez ici vos propres adresses de nœuds, puis touchez-en une pour la copier et la coller dans le champ Nœud Kaspa ci-dessus.</string>
     <string name="security">Securite</string>
-    <string name="select_mainnet_for_real_transactions_or">Sélectionnez mainnet pour les transactions réelles ou testnet pour les tests</string>
     <string name="send_audio_message">Envoyer un message audio</string>
     <string name="send_handshake">Envoyer une demande de communication</string>
     <string name="send_photo_2">Envoyer une photo</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">Contact du téléphone</string>
     <string name="telegram">Telegram</string>
     <string name="total">Total</string>
-    <string name="unfinished_inscription">Inscription non terminee</string>
     <string name="uses_your_device_contacts_to_match">Utilise vos contacts d\'appareil pour associer et enrichir les contacts Kaspa.</string>
     <string name="verified">Vérifié</string>
     <string name="verifying_new_ownership_on_chain_this">Verification de la nouvelle propriete sur la chaine (cela peut prendre une minute)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">Voir la seed phrase</string>
     <string name="view_in_explorer">Voir dans l\'explorateur</string>
     <string name="website">Site web</string>
-    <string name="welcome_guide">Guide de bienvenue</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">Langue</string>
@@ -457,7 +434,6 @@
     <string name="best">Meilleur</string>
     <string name="spending_address">Adresse de depense</string>
     <string name="enter_as_host_port_or_grpcs_host">Saisissez au format host:port ou grpcs://host</string>
-    <string name="show_setup_guides">Afficher les guides de configuration</string>
     <string name="receive_kaspa">Recevoir Kaspa</string>
     <string name="currency">Devise</string>
     <string name="choose_your_currency">Choisissez votre devise</string>

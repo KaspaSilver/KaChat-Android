@@ -169,7 +169,10 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _exportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
             try {
-                val uri = chatHistoryExportImportService.exportChatHistory()
+                // Off the main thread: building the archive serializes + AES-encrypts the entire
+                // chat history (megabytes for long histories) and writes the file — viewModelScope
+                // alone would run all of that on Main and freeze the UI for the duration.
+                val uri = withContext(Dispatchers.IO) { chatHistoryExportImportService.exportChatHistory() }
                 _exportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS)
                 onReady(uri)
             } catch (e: Exception) {
@@ -188,7 +191,8 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _diagnosticsExportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
             try {
-                val uri = diagnosticsExportService.exportDiagnostics()
+                // Zip assembly is file I/O — keep it off Main (same reasoning as exportChatHistory).
+                val uri = withContext(Dispatchers.IO) { diagnosticsExportService.exportDiagnostics() }
                 _diagnosticsExportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS)
                 onReady(uri)
             } catch (e: Exception) {
@@ -203,7 +207,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _importState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
             try {
-                val result = chatHistoryExportImportService.importChatHistory(uri)
+                // Decrypt + full-archive Gson parse are CPU-heavy; keep them off Main. The Room
+                // inserts inside are suspend and safe either way.
+                val result = withContext(Dispatchers.IO) { chatHistoryExportImportService.importChatHistory(uri) }
                 _importState.value = ChatHistoryOpState(
                     status = ChatHistoryOpStatus.SUCCESS,
                     message = "Imported ${result.importedMessageCount} messages from ${result.conversationCount} chats."
@@ -1019,7 +1025,7 @@ class ChatViewModel @Inject constructor(
 
                 _currentUtxos.value = api.getUtxos(address)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.w("ChatViewModel", "UTXO refresh failed", e)
             }
         }
     }
@@ -1078,7 +1084,7 @@ class ChatViewModel @Inject constructor(
 
                 _spendingUtxos.value = api.getUtxos(address)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.w("ChatViewModel", "Spending UTXO refresh failed", e)
             }
         }
     }

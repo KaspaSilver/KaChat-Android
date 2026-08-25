@@ -9,7 +9,6 @@
     <string name="account_name">账户名称</string>
     <string name="active_nodes">活跃节点</string>
     <string name="add">添加</string>
-    <string name="add_address">添加地址</string>
     <string name="add_contact">添加联系人</string>
     <string name="add_transaction">添加交易</string>
     <string name="add_to_portfolio">添加到投资组合</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">广播设置</string>
     <string name="broadcasting">正在广播...</string>
     <string name="broadcasts">广播</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">广播是公开的、未加密的频道。任何加入相同频道名称的人都会看到相同的消息。</string>
     <string name="build_unsigned_transaction">构建未签名交易</string>
     <string name="building_transaction">正在构建交易...</string>
     <string name="camera_permission_is_needed_to_scan">扫描二维码需要相机权限</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">取消回复</string>
     <string name="change">更改</string>
     <string name="changenow_exchange_id">ChangeNOW 交易 ID</string>
-    <string name="channels">频道</string>
     <string name="chats">聊天</string>
     <string name="chatting_address">聊天地址</string>
     <string name="chatting_address_2">聊天地址</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">已使用 Google Drive 备份</string>
     <string name="grant_permission">授予权限</string>
     <string name="grant_permission_2">授予权限</string>
-    <string name="group_chat">群聊</string>
     <string name="group_chats">群聊</string>
     <string name="group_info">群组信息</string>
     <string name="group_name">群组名称</string>
@@ -169,14 +165,12 @@
     <string name="name">名称</string>
     <string name="name_optional">名称（可选）</string>
     <string name="name_this_address">为此地址命名</string>
-    <string name="network">网络</string>
     <string name="never_send_kaspa_you_intend_to">切勿将您打算花费的 Kaspa 发送到此地址。</string>
     <string name="next">下一步</string>
     <string name="no_conversations_yet">暂无会话</string>
     <string name="no_group_chats_yet">暂无群聊</string>
     <string name="no_matching_chats">没有匹配的聊天</string>
     <string name="no_matching_groups">没有匹配的群组</string>
-    <string name="no_broadcast_channels_yet">暂无广播频道</string>
     <string name="no_cold_storage_accounts_yet_scan">尚无冷存储账户。扫描从您的 KasSigner 设备导出的 kpub 以监控其余额并从中发送。</string>
     <string name="no_domains_yet">还没有域名。</string>
     <string name="no_hidden_addresses">没有隐藏的地址。</string>
@@ -210,8 +204,6 @@
     <string name="photos">照片</string>
     <string name="polygon_network">Polygon 网络</string>
     <string name="pool_health">连接池状况</string>
-    <string name="popular">热门</string>
-    <string name="popular_tab">热门标签</string>
     <string name="portfolio">投资组合</string>
     <string name="powered_by_changenow">由 ChangeNOW 提供支持</string>
     <string name="price_per_coin">每枚币价格</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">预留域名:无需注册费,仅需支付网络手续费。</string>
     <string name="resign">认输</string>
     <string name="resign_this_game">要认输这局游戏吗?</string>
-    <string name="resolving_kns_domain">正在解析 KNS 域名…</string>
     <string name="resolving_domain">正在解析域名…</string>
     <string name="resolving">正在解析...</string>
     <string name="retention">保留</string>
@@ -271,7 +262,6 @@
     <string name="show_more">显示更多</string>
     <string name="show_photo">显示照片</string>
     <string name="show_qr_code">显示二维码</string>
-    <string name="shows_a_tab_of_recommended_broadcast">显示您可以加入的推荐广播室标签。</string>
     <string name="shows_senders_kns_avatars_in_rooms">在房间中显示发送者的 KNS 头像,并在消息出现时自动查找。关闭则为所有人显示简单的首字母,且从不获取头像。</string>
     <string name="skip">跳过</string>
     <string name="some_changes_failed_to_save">部分更改未能保存:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">在链上确认可能需要几分钟。</string>
     <string name="this_only_removes_it_from_kachat">这只会将其从 KaChat 的监视列表中移除。对 KasSigner 设备或其持有的任何资金没有任何影响。</string>
     <string name="this_permanently_deletes_every_message_with">这将永久删除此设备上与他们的每条消息。此操作无法撤销;再次给他们发消息将开始一段全新的对话。</string>
-    <string name="this_permanently_deletes_this_account_s">这将永久删除此账户的钱包密钥及其所有本地消息和联系人,从此设备中删除。除非您已保存助记词,否则此操作无法撤销;没有它,任何剩余余额都将无法恢复。</string>
-    <string name="this_permanently_deletes_this_account_s_2">这将永久删除此账户的钱包密钥、其所有本地消息和联系人,以及其 Google Drive 备份。除非您已保存助记词,否则此操作无法撤销;没有它,任何剩余余额都将无法恢复。</string>
-    <string name="this_removes_all_incoming_messages_locally">这会在本地删除所有传入消息,然后从区块链重新同步它们。您的账户信息和已发送消息会被保留。</string>
     <string name="this_removes_the_group_and_its">这将从此设备中移除该群组及其消息。此操作无法撤销,其他成员不会收到通知。</string>
     <string name="this_signs_out_of_your_account">退出账户，但保留此设备上的本地钱包和消息数据。</string>
     <string name="to">至</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">在 ChangeNOW 上查看</string>
     <string name="waiting_for_camera">正在等待相机...</string>
     <string name="waiting_on_opponent">等待对手</string>
-    <string name="wipe_account">清除账户</string>
-    <string name="wipe_everything">清除所有内容</string>
-    <string name="wipe_incoming_messages">清除接收消息</string>
-    <string name="wipe_account_messages">清除账户和消息</string>
-    <string name="wipe_account_messages_cloud">清除账户和消息和云端</string>
-    <string name="wipe_and_re_sync_incoming_messages">清除并重新同步接收消息</string>
     <string name="you_will_be_shown_a_seed">系统将向您显示助记词。这是恢复您账户的唯一方法。请确保只将其写下来。切勿截图或将其存储在您的设备上。</string>
     <string name="channel_name">频道名称</string>
     <string name="host_port_or_grpcs_host">host:port 或 grpcs://host</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">兑换失败</string>
     <string name="nothing_to_consolidate">没有可合并的内容</string>
     <string name="about">关于</string>
-    <string name="account">账户</string>
     <string name="actions">操作</string>
     <string name="active">活跃</string>
     <string name="autocreate_system_contacts">自动创建系统联系人</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">保存照片</string>
     <string name="save_your_own_node_addresses_here">在此保存您自己的节点地址,然后点击一个即可复制并粘贴到上方的 Kaspa 节点字段中。</string>
     <string name="security">安全</string>
-    <string name="select_mainnet_for_real_transactions_or">选择 mainnet 进行真实交易，或 testnet 进行测试</string>
     <string name="send_audio_message">发送语音消息</string>
     <string name="send_handshake">发送通信请求</string>
     <string name="send_photo_2">发送照片</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">系统联系人</string>
     <string name="telegram">Telegram</string>
     <string name="total">总计</string>
-    <string name="unfinished_inscription">未完成的铭文</string>
     <string name="uses_your_device_contacts_to_match">使用设备联系人来匹配和补充 Kaspa 联系人。</string>
     <string name="verified">已验证</string>
     <string name="verifying_new_ownership_on_chain_this">正在链上验证新所有权(可能需要一分钟)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">查看 Seed Phrase</string>
     <string name="view_in_explorer">在浏览器中查看</string>
     <string name="website">网站</string>
-    <string name="welcome_guide">欢迎指南</string>
     <string name="x">X</string>
     <string name="x_twitter">X(推特)</string>
     <string name="language">语言</string>
@@ -457,7 +434,6 @@
     <string name="best">最佳</string>
     <string name="spending_address">支出地址</string>
     <string name="enter_as_host_port_or_grpcs_host">请输入 host:port 或 grpcs://host 格式</string>
-    <string name="show_setup_guides">显示设置指南</string>
     <string name="receive_kaspa">接收 Kaspa</string>
     <string name="currency">货币</string>
     <string name="choose_your_currency">选择您的货币</string>

@@ -9,7 +9,6 @@
     <string name="account_name">Имя аккаунта</string>
     <string name="active_nodes">Активные узлы</string>
     <string name="add">Добавить</string>
-    <string name="add_address">Добавить адрес</string>
     <string name="add_contact">Добавить контакт</string>
     <string name="add_transaction">Добавить транзакцию</string>
     <string name="add_to_portfolio">Добавить в портфель</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">Настройки трансляции</string>
     <string name="broadcasting">Трансляция...</string>
     <string name="broadcasts">Трансляции</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">Трансляции - это публичные незашифрованные каналы. Любой, кто присоединится к каналу с тем же именем, видит те же сообщения.</string>
     <string name="build_unsigned_transaction">Создать неподписанную транзакцию</string>
     <string name="building_transaction">Создание транзакции...</string>
     <string name="camera_permission_is_needed_to_scan">Для сканирования QR-кода необходим доступ к камере</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">Отменить ответ</string>
     <string name="change">Изменить</string>
     <string name="changenow_exchange_id">ID обмена ChangeNOW</string>
-    <string name="channels">Каналы</string>
     <string name="chats">Чаты</string>
     <string name="chatting_address">Адрес для чата</string>
     <string name="chatting_address_2">Адрес для чата</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Использована резервная копия Google Drive</string>
     <string name="grant_permission">Предоставить разрешение</string>
     <string name="grant_permission_2">Предоставить разрешение</string>
-    <string name="group_chat">Групповой чат</string>
     <string name="group_chats">Групповые чаты</string>
     <string name="group_info">Информация о группе</string>
     <string name="group_name">Название группы</string>
@@ -169,14 +165,12 @@
     <string name="name">Имя</string>
     <string name="name_optional">Имя (необязательно)</string>
     <string name="name_this_address">Назвать этот адрес</string>
-    <string name="network">Сеть</string>
     <string name="never_send_kaspa_you_intend_to">Никогда не отправляйте на этот адрес Kaspa, которую планируете потратить.</string>
     <string name="next">Далее</string>
     <string name="no_conversations_yet">Пока нет чатов</string>
     <string name="no_group_chats_yet">Пока нет групповых чатов</string>
     <string name="no_matching_chats">Нет подходящих чатов</string>
     <string name="no_matching_groups">Нет подходящих групп</string>
-    <string name="no_broadcast_channels_yet">Пока нет каналов трансляции</string>
     <string name="no_cold_storage_accounts_yet_scan">Пока нет аккаунтов холодного хранилища. Отсканируйте kpub, экспортированный с вашего устройства KasSigner, чтобы отслеживать его баланс и отправлять с него.</string>
     <string name="no_domains_yet">Доменов пока нет.</string>
     <string name="no_hidden_addresses">Нет скрытых адресов.</string>
@@ -210,8 +204,6 @@
     <string name="photos">Фото</string>
     <string name="polygon_network">Сеть Polygon</string>
     <string name="pool_health">Состояние пула</string>
-    <string name="popular">Популярное</string>
-    <string name="popular_tab">Вкладка популярного</string>
     <string name="portfolio">Портфель</string>
     <string name="powered_by_changenow">Работает на ChangeNOW</string>
     <string name="price_per_coin">Цена за монету</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">Зарезервированный домен: без платы за регистрацию, применяются только комиссии сети.</string>
     <string name="resign">Сдаться</string>
     <string name="resign_this_game">Сдаться в этой партии?</string>
-    <string name="resolving_kns_domain">Разрешение домена KNS…</string>
     <string name="resolving_domain">Разрешение домена…</string>
     <string name="resolving">Разрешение...</string>
     <string name="retention">Хранение</string>
@@ -271,7 +262,6 @@
     <string name="show_more">Показать больше</string>
     <string name="show_photo">Показать фото</string>
     <string name="show_qr_code">Показать QR-код</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Показывает вкладку с рекомендуемыми комнатами трансляций, к которым можно присоединиться.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Показывает аватары KNS отправителей в комнатах и автоматически ищет их по мере появления сообщений. Выкл показывает всем простые инициалы и никогда не загружает аватары.</string>
     <string name="skip">Пропустить</string>
     <string name="some_changes_failed_to_save">Некоторые изменения не удалось сохранить:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">Это может занять несколько минут, пока подтвердится в блокчейне.</string>
     <string name="this_only_removes_it_from_kachat">Это только удаляет его из списка отслеживания KaChat. Это не влияет на устройство KasSigner или средства на нем.</string>
     <string name="this_permanently_deletes_every_message_with">Это навсегда удаляет каждое сообщение с ними на этом устройстве. Это нельзя отменить; повторная переписка с ними начнёт совершенно новый разговор.</string>
-    <string name="this_permanently_deletes_this_account_s">Это навсегда удаляет ключи кошелька этого аккаунта и все его локальные сообщения и контакты с этого устройства. Это нельзя отменить, если вы не сохранили свою сид-фразу; без неё любой оставшийся баланс невозможно восстановить.</string>
-    <string name="this_permanently_deletes_this_account_s_2">Это навсегда удаляет ключи кошелька этого аккаунта, все его локальные сообщения и контакты, а также его резервную копию Google Drive. Это нельзя отменить, если вы не сохранили свою сид-фразу; без неё любой оставшийся баланс невозможно восстановить.</string>
-    <string name="this_removes_all_incoming_messages_locally">Это удаляет все входящие сообщения локально, затем повторно синхронизирует их из блокчейна. Информация о вашем аккаунте и отправленные сообщения сохраняются.</string>
     <string name="this_removes_the_group_and_its">Это удаляет группу и ее сообщения с этого устройства. Это нельзя отменить, и другие участники не будут уведомлены.</string>
     <string name="this_signs_out_of_your_account">Это выйдет из вашего аккаунта, но сохранит данные кошелька и сообщений на этом устройстве.</string>
     <string name="to">Кому</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">Посмотреть на ChangeNOW</string>
     <string name="waiting_for_camera">Ожидание камеры...</string>
     <string name="waiting_on_opponent">Ожидание соперника</string>
-    <string name="wipe_account">Удалить аккаунт</string>
-    <string name="wipe_everything">Удалить всё</string>
-    <string name="wipe_incoming_messages">Очистить входящие сообщения</string>
-    <string name="wipe_account_messages">Очистить аккаунт и сообщения</string>
-    <string name="wipe_account_messages_cloud">Удалить аккаунт и сообщения и облако</string>
-    <string name="wipe_and_re_sync_incoming_messages">Очистить и повторно синхронизировать входящие сообщения</string>
     <string name="you_will_be_shown_a_seed">Вам будет показана сид-фраза. Это единственный способ восстановить ваш аккаунт. Обязательно только запишите её. Никогда не делайте скриншот и не храните её на устройстве.</string>
     <string name="channel_name">имя-канала</string>
     <string name="host_port_or_grpcs_host">хост:порт или grpcs://хост</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">Обмен не удался</string>
     <string name="nothing_to_consolidate">Нечего объединять</string>
     <string name="about">О приложении</string>
-    <string name="account">Аккаунт</string>
     <string name="actions">Действия</string>
     <string name="active">Активные</string>
     <string name="autocreate_system_contacts">Автосоздание системных контактов</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">Сохранить фото</string>
     <string name="save_your_own_node_addresses_here">Сохраните здесь свои адреса узлов, затем нажмите на один, чтобы скопировать и вставить его в поле Узел Kaspa выше.</string>
     <string name="security">Безопасность</string>
-    <string name="select_mainnet_for_real_transactions_or">Выберите mainnet для реальных транзакций или testnet для тестирования</string>
     <string name="send_audio_message">Отправить голосовое сообщение</string>
     <string name="send_handshake">Отправить запрос на общение</string>
     <string name="send_photo_2">Отправить фото</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">Системный контакт</string>
     <string name="telegram">Telegram</string>
     <string name="total">Всего</string>
-    <string name="unfinished_inscription">Незавершённая инскрипция</string>
     <string name="uses_your_device_contacts_to_match">Использует контакты вашего устройства для сопоставления и дополнения контактов Kaspa.</string>
     <string name="verified">Проверенные</string>
     <string name="verifying_new_ownership_on_chain_this">Проверка нового владения в блокчейне (это может занять минуту)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">Показать seed phrase</string>
     <string name="view_in_explorer">Открыть в обозревателе</string>
     <string name="website">Веб-сайт</string>
-    <string name="welcome_guide">Приветственное руководство</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">Язык</string>
@@ -457,7 +434,6 @@
     <string name="best">Лучший</string>
     <string name="spending_address">Адрес для трат</string>
     <string name="enter_as_host_port_or_grpcs_host">Введите в формате host:port или grpcs://host</string>
-    <string name="show_setup_guides">Показывать руководства по настройке</string>
     <string name="receive_kaspa">Получить Kaspa</string>
     <string name="currency">Валюта</string>
     <string name="choose_your_currency">Выберите валюту</string>

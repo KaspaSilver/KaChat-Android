@@ -65,3 +65,12 @@
 # Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# Strip verbose/debug logging from release builds entirely (R8 removes the calls and, with them,
+# any string-building they'd have done). Info/warn/error lines are kept — they are the field
+# diagnostics ("ApiLog" failures, sync errors) and were already written not to carry secrets.
+# Debug builds are untouched (isMinifyEnabled = false there).
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}

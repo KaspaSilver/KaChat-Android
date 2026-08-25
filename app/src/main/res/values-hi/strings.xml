@@ -9,7 +9,6 @@
     <string name="account_name">खाता नाम</string>
     <string name="active_nodes">सक्रिय नोड</string>
     <string name="add">जोड़ें</string>
-    <string name="add_address">पता जोड़ें</string>
     <string name="add_contact">संपर्क जोड़ें</string>
     <string name="add_transaction">लेन-देन जोड़ें</string>
     <string name="add_to_portfolio">पोर्टफोलियो में जोड़ें</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">ब्रॉडकास्ट सेटिंग्स</string>
     <string name="broadcasting">प्रसारित हो रहा है...</string>
     <string name="broadcasts">ब्रॉडकास्ट</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">ब्रॉडकास्ट सार्वजनिक, अनएन्क्रिप्टेड चैनल हैं। जो कोई भी उसी चैनल नाम से जुड़ता है वह वही संदेश देखता है।</string>
     <string name="build_unsigned_transaction">अहस्ताक्षरित लेन-देन बनाएं</string>
     <string name="building_transaction">लेन-देन बनाया जा रहा है...</string>
     <string name="camera_permission_is_needed_to_scan">QR कोड स्कैन करने के लिए कैमरा एक्सेस आवश्यक है</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">जवाब रद्द करें</string>
     <string name="change">बदलें</string>
     <string name="changenow_exchange_id">ChangeNOW एक्सचेंज आईडी</string>
-    <string name="channels">चैनल</string>
     <string name="chats">चैट</string>
     <string name="chatting_address">चैट पता</string>
     <string name="chatting_address_2">चैट पता</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Google Drive बैकअप उपयोग किया गया</string>
     <string name="grant_permission">अनुमति दें</string>
     <string name="grant_permission_2">अनुमति दें</string>
-    <string name="group_chat">समूह चैट</string>
     <string name="group_chats">समूह चैट</string>
     <string name="group_info">समूह जानकारी</string>
     <string name="group_name">समूह का नाम</string>
@@ -169,14 +165,12 @@
     <string name="name">नाम</string>
     <string name="name_optional">नाम (वैकल्पिक)</string>
     <string name="name_this_address">इस पते को नाम दें</string>
-    <string name="network">नेटवर्क</string>
     <string name="never_send_kaspa_you_intend_to">इस पते पर वह कास्पा कभी न भेजें जिसे आप खर्च करना चाहते हैं।</string>
     <string name="next">अगला</string>
     <string name="no_conversations_yet">अभी कोई बातचीत नहीं</string>
     <string name="no_group_chats_yet">अभी तक कोई समूह चैट नहीं</string>
     <string name="no_matching_chats">कोई मेल खाता चैट नहीं</string>
     <string name="no_matching_groups">कोई मेल खाता समूह नहीं</string>
-    <string name="no_broadcast_channels_yet">अभी तक कोई ब्रॉडकास्ट चैनल नहीं</string>
     <string name="no_cold_storage_accounts_yet_scan">अभी तक कोई कोल्ड स्टोरेज खाता नहीं है। इसके बैलेंस पर नज़र रखने और उससे भेजने के लिए अपने KasSigner डिवाइस से निर्यात किया गया kpub स्कैन करें।</string>
     <string name="no_domains_yet">अभी तक कोई डोमेन नहीं.</string>
     <string name="no_hidden_addresses">कोई छिपा हुआ पता नहीं।</string>
@@ -210,8 +204,6 @@
     <string name="photos">फ़ोटो</string>
     <string name="polygon_network">Polygon नेटवर्क</string>
     <string name="pool_health">पूल स्वास्थ्य</string>
-    <string name="popular">लोकप्रिय</string>
-    <string name="popular_tab">लोकप्रिय टैब</string>
     <string name="portfolio">पोर्टफोलियो</string>
     <string name="powered_by_changenow">ChangeNOW द्वारा संचालित</string>
     <string name="price_per_coin">प्रति सिक्का मूल्य</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">आरक्षित डोमेन: कोई पंजीकरण शुल्क नहीं, केवल नेटवर्क शुल्क लागू होते हैं।</string>
     <string name="resign">हार मानें</string>
     <string name="resign_this_game">क्या इस खेल में हार माननी है?</string>
-    <string name="resolving_kns_domain">KNS डोमेन हल किया जा रहा है…</string>
     <string name="resolving_domain">डोमेन हल किया जा रहा है…</string>
     <string name="resolving">हल किया जा रहा है...</string>
     <string name="retention">रिटेंशन</string>
@@ -271,7 +262,6 @@
     <string name="show_more">अधिक दिखाएं</string>
     <string name="show_photo">फ़ोटो दिखाएं</string>
     <string name="show_qr_code">QR कोड दिखाएं</string>
-    <string name="shows_a_tab_of_recommended_broadcast">अनुशंसित ब्रॉडकास्ट रूम का एक टैब दिखाता है जिनमें आप शामिल हो सकते हैं।</string>
     <string name="shows_senders_kns_avatars_in_rooms">कमरों में भेजने वालों के KNS अवतार दिखाता है और संदेश दिखाई देने पर स्वचालित रूप से उन्हें खोजता है। बंद सभी के लिए सादे आद्याक्षर दिखाता है और कभी भी अवतार प्राप्त नहीं करता।</string>
     <string name="skip">छोड़ें</string>
     <string name="some_changes_failed_to_save">कुछ बदलाव सहेजे नहीं जा सके:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">चेन पर कन्फर्म होने में कुछ मिनट लग सकते हैं।</string>
     <string name="this_only_removes_it_from_kachat">यह इसे केवल KaChat की वॉच सूची से हटाता है। इसका KasSigner डिवाइस या उसके पास मौजूद किसी भी फंड पर कोई प्रभाव नहीं पड़ता।</string>
     <string name="this_permanently_deletes_every_message_with">यह इस डिवाइस पर उनके साथ हर संदेश को स्थायी रूप से हटा देता है। इसे पूर्ववत नहीं किया जा सकता; उन्हें फिर से संदेश भेजना एक बिल्कुल नई बातचीत शुरू करता है।</string>
-    <string name="this_permanently_deletes_this_account_s">यह इस खाते की वॉलेट कुंजियों और इसके सभी स्थानीय संदेशों और संपर्कों को इस डिवाइस से स्थायी रूप से हटा देता है। जब तक आपने अपनी सीड फ्रेज़ सहेजी नहीं है तब तक इसे पूर्ववत नहीं किया जा सकता; इसके बिना, कोई भी शेष राशि अप्राप्य है।</string>
-    <string name="this_permanently_deletes_this_account_s_2">यह इस खाते की वॉलेट कुंजियों, इसके सभी स्थानीय संदेशों और संपर्कों, और इसके Google Drive बैकअप को स्थायी रूप से हटा देता है। जब तक आपने अपनी सीड फ्रेज़ सहेजी नहीं है तब तक इसे पूर्ववत नहीं किया जा सकता; इसके बिना, कोई भी शेष राशि अप्राप्य है।</string>
-    <string name="this_removes_all_incoming_messages_locally">यह सभी आने वाले संदेशों को स्थानीय रूप से हटा देता है, फिर उन्हें ब्लॉकचेन से फिर से सिंक करता है। आपकी खाता जानकारी और भेजे गए संदेश सुरक्षित रहते हैं।</string>
     <string name="this_removes_the_group_and_its">यह समूह और उसके संदेशों को इस डिवाइस से हटा देता है। इसे पूर्ववत नहीं किया जा सकता, और अन्य सदस्यों को सूचित नहीं किया जाएगा।</string>
     <string name="this_signs_out_of_your_account">यह आपके खाते से साइन आउट करता है, लेकिन इस डिवाइस पर स्थानीय वॉलेट और संदेश डेटा रखता है।</string>
     <string name="to">प्रति</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">ChangeNOW पर देखें</string>
     <string name="waiting_for_camera">कैमरे की प्रतीक्षा हो रही है...</string>
     <string name="waiting_on_opponent">प्रतिद्वंद्वी की प्रतीक्षा है</string>
-    <string name="wipe_account">खाता मिटाएं</string>
-    <string name="wipe_everything">सब कुछ मिटाएं</string>
-    <string name="wipe_incoming_messages">आने वाले संदेश मिटाएं</string>
-    <string name="wipe_account_messages">खाता और संदेश मिटाएं</string>
-    <string name="wipe_account_messages_cloud">खाता और संदेश और क्लाउड मिटाएं</string>
-    <string name="wipe_and_re_sync_incoming_messages">आने वाले संदेश मिटाएं और पुनः सिंक करें</string>
     <string name="you_will_be_shown_a_seed">आपको एक सीड फ्रेज़ दिखाई जाएगी। आपके खाते को पुनर्प्राप्त करने का यह एकमात्र तरीका है। सुनिश्चित करें कि आप इसे केवल लिख लें। कभी स्क्रीनशॉट न लें और इसे अपने डिवाइस पर संग्रहीत न करें।</string>
     <string name="channel_name">चैनल-नाम</string>
     <string name="host_port_or_grpcs_host">host:port या grpcs://host</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">स्वैप विफल</string>
     <string name="nothing_to_consolidate">समेकित करने के लिए कुछ नहीं</string>
     <string name="about">परिचय</string>
-    <string name="account">खाता</string>
     <string name="actions">कार्य</string>
     <string name="active">सक्रिय</string>
     <string name="autocreate_system_contacts">सिस्टम संपर्क स्वतः बनाएं</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">फ़ोटो सहेजें</string>
     <string name="save_your_own_node_addresses_here">अपने खुद के नोड पते यहां सहेजें, फिर इसे कॉपी करने और ऊपर दिए गए कास्पा नोड फ़ील्ड में पेस्ट करने के लिए किसी एक पर टैप करें।</string>
     <string name="security">सुरक्षा</string>
-    <string name="select_mainnet_for_real_transactions_or">वास्तविक ट्रांज़ैक्शन के लिए mainnet या परीक्षण के लिए testnet चुनें</string>
     <string name="send_audio_message">वॉइस मैसेज भेजें</string>
     <string name="send_handshake">संचार अनुरोध भेजें</string>
     <string name="send_photo_2">फ़ोटो भेजें</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">सिस्टम संपर्क</string>
     <string name="telegram">Telegram</string>
     <string name="total">कुल</string>
-    <string name="unfinished_inscription">अधूरा इंस्क्रिप्शन</string>
     <string name="uses_your_device_contacts_to_match">Kaspa संपर्कों को मिलान और समृद्ध करने के लिए आपके डिवाइस संपर्कों का उपयोग करता है।</string>
     <string name="verified">सत्यापित</string>
     <string name="verifying_new_ownership_on_chain_this">चेन पर नया स्वामित्व सत्यापित हो रहा है (इसमें एक मिनट लग सकता है)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">Seed Phrase देखें</string>
     <string name="view_in_explorer">एक्सप्लोरर में देखें</string>
     <string name="website">वेबसाइट</string>
-    <string name="welcome_guide">स्वागत गाइड</string>
     <string name="x">X</string>
     <string name="x_twitter">X (ट्विटर)</string>
     <string name="language">भाषा</string>
@@ -457,7 +434,6 @@
     <string name="best">सर्वश्रेष्ठ</string>
     <string name="spending_address">खर्च करने का पता</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port या grpcs://host के रूप में दर्ज करें</string>
-    <string name="show_setup_guides">सेटअप गाइड दिखाएं</string>
     <string name="receive_kaspa">Kaspa प्राप्त करें</string>
     <string name="currency">मुद्रा</string>
     <string name="choose_your_currency">अपनी मुद्रा चुनें</string>

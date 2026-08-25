@@ -42,8 +42,11 @@ With `google-services.json` present, the `com.google.gms.google-services` plugin
 - **`POST_NOTIFICATIONS`** is requested at runtime in `MainActivity` (required on Android 13+).
 
 The registration currently includes: your active DM contacts (`watched_addresses`), notify-enabled
-broadcast channels, your KaPosts pubkey, and your primary address. Group-message push and inline
-DM-body decryption are intentionally out of scope for this version (see the server guide).
+broadcast channels, your KaPosts pubkey, your primary address, and — when the device has group
+memberships — blinded group ids (`watched_group_ids`, switching the auth preimage to the
+TransitionalGroups shape). DM pushes carry an `enc_payload` that is decrypted inline for the real
+message preview; group pushes trigger a local group sync that decrypts and posts the precise
+banner (see `KaChatFirebaseMessagingService`).
 
 ## 4. Test
 

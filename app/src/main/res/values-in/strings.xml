@@ -7,7 +7,6 @@
     <string name="account_name">Nama Akun</string>
     <string name="active_nodes">Node Aktif</string>
     <string name="add">Tambah</string>
-    <string name="add_address">Tambah Alamat</string>
     <string name="add_contact">Tambah Kontak</string>
     <string name="add_transaction">Tambah Transaksi</string>
     <string name="add_to_portfolio">Tambah ke Portofolio</string>
@@ -28,7 +27,6 @@
     <string name="off">Mati</string>
     <string name="change">Ubah</string>
     <string name="changenow_exchange_id">ID Pertukaran ChangeNOW</string>
-    <string name="channels">Saluran</string>
     <string name="chats">Obrolan</string>
     <string name="chatting_address">Alamat Obrolan</string>
     <string name="chatting_address_2">Alamat obrolan</string>
@@ -118,12 +116,10 @@
     <string name="more_info">Info Lainnya</string>
     <string name="name">Nama</string>
     <string name="name_optional">Nama (Opsional)</string>
-    <string name="network">Jaringan</string>
     <string name="network_fee">Biaya Jaringan</string>
     <string name="next">Berikutnya</string>
     <string name="no_conversations_yet">Belum Ada Percakapan</string>
     <string name="no_group_chats_yet">Belum Ada Obrolan Grup</string>
-    <string name="no_broadcast_channels_yet">Belum ada saluran siaran</string>
     <string name="no_domains_yet">Belum ada domain.</string>
     <string name="asset_id">ID Aset</string>
     <string name="primary">Utama</string>
@@ -148,7 +144,6 @@
     <string name="photo_quality">Kualitas Foto</string>
     <string name="photo_quality_2">Kualitas foto</string>
     <string name="pool_health">Kesehatan Kumpulan</string>
-    <string name="popular_tab">Tab Populer</string>
     <string name="portfolio">Portofolio</string>
     <string name="price_per_coin">Harga Per Koin</string>
     <string name="promote_pawn_to">Promosikan pion ke:</string>
@@ -185,7 +180,6 @@
     <string name="show_more">Tampilkan Lebih Banyak</string>
     <string name="show_photo">Tampilkan Foto</string>
     <string name="show_qr_code">Tampilkan Kode QR</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Menampilkan tab ruang siaran yang direkomendasikan.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Menampilkan avatar KNS pengirim di ruang obrolan dan mencarinya secara otomatis saat pesan muncul. Mati akan menampilkan inisial polos dan tidak pernah memuat avatar.</string>
     <string name="skip">Lewati</string>
     <string name="start_a_new_chat_by_adding">Mulai obrolan baru dengan menambahkan kontak</string>
@@ -206,14 +200,10 @@
     <string name="unlink">Putuskan Tautan</string>
     <string name="unread">Belum Dibaca</string>
     <string name="use_default">Gunakan Default</string>
-    <string name="wipe_incoming_messages">Hapus Bersih Pesan Masuk</string>
-    <string name="wipe_account_messages">Hapus bersih akun &amp; pesan</string>
-    <string name="wipe_and_re_sync_incoming_messages">Hapus bersih dan sinkronkan ulang pesan masuk</string>
     <string name="kpub">kpub</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
     <string name="about">Tentang</string>
-    <string name="account">Akun</string>
     <string name="actions">Tindakan</string>
     <string name="active">Aktif</string>
     <string name="autocreate_system_contacts">Buat kontak sistem otomatis</string>
@@ -263,7 +253,6 @@
     <string name="reply">Balas</string>
     <string name="retry_send">Coba Kirim Lagi</string>
     <string name="save_your_own_node_addresses_here">Simpan alamat node Anda di sini, lalu ketuk salah satu untuk menyalin dan menempelkannya ke bidang Node Kaspa di atas.</string>
-    <string name="select_mainnet_for_real_transactions_or">Pilih mainnet untuk transaksi nyata atau testnet untuk pengujian</string>
     <string name="send_audio_message">Kirim Pesan Audio</string>
     <string name="send_handshake">Kirim Handshake</string>
     <string name="send_photo_2">Kirim Foto</string>
@@ -283,7 +272,6 @@
     <string name="view_seed_phrase">Lihat Frasa Pemulihan</string>
     <string name="view_in_explorer">Lihat di Penjelajah</string>
     <string name="website">Situs Web</string>
-    <string name="welcome_guide">Panduan Selamat Datang</string>
     <string name="welcome_to_kachat">Selamat Datang di KaChat</string>
     <string name="lets_walk_through_the_basics_so">Mari pelajari dasar-dasarnya agar Anda siap mengirim pesan pertama.</string>
     <string name="how_kachat_uses_kaspa">Cara KaChat Menggunakan Kaspa</string>
@@ -303,7 +291,6 @@
     <string name="select_the_language_youd_like_to">Pilih bahasa yang ingin digunakan di KaChat.</string>
     <string name="best">Terbaik</string>
     <string name="spending_address">Alamat Pengeluaran</string>
-    <string name="show_setup_guides">Tampilkan Panduan Penyiapan</string>
     <string name="receive_kaspa">Terima Kaspa</string>
     <string name="currency">Mata Uang</string>
     <string name="choose_your_currency">Pilih Mata Uang Anda</string>

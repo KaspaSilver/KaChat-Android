@@ -9,7 +9,6 @@
     <string name="account_name">Tên tài khoản</string>
     <string name="active_nodes">Nút đang hoạt động</string>
     <string name="add">Thêm</string>
-    <string name="add_address">Thêm địa chỉ</string>
     <string name="add_contact">Thêm liên hệ</string>
     <string name="add_transaction">Thêm giao dịch</string>
     <string name="add_to_portfolio">Thêm vào danh mục đầu tư</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">Cài đặt phát sóng</string>
     <string name="broadcasting">Đang phát sóng...</string>
     <string name="broadcasts">Phát sóng</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">Phát sóng là các kênh công khai, không mã hóa. Bất kỳ ai tham gia cùng tên kênh đều thấy cùng tin nhắn.</string>
     <string name="build_unsigned_transaction">Tạo giao dịch chưa ký</string>
     <string name="building_transaction">Đang tạo giao dịch...</string>
     <string name="camera_permission_is_needed_to_scan">Cần quyền truy cập máy ảnh để quét mã QR</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">Hủy trả lời</string>
     <string name="change">Thay đổi</string>
     <string name="changenow_exchange_id">ID trao đổi ChangeNOW</string>
-    <string name="channels">Kênh</string>
     <string name="chats">Trò chuyện</string>
     <string name="chatting_address">Địa chỉ trò chuyện</string>
     <string name="chatting_address_2">Địa chỉ trò chuyện</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Đã sử dụng bản sao lưu Google Drive</string>
     <string name="grant_permission">Cấp quyền</string>
     <string name="grant_permission_2">Cấp quyền</string>
-    <string name="group_chat">Trò chuyện nhóm</string>
     <string name="group_chats">Trò chuyện nhóm</string>
     <string name="group_info">Thông tin nhóm</string>
     <string name="group_name">Tên nhóm</string>
@@ -169,14 +165,12 @@
     <string name="name">Tên</string>
     <string name="name_optional">Tên (Tùy chọn)</string>
     <string name="name_this_address">Đặt tên cho địa chỉ này</string>
-    <string name="network">Mạng</string>
     <string name="never_send_kaspa_you_intend_to">Không bao giờ gửi Kaspa mà bạn định chi tiêu đến địa chỉ này.</string>
     <string name="next">Tiếp theo</string>
     <string name="no_conversations_yet">Chưa có cuộc trò chuyện nào</string>
     <string name="no_group_chats_yet">Chưa có trò chuyện nhóm nào</string>
     <string name="no_matching_chats">Không có trò chuyện phù hợp</string>
     <string name="no_matching_groups">Không có nhóm phù hợp</string>
-    <string name="no_broadcast_channels_yet">Chưa có kênh phát sóng nào</string>
     <string name="no_cold_storage_accounts_yet_scan">Chưa có tài khoản lưu trữ lạnh nào. Quét kpub được xuất từ thiết bị KasSigner của bạn để theo dõi số dư và gửi từ đó.</string>
     <string name="no_domains_yet">Chưa có tên miền nào.</string>
     <string name="no_hidden_addresses">Không có địa chỉ ẩn.</string>
@@ -210,8 +204,6 @@
     <string name="photos">Ảnh</string>
     <string name="polygon_network">Mạng Polygon</string>
     <string name="pool_health">Sức khỏe nhóm</string>
-    <string name="popular">Phổ biến</string>
-    <string name="popular_tab">Tab phổ biến</string>
     <string name="portfolio">Danh mục đầu tư</string>
     <string name="powered_by_changenow">Được cung cấp bởi ChangeNOW</string>
     <string name="price_per_coin">Giá mỗi đồng</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">Tên miền đã đăng ký trước: không có phí đăng ký, chỉ áp dụng phí mạng.</string>
     <string name="resign">Đầu hàng</string>
     <string name="resign_this_game">Đầu hàng ván này?</string>
-    <string name="resolving_kns_domain">Đang phân giải tên miền KNS…</string>
     <string name="resolving_domain">Đang phân giải tên miền…</string>
     <string name="resolving">Đang phân giải...</string>
     <string name="retention">Lưu giữ</string>
@@ -271,7 +262,6 @@
     <string name="show_more">Hiện thêm</string>
     <string name="show_photo">Hiện ảnh</string>
     <string name="show_qr_code">Hiện mã QR</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Hiển thị một tab các phòng phát sóng được đề xuất mà bạn có thể tham gia.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Hiển thị hình đại diện KNS của người gửi trong các phòng và tự động tra cứu khi tin nhắn xuất hiện. Tắt sẽ hiển thị chữ cái đầu đơn giản cho tất cả mọi người và không bao giờ lấy hình đại diện.</string>
     <string name="skip">Bỏ qua</string>
     <string name="some_changes_failed_to_save">Một số thay đổi không thể lưu:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">Quá trình này có thể mất vài phút trong khi xác nhận trên chuỗi.</string>
     <string name="this_only_removes_it_from_kachat">Điều này chỉ xóa nó khỏi danh sách theo dõi của KaChat. Nó không ảnh hưởng đến thiết bị KasSigner hoặc bất kỳ khoản tiền nào nó nắm giữ.</string>
     <string name="this_permanently_deletes_every_message_with">Điều này xóa vĩnh viễn mọi tin nhắn với họ trên thiết bị này. Không thể hoàn tác; nhắn tin lại cho họ sẽ bắt đầu một cuộc trò chuyện hoàn toàn mới.</string>
-    <string name="this_permanently_deletes_this_account_s">Điều này xóa vĩnh viễn khóa ví của tài khoản này và tất cả tin nhắn cùng liên hệ cục bộ của nó khỏi thiết bị này. Không thể hoàn tác trừ khi bạn đã lưu cụm từ khôi phục của mình; nếu không có nó, mọi số dư còn lại sẽ không thể khôi phục.</string>
-    <string name="this_permanently_deletes_this_account_s_2">Điều này xóa vĩnh viễn khóa ví của tài khoản này, tất cả tin nhắn cùng liên hệ cục bộ của nó, và bản sao lưu Google Drive của nó. Không thể hoàn tác trừ khi bạn đã lưu cụm từ khôi phục của mình; nếu không có nó, mọi số dư còn lại sẽ không thể khôi phục.</string>
-    <string name="this_removes_all_incoming_messages_locally">Điều này xóa tất cả tin nhắn đến cục bộ, sau đó đồng bộ lại chúng từ blockchain. Thông tin tài khoản và tin nhắn đã gửi của bạn được giữ nguyên.</string>
     <string name="this_removes_the_group_and_its">Điều này xóa nhóm và tin nhắn của nhóm khỏi thiết bị này. Điều này không thể hoàn tác, và các thành viên khác sẽ không được thông báo.</string>
     <string name="this_signs_out_of_your_account">Thao tác này đăng xuất khỏi tài khoản, nhưng giữ lại dữ liệu ví và tin nhắn trên thiết bị này.</string>
     <string name="to">Đến</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">Xem trên ChangeNOW</string>
     <string name="waiting_for_camera">Đang chờ máy ảnh...</string>
     <string name="waiting_on_opponent">Dang cho doi thu</string>
-    <string name="wipe_account">Xóa tài khoản</string>
-    <string name="wipe_everything">Xóa tất cả</string>
-    <string name="wipe_incoming_messages">Xóa tin nhắn đến</string>
-    <string name="wipe_account_messages">Xóa tài khoản &amp; tin nhắn</string>
-    <string name="wipe_account_messages_cloud">Xóa tài khoản và tin nhắn và đám mây</string>
-    <string name="wipe_and_re_sync_incoming_messages">Xóa và đồng bộ lại tin nhắn đến</string>
     <string name="you_will_be_shown_a_seed">Bạn sẽ được hiển thị một cụm từ khôi phục. Đây là cách duy nhất để khôi phục tài khoản của bạn. Đảm bảo bạn chỉ ghi nó ra giấy. Không bao giờ chụp ảnh màn hình hoặc lưu trữ nó trên thiết bị của bạn.</string>
     <string name="channel_name">ten-kenh</string>
     <string name="host_port_or_grpcs_host">host:port hoặc grpcs://host</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">Hoán đổi không thành công</string>
     <string name="nothing_to_consolidate">Không có gì để hợp nhất</string>
     <string name="about">Giới thiệu</string>
-    <string name="account">Tài khoản</string>
     <string name="actions">Thao tác</string>
     <string name="active">Đang hoạt động</string>
     <string name="autocreate_system_contacts">Tự động tạo liên hệ hệ thống</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">Lưu ảnh</string>
     <string name="save_your_own_node_addresses_here">Lưu địa chỉ nút của riêng bạn tại đây, sau đó chạm vào một địa chỉ để sao chép và dán vào trường Nút Kaspa ở trên.</string>
     <string name="security">Bảo mật</string>
-    <string name="select_mainnet_for_real_transactions_or">Chọn mainnet cho giao dịch thật hoặc testnet để thử nghiệm</string>
     <string name="send_audio_message">Gửi tin nhắn thoại</string>
     <string name="send_handshake">Gửi yêu cầu liên lạc</string>
     <string name="send_photo_2">Gửi ảnh</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">Liên hệ hệ thống</string>
     <string name="telegram">Telegram</string>
     <string name="total">Tổng</string>
-    <string name="unfinished_inscription">Bản khắc chưa hoàn thành</string>
     <string name="uses_your_device_contacts_to_match">Sử dụng danh bạ thiết bị để đối chiếu và bổ sung liên hệ Kaspa.</string>
     <string name="verified">Đã xác minh</string>
     <string name="verifying_new_ownership_on_chain_this">Đang xác minh quyền sở hữu mới trên chuỗi (có thể mất một phút)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">Xem seed phrase</string>
     <string name="view_in_explorer">Xem trong trình khám phá</string>
     <string name="website">Trang web</string>
-    <string name="welcome_guide">Hướng dẫn chào mừng</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">Ngon ngu</string>
@@ -457,7 +434,6 @@
     <string name="best">Tot nhat</string>
     <string name="spending_address">Dia chi chi tieu</string>
     <string name="enter_as_host_port_or_grpcs_host">Nhap dang host:port hoac grpcs://host</string>
-    <string name="show_setup_guides">Hien thi huong dan thiet lap</string>
     <string name="receive_kaspa">Nhan Kaspa</string>
     <string name="currency">Loai tien te</string>
     <string name="choose_your_currency">Chon loai tien te cua ban</string>

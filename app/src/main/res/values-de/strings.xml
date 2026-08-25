@@ -9,7 +9,6 @@
     <string name="account_name">Kontoname</string>
     <string name="active_nodes">Aktive Nodes</string>
     <string name="add">Hinzufügen</string>
-    <string name="add_address">Adresse hinzufügen</string>
     <string name="add_contact">Kontakt hinzufügen</string>
     <string name="add_transaction">Transaktion hinzufügen</string>
     <string name="add_to_portfolio">Zum Portfolio hinzufügen</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">Broadcast-Einstellungen</string>
     <string name="broadcasting">Wird gesendet...</string>
     <string name="broadcasts">Broadcasts</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">Broadcasts sind öffentliche, unverschlüsselte Kanäle. Jeder, der demselben Kanalnamen beitritt, sieht dieselben Nachrichten.</string>
     <string name="build_unsigned_transaction">Unsignierte Transaktion erstellen</string>
     <string name="building_transaction">Transaktion wird erstellt...</string>
     <string name="camera_permission_is_needed_to_scan">Kamerazugriff wird benötigt, um einen QR-Code zu scannen</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">Antwort abbrechen</string>
     <string name="change">Ändern</string>
     <string name="changenow_exchange_id">ChangeNOW Tausch-ID</string>
-    <string name="channels">Kanäle</string>
     <string name="chats">Chats</string>
     <string name="chatting_address">Chat-Adresse</string>
     <string name="chatting_address_2">Chat-Adresse</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Google Drive-Sicherung verwendet</string>
     <string name="grant_permission">Berechtigung erteilen</string>
     <string name="grant_permission_2">Berechtigung erteilen</string>
-    <string name="group_chat">Gruppenchat</string>
     <string name="group_chats">Gruppenchats</string>
     <string name="group_info">Gruppeninfo</string>
     <string name="group_name">Gruppenname</string>
@@ -169,14 +165,12 @@
     <string name="name">Name</string>
     <string name="name_optional">Name (Optional)</string>
     <string name="name_this_address">Diese Adresse benennen</string>
-    <string name="network">Netzwerk</string>
     <string name="never_send_kaspa_you_intend_to">Sende niemals Kaspa, das du ausgeben möchtest, an diese Adresse.</string>
     <string name="next">Weiter</string>
     <string name="no_conversations_yet">Noch keine Unterhaltungen</string>
     <string name="no_group_chats_yet">Noch keine Gruppenchats</string>
     <string name="no_matching_chats">Keine passenden Chats</string>
     <string name="no_matching_groups">Keine passenden Gruppen</string>
-    <string name="no_broadcast_channels_yet">Noch keine Broadcast-Kanäle</string>
     <string name="no_cold_storage_accounts_yet_scan">Noch keine Kaltlagerungskonten. Scanne eine kpub, die von deinem KasSigner-Gerät exportiert wurde, um ihr Guthaben zu beobachten und von ihr zu senden.</string>
     <string name="no_domains_yet">Noch keine Domains.</string>
     <string name="no_hidden_addresses">Keine versteckten Adressen.</string>
@@ -210,8 +204,6 @@
     <string name="photos">Fotos</string>
     <string name="polygon_network">Polygon-Netzwerk</string>
     <string name="pool_health">Pool-Zustand</string>
-    <string name="popular">Beliebt</string>
-    <string name="popular_tab">Beliebt-Tab</string>
     <string name="portfolio">Portfolio</string>
     <string name="powered_by_changenow">Bereitgestellt von ChangeNOW</string>
     <string name="price_per_coin">Preis pro Münze</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">Reservierte Domain: keine Registrierungsgebühr, nur Netzwerkgebühren fallen an.</string>
     <string name="resign">Aufgeben</string>
     <string name="resign_this_game">Dieses Spiel aufgeben?</string>
-    <string name="resolving_kns_domain">KNS-Domain wird aufgelöst…</string>
     <string name="resolving_domain">Domain wird aufgelöst…</string>
     <string name="resolving">Wird aufgelöst...</string>
     <string name="retention">Aufbewahrung</string>
@@ -271,7 +262,6 @@
     <string name="show_more">Mehr anzeigen</string>
     <string name="show_photo">Foto anzeigen</string>
     <string name="show_qr_code">QR-Code anzeigen</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Zeigt einen Tab mit empfohlenen Broadcast-Räumen, denen du beitreten kannst.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Zeigt KNS-Avatare der Absender in Räumen an und sucht sie automatisch, wenn Nachrichten erscheinen. Aus zeigt für alle nur einfache Initialen.</string>
     <string name="skip">Überspringen</string>
     <string name="some_changes_failed_to_save">Einige Änderungen konnten nicht gespeichert werden:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">Dies kann einige Minuten dauern, bis es on-chain bestätigt ist.</string>
     <string name="this_only_removes_it_from_kachat">Dies entfernt sie nur von KaChats Beobachtungsliste. Es hat keine Auswirkung auf das KasSigner-Gerät oder darauf gehaltene Guthaben.</string>
     <string name="this_permanently_deletes_every_message_with">Dies löscht dauerhaft jede Nachricht mit ihnen auf diesem Gerät. Dies kann nicht rückgängig gemacht werden; ihnen erneut zu schreiben startet eine neue Konversation.</string>
-    <string name="this_permanently_deletes_this_account_s">Dies löscht dauerhaft die Wallet-Schlüssel dieses Kontos sowie alle lokalen Nachrichten und Kontakte von diesem Gerät. Dies kann nicht rückgängig gemacht werden.</string>
-    <string name="this_permanently_deletes_this_account_s_2">Dies löscht dauerhaft die Wallet-Schlüssel dieses Kontos, alle lokalen Nachrichten und Kontakte sowie dessen Google Drive-Sicherung. Dies kann nicht rückgängig gemacht werden.</string>
-    <string name="this_removes_all_incoming_messages_locally">Dies entfernt alle eingehenden Nachrichten lokal und synchronisiert sie dann erneut von der Blockchain. Deine Kontoinformationen und gesendeten Nachrichten bleiben erhalten.</string>
     <string name="this_removes_the_group_and_its">Dies entfernt die Gruppe und ihre Nachrichten von diesem Gerät. Dies kann nicht rückgängig gemacht werden, und andere Mitglieder werden nicht benachrichtigt.</string>
     <string name="this_signs_out_of_your_account">Dies meldet dich von deinem Konto ab, behält aber lokale Wallet- und Nachrichtendaten auf diesem Gerät.</string>
     <string name="to">An</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">Auf ChangeNOW ansehen</string>
     <string name="waiting_for_camera">Warte auf Kamera...</string>
     <string name="waiting_on_opponent">Warte auf Gegner</string>
-    <string name="wipe_account">Konto löschen</string>
-    <string name="wipe_everything">Alles löschen</string>
-    <string name="wipe_incoming_messages">Eingehende Nachrichten löschen</string>
-    <string name="wipe_account_messages">Konto &amp; Nachrichten löschen</string>
-    <string name="wipe_account_messages_cloud">Konto &amp; Nachrichten &amp; Cloud löschen</string>
-    <string name="wipe_and_re_sync_incoming_messages">Eingehende Nachrichten löschen und neu synchronisieren</string>
     <string name="you_will_be_shown_a_seed">Dir wird eine Seed-Phrase angezeigt. Dies ist der einzige Weg, dein Konto wiederherzustellen. Notiere sie nur schriftlich. Mache niemals einen Screenshot und bewahre sie nirgendwo digital auf.</string>
     <string name="channel_name">kanal-name</string>
     <string name="host_port_or_grpcs_host">Host:Port oder grpcs://Host</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">Tausch fehlgeschlagen</string>
     <string name="nothing_to_consolidate">Nichts zu konsolidieren</string>
     <string name="about">Über</string>
-    <string name="account">Konto</string>
     <string name="actions">Aktionen</string>
     <string name="active">Aktiv</string>
     <string name="autocreate_system_contacts">Systemkontakte automatisch erstellen</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">Foto speichern</string>
     <string name="save_your_own_node_addresses_here">Speichere hier deine eigenen Knotenadressen und tippe dann auf eine, um sie zu kopieren und in das Kaspa-Knoten-Feld oben einzufügen.</string>
     <string name="security">Sicherheit</string>
-    <string name="select_mainnet_for_real_transactions_or">Wähle Mainnet für echte Transaktionen oder Testnet zum Testen</string>
     <string name="send_audio_message">Sprachnachricht senden</string>
     <string name="send_handshake">Kommunikationsanfrage senden</string>
     <string name="send_photo_2">Foto senden</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">Systemkontakt</string>
     <string name="telegram">Telegram</string>
     <string name="total">Gesamt</string>
-    <string name="unfinished_inscription">Unvollständige Inschrift</string>
     <string name="uses_your_device_contacts_to_match">Verwendet deine Gerätekontakte, um Kaspa-Kontakte abzugleichen und zu ergänzen.</string>
     <string name="verified">Verifiziert</string>
     <string name="verifying_new_ownership_on_chain_this">Neuer Besitz wird on-chain überprüft (dies kann eine Minute dauern)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">Seed Phrase anzeigen</string>
     <string name="view_in_explorer">Im Explorer ansehen</string>
     <string name="website">Webseite</string>
-    <string name="welcome_guide">Willkommensleitfaden</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">Sprache</string>
@@ -457,7 +434,6 @@
     <string name="best">Am besten</string>
     <string name="spending_address">Ausgabeadresse</string>
     <string name="enter_as_host_port_or_grpcs_host">Eingabe als host:port oder grpcs://host</string>
-    <string name="show_setup_guides">Einrichtungsanleitungen anzeigen</string>
     <string name="receive_kaspa">Kaspa empfangen</string>
     <string name="currency">Währung</string>
     <string name="choose_your_currency">Wähle deine Währung</string>

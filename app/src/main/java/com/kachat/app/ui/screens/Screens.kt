@@ -7947,71 +7947,6 @@ fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = nu
     }
 }
 
-/**
- * Same card chrome as [SettingsSection], but starts collapsed to a single summary row — for
- * sections whose content (KNS domains/profile fields) isn't relevant on every visit to the
- * Profile screen and would otherwise push more useful sections further down.
- */
-@Composable
-fun CollapsibleSettingsSection(
-    title: String,
-    summary: String,
-    description: String? = null,
-    initiallyExpanded: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    var expanded by remember { mutableStateOf(initiallyExpanded) }
-    Column {
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.titleMedium.fontSize)) {
-                    append(title)
-                }
-                if (!description.isNullOrBlank()) {
-                    append("  ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = MaterialTheme.typography.bodySmall.fontSize)) {
-                        append(description)
-                    }
-                }
-            },
-            color = LocalAppColors.current.textSecondary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(LocalAppColors.current.surface)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    summary,
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = KaspaTeal
-                )
-            }
-            if (expanded) {
-                HorizontalDivider(color = LocalAppColors.current.divider)
-                content()
-            }
-        }
-    }
-}
-
 /** A circular icon button with its label centered underneath — used in pairs on [ProfileScreen] (Accept Kaspa As Payment / Fund Chatting Address). */
 @Composable
 private fun ProfileCircleAction(
@@ -8051,8 +7986,8 @@ private fun ProfileCircleAction(
  * addressActionRow), one per address role (Chatting Address / Spending Address): the role title
  * with its balance underneath, and three icon-only circle buttons on the right: Copy, Send,
  * Manage. Sits directly on the screen background - no card surface - matching how the big QR
- * circle buttons ([ProfileCircleAction]) sit above it. Replaces the old
- * [CollapsibleAddressSection] dropdowns that hid the same three actions behind an expand
+ * circle buttons ([ProfileCircleAction]) sit above it. Replaces the old collapsible address
+ * dropdowns that hid the same three actions behind an expand
  * chevron. `address` is nullable because the current spending address can be momentarily
  * unresolvable right after wallet load; in that state the row shows a loading placeholder and
  * the caller's actions guard against the nil address.
@@ -8129,56 +8064,6 @@ private fun ProfileAddressCardAction(icon: ImageVector, contentDescription: Stri
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = contentDescription, tint = KaspaTeal, modifier = Modifier.size(26.dp))
-    }
-}
-
-/**
- * Same card chrome as [CollapsibleSettingsSection], but the title itself (with its optional
- * description) is the clickable dropdown header — there's no separate outer label or truncated
- * preview line, since revealing the address is the entire point of expanding.
- */
-@Composable
-fun CollapsibleAddressSection(
-    title: String,
-    balance: String? = null,
-    description: String? = null,
-    initiallyExpanded: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    var expanded by remember { mutableStateOf(initiallyExpanded) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                if (!description.isNullOrBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(description, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            if (!balance.isNullOrBlank()) {
-                Text(balance, color = KaspaTeal, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 8.dp))
-            }
-            Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = KaspaTeal
-            )
-        }
-        if (expanded) {
-            HorizontalDivider(color = LocalAppColors.current.divider)
-            content()
-        }
     }
 }
 

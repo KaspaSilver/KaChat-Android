@@ -49,7 +49,16 @@ internal fun addressCopiedDisplay(address: String): String {
 
 fun copyPrivateKeyWithAutoWipe(context: Context, value: String, label: String = "private key") {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText(label, value))
+    val clip = ClipData.newPlainText(label, value)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Marks the clip sensitive on Android 13+: the system clipboard preview redacts the key
+        // instead of flashing it on screen, and clipboard-history/sync surfaces treat it as
+        // secret. No-op below API 33.
+        clip.description.extras = android.os.PersistableBundle().apply {
+            putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
+    }
+    clipboard.setPrimaryClip(clip)
     Handler(Looper.getMainLooper()).postDelayed({
         val current = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
         if (current == value) {

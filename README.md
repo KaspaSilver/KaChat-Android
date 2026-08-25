@@ -9,13 +9,24 @@ This is the Android version, a companion to [KaChat on iOS](https://github.com/v
 
 ## Features
 
-- End-to-end encrypted messaging, with no central server and nothing to trust but the blockchain
+- End-to-end encrypted 1:1 messaging, with no central server and nothing to trust but the blockchain
+- Encrypted group chats
+- Broadcast channels — public, unencrypted feeds anyone can follow or run
+- KaPosts — an on-chain public posting feed with replies, reposts, bookmarks, and KAS tips
 - Send and receive KAS payments right inside a chat
-- Voice messages
-- KNS domain names (send to a human-readable name instead of a raw address)
-- Multiple wallet accounts on one device
-- Optional, off-by-default backup of your chat history to your own Google Drive
+- Voice messages, photo messages, reactions, replies, and link previews
+- Play chess inside a chat
+- KNS domain names (send to a human-readable name instead of a raw address), including creating
+  your own domain and profile from the app
+- Cold storage: watch-only accounts with offline signing via animated QR codes (KSPT)
+- Portfolio tracking and in-app swaps between KAS and other coins (via ChangeNOW)
+- Multiple wallet accounts on one device, plus an optional Child Mode lock
+- Optional, off-by-default encrypted backup of your chat history to your own Google Drive or
+  Nextcloud server
+- Optional push notifications for messages, groups, channels, and KaPosts (FCM; see
+  `PUSH_ANDROID_SETUP.md`)
 - QR code scanning for addresses and contacts
+- Available in 19 languages
 
 ## Download
 
@@ -35,8 +46,15 @@ cd KaChatForAndroid
 ./gradlew assembleDebug
 ```
 
-Requires JDK 17 and the Android SDK (compileSdk 35). The resulting APK is at
+Requires JDK 17 and the Android SDK (compileSdk 36). The resulting APK is at
 `app/build/outputs/apk/debug/app-debug.apk`.
+
+Optional pieces, both gitignored and absent by default:
+
+- `app/google-services.json` — your own Firebase config; without it the app builds and runs with
+  push notifications off (`PUSH_ANDROID_SETUP.md` walks through it).
+- `keystore.properties` + your release keystore — only needed for signed release builds; debug
+  builds work without them.
 
 ## Support
 

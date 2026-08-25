@@ -9,7 +9,6 @@
     <string name="account_name">계정 이름</string>
     <string name="active_nodes">활성 노드</string>
     <string name="add">추가</string>
-    <string name="add_address">주소 추가</string>
     <string name="add_contact">연락처 추가</string>
     <string name="add_transaction">거래 추가</string>
     <string name="add_to_portfolio">포트폴리오에 추가</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">방송 설정</string>
     <string name="broadcasting">방송 중...</string>
     <string name="broadcasts">방송</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">방송은 공개적이고 암호화되지 않은 채널입니다. 동일한 채널 이름에 참여한 사람은 누구나 같은 메시지를 봅니다.</string>
     <string name="build_unsigned_transaction">서명되지 않은 거래 생성</string>
     <string name="building_transaction">거래 생성 중...</string>
     <string name="camera_permission_is_needed_to_scan">QR 코드를 스캔하려면 카메라 접근이 필요합니다</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">답장 취소</string>
     <string name="change">변경</string>
     <string name="changenow_exchange_id">ChangeNOW 교환 ID</string>
-    <string name="channels">채널</string>
     <string name="chats">채팅</string>
     <string name="chatting_address">채팅 주소</string>
     <string name="chatting_address_2">채팅 주소</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Google Drive 백업 사용됨</string>
     <string name="grant_permission">권한 부여</string>
     <string name="grant_permission_2">권한 부여</string>
-    <string name="group_chat">그룹 채팅</string>
     <string name="group_chats">그룹 채팅</string>
     <string name="group_info">그룹 정보</string>
     <string name="group_name">그룹 이름</string>
@@ -169,14 +165,12 @@
     <string name="name">이름</string>
     <string name="name_optional">이름 (선택사항)</string>
     <string name="name_this_address">이 주소 이름 지정</string>
-    <string name="network">네트워크</string>
     <string name="never_send_kaspa_you_intend_to">지출하려는 Kaspa를 이 주소로 절대 보내지 마세요.</string>
     <string name="next">다음</string>
     <string name="no_conversations_yet">아직 대화가 없습니다</string>
     <string name="no_group_chats_yet">아직 그룹 채팅 없음</string>
     <string name="no_matching_chats">일치하는 채팅 없음</string>
     <string name="no_matching_groups">일치하는 그룹 없음</string>
-    <string name="no_broadcast_channels_yet">아직 방송 채널이 없습니다</string>
     <string name="no_cold_storage_accounts_yet_scan">아직 콜드 스토리지 계정이 없습니다. 잔액을 관찰하고 그곳에서 보내려면 KasSigner 기기에서 내보낸 kpub를 스캔하세요.</string>
     <string name="no_domains_yet">아직 도메인이 없습니다.</string>
     <string name="no_hidden_addresses">숨겨진 주소가 없습니다.</string>
@@ -210,8 +204,6 @@
     <string name="photos">사진</string>
     <string name="polygon_network">Polygon 네트워크</string>
     <string name="pool_health">풀 상태</string>
-    <string name="popular">인기</string>
-    <string name="popular_tab">인기 탭</string>
     <string name="portfolio">포트폴리오</string>
     <string name="powered_by_changenow">ChangeNOW 제공</string>
     <string name="price_per_coin">코인당 가격</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">예약된 도메인: 등록 수수료 없음, 네트워크 수수료만 적용됩니다.</string>
     <string name="resign">기권</string>
     <string name="resign_this_game">이 게임을 기권하시겠습니까?</string>
-    <string name="resolving_kns_domain">KNS 도메인 확인 중…</string>
     <string name="resolving_domain">도메인 확인 중…</string>
     <string name="resolving">확인 중...</string>
     <string name="retention">보관</string>
@@ -271,7 +262,6 @@
     <string name="show_more">더 보기</string>
     <string name="show_photo">사진 표시</string>
     <string name="show_qr_code">QR 코드 표시</string>
-    <string name="shows_a_tab_of_recommended_broadcast">참여할 수 있는 추천 방송방 탭을 표시합니다.</string>
     <string name="shows_senders_kns_avatars_in_rooms">방에 있는 발신자의 KNS 아바타를 표시하고 메시지가 나타날 때 자동으로 조회합니다. 끄기는 모두에게 단순한 이니셜을 표시하고 아바타를 절대 가져오지 않습니다.</string>
     <string name="skip">건너뛰기</string>
     <string name="some_changes_failed_to_save">일부 변경 사항을 저장하지 못했습니다:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">체인에서 확인되는 동안 몇 분 정도 걸릴 수 있습니다.</string>
     <string name="this_only_removes_it_from_kachat">이는 KaChat의 감시 목록에서만 제거합니다. KasSigner 기기나 보유한 자금에는 영향을 미치지 않습니다.</string>
     <string name="this_permanently_deletes_every_message_with">이는 이 기기에서 그들과의 모든 메시지를 영구적으로 삭제합니다. 되돌릴 수 없습니다; 다시 메시지를 보내면 완전히 새로운 대화가 시작됩니다.</string>
-    <string name="this_permanently_deletes_this_account_s">이는 이 계정의 지갑 키와 모든 로컬 메시지 및 연락처를 이 기기에서 영구적으로 삭제합니다. 시드 문구를 저장하지 않은 경우 되돌릴 수 없습니다; 시드 문구가 없으면 남은 잔액을 복구할 수 없습니다.</string>
-    <string name="this_permanently_deletes_this_account_s_2">이는 이 계정의 지갑 키, 모든 로컬 메시지 및 연락처, Google Drive 백업을 영구적으로 삭제합니다. 시드 문구를 저장하지 않은 경우 되돌릴 수 없습니다; 시드 문구가 없으면 남은 잔액을 복구할 수 없습니다.</string>
-    <string name="this_removes_all_incoming_messages_locally">이는 모든 수신 메시지를 로컬에서 제거한 다음 블록체인에서 다시 동기화합니다. 계정 정보와 보낸 메시지는 보존됩니다.</string>
     <string name="this_removes_the_group_and_its">이는 이 기기에서 그룹과 메시지를 제거합니다. 되돌릴 수 없으며 다른 멤버에게 알림이 가지 않습니다.</string>
     <string name="this_signs_out_of_your_account">계정에서 로그아웃하지만, 이 기기의 로컬 지갑과 메시지 데이터는 유지됩니다.</string>
     <string name="to">받는 주소</string>
@@ -312,12 +299,6 @@
     <string name="view_on_changenow">ChangeNOW에서 보기</string>
     <string name="waiting_for_camera">카메라 대기 중...</string>
     <string name="waiting_on_opponent">상대방 대기 중</string>
-    <string name="wipe_account">계정 삭제</string>
-    <string name="wipe_everything">모두 삭제</string>
-    <string name="wipe_incoming_messages">수신 메시지 삭제</string>
-    <string name="wipe_account_messages">계정 및 메시지 삭제</string>
-    <string name="wipe_account_messages_cloud">계정과 메시지와 클라우드 삭제</string>
-    <string name="wipe_and_re_sync_incoming_messages">수신 메시지 삭제 후 재동기화</string>
     <string name="you_will_be_shown_a_seed">시드 문구가 표시됩니다. 이것이 계정을 복구하는 유일한 방법입니다. 반드시 종이에 적어두기만 하세요. 절대 스크린샷을 찍거나 기기에 저장하지 마세요.</string>
     <string name="channel_name">채널-이름</string>
     <string name="host_port_or_grpcs_host">host:port 또는 grpcs://host</string>
@@ -336,7 +317,6 @@
     <string name="swap_failed">스왑 실패</string>
     <string name="nothing_to_consolidate">통합할 것이 없음</string>
     <string name="about">정보</string>
-    <string name="account">계정</string>
     <string name="actions">작업</string>
     <string name="active">활성</string>
     <string name="autocreate_system_contacts">시스템 연락처 자동 생성</string>
@@ -401,7 +381,6 @@
     <string name="save_photo">사진 저장</string>
     <string name="save_your_own_node_addresses_here">여기에 자신의 노드 주소를 저장한 다음, 위의 Kaspa 노드 필드에 복사하여 붙여넣으려면 하나를 탭하세요.</string>
     <string name="security">보안</string>
-    <string name="select_mainnet_for_real_transactions_or">실제 트랜잭션에는 mainnet, 테스트에는 testnet을 선택하세요</string>
     <string name="send_audio_message">음성 메시지 보내기</string>
     <string name="send_handshake">통신 요청 보내기</string>
     <string name="send_photo_2">사진 보내기</string>
@@ -420,7 +399,6 @@
     <string name="system_contact">시스템 연락처</string>
     <string name="telegram">Telegram</string>
     <string name="total">합계</string>
-    <string name="unfinished_inscription">미완성 인스크립션</string>
     <string name="uses_your_device_contacts_to_match">기기 연락처를 사용하여 Kaspa 연락처를 매칭하고 보완합니다.</string>
     <string name="verified">검증됨</string>
     <string name="verifying_new_ownership_on_chain_this">체인에서 새 소유권 확인 중 (1분 정도 걸릴 수 있음)...</string>
@@ -432,7 +410,6 @@
     <string name="view_seed_phrase">Seed Phrase 보기</string>
     <string name="view_in_explorer">탐색기에서 보기</string>
     <string name="website">웹사이트</string>
-    <string name="welcome_guide">환영 가이드</string>
     <string name="x">X</string>
     <string name="x_twitter">X (트위터)</string>
     <string name="language">언어</string>
@@ -457,7 +434,6 @@
     <string name="best">최고</string>
     <string name="spending_address">지출 주소</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port 또는 grpcs://host 형식으로 입력하세요</string>
-    <string name="show_setup_guides">설정 가이드 표시</string>
     <string name="receive_kaspa">Kaspa 받기</string>
     <string name="currency">통화</string>
     <string name="choose_your_currency">통화를 선택하세요</string>
