@@ -704,6 +704,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     val service = chatViewModel.nextcloud
     val account by service.account.collectAsState()
     val autoBackupEnabled by service.autoBackupEnabled.collectAsState()
+    val lastAutoSyncMs by chatViewModel.nextcloudLastAutoSyncMs.collectAsState()
     val mediaSendEnabled by service.mediaSendEnabled.collectAsState()
     val connectState by chatViewModel.nextcloudConnectState.collectAsState()
     val backupState by chatViewModel.nextcloudBackupState.collectAsState()
@@ -800,9 +801,20 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 onClick = { showBackupFolderPicker = true }
             )
             SettingsDivider()
-            SettingsSwitchItem("Automatic Backup", autoBackupEnabled) { enabled ->
-                service.setAutoBackupEnabled(enabled)
+            SettingsSwitchItem("Automatic Sync", autoBackupEnabled) { enabled ->
+                chatViewModel.setNextcloudAutoSyncEnabled(enabled)
             }
+            SettingsFooter(
+                if (autoBackupEnabled) {
+                    val lastSyncedText = lastAutoSyncMs?.let {
+                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
+                    }
+                    "Messages sync to this server automatically shortly after you send or receive them, merging with backups from your other devices. " +
+                        if (lastSyncedText != null) "Last synced: $lastSyncedText." else "Waiting for the first sync."
+                } else {
+                    "Turn on to keep this server's backup current automatically whenever you send or receive messages."
+                }
+            )
             SettingsDivider()
             SettingsSwitchItem("Send Media via Nextcloud", mediaSendEnabled) { enabled ->
                 service.setMediaSendEnabled(enabled)

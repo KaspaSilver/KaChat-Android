@@ -65,6 +65,8 @@ class ChatRepository @Inject constructor(
     // instantiation past construction time, breaking the cycle while still letting this class
     // signal message activity into it (the automatic Drive sync debounce).
     private val googleDriveSyncServiceLazy: dagger.Lazy<com.kachat.app.services.GoogleDriveSyncService>,
+    // Same cycle-break for the Nextcloud sibling of that signal (continuous Nextcloud sync).
+    private val nextcloudSyncServiceLazy: dagger.Lazy<com.kachat.app.services.NextcloudSyncService>,
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
     private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>
@@ -256,14 +258,16 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Automatic Google Drive sync signal — every new message (sent or received, from any
-     * insertion path, since all of them funnel through [insertMessage]) is reported to
-     * [com.kachat.app.services.GoogleDriveSyncService], which owns the debounce, the per-wallet
-     * gating, the wallet snapshotting, and the WorkManager fallback. No-ops inside the service
-     * when Drive backup or the wallet's Automatic Drive Sync toggle is off.
+     * Automatic cloud-sync signal — every new message (sent or received, from any insertion
+     * path, since all of them funnel through [insertMessage]) is reported to
+     * [com.kachat.app.services.GoogleDriveSyncService] and its Nextcloud sibling
+     * [com.kachat.app.services.NextcloudSyncService]. Each service owns its own debounce,
+     * per-wallet gating, wallet snapshotting, and WorkManager fallback, and no-ops when its
+     * backend or the wallet's automatic-sync toggle is off — so both calls are cheap here.
      */
     private fun scheduleAutoBackupIfEnabled() {
         googleDriveSyncServiceLazy.get().noteMessageActivity()
+        nextcloudSyncServiceLazy.get().noteMessageActivity()
     }
 
     /**

@@ -66,14 +66,12 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier
 
-    // For the Nextcloud automatic chat-history backup below — the archive json comes from the
-    // same export service ChatViewModel's manual backup uses, so both paths write byte-identical
-    // backups.
+    // Continuous automatic Nextcloud sync — same eager-init reasoning as GoogleDriveSyncService
+    // below: its init block observes the connected account + Automatic Sync toggle (schedules or
+    // cancels the 6h WorkManager fallback) and the active wallet (silent one-time auto-restore
+    // of the shared backup file). The lifecycle triggers below also feed it.
     @Inject
-    lateinit var nextcloudService: com.kachat.app.services.NextcloudService
-
-    @Inject
-    lateinit var chatHistoryExportImportService: com.kachat.app.services.ChatHistoryExportImportService
+    lateinit var nextcloudSyncService: com.kachat.app.services.NextcloudSyncService
 
     // Same lazy-singleton reasoning as the scanners above: GoogleDriveSyncService's init block
     // observes the active wallet (automatic Drive restore on wallet activation) and the Drive
@@ -130,11 +128,12 @@ class KaChatApplication : Application(), Configuration.Provider {
                 kaPostsNotificationPoller.stop()
                 addressActivityNotifier.onAppBackground()
                 // Backgrounding is the natural "done chatting" moment — run the Nextcloud
-                // automatic backup then, throttled to at most once per hour. autoBackupIfDue
-                // no-ops unless the toggle is on and an account is connected, and swallows its
-                // own failures (the next trigger retries). Mirrors iOS's on-background backup.
+                // automatic sync then, throttled to at most once per hour. autoBackupIfDue
+                // no-ops unless the Automatic Sync toggle is on, an account is connected, and
+                // the persisted dirty flag says a sync is actually owed; it swallows its own
+                // failures (the next trigger or the fallback worker retries).
                 owner.lifecycleScope.launch(Dispatchers.IO) {
-                    nextcloudService.autoBackupIfDue { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
+                    nextcloudSyncService.autoBackupIfDue()
                 }
             }
 
@@ -164,13 +163,13 @@ class KaChatApplication : Application(), Configuration.Provider {
                         android.util.Log.w("KaChatApplication", "Foreground group catch-up sync failed", e)
                     }
                 }
-                // Nextcloud backup catch-up on launch/foreground: covers users who never
+                // Nextcloud sync catch-up on launch/foreground: covers users who never
                 // background the app cleanly (force-kill, crash, days of disuse). The day-long
                 // threshold keeps this from ever competing with the hourly on-background cadence.
                 owner.lifecycleScope.launch(Dispatchers.IO) {
-                    nextcloudService.autoBackupIfDue(
-                        minIntervalMs = com.kachat.app.services.NextcloudService.AUTO_BACKUP_CATCH_UP_INTERVAL_MS
-                    ) { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
+                    nextcloudSyncService.autoBackupIfDue(
+                        minIntervalMs = com.kachat.app.services.NextcloudSyncService.AUTO_BACKUP_CATCH_UP_INTERVAL_MS
+                    )
                 }
             }
         })

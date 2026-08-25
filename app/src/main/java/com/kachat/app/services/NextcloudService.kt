@@ -7,15 +7,12 @@ import android.util.Xml
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
@@ -129,7 +126,12 @@ class NextcloudService @Inject constructor(
         private const val PREF_APP_PASSWORD = "app_password"
         private const val PREF_START_FOLDER = "start_folder"
         private const val PREF_BACKUP_FOLDER = "backup_folder"
+        // The per-account "Automatic Sync" toggle (historically "Automatic Backup" — the stored
+        // key is unchanged for continuity). NextcloudSyncService gates every automatic path on it.
         private const val PREF_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
+        // Legacy hourly-throttle stamp from the pre-continuous-sync autoBackupIfDue path; kept in
+        // ALL_PREF_BASES so disconnect/purge/migration still clean it up. NextcloudSyncService
+        // owns the last-synced stamp now (DataStore).
         private const val PREF_LAST_AUTO_BACKUP_MS = "last_auto_backup_ms"
         private const val PREF_MEDIA_SEND_ENABLED = "media_send_enabled"
 
@@ -153,13 +155,6 @@ class NextcloudService @Inject constructor(
         /** FIXED filename, identical to iOS/desktop — same archive schema, so a backup written by
          *  one platform restores cleanly on any other. */
         const val BACKUP_FILE_NAME = "kachat-backup.json"
-
-        /** On-background auto-backup throttle: at most once per hour. */
-        const val AUTO_BACKUP_MIN_INTERVAL_MS = 3_600_000L
-        /** Launch/foreground catch-up threshold: if the last automatic backup is older than this
-         *  (e.g. the app was force-killed for days and never got a clean backgrounding moment),
-         *  back up on becoming active instead of waiting for the next background. */
-        const val AUTO_BACKUP_CATCH_UP_INTERVAL_MS = 86_400_000L
 
         /** Normalizes user input ("mycloud.duckdns.org", trailing slashes, an accidental
          *  "/index.php" suffix) into a clean base URL, defaulting to https. Null if it doesn't
@@ -221,10 +216,7 @@ class NextcloudService @Inject constructor(
     @Volatile
     private var currentSuffix: String? = null
 
-    /** Owns the in-flight automatic backup so a wallet switch can cancel it — account A's
-     *  archive must never upload while account B is active. */
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var autoBackupJob: Job? = null
 
     init {
         // Load the current wallet's state synchronously (the settings screens may compose before
@@ -257,9 +249,6 @@ class NextcloudService @Inject constructor(
      */
     private fun setCurrentWallet(walletAddress: String?, force: Boolean = false) {
         if (!force && walletAddress == currentWalletAddress) return
-
-        autoBackupJob?.cancel()
-        autoBackupJob = null
 
         currentWalletAddress = walletAddress
         currentSuffix = walletAddress?.let { walletHashSuffix(it) }
@@ -341,8 +330,6 @@ class NextcloudService @Inject constructor(
         for (base in ALL_PREF_BASES) editor.remove(scopedKey(base, suffix))
         editor.apply()
         if (walletAddress == currentWalletAddress) {
-            autoBackupJob?.cancel()
-            autoBackupJob = null
             _account.value = null
             _autoBackupEnabled.value = false
             _mediaSendEnabled.value = false
@@ -421,8 +408,6 @@ class NextcloudService @Inject constructor(
         // disconnect can never appear to "come back" via migration.
         for (base in ALL_PREF_BASES) editor.remove(base)
         editor.apply()
-        autoBackupJob?.cancel()
-        autoBackupJob = null
         _account.value = null
         _autoBackupEnabled.value = false
         _mediaSendEnabled.value = false
@@ -450,50 +435,6 @@ class NextcloudService @Inject constructor(
         val key = scopedKey(PREF_MEDIA_SEND_ENABLED) ?: return
         prefs.edit().putBoolean(key, enabled).apply()
         _mediaSendEnabled.value = enabled
-    }
-
-    /**
-     * Runs the automatic backup when enabled, connected, and at least [minIntervalMs] past the
-     * last one (hourly for on-background, daily for the launch catch-up). Failures are silent
-     * by design (the next trigger retries); success stamps the throttle clock. Goes through
-     * [runBackup], so an automatic backup merges with the server's copy exactly like a manual
-     * one — and aborts without uploading anything if that copy can't be read.
-     */
-    suspend fun autoBackupIfDue(
-        minIntervalMs: Long = AUTO_BACKUP_MIN_INTERVAL_MS,
-        buildJson: suspend (String?) -> String
-    ) {
-        if (!_autoBackupEnabled.value) return
-        // Snapshot the wallet AND its account/folder up front: the work runs in a service-owned
-        // job that a wallet switch cancels, and every await re-checks the wallet before touching
-        // the server — account A's archive must never upload while account B is active.
-        val walletAtStart = currentWalletAddress ?: return
-        val accountAtStart = _account.value ?: return
-        val folderAtStart = accountAtStart.backupFolder ?: BACKUP_FOLDER_NAME
-        val lastKey = scopedKey(PREF_LAST_AUTO_BACKUP_MS) ?: return
-        val last = prefs.getLong(lastKey, 0L)
-        if (System.currentTimeMillis() - last < minIntervalMs) return
-
-        autoBackupJob?.cancel()
-        val job = serviceScope.launch(Dispatchers.IO) {
-            try {
-                val existingRemoteJson = downloadExistingBackup(accountAtStart, folderAtStart)
-                val json = buildJson(existingRemoteJson)
-                // The export awaited: if the wallet switched meanwhile (or the switch cancelled
-                // this job), drop the upload — this archive belongs to the previous account.
-                if (!isActive || currentWalletAddress != walletAtStart) return@launch
-                uploadBackup(json, accountAtStart, folderAtStart)
-                if (isActive && currentWalletAddress == walletAtStart) {
-                    prefs.edit().putLong(lastKey, System.currentTimeMillis()).apply()
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "Automatic Nextcloud backup failed (will retry on the next trigger)", e)
-            }
-        }
-        autoBackupJob = job
-        job.join()
     }
 
     private fun basicAuth(account: NextcloudAccount): String =

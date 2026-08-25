@@ -56,6 +56,7 @@ class ChatViewModel @Inject constructor(
     private val googleDriveBackupService: GoogleDriveBackupService,
     private val googleDriveSyncService: com.kachat.app.services.GoogleDriveSyncService,
     private val nextcloudService: NextcloudService,
+    private val nextcloudSyncService: com.kachat.app.services.NextcloudSyncService,
     private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
@@ -387,6 +388,16 @@ class ChatViewModel @Inject constructor(
 
     val nextcloud: NextcloudService get() = nextcloudService
 
+    /** When the active wallet's archive last synced to Nextcloud automatically, null = never. */
+    val nextcloudLastAutoSyncMs: StateFlow<Long?> = nextcloudSyncService.lastAutoSyncMs
+
+    /** The Automatic Sync toggle (the pre-existing per-account auto-backup switch, upgraded).
+     *  Routed through the sync service so turning it on marks the archive dirty and prompts the
+     *  first sync, and turning it off drops any pending debounced upload. */
+    fun setNextcloudAutoSyncEnabled(enabled: Boolean) {
+        nextcloudSyncService.setAutoSyncEnabled(enabled)
+    }
+
     private val _nextcloudConnectState = MutableStateFlow(ChatHistoryOpState())
     val nextcloudConnectState: StateFlow<ChatHistoryOpState> = _nextcloudConnectState.asStateFlow()
 
@@ -538,6 +549,9 @@ class ChatViewModel @Inject constructor(
                 // login and settings must go with it — mirrors iOS's purgeStoredState in the
                 // WalletManager account-deletion flows.
                 nextcloudService.purgeStoredState(address)
+                // The continuous Nextcloud sync state (dirty flag, last-synced stamp, restored
+                // marker) and any pending debounced upload go with the account too.
+                nextcloudSyncService.purgeStoredState(address)
                 // Same per-account hygiene for the automatic Drive sync: this wallet's toggle,
                 // stamps, and pending debounced upload go with it; other wallets are untouched.
                 googleDriveSyncService.purgeStoredState(address)
