@@ -9,6 +9,7 @@ import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.AddressImportResult
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.PortfolioRepository
+import com.kachat.app.services.KnsService
 import com.kachat.app.services.PortfolioManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -57,8 +58,13 @@ data class PortfolioSummary(
 class PortfolioViewModel @Inject constructor(
     private val repository: PortfolioRepository,
     private val settings: AppSettingsRepository,
-    private val portfolioManager: PortfolioManager
+    private val portfolioManager: PortfolioManager,
+    private val knsService: KnsService
 ) : ViewModel() {
+
+    /** Forward KNS domain resolution for the Add Kaspa Address field — lets typing "name.kas"
+     *  resolve to a Kaspa address the same way the send flows' address fields already do. */
+    suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
 
     val transactions = repository.getTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

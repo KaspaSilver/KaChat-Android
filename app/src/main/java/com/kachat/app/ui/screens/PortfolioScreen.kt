@@ -36,7 +36,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -518,8 +521,8 @@ private fun PortfolioTransactionsContent(
                     val message = result.fold(
                         onSuccess = { imported ->
                             val base = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
-                            if (imported.missingPriceCount > 0) {
-                                "$base (${imported.missingPriceCount} need a price — edit to set manually)"
+                            if (imported.pendingPriceCount > 0) {
+                                "$base. Prices are filling in the background."
                             } else {
                                 base
                             }
@@ -528,7 +531,8 @@ private fun PortfolioTransactionsContent(
                     )
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 }
-            }
+            },
+            resolveKns = viewModel::resolveKnsDomain
         )
     }
 
@@ -549,15 +553,71 @@ private fun PortfolioTransactionsContent(
     }
 }
 
+/** "kaspa:qrabc...wxyz" — enough of each end to recognize the address without wrapping the dialog. */
+private fun shortenKaspaAddress(address: String): String =
+    if (address.length <= 24) address else "${address.take(14)}...${address.takeLast(6)}"
+
 @Composable
-private fun AddressEntryDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+private fun AddressEntryDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+    resolveKns: suspend (String) -> String?
+) {
     var addressText by remember { mutableStateOf("") }
-    val isValid = remember(addressText) {
+    var showScanner by remember { mutableStateOf(false) }
+    var isResolvingKns by remember { mutableStateOf(false) }
+    var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
+    var knsNotFound by remember { mutableStateOf(false) }
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+
+    // Debounced live KNS resolution — the same 500ms pattern the send flows' address fields use
+    // (see ColdStorageScreens' recipient field): restart on every keystroke, resolve only input
+    // that looks like a domain rather than a raw address.
+    LaunchedEffect(addressText) {
+        knsResolvedAddress = null
+        knsNotFound = false
+        val input = addressText.trim()
+        if (input.isEmpty() || input.startsWith("kaspa:", ignoreCase = true) ||
+            input.startsWith("kaspatest:", ignoreCase = true) ||
+            !com.kachat.app.services.KnsService.looksLikeDomain(input)
+        ) {
+            isResolvingKns = false
+            return@LaunchedEffect
+        }
+        isResolvingKns = true
+        kotlinx.coroutines.delay(500)
+        val resolved = resolveKns(input)
+        isResolvingKns = false
+        if (resolved != null) knsResolvedAddress = resolved else knsNotFound = true
+    }
+
+    val isRawValid = remember(addressText) {
         try {
             com.kachat.app.util.KaspaAddress.getScriptPublicKey(addressText.trim()).isNotEmpty()
         } catch (e: Exception) {
             false
         }
+    }
+    // The address actually imported — a resolved KNS domain wins over the raw text.
+    val effectiveAddress = knsResolvedAddress ?: addressText.trim()
+    val isValid = knsResolvedAddress != null || isRawValid
+
+    if (showScanner) {
+        // Full-screen (usePlatformDefaultWidth = false) so the camera overlay isn't squeezed
+        // into a dialog-width box — reuses the same scanner composable as the send flows.
+        Dialog(
+            onDismissRequest = { showScanner = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            QrScannerOverlay(
+                onScanned = { scanned ->
+                    addressText = scanned.trim()
+                    showScanner = false
+                },
+                onDismiss = { showScanner = false }
+            )
+        }
+        return
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -573,11 +633,51 @@ private fun AddressEntryDialog(onDismiss: () -> Unit, onConfirm: (String) -> Uni
                 OutlinedTextField(
                     value = addressText,
                     onValueChange = { addressText = it },
-                    placeholder = { Text("kaspa:qr...") },
+                    placeholder = { Text("kaspa:qr... or name.kas") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(8.dp))
+                if (addressText.trim().isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    when {
+                        isResolvingKns -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        }
+                        knsResolvedAddress != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Resolves to ${shortenKaspaAddress(knsResolvedAddress ?: "")}", color = Color(0xFF4CD964), fontSize = 12.sp)
+                        }
+                        // Quiet by design — an unfinished domain isn't an error worth shouting about.
+                        knsNotFound -> Text("Domain not found", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        isRawValid -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.valid_address), color = Color(0xFF4CD964), fontSize = 12.sp)
+                        }
+                        else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Cancel, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.invalid_address_format), color = Color(0xFFFF3B30), fontSize = 12.sp)
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { clipboardManager.getText()?.text?.let { addressText = it.trim() } }) {
+                        Icon(Icons.Default.ContentPaste, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.paste_from_clipboard), color = KaspaTeal, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { showScanner = true }) {
+                        Icon(Icons.Default.QrCodeScanner, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.scan_qr_code), color = KaspaTeal, fontSize = 12.sp)
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
                 Text(
                     "Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import.",
                     color = LocalAppColors.current.textSecondary,
@@ -585,7 +685,7 @@ private fun AddressEntryDialog(onDismiss: () -> Unit, onConfirm: (String) -> Uni
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(
-                    onClick = { onConfirm(addressText.trim()) },
+                    onClick = { onConfirm(effectiveAddress) },
                     enabled = isValid,
                     colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
                     modifier = Modifier.fillMaxWidth().height(48.dp)

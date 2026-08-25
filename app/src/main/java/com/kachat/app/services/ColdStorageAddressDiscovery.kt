@@ -5,6 +5,7 @@ import com.kachat.app.util.KaspaExtendedPublicKey
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -190,14 +191,26 @@ class ColdStorageAddressDiscovery @Inject constructor(
         val api = networkService.kaspaRestApi.value ?: return emptyList()
         val all = mutableListOf<AddressTransaction>()
         var offset = 0
+        var pageRetries = 0
 
         while (all.size < maxTransactions) {
             val page = try {
                 api.getTransactions(address, limit = pageSize, offset = offset)
             } catch (e: Exception) {
-                Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for $address at offset $offset", e)
+                // A transient failure mid-pagination used to abort the whole loop, silently
+                // truncating the imported history — resume the SAME offset with backoff instead,
+                // and only give up (returning the partial pages already fetched) once the
+                // retries for this page are exhausted.
+                if (pageRetries < MAX_PAGE_RETRIES) {
+                    pageRetries++
+                    Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for $address at offset $offset (retry $pageRetries/$MAX_PAGE_RETRIES)", e)
+                    delay(PAGE_RETRY_BASE_DELAY_MILLIS * (1L shl (pageRetries - 1)))
+                    continue
+                }
+                Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for $address at offset $offset after $MAX_PAGE_RETRIES retries; returning partial history", e)
                 break
             }
+            pageRetries = 0
             if (page.isEmpty()) break
 
             all.addAll(
@@ -225,6 +238,13 @@ class ColdStorageAddressDiscovery @Inject constructor(
         val amountSompi: Long,
         val isCoinbase: Boolean
     )
+
+    companion object {
+        /** Per-page retry budget for [getFullTransactionHistoryPaginated] — retries resume the
+         *  same offset with exponential backoff (1.5s, 3s, 6s) before settling for partial history. */
+        private const val MAX_PAGE_RETRIES = 3
+        private const val PAGE_RETRY_BASE_DELAY_MILLIS = 1_500L
+    }
 
     /** Unspent outputs currently sitting at a single address — backs the Cold Storage tx history
      *  screen's "UTXOs" tab. */
