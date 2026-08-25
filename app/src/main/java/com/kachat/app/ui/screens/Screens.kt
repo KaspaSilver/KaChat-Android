@@ -2939,13 +2939,42 @@ fun ProfileScreen(
                         )
                     }
                     val heroName = activeProfileDomainName?.removeSuffix(".kas") ?: accountName ?: ""
-                    Box(modifier = Modifier.padding(start = 16.dp).offset(y = (-38).dp)) {
-                        Box(
-                            modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ContactAvatar(imageUrl = knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
+                    // This card only ever renders the user's own profile (ProfileScreen is
+                    // own-account only), so the edit/create entry is always shown here.
+                    // Label follows the same reactive condition as the destination: no profile
+                    // yet means "Create KNS Profile", and it flips to "Edit KNS Profile" the
+                    // moment activeProfileDomainName lands - no app restart needed.
+                    val hasKnsProfile = !activeProfileDomainName.isNullOrBlank()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(modifier = Modifier.padding(start = 16.dp).offset(y = (-38).dp)) {
+                            Box(
+                                modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ContactAvatar(imageUrl = knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
+                            }
                         }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            stringResource(if (hasKnsProfile) R.string.edit_kns_profile else R.string.create_kns_profile),
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .padding(top = 8.dp, end = 8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (hasKnsProfile) {
+                                        navController.navigate("edit_kns_profile")
+                                    } else {
+                                        navController.navigate("create_kns_profile")
+                                    }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
                     }
                     Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
                         Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
@@ -2954,43 +2983,6 @@ fun ProfileScreen(
                             Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-                }
-            }
-
-            // Straight to the KNS editor (matches iOS's editKNSProfileRow) - no domain yet
-            // sends you into the create-profile flow instead. Replaces the old KNS Profile
-            // card section entirely.
-            Surface(
-                color = LocalAppColors.current.surface,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Label follows the same reactive condition as the destination: no profile yet
-                // means "Create KNS Profile", and it flips to "Edit KNS Profile" the moment
-                // activeProfileDomainName lands - no app restart needed.
-                val hasKnsProfile = !activeProfileDomainName.isNullOrBlank()
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (hasKnsProfile) {
-                                navController.navigate("edit_kns_profile")
-                            } else {
-                                navController.navigate("create_kns_profile")
-                            }
-                        }
-                        .padding(16.dp)
-                ) {
-                    Icon(Icons.Default.Badge, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Text(
-                        stringResource(if (hasKnsProfile) R.string.edit_kns_profile else R.string.create_kns_profile),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
                 }
             }
 
