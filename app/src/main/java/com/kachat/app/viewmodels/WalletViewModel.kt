@@ -194,6 +194,16 @@ class WalletViewModel @Inject constructor(
     private val _privacyReservedAddresses = MutableStateFlow<Set<String>>(emptySet())
     val privacyReservedAddresses: StateFlow<Set<String>> = _privacyReservedAddresses.asStateFlow()
 
+    /** The ACTIVE account's Chats Payment Privacy toggle, re-scoped on account switches (same
+     *  derivation as SettingsViewModel's). Drives whether Manage Spending Addresses shows the
+     *  Chat Privacy tab at all: toggle OFF means no tab row, plain Addresses list only. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val chatsPaymentPrivacyEnabled: StateFlow<Boolean> = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) flowOf(true) else settings.chatsPaymentPrivacyEnabled(address)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     // Monotonic ticket for loadManageAddresses commits: only the NEWEST in-flight live load may
     // write its result, so a slow load that started before a rotation/newer refresh can never
     // overwrite fresher rows with pre-rotation balances.

@@ -123,6 +123,10 @@ class PaymentPoolService @Inject constructor(
         if (replenish) {
             if (!store.hasOfferedPool(contactId, walletAddress)) return
             if (store.isPoolRevoked(contactId, walletAddress)) return
+            // A contact who revoked our pool at them zeroed their active count deliberately -
+            // that's disinterest, not consumption; never replenish until they re-engage
+            // (their request, their non-empty offer, or a deliberate offer of ours).
+            if (store.didContactRevokeAtUs(contactId, walletAddress)) return
             batchTarget = PaymentPoolStore.OFFER_BATCH_SIZE -
                 store.activeFreshReservationCount(contactId, walletAddress)
             if (batchTarget <= 0) return
@@ -236,8 +240,15 @@ class PaymentPoolService @Inject constructor(
         } catch (e: Exception) {
             emptyList()
         }
+        // Every established contact not currently holding a live pool of ours (offered marker
+        // unset - covers contacts we revoked on toggle-off AND established contacts never
+        // offered before), MINUS contacts who revoked our pool at THEM: they signalled
+        // disinterest and wait for re-engagement (their request, their non-empty offer) before
+        // any proactive send resumes.
         val targets = contacts.map { it.id }.filter { contactId ->
-            isEstablishedConversation(contactId, walletAddress) && !store.hasOfferedPool(contactId, walletAddress)
+            isEstablishedConversation(contactId, walletAddress) &&
+                !store.hasOfferedPool(contactId, walletAddress) &&
+                !store.didContactRevokeAtUs(contactId, walletAddress)
         }
         if (targets.isEmpty()) return
         Log.i(TAG, "Chats Payment Privacy on - re-offering pools to ${targets.size} contacts")
@@ -266,6 +277,15 @@ class PaymentPoolService @Inject constructor(
                 // Re-checked once serialized, same reasoning as offers.
                 if (settingsRepository.chatsPaymentPrivacyEnabled(walletAddress).first()) return
                 if (store.isPoolRevoked(contactId, walletAddress)) return@withLock
+                // A contact who already revoked our pool at THEM holds nothing to revoke - an
+                // empty replace:true envelope would only burn a tx fee on an already-empty
+                // pool. Record the revoke locally so state converges (offered marker clears,
+                // contact drops out of every holder derivation) without a wire send.
+                if (store.didContactRevokeAtUs(contactId, walletAddress)) {
+                    store.markPoolRevoked(contactId, walletAddress)
+                    Log.i(TAG, "Pool at ${contactId.takeLast(10)} already revoked at us - recorded locally, no envelope")
+                    return@withLock
+                }
                 // Flap bound: revokes bypass the reservation caps (a revoke must always be
                 // allowed out) but honor the 60s transition gap per contact. A gap-skipped
                 // contact keeps its markers, so a later toggle-off retries it; meanwhile the
@@ -492,6 +512,9 @@ class PaymentPoolService @Inject constructor(
                     return
                 }
                 if (!isEstablishedConversation(contact.id, myAddress)) return
+                // An explicit request is renewed interest - a standing revoked-at-us marker
+                // (they once revoked our pool) no longer applies, so proactive sends resume.
+                store.clearContactRevokedAtUs(contact.id, myAddress)
                 // Inbound abuse gate: every reply costs us a reservation batch AND an on-chain
                 // tx fee - a spamming contact gets at most one top-up per 10 minutes, and
                 // nothing once the lifetime/outstanding-unfunded caps are hit (re-checked inside
@@ -545,12 +568,22 @@ class PaymentPoolService @Inject constructor(
         // the empty pool is stored. No reciprocity on a revoke.
         if (content.replace == true && accepted.isEmpty()) {
             store.mergeTheirPool(emptyList(), replace = true, contactAddress = contact.id, walletAddress = myAddress)
-            Log.i(TAG, "Pool REVOKED by ${contact.id.takeLast(10)} - cleared stored pool")
+            // The contact signalled pool disinterest (Chats Payment Privacy off on their side):
+            // our offers to them leave the ACTIVE set too - their Manage Addresses rows revert
+            // to normal, untagged, hideable addresses - and the revoked-at-us marker keeps
+            // every proactive send (auto-replenish, toggle-on re-offer) away until they
+            // re-engage. Watching and payment_notice rendering are untouched: a payment racing
+            // this revoke still lands and renders.
+            store.markOffersInactive(contact.id, myAddress)
+            Log.i(TAG, "Pool REVOKED by ${contact.id.takeLast(10)} - cleared stored pool, offers inactive")
             return
         }
         if (accepted.isEmpty()) return
 
         store.mergeTheirPool(accepted, replace = content.replace == true, contactAddress = contact.id, walletAddress = myAddress)
+        // A non-empty pool offer means the contact participates in the feature again - any
+        // standing revoked-at-us marker (from an earlier revoke of theirs) is stale.
+        store.clearContactRevokedAtUs(contact.id, myAddress)
         Log.i(TAG, "Stored ${accepted.size} pool addresses for ${contact.id.takeLast(10)} (replace=${content.replace == true})")
 
         // Reciprocity: they shared theirs - if they've never gotten ours, offer now (all gates,

@@ -3893,9 +3893,19 @@ fun ManageAddressesScreen(
     // stands. A reverted offer (revoke, superseding re-offer, or funding) leaves the set and
     // its row moves back to the main list as a normal address again.
     val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
+    // The Chat Privacy tab exists only while the current account's Chats Payment Privacy
+    // toggle is ON: toggle OFF releases every offered reservation (the active set is empty by
+    // definition), so the screen shows no tab row at all - just the plain Addresses list.
+    val chatsPaymentPrivacyOn by viewModel.chatsPaymentPrivacyEnabled.collectAsState()
     // 0 = Addresses, 1 = Chat Privacy. Tabs exist only on the normal screen, not the picker.
     var selectedManageTab by remember { mutableStateOf(0) }
-    val showingChatPrivacyTab = onAddressPicked == null && selectedManageTab == 1
+    val manageTabsVisible = onAddressPicked == null && chatsPaymentPrivacyOn
+    val showingChatPrivacyTab = manageTabsVisible && selectedManageTab == 1
+    // If the toggle flips OFF while the user is sitting on the Chat Privacy tab, land them on
+    // Addresses - the tab they were on no longer exists.
+    LaunchedEffect(chatsPaymentPrivacyOn) {
+        if (!chatsPaymentPrivacyOn) selectedManageTab = 0
+    }
     val chatPrivacyAddresses = remember(addresses, privacyReservedAddresses) {
         addresses.filter { it.address in privacyReservedAddresses }.sortedBy { it.index }
     }
@@ -4043,8 +4053,10 @@ fun ManageAddressesScreen(
         // Top-of-screen tab switch, same TabRow treatment as the address-details screen's
         // History/UTXOs/KNS Domains tabs. "Addresses" is the normal spending-address list;
         // "Chat Privacy" is the read-only view of addresses actively offered to contacts as
-        // Chats Payment Privacy pool reservations. The Swap address picker keeps the plain list.
-        if (onAddressPicked == null) {
+        // Chats Payment Privacy pool reservations. The Swap address picker keeps the plain
+        // list, and so does an account whose Chats Payment Privacy toggle is OFF (no tabs
+        // at all - see manageTabsVisible).
+        if (manageTabsVisible) {
             TabRow(
                 selectedTabIndex = selectedManageTab,
                 containerColor = LocalAppColors.current.background,

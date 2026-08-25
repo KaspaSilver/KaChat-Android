@@ -98,6 +98,13 @@ class PaymentPoolStore @Inject constructor(
         var lastPoolServeAt: MutableMap<String, Long> = mutableMapOf(),
         /** Contacts whose pool of OUR addresses we revoked (empty replace:true sent) on toggle-off. */
         var revokedContacts: MutableSet<String> = mutableSetOf(),
+        /** Contacts who revoked OUR pool at THEM (incoming empty replace:true - their Chats
+         *  Payment Privacy went off). While marked, proactive sends (auto-replenish, toggle-on
+         *  re-offer) never push addresses at them - their active count is 0 by revocation, not
+         *  by consumption. Cleared when they show renewed interest: an addr_pool_request, a
+         *  non-empty pool offer from them, or any successful offer of ours. Gson defaults old
+         *  persisted state to an empty set. */
+        var contactsRevokedAtUs: MutableSet<String> = mutableSetOf(),
         /** True while this wallet's Chats Payment Privacy toggle is OFF: every offered
          *  reservation is RELEASED - the whole active offered set empties at once, instantly,
          *  while the per-contact revoke envelopes still go out behind it (see
@@ -203,6 +210,9 @@ class PaymentPoolStore @Inject constructor(
         for (i in entries.indices) {
             if (entries[i].address in target) entries[i] = entries[i].copy(offered = true)
         }
+        // A successful offer supersedes any standing revoked-at-us marker - the contact holds
+        // live addresses of ours again, so proactive replenishes are meaningful again.
+        s.contactsRevokedAtUs.remove(contactAddress)
         save(s, walletAddress)
     }
 
@@ -225,6 +235,9 @@ class PaymentPoolStore @Inject constructor(
                 else -> e
             }
         }
+        // Same renewed-interest clear as markReservationsOffered: the contact holds a live
+        // pool of ours again.
+        s.contactsRevokedAtUs.remove(contactAddress)
         save(s, walletAddress)
     }
 
@@ -383,13 +396,52 @@ class PaymentPoolStore @Inject constructor(
         if (s.revokedContacts.remove(contactAddress)) save(s, walletAddress)
     }
 
-    /** Toggle-on housekeeping: forget all revocations so the offers are unencumbered. */
+    /** Toggle-on housekeeping: forget all revocations so the offers are unencumbered.
+     *  Deliberately does NOT touch [State.contactsRevokedAtUs] - a contact who revoked our pool
+     *  at them keeps waiting for re-engagement no matter how often we flip our own toggle. */
     @Synchronized
     fun clearAllPoolRevocations(walletAddress: String) {
         val s = state(walletAddress)
         if (s.revokedContacts.isEmpty()) return
         s.revokedContacts.clear()
         save(s, walletAddress)
+    }
+
+    /** The contact revoked at us (incoming empty replace:true addr_pool): records the
+     *  revoked-at-us marker so no proactive path (auto-replenish, toggle-on re-offer) pushes
+     *  fresh addresses at a contact who just signalled disinterest, and drops the offered flag
+     *  on their unfunded reservations - our offers to them leave the ACTIVE set (tag and
+     *  hide-lock drop, rows revert to normal hideable addresses), exactly like a superseding
+     *  replace batch would. The entries stay in the historical mapping (still watched, a
+     *  payment_notice naming one still renders), and the offered-contacts marker, revocation
+     *  set, and throttles are untouched so the normal offer lifecycle is unaffected. */
+    @Synchronized
+    fun markOffersInactive(contactAddress: String, walletAddress: String) {
+        val s = state(walletAddress)
+        s.contactsRevokedAtUs.add(contactAddress)
+        s.myReservations[contactAddress]?.let { entries ->
+            for (i in entries.indices) {
+                val e = entries[i]
+                if (e.offered && e.funded != true) entries[i] = e.copy(offered = false)
+            }
+        }
+        save(s, walletAddress)
+    }
+
+    /** True while [contactAddress] has revoked our pool at them and hasn't shown renewed
+     *  interest since - gates the proactive sends only (request-driven and reciprocity sends
+     *  clear the marker on arrival). */
+    @Synchronized
+    fun didContactRevokeAtUs(contactAddress: String, walletAddress: String): Boolean =
+        state(walletAddress).contactsRevokedAtUs.contains(contactAddress)
+
+    /** The contact showed renewed pool interest (sent addr_pool_request, offered us a
+     *  non-empty pool, or accepted a successful offer of ours) - proactive sends are welcome
+     *  again. */
+    @Synchronized
+    fun clearContactRevokedAtUs(contactAddress: String, walletAddress: String) {
+        val s = state(walletAddress)
+        if (s.contactsRevokedAtUs.remove(contactAddress)) save(s, walletAddress)
     }
 
     /** Gate for EVERY addr_pool send (initial offer, reciprocity, request-driven top-ups,
