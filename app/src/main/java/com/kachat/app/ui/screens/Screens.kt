@@ -7878,7 +7878,9 @@ private fun ProfileAddressActionCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .clip(RoundedCornerShape(18.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)
     ) {
