@@ -34,6 +34,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -1000,17 +1001,49 @@ fun ChatThreadScreen(
         // Auto-scroll to bottom when new messages arrive. The very first population of the list
         // (opening the chat) jumps instantly instead of animating - the LazyColumn otherwise
         // renders at the top first, and animating from there visibly scrolls through the whole
-        // history before settling at the bottom. Only messages arriving while the chat is already
-        // open get the smooth animated scroll.
+        // history before settling at the bottom. After that, an arrival only auto-scrolls when
+        // the reader is already at (or within a row of) the bottom, or when the newest message
+        // is their own send. Scrolled up reading history, the viewport stays put - LazyColumn
+        // keeps its own anchor when items are appended below the fold, and the scroll-to-latest
+        // button is the way back down. (The 2s open-chat poll and the live mirror both land
+        // here, so the old unconditional scroll yanked the viewport on every insert.)
+        val userIsDraggingList by scrollState.interactionSource.collectIsDraggedAsState()
         var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
+        // Message count as of the previous auto-scroll decision. "Was at bottom" is measured
+        // against THIS count, not the new one - when the effect fires the just-inserted rows
+        // haven't laid out yet, so the last visible index still refers to the pre-insert list,
+        // and a multi-message catch-up batch would otherwise fail the gate for a reader who
+        // was genuinely pinned to the end.
+        var autoScrollBaselineCount by remember { mutableStateOf(0) }
         LaunchedEffect(messages.size) {
             if (messages.isNotEmpty()) {
                 if (!hasScrolledToInitialPosition) {
                     scrollState.scrollToItem(messages.size - 1)
                     hasScrolledToInitialPosition = true
-                } else {
-                    scrollState.animateScrollToItem(messages.size - 1)
+                } else if (messages.size > autoScrollBaselineCount) {
+                    val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                    // Same 1-item tolerance as showScrollToBottom below - keyboard/fee-row
+                    // resizes can hide the very last row without any real scroll-up.
+                    val wasAtBottom = lastVisible >= autoScrollBaselineCount - 2
+                    // Sent on THIS device, just now - not merely direction=="sent". Every
+                    // optimistic local send (text, voice, photo, chess, payment) inserts its
+                    // row under a synthetic provisional id before the broadcast returns, and
+                    // that id is transient device-local state a mirror import can never carry
+                    // (see MessageEntity.PROVISIONAL_ID_PREFIX). An own message mirrored in
+                    // from another device arrives under its real txId, so it goes through the
+                    // at-bottom gate like any other insert instead of yanking the viewport
+                    // away from history.
+                    val newest = messages.last()
+                    val sentFromThisDevice = newest.direction == "sent" &&
+                        MessageEntity.isProvisionalId(newest.id)
+                    // Never fight an active finger drag - starting a programmatic animated
+                    // scroll mid-drag both stutters and steals the gesture. Local sends are
+                    // exempt: they come from the send button, not from a drag.
+                    if (sentFromThisDevice || (wasAtBottom && !userIsDraggingList)) {
+                        scrollState.animateScrollToItem(messages.size - 1)
+                    }
                 }
+                autoScrollBaselineCount = messages.size
             }
         }
 
@@ -1018,10 +1051,16 @@ fun ChatThreadScreen(
         // just when messageText changes — the IME resize is system-driven and can complete
         // after Compose's own recomposition, so keying on messageText alone raced with it
         // and left the latest message hidden behind the keyboard without a real scroll-up).
+        // Gated the same way as arrivals: only re-pin when already at (or within a row of)
+        // the bottom - opening the keyboard while scrolled up reading history must not yank
+        // the viewport down.
         val imeVisible = WindowInsets.isImeVisible
         LaunchedEffect(imeVisible, messageText.isEmpty()) {
             if (messages.isNotEmpty()) {
-                scrollState.animateScrollToItem(messages.size - 1)
+                val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                if (lastVisible >= messages.lastIndex - 1) {
+                    scrollState.animateScrollToItem(messages.size - 1)
+                }
             }
         }
 

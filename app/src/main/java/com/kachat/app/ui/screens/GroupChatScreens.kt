@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -375,16 +376,48 @@ fun GroupChatThreadScreen(
     // The very first population of the list (opening the group chat) jumps instantly instead of
     // animating - matches ChatThreadScreen's identical fix in Screens.kt (the LazyColumn otherwise
     // renders at the top first, and animating from there visibly scrolls through the whole
-    // history before settling at the bottom). Only messages arriving while already open animate.
+    // history before settling at the bottom). After that, an arrival only auto-scrolls when the
+    // reader is already at (or within a row of) the bottom, or when the newest message is their
+    // own send - scrolled up reading history, the viewport stays put and the scroll-to-latest
+    // button is the way back down. Kept in sync with ChatThreadScreen's identical gate.
+    val userIsDraggingList by listState.interactionSource.collectIsDraggedAsState()
     var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
+    // Measured against the count at the previous auto-scroll decision, not the new one - the
+    // just-inserted rows haven't laid out when the effect fires, so the last visible index still
+    // refers to the pre-insert list (see ChatThreadScreen for the full rationale).
+    var autoScrollBaselineCount by remember { mutableStateOf(0) }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             if (!hasScrolledToInitialPosition) {
                 listState.scrollToItem(messages.size - 1)
                 hasScrolledToInitialPosition = true
-            } else {
-                listState.animateScrollToItem(messages.size - 1)
+            } else if (messages.size > autoScrollBaselineCount) {
+                val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                val wasAtBottom = lastVisible >= autoScrollBaselineCount - 2
+                // Sent on THIS device, just now - the group send path inserts its row under a
+                // synthetic provisional txId before the broadcast returns, which no mirror
+                // import or indexer sync can ever carry (same prefix literal as 1:1, see
+                // MessageEntity.PROVISIONAL_ID_PREFIX). An own message mirrored in from
+                // another device arrives under its real txId and goes through the at-bottom
+                // gate like any other insert.
+                val newest = messages.last()
+                val sentFromThisDevice = newest.isOutgoing &&
+                    com.kachat.app.models.MessageEntity.isProvisionalId(newest.txId)
+                if (sentFromThisDevice || (wasAtBottom && !userIsDraggingList)) {
+                    listState.animateScrollToItem(messages.size - 1)
+                }
             }
+            autoScrollBaselineCount = messages.size
+        }
+    }
+
+    // Same deliberate-scroll-away detection as ChatThreadScreen's showScrollToBottom in
+    // Screens.kt: not canScrollForward (which flips for a frame whenever the viewport merely
+    // shrinks), and with the same 1-item tolerance for transient resizes.
+    val showScrollToBottom by remember {
+        derivedStateOf {
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            lastVisibleIndex != null && lastVisibleIndex < messages.lastIndex - 1
         }
     }
 
@@ -813,6 +846,27 @@ fun GroupChatThreadScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // Way back down after a deliberate scroll-up - same button as the 1:1 thread,
+            // needed here for the same reason: arrivals no longer force-scroll the viewport.
+            if (showScrollToBottom && messages.isNotEmpty()) {
+                IconButton(
+                    onClick = {
+                        coroutineScope.launch { listState.animateScrollToItem(messages.size - 1) }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                        .size(44.dp)
+                        .background(LocalAppColors.current.surface, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.scroll_to_latest),
+                        tint = LocalAppColors.current.textPrimary
+                    )
                 }
             }
 
