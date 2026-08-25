@@ -119,6 +119,18 @@ class NotificationHelper @Inject constructor(
         return notifiedTxIds.put(txId, true) == null
     }
 
+    /**
+     * Records [txId] as notified WITHOUT posting a banner. Called by a local delivery path that
+     * decrypted the tx and deliberately chose silence (mentions-only group without a mention,
+     * muted member, reaction to someone else's message in a mentions-only group): the silence is
+     * a final decision, so claiming here guarantees a racing FCM push for the same tx can never
+     * post the banner the local path just suppressed.
+     */
+    @Synchronized
+    fun claimWithoutNotifying(txId: String?) {
+        if (!txId.isNullOrBlank()) notifiedTxIds[txId] = true
+    }
+
     fun setActiveContact(contactId: String?) {
         activeContactId.value = contactId
         refreshOpenChat()

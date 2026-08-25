@@ -108,12 +108,36 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             false
                         }
                         if (!ingested) {
-                            notificationHelper.showGroup(
-                                groupId = groupId,
-                                title = title.ifEmpty { "Group" },
-                                text = body.ifEmpty { "New group message" },
-                                dedupeTxId = txId.takeIf { it.isNotBlank() },
-                            )
+                            // The generic fallback can't know whether the un-ingested message
+                            // mentions the user, so in a group with "Only Notify if I'm
+                            // Mentioned" on it can't be posted correctly. Resolve the per-sender
+                            // blinded id back to the local group and consult the toggle:
+                            // mentions-only means suppress. Tradeoff: a missed banner for a
+                            // non-mention is exactly what the toggle asks for, while a missed
+                            // banner for an actual mention is the cost of the ingest failure;
+                            // the message itself still lands on the next successful sync, and if
+                            // this tx ingests later the precise local path still banners the
+                            // mention (which is why the txId is deliberately NOT claimed here).
+                            // When the blinded id matches no local group the toggle can't be
+                            // consulted, so the generic banner fires as before.
+                            val resolvedGroup = try {
+                                groupRepository.findGroupByBlindedId(groupId)
+                            } catch (e: Exception) {
+                                null
+                            }
+                            if (resolvedGroup != null && groupRepository.isGroupMentionsOnly(resolvedGroup.groupId)) {
+                                Log.i(TAG, "Generic group fallback suppressed: mentions-only group ${resolvedGroup.groupId.take(12)}")
+                            } else {
+                                notificationHelper.showGroup(
+                                    // Prefer the resolved real group id/name: the tap intent
+                                    // then opens the actual thread and the open-thread
+                                    // suppression keys correctly.
+                                    groupId = resolvedGroup?.groupId ?: groupId,
+                                    title = resolvedGroup?.name ?: title.ifEmpty { "Group" },
+                                    text = body.ifEmpty { "New group message" },
+                                    dedupeTxId = txId.takeIf { it.isNotBlank() },
+                                )
+                            }
                         }
                     }
 

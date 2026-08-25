@@ -119,16 +119,7 @@ class GlobalNotificationCenterStore @Inject constructor(
     ) {
         val myAddress = walletAddressOrNull() ?: return
         if (senderAddress == myAddress) return
-        if (myDomainWallet != myAddress) {
-            myDomain = try { knsService.reverseResolve(myAddress) } catch (_: Exception) { null }
-                ?.lowercase()?.removeSuffix(".kas")
-            myDomainWallet = myAddress
-        }
-        val domain = myDomain ?: return
-        val mentioned = MENTION_TOKEN_REGEX.findAll(text).any {
-            it.groupValues[2].lowercase().removeSuffix(".kas") == domain
-        }
-        if (!mentioned) return
+        if (!mentionsMyDomain(text)) return
         record(
             id = "group-mention-${txId ?: "$groupId-$timestampMs"}",
             source = "group",
@@ -137,6 +128,27 @@ class GlobalNotificationCenterStore @Inject constructor(
             timestampMs = timestampMs,
             targetId = groupId,
         )
+    }
+
+    /**
+     * Whether [text] @mentions the current wallet's own primary KNS domain, using the same
+     * @token grammar the group composer's mention autocomplete inserts ("@domain", see
+     * [MENTION_TOKEN_REGEX]; ".kas" suffix optional, case-insensitive). This is the single
+     * definition of "mentions me": the notification-center entry above and GroupRepository's
+     * mentions-only banner gate both go through it, so they can never disagree on what counts
+     * as a mention. Reverse resolution of our own domain is cached per wallet.
+     */
+    suspend fun mentionsMyDomain(text: String): Boolean {
+        val myAddress = walletAddressOrNull() ?: return false
+        if (myDomainWallet != myAddress) {
+            myDomain = try { knsService.reverseResolve(myAddress) } catch (_: Exception) { null }
+                ?.lowercase()?.removeSuffix(".kas")
+            myDomainWallet = myAddress
+        }
+        val domain = myDomain ?: return false
+        return MENTION_TOKEN_REGEX.findAll(text).any {
+            it.groupValues[2].lowercase().removeSuffix(".kas") == domain
+        }
     }
 
     // MARK: - Broadcasts (called from BroadcastRepository on merged rows)

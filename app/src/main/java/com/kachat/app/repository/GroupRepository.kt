@@ -161,6 +161,33 @@ class GroupRepository @Inject constructor(
             database.reactionDao().countByReactionTxId(txId, walletAddress) > 0
     }
 
+    /**
+     * Resolves a push payload's `blinded_group_id` back to the local group it belongs to, or
+     * null when no local group matches (e.g. a membership this device hasn't synced yet).
+     * Blinded ids are per-(group, sender) - see PushRegistrationManager.collectWatchedGroupIds -
+     * so this recomputes every known (group, member) blinded id and compares. Lets the FCM
+     * generic-fallback path consult per-group notification settings (mentions-only) even though
+     * the push itself only carries the blinded id.
+     */
+    suspend fun findGroupByBlindedId(blindedGroupIdHex: String): GroupEntity? {
+        val target = blindedGroupIdHex.trim().lowercase()
+        if (target.isEmpty()) return null
+        val walletAddress = walletManager.getActiveAccount()?.address ?: return null
+        for (group in database.groupDao().getGroupsOnce(walletAddress)) {
+            val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
+            val blindingKey = try { bag.blindingKey.hexToByteArray() } catch (e: Exception) { continue }
+            for (member in membersOf(group)) {
+                val pub = try { member.xOnlyPubKeyHex.hexToByteArray() } catch (e: Exception) { continue }
+                if (GroupCipher.deriveBlindedGroupId(blindingKey, pub).toHexString() == target) return group
+            }
+        }
+        return null
+    }
+
+    /** Whether the per-group "Only Notify if I'm Mentioned" toggle is on for [groupId]. */
+    suspend fun isGroupMentionsOnly(groupId: String): Boolean =
+        groupId in settings.groupMentionsOnly.first()
+
     /** Marks a group's thread as read as of now - backs the Group Chats tab's unread badge. Call when its thread screen opens. */
     suspend fun markGroupRead(groupId: String) {
         val walletAddress = walletManager.getAddress()
@@ -873,6 +900,12 @@ class GroupRepository @Inject constructor(
                                 text = "$senderLabel reacted$emojiPart to $targetPhrase",
                                 dedupeTxId = txId
                             )
+                        } else {
+                            // Deliberate silence (muted reactor, or mentions-only group with a
+                            // reaction to someone else's message). Claim the txId anyway so a
+                            // racing FCM push for this same reaction can't post the banner this
+                            // path just suppressed.
+                            notificationHelper.claimWithoutNotifying(txId)
                         }
                     }
                 } else {
@@ -919,7 +952,14 @@ class GroupRepository @Inject constructor(
                 // Android has no remote push to gate the same way).
                 val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
                 val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
-                val mentionsMe = plaintext.contains("@$walletAddress")
+                // "Mentions me" uses the SAME definition as the composer's @mention feature:
+                // members are mentioned by their primary KNS domain (insertMention writes
+                // "@domain"), so match the shared @token grammar against our own reverse-resolved
+                // domain via GlobalNotificationCenterStore.mentionsMyDomain — never a naive
+                // substring scan. A raw "@<full address>" paste still counts as a mention.
+                // Only evaluated when the group is mentions-only (short-circuit).
+                val mentionsMe = mentionsOnly &&
+                    (plaintext.contains("@$walletAddress") || notificationCenter.mentionsMyDomain(plaintext))
                 val isReplyToMe = replyContent?.replyToSender == walletAddress
                 if (!isMuted && (!mentionsOnly || mentionsMe || isReplyToMe)) {
                     // alias > KNS primary domain > roster snapshot > short address - see
@@ -932,6 +972,12 @@ class GroupRepository @Inject constructor(
                         else -> "$senderLabel: $plaintext"
                     }
                     notificationHelper.showGroup(group.groupId, group.name, notificationText, dedupeTxId = txId)
+                } else {
+                    // Deliberate silence (muted sender, or mentions-only group and this message
+                    // neither mentions us nor replies to us). Claim the txId anyway so a racing
+                    // FCM push for this same message can't post the banner this path just
+                    // suppressed.
+                    notificationHelper.claimWithoutNotifying(txId)
                 }
             }
             return
