@@ -53,6 +53,7 @@ enum class AppCurrency(val code: String, val currencyName: String) {
     INR("inr", "Indian Rupee"),
     KRW("krw", "South Korean Won"),
     SGD("sgd", "Singapore Dollar"),
+    IDR("idr", "Indonesian Rupiah"),
     NZD("nzd", "New Zealand Dollar"),
     MXN("mxn", "Mexican Peso"),
     BRL("brl", "Brazilian Real"),
