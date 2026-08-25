@@ -31,10 +31,15 @@ class PaymentPoolStore @Inject constructor(
     @ApplicationContext context: Context
 ) {
     companion object {
-        /** How many fresh addresses each `addr_pool` offer contains. */
-        const val OFFER_BATCH_SIZE = 5
-        /** Send an `addr_pool_request` when the unused remainder of a contact's pool drops to this or lower. */
-        const val LOW_WATER_MARK = 2
+        /** How many fresh addresses each `addr_pool` offer contains - also the level automatic
+         *  replenishment tops the contact's pool back up to (MESSAGING.md: pool of 2 with
+         *  additive replenish). */
+        const val OFFER_BATCH_SIZE = 2
+        /** Send an `addr_pool_request` when the unused remainder of a contact's pool drops to
+         *  this or lower. Scaled to the batch of 2 (a fresh pool must sit ABOVE the mark or
+         *  every open would immediately re-request); mostly a backstop now that the offering
+         *  side replenishes automatically when it detects a reservation was funded. */
+        const val LOW_WATER_MARK = 1
         /** Reject received pools that would grow a contact's stored pool beyond this. */
         const val MAX_STORED_POOL_SIZE = 20
         /** Cap on the remembered handled-envelope txId list (replay guard). */
@@ -228,15 +233,45 @@ class PaymentPoolStore @Inject constructor(
         state(walletAddress).myReservations[contactAddress]?.size ?: 0
 
     /** Marks one of our reservations funded (a payment_notice named it as a destination) - feeds
-     *  the outstanding-unfunded-offers cap; no-op if the address isn't one of our reservations. */
+     *  the outstanding-unfunded-offers cap; no-op if the address isn't one of our reservations.
+     *  Returns true only when the flag NEWLY flipped - the caller uses that as the auto-replenish
+     *  trigger (a replayed notice or an already-funded address must not re-trigger a top-up). */
     @Synchronized
-    fun markReservationFunded(address: String, contactAddress: String, walletAddress: String) {
+    fun markReservationFunded(address: String, contactAddress: String, walletAddress: String): Boolean {
         val s = state(walletAddress)
-        val entries = s.myReservations[contactAddress] ?: return
+        val entries = s.myReservations[contactAddress] ?: return false
         val i = entries.indexOfFirst { it.address == address }
-        if (i < 0 || entries[i].funded == true) return
+        if (i < 0 || entries[i].funded == true) return false
         entries[i] = entries[i].copy(funded = true)
         save(s, walletAddress)
+        return true
+    }
+
+    /** [markReservationFunded] variant for the UTXO-watch funding path, where only the address is
+     *  known: finds which contact the reservation belongs to and returns that contactAddress when
+     *  the funded flag newly flipped, null otherwise (unknown address or already funded). */
+    @Synchronized
+    fun markReservationFundedByAddress(address: String, walletAddress: String): String? {
+        val s = state(walletAddress)
+        for ((contact, entries) in s.myReservations) {
+            val i = entries.indexOfFirst { it.address == address }
+            if (i < 0) continue
+            if (entries[i].funded == true) return null
+            entries[i] = entries[i].copy(funded = true)
+            save(s, walletAddress)
+            return contact
+        }
+        return null
+    }
+
+    /** How many addresses the contact currently holds that are still fresh and payable: offered,
+     *  never funded, not revoked/released. The auto-replenish target compares this against
+     *  [OFFER_BATCH_SIZE] and tops up the shortfall. */
+    @Synchronized
+    fun activeFreshReservationCount(contactAddress: String, walletAddress: String): Int {
+        val s = state(walletAddress)
+        if (s.poolsReleased || contactAddress in s.revokedContacts) return 0
+        return s.myReservations[contactAddress]?.count { it.offered && it.funded != true } ?: 0
     }
 
     /** The spending-chain index of one of our reservations, by address - used to make sure the
@@ -357,10 +392,12 @@ class PaymentPoolStore @Inject constructor(
         save(s, walletAddress)
     }
 
-    /** Gate for EVERY addr_pool send (initial offer, reciprocity, request-driven top-ups): one
-     *  send per contact per [POOL_SERVE_THROTTLE_MS], nothing once the lifetime reservation cap
-     *  or the outstanding-unfunded-offers cap is hit. `toggleTransition = true` (a genuine Chats
-     *  Payment Privacy state change) swaps the 10-minute throttle for the 60s transition gap. */
+    /** Gate for EVERY addr_pool send (initial offer, reciprocity, request-driven top-ups,
+     *  auto-replenishes): one send per contact per [POOL_SERVE_THROTTLE_MS], nothing once the
+     *  lifetime reservation cap or the outstanding-unfunded-offers cap is hit.
+     *  `toggleTransition = true` (a genuine state change: a Chats Payment Privacy flip, or a
+     *  replenish after a reservation was detected funded) swaps the 10-minute throttle for the
+     *  60s transition gap - MESSAGING.md documents both exemptions. */
     @Synchronized
     fun canServePoolOffer(contactAddress: String, walletAddress: String, toggleTransition: Boolean = false): Boolean {
         if (isWithinPoolServeGap(contactAddress, walletAddress, toggleTransition)) return false

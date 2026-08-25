@@ -69,7 +69,9 @@ class PaymentPoolService @Inject constructor(
     // ------------------------------------------------------------------------------------
 
     /** Called when a 1:1 conversation is opened - lazily offers our pool once per contact (for
-     *  established conversations) and tops up our stored pool of theirs if it has run low. */
+     *  established conversations), replenishes an already-offered pool that has dropped below
+     *  [PaymentPoolStore.OFFER_BATCH_SIZE] fresh addresses (covers earlier replenish sends that
+     *  failed or were gap-deferred), and tops up our stored pool of theirs if it has run low. */
     fun onConversationOpened(contactId: String) {
         scope.launch {
             poolMutex.withLock {
@@ -77,6 +79,11 @@ class PaymentPoolService @Inject constructor(
                     offerAddressPoolIfNeededLocked(contactId, replace = true, toggleTransition = false)
                 } catch (e: Exception) {
                     Log.w(TAG, "Lazy pool offer failed for ${contactId.takeLast(10)}", e)
+                }
+                try {
+                    offerAddressPoolIfNeededLocked(contactId, replace = false, toggleTransition = false, replenish = true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Pool replenish failed for ${contactId.takeLast(10)}", e)
                 }
                 try {
                     maybeRequestMorePoolAddressesLocked(contactId)
@@ -92,14 +99,35 @@ class PaymentPoolService @Inject constructor(
     // ------------------------------------------------------------------------------------
 
     /** All gates re-checked here, inside the mutex. `replace = true` for initial/lazy offers and
-     *  toggle-on re-offers; `replace = false` for request-driven top-ups. */
-    private suspend fun offerAddressPoolIfNeededLocked(contactId: String, replace: Boolean, toggleTransition: Boolean) {
+     *  toggle-on re-offers; `replace = false` for request-driven top-ups and automatic
+     *  replenishes. `replenish = true` is the additive auto-replenish path (MESSAGING.md): the
+     *  contact already holds our pool, one of its addresses was detected funded, and we top the
+     *  pool back up to [PaymentPoolStore.OFFER_BATCH_SIZE] fresh addresses. Replenishes bypass
+     *  the 10-minute serve throttle (like revokes/toggle re-offers, a genuine state change) but
+     *  honor the 60s transition gap and both reservation caps. */
+    private suspend fun offerAddressPoolIfNeededLocked(
+        contactId: String,
+        replace: Boolean,
+        toggleTransition: Boolean,
+        replenish: Boolean = false
+    ) {
         val walletAddress = walletAddressOrNull() ?: return
         // Per-account toggle: while OFF this account stops sharing fresh addresses (also covers
         // the reciprocity path, which routes through here).
         if (!settingsRepository.chatsPaymentPrivacyEnabled(walletAddress).first()) return
         if (replace && store.hasOfferedPool(contactId, walletAddress)) return
-        if (!store.canServePoolOffer(contactId, walletAddress, toggleTransition)) {
+        // A replenish only ever tops up a pool the contact actually holds: never offered (the
+        // lazy/reciprocal offer owns first contact) or revoked (the revoke stands until the next
+        // deliberate offer clears it) means nothing to replenish.
+        var batchTarget = PaymentPoolStore.OFFER_BATCH_SIZE
+        if (replenish) {
+            if (!store.hasOfferedPool(contactId, walletAddress)) return
+            if (store.isPoolRevoked(contactId, walletAddress)) return
+            batchTarget = PaymentPoolStore.OFFER_BATCH_SIZE -
+                store.activeFreshReservationCount(contactId, walletAddress)
+            if (batchTarget <= 0) return
+        }
+        if (!store.canServePoolOffer(contactId, walletAddress, toggleTransition || replenish)) {
             Log.d(TAG, "Pool offer to ${contactId.takeLast(10)} suppressed by serve throttle/caps")
             return
         }
@@ -116,13 +144,13 @@ class PaymentPoolService @Inject constructor(
         } else {
             store.unofferedReservations(contactId, walletAddress)
         }
-        if (pending.size > PaymentPoolStore.OFFER_BATCH_SIZE) {
-            pending = pending.take(PaymentPoolStore.OFFER_BATCH_SIZE)
+        if (pending.size > batchTarget) {
+            pending = pending.take(batchTarget)
         }
         // Never reserve past the per-contact lifetime cap, even mid-batch.
         val lifetimeHeadroom = PaymentPoolStore.MAX_LIFETIME_RESERVATIONS_PER_CONTACT -
             store.lifetimeReservationCount(contactId, walletAddress)
-        val missing = minOf(PaymentPoolStore.OFFER_BATCH_SIZE - pending.size, lifetimeHeadroom)
+        val missing = minOf(batchTarget - pending.size, lifetimeHeadroom)
         if (missing > 0) {
             val fresh = walletManager.allocateFreshSpendingIndices(missing)
             if (fresh.isEmpty()) {
@@ -384,6 +412,53 @@ class PaymentPoolService @Inject constructor(
     }
 
     // ------------------------------------------------------------------------------------
+    // Automatic pool replenishment (MESSAGING.md: pool of 2 with additive replenish)
+    // ------------------------------------------------------------------------------------
+
+    /**
+     * UTXO-watch funding hook, called by [AddressActivityNotifier] when a balance increase lands
+     * on one of our reserved pool addresses - the second detection path beside `payment_notice`
+     * (a peer may pay a pool address without ever getting the notice through, or from a client
+     * that omits notices). Marks the reservation funded (which drops it out of the active
+     * "Chat privacy address" set and into the normal funded-row rules), makes sure its row is
+     * visible, and tops the contact's pool back up. Idempotent: an already-funded reservation
+     * returns null from the store and nothing re-fires.
+     */
+    fun handleReservedAddressFunded(address: String) {
+        scope.launch {
+            val walletAddress = walletAddressOrNull() ?: return@launch
+            poolMutex.withLock {
+                val contactId = store.markReservationFundedByAddress(address, walletAddress) ?: return@withLock
+                Log.i(TAG, "Reserved address ${address.takeLast(10)} detected funded via UTXO watch (contact ${contactId.takeLast(10)})")
+                // Funded addresses are always visible (same self-heal as the notice path).
+                store.reservationIndex(address, walletAddress)?.let { index ->
+                    walletManager.setSpendingAddressHidden(walletAddress, index, false)
+                }
+                try {
+                    offerAddressPoolIfNeededLocked(contactId, replace = false, toggleTransition = false, replenish = true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Pool replenish after UTXO-watch funding failed (conversation-open backstop applies)", e)
+                }
+            }
+        }
+    }
+
+    /** Fire-and-forget additive top-up so [contactId] keeps holding a full
+     *  [PaymentPoolStore.OFFER_BATCH_SIZE] of fresh addresses - all gates (privacy toggle,
+     *  offered/revoked markers, caps, 60s gap) re-checked inside the serialized offer. */
+    private fun replenishPoolFor(contactId: String) {
+        scope.launch {
+            poolMutex.withLock {
+                try {
+                    offerAddressPoolIfNeededLocked(contactId, replace = false, toggleTransition = false, replenish = true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Pool replenish for ${contactId.takeLast(10)} failed (conversation-open backstop applies)", e)
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------
     // Receiving envelopes (front door, called from ChatRepository's message interception)
     // ------------------------------------------------------------------------------------
 
@@ -506,14 +581,16 @@ class PaymentPoolService @Inject constructor(
 
         // The notice names the reserved address the contact paid - record it funded so the
         // outstanding-unfunded-offers cap reflects genuine pool usage (no-op if the address
-        // isn't one of our reservations for this contact).
-        store.markReservationFunded(content.address, contact.id, myAddress)
+        // isn't one of our reservations for this contact). A newly flipped flag triggers the
+        // additive auto-replenish so the contact always holds a full batch of fresh addresses.
+        val newlyFunded = store.markReservationFunded(content.address, contact.id, myAddress)
         // The reserved address now holds money - funded addresses are always visible.
         // Reservations are born visible now; this self-heals rows hidden by the old
         // born-hidden design (the list loader's migration purge covers the rest).
         store.reservationIndex(content.address, myAddress)?.let { index ->
             walletManager.setSpendingAddressHidden(myAddress, index, false)
         }
+        if (newlyFunded) replenishPoolFor(contact.id)
 
         if (database.messageDao().exists(txId, myAddress)) return
 

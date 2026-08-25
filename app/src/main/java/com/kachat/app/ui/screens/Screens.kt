@@ -3016,11 +3016,11 @@ fun ProfileScreen(
                 }
             }
 
-            // Compact action cards (iOS parity: ContactsView.addressDropdownsSection), one per
-            // address role. Each shows the role title, the shortened monospaced address and its
-            // balance, plus three labeled icon buttons: Copy, Send, Manage. Replaces the old
-            // expanding dropdown sections that hid the exact same three actions behind a chevron
-            // tap; the rich management screens stay reachable via Manage exactly as before.
+            // Compact action rows (iOS parity: ContactsView.addressDropdownsSection), one per
+            // address role. Each shows the role title with its balance, plus three icon-only
+            // circle buttons: Copy, Send, Manage. Replaces the old expanding dropdown sections
+            // that hid the exact same three actions behind a chevron tap; the rich management
+            // screens stay reachable via Manage exactly as before.
             val addressCardClipboardManager = LocalClipboardManager.current
             ProfileAddressActionCard(
                 title = "Chatting Address",
@@ -4484,7 +4484,11 @@ fun AddressVisibilityScreen(
 
     val start = page * pageSize
     val end = start + pageSize - 1
-    val pageEntries = remember(byIndex, page, privacyReservedAddresses) {
+    // Active chat-privacy reservations DO get a checklist row: shown checked with an inert
+    // checkbox (they cannot be unchecked - tapping explains why) and the "Chat privacy address"
+    // tag. They still stay OFF the main Addresses list (the Chat Privacy tab owns them there);
+    // this checklist is the complete per-index map, so hiding rows here read as gaps.
+    val pageEntries = remember(byIndex, page) {
         (start..end).map { index ->
             byIndex[index] ?: com.kachat.app.services.WalletService.SpendingAddressEntry(
                 index = index,
@@ -4495,11 +4499,12 @@ fun AddressVisibilityScreen(
                 hidden = true,
                 label = null
             )
-        // Active chat-privacy reservations don't get a checklist row at all (iOS parity):
-        // they live on Manage Addresses' Chat Privacy tab and can't be toggled anyway. The
-        // reserved toggle/tag branches below stay as a backstop for a mid-load race.
-        }.filterNot { it.address.isNotEmpty() && it.address in privacyReservedAddresses }
+        }
     }
+    val listState = rememberLazyListState()
+    // A page flip must land the user at the TOP of the new page, not wherever the previous
+    // page left the scroll offset.
+    LaunchedEffect(page) { listState.scrollToItem(0) }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -4548,14 +4553,17 @@ fun AddressVisibilityScreen(
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             items(pageEntries, key = { it.index }) { entry ->
-                val visible = entry.index <= listMax && !entry.hidden
                 val funded = entry.balanceSompi > 0
-                val reserved = entry.address in privacyReservedAddresses
+                val reserved = entry.address.isNotEmpty() && entry.address in privacyReservedAddresses
+                // Reserved rows always render checked: an actively offered chat-privacy address
+                // is locked visible whatever a (stale) hidden flag or a mid-load race says.
+                val visible = reserved || (entry.index <= listMax && !entry.hidden)
                 // Used-state for derived rows the list loader has never seen.
                 if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
                     LaunchedEffect(entry.index) {
@@ -4568,9 +4576,9 @@ fun AddressVisibilityScreen(
                     when {
                         entry.isCurrent ->
                             Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
-                        // Locked like primary/funded: offered chat-privacy reservations stay
-                        // visible (unhiding a hidden one is still allowed, hence "&& visible").
-                        reserved && visible ->
+                        // Inert checkbox: offered chat-privacy reservations render checked and
+                        // cannot be unchecked - tapping only explains the lock.
+                        reserved ->
                             Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
                         funded && visible ->
                             Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
@@ -7825,13 +7833,15 @@ private fun ProfileCircleAction(
 }
 
 /**
- * One compact address card on [ProfileScreen] (iOS parity: ContactsView's addressActionRow),
- * one per address role (Chatting Address / Spending Address): the role title, the shortened
- * monospaced address, its balance, and three labeled icon buttons on the right: Copy, Send,
- * Manage. Replaces the old [CollapsibleAddressSection] dropdowns that hid the same three
- * actions behind an expand chevron. `address` is nullable because the current spending address
- * can be momentarily unresolvable right after wallet load; in that state the row shows a
- * loading placeholder and the caller's actions guard against the nil address.
+ * One compact address action row on [ProfileScreen] (iOS parity: ContactsView's
+ * addressActionRow), one per address role (Chatting Address / Spending Address): the role title
+ * with its balance underneath, and three icon-only circle buttons on the right: Copy, Send,
+ * Manage. Sits directly on the screen background - no card surface - matching how the big QR
+ * circle buttons ([ProfileCircleAction]) sit above it. Replaces the old
+ * [CollapsibleAddressSection] dropdowns that hid the same three actions behind an expand
+ * chevron. `address` is nullable because the current spending address can be momentarily
+ * unresolvable right after wallet load; in that state the row shows a loading placeholder and
+ * the caller's actions guard against the nil address.
  */
 @Composable
 private fun ProfileAddressActionCard(
@@ -7845,11 +7855,9 @@ private fun ProfileAddressActionCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -7859,23 +7867,14 @@ private fun ProfileAddressActionCard(
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1
             )
-            Spacer(Modifier.height(3.dp))
-            if (address != null) {
-                Text(
-                    "${address.take(12)}...${address.takeLast(6)}",
-                    color = LocalAppColors.current.textSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
-            } else {
+            if (address == null) {
+                Spacer(Modifier.height(3.dp))
                 Text(
                     "Loading...",
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 12.sp
                 )
-            }
-            if (!balanceText.isNullOrBlank()) {
+            } else if (!balanceText.isNullOrBlank()) {
                 Spacer(Modifier.height(3.dp))
                 Text(
                     balanceText,
@@ -7892,22 +7891,18 @@ private fun ProfileAddressActionCard(
     }
 }
 
-/** One labeled circular icon button inside [ProfileAddressActionCard] — a smaller sibling of [ProfileCircleAction] with the same teal-on-circle look. */
+/** One circular icon button inside [ProfileAddressActionCard] — a smaller sibling of [ProfileCircleAction] with the same teal-on-circle look. No text label: the icon carries the meaning, [contentDescription] keeps it accessible. */
 @Composable
-private fun ProfileAddressCardAction(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(KaspaTeal.copy(alpha = 0.15f))
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = label, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(label, color = LocalAppColors.current.textSecondary, fontSize = 11.sp, maxLines = 1)
+private fun ProfileAddressCardAction(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(54.dp)
+            .clip(CircleShape)
+            .background(KaspaTeal.copy(alpha = 0.15f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = KaspaTeal, modifier = Modifier.size(26.dp))
     }
 }
 

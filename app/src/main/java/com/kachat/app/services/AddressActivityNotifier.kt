@@ -56,6 +56,9 @@ class AddressActivityNotifier @Inject constructor(
     private val walletManager: WalletManager,
     private val coldStorageManager: ColdStorageManager,
     private val paymentPoolStore: PaymentPoolStore,
+    // Lazy: PaymentPoolService's own graph (WalletService/ChatRepository) is heavy and this
+    // notifier only calls it on the rare reserved-address funding event.
+    private val paymentPoolServiceLazy: dagger.Lazy<PaymentPoolService>,
     private val networkService: NetworkService,
     private val settingsRepository: AppSettingsRepository,
     private val notificationHelper: NotificationHelper,
@@ -180,6 +183,13 @@ class AddressActivityNotifier @Inject constructor(
             if (balance != previous) {
                 changed = true
                 changedAddresses.add(address)
+            }
+            if (balance > previous && !isFirstRun && address in poolReserved) {
+                // The UTXO-watch half of pool funding detection (payment_notice is the other):
+                // marks the reservation funded and triggers the additive replenish, so the
+                // contact's pool refills even when the sender's notice never arrives. No
+                // notification here - pool payments notify via their payment_notice/chat bubble.
+                paymentPoolServiceLazy.get().handleReservedAddressFunded(address)
             }
             if (balance > previous && !isFirstRun && address in notifiable) {
                 attributeAndMaybeNotifyIncrease(
