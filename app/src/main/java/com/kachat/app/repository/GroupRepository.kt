@@ -102,6 +102,7 @@ class GroupRepository @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val settings: AppSettingsRepository,
     private val notificationCenter: com.kachat.app.services.GlobalNotificationCenterStore,
+    private val knsService: com.kachat.app.services.KnsService,
 ) {
     private val gson = Gson()
     private val membersListType = object : TypeToken<List<GroupMember>>() {}.type
@@ -188,6 +189,40 @@ class GroupRepository @Inject constructor(
         val snap = fallbackDisplayName?.trim()
         if (!snap.isNullOrEmpty()) return snap
         return address.takeLast(10)
+    }
+
+    /** Best display name for a group member in a notification banner: live contact alias (most
+     *  likely to be current/deliberate - may have been set/changed after this person was added to
+     *  the group) > their primary KNS domain > the group roster's `displayName` snapshot (set
+     *  once, from whoever added them, at add-time) > a shortened address as a last resort - the
+     *  same chain the chat cards and the group thread's sender labels resolve with, so a banner
+     *  never regresses to a raw address for someone the UI names. The KNS step only runs when
+     *  there's no alias (rare - members get a contact row when added), is cached per address for
+     *  10 minutes so a chatty no-alias member can't hammer the KNS API, and any failure just
+     *  falls through to the roster snapshot. */
+    private suspend fun groupSenderLabel(senderAddress: String, walletAddress: String, group: GroupEntity): String {
+        val alias = try { database.contactDao().getContact(senderAddress, walletAddress)?.alias?.trim() } catch (e: Exception) { null }
+        if (!alias.isNullOrEmpty()) return alias
+        val kns = cachedPrimaryKnsDomain(senderAddress)
+        if (!kns.isNullOrEmpty()) return kns
+        val snap = membersOf(group).firstOrNull { it.address == senderAddress }?.displayName?.trim()
+        if (!snap.isNullOrEmpty()) return snap
+        return KaspaAddress.shortDisplay(senderAddress)
+    }
+
+    /** address -> (fetchedAtMs, primary KNS domain or null) for [groupSenderLabel] - a negative
+     *  ("owns no domain") answer is cached too, so it's one lookup per no-alias member per TTL
+     *  window, not per message. */
+    private val senderKnsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String?>>()
+
+    private suspend fun cachedPrimaryKnsDomain(address: String): String? {
+        val now = System.currentTimeMillis()
+        senderKnsCache[address]?.let { (fetchedAt, domain) ->
+            if (now - fetchedAt < 10 * 60_000L) return domain
+        }
+        val domain = try { knsService.reverseResolve(address)?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }
+        senderKnsCache[address] = now to domain
+        return domain
     }
 
     /** Insert an iMessage-style membership line into the group thread, stored as a negative-epoch
@@ -826,9 +861,10 @@ class GroupRepository @Inject constructor(
                         val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
                         val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
                         if (!isMuted && (targetIsMine || !mentionsOnly)) {
-                            val senderLabel = database.contactDao().getContact(senderAddress, walletAddress)?.alias
-                                ?: membersOf(group).firstOrNull { it.address == senderAddress }?.displayName
-                                ?: senderAddress.takeLast(8)
+                            // alias > KNS primary domain > roster snapshot > short address -
+                            // see groupSenderLabel; decodes the reactor the same way the chat
+                            // cards and thread do.
+                            val senderLabel = groupSenderLabel(senderAddress, walletAddress, group)
                             val emojiPart = reaction.emoji.trim().takeIf { it.isNotEmpty() }?.let { " $it" } ?: ""
                             val targetPhrase = if (targetIsMine) "your message" else "a message"
                             notificationHelper.showGroup(
@@ -886,13 +922,9 @@ class GroupRepository @Inject constructor(
                 val mentionsMe = plaintext.contains("@$walletAddress")
                 val isReplyToMe = replyContent?.replyToSender == walletAddress
                 if (!isMuted && (!mentionsOnly || mentionsMe || isReplyToMe)) {
-                    // Prefer a live 1:1 contact alias (most likely to be current/deliberate -
-                    // may have been set/changed after this person was added to the group) over
-                    // the group roster's displayName snapshot (set once, from whoever added
-                    // them, at add-time), over a shortened address as a last resort.
-                    val senderLabel = database.contactDao().getContact(senderAddress, walletAddress)?.alias
-                        ?: membersOf(group).firstOrNull { it.address == senderAddress }?.displayName
-                        ?: senderAddress.takeLast(8)
+                    // alias > KNS primary domain > roster snapshot > short address - see
+                    // groupSenderLabel; same chain the reaction banner and the chat cards use.
+                    val senderLabel = groupSenderLabel(senderAddress, walletAddress, group)
                     val notificationText = when {
                         replyContent != null -> "$senderLabel replied to \"${replyContent.replyToPreview}\""
                         VoiceMessage.parseOrNull(plaintext) != null -> "$senderLabel sent a voice message"

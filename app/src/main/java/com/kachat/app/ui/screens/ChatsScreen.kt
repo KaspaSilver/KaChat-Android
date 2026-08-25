@@ -105,6 +105,10 @@ fun ChatsScreen(
     val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
     val latestReactionByGroup by chatViewModel.latestReactionByGroup.collectAsState()
+    // address -> alias/KNS display name, same map the group thread's sender labels use - lets the
+    // group cards name people the full alias > KNS > roster > short-address way instead of
+    // falling straight from roster snapshot to raw address.
+    val groupMemberNamesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     val isRefreshing by chatViewModel.isRefreshing.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -141,14 +145,14 @@ fun ChatsScreen(
 
     // Mirrors filteredConversations above for the Group Chats tab: group name, each member's
     // display-name-or-address, and the last message preview text.
-    val filteredGroupConversations = remember(groupConversations, searchQuery) {
+    val filteredGroupConversations = remember(groupConversations, searchQuery, groupMemberNamesByAddress) {
         val query = searchQuery.trim()
         if (query.isBlank()) {
             groupConversations
         } else {
             groupConversations.filter { convo ->
                 val members = parseGroupMembers(convo.group)
-                listOfNotNull(convo.group.name, groupMessagePreviewText(convo.lastMessage, members))
+                listOfNotNull(convo.group.name, groupMessagePreviewText(convo.lastMessage, members, groupMemberNamesByAddress))
                     .any { it.contains(query, ignoreCase = true) } ||
                     members.any { member ->
                         (member.displayName?.contains(query, ignoreCase = true) == true) ||
@@ -459,6 +463,7 @@ fun ChatsScreen(
                 hasAnyGroups = groupConversations.isNotEmpty(),
                 searchQuery = searchQuery,
                 latestReactionByGroup = latestReactionByGroup,
+                memberNamesByAddress = groupMemberNamesByAddress,
                 myAddress = myAddress,
                 onDeleteGroup = { chatViewModel.deleteGroupChat(it) },
                 isSelectionMode = isSelectionMode,
@@ -798,6 +803,10 @@ fun GroupListBody(
     /** groupId -> newest reaction, for the "Alice reacted to a message" card preview - see
      *  [ChatViewModel.latestReactionByGroup]. */
     latestReactionByGroup: Map<String, com.kachat.app.services.database.LatestGroupReactionRow> = emptyMap(),
+    /** address -> live alias/KNS display name ([ChatViewModel.groupMemberNamesByAddress]) - the
+     *  same map the group thread's sender labels resolve through, so the cards name people
+     *  identically: alias > KNS > roster snapshot > shortened address. */
+    memberNamesByAddress: Map<String, String> = emptyMap(),
     myAddress: String? = null,
     onDeleteGroup: (String) -> Unit,
     isSelectionMode: Boolean = false,
@@ -934,12 +943,16 @@ fun GroupListBody(
                                     if (convo.lastMessage != null && convo.lastMessage.blockTimestamp >= reaction.blockTimestamp) {
                                         return@let null
                                     }
+                                    // Same chain as the group thread's sender labels: live
+                                    // alias/KNS name > roster snapshot > shortened address -
+                                    // never the raw address.
                                     val reactorLabel = if (reaction.reactorAddress == myAddress) {
                                         "You"
                                     } else {
-                                        groupMembers.firstOrNull { it.address == reaction.reactorAddress }
-                                            ?.displayName?.takeIf { it.isNotBlank() }
-                                            ?: reaction.reactorAddress.takeLast(8)
+                                        memberNamesByAddress[reaction.reactorAddress]?.takeIf { it.isNotBlank() }
+                                            ?: groupMembers.firstOrNull { it.address == reaction.reactorAddress }
+                                                ?.displayName?.takeIf { it.isNotBlank() }
+                                            ?: com.kachat.app.util.KaspaAddress.shortDisplay(reaction.reactorAddress)
                                     }
                                     val target = if (reaction.reactorAddress != myAddress && reaction.targetIsOutgoing == true) {
                                         "your message"
@@ -950,7 +963,7 @@ fun GroupListBody(
                                 }
                                 Text(
                                     text = reactionPreview
-                                        ?: groupMessagePreviewText(convo.lastMessage, groupMembers)
+                                        ?: groupMessagePreviewText(convo.lastMessage, groupMembers, memberNamesByAddress)
                                         ?: "No messages yet",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.Gray,
@@ -1057,12 +1070,19 @@ fun GroupListBody(
 }
 
 /** Mirrors [messagePreviewText] for group messages. Resolves `@{address}` mentions back to a
- *  display name using the roster's own (possibly stale) `displayName` snapshot rather than a
- *  live contact/KNS lookup - not worth threading that all the way down for a one-line preview. */
-private fun groupMessagePreviewText(message: GroupMessage?, members: List<GroupMember> = emptyList()): String? {
+ *  display name through the same chain the group thread uses: live alias/KNS name (from
+ *  [ChatViewModel.groupMemberNamesByAddress], passed in as [namesByAddress]) > the roster's
+ *  `displayName` snapshot > shortened address. */
+private fun groupMessagePreviewText(
+    message: GroupMessage?,
+    members: List<GroupMember> = emptyList(),
+    namesByAddress: Map<String, String> = emptyMap()
+): String? {
     val body = message?.content ?: return null
     val resolve: (String) -> String = { address ->
-        members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() } ?: address.takeLast(10)
+        namesByAddress[address]?.takeIf { it.isNotBlank() }
+            ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
+            ?: com.kachat.app.util.KaspaAddress.shortDisplay(address)
     }
     val replyContent = MessageReply.parseOrNull(body)
     if (replyContent != null) {
