@@ -21,12 +21,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -36,6 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -55,7 +59,8 @@ import javax.inject.Singleton
  *   1. **Debounced activity upload** — [ChatRepository.insertMessage] calls [noteMessageActivity]
  *      (right next to the Drive sibling call). That snapshots the ACTIVE wallet, marks its
  *      archive dirty (persisted, so a killed process can't lose the fact that a sync is owed),
- *      and restarts a quiet-time timer ([DEBOUNCE_MS]).
+ *      and restarts a quiet-time timer ([DEBOUNCE_IN_CHAT_MS] with a conversation on screen,
+ *      [DEBOUNCE_IDLE_MS] otherwise; the tier is read fresh each time the timer re-arms).
  *   2. **App lifecycle** — the historical `autoBackupIfDue` cadence (hourly on background, daily
  *      catch-up on foreground) is folded in here as [autoBackupIfDue]; it now uploads only when
  *      the dirty flag says something is owed (or the wallet never synced), and clears that flag
@@ -65,13 +70,15 @@ import javax.inject.Singleton
  *      first. Enqueued exactly while an account is connected AND the wallet's Automatic Sync
  *      toggle is on; disconnect/sign-out/toggle-off cancels it.
  *   4. **Remote change watcher** — while the app is FOREGROUND with an account connected and the
- *      toggle on, a ~10s Depth-0 PROPFIND polls the shared file's ETag (headers only, no body).
+ *      toggle on, a Depth-0 PROPFIND polls the shared file's ETag (headers only, no body) at an
+ *      adaptive cadence: every [WATCHER_POLL_IN_CHAT_MS] while a conversation thread is open on
+ *      screen, every [WATCHER_POLL_IDLE_MS] elsewhere in the app.
  *      When the ETag moves, another device wrote the file: download, decrypt, and merge-import
  *      through the same additive txId-deduped import the restore paths use — silently, one log
  *      line. The last-known ETag persists per wallet and updates after every import AND every
  *      upload this device makes (automatic or manual), so a device never re-imports its own
- *      write. Together with the 15s upload debounce this makes two phones a near-live mirror:
- *      a message sent on one appears on the other in well under a minute.
+ *      write. Together with the short upload debounce this makes two phones with their chats
+ *      open a near-live mirror: a message sent on one appears on the other within seconds.
  *   5. **Automatic restore** — when a wallet becomes active with Nextcloud connected (app start,
  *      wallet switch) and when an account is first connected, the shared file (if it exists) is
  *      imported silently through the same additive, txId-deduped import the manual restore uses.
@@ -96,7 +103,8 @@ class NextcloudSyncService @Inject constructor(
     private val nextcloudService: NextcloudService,
     private val backupRestoreCoordinator: BackupRestoreCoordinator,
     // Foreground flag source for the remote change watcher (KaChatApplication's process
-    // lifecycle observer drives it) — the watcher polls only while the app is on screen.
+    // lifecycle observer drives it) — the watcher polls only while the app is on screen — and
+    // open-chat state source (the thread screens drive it) for the adaptive cadence tiers.
     private val notificationHelper: NotificationHelper,
     // Lazy: ChatHistoryExportImportService depends on ChatRepository, which depends (lazily)
     // back on this service for noteMessageActivity — same cycle-break as GoogleDriveSyncService.
@@ -108,17 +116,27 @@ class NextcloudSyncService @Inject constructor(
     companion object {
         private const val TAG = "NextcloudSync"
 
-        /** Quiet time after the last message before the automatic upload runs. Short on purpose:
-         *  paired with the remote change watcher this is what makes the cross-device mirror feel
-         *  near-live (send on one phone, see it on the other within ~45s). Merge semantics make
-         *  frequent uploads safe; the debounce only coalesces bursts. */
-        const val DEBOUNCE_MS = 5 * 1000L
+        /**
+         * Adaptive cadence tiers, resolved from whether a conversation thread (1:1 or group) is
+         * open on screen ([NotificationHelper.openChatFlow]) — iOS implements the identical
+         * tiers. Inside a chat the mirror runs at full speed (a message mirrored from another
+         * device is visible the instant it lands); everywhere else (chat list, Settings) the
+         * watcher polls and the upload debounce relax to save battery and server round-trips.
+         * Merge semantics make frequent uploads safe; the debounce only coalesces bursts.
+         */
+        const val DEBOUNCE_IN_CHAT_MS = 5_000L
+        const val DEBOUNCE_IDLE_MS = 15_000L
 
-        /** Remote change watcher cadence (foreground only): one Depth-0 PROPFIND per tick. */
-        const val WATCHER_POLL_MS = 5_000L
+        /** Remote change watcher cadence per tier (foreground only): one Depth-0 PROPFIND per
+         *  tick. The tier is re-resolved every tick, and opening a thread wakes the loop
+         *  immediately, so a residual idle sleep never delays the first in-chat poll. */
+        const val WATCHER_POLL_IN_CHAT_MS = 5_000L
+        const val WATCHER_POLL_IDLE_MS = 30_000L
 
-        /** Watcher backoff after consecutive failed polls: 10s, then 30s, then capped at 60s. */
-        private val WATCHER_BACKOFF_MS = longArrayOf(5_000L, 15_000L, 60_000L)
+        /** Watcher backoff after consecutive failed polls: the current tier's base times 3 per
+         *  failure, capped at 60s (in-chat 15s/45s/60s, idle 60s), reset on the first success. */
+        private const val WATCHER_BACKOFF_MULTIPLIER = 3L
+        private const val WATCHER_BACKOFF_CAP_MS = 60_000L
 
         /** Periodic WorkManager fallback cadence for uploads the in-process paths missed. */
         const val PERIODIC_INTERVAL_HOURS = 6L
@@ -250,7 +268,12 @@ class NextcloudSyncService @Inject constructor(
             debounceWallet = address
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(DEBOUNCE_MS)
+                // Tier chosen at arm time; every re-arm (each new message restarts the timer)
+                // re-reads the open-chat state, so leaving or entering a chat mid-burst takes
+                // effect on the very next message.
+                val quietMs =
+                    if (notificationHelper.isChatOpen) DEBOUNCE_IN_CHAT_MS else DEBOUNCE_IDLE_MS
+                delay(quietMs)
                 if (debounceWallet == address) uploadIfDirty(address)
             }
         }
@@ -424,22 +447,43 @@ class NextcloudSyncService @Inject constructor(
 
     /**
      * The continuous half of the mirror (the once-per-wallet auto-restore is only the bootstrap):
-     * every [WATCHER_POLL_MS] a Depth-0 PROPFIND asks the server for the shared file's ETag —
-     * headers and a few hundred XML bytes, never the file. A moved ETag means another device
-     * wrote the file; [importRemoteChange] then downloads and merge-imports it. Runs only while
-     * the init observer's conditions hold (foreground + connected + toggle on + this wallet
-     * active) and is cancelled by collectLatest the moment any of them breaks.
+     * every tick a Depth-0 PROPFIND asks the server for the shared file's ETag — headers and a
+     * few hundred XML bytes, never the file. A moved ETag means another device wrote the file;
+     * [importRemoteChange] then downloads and merge-imports it. Runs only while the init
+     * observer's conditions hold (foreground + connected + toggle on + this wallet active) and
+     * is cancelled by collectLatest the moment any of them breaks.
      *
-     * Failed polls back off through [WATCHER_BACKOFF_MS] (10s, 30s, 60s cap) and recover to the
-     * normal cadence on the first success. A tick that would race a manual restore/resync
+     * The cadence is adaptive for battery, resolved fresh EVERY tick from whether a conversation
+     * thread is on screen: [WATCHER_POLL_IN_CHAT_MS] inside a chat, [WATCHER_POLL_IDLE_MS]
+     * elsewhere. Opening a thread additionally WAKES the loop at once — the sleep races a
+     * conflated wake channel fed by [NotificationHelper.openChatFlow]'s false-to-true
+     * transitions — so entering a chat triggers an immediate poll instead of waiting out a
+     * residual idle sleep.
+     *
+     * Failed polls back off from the current tier's base (times [WATCHER_BACKOFF_MULTIPLIER] per
+     * consecutive failure, capped at [WATCHER_BACKOFF_CAP_MS]) and recover to the normal cadence
+     * on the first success. A tick that would race a manual restore/resync
      * ([BackupRestoreCoordinator.isRunning]) is skipped, not queued.
      */
-    private suspend fun watchRemoteChanges(address: String) {
+    private suspend fun watchRemoteChanges(address: String) = coroutineScope {
+        // Wake-on-chat-entry signal. Conflated: a transition landing mid-poll is remembered and
+        // shortens the very next sleep to zero, which is exactly the wanted immediate tick.
+        val wake = Channel<Unit>(Channel.CONFLATED)
+        launch {
+            notificationHelper.openChatFlow
+                .drop(1) // The current value is no transition; tiers read it per tick below.
+                .collect { open -> if (open) wake.trySend(Unit) }
+        }
         var consecutiveFailures = 0
         while (true) {
-            val delayMs = if (consecutiveFailures == 0) WATCHER_POLL_MS
-            else WATCHER_BACKOFF_MS[minOf(consecutiveFailures, WATCHER_BACKOFF_MS.size) - 1]
-            delay(delayMs)
+            val baseMs =
+                if (notificationHelper.isChatOpen) WATCHER_POLL_IN_CHAT_MS else WATCHER_POLL_IDLE_MS
+            var delayMs = baseMs
+            repeat(minOf(consecutiveFailures, 3)) {
+                delayMs = minOf(delayMs * WATCHER_BACKOFF_MULTIPLIER, WATCHER_BACKOFF_CAP_MS)
+            }
+            // Sleep for the tier's interval, unless a chat opens first — then poll right away.
+            withTimeoutOrNull(delayMs) { wake.receive() }
             try {
                 if (!isAutoSyncActive(address)) continue
                 if (backupRestoreCoordinator.isRunning) continue

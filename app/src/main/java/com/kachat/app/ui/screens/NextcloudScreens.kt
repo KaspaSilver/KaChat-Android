@@ -809,7 +809,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     val lastSyncedText = lastAutoSyncMs?.let {
                         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
                     }
-                    "Messages sync to this server within seconds of sending or receiving, merging with backups from your other devices. While KaChat is open, new messages from your other devices appear here automatically, usually in under a minute. " +
+                    "Messages sync to this server shortly after sending or receiving, merging with backups from your other devices. While KaChat is open, new messages from your other devices appear here automatically, fastest while you are in a chat. " +
                         if (lastSyncedText != null) "Last synced: $lastSyncedText." else "Waiting for the first sync."
                 } else {
                     "Turn on to keep this server's backup current automatically and to mirror new messages between your devices in near real time while the app is open."

@@ -43,6 +43,12 @@ class NotificationHelper @Inject constructor(
     // Same idea for group chats — set by GroupChatViewModel as GroupChatThreadScreen opens/closes.
     private val activeGroupId = MutableStateFlow<String?>(null)
 
+    // Whether any conversation thread (1:1 or group) is on screen right now — kept in lockstep
+    // with the two flows above by their setters, so the existing screen open/close calls feed it
+    // without any screen changes. Broadcast channels deliberately don't count: the Nextcloud
+    // mirror carries 1:1 and group history, not channel posts.
+    private val openChat = MutableStateFlow(false)
+
     // Whether the app is on screen right now — set by KaChatApplication's process lifecycle
     // observer. Foreground notification policy: banners DO fire while the user is elsewhere in
     // the app (chat list, another thread, Settings); only the conversation currently open on
@@ -94,6 +100,14 @@ class NotificationHelper @Inject constructor(
      *  foreground and stop on background (e.g. NextcloudSyncService's remote change watcher). */
     val appForegroundFlow: StateFlow<Boolean> = appForeground.asStateFlow()
 
+    /** Reactive form of "a conversation thread is open on screen" — mirrors [appForegroundFlow].
+     *  Drives NextcloudSyncService's adaptive mirror cadence: fast tier while the user is inside
+     *  a chat (where a mirrored message is visible the moment it lands), relaxed tier elsewhere. */
+    val openChatFlow: StateFlow<Boolean> = openChat.asStateFlow()
+
+    /** Snapshot form of [openChatFlow] for one-shot reads (e.g. picking a debounce tier). */
+    val isChatOpen: Boolean get() = openChat.value
+
     /**
      * Claims [txId] for notification purposes. Returns true when this caller is the first to
      * claim it (post the banner); false when another path already did (skip — it's a duplicate).
@@ -107,6 +121,7 @@ class NotificationHelper @Inject constructor(
 
     fun setActiveContact(contactId: String?) {
         activeContactId.value = contactId
+        refreshOpenChat()
     }
 
     fun setActiveChannel(channelName: String?) {
@@ -115,6 +130,11 @@ class NotificationHelper @Inject constructor(
 
     fun setActiveGroup(groupId: String?) {
         activeGroupId.value = groupId
+        refreshOpenChat()
+    }
+
+    private fun refreshOpenChat() {
+        openChat.value = activeContactId.value != null || activeGroupId.value != null
     }
 
     /** Lets `GroupRepository` check this without needing its own copy of the state - used to keep
