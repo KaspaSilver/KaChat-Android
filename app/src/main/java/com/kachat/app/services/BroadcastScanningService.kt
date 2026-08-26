@@ -6,6 +6,7 @@ import com.kachat.app.models.BroadcastRetention
 import com.kachat.app.models.FeaturedBroadcastChannels
 import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.services.database.KaChatDatabase
+import com.kachat.app.services.grpc.KaspadConnection
 import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.KaspaAddress
@@ -15,8 +16,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import protowire.Rpc
 import javax.inject.Inject
@@ -73,6 +76,9 @@ class BroadcastScanningService @Inject constructor(
     // Global notification center (Profile bell): live incoming channel rows are listed there,
     // session-gated and deduped inside the store.
     private val notificationCenter: GlobalNotificationCenterStore,
+    // Metered gate — see reevaluate(): on cellular the full-block stream only runs for wanted
+    // channels that have NO other delivery path, and only while the app is foregrounded.
+    private val meteredNetwork: MeteredNetwork,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
@@ -114,6 +120,14 @@ class BroadcastScanningService @Inject constructor(
                 setHiddenSenderRows(rows)
             }
         }
+        // The metered gate depends on foreground state and the network type — both can change
+        // while demand (wantCount) is unchanged, so each change re-runs the start/stop decision.
+        scope.launch {
+            notificationHelper.appForegroundFlow.collect { reevaluate() }
+        }
+        scope.launch {
+            meteredNetwork.isMeteredFlow.collect { reevaluate() }
+        }
     }
 
     @Synchronized
@@ -143,6 +157,10 @@ class BroadcastScanningService @Inject constructor(
         if (wanted != alwaysListenWasWanted) {
             alwaysListenWasWanted = wanted
             if (wanted) acquire() else release()
+        } else {
+            // Same demand, different channel mix — the metered gate's "any wanted channel
+            // without another delivery path?" answer may have flipped.
+            reevaluate()
         }
     }
 
@@ -169,11 +187,13 @@ class BroadcastScanningService @Inject constructor(
     @Synchronized
     private fun addLiveViewedChannel(channelName: String) {
         liveViewedChannelNames = liveViewedChannelNames + channelName
+        reevaluate()
     }
 
     @Synchronized
     private fun removeLiveViewedChannel(channelName: String) {
         liveViewedChannelNames = liveViewedChannelNames - channelName
+        reevaluate()
     }
 
     @Synchronized
@@ -184,43 +204,95 @@ class BroadcastScanningService @Inject constructor(
     @Synchronized
     private fun acquire() {
         wantCount++
-        if (wantCount == 1) startInternal()
+        reevaluate()
     }
 
     @Synchronized
     private fun release() {
         wantCount = (wantCount - 1).coerceAtLeast(0)
-        if (wantCount == 0) stopInternal()
+        reevaluate()
     }
+
+    /**
+     * One start/stop decision for every input change (demand, foreground, network type,
+     * channel mix). Unmetered (WiFi) keeps the original behavior exactly: stream whenever
+     * anything wants it, foreground or background. On METERED networks the full-block stream
+     * (roughly 1-4 GB/day if left running) is only justified for a wanted channel with NO
+     * other delivery path — the featured indexer-backed rooms already get an 8s indexer poll
+     * while open (BroadcastViewModel.startIndexerBackfill) plus a 30-day history backfill on
+     * open, and their bell notifications ride remote push, so only non-indexed always-listen /
+     * live-viewed channels need the stream — and even then only while the app is foregrounded
+     * (backgrounded metered streaming trades the whole data budget for messages nobody is
+     * watching; the retention cache just has a gap for that window, same as an app restart).
+     */
+    @Synchronized
+    private fun reevaluate() {
+        val demand = wantCount > 0
+        val shouldRun = demand && (
+            !meteredNetwork.isMetered ||
+                (
+                    notificationHelper.isAppInForeground &&
+                        (alwaysListenChannelNames + liveViewedChannelNames)
+                            .any { it !in FeaturedBroadcastChannels.NAMES }
+                    )
+            )
+        if (shouldRun) startInternal() else stopInternal()
+    }
+
+    /** The exact connection the live NOTIFY_START went to — [stopInternal] must send its
+     *  NOTIFY_STOP to THIS node. A fresh getBroadcastConnection() there could hand back a
+     *  different (or newly dialed) node, leaving the actually-subscribed one streaming forever. */
+    @Volatile
+    private var subscribedConnection: KaspadConnection? = null
 
     private fun startInternal() {
         if (isRunning) return
         scanJob = scope.launch {
             while (true) {
+                var conn: KaspadConnection? = null
                 try {
-                    val blocks = nodePoolManager.getBroadcastConnection().subscribeToBlockAdded()
-                    blocks.collect { block -> processBlock(block) }
-                    // collect() returning normally means the underlying stream ended (e.g. the
-                    // connection was dropped/replaced by NodePoolManager's probe cycle) — loop
-                    // around and resubscribe on whatever connection is "best active" now, rather
-                    // than assuming one node stays stable for the whole time scanning is on.
+                    conn = nodePoolManager.getBroadcastConnection()
+                    // Captured BEFORE subscribing: a death/reconnect racing the NOTIFY_START
+                    // must read as "generation moved" below, not get swallowed.
+                    val subscribedGeneration = conn.connectionGeneration.value
+                    val blocks = conn.subscribeToBlockAdded()
+                    subscribedConnection = conn
+                    coroutineScope {
+                        val collector = launch { blocks.collect { block -> processBlock(block) } }
+                        // The blocks Flow is a SharedFlow — its collector NEVER completes, so
+                        // "collect returned" can never signal stream death (the old code waited
+                        // on exactly that and so could never resubscribe after a failover). The
+                        // real signal is the connection's generation counter, bumped on every
+                        // stream death, reconnect, and close: when it moves past the value
+                        // captured at subscribe time, the server-side NOTIFY_START state is
+                        // gone and the loop must re-send it on whatever connection is best now.
+                        conn.connectionGeneration.first { it != subscribedGeneration }
+                        collector.cancel()
+                    }
                 } catch (e: Exception) {
                     Log.w("BroadcastScanningService", "Block scanning interrupted, retrying", e)
+                } finally {
+                    if (subscribedConnection === conn) subscribedConnection = null
                 }
                 delay(RETRY_DELAY_MS)
             }
         }
     }
 
-    /** Must genuinely halt network/battery usage, not just stop writing to the DB — sends NOTIFY_STOP before cancelling the collector. */
+    /** Must genuinely halt network/battery usage, not just stop writing to the DB — sends NOTIFY_STOP (to the exact node that was subscribed) before cancelling the collector. */
     private fun stopInternal() {
+        // Read the subscribed connection BEFORE cancelling — the job's finally block clears it.
+        val conn = subscribedConnection
+        subscribedConnection = null
         scanJob?.cancel()
         scanJob = null
-        scope.launch {
-            try {
-                nodePoolManager.getBroadcastConnection().unsubscribeFromBlockAdded()
-            } catch (e: Exception) {
-                Log.w("BroadcastScanningService", "Failed to send NOTIFY_STOP", e)
+        if (conn != null) {
+            scope.launch {
+                try {
+                    conn.unsubscribeFromBlockAdded()
+                } catch (e: Exception) {
+                    Log.w("BroadcastScanningService", "Failed to send NOTIFY_STOP", e)
+                }
             }
         }
     }

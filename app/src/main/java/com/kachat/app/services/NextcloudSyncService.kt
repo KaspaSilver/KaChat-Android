@@ -106,6 +106,9 @@ class NextcloudSyncService @Inject constructor(
     // lifecycle observer drives it) — the watcher polls only while the app is on screen — and
     // open-chat state source (the thread screens drive it) for the adaptive cadence tiers.
     private val notificationHelper: NotificationHelper,
+    // Metered tiers: idle-cadence watcher/debounce even in-chat, and a longer floor between
+    // automatic uploads — see the companion constants.
+    private val meteredNetwork: MeteredNetwork,
     // Lazy: ChatHistoryExportImportService depends on ChatRepository, which depends (lazily)
     // back on this service for noteMessageActivity — same cycle-break as GoogleDriveSyncService.
     private val chatHistoryExportImportServiceLazy: dagger.Lazy<ChatHistoryExportImportService>,
@@ -129,9 +132,18 @@ class NextcloudSyncService @Inject constructor(
 
         /** Remote change watcher cadence per tier (foreground only): one Depth-0 PROPFIND per
          *  tick. The tier is re-resolved every tick, and opening a thread wakes the loop
-         *  immediately, so a residual idle sleep never delays the first in-chat poll. */
+         *  immediately, so a residual idle sleep never delays the first in-chat poll.
+         *  On METERED networks the idle tiers apply even in-chat (watcher and debounce both) —
+         *  the near-live mirror is a WiFi luxury, not worth cellular data. */
         const val WATCHER_POLL_IN_CHAT_MS = 5_000L
         const val WATCHER_POLL_IDLE_MS = 30_000L
+
+        /** Floor between AUTOMATIC uploads: each upload is a PROPFIND + (usually skipped)
+         *  download + full-archive PUT, so even merge-safe uploads shouldn't ride every message
+         *  burst. A debounce that fires earlier re-arms to the earliest allowed time rather
+         *  than dropping the work. Manual Back Up Now is not floored. */
+        const val MIN_UPLOAD_INTERVAL_MS = 90_000L
+        const val MIN_UPLOAD_INTERVAL_METERED_MS = 300_000L
 
         /** Watcher backoff after consecutive failed polls: the current tier's base times 3 per
          *  failure, capped at 60s (in-chat 15s/45s/60s, idle 60s), reset on the first success. */
@@ -270,10 +282,20 @@ class NextcloudSyncService @Inject constructor(
             debounceJob = scope.launch {
                 // Tier chosen at arm time; every re-arm (each new message restarts the timer)
                 // re-reads the open-chat state, so leaving or entering a chat mid-burst takes
-                // effect on the very next message.
-                val quietMs =
-                    if (notificationHelper.isChatOpen) DEBOUNCE_IN_CHAT_MS else DEBOUNCE_IDLE_MS
+                // effect on the very next message. On metered networks the idle tier applies
+                // even in-chat — cellular doesn't fund the near-live mirror.
+                val metered = meteredNetwork.isMetered
+                val quietMs = if (!metered && notificationHelper.isChatOpen) DEBOUNCE_IN_CHAT_MS else DEBOUNCE_IDLE_MS
                 delay(quietMs)
+                // Floor between automatic uploads: a debounce firing earlier than the minimum
+                // interval since the last successful upload re-arms to the earliest allowed
+                // time instead of dropping (a new message meanwhile just restarts the whole
+                // timer, which is fine — the dirty flag preserves that work is owed).
+                val minIntervalMs = if (metered) MIN_UPLOAD_INTERVAL_METERED_MS else MIN_UPLOAD_INTERVAL_MS
+                val lastUpload = dataStore.data.first()[lastSyncKey(address)] ?: 0L
+                val earliest = lastUpload + minIntervalMs
+                val waitMs = earliest - System.currentTimeMillis()
+                if (waitMs > 0) delay(waitMs)
                 if (debounceWallet == address) uploadIfDirty(address)
             }
         }
@@ -341,17 +363,34 @@ class NextcloudSyncService @Inject constructor(
                 // re-marks it, so nothing is lost; clearing after would swallow that signal.
                 dataStore.edit { it[pendingKey(address)] = false }
 
-                val newEtag = nextcloudService.runBackup { remote ->
+                // ETag short-circuit: a cheap Depth-0 PROPFIND first. When the server file's
+                // ETag still equals the one THIS wallet last wrote/imported, that server copy
+                // is our own last write — it was already the merge of everything both sides
+                // held then, and the auto-restore watcher has been merging every other
+                // device's write into local since, so local is a superset and the pre-merge
+                // download of our own bytes is pure waste. Skip it and PUT the fresh local
+                // archive directly. Any doubt (no stored ETag, PROPFIND failed, ETag moved)
+                // falls through to the full download+merge exactly as before.
+                val storedEtag = dataStore.data.first()[etagKey(address)]
+                val serverEtag = if (storedEtag != null) {
+                    runCatching { nextcloudService.fetchBackupEtag() }.getOrNull()
+                } else null
+                val buildJson: suspend (String?) -> String = { remote ->
                     // Before building the merged archive (the remote copy just downloaded)...
                     if (walletManager.activeAddressFlow.value != address) {
                         throw IOException("The active account changed during the sync.")
                     }
                     val json = chatHistoryExportImportServiceLazy.get().buildBackupJson(remote)
-                    // ...and again right before runBackup PUTs the result.
+                    // ...and again right before the PUT.
                     if (walletManager.activeAddressFlow.value != address) {
                         throw IOException("The active account changed during the sync.")
                     }
                     json
+                }
+                val newEtag = if (serverEtag != null && serverEtag == storedEtag) {
+                    nextcloudService.runBackupWithoutDownload { buildJson(null) }
+                } else {
+                    nextcloudService.runBackup(buildJson)
                 }
                 dataStore.edit {
                     it[lastSyncKey(address)] = System.currentTimeMillis()
@@ -476,8 +515,10 @@ class NextcloudSyncService @Inject constructor(
         }
         var consecutiveFailures = 0
         while (true) {
+            // Metered networks stay on the idle cadence even in-chat — see the tier constants.
             val baseMs =
-                if (notificationHelper.isChatOpen) WATCHER_POLL_IN_CHAT_MS else WATCHER_POLL_IDLE_MS
+                if (notificationHelper.isChatOpen && !meteredNetwork.isMetered) WATCHER_POLL_IN_CHAT_MS
+                else WATCHER_POLL_IDLE_MS
             var delayMs = baseMs
             repeat(minOf(consecutiveFailures, 3)) {
                 delayMs = minOf(delayMs * WATCHER_BACKOFF_MULTIPLIER, WATCHER_BACKOFF_CAP_MS)

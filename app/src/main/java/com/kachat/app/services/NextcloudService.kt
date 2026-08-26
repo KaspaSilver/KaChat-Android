@@ -757,6 +757,21 @@ class NextcloudService @Inject constructor(
     }
 
     /**
+     * [runBackup] minus the pre-merge download, for the ONE case where skipping it is provably
+     * safe: the caller verified (by ETag — see NextcloudSyncService.uploadIfDirty) that the
+     * server file is still THIS device's own last write, i.e. bytes we already merged then and
+     * have kept merged since via the change watcher. Anything short of that certainty must use
+     * [runBackup] — the merge-on-upload rule is what guarantees no device can erase another's
+     * history. Same ETag return contract as [runBackup].
+     */
+    suspend fun runBackupWithoutDownload(buildJson: suspend () -> String): String? {
+        val account = requireAccount()
+        val folder = backupFolderPath
+        val putEtag = uploadBackup(buildJson(), account, folder)
+        return putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
+    }
+
+    /**
      * The backup file's current contents, or null when there is none yet (404 — file or folder).
      * Any OTHER failure throws, because "couldn't read it" must abort the backup rather than let
      * the caller overwrite a file whose contents are unknown.

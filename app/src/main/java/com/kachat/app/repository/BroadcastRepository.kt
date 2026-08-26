@@ -235,9 +235,13 @@ class BroadcastRepository @Inject constructor(
             val deep = channelName !in deepBackfilledChannels
             val cutoff = System.currentTimeMillis() - BroadcastRetention.INDEXER_MILLIS
             var pagesLeft = if (deep) 50 else 1 // 50 × 200 = 10k rows, far beyond any real room
+            // The one-time deep backfill pages at 200; the recurring 8s poll only needs the
+            // newest sliver (dedupe-by-txId makes overlap harmless), so its page is small —
+            // 200 rows every 8s was the single biggest steady-state indexer cost per open room.
+            val pageLimit = if (deep) 200 else 30
             while (pagesLeft > 0) {
                 pagesLeft -= 1
-                val response = api.getBroadcasts(channel = channelName, limit = 200, before = before)
+                val response = api.getBroadcasts(channel = channelName, limit = pageLimit, before = before)
                 val messages = response.messages.orEmpty()
                 for (row in messages) {
                     if (row.txId.isNullOrBlank() || row.senderAddress.isNullOrBlank() || row.content == null) continue

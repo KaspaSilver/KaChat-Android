@@ -89,6 +89,9 @@ class GoogleDriveSyncService @Inject constructor(
     private val googleDriveBackupService: GoogleDriveBackupService,
     private val settingsRepository: AppSettingsRepository,
     private val backupRestoreCoordinator: BackupRestoreCoordinator,
+    // Metered gate for the activity debounce — cellular waits [DEBOUNCE_METERED_MS] of quiet
+    // instead of [DEBOUNCE_MS]; WiFi behavior is unchanged.
+    private val meteredNetwork: MeteredNetwork,
     // Lazy: ChatHistoryExportImportService depends on ChatRepository, which depends (lazily)
     // back on this service for noteMessageActivity — same cycle-break as ChatRepository's own
     // chatHistoryExportImportServiceLazy.
@@ -105,6 +108,10 @@ class GoogleDriveSyncService @Inject constructor(
 
         /** Quiet time after the last message before the automatic upload runs. */
         const val DEBOUNCE_MS = 2 * 60 * 1000L
+
+        /** Metered (cellular) quiet time — a full-archive upload per chat burst is a WiFi
+         *  habit; on mobile data the 6h WorkManager fallback still guarantees delivery. */
+        const val DEBOUNCE_METERED_MS = 10 * 60 * 1000L
 
         /** Periodic WorkManager fallback cadence for uploads the debounce path missed. */
         const val PERIODIC_INTERVAL_HOURS = 6L
@@ -272,7 +279,7 @@ class GoogleDriveSyncService @Inject constructor(
             debounceWallet = address
             debounceJob?.cancel()
             debounceJob = scope.launch {
-                delay(DEBOUNCE_MS)
+                delay(if (meteredNetwork.isMetered) DEBOUNCE_METERED_MS else DEBOUNCE_MS)
                 if (debounceWallet == address) uploadIfDirty(address)
             }
         }

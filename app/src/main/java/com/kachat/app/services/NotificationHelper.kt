@@ -157,6 +157,11 @@ class NotificationHelper @Inject constructor(
      *  already-read, so leaving the chat doesn't show an unread badge for messages you watched arrive. */
     fun isViewingContact(contactId: String): Boolean = activeContactId.value == contactId
 
+    /** The contact whose 1:1 thread is on screen right now (null when none) — lets
+     *  ChatRepository's poll loop keep just the open conversation on the fast tick while the
+     *  full contact sweep is throttled. */
+    val currentContactId: String? get() = activeContactId.value
+
     suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null, dedupeTxId: String? = null) {
         if (activeContactId.value == contactId) return // already looking at this conversation
         if (!settings.notificationsEnabled.first()) return

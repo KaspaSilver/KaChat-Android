@@ -57,7 +57,12 @@ class NodePoolManager @Inject constructor(
     // Both are dependency-cycle-safe here: NotificationHelper needs only Context + settings,
     // and PushState is deliberately dependency-free.
     private val notificationHelper: NotificationHelper,
-    private val pushState: PushState
+    private val pushState: PushState,
+    // Metered-network (cellular) gate for discovery-mode probing — see probeCycle() and
+    // startProbing(): a healthy pool probes only its primary node at a slower cadence, and
+    // the other pooled connections are closed between cycles so their HTTP/2 keepalive pings
+    // stop. Pinned trusted-node mode is untouched (it is already a single cheap connection).
+    private val meteredNetwork: MeteredNetwork
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val registry = NodeRegistry()
@@ -148,6 +153,11 @@ class NodePoolManager @Inject constructor(
 
     // Cycle cadence while the pool is below targetActiveNodes — see startProbing().
     private val unhealthyRetryDelayMillis = 5_000L
+
+    // Steady-state cycle cadence on a METERED network (automatic mode, pool healthy) — twice
+    // the WiFi 30s. Combined with the primary-only probing in probeCycle() this is most of the
+    // node pool's cellular saving; WiFi cadence is unchanged.
+    private val meteredHealthyDelayMillis = 60_000L
 
     // Per-hostname bound for resolveDnsSeedsIfNeeded()'s parallel lookups.
     private val dnsLookupTimeoutMillis = 5_000L
@@ -396,6 +406,9 @@ class NodePoolManager @Inject constructor(
                             minOf(unhealthyRetryDelayMillis shl shifts, maxDeadCycleBackoffMillis)
                         }
                         activeCount < targetActiveNodes -> unhealthyRetryDelayMillis
+                        // Healthy pool on cellular: probe half as often (and probeCycle itself
+                        // shrinks to a primary-only probe — see the metered branch there).
+                        meteredNetwork.isMetered -> meteredHealthyDelayMillis
                         else -> 30_000L
                     }
                 }
@@ -535,7 +548,30 @@ class NodePoolManager @Inject constructor(
         val activeCount = registry.snapshot().count { registry.statusOf(it) == "Active" }
         val dnsJob = if (activeCount < targetActiveNodes) scope.async { resolveDnsSeedsIfNeeded() } else null
 
-        val firstWave = (seeds + manualEndpoints + discoveredEndpoints + dnsResolvedEndpoints).distinct()
+        // Metered steady state: with a healthy pool on cellular, probing all ~26 endpoints
+        // every cycle — and keeping a persistent gRPC channel (20s HTTP/2 keepalive pings each)
+        // open to every one of them — is pure background cost. Probe ONLY the current primary
+        // (the same best-active node getBroadcastConnection() serves); the untracked-connection
+        // sweep below then closes every other idle channel, which is the "close idle discovered
+        // channels between probe cycles" option rather than per-connection keepalive tuning:
+        // each KaspadConnection holds its MessageStream open for its whole life, so
+        // keepAliveWithoutCalls(false) would change nothing — the stream IS an active call.
+        // There is no reopen churn while the state holds (closed channels stay closed; nothing
+        // redials them until the pool turns unhealthy or the primary fails over). Registry
+        // verdicts for the unprobed nodes just go stale, which a status display tolerates; if
+        // the primary dies, the next cycle promotes the next stale-Active node, redials it, and
+        // failures decay the truly dead ones until the pool drops below target and full
+        // discovery resumes automatically. WiFi keeps the full wave exactly as before.
+        val fullWave = (seeds + manualEndpoints + discoveredEndpoints + dnsResolvedEndpoints).distinct()
+        val firstWave = if (meteredNetwork.isMetered && activeCount >= targetActiveNodes) {
+            registry.snapshot()
+                .filter { registry.statusOf(it) == "Active" }
+                .minByOrNull { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+                ?.let { listOf(it.address) }
+                ?: fullWave
+        } else {
+            fullWave
+        }
         val firstResults = probeWave(firstWave, epoch)
 
         // Probe whatever the concurrent DNS resolution just added in this same cycle rather

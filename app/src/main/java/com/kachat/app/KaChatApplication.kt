@@ -7,7 +7,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.work.Configuration
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kachat.app.repository.GroupRepository
@@ -110,8 +112,14 @@ class KaChatApplication : Application(), Configuration.Provider {
         // duplicate periodic jobs.
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SyncWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES).build()
+            // UPDATE (not KEEP) so the CONNECTED constraint below reaches devices whose job was
+            // enqueued by an older build without it; the schedule itself is unchanged.
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
+                // No network means the indexer catch-up inside can only fail and burn a run
+                // (WorkManager would still wake the process for it) — wait for connectivity.
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build()
         )
 
         // Keep ApiLogging.verbose (read by the OkHttp interceptors in AppModule on every request)
@@ -128,11 +136,13 @@ class KaChatApplication : Application(), Configuration.Provider {
         // so a push-delivery problem surfaces as missing notifications instead of being silently
         // masked by a background poller. The in-process pollers normally just freeze with the
         // process and resume on foreground; on battery-exempted devices where the process stays
-        // alive, ChatRepository's 2s loop and NodePoolManager's probe loop additionally pause
+        // alive, ChatRepository's poll loop and NodePoolManager's probe loop additionally pause
         // themselves while backgrounded with push active (see their gates) so an exempted
-        // process doesn't poll forever. The broadcast/group block-stream scanners are left
-        // ungated: they are gRPC subscription streams (server pushes blocks), far cheaper than
-        // polling, and groups have no push at all so the scanner is their only live path.
+        // process doesn't poll forever. The block-stream scanners gate themselves too: the
+        // group scanner runs only with at least one group, foregrounded, on an unmetered
+        // network (indexer catch-up + the 15-min SyncWorker cover the gaps), and the broadcast
+        // scanner drops to indexer-covered delivery on metered networks (see each service's
+        // class doc) — a full block stream is the app's single biggest data cost.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 // Backgrounded: remote push takes over as the notification source for the

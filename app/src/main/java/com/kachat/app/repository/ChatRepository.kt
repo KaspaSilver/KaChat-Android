@@ -15,6 +15,7 @@ import com.kachat.app.services.ContextualMessageIndexerResponse
 import com.kachat.app.services.HandshakeIndexerResponse
 import com.kachat.app.services.KasiaIndexerApi
 import com.kachat.app.services.KaspaRestApi
+import com.kachat.app.services.MeteredNetwork
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PushState
@@ -63,6 +64,9 @@ class ChatRepository @Inject constructor(
     // local poll posts its own banners (only the open thread is suppressed, inside
     // NotificationHelper) — txId dedupe there collapses a racing push for the same message.
     private val pushState: PushState,
+    // Drives the poll loop's metered cadence tiers (see the loop in init) — cellular polls
+    // slower than WiFi, in-chat and idle alike.
+    private val meteredNetwork: MeteredNetwork,
     // Lazy because GoogleDriveSyncService depends (via the export service) on ChatRepository —
     // a direct circular constructor dependency Dagger can't resolve. Lazy<T> defers
     // instantiation past construction time, breaking the cycle while still letting this class
@@ -100,6 +104,10 @@ class ChatRepository @Inject constructor(
             } catch (e: Exception) {
                 Log.w("ChatRepository", "Startup prune failed", e)
             }
+            // Consecutive cycles in which the indexer errored (see noteIndexerError) — drives
+            // the exponential backoff below so a dead indexer doesn't get the full fan-out
+            // retried at the fast cadence forever.
+            var consecutiveIndexerFailures = 0
             while (true) {
                 // Pause while backgrounded with healthy push; resume instantly (suspend on the
                 // combined flow, no polling) on foreground or push loss, then sync immediately
@@ -114,14 +122,43 @@ class ChatRepository @Inject constructor(
                 // network errors, but one uncaught throw anywhere in it (a DataStore read, a
                 // Room call outside the per-item guards) would kill this coroutine and
                 // silently stop all live chat refresh until the process is restarted.
+                sawIndexerErrorThisCycle = false
                 try {
-                    syncMessages()
+                    syncMessages(fromPollLoop = true)
                 } catch (e: Exception) {
+                    sawIndexerErrorThisCycle = true
                     Log.w("ChatRepository", "Poll-loop sync cycle failed", e)
                 }
-                delay(POLL_INTERVAL_MS)
+                consecutiveIndexerFailures =
+                    if (sawIndexerErrorThisCycle) consecutiveIndexerFailures + 1 else 0
+
+                // Cadence tiers: the fast tick exists solely so a conversation ON SCREEN feels
+                // live; with no chat open the chat list only needs to stay fresh-ish, and on
+                // metered (cellular) networks both tiers relax further. WiFi in-chat keeps the
+                // original 2s exactly.
+                val metered = meteredNetwork.isMetered
+                val baseDelay = if (notificationHelper.isChatOpen) {
+                    if (metered) POLL_INTERVAL_IN_CHAT_METERED_MS else POLL_INTERVAL_MS
+                } else {
+                    if (metered) POLL_INTERVAL_IDLE_METERED_MS else POLL_INTERVAL_IDLE_MS
+                }
+                // Exponential backoff while the indexer is erroring: double per consecutive
+                // failed cycle, capped, reset by the first clean cycle.
+                var delayMs = baseDelay
+                repeat(minOf(consecutiveIndexerFailures, 6)) {
+                    delayMs = minOf(delayMs * 2, POLL_BACKOFF_CAP_MS)
+                }
+                delay(delayMs)
             }
         }
+    }
+
+    /** Set by the fetch-failure catch blocks each cycle — the poll loop's backoff signal. */
+    @Volatile
+    private var sawIndexerErrorThisCycle = false
+
+    private fun noteIndexerError() {
+        sawIndexerErrorThisCycle = true
     }
 
     /**
@@ -621,7 +658,13 @@ class ChatRepository @Inject constructor(
      */
     private var liveBaselineMs: Long = Long.MAX_VALUE
 
-    suspend fun syncMessages() {
+    /**
+     * [fromPollLoop] marks the recurring 2s-30s cycle from init, which carries the traffic
+     * shaping (contact-sweep throttle/cap/spacing, payments on their own slower cadence with a
+     * small page). Manual refreshes and the resync flows pass false and keep the full,
+     * unthrottled behavior.
+     */
+    suspend fun syncMessages(fromPollLoop: Boolean = false) {
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
         // Before the indexer gate on purpose: healing stuck send-placeholders needs no network.
         repairStuckProvisionalMessages(myAddress)
@@ -638,9 +681,38 @@ class ChatRepository @Inject constructor(
 
         syncHandshakes(myAddress, api)
         syncOutgoingHandshakes(myAddress, api)
-        syncContextualMessages(myAddress, api)
-        networkService.kaspaRestApi.value?.let { syncPayments(myAddress, it) }
+        syncContextualMessages(myAddress, api, pollShaped = fromPollLoop)
+        // Payments get their own, slower cadence on the poll path: the endpoint is
+        // full-transactions (inputs + outputs + payloads resolved server-side — by far the
+        // heaviest GET in the cycle) and has no cursor, so polling it every fast tick
+        // re-downloaded the same recent window over and over. A payment surfacing within ~20s
+        // is still well inside "feels live" for a payment bubble.
+        val now = System.currentTimeMillis()
+        if (!fromPollLoop || now - lastPaymentPollAt >= PAYMENT_POLL_INTERVAL_MS) {
+            networkService.kaspaRestApi.value?.let {
+                syncPayments(myAddress, it, limit = if (fromPollLoop) PAYMENT_POLL_LIMIT else 50)
+                lastPaymentPollAt = now
+            }
+        }
     }
+
+    /** Last time the poll path actually hit the payments endpoint — see [syncMessages]. */
+    @Volatile
+    private var lastPaymentPollAt = 0L
+
+    /** Throttle stamp for the full contact sweep on the poll path — see [syncContextualMessages]. */
+    @Volatile
+    private var lastContactSweepAt = 0L
+
+    /**
+     * Payment tx ids already fetched and handled this process — cheap early diff so the
+     * cursorless payments endpoint's repeated window doesn't re-run the DB-exists check and
+     * payload decode for the same transactions on every poll. Keys include the wallet so an
+     * account switch can't cross-match. Bounded: cleared when it grows past a few thousand
+     * (worst case is one round of re-checks through the DB path, which is what happened on
+     * every cycle before this set existed).
+     */
+    private val seenPaymentTxIds = java.util.Collections.synchronizedSet(HashSet<String>())
 
     /**
      * Restore-parity pass (matches iOS): handshakes YOU sent — requests you initiated AND your
@@ -655,6 +727,7 @@ class ChatRepository @Inject constructor(
         val handshakes = try {
             api.getHandshakesBySender(myAddress, blockTime = cursor)
         } catch (e: Exception) {
+            noteIndexerError()
             Log.w("ChatRepository", "Failed to fetch outgoing handshakes", e)
             return
         }
@@ -716,6 +789,7 @@ class ChatRepository @Inject constructor(
         val handshakes = try {
             api.getHandshakesByReceiver(myAddress, blockTime = cursor)
         } catch (e: Exception) {
+            noteIndexerError()
             Log.w("ChatRepository", "Failed to fetch handshakes", e)
             return
         }
@@ -802,11 +876,20 @@ class ChatRepository @Inject constructor(
      * null (every normal sync) syncs them all. [onContactDone] fires after each contact's
      * streams finish — the per-chat progress feed for the blocking resync modal (it may throw
      * to abort the loop, e.g. on an account switch). Returns how many contacts were synced.
+     *
+     * [pollShaped] (the recurring poll loop only) applies the iOS-shaped traffic model: the
+     * conversation on screen is fetched on EVERY tick (that's what makes an open chat feel
+     * live), but the fan-out over every other contact — the expensive part, two indexer GETs
+     * per contact per alias — runs at most every [CONTACT_SWEEP_MIN_INTERVAL_MS], capped at the
+     * [CONTACT_SWEEP_CAP] most recently active contacts, with [CONTACT_SWEEP_SPACING_MS]
+     * between contacts so a sweep is a drizzle, not a burst. Mirrors iOS ChatService's
+     * startForegroundContactSweep. Manual refresh/resync flows never pass this.
      */
     private suspend fun syncContextualMessages(
         myAddress: String,
         api: KasiaIndexerApi,
         onlyContactIds: Set<String>? = null,
+        pollShaped: Boolean = false,
         onContactDone: (suspend (done: Int, total: Int) -> Unit)? = null
     ): Int {
         // Fetch for BOTH active and pending contacts. Gating the FETCH on "active" made a
@@ -819,7 +902,35 @@ class ChatRepository @Inject constructor(
             database.contactDao().getContactsByStatus("pending", myAddress)
         onlyContactIds?.let { ids -> syncableContacts = syncableContacts.filter { it.id in ids } }
 
+        var sweepSpacing = false
+        if (pollShaped) {
+            val openContactId = notificationHelper.currentContactId
+            val now = System.currentTimeMillis()
+            if (now - lastContactSweepAt >= CONTACT_SWEEP_MIN_INTERVAL_MS) {
+                lastContactSweepAt = now
+                sweepSpacing = true
+                if (syncableContacts.size > CONTACT_SWEEP_CAP) {
+                    // Prioritize by most recent message activity; the open conversation always
+                    // makes the cut regardless of where its history ranks.
+                    val latestByContact = database.messageDao().getLatestMessagePerContact(myAddress)
+                        .first().associate { it.contactId to it.blockTimestamp }
+                    val top = syncableContacts
+                        .sortedByDescending { latestByContact[it.id] ?: 0L }
+                        .take(CONTACT_SWEEP_CAP)
+                    syncableContacts = if (openContactId != null && top.none { it.id == openContactId }) {
+                        top + syncableContacts.filter { it.id == openContactId }
+                    } else {
+                        top
+                    }
+                }
+            } else {
+                // Between sweeps only the thread on screen stays on the fast tick.
+                syncableContacts = syncableContacts.filter { it.id == openContactId }
+            }
+        }
+
         for ((index, contact) in syncableContacts.withIndex()) {
+            if (sweepSpacing && index > 0) delay(CONTACT_SWEEP_SPACING_MS)
             // See processHandshake's identical tombstone check — still needed even with the
             // block_time cursor below, since a newly re-created contact's first-ever sync has no
             // cursor yet and could otherwise surface old pre-deletion messages.
@@ -842,6 +953,7 @@ class ChatRepository @Inject constructor(
                 val messages = try {
                     api.getContextualMessagesBySender(contact.id, aliasHex, blockTime = cursor)
                 } catch (e: Exception) {
+                    noteIndexerError()
                     Log.w("ChatRepository", "Failed to fetch messages for ${contact.id}", e)
                     continue
                 }
@@ -968,7 +1080,7 @@ class ChatRepository @Inject constructor(
      * otherwise a fresh install would immediately dredge up years of old payment history
      * as a wall of "new" chats. See AppSettingsRepository.paymentSyncBaseline.
      */
-    private suspend fun syncPayments(myAddress: String, restApi: KaspaRestApi) {
+    private suspend fun syncPayments(myAddress: String, restApi: KaspaRestApi, limit: Int = 50) {
         val baseline = settingsRepository.paymentSyncBaseline(myAddress).first()
         if (baseline == null) {
             settingsRepository.setPaymentSyncBaseline(myAddress, System.currentTimeMillis())
@@ -976,26 +1088,43 @@ class ChatRepository @Inject constructor(
         }
 
         val transactions = try {
-            restApi.getTransactions(myAddress)
+            restApi.getTransactions(myAddress, limit = limit)
         } catch (e: Exception) {
+            noteIndexerError()
             Log.w("ChatRepository", "Failed to fetch transactions", e)
             return
         }
 
+        if (seenPaymentTxIds.size > 5_000) seenPaymentTxIds.clear()
         for (tx in transactions) {
             try {
-                if ((tx.blockTime ?: 0L) < baseline) continue
-                if (database.messageDao().exists(tx.transactionId, myAddress)) continue
-                processPayment(myAddress, tx)
+                // Early id diff against what this process already handled — the endpoint has no
+                // cursor, so most of every page is transactions seen on the previous poll.
+                val seenKey = "$myAddress|${tx.transactionId}"
+                if (seenKey in seenPaymentTxIds) continue
+                if ((tx.blockTime ?: 0L) < baseline) {
+                    seenPaymentTxIds.add(seenKey)
+                    continue
+                }
+                if (database.messageDao().exists(tx.transactionId, myAddress)) {
+                    seenPaymentTxIds.add(seenKey)
+                    continue
+                }
+                // Only a FINAL outcome marks the id seen — a transient input-resolution gap
+                // (processPayment returns false) must stay retryable on the next poll, exactly
+                // as it was before the seen-set existed.
+                if (processPayment(myAddress, tx)) seenPaymentTxIds.add(seenKey)
             } catch (e: Exception) {
                 Log.w("ChatRepository", "Failed to process transaction ${tx.transactionId}", e)
             }
         }
     }
 
-    private suspend fun processPayment(myAddress: String, tx: TransactionResponse) {
+    /** Returns true when the outcome is FINAL (recorded, or permanently irrelevant) — false only
+     *  for the transient no-input-address-resolved gap, which the next poll must retry. */
+    private suspend fun processPayment(myAddress: String, tx: TransactionResponse): Boolean {
         val payloadBytes = tx.payload?.hexToBytes() ?: ByteArray(0)
-        if (MessageProtocol.isKaChatPayload(payloadBytes)) return // real message/handshake, not a plain payment
+        if (MessageProtocol.isKaChatPayload(payloadBytes)) return true // real message/handshake, not a plain payment
 
         // Checks every input for a resolved address, not just the first — the REST API's
         // resolve_previous_outpoints=light can leave an individual input's address unresolved
@@ -1005,12 +1134,12 @@ class ChatRepository @Inject constructor(
         val sender = tx.inputs.firstNotNullOfOrNull { it.previousOutpointAddress }
         if (sender == null) {
             Log.w("ChatRepository", "Dropping payment ${tx.transactionId}: no input address resolved")
-            return
+            return false // transient — the next poll retries this tx
         }
-        if (sender == myAddress) return // our own outgoing transaction — already recorded locally at send time
+        if (sender == myAddress) return true // our own outgoing transaction — already recorded locally at send time
 
         val receivedSompi = tx.outputs.filter { it.scriptPublicKeyAddress == myAddress }.sumOf { it.amount }
-        if (receivedSompi <= 0) return
+        if (receivedSompi <= 0) return true
 
         // Same tombstone check as processHandshake/syncContextualMessages — an auto-detected
         // payment can just as easily resurrect a deleted contact as a message can. This one
@@ -1022,7 +1151,7 @@ class ChatRepository @Inject constructor(
         // monotonic per sender) through instead of being silently dropped forever.
         val blockTime = tx.blockTime ?: System.currentTimeMillis()
         val deleted = database.contactDao().getDeletedContact(sender, myAddress)
-        if (isTombstoned(deleted, tx.transactionId, blockTime)) return
+        if (isTombstoned(deleted, tx.transactionId, blockTime)) return true
 
         val existingContact = database.contactDao().getContact(sender, myAddress)
         var conversationId = sender
@@ -1033,9 +1162,9 @@ class ChatRepository @Inject constructor(
             // in chats; genuinely unknown senders collect in the SELF-chat (the conversation
             // with our own chatting address) with the sender noted in the bubble. The wallet
             // notification below still fires either way.
-            if (walletManager.isOwnSpendingAddress(sender)) return
+            if (walletManager.isOwnSpendingAddress(sender)) return true
             val selfDeleted = database.contactDao().getDeletedContact(myAddress, myAddress)
-            if (isTombstoned(selfDeleted, tx.transactionId, blockTime)) return
+            if (isTombstoned(selfDeleted, tx.transactionId, blockTime)) return true
             conversationId = myAddress
             displayText += "\nFrom: $sender"
             if (database.contactDao().getContact(myAddress, myAddress) == null) {
@@ -1071,6 +1200,7 @@ class ChatRepository @Inject constructor(
                 dedupeTxId = tx.transactionId
             )
         }
+        return true
     }
 
     companion object {
@@ -1138,7 +1268,28 @@ class ChatRepository @Inject constructor(
         internal fun hexEncodeAscii(s: String): String =
             s.toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it) }
 
+        /** In-chat tick on WiFi — the one cadence deliberately kept from before. */
         private const val POLL_INTERVAL_MS = 2_000L
+
+        /** No conversation on screen: the chat list only needs fresh-ish, not live. */
+        private const val POLL_INTERVAL_IDLE_MS = 15_000L
+
+        /** Metered (cellular) tiers — see the poll loop in init. */
+        private const val POLL_INTERVAL_IN_CHAT_METERED_MS = 5_000L
+        private const val POLL_INTERVAL_IDLE_METERED_MS = 30_000L
+
+        /** Cap for the double-per-consecutive-indexer-failure backoff in the poll loop. */
+        private const val POLL_BACKOFF_CAP_MS = 60_000L
+
+        /** Poll-path payments cadence/page — see [syncMessages]; manual refresh keeps limit 50. */
+        private const val PAYMENT_POLL_INTERVAL_MS = 20_000L
+        private const val PAYMENT_POLL_LIMIT = 10
+
+        /** Poll-path contact-sweep shape — see [syncContextualMessages]. Matches iOS's
+         *  startForegroundContactSweep (5s between sweeps, 100-120ms between contacts, cap 40). */
+        private const val CONTACT_SWEEP_MIN_INTERVAL_MS = 5_000L
+        private const val CONTACT_SWEEP_CAP = 40
+        private const val CONTACT_SWEEP_SPACING_MS = 110L
 
         /**
          * How far apart a provisional placeholder's wall-clock timestamp and its confirmed
