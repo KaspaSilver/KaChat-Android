@@ -2407,8 +2407,15 @@ class ChatViewModel @Inject constructor(
 
             val hasGenuineOutgoing = messages.any { it.direction == "sent" && isGenuine(it) }
             val hasGenuineIncoming = messages.any { it.direction == "received" && isGenuine(it) }
+            // A handshake FROM them also ends the warning: whether it's their acceptance of our
+            // handshake or their own initiation, their side provably has the conversation and
+            // can see what we send - waiting for a genuine reply made the banner outlive a
+            // completed handshake. A sent-but-unanswered handshake keeps it up. Matches iOS.
+            val hasIncomingHandshake = messages.any {
+                it.direction == "received" && it.type == com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE
+            }
 
-            return !(hasGenuineOutgoing && hasGenuineIncoming)
+            return !hasIncomingHandshake && !(hasGenuineOutgoing && hasGenuineIncoming)
         }
 
         /** Matches iOS's `shouldShowRetry` — only failed outgoing non-payment messages can be retried. */

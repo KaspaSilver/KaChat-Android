@@ -51,11 +51,19 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `a handshake in either direction is not evidence of communication`() {
+    fun `a sent handshake with no answer keeps the warning up`() {
         val sentHandshake = listOf(
             message(MessageProtocol.TYPE_COMM, "sent"),
             message(MessageProtocol.TYPE_HANDSHAKE, "sent")
         )
+        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(sentHandshake))
+    }
+
+    @Test
+    fun `a handshake FROM them clears the warning`() {
+        // Their handshake - whether accepting ours or initiating their own - proves their side
+        // has the conversation and can see what we send. The warning must not outlive a
+        // completed handshake by waiting for a genuine text reply.
         val receivedHandshake = listOf(
             message(MessageProtocol.TYPE_COMM, "sent"),
             message(MessageProtocol.TYPE_HANDSHAKE, "received")
@@ -64,9 +72,8 @@ class ChatViewModelTest {
             message(MessageProtocol.TYPE_HANDSHAKE, "sent"),
             message(MessageProtocol.TYPE_HANDSHAKE, "received")
         )
-        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(sentHandshake))
-        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(receivedHandshake))
-        assertTrue(ChatViewModel.shouldShowUnnotifiedWarning(bothHandshakes))
+        assertFalse(ChatViewModel.shouldShowUnnotifiedWarning(receivedHandshake))
+        assertFalse(ChatViewModel.shouldShowUnnotifiedWarning(bothHandshakes))
     }
 
     @Test
