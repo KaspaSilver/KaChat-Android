@@ -901,6 +901,12 @@ class NextcloudService @Inject constructor(
             if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
             if (response.code == 404) throw IOException("No KaChat backup was found on this Nextcloud server.")
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
+            // A WebDAV GET of the backup file is never legitimately HTML; a 2xx HTML body is a
+            // reverse-proxy, login, or maintenance page standing in for the server. Reject it
+            // here so it retries as a transient error instead of reaching the merge parser and
+            // surfacing as "the file on the server isn't a KaChat backup".
+            val contentType = response.header("Content-Type")?.lowercase() ?: ""
+            if ("html" in contentType) throw IOException("Unexpected response from the Nextcloud server.")
             val body = response.body ?: throw IOException("Unexpected response from the Nextcloud server.")
             val totalBytes = body.contentLength().takeIf { it > 0 }
             val out = java.io.ByteArrayOutputStream()
