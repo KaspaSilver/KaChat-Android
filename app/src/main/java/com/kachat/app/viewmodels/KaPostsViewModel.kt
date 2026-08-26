@@ -545,7 +545,7 @@ class KaPostsViewModel @Inject constructor(
                 fetch = { before -> fetchFeedPage(tab, before) },
             )
             if (generations[key] != generation) return@launch
-            if (result.items.isNotEmpty()) flow.value = flow.value + result.items
+            if (result.items.isNotEmpty()) flow.value = appendUnique(flow.value, result.items)
             updatePaging(key) {
                 it.copy(
                     cursor = result.cursor,
@@ -557,6 +557,15 @@ class KaPostsViewModel @Inject constructor(
             }
             loadMoreJobs.remove(key)
         }
+    }
+
+    /** Append guard: ids are stable (stableId of the txid), so a row the list already holds
+     *  arriving again - any page-one/load-more interleave - must drop rather than duplicate,
+     *  or LazyColumn's unique-key contract crashes the app. */
+    private fun appendUnique(held: List<KaPostDraft>, incoming: List<KaPostDraft>): List<KaPostDraft> {
+        if (incoming.isEmpty()) return held
+        val ids = held.mapTo(HashSet()) { it.id }
+        return held + incoming.filterNot { it.id in ids }
     }
 
     fun refresh() {
@@ -1302,6 +1311,11 @@ class KaPostsViewModel @Inject constructor(
     private suspend fun loadProfileTab(pubkey: String, isMine: Boolean, replies: Boolean) {
         val key = pageProfile(pubkey, isMine, replies)
         val generation = resetSurface(key)
+        // Same page-one guard loadFeed and loadReplies carry: without it, the endless-scroll
+        // trigger can fire against the stale list still on screen and run a second cursor=null
+        // fetch whose append then duplicates page one (LazyColumn key crash) - resetSurface
+        // makes surfaceLoaded true before any rows have actually landed.
+        updatePaging(key) { it.copy(isLoadingMore = true) }
         val result = accumulate(
             startCursor = null,
             target = TARGET_NEW_ROWS,
@@ -1360,7 +1374,7 @@ class KaPostsViewModel @Inject constructor(
                 },
             )
             if (generations[key] != generation) return@launch
-            if (result.items.isNotEmpty()) flow.value = flow.value + result.items
+            if (result.items.isNotEmpty()) flow.value = appendUnique(flow.value, result.items)
             updatePaging(key) {
                 it.copy(
                     cursor = result.cursor,
@@ -1586,7 +1600,11 @@ class KaPostsViewModel @Inject constructor(
                 fetch = { before -> kaPostsService.fetchNotificationsPage(PAGE_LIMIT, before) },
             )
             if (generations[key] != generation) return@launch
-            if (result.items.isNotEmpty()) _notifications.value = _notifications.value + result.items
+            // Same duplicate-drop as appendUnique: notification ids key their LazyColumn rows.
+            if (result.items.isNotEmpty()) {
+                val ids = _notifications.value.mapTo(HashSet()) { it.id }
+                _notifications.value = _notifications.value + result.items.filterNot { it.id in ids }
+            }
             updatePaging(key) {
                 it.copy(
                     cursor = result.cursor,
