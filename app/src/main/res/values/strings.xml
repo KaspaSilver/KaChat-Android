@@ -329,6 +329,7 @@
     <string name="rename_utxo">Rename UTXO</string>
     <string name="reserved_domain_no_registration_fee_only">Reserved domain: no registration fee, only network fees apply.</string>
     <string name="resign">Resign</string>
+    <string name="chess_cancel_game">Cancel game</string>
     <string name="resign_this_game">Resign this game?</string>
     <string name="resolving_domain">Resolving domain…</string>
     <string name="resolving">Resolving...</string>

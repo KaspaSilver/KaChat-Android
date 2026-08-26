@@ -378,9 +378,14 @@ fun ChessGameScreen(
                 },
                 actions = {
                     Column(horizontalAlignment = Alignment.End) {
-                        if (summary != null && summary.status.kind == ChessGameStatusKind.IN_PROGRESS) {
+                        // Available whenever the game isn't over - including a still-pending
+                        // invite, which the sender must be able to close (a resign on a pending
+                        // game is already how starting a new game retires the previous one).
+                        if (summary != null && !summary.status.isGameOver) {
+                            val resignLabel = if (summary.status.kind == ChessGameStatusKind.PENDING_RESPONSE)
+                                stringResource(R.string.chess_cancel_game) else stringResource(R.string.resign)
                             TextButton(onClick = { showResignConfirm = true }) {
-                                Text(stringResource(R.string.resign), color = Color(0xFFFF3B30))
+                                Text(resignLabel, color = Color(0xFFFF3B30))
                             }
                         }
                         WinLossCounter(wins = chessRecord.first, losses = chessRecord.second)
