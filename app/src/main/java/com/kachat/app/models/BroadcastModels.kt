@@ -40,7 +40,57 @@ object BroadcastRetention {
 
 /** Curated rooms shown in the Broadcasts "Popular" tab — recommended channels baked into the app, not derived from any usage/activity data. */
 object FeaturedBroadcastChannels {
+    /** The two rooms every account AUTO-JOINS (see `BroadcastRepository.ensureFeaturedChannelsJoined`). */
     val NAMES: List<String> = listOf("kaspa", "kachat-bugs")
+
+    /**
+     * Curated per-language rooms, listed behind the collapsible "Other Languages" category under
+     * Popular. Indexer-tracked exactly like [NAMES] (30-day retention, indexer history, no
+     * retention gear, push-eligible) but deliberately NOT auto-joined: a row is created on first
+     * open or bell tap. Auto-joining eleven more rooms would multiply push registrations,
+     * block-scan subscriptions and cellular cost for every user, including the majority who want
+     * none of them. Ordered alphabetically by display name, Latin scripts first.
+     */
+    val LANGUAGE_NAMES: List<String> = listOf(
+        "kaspa-indonesia",
+        "kaspa-czech",
+        "kaspa-german",
+        "kaspa-espanol",
+        "kaspa-francais",
+        "kaspa-portugues",
+        "kaspa-slovak",
+        "kaspa-chinese",
+        "kaspa-japanese",
+        "kaspa-korean",
+        "kaspa-hebrew",
+    )
+
+    /**
+     * Every indexer-tracked room. EVERYTHING that follows from "the indexer serves this room's
+     * history" keys off this set — 30-day retention, no per-room retention override, no Leave,
+     * the indexer backfill poll, and the metered block-stream skip. Only auto-join and the
+     * pinned Popular list use [NAMES] alone.
+     */
+    val INDEXED_NAMES: List<String> = NAMES + LANGUAGE_NAMES
+
+    /**
+     * Native-language label for a curated language room, e.g. "kaspa-espanol" -> "Español".
+     * Native names (not English ones) so a speaker scanning the list finds their own language.
+     */
+    fun languageDisplayName(channelName: String): String? = when (channelName) {
+        "kaspa-indonesia" -> "Bahasa Indonesia"
+        "kaspa-czech" -> "Čeština"
+        "kaspa-german" -> "Deutsch"
+        "kaspa-espanol" -> "Español"
+        "kaspa-francais" -> "Français"
+        "kaspa-portugues" -> "Português"
+        "kaspa-slovak" -> "Slovenčina"
+        "kaspa-chinese" -> "中文"
+        "kaspa-japanese" -> "日本語"
+        "kaspa-korean" -> "한국어"
+        "kaspa-hebrew" -> "עברית"
+        else -> null
+    }
 }
 
 /**

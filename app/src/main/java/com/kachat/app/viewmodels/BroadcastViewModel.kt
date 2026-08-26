@@ -321,7 +321,7 @@ class BroadcastViewModel @Inject constructor(
     private var indexerPollJob: kotlinx.coroutines.Job? = null
 
     fun startIndexerBackfill(channelName: String) {
-        if (channelName !in com.kachat.app.models.FeaturedBroadcastChannels.NAMES) return
+        if (channelName !in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES) return
         stopIndexerBackfill()
         indexerPollJob = viewModelScope.launch {
             while (true) {
@@ -344,6 +344,28 @@ class BroadcastViewModel @Inject constructor(
     /** Per-channel opt-in to a system notification for new messages — toggled via the bell icon next to a channel. */
     fun setNotifyEnabled(channelName: String, notifyEnabled: Boolean) {
         viewModelScope.launch { broadcastRepository.setNotifyEnabled(channelName, notifyEnabled) }
+    }
+
+    /**
+     * Creates a curated room's row if it has none. The language rooms are not auto-joined (see
+     * [com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES]), so opening one has to
+     * materialize its row for the bell/retention state to exist. Deliberately NOT [joinChannel]:
+     * that one drives the join DIALOG's state machine and would flash a success result.
+     */
+    fun ensureCuratedRoomJoined(channelName: String) {
+        viewModelScope.launch { broadcastRepository.joinChannel(channelName) }
+    }
+
+    /**
+     * Bell for a curated room that may have no row yet: join and toggle in ONE coroutine, so the
+     * write can't land before the row exists (the two calls are separate coroutines otherwise,
+     * and the toggle would silently no-op on a missing row). The join is idempotent.
+     */
+    fun setNotifyEnabledEnsuringJoined(channelName: String, notifyEnabled: Boolean) {
+        viewModelScope.launch {
+            broadcastRepository.joinChannel(channelName)
+            broadcastRepository.setNotifyEnabled(channelName, notifyEnabled)
+        }
     }
 
     /** Per-channel local message retention override — set via the settings icon next to a channel, capped at 3 days. */

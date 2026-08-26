@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -50,6 +52,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -110,6 +113,13 @@ fun BroadcastListScreen(
     var channelInput by remember { mutableStateOf("") }
     var channelToLeave by remember { mutableStateOf<String?>(null) }
     var retentionSettingsChannelName by remember { mutableStateOf<String?>(null) }
+    // Collapsed by default: eleven language rooms would bury the two Popular rooms and the
+    // user's own channels under a wall of list.
+    var languagesExpanded by remember { mutableStateOf(false) }
+    val languagesRotation by animateFloatAsState(
+        targetValue = if (languagesExpanded) 0f else -90f,
+        label = "languagesChevron"
+    )
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -159,7 +169,9 @@ fun BroadcastListScreen(
             // row carries the "+" join/create entry point. Item keys use ':' prefixes because
             // a colon can never appear in a channel name (MessageProtocol.isValidChannelName),
             // so a user-joined channel can't collide with a header/popular key.
-            val ownChannels = channels.filter { it.channelName !in com.kachat.app.models.FeaturedBroadcastChannels.NAMES }
+            // Every curated room (Popular and the language rooms) is rendered above, so a
+            // joined language room must not also appear here as one of "your" channels.
+            val ownChannels = channels.filter { it.channelName !in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,6 +242,107 @@ fun BroadcastListScreen(
                                     contentDescription = if (channel.notifyEnabled) "Turn off notifications" else "Turn on notifications",
                                     tint = if (channel.notifyEnabled) KaspaTeal else Color.Gray
                                 )
+                            }
+                        }
+                    }
+                }
+                // "Other Languages": a collapsed category inside Popular, so the section header's
+                // 30-day retention note covers these rooms too, which it correctly does — they
+                // are indexer-tracked exactly like the two above.
+                item(key = "header:languages") {
+                    Surface(
+                        color = LocalAppColors.current.surface,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { languagesExpanded = !languagesExpanded }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Language,
+                                contentDescription = null,
+                                tint = KaspaTeal,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Other Languages",
+                                color = LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                "${FeaturedBroadcastChannels.LANGUAGE_NAMES.size}",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 13.sp
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = LocalAppColors.current.textSecondary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .rotate(languagesRotation)
+                            )
+                        }
+                    }
+                }
+                if (languagesExpanded) {
+                    items(FeaturedBroadcastChannels.LANGUAGE_NAMES, key = { "language:$it" }) { name ->
+                        val channel = channels.firstOrNull { it.channelName == name }
+                        val notifyOn = channel?.notifyEnabled == true
+                        Surface(
+                            color = LocalAppColors.current.surface,
+                            shape = RoundedCornerShape(16.dp),
+                            // Deeper start padding than the cards above: these read as children
+                            // of the "Other Languages" row they slid out from.
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp)
+                                .clickable {
+                                    broadcastViewModel.ensureCuratedRoomJoined(name)
+                                    navController.navigate("broadcast_channel/$name")
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        FeaturedBroadcastChannels.languageDisplayName(name) ?: "#$name",
+                                        color = LocalAppColors.current.textPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        "#$name",
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    val newValue = !notifyOn
+                                    broadcastViewModel.setNotifyEnabledEnsuringJoined(name, newValue)
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (newValue) {
+                                                "You'll get a notification for new messages in this broadcast as long as your app remains open"
+                                            } else {
+                                                "Notifications are off for this broadcast"
+                                            }
+                                        )
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = if (notifyOn) Icons.Default.Notifications else Icons.Default.NotificationsNone,
+                                        contentDescription = if (notifyOn) "Turn off notifications" else "Turn on notifications",
+                                        tint = if (notifyOn) KaspaTeal else Color.Gray
+                                    )
+                                }
                             }
                         }
                     }

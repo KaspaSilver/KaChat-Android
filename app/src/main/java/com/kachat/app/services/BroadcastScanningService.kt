@@ -233,7 +233,7 @@ class BroadcastScanningService @Inject constructor(
                 (
                     notificationHelper.isAppInForeground &&
                         (alwaysListenChannelNames + liveViewedChannelNames)
-                            .any { it !in FeaturedBroadcastChannels.NAMES }
+                            .any { it !in FeaturedBroadcastChannels.INDEXED_NAMES }
                     )
             )
         if (shouldRun) startInternal() else stopInternal()
@@ -378,7 +378,7 @@ class BroadcastScanningService @Inject constructor(
                 // Featured indexer-backed rooms keep the indexer's FULL 30-day window regardless
                 // of the stored per-channel value (their retention gear is hidden in the UI) —
                 // the 3-day cap was pruning history the backfill had just fetched.
-                val effective = if (retention.channelName in FeaturedBroadcastChannels.NAMES) {
+                val effective = if (retention.channelName in FeaturedBroadcastChannels.INDEXED_NAMES) {
                     BroadcastRetention.INDEXER_MILLIS
                 } else {
                     retention.retentionMillis

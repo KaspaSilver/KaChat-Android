@@ -56,7 +56,9 @@ class BroadcastRepository @Inject constructor(
 
     /** Removes the channel from the joined list AND permanently deletes every cached message for it — the UI must confirm this with the user first, since it's destructive and can't be undone (rejoining later starts with no history). Featured rooms can't be left (matches iOS). */
     suspend fun leaveChannel(channelName: String) {
-        if (channelName in FeaturedBroadcastChannels.NAMES) return
+        // Curated rooms (Popular and the language rooms alike) are permanent fixtures of the
+        // list screen, so no UI offers Leave; guard against stray paths.
+        if (channelName in FeaturedBroadcastChannels.INDEXED_NAMES) return
         database.broadcastDao().leaveChannel(channelName, walletManager.getAddress())
         database.broadcastDao().deleteMessagesForChannel(channelName)
     }
@@ -108,7 +110,7 @@ class BroadcastRepository @Inject constructor(
     suspend fun setRetentionMillis(channelName: String, retentionMillis: Long) {
         // Featured rooms have a FIXED 3-day retention (their indexer serves 3 days of history
         // and the room shows a permanent banner saying so) - no per-room override.
-        if (channelName in FeaturedBroadcastChannels.NAMES) return
+        if (channelName in FeaturedBroadcastChannels.INDEXED_NAMES) return
         val clamped = retentionMillis.coerceIn(1_000L, BroadcastRetention.MAX_MILLIS)
         database.broadcastDao().setRetentionMillis(channelName, walletManager.getAddress(), clamped)
     }
