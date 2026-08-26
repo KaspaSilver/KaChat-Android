@@ -1172,8 +1172,12 @@ private fun GroupMessageBubble(
             color = LocalAppColors.current.textSecondary,
             fontSize = 11.sp,
             modifier = Modifier
-                .align(if (isSent) Alignment.CenterEnd else Alignment.CenterStart)
-                .padding(horizontal = 12.dp)
+                // Always trailing-edge: sliding the row LEFT exposes the right side only, so a
+                // CenterStart label on received rows stayed covered by the row drawn above it
+                // (received messages appeared to have no timestamp). Matches the 1:1 thread's
+                // MessageBubble in Screens.kt, which reveals both directions at CenterEnd.
+                .align(Alignment.CenterEnd)
+                .padding(end = 12.dp)
                 .alpha((-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f))
         )
     Row(
