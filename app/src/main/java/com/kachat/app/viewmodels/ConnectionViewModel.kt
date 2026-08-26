@@ -5,14 +5,20 @@ import androidx.lifecycle.viewModelScope
 import com.kachat.app.repository.AppSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** How long the pool must stay empty before the dot is allowed to turn red. */
+private const val DISCONNECT_GRACE_MS = 8_000L
 
 enum class ConnectionStatus {
     CONNECTED, DEGRADED, DISCONNECTED
@@ -26,21 +32,32 @@ enum class ConnectionStatus {
  * the dot's color: red whenever there's no active node at all (regardless of
  * latency), otherwise green under 300ms and orange at 300ms or above.
  */
-internal fun deriveConnectionStatus(activeNodes: List<NodeInfo>): ConnectionStatus {
+internal fun deriveConnectionStatus(
+    activeNodes: List<NodeInfo>,
+    /** Red is reserved for SUSTAINED disconnection: an empty pool during startup probing,
+     *  failover, or a WiFi-cellular handoff reads DEGRADED (orange) until the emptiness has
+     *  persisted past the grace window. Defaults true so direct calls keep the strict
+     *  "empty means disconnected" semantics the unit tests pin. */
+    disconnectedGraceElapsed: Boolean = true,
+): ConnectionStatus {
     val bestLatencyMs = activeNodes.firstOrNull()?.latency?.removeSuffix("ms")?.toIntOrNull()
     return when {
-        activeNodes.isEmpty() || bestLatencyMs == null -> ConnectionStatus.DISCONNECTED
+        activeNodes.isEmpty() || bestLatencyMs == null ->
+            if (disconnectedGraceElapsed) ConnectionStatus.DISCONNECTED else ConnectionStatus.DEGRADED
         bestLatencyMs < 300 -> ConnectionStatus.CONNECTED
         else -> ConnectionStatus.DEGRADED
     }
 }
 
-/** Connection dot color — delegates to [deriveConnectionStatus] so it can never diverge from the status text. */
-internal fun deriveDotColorHex(activeNodes: List<NodeInfo>): Long = when (deriveConnectionStatus(activeNodes)) {
+internal fun dotColorHexFor(status: ConnectionStatus): Long = when (status) {
     ConnectionStatus.CONNECTED -> 0xFF4CD964
     ConnectionStatus.DEGRADED -> 0xFFF39C12
     ConnectionStatus.DISCONNECTED -> 0xFFFF3B30
 }
+
+/** Connection dot color — delegates to [deriveConnectionStatus] so it can never diverge from the status text. */
+internal fun deriveDotColorHex(activeNodes: List<NodeInfo>, disconnectedGraceElapsed: Boolean = true): Long =
+    dotColorHexFor(deriveConnectionStatus(activeNodes, disconnectedGraceElapsed))
 
 data class NodeInfo(
     val ip: String,
@@ -65,15 +82,52 @@ class ConnectionViewModel @Inject constructor(
      *  explanation on the connection status screen. See NodePoolManager.nodeConnectionsBlocked. */
     val nodeConnectionsBlocked: StateFlow<Boolean> = nodePoolManager.nodeConnectionsBlocked
 
-    /** Real status derived from the live node pool — no more hardcoded CONNECTED. */
-    val status: StateFlow<ConnectionStatus> = activeNodes
-        .map(::deriveConnectionStatus)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConnectionStatus.DISCONNECTED)
+    /** Wall-clock ms when the active-node list last became empty; null while any node is
+     *  active. Tracked by an always-live collector, NOT inside the WhileSubscribed pipelines,
+     *  so leaving and re-entering a screen can never reset the disconnection stopwatch. */
+    private val emptySinceMs = MutableStateFlow<Long?>(
+        if (nodePoolManager.activeNodes.value.isEmpty()) System.currentTimeMillis() else null
+    )
 
-    /** Connection dot color: green under 300ms, orange at 300ms+, red when disconnected. */
-    val dotColorHex: StateFlow<Long> = activeNodes
-        .map(::deriveDotColorHex)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0xFFFF3B30)
+    init {
+        viewModelScope.launch {
+            nodePoolManager.activeNodes.collect { nodes ->
+                emptySinceMs.value =
+                    if (nodes.isEmpty()) (emptySinceMs.value ?: System.currentTimeMillis()) else null
+            }
+        }
+    }
+
+    /** Emits the graced status: orange immediately when the pool empties (startup probing,
+     *  failover, network handoff), red only once the emptiness has persisted for the grace
+     *  window - the dot must never show red unless the user is truly disconnected. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun statusFlow(): Flow<ConnectionStatus> =
+        combine(activeNodes, emptySinceMs) { nodes, since -> nodes to since }
+            .transformLatest { (nodes, since) ->
+                val elapsedMs = since?.let { System.currentTimeMillis() - it }
+                val graceElapsed = elapsedMs != null && elapsedMs >= DISCONNECT_GRACE_MS
+                emit(deriveConnectionStatus(nodes, graceElapsed))
+                if (since != null && !graceElapsed) {
+                    delay(DISCONNECT_GRACE_MS - (elapsedMs ?: 0L))
+                    emit(deriveConnectionStatus(nodes, disconnectedGraceElapsed = true))
+                }
+            }
+
+    private fun initialGracedStatus(): ConnectionStatus {
+        val since = emptySinceMs.value
+        val graceElapsed = since != null && System.currentTimeMillis() - since >= DISCONNECT_GRACE_MS
+        return deriveConnectionStatus(nodePoolManager.activeNodes.value, graceElapsed)
+    }
+
+    /** Real status derived from the live node pool — no more hardcoded CONNECTED. */
+    val status: StateFlow<ConnectionStatus> = statusFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialGracedStatus())
+
+    /** Connection dot color: green under 300ms, orange at 300ms+, red only after sustained disconnection. */
+    val dotColorHex: StateFlow<Long> = statusFlow()
+        .map(::dotColorHexFor)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), dotColorHexFor(initialGracedStatus()))
 
     /** Real "Xs/Xm/Xh ago" string, ticking every second, sourced from the pool's most recent successful probe. */
     val lastSyncAt: StateFlow<String> = flow {
