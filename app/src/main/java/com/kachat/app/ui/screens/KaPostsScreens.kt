@@ -64,7 +64,6 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PersonAddAlt1
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
@@ -86,6 +85,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -106,6 +107,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -349,6 +352,9 @@ fun KaPostsScreen(
     val actionToast by viewModel.actionToast.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // Live node-health color for the header's connection dot, same source as the chat-thread
+    // and broadcast-room headers.
+    val dotColorHex by hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
 
     var showSideMenu by remember { mutableStateOf(false) }
     var showComposer by remember { mutableStateOf(false) }
@@ -526,37 +532,49 @@ fun KaPostsScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Top chrome mirrors iOS's KaPostsPageView navigation bar: clickable connection
+                // dot leading + centered balance (ConnectionStatusIndicator / BalanceToolbarLabel
+                // toolbar items), then the bold left-aligned large title, then the hamburger
+                // inline with the three feed tabs (KaPostsView.feedTabBar).
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                ) {
+                    // Same clickable dot as the chat-thread and broadcast-room headers: 32dp
+                    // surface circle, 10dp live-status dot, opens the connection status page.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .size(32.dp)
+                            .background(colors.surface, CircleShape)
+                            .clickable { navController.navigate("connection_status") },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(modifier = Modifier.size(10.dp).background(Color(dotColorHex), CircleShape))
+                    }
+                    BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))
+                }
+                Text(
+                    text = "KaPosts",
+                    color = colors.textPrimary,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 4.dp),
+                )
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = { showSideMenu = true }) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu", tint = colors.textPrimary)
                     }
-                    Text(
-                        text = "KaPosts",
-                        color = colors.textPrimary,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
+                    FeedTabsRow(
+                        selected = selectedFeed,
+                        onSelect = { viewModel.selectFeed(it) },
+                        modifier = Modifier.weight(1f),
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    // Total balance in the header, same as every other main page (iOS
-                    // KaPostsView's BalanceToolbarLabel) — trailing here since this
-                    // screen's title is left-aligned rather than centered.
-                    BalanceTopBarLabel(modifier = Modifier.padding(end = 4.dp))
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp).padding(end = 4.dp),
-                            strokeWidth = 2.dp,
-                            color = KaspaTeal,
-                        )
-                    } else {
-                        IconButton(onClick = { viewModel.refresh() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = KaspaTeal)
-                        }
-                    }
                 }
-                FeedTabsRow(selected = selectedFeed, onSelect = { viewModel.selectFeed(it) })
                 HorizontalDivider(color = colors.surfaceVariant)
 
                 // Horizontal paging between the three feeds, synced both ways with the tab row
@@ -581,23 +599,61 @@ fun KaPostsScreen(
                             KaPostsViewModel.PAGE_GLOBAL_FEED
                         },
                     )
+                    // Pull-to-refresh replaces the old header refresh button, wired to the same
+                    // page-one reload. Await-then-endRefresh pattern (the pull joins its own
+                    // load's completion; loadFeed has no throwing path out, so the spinner
+                    // always ends) rather than keying off isLoadingFeed, which background
+                    // reloads also drive.
+                    val pullRefreshState = rememberPullToRefreshState()
+                    LaunchedEffect(pullRefreshState.isRefreshing) {
+                        if (pullRefreshState.isRefreshing) {
+                            viewModel.loadFeed(tab)
+                            pullRefreshState.endRefresh()
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // An idle PullToRefreshContainer "hides" by translating a full
+                            // container-height above its own position without clipping - on this
+                            // screen that band is the tab row, so clip the indicator to this Box:
+                            // invisible at rest, revealed only by a real pull.
+                            .clipToBounds()
+                            .nestedScroll(pullRefreshState.nestedScrollConnection),
+                    ) {
                     if (feedError != null && pageFeed.isEmpty()) {
-                        FeedEmptyState(
-                            title = "Couldn't load the feed",
-                            body = feedError ?: "",
-                            actionLabel = "Retry",
-                            onAction = { viewModel.refresh() },
-                        )
+                        // Wrapped in a LazyColumn purely so pull-to-refresh works on an error
+                        // tab too (same reason iOS wraps its empty feeds in a ScrollView).
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                Box(modifier = Modifier.fillParentMaxSize()) {
+                                    FeedEmptyState(
+                                        title = "Couldn't load the feed",
+                                        body = feedError ?: "",
+                                        actionLabel = "Retry",
+                                        onAction = { viewModel.refresh() },
+                                    )
+                                }
+                            }
+                        }
                     } else if (pageFeed.isEmpty() && !isLoading) {
-                        FeedEmptyState(
-                            title = if (tab == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
-                            body = if (tab == KaPostsViewModel.FeedTab.FOLLOWING)
-                                "Follow people from their posts and their content shows up here."
-                            else
-                                "Be the first to post something on the Kaspa network.",
-                            actionLabel = null,
-                            onAction = {},
-                        )
+                        // Same LazyColumn wrapper: an empty feed must still be pullable - the
+                        // common bootstrap case while feeds are sparse.
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                Box(modifier = Modifier.fillParentMaxSize()) {
+                                    FeedEmptyState(
+                                        title = if (tab == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
+                                        body = if (tab == KaPostsViewModel.FeedTab.FOLLOWING)
+                                            "Follow people from their posts and their content shows up here."
+                                        else
+                                            "Be the first to post something on the Kaspa network.",
+                                        actionLabel = null,
+                                        onAction = {},
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         // Endless scroll, per tab. Each tab keeps its own cursor in the view
                         // model, so a swipe away and back resumes exactly where it was.
@@ -658,6 +714,16 @@ fun KaPostsScreen(
                                 viewModel.loadMoreFeed(tab)
                             }
                         }
+                    }
+                    // Hard guarantee on top of the clipToBounds above: the indicator only
+                    // composes while a pull is in progress or a refresh runs, so no layout
+                    // change can ever park the resting circle over the feed.
+                    if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+                        PullToRefreshContainer(
+                            state = pullRefreshState,
+                            modifier = Modifier.align(Alignment.TopCenter),
+                        )
+                    }
                     }
                 }
             }
@@ -944,9 +1010,10 @@ private fun SideMenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 private fun FeedTabsRow(
     selected: KaPostsViewModel.FeedTab,
     onSelect: (KaPostsViewModel.FeedTab) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
-    Row(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = modifier.fillMaxWidth()) {
         KaPostsFeedTabs.forEach { tab ->
             val label = tab.label()
             val isSelected = tab == selected
