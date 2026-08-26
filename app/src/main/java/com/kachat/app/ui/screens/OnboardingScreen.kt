@@ -694,6 +694,18 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
     val allValid = slots.size == wordCount && slots.all { it.isNotEmpty() && wordList.contains(it.lowercase()) }
     val canImport = allValid && accountName.isNotBlank()
 
+    // The typed-in phrase is fully visible in the slot grid — exactly as sensitive as the reveal
+    // screens, so it gets the same screenshot/recording block. The custom keyboard already keeps
+    // it away from the OS keyboard and clipboard; this closes the screen-capture side. Cleared
+    // on dispose like BackupMnemonicScreen/SeedPhraseScreen's identical guards.
+    val window = (LocalContext.current as? Activity)?.window
+    DisposableEffect(window) {
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     Surface(color = LocalAppColors.current.background, modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier

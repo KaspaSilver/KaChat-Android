@@ -1664,6 +1664,12 @@ fun MessageBubble(
     val separateLinkPreviewUrl = remember(bodyText, isPlainTextMessage, isEntirelyLinkMessage) {
         if (isPlainTextMessage && !isEntirelyLinkMessage) TextLinkify.findUrls(bodyText).firstOrNull()?.uri else null
     }
+    // Link previews auto-fetch only for accepted contacts (the same conversationStatus ==
+    // "active" trust signal shouldAutoDisplayPhotos uses, passed in as isHandshakeComplete) and
+    // for the user's own sent links; a non-accepted stranger's link gets a tap-to-load
+    // placeholder instead, so no request leaves the device just by reading the message.
+    // Matches iOS (2026-08 audit, decision 5A).
+    val linkPreviewAutoFetch = isSent || isHandshakeComplete
 
     if (isPendingRequest) {
         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
@@ -1941,7 +1947,8 @@ fun MessageBubble(
                         kaspaExplorer = kaspaExplorer,
                         fallbackText = bodyText,
                         onSelect = onSelect,
-                        onDoubleTap = { showQuickReactionBar = true }
+                        onDoubleTap = { showQuickReactionBar = true },
+                        autoFetch = linkPreviewAutoFetch
                     )
                 } else {
                     var textLayoutResult by remember(bodyText) { mutableStateOf<TextLayoutResult?>(null) }
@@ -2067,7 +2074,7 @@ fun MessageBubble(
         // attaches to that Box) sizes against just the text bubble, not this taller card too -
         // matches iOS's identical placement outside its equivalent `Group`.
         separateLinkPreviewUrl?.let { url ->
-            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
+            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, autoFetch = linkPreviewAutoFetch)
         }
 
         if (isSent) {

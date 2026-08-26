@@ -33,6 +33,16 @@
     <!-- Biometric/device-credential prompt guarding the seed phrase and account unlock -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- usesCleartextTraffic stays true DELIBERATELY (2026-08 security audit, decision 3A):
+         Kaspa node gRPC (protowire on port 16110/16210) is plaintext by protocol, and a
+         networkSecurityConfig cannot scope a cleartext allowance by port — only by domain —
+         which is useless for a pool of bare peer IPs. grpc-okhttp builds its own sockets and
+         does not reliably consult the platform's cleartext policy anyway, so tightening the
+         flag would only give a false sense of coverage. Everything HTTP in the app (indexer,
+         KNS, REST API, push registration, Nextcloud, link previews) is https-only at the
+         application layer instead: the URL settings fields are read-only, and the one
+         user-editable server input (Nextcloud) rejects explicit http:// in the UI and again in
+         NextcloudService.normalizeServer. -->
     <application
         android:name=".KaChatApplication"
         android:allowBackup="false"

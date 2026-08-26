@@ -88,12 +88,33 @@ fun LinkPreviewCard(
     /** Double-tapping the preview opens the owning message's quick-reaction menu (reactions +
      *  reply), exactly like double-tapping a normal message bubble. Null disables it. Single tap
      *  still opens the link. Mirrors iOS's `LinkPreviewCardView.onDoubleTap`. */
-    onDoubleTap: (() -> Unit)? = null
+    onDoubleTap: (() -> Unit)? = null,
+    /** Privacy gate (2026-08 audit, decision 5A, matching iOS): rendering a preview fetches the
+     *  stranger-controlled URL from THIS device, revealing the reader's IP and that the message
+     *  was seen. True (the default) fetches on render — for accepted/handshaken 1:1 contacts,
+     *  group messages, and the user's own sent messages. False renders a "Tap to load preview"
+     *  placeholder instead and only fetches after an explicit tap — for non-accepted 1:1
+     *  senders and ALL broadcast messages (broadcast senders are always strangers). */
+    autoFetch: Boolean = true
 ) {
+    var fetchApproved by remember(url, autoFetch) { mutableStateOf(autoFetch) }
     var preview by remember(url) { mutableStateOf<LinkPreviewData?>(null) }
     var hasFinishedLoading by remember(url) { mutableStateOf(false) }
 
-    LaunchedEffect(url) {
+    if (!fetchApproved) {
+        TapToLoadPreviewBubble(
+            text = fallbackText ?: url,
+            url = url,
+            txId = txId,
+            kaspaExplorer = kaspaExplorer,
+            onLoad = { fetchApproved = true },
+            onSelect = onSelect,
+            onDoubleTap = onDoubleTap
+        )
+        return
+    }
+
+    LaunchedEffect(url, fetchApproved) {
         hasFinishedLoading = false
         preview = LinkPreviewService.fetchPreview(url)
         hasFinishedLoading = true
@@ -113,6 +134,90 @@ fun LinkPreviewCard(
         }
     } else if (hasFinishedLoading && fallbackText != null) {
         LinkPreviewFallbackBubble(text = fallbackText, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+    }
+}
+
+/**
+ * Placeholder shown instead of an auto-fetched preview when [LinkPreviewCard]'s `autoFetch` gate
+ * is off (non-accepted 1:1 senders, all broadcast messages): the raw message/link text in a plain
+ * bubble with a "Tap to load preview" caption. Tapping fetches and swaps in the real preview;
+ * until then no request of any kind leaves the device for this URL. Long-press menu matches
+ * [LinkPreviewFallbackBubble]'s exactly.
+ */
+@Composable
+private fun TapToLoadPreviewBubble(
+    text: String,
+    url: String,
+    txId: String,
+    kaspaExplorer: KaspaExplorer,
+    onLoad: () -> Unit,
+    onSelect: (() -> Unit)? = null,
+    onDoubleTap: (() -> Unit)? = null
+) {
+    val uriHandler = LocalUriHandler.current
+    val clipboardManager = LocalClipboardManager.current
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+
+    Column(
+        modifier = Modifier
+            .widthIn(max = 280.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .onGloballyPositioned { coords ->
+                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+            }
+            .pointerInput(url) {
+                detectTapGestures(
+                    onLongPress = { showMenu = true },
+                    onDoubleTap = { onDoubleTap?.invoke() },
+                    onTap = { onLoad() }
+                )
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text,
+            color = LocalAppColors.current.textPrimary,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Public,
+                contentDescription = null,
+                tint = LocalAppColors.current.textSecondary,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "Tap to load preview",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                clipboardManager.setText(AnnotatedString(url))
+                showMenu = false
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+                uriHandler.openUri(kaspaExplorer.txUrl(txId))
+                showMenu = false
+            }
+            if (onSelect != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                    onSelect()
+                    showMenu = false
+                }
+            }
+        }
     }
 }
 

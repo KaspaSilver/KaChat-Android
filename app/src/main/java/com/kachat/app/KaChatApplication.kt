@@ -126,8 +126,13 @@ class KaChatApplication : Application(), Configuration.Provider {
         // process alive while backgrounded: FCM push (see PushRegistrationManager) is the only
         // delivery path for 1:1 DMs, broadcasts, and KaPosts once the app leaves the foreground,
         // so a push-delivery problem surfaces as missing notifications instead of being silently
-        // masked by a background poller. The in-process pollers (ChatRepository's loop, the
-        // broadcast/group scanners) simply freeze with the process and resume on foreground.
+        // masked by a background poller. The in-process pollers normally just freeze with the
+        // process and resume on foreground; on battery-exempted devices where the process stays
+        // alive, ChatRepository's 2s loop and NodePoolManager's probe loop additionally pause
+        // themselves while backgrounded with push active (see their gates) so an exempted
+        // process doesn't poll forever. The broadcast/group block-stream scanners are left
+        // ungated: they are gRPC subscription streams (server pushes blocks), far cheaper than
+        // polling, and groups have no push at all so the scanner is their only live path.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 // Backgrounded: remote push takes over as the notification source for the

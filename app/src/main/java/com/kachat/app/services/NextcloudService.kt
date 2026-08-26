@@ -158,11 +158,14 @@ class NextcloudService @Inject constructor(
 
         /** Normalizes user input ("mycloud.duckdns.org", trailing slashes, an accidental
          *  "/index.php" suffix) into a clean base URL, defaulting to https. Null if it doesn't
-         *  parse as a URL at all. */
+         *  parse as a URL at all, or if it explicitly asks for http:// — credentials and chat
+         *  history must never travel unencrypted, so plaintext HTTP is rejected outright (the
+         *  settings form shows the same rule inline before this is ever reached). */
         fun normalizeServer(input: String): String? {
             var raw = input.trim()
             if (raw.isEmpty()) return null
-            if (!raw.lowercase().startsWith("http://") && !raw.lowercase().startsWith("https://")) {
+            if (raw.lowercase().startsWith("http://")) return null
+            if (!raw.lowercase().startsWith("https://")) {
                 raw = "https://$raw"
             }
             raw = raw.trimEnd('/')

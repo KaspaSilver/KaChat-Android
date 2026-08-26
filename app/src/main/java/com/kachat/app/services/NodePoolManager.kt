@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -49,7 +50,14 @@ import javax.inject.Singleton
 @Singleton
 class NodePoolManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val settings: AppSettingsRepository
+    private val settings: AppSettingsRepository,
+    // For the probe-loop background gate only (same rule as ChatRepository's 2s sync loop):
+    // while the app is backgrounded AND native FCM push is active, probing pauses instead of
+    // dialing nodes every 5-30s for the whole life of a battery-exempted background process.
+    // Both are dependency-cycle-safe here: NotificationHelper needs only Context + settings,
+    // and PushState is deliberately dependency-free.
+    private val notificationHelper: NotificationHelper,
+    private val pushState: PushState
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val registry = NodeRegistry()
@@ -344,6 +352,20 @@ class NodePoolManager @Inject constructor(
         probeJob?.cancel()
         probeJob = scope.launch {
             while (true) {
+                // Background gate, mirroring ChatRepository's poll-loop gate: while the app is
+                // BACKGROUNDED and native FCM push is active, stop dialing nodes entirely
+                // (suspend on the combined flow — no keepalive traffic at all) and resume
+                // instantly on foreground or the moment push stops being reliable. On resume a
+                // probe cycle runs immediately, and the on-foreground
+                // reconnectStaleConnections() call in KaChatApplication independently revives
+                // any connections the OS quietly killed during the pause. Without FCM
+                // (pushActive can never turn true) this gate never engages, so the loop
+                // behaves exactly as before.
+                if (!notificationHelper.isAppInForeground && pushState.isActive) {
+                    combine(notificationHelper.appForegroundFlow, pushState.pushActive) { foreground, pushActive ->
+                        foreground || !pushActive
+                    }.first { it }
+                }
                 val anyReachable = probeCycle()
                 if (anyReachable) consecutiveDeadCycles = 0 else consecutiveDeadCycles++
                 val delayMillis = if (trustedNodeAddress.value != null) {

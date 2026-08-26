@@ -34,6 +34,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -55,12 +56,12 @@ class ChatRepository @Inject constructor(
     private val walletManager: WalletManager,
     private val settingsRepository: AppSettingsRepository,
     private val notificationHelper: NotificationHelper,
-    // Consulted ONLY at the notification-posting sites below: while native FCM push is active
-    // AND the app is backgrounded, the server is the notification source for 1:1 handshakes/
-    // messages/payments (PUSH_EXTENSIONS.md §4). While the app is foregrounded the local poll
-    // posts its own banners (only the open thread is suppressed, inside NotificationHelper) —
-    // txId dedupe there collapses a racing push for the same message. The sync work itself is
-    // never gated on it — it still powers the live UI and the local store.
+    // Consulted at the notification-posting sites below AND by the poll-loop gate in init:
+    // while native FCM push is active AND the app is backgrounded, the server is the
+    // notification source for 1:1 handshakes/messages/payments (PUSH_EXTENSIONS.md §4) and the
+    // 2s sync loop pauses entirely (see the gate in init). While the app is foregrounded the
+    // local poll posts its own banners (only the open thread is suppressed, inside
+    // NotificationHelper) — txId dedupe there collapses a racing push for the same message.
     private val pushState: PushState,
     // Lazy because GoogleDriveSyncService depends (via the export service) on ChatRepository —
     // a direct circular constructor dependency Dagger can't resolve. Lazy<T> defers
@@ -82,9 +83,17 @@ class ChatRepository @Inject constructor(
         // already no-ops safely if there's no active wallet yet. Each cycle is just a
         // couple of lightweight indexer GETs, so this can run much faster than a typical
         // polling interval — Kaspa's block time is far faster than 15s ever reflected.
-        // Once the app leaves the foreground this loop simply freezes with the process
-        // (nothing keeps it alive anymore, by design) — FCM push is the only background
-        // delivery path for DMs, so push failures surface instead of being masked.
+        //
+        // Backgrounded, this loop normally freezes with the process (nothing keeps it alive,
+        // by design) — but on battery-exempted devices the process can live on for hours, and
+        // an un-gated loop would keep polling every 2s the whole time. So the gate below
+        // pauses it while the app is BACKGROUNDED and native FCM push is active: the push
+        // service is the delivery/notification path then, and the message store catches up
+        // via the immediate sync the moment the gate reopens (foreground, or push turning
+        // unreliable/unregistered — PushRegistrationManager flips PushState.pushActive false
+        // on any registration failure, so the loop resumes as the only delivery path exactly
+        // as before). Without FCM (no google-services.json) pushActive can never turn true
+        // and this gate never engages — behavior is identical to today's.
         scope.launch {
             try {
                 pruneOldMessages() // once on startup, matching iOS's on-launch retention prune
@@ -92,6 +101,14 @@ class ChatRepository @Inject constructor(
                 Log.w("ChatRepository", "Startup prune failed", e)
             }
             while (true) {
+                // Pause while backgrounded with healthy push; resume instantly (suspend on the
+                // combined flow, no polling) on foreground or push loss, then sync immediately
+                // so the reopened app's chat list is current without waiting a cycle.
+                if (!notificationHelper.isAppInForeground && pushState.isActive) {
+                    combine(notificationHelper.appForegroundFlow, pushState.pushActive) { foreground, pushActive ->
+                        foreground || !pushActive
+                    }.first { it }
+                }
                 // Guarded: this loop is the ONLY live 1:1 receive path while the app is open,
                 // and it runs for the whole process lifetime. syncMessages() catches its own
                 // network errors, but one uncaught throw anywhere in it (a DataStore read, a

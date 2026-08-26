@@ -56,6 +56,19 @@ Optional pieces, both gitignored and absent by default:
 - `keystore.properties` + your release keystore — only needed for signed release builds; debug
   builds work without them.
 
+## Security notes
+
+- Your message history is stored in the app's private storage, which no other app can read and
+  which is protected at rest by Android's file-based encryption. Android's system backup is
+  disabled for the app (`allowBackup="false"`), so chat history and keys are never copied into
+  device backups.
+- Optional cloud backups (Google Drive or Nextcloud) are end-to-end encrypted with a key derived
+  from your wallet before they leave the device. The cloud provider only ever stores ciphertext.
+- Group chat keys are kept in encrypted preferences whose master key lives in the Android
+  Keystore, hardware-backed on devices that support it.
+- Seed phrase and private key screens block screenshots and screen recording while they are
+  visible.
+
 ## Support
 
 Questions or issues: [kaspasilver@gmail.com](mailto:kaspasilver@gmail.com)

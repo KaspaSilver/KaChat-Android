@@ -1149,12 +1149,17 @@ fun BroadcastChannelScreen(
                                     // audio/files) replaces the plain-text bubble entirely,
                                     // exactly like 1:1/group bubbles. `fallbackText` keeps the
                                     // raw link visible/tappable if no preview data is found.
+                                    // autoFetch = false for ALL broadcast messages (even own):
+                                    // channel posters are strangers by definition, and fetching
+                                    // their URL on render would leak every reader's IP to it.
+                                    // Tap-to-load instead (2026-08 audit, decision 5A).
                                     LinkPreviewCard(
                                         url = TextLinkify.findUrls(displayContent).first().uri,
                                         txId = message.id,
                                         kaspaExplorer = kaspaExplorer,
                                         fallbackText = displayContent,
-                                        onDoubleTap = { showQuickReactionBar = true }
+                                        onDoubleTap = { showQuickReactionBar = true },
+                                        autoFetch = false
                                     )
                                 } else {
                                     var textLayoutResult by remember(displayContent) { mutableStateOf<TextLayoutResult?>(null) }
@@ -1294,7 +1299,9 @@ fun BroadcastChannelScreen(
                             // shared preview card below it, as its own sibling — same placement
                             // (and same reasoning) as 1:1's MessageBubble/group's GroupMessageBubble.
                             separateLinkPreviewUrl?.let { url ->
-                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true })
+                                // Tap-to-load for all broadcast previews - see the entire-link
+                                // branch above for why.
+                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true }, autoFetch = false)
                             }
 
                             if (showQuickReactionBar) {

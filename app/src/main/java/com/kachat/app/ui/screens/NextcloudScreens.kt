@@ -736,14 +736,27 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     focusedLabelColor = KaspaTeal,
                     unfocusedLabelColor = LocalAppColors.current.textSecondary
                 )
+                // Explicit http:// is rejected up front (bare hostnames still default to https
+                // inside NextcloudService.normalizeServer, which also refuses http:// as a
+                // backstop) — an app password and full chat history travel over this connection.
+                val serverIsPlainHttp = server.trim().lowercase().startsWith("http://")
                 OutlinedTextField(
                     value = server,
                     onValueChange = { server = it },
                     label = { Text("Server (e.g. cloud.example.com)") },
                     singleLine = true,
+                    isError = serverIsPlainHttp,
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (serverIsPlainHttp) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Use https. Unencrypted connections are not supported.",
+                        color = Color(0xFFFF3B30),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = username,
@@ -766,7 +779,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = { chatViewModel.connectNextcloud(server, username, appPassword) },
-                    enabled = !connecting && server.isNotBlank() && username.isNotBlank() && appPassword.isNotBlank(),
+                    enabled = !connecting && !serverIsPlainHttp && server.isNotBlank() && username.isNotBlank() && appPassword.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
                     modifier = Modifier.fillMaxWidth()
                 ) {
