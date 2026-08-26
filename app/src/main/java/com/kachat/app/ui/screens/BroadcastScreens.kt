@@ -166,13 +166,27 @@ fun BroadcastListScreen(
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
                 item(key = "header:popular") {
-                    Text(
-                        "Popular",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
+                    // The retention note lives here since the in-room banner was removed to
+                    // keep the chat itself clean (matches iOS).
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Popular",
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            stringResource(R.string.broadcast_popular_retention_note),
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                    }
                 }
                 items(FeaturedBroadcastChannels.NAMES, key = { "popular:$it" }) { name ->
                     // Curated rooms are permanent (no Leave) with fixed 3-day retention (no
@@ -680,7 +694,6 @@ fun BroadcastChannelScreen(
             broadcastViewModel.stopIndexerBackfill()
         }
     }
-    val isFeaturedRoom = channelName in com.kachat.app.models.FeaturedBroadcastChannels.NAMES
     val roomDotColorHex by androidx.hilt.navigation.compose.hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
     var showRoomHiddenUsers by remember { mutableStateOf(false) }
     val roomHiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
@@ -876,20 +889,8 @@ fun BroadcastChannelScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-        // Featured rooms: permanent notice - these two rooms are indexed server-side and their
-        // history is served to everyone, so the privacy story must stay visible (matches iOS).
-        if (isFeaturedRoom) {
-            Text(
-                stringResource(R.string.broadcast_featured_room_banner),
-                color = LocalAppColors.current.textSecondary,
-                fontSize = 12.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(LocalAppColors.current.surface)
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-        }
+        // The in-room retention banner was removed to keep the chat clean; the retention note
+        // now lives next to the "Popular" header on the broadcast list (matches iOS).
         Box(
             modifier = Modifier
                 .fillMaxSize()

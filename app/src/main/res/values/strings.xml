@@ -114,7 +114,7 @@
     <string name="share_pick_chat">Choose a chat to share to</string>
     <string name="kaposts">KaPosts</string>
     <string name="kapost_indexer">KaPost Indexer</string>
-    <string name="broadcast_featured_room_banner">All messages are public and are stored for 30 days only.</string>
+    <string name="broadcast_popular_retention_note">All messages persist for 30 days</string>
     <string name="hidden_in_all_rooms">All rooms</string>
     <string name="apps">Apps</string>
     <string name="help">Help</string>
