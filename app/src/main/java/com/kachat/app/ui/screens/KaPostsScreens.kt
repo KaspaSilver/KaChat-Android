@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -743,6 +744,7 @@ fun KaPostsScreen(
             title = "Quote Post",
             quoted = target,
             quotedDisplayName = viewModel.posterDisplayName(target.posterAddress),
+            quotedAvatarUrl = viewModel.senderProfiles.value[target.posterAddress],
             onDismiss = { quoteTarget = null },
             onSubmit = { text ->
                 quoteTarget = null
@@ -902,13 +904,17 @@ private fun KaPostsSideMenu(
     onBlocked: () -> Unit,
 ) {
     val colors = LocalAppColors.current
+    // iOS parity: a compact rounded card that hugs its options (no full-height drawer, no
+    // empty void below the rows), top-left with a small inset, sliding in from the leading edge.
     Column(
         modifier = Modifier
-            .fillMaxHeight()
-            .width(260.dp)
-            .background(colors.surface)
             .statusBarsPadding()
-            .padding(vertical = 16.dp),
+            .padding(start = 10.dp, top = 12.dp)
+            .width(IntrinsicSize.Max)
+            .clip(RoundedCornerShape(24.dp))
+            .background(colors.surface)
+            .border(1.dp, colors.surfaceVariant, RoundedCornerShape(24.dp))
+            .padding(vertical = 8.dp),
     ) {
         SideMenuRow(Icons.Outlined.Person, "Profile", onProfile)
         SideMenuRow(Icons.Default.NotificationsNone, "Notifications", onNotifications)
@@ -1210,6 +1216,7 @@ fun KaPostCell(
                         QuotedEmbedCard(
                             quoted = quoted,
                             displayName = viewModel.posterDisplayName(quoted.posterAddress),
+                            avatarUrl = senderProfiles[quoted.posterAddress],
                         )
                     }
                 }
@@ -1257,7 +1264,7 @@ fun KaPostCell(
 }
 
 @Composable
-private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String) {
+private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String, avatarUrl: String? = null) {
     val colors = LocalAppColors.current
     Column(
         modifier = Modifier
@@ -1266,18 +1273,38 @@ private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String) 
             .border(1.dp, colors.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(10.dp),
     ) {
-        Text(
-            text = displayName,
-            color = colors.textPrimary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
-        )
+        // iOS parity: 20dp avatar + name + timestamp header row, matching quotedEmbedCard.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ContactAvatar(
+                imageUrl = avatarUrl,
+                fallbackText = displayName,
+                size = 20.dp,
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = displayName,
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            quoted.timestamp?.let { ts ->
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = remember(ts) { relativePostTime(ts) },
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = quoted.text.ifBlank { "Reposted" },
-            color = colors.textSecondary,
+            color = colors.textPrimary,
             fontSize = 13.sp,
-            maxLines = 4,
+            maxLines = 5,
             overflow = TextOverflow.Ellipsis,
         )
     }
@@ -1499,6 +1526,7 @@ fun KaPostComposerDialog(
     title: String,
     quoted: KaPostDraft?,
     quotedDisplayName: String = "",
+    quotedAvatarUrl: String? = null,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
     /** Enables @mention autocomplete (chips of 1:1 KNS-domain contacts) when provided. */
@@ -1750,6 +1778,7 @@ fun KaPostComposerDialog(
                             timestamp = it.timestamp,
                         ),
                         displayName = quotedDisplayName,
+                        avatarUrl = quotedAvatarUrl,
                     )
                 }
             }
