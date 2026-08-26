@@ -95,6 +95,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -143,7 +144,10 @@ import com.kachat.app.viewmodels.KaPostsViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -311,11 +315,44 @@ private fun LazyListScope.pagingFooter(
     }
 }
 
-/** The live paging state for one surface, as Compose state. */
+// MARK: - Per-key state selection
+//
+// The KaPosts view model keeps per-address / per-post data in whole-map StateFlows. Collecting
+// one of those maps INSIDE a list cell subscribes every visible cell to every entry: one avatar
+// or probe result arriving re-ran the whole viewport - and profile fetches fire per row as it
+// scrolls in, so the invalidation landed exactly mid-scroll (the primary feed jank cause; the
+// iOS twin had the identical bug). These helpers subscribe a composable to ONE derived slice,
+// so a cell recomposes only when ITS value actually changes.
+
+/** Compose state for one derived [selector] slice of [this]. [keys] must cover the selector's captures. */
+@Composable
+private fun <T, R> StateFlow<T>.collectSelectedAsState(vararg keys: Any?, selector: (T) -> R): State<R> {
+    val sliced = remember(this, *keys) { map(selector).distinctUntilChanged() }
+    return sliced.collectAsState(initial = selector(value))
+}
+
+/**
+ * The poster display chain (contact alias > KNS domain > shortened address) as LIVE per-address
+ * state: recomposes its reader when THIS address's alias or KNS name lands, and only then.
+ * Mirrors [KaPostsViewModel.posterDisplayName], which stays the one-shot non-reactive variant.
+ */
+@Composable
+private fun posterDisplayNameState(viewModel: KaPostsViewModel, address: String): String {
+    val alias by viewModel.contactAliases.collectSelectedAsState(address) { it[address] }
+    val kns by viewModel.senderKnsNames.collectSelectedAsState(address) { it[address] }
+    return remember(alias, kns, address) {
+        alias?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
+            ?: kns?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
+            ?: if (address.isEmpty()) "Unknown" else address.takeLast(10)
+    }
+}
+
+/** The live paging state for one surface, as Compose state - sliced per key, so a page load on
+ *  one surface no longer recomposes every other open surface (feed tabs, thread, profile tabs). */
 @Composable
 private fun pagingStateOf(viewModel: KaPostsViewModel, key: String): KaPostsViewModel.PagingState {
-    val all by viewModel.paging.collectAsState()
-    return all[key] ?: KaPostsViewModel.PagingState()
+    val state by viewModel.paging.collectSelectedAsState(key) { it[key] ?: KaPostsViewModel.PagingState() }
+    return state
 }
 
 // MARK: - Main screen
@@ -348,13 +385,9 @@ fun KaPostsScreen(
     val visibleFollowingPosts by viewModel.visibleFollowingPosts.collectAsState()
     val isLoading by viewModel.isLoadingFeed.collectAsState()
     val feedError by viewModel.feedError.collectAsState()
-    val undoToast by viewModel.undoToast.collectAsState()
-    val actionToast by viewModel.actionToast.collectAsState()
-    val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
-    val uriHandler = LocalUriHandler.current
-    // Live node-health color for the header's connection dot, same source as the chat-thread
-    // and broadcast-room headers.
-    val dotColorHex by hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
+    // Toasts and the connection dot deliberately collect inside their own composables
+    // (KaPostsToastLayer / ConnectionDotButton): every toast tick and node-health color change
+    // used to recompose this ENTIRE screen body, feed pager included, mid-scroll.
 
     var showSideMenu by remember { mutableStateOf(false) }
     var showComposer by remember { mutableStateOf(false) }
@@ -404,7 +437,9 @@ fun KaPostsScreen(
     val followingListState = rememberLazyListState()
     val feedListState = rememberLazyListState()
     val popularListState = rememberLazyListState()
-    val feedListStates = listOf(followingListState, feedListState, popularListState)
+    val feedListStates = remember(followingListState, feedListState, popularListState) {
+        listOf(followingListState, feedListState, popularListState)
+    }
     // Two-way sync. Each direction no-ops once the other has caught up, so they can't ping-pong:
     // a swipe selects the tab (which then finds the pager already there), a tab tap animates the
     // pager across (which then re-selects the tab it is already on). settledPage rather than
@@ -543,16 +578,10 @@ fun KaPostsScreen(
                 ) {
                     // Same clickable dot as the chat-thread and broadcast-room headers: 32dp
                     // surface circle, 10dp live-status dot, opens the connection status page.
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .size(32.dp)
-                            .background(colors.surface, CircleShape)
-                            .clickable { navController.navigate("connection_status") },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(modifier = Modifier.size(10.dp).background(Color(dotColorHex), CircleShape))
-                    }
+                    ConnectionDotButton(
+                        onClick = { navController.navigate("connection_status") },
+                        modifier = Modifier.align(Alignment.CenterStart),
+                    )
                     BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))
                 }
                 Text(
@@ -588,7 +617,11 @@ fun KaPostsScreen(
                     key = { KaPostsFeedTabs[it] },
                 ) { page ->
                     val tab = KaPostsFeedTabs[page]
-                    val pageFeed = remember(tab, visiblePosts, visibleFollowingPosts) {
+                    // Keyed on ONLY the stream this tab renders: Popular's re-sort no longer
+                    // re-runs when just the Following stream ticks, and vice versa.
+                    val tabSource =
+                        if (tab == KaPostsViewModel.FeedTab.FOLLOWING) visibleFollowingPosts else visiblePosts
+                    val pageFeed = remember(tab, tabSource) {
                         viewModel.feedFor(tab, visiblePosts, visibleFollowingPosts)
                     }
                     val feedPaging = pagingStateOf(
@@ -660,12 +693,6 @@ fun KaPostsScreen(
                         EndlessScroll(listState = feedListStates[page], key = tab) {
                             viewModel.loadMoreFeed(tab)
                         }
-                        // Collected ONCE per tab, not per visible row: these were previously
-                        // collected inside each LazyColumn item, so every thread-root probe
-                        // result recomposed every visible row — scroll stutter that got worse
-                        // the faster you flicked.
-                        val threadRootFlags by viewModel.threadRootFlags.collectAsState()
-                        val localThreadRoots by viewModel.localThreadRoots.collectAsState()
                         LazyColumn(
                             // Hoisted per tab so each feed keeps its own scroll position when you
                             // swipe away and back (the pager disposes off-screen pages).
@@ -692,9 +719,18 @@ fun KaPostsScreen(
                                 )
                                 // X-style "View thread" under a thread root - opens the detail,
                                 // where the full continuation renders as a connected section.
-                                if (post.id in localThreadRoots ||
-                                    (post.remoteId != null && threadRootFlags[post.remoteId] == true)
-                                ) {
+                                // Sliced per row (see collectSelectedAsState): a probe result
+                                // arriving for ONE post recomposes that row alone, not every
+                                // visible row - the previous per-tab collection still put the
+                                // whole maps into every item lambda's captures, so each probe
+                                // hit re-ran the whole viewport mid-scroll.
+                                val isThreadRoot by remember(post.id, post.remoteId) {
+                                    combine(viewModel.localThreadRoots, viewModel.threadRootFlags) { locals, flags ->
+                                        post.id in locals ||
+                                            (post.remoteId != null && flags[post.remoteId] == true)
+                                    }.distinctUntilChanged()
+                                }.collectAsState(initial = viewModel.isThreadRoot(post))
+                                if (isThreadRoot) {
                                     Text(
                                         "⤷ View thread",
                                         color = KaspaTeal,
@@ -769,11 +805,8 @@ fun KaPostsScreen(
                 }
             }
 
-            KaPostsToastOverlay(
-                undoToast = undoToast,
-                actionToast = actionToast,
-                onUndo = { viewModel.undoPendingPost() },
-                onViewTx = { uriHandler.openUri(kaspaExplorer.txUrl(it)) },
+            KaPostsToastLayer(
+                viewModel = viewModel,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             )
         }
@@ -1006,6 +1039,26 @@ private fun SideMenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * The header's clickable connection dot (same look as the chat-thread and broadcast-room
+ * headers), collecting the live node-health color INSIDE its own restart scope: color ticks
+ * repaint this 32dp circle only, instead of recomposing the whole KaPosts screen body.
+ */
+@Composable
+private fun ConnectionDotButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    val dotColorHex by hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
+    Box(
+        modifier = modifier
+            .size(32.dp)
+            .background(colors.surface, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(modifier = Modifier.size(10.dp).background(Color(dotColorHex), CircleShape))
+    }
+}
+
 @Composable
 private fun FeedTabsRow(
     selected: KaPostsViewModel.FeedTab,
@@ -1089,20 +1142,22 @@ fun KaPostCell(
 ) {
     val colors = LocalAppColors.current
     val context = LocalContext.current
-    val senderProfiles by viewModel.senderProfiles.collectAsState()
-    val senderKnsNames by viewModel.senderKnsNames.collectAsState()
-    val contactAliases by viewModel.contactAliases.collectAsState()
-    val following by viewModel.following.collectAsState()
-    val deadlines by viewModel.undoDeadlines.collectAsState()
+    // Per-address / per-post SLICES of the view model's whole-map stores (see
+    // collectSelectedAsState): this cell recomposes only when ITS avatar, name, follow state
+    // or countdowns change. Collecting the whole maps here subscribed every visible cell to
+    // every entry, so each author profile arriving mid-scroll re-ran the entire viewport.
+    val avatarUrl by viewModel.senderProfiles.collectSelectedAsState(post.posterAddress) { it[post.posterAddress] }
+    val name = posterDisplayNameState(viewModel, post.posterAddress)
+    val isFollowingPoster by viewModel.following.collectSelectedAsState(post.posterAddress) { post.posterAddress in it }
+    val cellDeadlines by viewModel.undoDeadlines.collectSelectedAsState(post.id) {
+        Triple(it["repost:${post.id}"], it["like:${post.id}"], it["dislike:${post.id}"])
+    }
     var showOverflow by remember { mutableStateOf(false) }
     // Tapped link awaiting the Copy/Open choice (iOS parity: links never auto-open).
     var tappedLinkUrl by remember { mutableStateOf<String?>(null) }
     val uriHandler = LocalUriHandler.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
-    val name = contactAliases[post.posterAddress]?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
-        ?: senderKnsNames[post.posterAddress]?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
-        ?: post.posterAddress.takeLast(10)
     val isMine = post.posterAddress == viewModel.myAddress()
     // Long enough that the feed should fold it (X-style ~280-char threshold, or a wall of
     // newlines) - same numbers as iOS's KaPostCellView.isLongPost.
@@ -1118,7 +1173,7 @@ fun KaPostCell(
         Row(verticalAlignment = Alignment.Top) {
             Box(modifier = Modifier.clickable { onOpenProfile() }) {
                 ContactAvatar(
-                    imageUrl = senderProfiles[post.posterAddress],
+                    imageUrl = avatarUrl,
                     fallbackText = name,
                     size = 42.dp,
                 )
@@ -1146,7 +1201,7 @@ fun KaPostCell(
                     )
                     if (!isMine) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        val isFollowing = post.posterAddress in following
+                        val isFollowing = isFollowingPoster
                         Text(
                             text = if (isFollowing) "Following" else "Follow",
                             color = if (isFollowing) colors.textSecondary else KaspaTeal,
@@ -1275,6 +1330,10 @@ fun KaPostCell(
                 }
                 post.quoted?.let { quoted ->
                     Spacer(modifier = Modifier.height(8.dp))
+                    // Same per-address slices for the quoted author as for the cell's own.
+                    val quotedAvatarUrl by viewModel.senderProfiles
+                        .collectSelectedAsState(quoted.posterAddress) { it[quoted.posterAddress] }
+                    val quotedName = posterDisplayNameState(viewModel, quoted.posterAddress)
                     Box(
                         modifier = Modifier.clickable(enabled = quoted.remoteId != null) {
                             quoted.remoteId?.let(onOpenQuoted)
@@ -1282,8 +1341,8 @@ fun KaPostCell(
                     ) {
                         QuotedEmbedCard(
                             quoted = quoted,
-                            displayName = viewModel.posterDisplayName(quoted.posterAddress),
-                            avatarUrl = senderProfiles[quoted.posterAddress],
+                            displayName = quotedName,
+                            avatarUrl = quotedAvatarUrl,
                         )
                     }
                 }
@@ -1312,7 +1371,9 @@ fun KaPostCell(
                 EngagementRow(
                     post = post,
                     commentCount = viewModel.commentCount(post),
-                    deadlines = deadlines,
+                    repostDeadline = cellDeadlines.first,
+                    likeDeadline = cellDeadlines.second,
+                    dislikeDeadline = cellDeadlines.third,
                     onComment = onReply ?: onOpenThread,
                     onRepost = onRepostTap,
                     onLike = { viewModel.toggleLike(post) },
@@ -1383,7 +1444,12 @@ private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String, 
 private fun EngagementRow(
     post: KaPostDraft,
     commentCount: Int,
-    deadlines: Map<String, Long>,
+    // THIS post's live undo deadlines only (nullable = no countdown running). Passing the whole
+    // undoDeadlines map made every cell's row recompose whenever any post anywhere started or
+    // finished a countdown; primitives keep strong skipping effective.
+    repostDeadline: Long?,
+    likeDeadline: Long?,
+    dislikeDeadline: Long?,
     onComment: () -> Unit,
     onRepost: () -> Unit,
     onLike: () -> Unit,
@@ -1403,7 +1469,7 @@ private fun EngagementRow(
     ) {
         EngagementAction(
             countdownKey = null,
-            deadlines = deadlines,
+            deadline = null,
             icon = { Icon(Icons.Outlined.ChatBubbleOutline, null, tint = colors.textSecondary, modifier = Modifier.size(18.dp)) },
             count = commentCount,
             onTap = onComment,
@@ -1414,7 +1480,7 @@ private fun EngagementRow(
             var repostMenuOpen by remember { mutableStateOf(false) }
             EngagementAction(
                 countdownKey = "repost:${post.id}",
-                deadlines = deadlines,
+                deadline = repostDeadline,
                 icon = {
                     Icon(
                         Icons.Default.Repeat, null,
@@ -1459,7 +1525,7 @@ private fun EngagementRow(
         Spacer(modifier = Modifier.weight(1f))
         EngagementAction(
             countdownKey = "like:${post.id}",
-            deadlines = deadlines,
+            deadline = likeDeadline,
             icon = {
                 Icon(
                     if (post.likedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null,
@@ -1474,7 +1540,7 @@ private fun EngagementRow(
         Spacer(modifier = Modifier.weight(1f))
         EngagementAction(
             countdownKey = "dislike:${post.id}",
-            deadlines = deadlines,
+            deadline = dislikeDeadline,
             icon = {
                 Icon(
                     if (post.dislikedByMe) Icons.Outlined.ThumbDown else Icons.Outlined.ThumbDownOffAlt, null,
@@ -1489,7 +1555,7 @@ private fun EngagementRow(
         Spacer(modifier = Modifier.weight(1f))
         EngagementAction(
             countdownKey = null,
-            deadlines = deadlines,
+            deadline = null,
             icon = {
                 Icon(
                     if (post.bookmarkedByMe) Icons.Default.Bookmark else Icons.Default.BookmarkBorder, null,
@@ -1526,14 +1592,13 @@ private fun EngagementRow(
 @Composable
 private fun EngagementAction(
     countdownKey: String?,
-    deadlines: Map<String, Long>,
+    deadline: Long?,
     icon: @Composable () -> Unit,
     count: Int?,
     onTap: () -> Unit,
     onCancel: (String) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    val deadline = countdownKey?.let { deadlines[it] }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -1965,8 +2030,8 @@ fun KaPostThreadOverlay(
     val hidden = remember(muted, blocked) { muted + blocked }
     // The author's own continuation renders as a connected Thread section under the root;
     // its segments are excluded from the comment list (segment 2 IS a direct reply).
-    val threadChains by viewModel.threadChains.collectAsState()
-    val threadChain = threadChains[post.id].orEmpty()
+    // Sliced per post: another thread's chain landing no longer recomposes this overlay.
+    val threadChain by viewModel.threadChains.collectSelectedAsState(post.id) { it[post.id].orEmpty() }
     val chainRemoteIds = remember(threadChain) { threadChain.mapNotNull { it.remoteId }.toSet() }
     val visibleComments = remember(post, hidden, chainRemoteIds) {
         post.comments.filter {
@@ -2181,8 +2246,8 @@ fun KaPostThreadOverlay(
         // here, a like/repost/reply made from an open thread showed no undo toast and no
         // network confirmation, which read as the buttons doing nothing at all for the whole
         // 5-second undo window (and made Undo unreachable). Its flows are collected inside
-        // ThreadToastLayer's own restart scope so toast emissions never recompose the overlay.
-        ThreadToastLayer(
+        // KaPostsToastLayer's own restart scope so toast emissions never recompose the overlay.
+        KaPostsToastLayer(
             viewModel = viewModel,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
         )
@@ -2200,9 +2265,10 @@ fun KaPostThreadOverlay(
 
 
 
-/** Thread-overlay copy of the undo/confirmation toast stack, in its own restart scope. */
+/** The undo/confirmation toast stack in its OWN restart scope (used by the main screen and the
+ *  thread overlay): toast emissions recompose this layer only, never the screen or list behind. */
 @Composable
-private fun ThreadToastLayer(viewModel: KaPostsViewModel, modifier: Modifier = Modifier) {
+private fun KaPostsToastLayer(viewModel: KaPostsViewModel, modifier: Modifier = Modifier) {
     val undoToast by viewModel.undoToast.collectAsState()
     val actionToast by viewModel.actionToast.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
@@ -2526,9 +2592,13 @@ fun KaPostsProfileOverlay(
     onTip: ((KaPostDraft) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
-    val senderProfiles by viewModel.senderProfiles.collectAsState()
-    val senderBanners by viewModel.senderBanners.collectAsState()
-    val senderBios by viewModel.senderBios.collectAsState()
+    // Per-address slices for THIS profile's chrome (see collectSelectedAsState): the rows
+    // below trigger a KNS fetch per author as they scroll in, and collecting the whole maps
+    // here meant every one of those results recomposed the entire overlay - banner, header
+    // and both pager pages - mid-scroll.
+    val profileAvatarUrl by viewModel.senderProfiles.collectSelectedAsState(address) { it[address] }
+    val profileBannerUrl by viewModel.senderBanners.collectSelectedAsState(address) { it[address] }
+    val profileBio by viewModel.senderBios.collectSelectedAsState(address) { it[address] }
     val following by viewModel.following.collectAsState()
     val posterProfile by viewModel.posterProfile.collectAsState()
     val myFollowersCount by viewModel.myFollowersCount.collectAsState()
@@ -2536,13 +2606,18 @@ fun KaPostsProfileOverlay(
     val myProfileReplies by viewModel.myProfileReplies.collectAsState()
     val posterPosts by viewModel.posterProfilePosts.collectAsState()
     val posterReplies by viewModel.posterProfileReplies.collectAsState()
-    // Recompose against the live lists so engagement changes show immediately.
+    // Recompose against the live lists so engagement changes show immediately - but the
+    // merge-and-sort only re-runs when one of its inputs actually changed, instead of on
+    // every recomposition of the overlay.
     val localPosts by viewModel.localPosts.collectAsState()
-    val myPostsList = if (isMine) viewModel.myCombinedPosts() else posterPosts
+    val myProfilePosts by viewModel.myProfilePosts.collectAsState()
+    val myPostsList = if (isMine) {
+        remember(localPosts, myProfilePosts) { viewModel.myCombinedPosts() }
+    } else posterPosts
     val repliesList = if (isMine) myProfileReplies else posterReplies
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = Posts, 1 = Replies
-    val name = viewModel.posterDisplayName(address)
+    val name = posterDisplayNameState(viewModel, address)
     // Swipeable Posts/Replies tabs - the same two-way pager<->tab-row sync the feed tabs use
     // (see the feedPagerState comments in KaPostsScreen): a swipe selects the tab once the page
     // settles, a tab tap animates the pager across, and each direction no-ops once the other has
@@ -2551,7 +2626,9 @@ fun KaPostsProfileOverlay(
     val profilePagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val postsListState = rememberLazyListState()
     val repliesListState = rememberLazyListState()
-    val profileListStates = listOf(postsListState, repliesListState)
+    val profileListStates = remember(postsListState, repliesListState) {
+        listOf(postsListState, repliesListState)
+    }
     LaunchedEffect(profilePagerState) {
         snapshotFlow { profilePagerState.settledPage }.collect { page ->
             if (page != selectedTab) selectedTab = page
@@ -2583,7 +2660,7 @@ fun KaPostsProfileOverlay(
             // so its banner scrolls away with the posts; here the chrome is static so the pager
             // underneath can own the horizontal swipe.
             Box {
-                val bannerUrl = senderBanners[address]
+                val bannerUrl = profileBannerUrl
                 if (bannerUrl != null) {
                     SubcomposeAsyncImage(
                         model = bannerUrl,
@@ -2620,7 +2697,7 @@ fun KaPostsProfileOverlay(
                         contentAlignment = Alignment.Center,
                     ) {
                         ContactAvatar(
-                            imageUrl = senderProfiles[address],
+                            imageUrl = profileAvatarUrl,
                             fallbackText = name,
                             size = 76.dp,
                         )
@@ -2648,7 +2725,7 @@ fun KaPostsProfileOverlay(
             }
             Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
                 Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
-                senderBios[address]?.let { bio ->
+                profileBio?.let { bio ->
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(bio, color = colors.textSecondary, fontSize = 14.sp)
                 }
@@ -2791,7 +2868,6 @@ fun KaPostsNotificationsOverlay(
     val colors = LocalAppColors.current
     val items by viewModel.notifications.collectAsState()
     val isLoading by viewModel.isLoadingNotifications.collectAsState()
-    val senderProfiles by viewModel.senderProfiles.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val uriHandler = LocalUriHandler.current
 
@@ -2828,6 +2904,10 @@ fun KaPostsNotificationsOverlay(
                     LaunchedEffect(item.actorAddress) {
                         viewModel.ensureSenderProfileFetched(item.actorAddress)
                     }
+                    // Per-actor slices: one avatar/name landing repaints its own row only.
+                    val actorAvatar by viewModel.senderProfiles
+                        .collectSelectedAsState(item.actorAddress) { it[item.actorAddress] }
+                    val actorName = posterDisplayNameState(viewModel, item.actorAddress)
                     Row(
                         verticalAlignment = Alignment.Top,
                         modifier = Modifier
@@ -2838,14 +2918,14 @@ fun KaPostsNotificationsOverlay(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         ContactAvatar(
-                            imageUrl = senderProfiles[item.actorAddress],
-                            fallbackText = viewModel.posterDisplayName(item.actorAddress),
+                            imageUrl = actorAvatar,
+                            fallbackText = actorName,
                             size = 38.dp,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${viewModel.posterDisplayName(item.actorAddress)} ${notificationActionText(item.kind)}",
+                                text = "$actorName ${notificationActionText(item.kind)}",
                                 color = colors.textPrimary,
                                 fontSize = 14.sp,
                                 maxLines = 2,
@@ -2856,7 +2936,11 @@ fun KaPostsNotificationsOverlay(
                                 Text(it, color = colors.textSecondary, fontSize = 13.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                             }
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(relativePostTime(item.timestampMs), color = colors.textSecondary, fontSize = 12.sp)
+                            Text(
+                                remember(item.timestampMs) { relativePostTime(item.timestampMs) },
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                            )
                         }
                         Text(
                             "View",
@@ -3132,7 +3216,6 @@ fun KaPostsFollowListOverlay(
 ) {
     val colors = LocalAppColors.current
     val following by viewModel.following.collectAsState()
-    val senderProfiles by viewModel.senderProfiles.collectAsState()
     val entries by viewModel.followEntries.collectAsState()
     val listState = rememberLazyListState()
     val paging = pagingStateOf(viewModel, KaPostsViewModel.pageFollowList(followers))
@@ -3172,19 +3255,23 @@ fun KaPostsFollowListOverlay(
             LazyColumn(state = listState) {
                 items(list, key = { it.address }) { entry ->
                     LaunchedEffect(entry.address) { viewModel.ensureSenderProfileFetched(entry.address) }
+                    // Per-address slices: one avatar/name landing repaints its own row only.
+                    val entryAvatar by viewModel.senderProfiles
+                        .collectSelectedAsState(entry.address) { it[entry.address] }
+                    val entryName = posterDisplayNameState(viewModel, entry.address)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         ContactAvatar(
-                            imageUrl = senderProfiles[entry.address],
-                            fallbackText = viewModel.posterDisplayName(entry.address),
+                            imageUrl = entryAvatar,
+                            fallbackText = entryName,
                             size = 38.dp,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                viewModel.posterDisplayName(entry.address),
+                                entryName,
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
@@ -3192,7 +3279,11 @@ fun KaPostsFollowListOverlay(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             entry.timestampMs?.let {
-                                Text(relativePostTime(it), color = colors.textSecondary, fontSize = 12.sp)
+                                Text(
+                                    remember(it) { relativePostTime(it) },
+                                    color = colors.textSecondary,
+                                    fontSize = 12.sp,
+                                )
                             }
                         }
                         // No follow control for yourself (you can appear on another user's list).
@@ -3225,7 +3316,6 @@ fun KaPostEngagementOverlay(
     onClose: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    val senderProfiles by viewModel.senderProfiles.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val uriHandler = LocalUriHandler.current
     val lists by viewModel.engagementLists.collectAsState()
@@ -3319,26 +3409,34 @@ fun KaPostEngagementOverlay(
                     LazyColumn(state = listState) {
                         items(rows, key = { it.actionTxId }) { entry ->
                             LaunchedEffect(entry.actorAddress) { viewModel.ensureSenderProfileFetched(entry.actorAddress) }
+                            // Per-actor slices: one avatar/name landing repaints its own row only.
+                            val actorAvatar by viewModel.senderProfiles
+                                .collectSelectedAsState(entry.actorAddress) { it[entry.actorAddress] }
+                            val actorName = posterDisplayNameState(viewModel, entry.actorAddress)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                             ) {
                                 ContactAvatar(
-                                    imageUrl = senderProfiles[entry.actorAddress],
-                                    fallbackText = viewModel.posterDisplayName(entry.actorAddress),
+                                    imageUrl = actorAvatar,
+                                    fallbackText = actorName,
                                     size = 38.dp,
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        viewModel.posterDisplayName(entry.actorAddress),
+                                        actorName,
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 14.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    Text(relativePostTime(entry.timestampMs), color = colors.textSecondary, fontSize = 12.sp)
+                                    Text(
+                                        remember(entry.timestampMs) { relativePostTime(entry.timestampMs) },
+                                        color = colors.textSecondary,
+                                        fontSize = 12.sp,
+                                    )
                                 }
                                 Text(
                                     "View",
@@ -3386,8 +3484,9 @@ fun KaPostsModerationOverlay(
     val colors = LocalAppColors.current
     val mutedSet by viewModel.muted.collectAsState()
     val blockedSet by viewModel.blocked.collectAsState()
-    val senderProfiles by viewModel.senderProfiles.collectAsState()
-    val addresses = (if (blocked) blockedSet else mutedSet).sorted()
+    val addresses = remember(blocked, mutedSet, blockedSet) {
+        (if (blocked) blockedSet else mutedSet).sorted()
+    }
 
     KaPostsOverlayScaffold(title = if (blocked) "Blocked" else "Muted", onClose = onClose) {
         if (addresses.isEmpty()) {
@@ -3412,18 +3511,22 @@ fun KaPostsModerationOverlay(
             LazyColumn {
                 items(addresses, key = { it }) { address ->
                     LaunchedEffect(address) { viewModel.ensureSenderProfileFetched(address) }
+                    // Per-address slices: one avatar/name landing repaints its own row only.
+                    val rowAvatar by viewModel.senderProfiles
+                        .collectSelectedAsState(address) { it[address] }
+                    val rowName = posterDisplayNameState(viewModel, address)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         ContactAvatar(
-                            imageUrl = senderProfiles[address],
-                            fallbackText = viewModel.posterDisplayName(address),
+                            imageUrl = rowAvatar,
+                            fallbackText = rowName,
                             size = 38.dp,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            viewModel.posterDisplayName(address),
+                            rowName,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
@@ -3451,10 +3554,11 @@ fun KaPostsBookmarksOverlay(
     onOpenThread: (KaPostDraft) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    // Recompute against the live lists so un-bookmarking updates immediately.
+    // Recompute against the live lists so un-bookmarking updates immediately - but the
+    // full-tree scan only re-runs when one of those lists actually changed.
     val localPosts by viewModel.localPosts.collectAsState()
     val feed by viewModel.visibleFeed.collectAsState()
-    val bookmarks = viewModel.bookmarkedPosts()
+    val bookmarks = remember(localPosts, feed) { viewModel.bookmarkedPosts() }
 
     KaPostsOverlayScaffold(title = "Bookmarks", onClose = onClose) {
         if (bookmarks.isEmpty()) {
