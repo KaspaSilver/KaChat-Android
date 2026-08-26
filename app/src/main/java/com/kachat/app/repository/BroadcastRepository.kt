@@ -64,7 +64,8 @@ class BroadcastRepository @Inject constructor(
     /**
      * The curated #kaspa/#kachat-bugs rooms are always present for every account (4.0, matches
      * iOS): auto-joined with the FIXED 3-day retention their indexer backfill serves. Idempotent
-     * - joinChannel's insert strategy keeps an already-joined row's toggles.
+     * - joinChannel inserts with IGNORE, so an already-joined row (and its bell/listen toggles)
+     * is left completely untouched.
      */
     suspend fun ensureFeaturedChannelsJoined() {
         val address = try { walletManager.getAddress() } catch (_: Exception) { return }

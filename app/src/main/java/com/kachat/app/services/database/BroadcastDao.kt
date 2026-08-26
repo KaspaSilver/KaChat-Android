@@ -12,7 +12,11 @@ interface BroadcastDao {
     @Query("SELECT * FROM broadcast_channels WHERE walletAddress = :walletAddress ORDER BY joinedAt DESC")
     fun getJoinedChannels(walletAddress: String): Flow<List<BroadcastChannelEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // IGNORE, never REPLACE: joining is create-if-absent. REPLACE deletes the existing row and
+    // re-inserts entity DEFAULTS, which silently wiped notifyEnabled/alwaysListen every time
+    // ensureFeaturedChannelsJoined re-ran (each BroadcastViewModel init, e.g. entering a room) -
+    // the "bell turns itself off" bug.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun joinChannel(channel: BroadcastChannelEntity)
 
     @Query("DELETE FROM broadcast_channels WHERE channelName = :channelName AND walletAddress = :walletAddress")
