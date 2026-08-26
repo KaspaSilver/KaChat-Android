@@ -39,27 +39,27 @@ class KaPostsProtocolTest {
     @Test
     fun `payload shapes match the K protocol spec`() {
         assertEquals(
-            "k:1:post:PK:SIG:B64:[]",
+            "kchat:1:post:PK:SIG:B64:[]",
             KaPostsProtocol.postPayload("PK", "SIG", "B64", "[]"),
         )
         assertEquals(
-            "k:1:reply:PK:SIG:TX:B64:[]",
+            "kchat:1:reply:PK:SIG:TX:B64:[]",
             KaPostsProtocol.replyPayload("PK", "SIG", "TX", "B64", "[]"),
         )
         assertEquals(
-            "k:1:vote:PK:SIG:TX:upvote:AUTHOR",
+            "kchat:1:vote:PK:SIG:TX:upvote:AUTHOR",
             KaPostsProtocol.votePayload("PK", "SIG", "TX", "upvote", "AUTHOR"),
         )
         assertEquals(
-            "k:1:follow:PK:SIG:follow:TARGET",
+            "kchat:1:follow:PK:SIG:follow:TARGET",
             KaPostsProtocol.followPayload("PK", "SIG", "follow", "TARGET"),
         )
         assertEquals(
-            "k:1:quote:PK:SIG:CID:B64:QAUTHOR",
+            "kchat:1:quote:PK:SIG:CID:B64:QAUTHOR",
             KaPostsProtocol.quotePayload("PK", "SIG", "CID", "B64", "QAUTHOR"),
         )
         assertEquals(
-            "k:1:unquote:PK:SIG:CID",
+            "kchat:1:unquote:PK:SIG:CID",
             KaPostsProtocol.unquotePayload("PK", "SIG", "CID"),
         )
     }

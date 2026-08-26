@@ -27,11 +27,30 @@ class MessageProtocolTest {
         val payloadBytes = MessageProtocol.buildCommPayload("alice", encrypted)
 
         assertTrue(MessageProtocol.isKaChatPayload(payloadBytes))
-        assertTrue(String(payloadBytes, Charsets.UTF_8).startsWith("ciph_msg:1:comm:alice:"))
+        assertTrue(String(payloadBytes, Charsets.UTF_8).startsWith("kchat:1:comm:alice:"))
 
         val (alias, parsedEncrypted) = MessageProtocol.parseCommPayload(payloadBytes)!!
         assertEquals("alice", alias)
         assertEquals("hey there", MessageProtocol.decrypt(parsedEncrypted, recipientPriv))
+    }
+
+    @Test
+    fun `a legacy ciph_msg comm payload from an older build is still readable`() {
+        // 4.0 writes the kchat prefix but must keep reading ciph_msg, or a message sent by
+        // anyone still on 3.0 would be invisible. This is the guarantee that carries live
+        // conversations across the rollout, so it is asserted rather than assumed.
+        val recipientPriv = randomScalarBytes()
+        val recipientPub = Schnorr.publicKeyXOnly(recipientPriv)
+        val encrypted = MessageProtocol.encrypt("from an older build", recipientPub)
+        val legacyBytes = MessageProtocol.buildCommPayload("alice", encrypted)
+            .toString(Charsets.UTF_8)
+            .replaceFirst("kchat:", "ciph_msg:")
+            .toByteArray(Charsets.UTF_8)
+
+        assertTrue(MessageProtocol.isKaChatPayload(legacyBytes))
+        val (alias, parsedEncrypted) = MessageProtocol.parseCommPayload(legacyBytes)!!
+        assertEquals("alice", alias)
+        assertEquals("from an older build", MessageProtocol.decrypt(parsedEncrypted, recipientPriv))
     }
 
     @Test
@@ -72,7 +91,7 @@ class MessageProtocolTest {
         val payloadBytes = MessageProtocol.buildBcastPayload("general", "hey everyone")
 
         assertTrue(MessageProtocol.isKaChatPayload(payloadBytes))
-        assertEquals("ciph_msg:1:bcast:general:hey everyone", String(payloadBytes, Charsets.UTF_8))
+        assertEquals("kchat:1:bcast:general:hey everyone", String(payloadBytes, Charsets.UTF_8))
 
         val parsed = MessageProtocol.parseBcastPayload(payloadBytes)!!
         assertEquals("general", parsed.channel)
