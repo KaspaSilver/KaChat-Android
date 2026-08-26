@@ -660,8 +660,23 @@ fun BroadcastChannelScreen(
         }
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    // First fill JUMPS to the newest message instantly - featured rooms hold the whole 30-day
+    // window, and the old unconditional animateScrollToItem crawled the full history on every
+    // open. After that, follow new arrivals only when the reader is already at the bottom, so
+    // indexer backfill and live inserts never yank someone reading history (same policy as 1:1
+    // chats).
+    var hasPositionedAtLatest by remember(channelName) { mutableStateOf(false) }
+    LaunchedEffect(channelName, messages.size) {
+        if (messages.isEmpty()) return@LaunchedEffect
+        if (!hasPositionedAtLatest) {
+            listState.scrollToItem(messages.size - 1)
+            hasPositionedAtLatest = true
+        } else {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            if (lastVisible >= messages.size - 3 && !listState.isScrollInProgress) {
+                listState.animateScrollToItem(messages.size - 1)
+            }
+        }
     }
 
     // Only show the "jump to latest" button once the last message isn't even partially
