@@ -15,6 +15,17 @@
 # has isMinifyEnabled = false so this never reproduced there).
 -keepclassmembers class com.kachat.app.util.** { *; }
 
+# Two more Gson-persisted payloads that live outside services/models/util, so nothing above
+# covered them: R8 was free to rename their fields, which makes the persisted JSON readable only
+# by the exact build that wrote it — every later release silently reads back null/0 fields (the
+# cold-storage snapshot's `address` is declared non-null, so a stale payload could hand the UI a
+# null String). Keeping the field names makes both payloads version-stable like every other
+# Gson store in the app.
+-keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredPriceHistory { *; }
+-keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredPricePoint { *; }
+-keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredCurrentPrice { *; }
+-keepclassmembers class com.kachat.app.viewmodels.ColdStorageViewModel$AddressRow { *; }
+
 # Gson: retain generic signatures of TypeToken and its (usually anonymous, e.g.
 # `object : TypeToken<List<Account>>() {}`) subclasses. Without this, R8 can merge/strip those
 # synthetic subclasses and drop the generic signature Gson reads at runtime, throwing

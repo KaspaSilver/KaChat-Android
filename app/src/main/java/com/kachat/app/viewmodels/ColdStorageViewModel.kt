@@ -243,7 +243,17 @@ class ColdStorageViewModel @Inject constructor(
     private fun snapshotRows(accountId: String): List<AddressRow>? {
         val json = coldStorageManager.getAddressSnapshot(accountId) ?: return null
         val type = object : com.google.gson.reflect.TypeToken<List<AddressRow>>() {}.type
-        return try { gson.fromJson<List<AddressRow>>(json, type) } catch (e: Exception) { null }
+        return try {
+            // Gson fills this class field-by-field without running the Kotlin constructor, so a
+            // payload that doesn't carry `address` (a snapshot written by a build whose field
+            // names differed) yields rows whose non-null `address` is actually null — which then
+            // NPEs the moment the row is rendered. Drop anything that didn't come back whole
+            // rather than painting it; the live pass repopulates the list either way.
+            gson.fromJson<List<AddressRow>>(json, type)?.filter { row ->
+                val address: String? = row.address
+                !address.isNullOrBlank()
+            }
+        } catch (e: Exception) { null }
     }
 
     // -------------------------------------------------------------------------

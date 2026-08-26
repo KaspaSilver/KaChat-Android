@@ -413,7 +413,13 @@ abstract class KaChatDatabase : RoomDatabase() {
          */
         val MIGRATION_33_34 = object : Migration(33, 34) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `contacts` ADD COLUMN `systemContactPhotoUri` TEXT DEFAULT NULL")
+                // Guarded like the 26->27/27->28/29->30 additions above: a device that somehow
+                // already has the column (a destructively recreated DB stamped at an older
+                // version) would otherwise hit "duplicate column name" here, and a *registered*
+                // migration that throws is NOT caught by fallbackToDestructiveMigration.
+                if (!columnExists(db, "contacts", "systemContactPhotoUri")) {
+                    db.execSQL("ALTER TABLE `contacts` ADD COLUMN `systemContactPhotoUri` TEXT DEFAULT NULL")
+                }
             }
         }
 
@@ -421,14 +427,18 @@ abstract class KaChatDatabase : RoomDatabase() {
         // fallback when there is no KNS or device-contact photo.
         val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `contacts` ADD COLUMN `backupPhotoBase64` TEXT DEFAULT NULL")
+                if (!columnExists(db, "contacts", "backupPhotoBase64")) {
+                    db.execSQL("ALTER TABLE `contacts` ADD COLUMN `backupPhotoBase64` TEXT DEFAULT NULL")
+                }
             }
         }
 
         // Admin-set group photo (hex of a compressed JPEG), distributed to members via gctl_photo.
         val MIGRATION_35_36 = object : Migration(35, 36) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `groups` ADD COLUMN `photoHex` TEXT DEFAULT NULL")
+                if (!columnExists(db, "groups", "photoHex")) {
+                    db.execSQL("ALTER TABLE `groups` ADD COLUMN `photoHex` TEXT DEFAULT NULL")
+                }
             }
         }
     }
