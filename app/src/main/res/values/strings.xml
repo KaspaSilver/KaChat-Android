@@ -46,6 +46,7 @@
     <string name="anyone_who_joins_the_same_channel">Anyone who joins the same channel name can see and post messages there. There\'s no owner or invite.</string>
     <string name="anyone_with_your_seed_phrase_can">Anyone with your seed phrase can access your account. Never share it with anyone. Make sure you only write this down. Never take a screenshot or store it on your device.</string>
     <string name="back">Back</string>
+    <string name="previous">Previous</string>
     <string name="balance">Balance</string>
     <string name="before_you_swap">Before You Swap</string>
     <string name="broadcast_settings">Broadcast Settings</string>

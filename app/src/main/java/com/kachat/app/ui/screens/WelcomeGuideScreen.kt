@@ -12,7 +12,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
@@ -137,6 +136,18 @@ fun WelcomeGuideScreen(
     var nodeValidationError by remember { mutableStateOf<String?>(null) }
     val enterAsHostPortError = stringResource(R.string.enter_as_host_port_or_grpcs_host)
 
+    // One step back. Backing INTO the answered Adult/Child step is not allowed (its choice
+    // applies immediately), so from Language the row returns to Welcome. Null at Welcome so
+    // the shared button row renders Previous disabled there.
+    val goBack: (() -> Unit)? = if (step == WelcomeGuideStep.WELCOME) null else {
+        {
+            step = when (step) {
+                WelcomeGuideStep.USER_TYPE, WelcomeGuideStep.LANGUAGE -> WelcomeGuideStep.WELCOME
+                else -> WelcomeGuideStep.entries[step.ordinal - 1]
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -149,20 +160,9 @@ fun WelcomeGuideScreen(
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
                         }
                     }
-                    // Previous-step navigation: every run (onboarding included) can go BACK —
-                    // only skipping forward stays forbidden. Backing INTO the answered
-                    // Adult/Child step is not allowed (its choice applies immediately), so
-                    // from Language the button returns to Welcome.
-                    if (step != WelcomeGuideStep.WELCOME) {
-                        IconButton(onClick = {
-                            step = when (step) {
-                                WelcomeGuideStep.USER_TYPE, WelcomeGuideStep.LANGUAGE -> WelcomeGuideStep.WELCOME
-                                else -> WelcomeGuideStep.entries[step.ordinal - 1]
-                            }
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous", tint = KaspaTeal)
-                        }
-                    }
+                    // Previous-step navigation lives in the fixed bottom button row next
+                    // to Next (see WelcomeGuideButtonRow) - only skipping forward stays
+                    // forbidden.
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -176,10 +176,12 @@ fun WelcomeGuideScreen(
                     title = stringResource(R.string.welcome_to_kachat),
                     body = stringResource(R.string.lets_walk_through_the_basics_so),
                     buttonLabel = stringResource(R.string.next),
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.USER_TYPE }
                 )
                 WelcomeGuideStep.USER_TYPE -> WelcomeGuideUserTypeStep(
                     settingsViewModel = settingsViewModel,
+                    onPrevious = goBack,
                     onAnswered = {
                         // Persist the marker (so relaunches stop re-presenting the wizard) and
                         // restore the Skip affordance for the rest of the guide.
@@ -190,10 +192,12 @@ fun WelcomeGuideScreen(
                 )
                 WelcomeGuideStep.LANGUAGE -> WelcomeGuideLanguageStep(
                     walletViewModel = walletViewModel,
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.CURRENCY }
                 )
                 WelcomeGuideStep.CURRENCY -> WelcomeGuideCurrencyStep(
                     walletViewModel = walletViewModel,
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.FEES }
                 )
                 WelcomeGuideStep.FEES -> WelcomeGuideStepScaffold(
@@ -201,6 +205,7 @@ fun WelcomeGuideScreen(
                     title = stringResource(R.string.how_kachat_uses_kaspa),
                     body = stringResource(R.string.kachat_lets_you_send_and_receive),
                     buttonLabel = stringResource(R.string.next),
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.FUNDING }
                 )
                 WelcomeGuideStep.FUNDING -> WelcomeGuideFundingStep(
@@ -210,6 +215,7 @@ fun WelcomeGuideScreen(
                     // let the user re-pick an identity behind their existing conversations.
                     walletViewModel = walletViewModel,
                     canChangeChattingAddress = isOnboardingRun && justImportedWallet,
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.NODE_CONNECTION }
                 )
                 WelcomeGuideStep.NODE_CONNECTION -> WelcomeGuideNodeConnectionStep(
@@ -218,6 +224,7 @@ fun WelcomeGuideScreen(
                     ownNodeInput = ownNodeInput,
                     onOwnNodeInputChange = { ownNodeInput = it; nodeValidationError = null },
                     validationError = nodeValidationError,
+                    onPrevious = goBack,
                     onNext = {
                         val valueToApply = when (nodeChoice) {
                             NodeChoice.DEFAULT_NODE -> AppSettingsRepository.DEFAULT_TRUSTED_NODE_ADDRESS
@@ -237,6 +244,7 @@ fun WelcomeGuideScreen(
                 WelcomeGuideStep.ADDRESS_EXPLAINER -> WelcomeGuideAddressExplainerStep(
                     chattingAddress = chattingAddress,
                     spendingAddress = spendingAddress,
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.CHATTING }
                 )
                 WelcomeGuideStep.CHATTING -> WelcomeGuideStepScaffold(
@@ -244,11 +252,13 @@ fun WelcomeGuideScreen(
                     title = stringResource(R.string.starting_a_conversation),
                     body = stringResource(R.string.to_chat_with_someone_press_create),
                     buttonLabel = stringResource(R.string.next),
+                    onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.PAYMENT_PRIVACY }
                 )
                 WelcomeGuideStep.PAYMENT_PRIVACY -> WelcomeGuidePaymentPrivacyStep(
                     walletViewModel = walletViewModel,
                     settingsViewModel = settingsViewModel,
+                    onPrevious = goBack,
                     onFinish = {
                         // Reaching Finish is what completes an onboarding run — clear the
                         // persisted re-presentation marker (no-op on replays, which never set it).
@@ -272,6 +282,7 @@ fun WelcomeGuideScreen(
 private fun WelcomeGuidePaymentPrivacyStep(
     walletViewModel: WalletViewModel,
     settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
+    onPrevious: (() -> Unit)?,
     onFinish: () -> Unit
 ) {
     val stored by settingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
@@ -287,10 +298,14 @@ private fun WelcomeGuidePaymentPrivacyStep(
     }
 
     Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .weight(1f)
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
@@ -337,17 +352,16 @@ private fun WelcomeGuidePaymentPrivacyStep(
             }
         )
 
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = {
+    }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(
+            onPrevious = onPrevious,
+            onNext = {
                 walletViewModel.setChatsPaymentPrivacyFromWizard(choice)
                 onFinish()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.finish), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+            nextLabel = stringResource(R.string.finish)
+        )
     }
 }
 
@@ -357,35 +371,78 @@ private fun WelcomeGuideStepScaffold(
     title: String,
     body: String,
     buttonLabel: String,
+    onPrevious: (() -> Unit)?,
     onNext: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
-        Spacer(Modifier.height(20.dp))
-        Text(
-            title,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = LocalAppColors.current.textPrimary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            body,
-            color = LocalAppColors.current.textSecondary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(32.dp))
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
+            Spacer(Modifier.height(20.dp))
+            Text(
+                title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = LocalAppColors.current.textPrimary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                body,
+                color = LocalAppColors.current.textSecondary,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext, nextLabel = buttonLabel)
+    }
+}
+
+/**
+ * The fixed two-button row every guide step ends with: Previous on the left, Next (or Finish)
+ * on the right, always in the exact same position so the guide can be tapped through without
+ * chasing buttons (matches iOS WelcomeGuideView.guideBottomBar). On the Welcome step
+ * [onPrevious] is null and Previous renders disabled and dimmed rather than vanishing, so
+ * Next never shifts.
+ */
+@Composable
+private fun WelcomeGuideButtonRow(
+    onPrevious: (() -> Unit)?,
+    onNext: () -> Unit,
+    nextLabel: String = stringResource(R.string.next),
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = { onPrevious?.invoke() },
+            enabled = onPrevious != null,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LocalAppColors.current.surfaceVariant,
+                disabledContainerColor = LocalAppColors.current.surfaceVariant.copy(alpha = 0.4f)
+            ),
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                stringResource(R.string.previous),
+                color = if (onPrevious != null) LocalAppColors.current.textPrimary
+                        else LocalAppColors.current.textSecondary,
+                fontWeight = FontWeight.Bold
+            )
+        }
         Button(
             onClick = onNext,
             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.weight(1f)
         ) {
-            Text(buttonLabel, color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(nextLabel, color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -402,6 +459,7 @@ private fun WelcomeGuideStepScaffold(
 @Composable
 private fun WelcomeGuideUserTypeStep(
     settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
+    onPrevious: (() -> Unit)?,
     onAnswered: () -> Unit
 ) {
     val childModeEnabled by settingsViewModel.childModeEnabled.collectAsState()
@@ -414,10 +472,14 @@ private fun WelcomeGuideUserTypeStep(
     val couldntSavePassword = stringResource(R.string.couldnt_save_the_password)
 
     Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .weight(1f)
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
@@ -495,9 +557,11 @@ private fun WelcomeGuideUserTypeStep(
             }
         }
 
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = {
+    }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(
+            onPrevious = onPrevious,
+            onNext = {
                 when {
                     // Informational replay - Child Mode being on is the standing choice.
                     childModeEnabled -> onAnswered()
@@ -519,12 +583,8 @@ private fun WelcomeGuideUserTypeStep(
                         }
                     }
                 }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+            }
+        )
     }
 }
 
@@ -535,7 +595,7 @@ private fun WelcomeGuideUserTypeStep(
  * the new language - once the recreated Activity's `MainShell` observes the flag again.
  */
 @Composable
-private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onNext: () -> Unit) {
+private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onPrevious: (() -> Unit)?, onNext: () -> Unit) {
     val current = currentAppLanguage()
 
     Column(
@@ -604,14 +664,8 @@ private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onNext: (
             }
         }
 
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
     }
 }
 
@@ -621,7 +675,7 @@ private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onNext: (
  * simply continues to Fees on tap with no restart/reload concern.
  */
 @Composable
-private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onNext: () -> Unit) {
+private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onPrevious: (() -> Unit)?, onNext: () -> Unit) {
     val currencyCode by walletViewModel.currency.collectAsState()
     val current = AppCurrency.fromCode(currencyCode)
 
@@ -679,14 +733,8 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onNext: (
             }
         }
 
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
     }
 }
 
@@ -695,6 +743,7 @@ private fun WelcomeGuideFundingStep(
     chattingAddress: String?,
     walletViewModel: WalletViewModel,
     canChangeChattingAddress: Boolean,
+    onPrevious: (() -> Unit)?,
     onNext: () -> Unit
 ) {
     var showQr by remember { mutableStateOf(false) }
@@ -716,6 +765,10 @@ private fun WelcomeGuideFundingStep(
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+        modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -768,14 +821,9 @@ private fun WelcomeGuideFundingStep(
         Spacer(Modifier.height(24.dp))
         // Optional community-funded welcome gift to fund this chatting address (matches iPhone).
         GiftClaimWizardButton(walletAddress = chattingAddress)
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+    }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
     }
 
     if (showQr && chattingAddress != null) {
@@ -796,15 +844,20 @@ private fun WelcomeGuideNodeConnectionStep(
     ownNodeInput: String,
     onOwnNodeInputChange: (String) -> Unit,
     validationError: String?,
+    onPrevious: (() -> Unit)?,
     onNext: () -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .weight(1f)
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(Icons.Default.Dns, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
@@ -872,15 +925,9 @@ private fun WelcomeGuideNodeConnectionStep(
             Spacer(Modifier.height(8.dp))
             Text(it, color = Color(0xFFFF3B30), fontSize = 12.sp)
         }
-
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+    }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
     }
 }
 
@@ -916,9 +963,13 @@ private fun NodeChoiceRow(selected: Boolean, title: String, badge: String?, subt
 }
 
 @Composable
-private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingAddress: String?, onNext: () -> Unit) {
+private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingAddress: String?, onPrevious: (() -> Unit)?, onNext: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+        modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -949,14 +1000,9 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingA
             address = spendingAddress.orEmpty(),
             caption = stringResource(R.string.where_you_send_and_receive_kaspa)
         )
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+    }
+        Spacer(Modifier.height(16.dp))
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
     }
 }
 
