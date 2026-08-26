@@ -77,26 +77,38 @@ data class KaPostDraft(
 }
 
 /**
- * Applies [transform] to the post with [id] ANYWHERE in the tree - top level or nested comments
- * at any depth. Returns the new list and whether a hit occurred (so callers can chain across
- * multiple lists exactly like iOS mutatePost does).
+ * Applies [transform] to EVERY occurrence of the post with [id] in the tree - top level or
+ * nested in comments at any depth. Returns the resulting list and whether any hit occurred.
+ *
+ * Every occurrence, not just the first: ids are stable txid hashes, so the same post
+ * legitimately lives in several places at once - a reply is a feed row AND a comment nested
+ * under its parent's thread, a post sits in the global feed AND a profile tab. The displayed
+ * copy (the one nested under whatever thread root is open) is not necessarily the copy a
+ * first-hit walk finds first, so a first-hit-only mutation left the open thread rendering a
+ * stale instance while some other copy took the like (the "thread doesn't update until
+ * reopened" bug). Untouched subtrees keep their ORIGINAL instances - a list with no
+ * occurrence comes back reference-equal, so its StateFlow never ticks and Compose skipping
+ * stays effective.
  */
 fun mutatePostIn(list: List<KaPostDraft>, id: String, transform: (KaPostDraft) -> KaPostDraft): Pair<List<KaPostDraft>, Boolean> {
     var hit = false
-    fun walk(items: List<KaPostDraft>): List<KaPostDraft> = items.map { post ->
-        if (hit) return@map post
-        if (post.id == id) {
-            hit = true
-            transform(post)
-        } else {
+    fun walk(items: List<KaPostDraft>): List<KaPostDraft> {
+        var changed = false
+        val out = items.map { post ->
             val newComments = walk(post.comments)
-            // hit was false when we entered this post, so a true here means the target lives
-            // somewhere inside newComments - keep the rewritten subtree.
-            if (hit) post.copy(comments = newComments) else post
+            val withComments = if (newComments !== post.comments) post.copy(comments = newComments) else post
+            val result = if (post.id == id) {
+                hit = true
+                transform(withComments)
+            } else {
+                withComments
+            }
+            if (result !== post) changed = true
+            result
         }
+        return if (changed) out else items
     }
-    val result = walk(list)
-    return if (hit) result to true else list to false
+    return walk(list) to hit
 }
 
 /** Recursive lookup by local id, mirroring [mutatePostIn]'s coverage. */

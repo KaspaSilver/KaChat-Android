@@ -213,8 +213,9 @@ class NotificationHelper @Inject constructor(
 
     /** Per-channel opt-in notification for a new broadcast message — see [EXTRA_CHANNEL_NAME]/BroadcastScanningService. */
     /** KaPosts social ping ("alice liked your post") - a tap deep-opens the exact
-     *  post/comment when [postTxId] is known, else just the KaPosts tab. */
-    suspend fun showKaPosts(text: String, actionTxId: String, postTxId: String? = null) {
+     *  post/comment when [postTxId] is known, else just the KaPosts tab. [focusTxId] is the
+     *  acting content's txid (a reply's own transaction) - the opened thread scrolls to it. */
+    suspend fun showKaPosts(text: String, actionTxId: String, postTxId: String? = null, focusTxId: String? = null) {
         if (!settings.notificationsEnabled.first()) return
         if (!claimTxId("kaposts_$actionTxId")) return // poller and FCM push can both see the same action
         // Child Mode removes KaPosts entirely - no notification pings for it either. Guarding
@@ -225,6 +226,7 @@ class NotificationHelper @Inject constructor(
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_OPEN_KAPOSTS, true)
             if (!postTxId.isNullOrBlank()) putExtra(EXTRA_KAPOST_TXID, postTxId)
+            if (!focusTxId.isNullOrBlank()) putExtra(EXTRA_KAPOST_FOCUS_TXID, focusTxId)
         }
         val notificationId = "kaposts_$actionTxId".hashCode()
         val pendingIntent = PendingIntent.getActivity(
@@ -372,6 +374,7 @@ class NotificationHelper @Inject constructor(
         const val EXTRA_GROUP_ID = "group_id"
         const val EXTRA_OPEN_KAPOSTS = "open_kaposts"
         const val EXTRA_KAPOST_TXID = "kapost_txid"
+        const val EXTRA_KAPOST_FOCUS_TXID = "kapost_focus_txid"
 
         // (channelId, soundEnabled, vibrationEnabled)
         private val CHANNELS = listOf(

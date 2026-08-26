@@ -387,6 +387,7 @@ fun MainShell(
             // no-op to the main Chats screen instead of opening the hidden feature.
             if (walletViewModel.isChildModeEnabled()) {
                 KaPostsDeepLink.pendingPostTxId.value = null
+                KaPostsDeepLink.pendingFocusReplyTxId.value = null
                 navController.popBackStack(Screen.Chats.route, false)
             } else {
                 navController.navigate(Screen.KaPosts.route) { launchSingleTop = true }

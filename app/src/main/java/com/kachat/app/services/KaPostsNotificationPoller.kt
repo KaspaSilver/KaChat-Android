@@ -125,10 +125,11 @@ class KaPostsNotificationPoller @Inject constructor(
                 title = "${actorDisplayName(actor)} ${actionText(n.contentType, n.voteType, text)}",
                 body = text.take(90),
                 timestampMs = n.timestamp,
-                // Same per-kind target rule as the banner + in-app overlay, so a bell-row
-                // tap opens the reply itself for replies and the containing post otherwise.
+                // Same per-kind target rule as the banner + in-app overlay. A reply targets
+                // its PARENT post (contentId = the post replied to): opening the reply's own
+                // txid as a thread root showed the comment with no parent above it.
                 targetId = when (n.contentType) {
-                    "reply" -> n.id
+                    "reply" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
                     "quote" -> if (text.isEmpty()) n.contentId else n.id
                     "follow" -> null
                     // A mention's acting content IS the post/comment mentioning you — fall back
@@ -159,16 +160,19 @@ class KaPostsNotificationPoller @Inject constructor(
             notificationHelper.showKaPosts(
                 text = "$name ${actionText(n.contentType, n.voteType, text)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
                 actionTxId = n.id,
-                // Same per-kind target rule as the in-app notifications overlay: reply/quote-with-
-                // text open the reply itself; vote/mention open the containing post.
+                // Same per-kind target rule as the in-app notifications overlay: a reply opens
+                // its PARENT post's thread (parent on top, the new reply underneath);
+                // quote-with-text opens the quote itself; vote/mention open the acted-on post.
                 postTxId = when (n.contentType) {
-                    "reply" -> n.id
+                    "reply" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
                     "quote" -> if (text.isEmpty()) n.contentId else n.id
                     "follow" -> null
                     // Same mention fallback as the bell targetId above.
                     "mention" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
                     else -> n.contentId
                 },
+                // The reply's own txid: the opened parent thread scrolls to this comment.
+                focusTxId = if (n.contentType == "reply") n.id else null,
             )
         }
     }

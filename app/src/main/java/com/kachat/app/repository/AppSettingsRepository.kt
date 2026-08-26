@@ -256,7 +256,19 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_PUSH_INDEXER_URL] ?: DEFAULT_PUSH_INDEXER_URL
     }
 
-    val kapostsFollowing: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_FOLLOWING] ?: emptySet() }
+    /**
+     * KaPosts follow set, scoped PER WALLET ADDRESS (same pattern as the poller's per-wallet
+     * last-seen key). The old KEY_KAPOSTS_FOLLOWING was one global set, so one account's
+     * follows leaked into every other account on the device - a brand-new account started out
+     * already "following" the previous account's people. Muted/blocked stay device-global on
+     * purpose: they are viewer preferences, not on-chain identity state.
+     */
+    private fun kapostsFollowingKey(walletAddress: String) =
+        stringSetPreferencesKey("kaposts_following_$walletAddress")
+
+    fun kapostsFollowing(walletAddress: String): Flow<Set<String>> =
+        dataStore.data.map { it[kapostsFollowingKey(walletAddress)] ?: emptySet() }
+
     val kapostsMuted: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_MUTED] ?: emptySet() }
     val kapostsBlocked: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_BLOCKED] ?: emptySet() }
 
@@ -548,7 +560,16 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKapostIndexerUrl(value: String) = dataStore.edit { it[KEY_KAPOST_INDEXER_URL] = value }
     suspend fun setBroadcastIndexerUrl(value: String) = dataStore.edit { it[KEY_BROADCAST_INDEXER_URL] = value }
     suspend fun setPushIndexerUrl(value: String) = dataStore.edit { it[KEY_PUSH_INDEXER_URL] = value }
-    suspend fun setKapostsFollowing(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_FOLLOWING] = value }
+    suspend fun setKapostsFollowing(walletAddress: String, value: Set<String>) =
+        dataStore.edit { it[kapostsFollowingKey(walletAddress)] = value }
+
+    /**
+     * Deletes the legacy GLOBAL follow set (the cross-account leak source). Deliberately not
+     * migrated into any scoped key: assigning it to whichever account happens to be active
+     * would re-create the exact leak for every other account, and the per-session on-chain
+     * follow sync rebuilds each account's real follow set from the chain anyway.
+     */
+    suspend fun clearLegacyKapostsFollowing() = dataStore.edit { it.remove(KEY_KAPOSTS_FOLLOWING) }
     suspend fun setKapostsMuted(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_MUTED] = value }
     suspend fun setKapostsBlocked(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_BLOCKED] = value }
     suspend fun setDockWizardDismissed() = dataStore.edit { it[KEY_DOCK_WIZARD_DISMISSED] = true }

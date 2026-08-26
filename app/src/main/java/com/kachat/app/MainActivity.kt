@@ -221,6 +221,10 @@ class MainActivity : AppCompatActivity() {
         // A KaPosts notification tap: deep-open the exact post/comment the notification was
         // about (EXTRA_KAPOST_TXID), falling back to just fronting the KaPosts tab ("").
         if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_KAPOSTS, false)) {
+            // Set the focus (the reply's own txid, for scroll-to-comment) BEFORE the post id -
+            // the post id is what KaPostsScreen's LaunchedEffect keys on.
+            KaPostsDeepLink.pendingFocusReplyTxId.value =
+                intent.getStringExtra(NotificationHelper.EXTRA_KAPOST_FOCUS_TXID)
             KaPostsDeepLink.pendingPostTxId.value =
                 intent.getStringExtra(NotificationHelper.EXTRA_KAPOST_TXID) ?: ""
             return

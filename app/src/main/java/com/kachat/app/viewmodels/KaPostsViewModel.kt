@@ -14,6 +14,7 @@ import com.kachat.app.services.KaPostsService
 import com.kachat.app.services.KnsService
 import com.kachat.app.services.WalletManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -22,6 +23,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -218,7 +223,18 @@ class KaPostsViewModel @Inject constructor(
 
     // MARK: - Local stores (follow/mute/block survive relaunch; on-chain follow txs mirror them)
 
-    val following: StateFlow<Set<String>> = settings.kapostsFollowing
+    /**
+     * The ACTIVE account's follow set, re-keyed on every account switch. The persisted key is
+     * scoped by wallet address (see AppSettingsRepository) and flatMapLatest swaps to the new
+     * account's key the moment activeAddressFlow moves, so no in-memory follow state can
+     * survive a switch - the old global key made every account on the device (fresh ones
+     * included) share one follow set.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val following: StateFlow<Set<String>> = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) flowOf(emptySet<String>()) else settings.kapostsFollowing(address)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
     val muted: StateFlow<Set<String>> = settings.kapostsMuted
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -460,9 +476,19 @@ class KaPostsViewModel @Inject constructor(
     fun syncFollowingFromChain() {
         if (followingChainSyncStarted) return
         followingChainSyncStarted = true
+        // Capture the account being synced NOW. The whole sync stays pinned to it: pubkey is
+        // verified against it and the merge writes into ITS scoped key, so an account switch
+        // mid-flight can never import the old account's on-chain follows into the new one.
+        val walletAddress = myAddress() ?: run { followingChainSyncStarted = false; return }
         viewModelScope.launch {
             try {
                 val pubkey = kaPostsService.requesterPubkey()
+                if (KaPostsService.kaspaAddressFromPubkey(pubkey) != walletAddress) {
+                    // Wallet switched between capture and derivation - the switch collector in
+                    // init re-arms the sync for the new account.
+                    followingChainSyncStarted = false
+                    return@launch
+                }
                 val chain = mutableSetOf<String>()
                 var cursor: String? = null
                 var pagesLeft = 10 // up to 10 pages of PAGE_LIMIT — far beyond any real follow list
@@ -474,14 +500,29 @@ class KaPostsViewModel @Inject constructor(
                     cursor = page.cursor
                     if (!page.hasMore || cursor == null) break
                 }
-                val local = following.value
-                val merged = local + chain - (myAddress() ?: "")
-                if (merged != local) settings.setKapostsFollowing(merged)
+                // Read + write the CAPTURED account's scoped set (not following.value, which
+                // tracks whatever account is active by the time the fetch loop finishes).
+                val local = settings.kapostsFollowing(walletAddress).first()
+                val merged = local + chain - walletAddress
+                if (merged != local) settings.setKapostsFollowing(walletAddress, merged)
             } catch (e: Exception) {
                 followingChainSyncStarted = false // network miss — retry on the next feed load
                 Log.w(TAG, "Follow-set chain sync failed", e)
             }
         }
+    }
+
+    init {
+        viewModelScope.launch {
+            // Strictly per-account follow state, part 2: on an account switch, re-arm the
+            // one-shot chain sync so the NEW account's on-chain follow graph is imported into
+            // ITS scoped key on the next feed load (`following` above already swaps the
+            // persisted key itself via flatMapLatest).
+            walletManager.activeAddressFlow.drop(1).collect { followingChainSyncStarted = false }
+        }
+        // One-time cleanup of the legacy GLOBAL follow set, which leaked one account's follows
+        // into every other account on this device (fresh accounts started with them).
+        viewModelScope.launch { settings.clearLegacyKapostsFollowing() }
     }
 
     suspend fun loadFeed(tab: FeedTab = _selectedFeed.value) {
@@ -614,14 +655,34 @@ class KaPostsViewModel @Inject constructor(
         _myProfilePosts, _myProfileReplies,
     )
 
+    /**
+     * Applies [transform] to EVERY copy of the post, in every list AND the self-thread chains.
+     *
+     * It used to stop at the first list that held the id, but the same post (stable txid ids)
+     * lives in several lists at once - the global feed and a profile tab, a standalone reply row
+     * and the same reply nested under its parent's comments - and the copy an open thread
+     * renders is resolved through its ROOT's tree, which is not necessarily where a first-hit
+     * search by the comment's own id lands. A like inside an open thread then mutated some other
+     * copy and the thread never repainted. Mutating every copy keeps all surfaces consistent;
+     * lists without an occurrence keep their instance (mutatePostIn returns them reference-
+     * equal) so their flows never tick.
+     */
     private fun mutateEverywhere(id: String, transform: (KaPostDraft) -> KaPostDraft) {
         for (flow in allPostLists()) {
             val (updated, hit) = mutatePostIn(flow.value, id, transform)
-            if (hit) {
-                flow.value = updated
-                return
-            }
+            if (hit) flow.value = updated
         }
+        // The X-style self-thread chain renders its segments inside open threads, but lives in
+        // its own map OUTSIDE the post lists - without this, liking a chain segment applied to
+        // nothing at all and only showed up after a reopen refetched the chain from the indexer.
+        val chains = _threadChains.value
+        var chainsChanged = false
+        val updatedChains = chains.mapValues { (_, segments) ->
+            val (updated, hit) = mutatePostIn(segments, id, transform)
+            if (hit) chainsChanged = true
+            updated
+        }
+        if (chainsChanged) _threadChains.value = updatedChains
     }
 
     fun findPost(id: String): KaPostDraft? =
@@ -1214,11 +1275,13 @@ class KaPostsViewModel @Inject constructor(
     // MARK: - Follows (local set drives UI instantly; on-chain tx mirrors when pubkey known)
 
     fun toggleFollow(address: String, pubkey: String?) {
-        if (address.isEmpty() || address == myAddress()) return
+        val walletAddress = myAddress() ?: return
+        if (address.isEmpty() || address == walletAddress) return
         val willFollow = address !in following.value
         viewModelScope.launch {
-            val current = following.value
-            settings.setKapostsFollowing(if (willFollow) current + address else current - address)
+            // Scoped to the account that tapped the button, read fresh from its own key.
+            val current = settings.kapostsFollowing(walletAddress).first()
+            settings.setKapostsFollowing(walletAddress, if (willFollow) current + address else current - address)
             if (pubkey == null) return@launch
             try {
                 val txId = kaPostsService.submitFollow(willFollow, pubkey)
@@ -1537,7 +1600,10 @@ class KaPostsViewModel @Inject constructor(
                 kind = if (n.voteType == "downvote") NotificationItem.Kind.DISLIKE else NotificationItem.Kind.LIKE
                 target = n.contentId
             }
-            "reply" -> { kind = NotificationItem.Kind.REPLY; target = n.id }
+            // A reply opens its PARENT's thread (contentId = the post replied to), so the
+            // reader lands on the conversation - parent on top, the new reply underneath -
+            // instead of the reply floating alone as a thread root with no context.
+            "reply" -> { kind = NotificationItem.Kind.REPLY; target = n.contentId?.takeIf { it.isNotEmpty() } ?: n.id }
             "quote" -> {
                 kind = if (text.isEmpty()) NotificationItem.Kind.REPOST else NotificationItem.Kind.QUOTE
                 target = if (text.isEmpty()) n.contentId else n.id
@@ -1928,6 +1994,21 @@ class KaPostsViewModel @Inject constructor(
      * get-post endpoint on the fork would make this exact).
      */
     suspend fun openSharedPost(txId: String): KaPostDraft? {
+        val post = resolveSharedPost(txId)
+        // A notification/shared-link landing must show a FRESH thread: if this thread was
+        // already opened earlier in the session, its cached reply page predates the very
+        // action that brought the user here (loadReplies keeps existing pages by design).
+        // Retiring the surface makes the overlay's loadReplies run a real page-one reload,
+        // so the new reply is actually under its parent when the thread opens.
+        post?.remoteId?.let { remoteId ->
+            val key = pageThread(remoteId)
+            resetSurface(key)
+            generations.remove(key) // resetSurface marks "loaded"; this thread needs a reload
+        }
+        return post
+    }
+
+    private suspend fun resolveSharedPost(txId: String): KaPostDraft? {
         findPostByRemoteId(txId)?.let { return it }
         loadFeed()
         findPostByRemoteId(txId)?.let { return it }

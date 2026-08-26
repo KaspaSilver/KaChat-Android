@@ -156,6 +156,10 @@ import kotlinx.coroutines.launch
  */
 object KaPostsDeepLink {
     val pendingPostTxId = MutableStateFlow<String?>(null)
+
+    /** For reply notifications: the reply's own txid, so the opened PARENT thread (which is
+     *  what [pendingPostTxId] carries) can scroll to the new comment. */
+    val pendingFocusReplyTxId = MutableStateFlow<String?>(null)
 }
 
 /**
@@ -398,6 +402,9 @@ fun KaPostsScreen(
     var showFundingGate by remember { mutableStateOf(false) }
     /** Thread stack: each entry is a post's LOCAL id; tapping nested comments pushes deeper. */
     var threadStack by remember { mutableStateOf(listOf<String>()) }
+    /** One-shot: remoteId of a reply the NEXT opened thread should scroll to (reply
+     *  notifications open the parent's thread and land the reader on the new comment). */
+    var threadFocusReplyId by remember { mutableStateOf<String?>(null) }
     // Keyed by the thread-stack INDEX of the entry that was opened from a profile, so nested
     // threads pushed on top pop normally and only closing that exact entry re-opens the
     // profile it came from (a thread opened from the feed never restores anything).
@@ -477,6 +484,7 @@ fun KaPostsScreen(
         val closingIndex = threadStack.size - 1
         if (closingIndex < 0) return
         threadStack = threadStack.dropLast(1)
+        threadFocusReplyId = null // never let a stale focus scroll some later thread
         val returnTo = profileReturns[closingIndex] ?: return
         profileReturns = profileReturns - closingIndex
         when (returnTo) {
@@ -498,10 +506,11 @@ fun KaPostsScreen(
         openThread(post)
     }
 
-    fun openShared(txId: String) {
+    fun openShared(txId: String, focusReplyTxId: String? = null) {
         scope.launch {
             val post = viewModel.openSharedPost(txId)
             if (post != null) {
+                threadFocusReplyId = focusReplyTxId
                 openThread(post)
             } else {
                 notFoundNotice = true
@@ -543,10 +552,12 @@ fun KaPostsScreen(
     }
     LaunchedEffect(deepLinkTxId) {
         val txId = deepLinkTxId ?: return@LaunchedEffect
+        val focusReplyTxId = KaPostsDeepLink.pendingFocusReplyTxId.value
         KaPostsDeepLink.pendingPostTxId.value = null
+        KaPostsDeepLink.pendingFocusReplyTxId.value = null
         // "" is the tab-only sentinel (a notification with no target txid): landing on the
         // freshly-loaded feed is the whole job, nothing to deep-open.
-        if (txId.isNotEmpty()) openShared(txId)
+        if (txId.isNotEmpty()) openShared(txId, focusReplyTxId)
     }
 
     val repostHandler: (KaPostDraft) -> Unit = { post ->
@@ -787,24 +798,6 @@ fun KaPostsScreen(
                 )
             }
 
-            if (notFoundNotice) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 90.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(colors.surface)
-                        .border(1.dp, colors.surfaceVariant, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        "Post not found - it may be older than the feed window.",
-                        color = colors.textPrimary,
-                        fontSize = 13.sp,
-                    )
-                }
-            }
-
             KaPostsToastLayer(
                 viewModel = viewModel,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
@@ -891,7 +884,34 @@ fun KaPostsScreen(
             onOpenShared = { txId -> openShared(txId) },
             onRepostTap = { repostHandler(it) },
             onViewEngagement = { engagementTarget = it },
+            focusReplyRemoteId = threadFocusReplyId,
+            onFocusReplyHandled = { threadFocusReplyId = null },
         )
+    }
+
+    // AFTER the thread overlay on purpose: openShared is reachable from inside a thread
+    // ("Replying to a post - view it", quoted embeds), and when it was drawn inside the
+    // Scaffold the opaque thread overlay covered it - a failed resolve looked like the tap
+    // did nothing at all. As a later sibling it draws above the thread too.
+    if (notFoundNotice) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(bottom = 90.dp),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.surface)
+                    .border(1.dp, colors.surfaceVariant, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    "Post not found - it may be older than the feed window.",
+                    color = colors.textPrimary,
+                    fontSize = 13.sp,
+                )
+            }
+        }
     }
 
     if (showMyProfile) {
@@ -988,6 +1008,11 @@ fun KaPostsScreen(
                 showBookmarks = false
                 openThread(it)
             },
+            // Post Activity and the repost icon were silent no-ops in bookmarks (the cell's
+            // defaults); the overlays they raise are Dialog windows, which stack above the
+            // bookmarks Dialog, so they open in place.
+            onViewEngagement = { engagementTarget = it },
+            onRepostTap = { repostHandler(it) },
         )
     }
 }
@@ -1986,6 +2011,10 @@ fun KaPostThreadOverlay(
     onOpenShared: (String) -> Unit,
     onRepostTap: (KaPostDraft) -> Unit,
     onViewEngagement: (KaPostDraft) -> Unit,
+    /** RemoteId of a reply to scroll to once it lands (reply-notification taps open the
+     *  PARENT's thread and hand the reply's txid through here). */
+    focusReplyRemoteId: String? = null,
+    onFocusReplyHandled: () -> Unit = {},
 ) {
     val colors = LocalAppColors.current
     // Resolving against the post tree (rather than taking a KaPostDraft parameter) is what
@@ -2058,6 +2087,22 @@ fun KaPostThreadOverlay(
     )
     EndlessScroll(listState = threadListState, key = post.remoteId) {
         viewModel.loadMoreReplies(post)
+    }
+
+    // Scroll-to-the-new-reply for notification landings. Re-keys on the comment list until the
+    // focused reply is actually among the loaded comments (page one may still be in flight),
+    // then scrolls once and clears the focus so nothing re-scrolls later. Index math mirrors
+    // the LazyColumn below: root-context + root, then the optional chain section
+    // (header + segments + divider), then the comments.
+    if (focusReplyRemoteId != null) {
+        LaunchedEffect(visibleComments, threadChain, focusReplyRemoteId) {
+            val commentIndex = visibleComments.indexOfFirst { it.remoteId == focusReplyRemoteId }
+            if (commentIndex >= 0) {
+                val chainItems = if (threadChain.isEmpty()) 0 else threadChain.size + 2
+                runCatching { threadListState.animateScrollToItem(2 + chainItems + commentIndex) }
+                onFocusReplyHandled()
+            }
+        }
     }
 
     // System back closes this level of the thread, matching the Dialog's dismiss behaviour and the
@@ -2839,8 +2884,11 @@ fun KaPostsProfileOverlay(
                                 onRepostTap = { onRepostTap(post) },
                                 onOpenQuoted = onOpenQuoted,
                                 onViewEngagement = { onViewEngagement(post) },
+                                // The fallback navigates the NAV HOST, which this profile Dialog
+                                // window covers - close the profile first or the chat screen
+                                // only becomes visible after the user closes it themselves.
                                 onTip = onTip?.let { open -> { open(post) } }
-                                    ?: { navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
+                                    ?: { onClose(); navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
                             )
                             HorizontalDivider(
                                 color = colors.surfaceVariant,
@@ -3552,6 +3600,8 @@ fun KaPostsBookmarksOverlay(
     viewModel: KaPostsViewModel,
     onClose: () -> Unit,
     onOpenThread: (KaPostDraft) -> Unit,
+    onViewEngagement: (KaPostDraft) -> Unit,
+    onRepostTap: (KaPostDraft) -> Unit,
 ) {
     val colors = LocalAppColors.current
     // Recompute against the live lists so un-bookmarking updates immediately - but the
@@ -3580,7 +3630,8 @@ fun KaPostsBookmarksOverlay(
                         post = post,
                         viewModel = viewModel,
                         onOpenThread = { onOpenThread(post) },
-                        onRepostTap = {},
+                        onRepostTap = { onRepostTap(post) },
+                        onViewEngagement = { onViewEngagement(post) },
                     )
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 68.dp))
                 }
