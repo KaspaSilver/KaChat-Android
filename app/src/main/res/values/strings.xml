@@ -26,7 +26,6 @@
     <string name="automatic">Automatic</string>
     <string name="automatic_clear_selection">Automatic (Clear Selection)</string>
     <string name="add">Add</string>
-    <string name="add_address">Add Address</string>
     <string name="add_contact">Add Contact</string>
     <string name="add_kaspa_address">Add Kaspa Address</string>
     <string name="add_transaction">Add Transaction</string>
@@ -36,6 +35,8 @@
     <string name="address_actions">Address Actions</string>
     <string name="address_actions_2">Address actions</string>
     <string name="address_copied">Address copied</string>
+    <string name="address_copied_short">Address %1$s copied</string>
+    <string name="tap_anywhere_to_copy">Tap anywhere to copy</string>
     <string name="addresses">Addresses</string>
     <string name="adjust_network_fee">Adjust Network Fee</string>
     <string name="admin">Admin</string>
@@ -50,11 +51,56 @@
     <string name="broadcast_settings">Broadcast Settings</string>
     <string name="broadcasting">Broadcasting...</string>
     <string name="broadcasts">Broadcasts</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">Broadcasts are public, unencrypted channels. Anyone who joins the same channel name sees the same messages.</string>
     <string name="build_unsigned_transaction">Build Unsigned Transaction</string>
     <string name="building_transaction">Building transaction...</string>
     <string name="camera_permission_is_needed_to_scan">Camera permission is needed to scan a QR code</string>
     <string name="cancel">Cancel</string>
+
+    <!-- App-wide settings reachable from the accounts screen's gear (no active account) -->
+    <string name="app_settings">App Settings</string>
+
+    <!-- Child Mode (Settings > Security > Child Mode + the Welcome Guide's "Who will use KaChat?" step) -->
+    <string name="child_mode">Child Mode</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="who_will_use_kachat">Who will use KaChat?</string>
+    <string name="child_mode_is_on_guide_info">Child Mode is on. Chats, Group Chats, Portfolio and Cold Storage are available; Swaps, KaPosts and Broadcasts are hidden. Manage this in Settings > Security > Child Mode.</string>
+    <string name="a_child_gets_a_simpler_safer">A child gets a simpler, safer KaChat: just Chats, Group Chats, Portfolio and Cold Storage. Swaps, KaPosts and Broadcasts stay hidden until an adult unlocks them.</string>
+    <string name="adult">Adult</string>
+    <string name="the_full_app_everything_available">The full app, everything available.</string>
+    <string name="child">Child</string>
+    <string name="chats_portfolio_and_cold_storage_only">Chats, Portfolio and Cold Storage only. An adult sets a password to unlock the rest later.</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm password</string>
+    <string name="child_mode_password_helper">4 digits, 8 digits, or anything you like - just don\'t forget it. It\'s needed to turn Child Mode off later.</string>
+    <string name="enter_a_password_first">Enter a password first.</string>
+    <string name="passwords_dont_match">Passwords don\'t match.</string>
+    <string name="couldnt_save_the_password">Couldn\'t save the password. Please try again.</string>
+    <string name="set_a_password">Set a Password</string>
+    <string name="set_password_and_turn_on">Set Password &amp; Turn On</string>
+    <string name="child_mode_is_on_footer">Child Mode is on. Turning it off requires the password.</string>
+    <string name="child_mode_password_set_footer">A password is already set - turning Child Mode on doesn\'t ask for it.</string>
+    <string name="turn_off_child_mode">Turn Off Child Mode</string>
+    <string name="enter_the_child_mode_password_off">Enter the Child Mode password to turn it off.</string>
+    <string name="wrong_password_child_mode_stays_on">Wrong password. Child Mode stays on.</string>
+    <string name="turn_off">Turn Off</string>
+    <string name="change_password">Change Password</string>
+    <string name="current_password">Current password</string>
+    <string name="new_password">New password</string>
+    <string name="confirm_new_password">Confirm new password</string>
+    <string name="new_passwords_dont_match">New passwords don\'t match.</string>
+    <string name="wrong_current_password_nothing_changed">Wrong current password. Nothing changed.</string>
+    <string name="password_changed">Password changed.</string>
+    <string name="clear_password">Clear Password</string>
+    <string name="clear_password_footer">Deletes the Child Mode password and turns Child Mode off, returning it to a never-set-up state. Requires the current password.</string>
+    <string name="enter_the_child_mode_password_clear">Enter the Child Mode password to delete it and turn Child Mode off.</string>
+    <string name="wrong_password_nothing_changed">Wrong password. Nothing changed.</string>
+    <string name="what_stays_available">What stays available</string>
+    <string name="chats_and_group_chats">Chats &amp; Group Chats</string>
+    <string name="child_mode_about_footer">While Child Mode is on, Swaps, KaPosts and Broadcasts are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Child Mode; only the password does.</string>
+    <string name="child_mode_menu_footer">Swap, KaPosts and Broadcasts are unavailable while Child Mode is on (Settings > Security > Child Mode).</string>
+    <string name="show_password">Show password</string>
+    <string name="hide_password">Hide password</string>
     <string name="coin_control">Coin Control</string>
     <string name="compound_utxos">Compound UTXOs</string>
     <string name="compound_utxos_description">Combine this address\'s UTXOs to reduce the inputs a future send needs. A single transaction can only merge so many at once, so if this address has a very large number, tap Compound again after it confirms to keep reducing.</string>
@@ -63,8 +109,19 @@
     <string name="cancel_reply">Cancel reply</string>
     <string name="change">Change</string>
     <string name="changenow_exchange_id">ChangeNOW Exchange ID</string>
-    <string name="channels">Channels</string>
     <string name="chats">Chats</string>
+    <!-- Banner on the Chats list after sharing into KaChat from another app without picking a specific conversation on the share sheet. -->
+    <string name="share_pick_chat">Choose a chat to share to</string>
+    <string name="kaposts">KaPosts</string>
+    <string name="kapost_indexer">KaPost Indexer</string>
+    <string name="broadcast_popular_retention_note">All messages persist for 30 days</string>
+    <string name="hidden_in_all_rooms">All rooms</string>
+    <string name="apps">Apps</string>
+    <string name="help">Help</string>
+    <string name="broadcast_indexer">Broadcast Indexer</string>
+    <string name="broadcast_indexer_footer">KaChat broadcast history indexer for #kaspa and #kachat-bugs</string>
+    <string name="kapost_indexer_footer">K social network indexer that powers KaPosts feeds</string>
+    <string name="kaposts_dock_full_hint">Dock is full - open it by tapping the Chats tab again</string>
     <string name="coinbase">Coinbase</string>
     <string name="chatting_address">Chatting Address</string>
     <string name="chatting_address_2">Chatting address</string>
@@ -108,7 +165,6 @@
     <string name="create_new_account">Create New Account</string>
     <string name="current_value">Current Value</string>
     <string name="current_balance">Current balance</string>
-    <string name="data">Data</string>
     <string name="decline">Decline</string>
     <string name="default_option">Default</string>
     <string name="default_follows_settings_notifications_off_disables">Default follows Settings &gt; Notifications. Off disables notifications for this contact.</string>
@@ -138,10 +194,10 @@
     <string name="from">From</string>
     <string name="fund_your_chatting_address">Fund Your Chatting Address</string>
     <string name="generate_account">Generate Account</string>
+    <string name="google_drive">Google Drive</string>
     <string name="google_drive_backup_used">Google Drive backup used</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="grant_permission_2">Grant permission</string>
-    <string name="group_chat">Group Chat</string>
     <string name="group_chats">Group Chats</string>
     <string name="group_info">Group Info</string>
     <string name="group_name">Group Name</string>
@@ -186,29 +242,28 @@
     <string name="let_s_fund_your_chatting_address">Let\'s fund your chatting address so that you can start chatting with people. 5-10 Kaspa is enough. (1 KAS is about ~500 messages)</string>
     <string name="link_from_contacts">Link from Contacts</string>
     <string name="linked">Linked</string>
+    <string name="local_storage_used">Local storage used</string>
     <string name="log_out">Log Out</string>
     <string name="longer_retention_means_more_messages_stay">Longer retention means more messages stay cached on your device, which can slow the app down over time, especially for busy rooms.</string>
     <string name="make_active_address">Make Active Address</string>
     <string name="manage_addresses">Manage Addresses</string>
-    <string name="manage_address">Manage Address</string>
     <string name="max">Max</string>
     <string name="members">Members</string>
-    <string name="menu">Menu</string>
+    <string name="menu">Customize Dock</string>
     <string name="message">Message</string>
     <string name="message_retention_settings">Message retention settings</string>
     <string name="more_info">More Info</string>
     <string name="name">Name</string>
     <string name="name_optional">Name (Optional)</string>
     <string name="name_this_address">Name This Address</string>
-    <string name="network">Network</string>
     <string name="network_fee">Network Fee</string>
     <string name="never_send_kaspa_you_intend_to">Never send Kaspa you intend to spend to this address.</string>
+    <string name="nextcloud">Nextcloud</string>
     <string name="next">Next</string>
     <string name="no_conversations_yet">No Conversations Yet</string>
     <string name="no_group_chats_yet">No Group Chats Yet</string>
     <string name="no_matching_chats">No Matching Chats</string>
     <string name="no_matching_groups">No Matching Groups</string>
-    <string name="no_broadcast_channels_yet">No broadcast channels yet</string>
     <string name="no_cold_storage_accounts_yet_scan">No cold storage accounts yet. Scan a kpub exported from your KasSigner device to watch its balance and send from it.</string>
     <string name="no_domains_yet">No domains yet.</string>
     <string name="send_domain">Send Domain</string>
@@ -249,8 +304,6 @@
     <string name="photos">Photos</string>
     <string name="polygon_network">Polygon network</string>
     <string name="pool_health">Pool Health</string>
-    <string name="popular">Popular</string>
-    <string name="popular_tab">Popular Tab</string>
     <string name="portfolio">Portfolio</string>
     <string name="powered_by_changenow">Powered by ChangeNOW</string>
     <string name="price_needed">Price needed — tap to set</string>
@@ -276,8 +329,8 @@
     <string name="rename_utxo">Rename UTXO</string>
     <string name="reserved_domain_no_registration_fee_only">Reserved domain: no registration fee, only network fees apply.</string>
     <string name="resign">Resign</string>
+    <string name="chess_cancel_game">Cancel game</string>
     <string name="resign_this_game">Resign this game?</string>
-    <string name="resolving_kns_domain">Resolving KNS domain…</string>
     <string name="resolving_domain">Resolving domain…</string>
     <string name="resolving">Resolving...</string>
     <string name="retention">Retention</string>
@@ -315,7 +368,6 @@
     <string name="show_more">Show More</string>
     <string name="show_photo">Show Photo</string>
     <string name="show_qr_code">Show QR Code</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Shows a tab of recommended broadcast rooms you can jump into.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Shows senders\' KNS avatars in rooms and looks them up automatically as messages appear. Off shows plain initials for everyone and never fetches avatars.</string>
     <string name="skip">Skip</string>
     <string name="some_changes_failed_to_save">Some changes failed to save:</string>
@@ -334,9 +386,6 @@
     <string name="this_could_take_a_few_minutes">This could take a few minutes while it confirms on-chain.</string>
     <string name="this_only_removes_it_from_kachat">This only removes it from KaChat\'s watch list. It has no effect on the KasSigner device or any funds it holds.</string>
     <string name="this_permanently_deletes_every_message_with">This permanently deletes every message with them on this device. This cannot be undone; messaging them again starts a brand new conversation.</string>
-    <string name="this_permanently_deletes_this_account_s">This permanently deletes this account\'s wallet keys and all its local messages and contacts from this device. This cannot be undone unless you have saved your seed phrase; without it, any remaining balance is unrecoverable.</string>
-    <string name="this_permanently_deletes_this_account_s_2">This permanently deletes this account\'s wallet keys, all its local messages and contacts, and its Google Drive backup. This cannot be undone unless you have saved your seed phrase; without it, any remaining balance is unrecoverable.</string>
-    <string name="this_removes_all_incoming_messages_locally">This removes all incoming messages locally, then re-syncs them from the blockchain. Your account info and sent messages are preserved.</string>
     <string name="this_removes_the_group_and_its">This removes the group and its messages from this device. This cannot be undone, and other members won\'t be notified.</string>
     <string name="this_signs_out_of_your_account">This signs out of your account, but keeps local wallet and message data on this device.</string>
     <string name="to">To</string>
@@ -359,13 +408,7 @@
     <string name="view_on_changenow">View on ChangeNOW</string>
     <string name="waiting_for_camera">Waiting for camera...</string>
     <string name="waiting_on_opponent">Waiting on opponent</string>
-    <string name="when_you_message_someone_new_on">This message will not be seen by the recipient until they also try to chat with you, or you can send a handshake to ping them. Handshakes send 0.2 KAS, which is returned if they accept your request.</string>
-    <string name="wipe_account">Wipe Account</string>
-    <string name="wipe_everything">Wipe Everything</string>
-    <string name="wipe_incoming_messages">Wipe Incoming Messages</string>
-    <string name="wipe_account_messages">Wipe account &amp; messages</string>
-    <string name="wipe_account_messages_cloud">Wipe account &amp; messages &amp; Cloud</string>
-    <string name="wipe_and_re_sync_incoming_messages">Wipe and re-sync incoming messages</string>
+    <string name="the_recipient_wont_see_your_messages">The recipient won\'t see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them.</string>
     <string name="you_will_be_shown_a_seed">You will be shown a seed phrase. This is the only way to recover your account. Make sure you only write this down. Never take a screenshot or store it on your device.</string>
     <string name="channel_name">channel-name</string>
     <string name="host_port_or_grpcs_host">host:port or grpcs://host</string>
@@ -380,7 +423,6 @@
 
     <!-- Extended: labels passed directly to helper composables (PopupMenuRow, SettingsSection, etc.) rather than through Text() -->
     <string name="about">About</string>
-    <string name="account">Account</string>
     <string name="actions">Actions</string>
     <string name="active">Active</string>
     <string name="autocreate_system_contacts">Autocreate system contacts</string>
@@ -429,6 +471,8 @@
     <string name="default_recommended">Default (Recommended)</string>
     <string name="automatic_scan">Automatic Scan</string>
     <string name="kaspa_node_quick_access_footer">Automatic Scan discovers and connects to the best available nodes. Choosing a specific node connects only to it, without falling back to others. Manage saved addresses in Connection Settings &gt; IP Address Book.</string>
+    <string name="node_connections_blocked">Node connections appear blocked on this network. Receiving messages still works over the indexer and plain payments still go through the REST API, but sending chat messages needs a node connection.</string>
+    <string name="address_removed_from_book">Address removed from book</string>
     <string name="last_sync">Last Sync</string>
     <string name="latency">Latency</string>
     <string name="message_indexer_service_for_chat_functionality">Message indexer service for chat functionality</string>
@@ -449,7 +493,6 @@
     <string name="save_photo">Save Photo</string>
     <string name="save_your_own_node_addresses_here">Save your own node addresses here, then tap one to copy it and paste into the Kaspa Node field above.</string>
     <string name="security">Security</string>
-    <string name="select_mainnet_for_real_transactions_or">Select mainnet for real transactions or testnet for testing</string>
     <string name="send_audio_message">Send Audio Message</string>
     <string name="send_handshake">Send Handshake</string>
     <string name="send_photo_2">Send Photo</string>
@@ -459,6 +502,8 @@
     <string name="show_fee_estimate">Show Fee Estimate</string>
     <string name="sound_vibration">Sound &amp; Vibration</string>
     <string name="storage">Storage</string>
+    <string name="on_this_device">On This Device</string>
+    <string name="cloud_storage">Cloud Storage</string>
     <string name="submitting_commit_transaction">Submitting commit transaction...</string>
     <string name="submitting_commit_transaction_this_could_take">Submitting commit transaction... this could take a few minutes while it confirms on-chain.</string>
     <string name="submitting_reveal_transaction">Submitting reveal transaction...</string>
@@ -469,7 +514,6 @@
     <string name="system_contact">System Contact</string>
     <string name="telegram">Telegram</string>
     <string name="total">Total</string>
-    <string name="unfinished_inscription">Unfinished Inscription</string>
     <string name="uses_your_device_contacts_to_match">Uses your device contacts to match and enrich Kaspa contacts.</string>
     <string name="verified">Verified</string>
     <string name="verifying_new_ownership_on_chain_this">Verifying new ownership on-chain (this can take a minute)...</string>
@@ -481,7 +525,6 @@
     <string name="view_seed_phrase">View Seed Phrase</string>
     <string name="view_in_explorer">View in Explorer</string>
     <string name="website">Website</string>
-    <string name="welcome_guide">Welcome Guide</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">Language</string>
@@ -506,7 +549,6 @@
     <string name="best">Best</string>
     <string name="spending_address">Spending Address</string>
     <string name="enter_as_host_port_or_grpcs_host">Enter as host:port or grpcs://host</string>
-    <string name="show_setup_guides">Show Setup Guides</string>
     <string name="receive_kaspa">Receive Kaspa</string>
     <string name="currency">Currency</string>
     <string name="choose_your_currency">Choose Your Currency</string>
@@ -515,4 +557,43 @@
     <string name="i_already_have_a_domain_somewhere">I already have a domain somewhere else</string>
     <string name="transfer_your_domain">Transfer Your Domain</string>
     <string name="transfer_your_domain_to_this_address">Transfer your domain to this address so that your identity is connected to KaChat.</string>
+
+    <!-- Import source-wallet chooser -->
+    <string name="where_is_this_seed_phrase_from">Where is this seed phrase from?</string>
+    <string name="different_wallets_store_your_kaspa">Different wallets store your Kaspa on different address paths. Pick where this seed phrase comes from so KaChat finds your funds and domains.</string>
+    <string name="default_label">Default</string>
+    <string name="continue_label">Continue</string>
+
+    <!-- Chatting-address picker (import runs only) -->
+    <string name="change_chatting_address">Change Chatting Address</string>
+    <string name="choose_your_chatting_address">Choose Your Chatting Address</string>
+    <string name="if_this_seed_already_holds_your">If this seed already holds your identity at a different address, a KNS domain or a funded chatting balance, pick it here. Only addresses with a balance or domains are shown.</string>
+    <string name="scan_further">Scan Further</string>
+    <string name="scanning_addresses">Scanning addresses %1$d to %2$d…</string>
+    <string name="scanned_the_first_addresses">Scanned the first %1$d addresses.</string>
+    <string name="could_not_derive_addresses">Could not derive addresses from this seed. Please try again.</string>
+    <string name="set_as_chatting_address">Set as Chatting Address</string>
+    <string name="current_chatting_address">Current Chatting Address</string>
+    <string name="address_number">Address #%1$d</string>
+    <string name="current">Current</string>
+    <string name="switch_chatting_address_question">Switch Chatting Address?</string>
+    <string name="this_seed_already_has_conversations">This seed already has conversations on the current chatting address. Switching starts fresh with the new address. Your existing conversations stay with the old address and are not deleted.</string>
+    <string name="switch_action">Switch</string>
+    <string name="tap_the_address_to_copy_it">Tap the address to copy it</string>
+    <string name="kns_domains_count">KNS Domains (%1$d)</string>
+    <string name="domains_count">%1$d domains</string>
+
+    <!-- Chat Info pair aliases -->
+    <string name="aliases">Aliases</string>
+    <string name="receiving_alias">Receiving alias</string>
+    <string name="sending_alias">Sending alias</string>
+    <string name="alias_copied">Alias copied to clipboard.</string>
+    <string name="alias_unavailable">Alias unavailable.</string>
+    <string name="these_identify_this_conversations_messages">These identify this conversation\'s messages on the network. Receiving is the alias on messages this contact sends you. Sending is the alias on messages you send them. Useful when building tools that message this chat.</string>
+    <string name="reveal">Reveal</string>
+
+    <!-- Share-sheet in-place compose -->
+    <string name="share_to_kachat">Share to KaChat</string>
+    <string name="send_to">Send to</string>
+    <string name="couldnt_send_saved_as_draft">Couldn\'t send. Saved as a draft in this chat.</string>
 </resources>

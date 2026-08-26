@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RssFeed
@@ -22,7 +24,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -98,6 +104,11 @@ fun ChatsScreen(
     val conversations by chatViewModel.conversations.collectAsState()
     val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
+    val latestReactionByGroup by chatViewModel.latestReactionByGroup.collectAsState()
+    // address -> alias/KNS display name, same map the group thread's sender labels use - lets the
+    // group cards name people the full alias > KNS > roster > short-address way instead of
+    // falling straight from roster snapshot to raw address.
+    val groupMemberNamesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     val isRefreshing by chatViewModel.isRefreshing.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -134,14 +145,14 @@ fun ChatsScreen(
 
     // Mirrors filteredConversations above for the Group Chats tab: group name, each member's
     // display-name-or-address, and the last message preview text.
-    val filteredGroupConversations = remember(groupConversations, searchQuery) {
+    val filteredGroupConversations = remember(groupConversations, searchQuery, groupMemberNamesByAddress) {
         val query = searchQuery.trim()
         if (query.isBlank()) {
             groupConversations
         } else {
             groupConversations.filter { convo ->
                 val members = parseGroupMembers(convo.group)
-                listOfNotNull(convo.group.name, groupMessagePreviewText(convo.lastMessage, members))
+                listOfNotNull(convo.group.name, groupMessagePreviewText(convo.lastMessage, members, groupMemberNamesByAddress))
                     .any { it.contains(query, ignoreCase = true) } ||
                     members.any { member ->
                         (member.displayName?.contains(query, ignoreCase = true) == true) ||
@@ -208,8 +219,11 @@ fun ChatsScreen(
                     .statusBarsPadding()
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
+                    // Header order matches iPhone (ChatListView.swift): status/balance toolbar
+                    // row on top, bold large "Chats" title below it, search bar DIRECTLY
+                    // underneath the title.
                     TopStatusBar(
                         balance = balance,
                         onStatusClick = { navController.navigate("connection_status") },
@@ -246,7 +260,13 @@ fun ChatsScreen(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.chats),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+                    )
 
                     // Search Bar
                     TextField(
@@ -280,6 +300,39 @@ fun ChatsScreen(
                         )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    // Untargeted system-share landed here (user tapped the plain "KaChat" target
+                    // on another app's share sheet, not a specific conversation): prompt them to
+                    // pick the chat — whichever thread they open next consumes the pending share
+                    // (see ShareIntake / ChatThreadScreen).
+                    val pendingShare by com.kachat.app.services.ShareIntake.pending.collectAsState()
+                    if (pendingShare != null && pendingShare?.targetContactId == null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(KaspaTeal.copy(alpha = 0.15f))
+                                .padding(start = 14.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.share_pick_chat),
+                                color = LocalAppColors.current.textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { com.kachat.app.services.ShareIntake.pending.value = null }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel),
+                                    tint = LocalAppColors.current.textSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
                 val chatsUnreadCount = conversations.sumOf { it.unreadCount }
@@ -327,7 +380,9 @@ fun ChatsScreen(
             // sits above the app-wide floating tab bar for free, since this screen's own content
             // region is already reserved above it before this Scaffold is even composed.
             FloatingActionButton(
-                onClick = { navController.navigate("create_chat") },
+                // Tab-aware: opens the group builder on the Group Chats tab, the 1:1 create
+                // screen on the Chats tab.
+                onClick = { navController.navigate(if (isOnGroupsTab) "create_chat?group=true" else "create_chat") },
                 containerColor = KaspaTeal,
                 contentColor = Color.Black,
                 shape = CircleShape,
@@ -396,7 +451,9 @@ fun ChatsScreen(
         // Chats lists. Tab taps still drive it via pagerState.animateScrollToPage above.
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = false,
+            // Allow swiping left/right between the Chats and Group Chats tabs (the tab row
+            // still works too - both drive the same pagerState).
+            userScrollEnabled = true,
             modifier = Modifier.fillMaxSize().padding(padding)
         ) { page ->
         when (page) {
@@ -405,6 +462,9 @@ fun ChatsScreen(
                 groupConversations = filteredGroupConversations,
                 hasAnyGroups = groupConversations.isNotEmpty(),
                 searchQuery = searchQuery,
+                latestReactionByGroup = latestReactionByGroup,
+                memberNamesByAddress = groupMemberNamesByAddress,
+                myAddress = myAddress,
                 onDeleteGroup = { chatViewModel.deleteGroupChat(it) },
                 isSelectionMode = isSelectionMode,
                 selectedGroupIds = selectedGroupIds,
@@ -425,12 +485,6 @@ fun ChatsScreen(
         ) {
             if (conversations.isEmpty()) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Shown here too (not just in the real conversation list below) so a
-                    // brand-new account with zero 1:1 chats doesn't lose access to Broadcasts
-                    // until their first conversation exists.
-                    if ("broadcasts" !in hiddenTabs) {
-                        BroadcastsEntryRow(onClick = { navController.navigate("broadcasts") })
-                    }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
@@ -506,19 +560,19 @@ fun ChatsScreen(
                 // unlike the old archive (reversible, one tap to undo) a delete permanently wipes
                 // local message history and a mis-swipe would be unrecoverable.
                 var contactToDelete by remember { mutableStateOf<String?>(null) }
+                // Long-press quick menu target - which conversation's DropdownMenu is open.
+                // Same Box-anchored DropdownMenu pattern as PortfolioPickerHeader's cards
+                // (no onGloballyPositioned anchor math, which fillMaxWidth children corrupt).
+                var menuContactId by remember { mutableStateOf<String?>(null) }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // Restored to its original placement: a row inside the Chats list itself (so
-                    // it reads as "just another chat"), not a standalone element above the tabs -
-                    // only shown while not searching, matching iOS.
-                    if ("broadcasts" !in hiddenTabs && searchQuery.isBlank()) {
-                        item {
-                            BroadcastsEntryRow(onClick = { navController.navigate("broadcasts") })
-                        }
-                    }
+                    // 4.0: the Broadcasts entry card is gone - Broadcasts is a dock tab now,
+                    // riding the Chats-slot cycle when the dock is full (matches iOS).
                     items(filteredConversations, key = { it.contact.id }) { convo ->
                         SwipeActionRow(
-                            enabled = !isSelectionMode,
+                            // 4.0 (matches iOS): row swipes are gone - horizontal swipes page
+                            // between Chats and Groups; delete/read live in Select mode.
+                            enabled = false,
                             leadingIcon = if (convo.unreadCount > 0) Icons.Default.MarkEmailRead else Icons.Default.MarkEmailUnread,
                             leadingLabel = if (convo.unreadCount > 0) "Read" else "Unread",
                             leadingColor = KaspaTeal,
@@ -534,33 +588,69 @@ fun ChatsScreen(
                             trailingColor = Color(0xFFFF3B30),
                             onTrailingClick = { contactToDelete = convo.contact.id }
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().background(LocalAppColors.current.background)
-                            ) {
-                                if (isSelectionMode) {
-                                    Icon(
-                                        imageVector = if (convo.contact.id in selectedContactIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                                        contentDescription = stringResource(R.string.select_chat),
-                                        tint = if (convo.contact.id in selectedContactIds) KaspaTeal else Color.Gray,
-                                        modifier = Modifier.padding(start = 16.dp).size(22.dp)
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    ConversationRow(convo, latestReactionByContact[convo.contact.id], myAddress) {
-                                        if (isSelectionMode) {
-                                            selectedContactIds = if (convo.contact.id in selectedContactIds) {
-                                                selectedContactIds - convo.contact.id
-                                            } else {
-                                                selectedContactIds + convo.contact.id
-                                            }
-                                        } else {
-                                            navController.navigate("chat/${convo.contact.id}")
-                                        }
+                            Box {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().background(LocalAppColors.current.background)
+                                ) {
+                                    if (isSelectionMode) {
+                                        Icon(
+                                            imageVector = if (convo.contact.id in selectedContactIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                            contentDescription = stringResource(R.string.select_chat),
+                                            tint = if (convo.contact.id in selectedContactIds) KaspaTeal else Color.Gray,
+                                            modifier = Modifier.padding(start = 16.dp).size(22.dp)
+                                        )
                                     }
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(start = 72.dp),
-                                        color = Color.DarkGray.copy(alpha = 0.5f)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        ConversationRow(
+                                            convo,
+                                            latestReactionByContact[convo.contact.id],
+                                            myAddress,
+                                            onLongClick = { if (!isSelectionMode) menuContactId = convo.contact.id }
+                                        ) {
+                                            if (isSelectionMode) {
+                                                selectedContactIds = if (convo.contact.id in selectedContactIds) {
+                                                    selectedContactIds - convo.contact.id
+                                                } else {
+                                                    selectedContactIds + convo.contact.id
+                                                }
+                                            } else {
+                                                navController.navigate("chat/${convo.contact.id}")
+                                            }
+                                        }
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 72.dp),
+                                            color = Color.DarkGray.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = menuContactId == convo.contact.id,
+                                    onDismissRequest = { menuContactId = null }
+                                ) {
+                                    if (convo.unreadCount > 0) {
+                                        DropdownMenuItem(
+                                            text = { Text("Mark as Read") },
+                                            onClick = {
+                                                menuContactId = null
+                                                chatViewModel.markAsRead(convo.contact.id)
+                                            }
+                                        )
+                                    } else {
+                                        DropdownMenuItem(
+                                            text = { Text("Mark as Unread") },
+                                            onClick = {
+                                                menuContactId = null
+                                                chatViewModel.markAsUnread(convo.contact.id)
+                                            }
+                                        )
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text("Delete", color = Color(0xFFFF3B30)) },
+                                        onClick = {
+                                            menuContactId = null
+                                            contactToDelete = convo.contact.id
+                                        }
                                     )
                                 }
                             }
@@ -607,50 +697,6 @@ fun ChatsScreen(
                     )
                 }
 
-                if (showBulkDeleteConfirmation) {
-                    val count = if (isOnGroupsTab) selectedGroupIds.size else selectedContactIds.size
-                    AlertDialog(
-                        onDismissRequest = { showBulkDeleteConfirmation = false },
-                        containerColor = LocalAppColors.current.surface,
-                        title = {
-                            Text(
-                                if (isOnGroupsTab) "Delete $count Group${if (count == 1) "" else "s"}?" else "Delete $count Chat${if (count == 1) "" else "s"}?",
-                                color = LocalAppColors.current.textPrimary
-                            )
-                        },
-                        text = {
-                            Text(
-                                if (isOnGroupsTab) {
-                                    "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
-                                } else {
-                                    "This permanently deletes every message in each selected chat, including from iCloud, so they're removed from your other devices too. This cannot be undone."
-                                },
-                                color = LocalAppColors.current.textSecondary
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                if (isOnGroupsTab) {
-                                    chatViewModel.deleteGroupChats(selectedGroupIds)
-                                } else {
-                                    chatViewModel.deleteChats(selectedContactIds)
-                                }
-                                showBulkDeleteConfirmation = false
-                                isSelectionMode = false
-                                selectedContactIds = emptySet()
-                                selectedGroupIds = emptySet()
-                            }) {
-                                Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showBulkDeleteConfirmation = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                            }
-                        }
-                    )
-                }
-
             }
 
             PullRefreshIndicator(
@@ -663,6 +709,55 @@ fun ChatsScreen(
 
         }
         }
+        }
+
+        // Screen-scoped, NOT inside a pager page: this used to compose inside the 1:1 Chats
+        // page's non-empty branch, so on the Group Chats tab (page 0 not composed) tapping the
+        // bulk Delete button set the flag but no dialog ever appeared - group bulk delete
+        // silently did nothing. Same for an empty or fully filtered 1:1 list. Dialogs render
+        // in their own window, so screen scope shows it regardless of which tab is visible.
+        if (showBulkDeleteConfirmation) {
+            val count = if (isOnGroupsTab) selectedGroupIds.size else selectedContactIds.size
+            AlertDialog(
+                onDismissRequest = { showBulkDeleteConfirmation = false },
+                containerColor = LocalAppColors.current.surface,
+                title = {
+                    Text(
+                        if (isOnGroupsTab) "Delete $count Group${if (count == 1) "" else "s"}?" else "Delete $count Chat${if (count == 1) "" else "s"}?",
+                        color = LocalAppColors.current.textPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        if (isOnGroupsTab) {
+                            "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
+                        } else {
+                            "This permanently deletes every message in each selected chat, including from iCloud, so they're removed from your other devices too. This cannot be undone."
+                        },
+                        color = LocalAppColors.current.textSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (isOnGroupsTab) {
+                            chatViewModel.deleteGroupChats(selectedGroupIds)
+                        } else {
+                            chatViewModel.deleteChats(selectedContactIds)
+                        }
+                        showBulkDeleteConfirmation = false
+                        isSelectionMode = false
+                        selectedContactIds = emptySet()
+                        selectedGroupIds = emptySet()
+                    }) {
+                        Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBulkDeleteConfirmation = false }) {
+                        Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                    }
+                }
+            )
         }
     }
 }
@@ -689,53 +784,6 @@ private fun TabBadge(count: Int, content: @Composable () -> Unit) {
     }
 }
 
-/** The "Broadcasts" row inside the Chats list - shown both in the real conversation list and the empty state, so it's reachable regardless of whether the user has any 1:1 chats yet. */
-@Composable
-private fun BroadcastsEntryRow(onClick: () -> Unit) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(LocalAppColors.current.surface),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.RssFeed,
-                    contentDescription = null,
-                    tint = KaspaTeal,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = stringResource(R.string.broadcasts),
-                style = MaterialTheme.typography.titleMedium,
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = LocalAppColors.current.textSecondary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 72.dp),
-            color = Color.DarkGray.copy(alpha = 0.5f)
-        )
-    }
-}
-
 /**
  * Group Chats tab content embedded in `ChatsScreen`'s pager - list of joined groups with their
  * latest message, matching the 1:1 Chats page's row/footer/empty-state shape. Owns its own
@@ -743,6 +791,7 @@ private fun BroadcastsEntryRow(onClick: () -> Unit) {
  * branch, which meant it silently couldn't render whenever there were zero 1:1 chats; now
  * self-contained regardless of what the Chats page shows.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun GroupListBody(
     navController: NavController,
@@ -751,6 +800,14 @@ fun GroupListBody(
      *  genuinely empty account from a search that just matched nothing. */
     hasAnyGroups: Boolean = groupConversations.isNotEmpty(),
     searchQuery: String = "",
+    /** groupId -> newest reaction, for the "Alice reacted to a message" card preview - see
+     *  [ChatViewModel.latestReactionByGroup]. */
+    latestReactionByGroup: Map<String, com.kachat.app.services.database.LatestGroupReactionRow> = emptyMap(),
+    /** address -> live alias/KNS display name ([ChatViewModel.groupMemberNamesByAddress]) - the
+     *  same map the group thread's sender labels resolve through, so the cards name people
+     *  identically: alias > KNS > roster snapshot > shortened address. */
+    memberNamesByAddress: Map<String, String> = emptyMap(),
+    myAddress: String? = null,
     onDeleteGroup: (String) -> Unit,
     isSelectionMode: Boolean = false,
     selectedGroupIds: Set<String> = emptySet(),
@@ -759,6 +816,8 @@ fun GroupListBody(
     onMarkGroupUnread: (String) -> Unit = {}
 ) {
     var groupToDelete by remember { mutableStateOf<String?>(null) }
+    // Long-press quick menu target - same Box-anchored DropdownMenu pattern as the 1:1 list.
+    var menuGroupId by remember { mutableStateOf<String?>(null) }
 
     if (groupConversations.isEmpty() && hasAnyGroups && searchQuery.isNotBlank()) {
         Column(
@@ -813,7 +872,8 @@ fun GroupListBody(
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(groupConversations, key = { it.group.groupId }) { convo ->
                 SwipeActionRow(
-                    enabled = !isSelectionMode,
+                    // 4.0 (matches iOS): row swipes are gone - see the 1:1 list above.
+                    enabled = false,
                     leadingIcon = if (convo.unreadCount > 0) Icons.Default.MarkEmailRead else Icons.Default.MarkEmailUnread,
                     leadingLabel = if (convo.unreadCount > 0) "Read" else "Unread",
                     leadingColor = KaspaTeal,
@@ -838,16 +898,20 @@ fun GroupListBody(
                     // through as a stray line at the bottom of every row. Matches the regular Chats
                     // tab's identical row, which already scopes its background this way.
                     Column(modifier = Modifier.background(LocalAppColors.current.background)) {
+                        Box {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    if (isSelectionMode) {
-                                        onToggleGroupSelected(convo.group.groupId)
-                                    } else {
-                                        navController.navigate("group_chat/${convo.group.groupId}")
-                                    }
-                                }
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            onToggleGroupSelected(convo.group.groupId)
+                                        } else {
+                                            navController.navigate("group_chat/${convo.group.groupId}")
+                                        }
+                                    },
+                                    onLongClick = { if (!isSelectionMode) menuGroupId = convo.group.groupId }
+                                )
                                 .padding(horizontal = 16.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -860,20 +924,7 @@ fun GroupListBody(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                             }
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(LocalAppColors.current.surface),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Groups,
-                                    contentDescription = null,
-                                    tint = KaspaTeal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            GroupAvatar(photoHex = convo.group.photoHex, size = 48.dp)
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -885,8 +936,35 @@ fun GroupListBody(
                                 // Memoized on the roster JSON so scrolling / unread-count changes
                                 // don't re-parse the whole member list (with a fresh Gson) per row.
                                 val groupMembers = remember(convo.group.membersJson) { parseGroupMembers(convo.group) }
+                                // A reaction more recent than the last message gets shown instead
+                                // - mirrors the 1:1 list's reaction preview (see ConversationRow),
+                                // since reactions never become message rows.
+                                val reactionPreview = latestReactionByGroup[convo.group.groupId]?.let { reaction ->
+                                    if (convo.lastMessage != null && convo.lastMessage.blockTimestamp >= reaction.blockTimestamp) {
+                                        return@let null
+                                    }
+                                    // Same chain as the group thread's sender labels: live
+                                    // alias/KNS name > roster snapshot > shortened address -
+                                    // never the raw address.
+                                    val reactorLabel = if (reaction.reactorAddress == myAddress) {
+                                        "You"
+                                    } else {
+                                        memberNamesByAddress[reaction.reactorAddress]?.takeIf { it.isNotBlank() }
+                                            ?: groupMembers.firstOrNull { it.address == reaction.reactorAddress }
+                                                ?.displayName?.takeIf { it.isNotBlank() }
+                                            ?: com.kachat.app.util.KaspaAddress.shortDisplay(reaction.reactorAddress)
+                                    }
+                                    val target = if (reaction.reactorAddress != myAddress && reaction.targetIsOutgoing == true) {
+                                        "your message"
+                                    } else {
+                                        "a message"
+                                    }
+                                    "$reactorLabel reacted to $target"
+                                }
                                 Text(
-                                    text = groupMessagePreviewText(convo.lastMessage, groupMembers) ?: "No messages yet",
+                                    text = reactionPreview
+                                        ?: groupMessagePreviewText(convo.lastMessage, groupMembers, memberNamesByAddress)
+                                        ?: "No messages yet",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.Gray,
                                     maxLines = 1,
@@ -911,6 +989,36 @@ fun GroupListBody(
                                     )
                                 }
                             }
+                        }
+                        DropdownMenu(
+                            expanded = menuGroupId == convo.group.groupId,
+                            onDismissRequest = { menuGroupId = null }
+                        ) {
+                            if (convo.unreadCount > 0) {
+                                DropdownMenuItem(
+                                    text = { Text("Mark as Read") },
+                                    onClick = {
+                                        menuGroupId = null
+                                        onMarkGroupRead(convo.group.groupId)
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Mark as Unread") },
+                                    onClick = {
+                                        menuGroupId = null
+                                        onMarkGroupUnread(convo.group.groupId)
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = Color(0xFFFF3B30)) },
+                                onClick = {
+                                    menuGroupId = null
+                                    groupToDelete = convo.group.groupId
+                                }
+                            )
+                        }
                         }
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 88.dp),
@@ -962,12 +1070,19 @@ fun GroupListBody(
 }
 
 /** Mirrors [messagePreviewText] for group messages. Resolves `@{address}` mentions back to a
- *  display name using the roster's own (possibly stale) `displayName` snapshot rather than a
- *  live contact/KNS lookup - not worth threading that all the way down for a one-line preview. */
-private fun groupMessagePreviewText(message: GroupMessage?, members: List<GroupMember> = emptyList()): String? {
+ *  display name through the same chain the group thread uses: live alias/KNS name (from
+ *  [ChatViewModel.groupMemberNamesByAddress], passed in as [namesByAddress]) > the roster's
+ *  `displayName` snapshot > shortened address. */
+private fun groupMessagePreviewText(
+    message: GroupMessage?,
+    members: List<GroupMember> = emptyList(),
+    namesByAddress: Map<String, String> = emptyMap()
+): String? {
     val body = message?.content ?: return null
     val resolve: (String) -> String = { address ->
-        members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() } ?: address.takeLast(10)
+        namesByAddress[address]?.takeIf { it.isNotBlank() }
+            ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
+            ?: com.kachat.app.util.KaspaAddress.shortDisplay(address)
     }
     val replyContent = MessageReply.parseOrNull(body)
     if (replyContent != null) {
@@ -975,6 +1090,9 @@ private fun groupMessagePreviewText(message: GroupMessage?, members: List<GroupM
     }
     if (VoiceMessage.parseOrNull(body) != null) return "🎤 Audio message"
     if (ImageMessage.parseOrNull(body) != null) return "📷 Photo"
+    VoiceMessage.parseAnyFileOrNull(body)?.let {
+        return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
+    }
     return GroupMentionCodec.decodeForDisplay(body, members, resolve)
 }
 
@@ -993,6 +1111,9 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
     if (VoiceMessage.parseOrNull(body) != null) return "🎤 Audio message"
     if (ImageMessage.parseOrNull(body) != null) return "📷 Photo"
     if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
+    VoiceMessage.parseAnyFileOrNull(body)?.let {
+        return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
+    }
     return body
 }
 
@@ -1111,22 +1232,26 @@ fun SwipeActionRow(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ConversationRow(
     convo: Conversation,
     latestReaction: com.kachat.app.services.database.LatestReactionRow?,
     myAddress: String?,
+    onLongClick: () -> Unit = {},
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ContactAvatar(
             imageUrl = convo.contact.knsAvatarUrl,
+            deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
+            backupPhotoBase64 = convo.contact.backupPhotoBase64,
             fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
             size = 48.dp
         )
@@ -1191,7 +1316,23 @@ private fun ConversationRow(
     }
 }
 
-/** Contact avatar — shows the KNS profile photo when available, else falls back to initials, everywhere a contact is shown. */
+/**
+ * Contact avatar — the single place the app's avatar resolution order lives, used everywhere a
+ * contact is shown:
+ *
+ *   1. [imageUrl] — the contact's KNS profile photo (a remote https URL), when they have one.
+ *   2. [deviceContactPhotoUri] — the photo from the device address book for a linked phone
+ *      contact (a local `content://` URI; see [com.kachat.app.models.ContactEntity.systemContactPhotoUri]).
+ *   3. the person glyph.
+ *
+ * Both image steps go through Coil, so the memory/disk caches and the off-main-thread decode are
+ * the same for a device photo as for a KNS avatar. A candidate that fails to load falls through to
+ * the next one rather than dead-ending on the glyph — that's what makes a broken/expired KNS URL
+ * still show the device photo.
+ *
+ * Call sites should pass BOTH sources rather than pre-collapsing them, so the fallback order stays
+ * defined here and can't drift per screen.
+ */
 @Composable
 fun ContactAvatar(
     imageUrl: String?,
@@ -1199,8 +1340,18 @@ fun ContactAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     backgroundColor: Color = LocalAppColors.current.surface,
-    fontSize: TextUnit = 16.sp
+    fontSize: TextUnit = 16.sp,
+    deviceContactPhotoUri: String? = null,
+    backupPhotoBase64: String? = null
 ) {
+    val candidates = remember(imageUrl, deviceContactPhotoUri) {
+        listOfNotNull(
+            imageUrl?.takeIf { it.isNotBlank() },
+            deviceContactPhotoUri?.takeIf { it.isNotBlank() }
+        )
+    }
+    // Cross-platform backup photo (base64 JPEG) decoded once; the last fallback before the glyph.
+    val backupBitmap = remember(backupPhotoBase64) { decodeBase64Avatar(backupPhotoBase64) }
     Box(
         modifier = modifier
             .size(size)
@@ -1208,27 +1359,55 @@ fun ContactAvatar(
             .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
-        if (imageUrl != null) {
-            SubcomposeAsyncImage(
-                model = imageUrl,
+        AvatarImageChain(candidates, fallbackText, fontSize, backupBitmap)
+    }
+}
+
+private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
+    if (base64.isNullOrBlank()) return null
+    return try {
+        val bytes = Base64.decode(base64, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/** Renders [candidates] in order, dropping to the next on load failure; then the backup photo, then the glyph. */
+@Composable
+private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fontSize: TextUnit, backupBitmap: ImageBitmap? = null) {
+    val current = candidates.firstOrNull()
+    if (current == null) {
+        if (backupBitmap != null) {
+            Image(
+                bitmap = backupBitmap,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                loading = { AvatarInitials(fallbackText, fontSize) },
-                error = { AvatarInitials(fallbackText, fontSize) }
+                contentScale = ContentScale.Crop
             )
         } else {
             AvatarInitials(fallbackText, fontSize)
         }
+        return
     }
+    SubcomposeAsyncImage(
+        model = current,
+        contentDescription = null,
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Crop,
+        loading = { AvatarInitials(fallbackText, fontSize) },
+        error = { AvatarImageChain(candidates.drop(1), fallbackText, fontSize, backupBitmap) }
+    )
 }
 
 @Composable
 private fun AvatarInitials(text: String, fontSize: TextUnit) {
-    Text(
-        text = text.take(2).uppercase(),
-        color = KaspaTeal,
-        fontWeight = FontWeight.Bold,
-        fontSize = fontSize
+    // 4.0 (matches iOS): no photo shows a person glyph, not initials - initials read like
+    // random letters for KNS-less addresses and looked inconsistent next to real avatars.
+    Icon(
+        imageVector = Icons.Outlined.Person,
+        contentDescription = null,
+        tint = KaspaTeal,
+        modifier = Modifier.fillMaxSize(0.55f)
     )
 }

@@ -46,6 +46,21 @@ class NodeRegistry {
 
     fun containsAddress(address: String): Boolean = records.containsKey(address)
 
+    /**
+     * Zeroes every record's consecutive-failure count while keeping the addresses and last
+     * probe results — called when the device's network path changes (WiFi <-> cellular, VPN
+     * up/down; see NodePoolManager's ConnectivityManager callback). Unreachable/Quarantined
+     * verdicts are facts about the OLD network only: a node unreachable on WiFi may be
+     * perfectly fine on the VPN, so every node gets a fresh 3-strike allowance on the new
+     * path instead of carrying strikes across networks. Records whose last probe failed drop
+     * from "Quarantined" back to "Suspect" (statusOf's failure branch) until re-probed, which
+     * also protects Discovered/DNS entries from NodePoolManager's Quarantine-based pruning
+     * right after a path change.
+     */
+    fun forgiveFailures() {
+        records.replaceAll { _, r -> r.copy(consecutiveFailures = 0) }
+    }
+
     /** Most recent successful probe across every known node — drives the "Last Sync" field. */
     fun lastSuccessAt(): Long? = records.values.mapNotNull { it.lastSuccessAt }.maxOrNull()
 

@@ -9,7 +9,6 @@
     <string name="account_name">Hesap Adı</string>
     <string name="active_nodes">Aktif Düğümler</string>
     <string name="add">Ekle</string>
-    <string name="add_address">Adres Ekle</string>
     <string name="add_contact">Kişi Ekle</string>
     <string name="add_transaction">Islem Ekle</string>
     <string name="add_to_portfolio">Portfoye Ekle</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">Yayin Ayarlari</string>
     <string name="broadcasting">Yayinlaniyor...</string>
     <string name="broadcasts">Yayinlar</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">Yayinlar herkese acik, sifrelenmemis kanallardir. Ayni kanal adina katilan herkes ayni mesajlari gorur.</string>
     <string name="build_unsigned_transaction">Imzasiz Islem Olustur</string>
     <string name="building_transaction">Islem olusturuluyor...</string>
     <string name="camera_permission_is_needed_to_scan">Bir QR kodu taramak icin kamera erisimi gerekli</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">Yaniti iptal et</string>
     <string name="change">Degistir</string>
     <string name="changenow_exchange_id">ChangeNOW Takas Kimligi</string>
-    <string name="channels">Kanallar</string>
     <string name="chats">Sohbetler</string>
     <string name="chatting_address">Sohbet Adresi</string>
     <string name="chatting_address_2">Sohbet adresi</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Google Drive yedegi kullanildi</string>
     <string name="grant_permission">Izin Ver</string>
     <string name="grant_permission_2">Izin ver</string>
-    <string name="group_chat">Grup Sohbeti</string>
     <string name="group_chats">Grup Sohbetleri</string>
     <string name="group_info">Grup Bilgisi</string>
     <string name="group_name">Grup Adi</string>
@@ -169,14 +165,12 @@
     <string name="name">Ad</string>
     <string name="name_optional">Ad (İsteğe Bağlı)</string>
     <string name="name_this_address">Bu Adresi Adlandir</string>
-    <string name="network">Ağ</string>
     <string name="never_send_kaspa_you_intend_to">Harcamayi dusundugunuz Kaspa\'yi asla bu adrese gondermeyin.</string>
     <string name="next">Ileri</string>
     <string name="no_conversations_yet">Henüz konuşma yok</string>
     <string name="no_group_chats_yet">Henuz Grup Sohbeti Yok</string>
     <string name="no_matching_chats">Eslesen sohbet yok</string>
     <string name="no_matching_groups">Eslesen grup yok</string>
-    <string name="no_broadcast_channels_yet">Henuz yayin kanali yok</string>
     <string name="no_cold_storage_accounts_yet_scan">Henuz soguk depolama hesabi yok. Bakiyesini izlemek ve ondan gondermek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin.</string>
     <string name="no_domains_yet">Henüz alan adı yok.</string>
     <string name="no_hidden_addresses">Gizli adres yok.</string>
@@ -210,8 +204,6 @@
     <string name="photos">Fotograflar</string>
     <string name="polygon_network">Polygon agi</string>
     <string name="pool_health">Havuz Sağlığı</string>
-    <string name="popular">Populer</string>
-    <string name="popular_tab">Populer Sekmesi</string>
     <string name="portfolio">Portfoy</string>
     <string name="powered_by_changenow">ChangeNOW tarafindan desteklenmektedir</string>
     <string name="price_per_coin">Coin Basina Fiyat</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">Ayrilmis alan adi: kayit ucreti yok, yalnizca ag ucretleri gecerlidir.</string>
     <string name="resign">Pes Et</string>
     <string name="resign_this_game">Bu oyundan cekilinsin mi?</string>
-    <string name="resolving_kns_domain">KNS alan adi cozumleniyor…</string>
     <string name="resolving_domain">Alan adi cozumleniyor…</string>
     <string name="resolving">Cozumleniyor...</string>
     <string name="retention">Saklama</string>
@@ -271,7 +262,6 @@
     <string name="show_more">Daha Fazla Goster</string>
     <string name="show_photo">Fotografi Goster</string>
     <string name="show_qr_code">QR Kodu Goster</string>
-    <string name="shows_a_tab_of_recommended_broadcast">Katilabileceginiz onerilen yayin odalarinin bulundugu bir sekme gosterir.</string>
     <string name="shows_senders_kns_avatars_in_rooms">Odalardaki gonderenlerin KNS avatarlarini gosterir ve mesajlar goruldukce otomatik olarak arar. Kapali, herkes icin sade baş harfleri gosterir ve asla avatar getirmez.</string>
     <string name="skip">Atla</string>
     <string name="some_changes_failed_to_save">Bazi degisiklikler kaydedilemedi:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">Zincir uzerinde onaylanirken birkac dakika surebilir.</string>
     <string name="this_only_removes_it_from_kachat">Bu, yalnizca KaChat\'in izleme listesinden kaldirir. KasSigner cihazi veya tuttugu fonlar uzerinde hicbir etkisi yoktur.</string>
     <string name="this_permanently_deletes_every_message_with">Bu, bu cihazda onlarla olan her mesaji kalici olarak siler. Bu geri alinamaz; onlara tekrar mesaj yazmak tamamen yeni bir konusma baslatir.</string>
-    <string name="this_permanently_deletes_this_account_s">Bu, bu hesabin cuzdan anahtarlarini ve tum yerel mesajlarini ve kisilerini bu cihazdan kalici olarak siler. Kurtarma ifadenizi kaydetmediyseniz bu geri alinamaz; onsuz, kalan herhangi bir bakiye kurtarilamaz.</string>
-    <string name="this_permanently_deletes_this_account_s_2">Bu, bu hesabin cuzdan anahtarlarini, tum yerel mesajlarini ve kisilerini ve Google Drive yedegini kalici olarak siler. Kurtarma ifadenizi kaydetmediyseniz bu geri alinamaz; onsuz, kalan herhangi bir bakiye kurtarilamaz.</string>
-    <string name="this_removes_all_incoming_messages_locally">Bu, tum gelen mesajlari yerel olarak kaldirir, sonra bunlari blok zincirinden yeniden senkronize eder. Hesap bilgileriniz ve gonderilen mesajlar korunur.</string>
     <string name="this_removes_the_group_and_its">Bu, grubu ve mesajlarini bu cihazdan kaldirir. Bu geri alinamaz ve diger uyelere bildirim gitmez.</string>
     <string name="this_signs_out_of_your_account">Bu, hesabınızdan çıkış yapar, ancak yerel cüzdan ve mesaj verilerini bu cihazda tutar.</string>
     <string name="to">Alici</string>
@@ -312,13 +299,6 @@
     <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
     <string name="waiting_for_camera">Kamera bekleniyor...</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
-    <string name="when_you_message_someone_new_on">KaChat\'te yeni biriyle mesajlastiginizda, o kisi bildirim almaz ve mesajiniz o size yanit verene veya o da sizi eklemedigi surece gizli kalir. Bu, spam\'e karsi korur ve gizliliginizi artirir. Bildirim almasini istiyorsaniz, 0,2 KAS\'a mal olacak bir iletisim istegi gondermek icin el simgesine dokunun. (Not: KaChat disindaki tum mesajlasma uygulamalari iletisim istegi gerektirecektir)</string>
-    <string name="wipe_account">Hesabi Sil</string>
-    <string name="wipe_everything">Her Seyi Sil</string>
-    <string name="wipe_incoming_messages">Gelen Mesajları Sil</string>
-    <string name="wipe_account_messages">Hesabı ve mesajları sil</string>
-    <string name="wipe_account_messages_cloud">Hesabi ve mesajlari ve Bulutu sil</string>
-    <string name="wipe_and_re_sync_incoming_messages">Gelen mesajları sil ve yeniden senkronize et</string>
     <string name="you_will_be_shown_a_seed">Size bir kurtarma ifadesi gosterilecek. Hesabinizi kurtarmanin tek yolu budur. Yalnizca yazili olarak not aldiginizdan emin olun. Asla ekran goruntusu almayin veya cihazinizda saklamayin.</string>
     <string name="channel_name">kanal-adi</string>
     <string name="host_port_or_grpcs_host">host:port veya grpcs://host</string>
@@ -337,7 +317,6 @@
     <string name="swap_failed">Takas basarisiz</string>
     <string name="nothing_to_consolidate">Birlestirilecek bir sey yok</string>
     <string name="about">Hakkında</string>
-    <string name="account">Hesap</string>
     <string name="actions">İşlemler</string>
     <string name="active">Aktif</string>
     <string name="autocreate_system_contacts">Sistem kişilerini otomatik oluştur</string>
@@ -402,7 +381,6 @@
     <string name="save_photo">Fotografi Kaydet</string>
     <string name="save_your_own_node_addresses_here">Kendi dugum adreslerinizi buraya kaydedin, ardindan kopyalayip yukaridaki Kaspa Dugumu alanina yapistirmak icin birine dokunun.</string>
     <string name="security">Guvenlik</string>
-    <string name="select_mainnet_for_real_transactions_or">Gerçek işlemler için mainnet veya test için testnet seçin</string>
     <string name="send_audio_message">Sesli Mesaj Gonder</string>
     <string name="send_handshake">Iletisim Istegi Gonder</string>
     <string name="send_photo_2">Fotograf Gonder</string>
@@ -421,7 +399,6 @@
     <string name="system_contact">Sistem Kişisi</string>
     <string name="telegram">Telegram</string>
     <string name="total">Toplam</string>
-    <string name="unfinished_inscription">Tamamlanmamis Yazit</string>
     <string name="uses_your_device_contacts_to_match">Kaspa kişilerini eşleştirmek ve zenginleştirmek için cihaz kişilerinizi kullanır.</string>
     <string name="verified">Doğrulanmış</string>
     <string name="verifying_new_ownership_on_chain_this">Yeni sahiplik zincir uzerinde dogrulaniyor (bir dakika surebilir)...</string>
@@ -433,7 +410,6 @@
     <string name="view_seed_phrase">Seed Phrase Görüntüle</string>
     <string name="view_in_explorer">Kesif Motorunda Goruntule</string>
     <string name="website">Web Sitesi</string>
-    <string name="welcome_guide">Hos Geldiniz Rehberi</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">Dil</string>
@@ -458,7 +434,6 @@
     <string name="best">En iyi</string>
     <string name="spending_address">Harcama Adresi</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port veya grpcs://host olarak girin</string>
-    <string name="show_setup_guides">Kurulum Kilavuzlarini Goster</string>
     <string name="receive_kaspa">Kaspa Al</string>
     <string name="currency">Para Birimi</string>
     <string name="choose_your_currency">Para Biriminizi Secin</string>

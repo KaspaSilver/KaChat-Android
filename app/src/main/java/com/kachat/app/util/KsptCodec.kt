@@ -31,7 +31,9 @@ object KsptCodec {
     private const val FLAG_SIGNED = 0x01
     private const val FLAG_HAS_REDEEM_SCRIPT = 0x02
 
-    const val MAX_INPUTS = 8
+    // Matches firmware MAX_INPUTS=32 as of KasSigner v1.0.5 (was 8; devices on older
+    // firmware reject >8-input — and pre-1.0.5, even >5-input — transactions).
+    const val MAX_INPUTS = 32
     const val MAX_OUTPUTS = 4
 
     /** Starts with the 4-byte "KSPT" magic — the same check KasSigner's own frame-0 detector uses. */

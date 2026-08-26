@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.kachat.app.repository.AppSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,8 +16,16 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settings: AppSettingsRepository
+    private val settings: AppSettingsRepository,
+    pushState: com.kachat.app.services.PushState,
+    private val childModeService: com.kachat.app.services.ChildModeService,
+    private val walletManager: com.kachat.app.services.WalletManager,
+    private val paymentPoolService: com.kachat.app.services.PaymentPoolService
 ) : ViewModel() {
+
+    /** Read-only push diagnostics for Settings > Notifications (see PushState.PushDiagnostics). */
+    val pushActive = pushState.pushActive
+    val pushDiagnostics = pushState.diagnostics
 
     val network = settings.network
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_NETWORK)
@@ -50,4 +59,91 @@ class SettingsViewModel @Inject constructor(
     fun setNotificationVibrationEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationVibrationEnabled(value) }
     fun setShowFeeEstimate(value: Boolean) = viewModelScope.launch { settings.setShowFeeEstimate(value) }
     fun setQuickReactionEmojis(value: List<String>) = viewModelScope.launch { settings.setQuickReactionEmojis(value) }
+
+    // ------------------------------------------------------------------
+    // Notifications hub subpages (Settings > Notifications)
+    // ------------------------------------------------------------------
+
+    val addressActivityNotificationsEnabled = settings.addressActivityNotificationsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyLikes = settings.kaPostsNotifyLikes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyReposts = settings.kaPostsNotifyReposts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyFollows = settings.kaPostsNotifyFollows
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyDislikes = settings.kaPostsNotifyDislikes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyComments = settings.kaPostsNotifyComments
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setAddressActivityNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setAddressActivityNotificationsEnabled(value) }
+    fun setKaPostsNotifyLikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyLikes(value) }
+    fun setKaPostsNotifyReposts(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyReposts(value) }
+    fun setKaPostsNotifyFollows(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyFollows(value) }
+    fun setKaPostsNotifyDislikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyDislikes(value) }
+    fun setKaPostsNotifyComments(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyComments(value) }
+
+    // ------------------------------------------------------------------
+    // Chats Payment Privacy (per-account) — fresh-address payment pools.
+    // ------------------------------------------------------------------
+
+    /** The ACTIVE account's Chats Payment Privacy value, re-scoped on account switches. Default ON. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val chatsPaymentPrivacyEnabled = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) kotlinx.coroutines.flow.flowOf(true)
+            else settings.chatsPaymentPrivacyEnabled(address)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** Persists the per-account flag, then propagates the transition (revoke on OFF from
+     *  persisted pool state, proactive re-offer on ON) — see PaymentPoolService. */
+    fun setChatsPaymentPrivacyEnabled(value: Boolean) = viewModelScope.launch {
+        val address = try { walletManager.getAddress() } catch (e: Exception) { return@launch }
+        settings.setChatsPaymentPrivacyEnabled(address, value)
+        paymentPoolService.handleChatsPrivacyToggleChanged(value)
+    }
+
+    // ------------------------------------------------------------------
+    // Child Mode (Settings > Security > Child Mode + the Welcome Guide's
+    // "Who will use KaChat?" step). NEVER biometrics anywhere in these
+    // flows — only the password counts. See ChildModeService.
+    // ------------------------------------------------------------------
+
+    val childModeEnabled = settings.childModeEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Synchronous (EncryptedSharedPreferences-backed) — safe to call from composition. */
+    fun hasChildModePassword(): Boolean = childModeService.hasPassword()
+
+    fun verifyChildModePassword(password: String): Boolean = childModeService.verifyPassword(password)
+
+    /** Stores the salted hash. Returns false if storing failed (degenerate empty password / crypto error). */
+    fun setChildModePassword(password: String): Boolean =
+        runCatching { childModeService.setPassword(password) }.isSuccess
+
+    /** Wrong current password → false, nothing changes. */
+    fun changeChildModePassword(current: String, newPassword: String): Boolean =
+        runCatching { childModeService.changePassword(current, newPassword) }.getOrDefault(false)
+
+    /** Turning ON with a password already set needs no password; turning OFF must go through
+     *  [turnOffChildMode] so the flag can never be flipped off without the password verifying. */
+    fun enableChildMode() = viewModelScope.launch { settings.setChildModeEnabled(true) }
+
+    /** Verifies first; only then flips the persisted flag off. Wrong password → false, stays on. */
+    fun turnOffChildMode(password: String): Boolean {
+        if (!childModeService.verifyPassword(password)) return false
+        viewModelScope.launch { settings.setChildModeEnabled(false) }
+        return true
+    }
+
+    /** Full reset to never-configured: deletes the stored record and turns Child Mode off.
+     *  Wrong password → false, nothing changes. */
+    suspend fun clearChildModeConfiguration(password: String): Boolean =
+        runCatching { childModeService.clearConfiguration(password) }.getOrDefault(false)
+
+    /** The wizard's Adult/Child step was answered — persist the marker so relaunches stop
+     *  re-presenting the guide. */
+    fun markUserTypeChosen() = viewModelScope.launch { settings.markUserTypeChosen() }
 }

@@ -12,7 +12,10 @@ import java.util.Base64
  */
 object MessageProtocol {
 
-    const val PREFIX          = "ciph_msg"
+    // `kchat:` migration: write the new root; still READ the legacy `ciph_msg:` root so old
+    // history and not-yet-migrated peers keep rendering (everything after the root is identical).
+    const val PREFIX          = "kchat"        // write + read
+    const val LEGACY_PREFIX   = "ciph_msg"     // read-only
     const val VERSION         = "1"
     const val TYPE_HANDSHAKE  = "handshake"
     const val TYPE_COMM       = "comm"
@@ -22,6 +25,16 @@ object MessageProtocol {
     const val MAX_BROADCAST_CHANNEL_NAME_LENGTH = 36
 
     private val HANDSHAKE_PREFIX_BYTES = "$PREFIX:$VERSION:$TYPE_HANDSHAKE:".toByteArray(Charsets.US_ASCII)
+    private val LEGACY_HANDSHAKE_PREFIX_BYTES = "$LEGACY_PREFIX:$VERSION:$TYPE_HANDSHAKE:".toByteArray(Charsets.US_ASCII)
+
+    /** Length of whichever handshake root [rawBytes] carries (new or legacy), or null. */
+    private fun handshakePrefixLength(rawBytes: ByteArray): Int? {
+        if (rawBytes.size > HANDSHAKE_PREFIX_BYTES.size &&
+            rawBytes.copyOfRange(0, HANDSHAKE_PREFIX_BYTES.size).contentEquals(HANDSHAKE_PREFIX_BYTES)) return HANDSHAKE_PREFIX_BYTES.size
+        if (rawBytes.size > LEGACY_HANDSHAKE_PREFIX_BYTES.size &&
+            rawBytes.copyOfRange(0, LEGACY_HANDSHAKE_PREFIX_BYTES.size).contentEquals(LEGACY_HANDSHAKE_PREFIX_BYTES)) return LEGACY_HANDSHAKE_PREFIX_BYTES.size
+        return null
+    }
 
     /**
      * Builds "ciph_msg:1:comm:<alias>:<base64>" — alias is plaintext, colon-delimited
@@ -43,18 +56,16 @@ object MessageProtocol {
         return HANDSHAKE_PREFIX_BYTES + encrypted.toBytes()
     }
 
-    fun isHandshakePayload(rawBytes: ByteArray): Boolean {
-        if (rawBytes.size <= HANDSHAKE_PREFIX_BYTES.size) return false
-        return rawBytes.copyOfRange(0, HANDSHAKE_PREFIX_BYTES.size).contentEquals(HANDSHAKE_PREFIX_BYTES)
-    }
+    fun isHandshakePayload(rawBytes: ByteArray): Boolean = handshakePrefixLength(rawBytes) != null
 
     /**
-     * Returns true if [rawBytes] is a recognized ciph_msg payload of any type.
+     * Returns true if [rawBytes] is a recognized KaChat payload of any type (dual-read of the
+     * new `kchat:` root and the legacy `ciph_msg:` root).
      */
     fun isKaChatPayload(rawBytes: ByteArray): Boolean {
         if (isHandshakePayload(rawBytes)) return true
         val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return false }
-        return text.startsWith("$PREFIX:$VERSION:")
+        return text.startsWith("$PREFIX:$VERSION:") || text.startsWith("$LEGACY_PREFIX:$VERSION:")
     }
 
     /**
@@ -64,7 +75,7 @@ object MessageProtocol {
         val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return null }
         // ["ciph_msg", "1", "comm", alias, base64] — Kotlin limit=5 matches Swift's maxSplits:4
         val parts = text.split(":", limit = 5)
-        if (parts.size != 5 || parts[0] != PREFIX || parts[1] != VERSION || parts[2] != TYPE_COMM) return null
+        if (parts.size != 5 || (parts[0] != PREFIX && parts[0] != LEGACY_PREFIX) || parts[1] != VERSION || parts[2] != TYPE_COMM) return null
 
         val alias = parts[3]
         val encryptedBytes = try {
@@ -80,8 +91,8 @@ object MessageProtocol {
      * Parses a "handshake" payload, returning the still-encrypted message (raw bytes, no base64).
      */
     fun parseHandshakePayload(rawBytes: ByteArray): KasiaCipher.EncryptedMessage? {
-        if (!isHandshakePayload(rawBytes)) return null
-        val remainder = rawBytes.copyOfRange(HANDSHAKE_PREFIX_BYTES.size, rawBytes.size)
+        val prefixLen = handshakePrefixLength(rawBytes) ?: return null
+        val remainder = rawBytes.copyOfRange(prefixLen, rawBytes.size)
         return KasiaCipher.EncryptedMessage.fromBytes(remainder)
     }
 
@@ -107,7 +118,7 @@ object MessageProtocol {
         val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return null }
         // ["ciph_msg", "1", "bcast", channel, content] — same shape as parseCommPayload.
         val parts = text.split(":", limit = 5)
-        if (parts.size != 5 || parts[0] != PREFIX || parts[1] != VERSION || parts[2] != TYPE_BCAST) return null
+        if (parts.size != 5 || (parts[0] != PREFIX && parts[0] != LEGACY_PREFIX) || parts[1] != VERSION || parts[2] != TYPE_BCAST) return null
         return BroadcastMessage(channel = parts[3], content = parts[4])
     }
 

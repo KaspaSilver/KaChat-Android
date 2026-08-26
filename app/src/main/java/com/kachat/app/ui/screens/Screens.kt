@@ -2,7 +2,6 @@ package com.kachat.app.ui.screens
 
 import android.Manifest
 import android.app.Activity
-import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -16,7 +15,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.animateColorAsState
@@ -36,6 +34,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -57,6 +56,12 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -74,6 +79,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -115,7 +121,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.kachat.app.R
-import com.kachat.app.models.BackupRetention
 import com.kachat.app.models.Conversation
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.ReactionEntity
@@ -154,6 +159,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import com.kachat.app.util.showAddressCopiedToast
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -170,9 +176,13 @@ fun ChatThreadScreen(
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val conversations by chatViewModel.conversations.collectAsState()
     val conversation = conversations.find { it.contact.id == contactId }
-    val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
+    val allMessages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
+    // "Sent via another device" rows are backup fill-in slots, never UI (matches iOS and the
+    // chess mini chat); legacy restores from pre-1d236ba builds can still hold such rows.
+    val messages = remember(allMessages) { allMessages.filterNot { it.isSentPlaceholder } }
     val reactions by chatViewModel.getReactions(contactId).collectAsState(initial = emptyList())
     val reactionsByTxId = remember(reactions) { reactions.groupBy { it.targetTxId } }
+    val handshakeSendInFlight by chatViewModel.handshakeSendInFlight.collectAsState()
     val revealedPhotoTxIds by chatViewModel.revealedPhotoTxIds.collectAsState()
 
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
@@ -191,10 +201,30 @@ fun ChatThreadScreen(
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by chatViewModel.feeRateOverride.collectAsState()
+    // Zero-balance funding gate — active only for a *confirmed* 0 KAS chatting balance
+    // (unknown/still-loading never trips it); the helper also owns the on-entry refresh and
+    // the 10s re-poll that dismisses the gate once funds arrive. Shared with group chat,
+    // broadcast rooms and KaPosts — see GiftClaimUi.kt.
+    val fundingGate = rememberZeroBalanceFundingGate()
 
-    var paymentMode by remember { mutableStateOf(startInPaymentMode) }
+    // rememberSaveable (not remember) so payment mode survives a push to Manage Spending
+    // Addresses from the Available pill and back — iOS keeps payment mode alive by presenting
+    // that screen as a sheet; on Android the nav round-trip must not silently drop the mode.
+    var paymentMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(startInPaymentMode) }
+    val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
+    val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
+    val identityFullBalance by walletViewModel.fullBalance.collectAsState()
+    val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
+    // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
+    // casual untimed game (the pre-timer behavior). Same CenteredOptionsMenu style, same anchor.
+    var showChessTimeControlMenu by remember { mutableStateOf(false) }
+    // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
+    // Storage > Nextcloud). Picking a file sends its public share link as a normal text message,
+    // which the recipient's link-preview feature renders as tappable media.
+    val nextcloudAccount by chatViewModel.nextcloud.account.collectAsState()
+    var showNextcloudPicker by remember { mutableStateOf(false) }
     // Local-only multi-select for deleting individual messages (never the whole chat - see
     // ChatsScreen's own delete for that) - toggled from the top bar's "Select" action.
     var isSelectingMessages by remember { mutableStateOf(false) }
@@ -269,10 +299,48 @@ fun ChatThreadScreen(
         onDispose { chatViewModel.setActiveContact(null) }
     }
 
+    // System-share intake (see ShareIntake/MainActivity.handleShareIntent): an UNTARGETED share
+    // (user tapped the plain "KaChat" target, then picked this chat from the Chats list's "choose
+    // a chat" banner) now has its destination — hand it to the in-place compose sheet
+    // (ShareComposeSheet, rendered by KaChatApp) rather than silently pre-filling this composer.
+    // Direct-share picks never reach here: they already carry their conversation and go straight
+    // to the sheet from KaChatApp.
+    val pendingShareContent by com.kachat.app.services.ShareIntake.pending.collectAsState()
+    LaunchedEffect(pendingShareContent, contactId) {
+        val share = pendingShareContent ?: return@LaunchedEffect
+        if (share.targetContactId != null && share.targetContactId != contactId) return@LaunchedEffect
+        com.kachat.app.services.ShareIntake.pending.value = null
+        if (share.isExpired()) return@LaunchedEffect
+        // A share always lands in the message composer flow, never the payment-entry UI.
+        paymentMode = false
+        com.kachat.app.services.ShareIntake.compose.value = com.kachat.app.services.ShareCompose(
+            contactId = contactId,
+            text = share.text,
+            imageUris = share.imageUris
+        )
+    }
+
     LaunchedEffect(paymentMode) {
         if (paymentMode) {
             chatViewModel.refreshSpendingUtxos()
             walletViewModel.refreshSpendingAddress()
+            // Privacy OFF funds payments from the chatting address — keep its balance fresh too.
+            walletViewModel.refreshBalance()
+            chatViewModel.refreshFreshPoolIndicator(contactId)
+        }
+    }
+
+    // The Available pill tracks rotation change landing after a private-mode send: whenever an
+    // own-address balance change involves the current spending address (AddressActivityNotifier's
+    // always-on UI event, separate from its notification decision), re-fetch the shown balance.
+    LaunchedEffect(paymentMode) {
+        if (!paymentMode) return@LaunchedEffect
+        chatViewModel.ownAddressUtxoActivityEvents.collect { involved ->
+            val currentSpending = walletViewModel.spendingAddress.value
+            if (currentSpending == null || involved.contains(currentSpending)) {
+                walletViewModel.refreshSpendingAddress()
+                chatViewModel.refreshSpendingUtxos()
+            }
         }
     }
 
@@ -307,6 +375,7 @@ fun ChatThreadScreen(
                     ) {
                         ContactAvatar(
                             imageUrl = conversation?.contact?.knsAvatarUrl,
+                            deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                             fallbackText = conversation?.contact?.alias ?: contactId.takeLast(8),
                             size = 36.dp
                         )
@@ -372,7 +441,23 @@ fun ChatThreadScreen(
             // (gesture pill or 3-button bar) when the keyboard is closed — its height varies
             // a lot across devices/manufacturers, so a fixed dp padding isn't enough on every
             // phone. imePadding() on the Scaffold above already handles the keyboard-open case.
-            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp)) {
+            // Zero-balance funding gate: the whole composer (text field, camera, "+" menu, send,
+            // mic, payment entry) dims and stops responding until the chatting address is funded
+            // — see Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
+                // Above everything else in the composer stack (including payment mode's fee /
+                // available pills) so it never collides with them, and visible the instant the
+                // chat opens rather than only once the user starts typing.
+                if (ChatViewModel.shouldShowUnnotifiedWarning(messages)) {
+                    // Same guard the composer menu's "Send Handshake" row uses — once the
+                    // handshake is complete there's nothing left to ping, so the action drops
+                    // away while the banner itself stays until the chat is actually reciprocated.
+                    val canSendHandshake = conversation?.contact?.handshakeComplete != true
+                    UnnotifiedMessageBanner(
+                        onSendHandshake = if (canSendHandshake) ({ chatViewModel.sendHandshake(contactId) }) else null,
+                        isSendingHandshake = contactId in handshakeSendInFlight
+                    )
+                }
                 if (paymentMode) {
                     Column(
                         modifier = Modifier
@@ -401,16 +486,44 @@ fun ChatThreadScreen(
                                 }
                             }
                             
+                            // Available pill: primary spending balance when Chats Payment Privacy
+                            // is ON (underlined + tappable, opens Manage Spending Addresses),
+                            // chatting balance when OFF (plain, not tappable). The fresh-address
+                            // indicator is merged into this pill (a small accent arrow) so the
+                            // helper row never clips on narrow screens; the pill itself absorbs
+                            // any squeeze by tail-truncating.
                             Surface(
                                 color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f, fill = false)
                             ) {
-                                Text(
-                                    text = "available: $spendingBalance",
-                                    color = LocalAppColors.current.textSecondary,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .then(
+                                            if (paymentPrivacyOn) Modifier.clickable { navController.navigate("manage_addresses") }
+                                            else Modifier
+                                        )
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "available: ${if (paymentPrivacyOn) spendingBalance else identityFullBalance}",
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textDecoration = if (paymentPrivacyOn) androidx.compose.ui.text.style.TextDecoration.Underline else null
+                                    )
+                                    if (paymentPrivacyOn && paysToFreshPoolAddress) {
+                                        Icon(
+                                            Icons.Filled.ArrowForward,
+                                            contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                         
@@ -498,7 +611,12 @@ fun ChatThreadScreen(
                                             )
                                             val fee = com.kachat.app.util.KaspaMass.calculateFee(mass, networkFeeRate.toLong())
 
-                                            val maxSendableSompi = (spendingBalanceSompi - fee).coerceAtLeast(0L)
+                                            // Same source the send will use: primary spending
+                                            // balance with privacy ON, chatting balance with
+                                            // privacy OFF (spendingUtxos already tracks the same
+                                            // funding source - see refreshSpendingUtxos).
+                                            val sourceBalanceSompi = if (paymentPrivacyOn) spendingBalanceSompi else identityBalanceSompi
+                                            val maxSendableSompi = (sourceBalanceSompi - fee).coerceAtLeast(0L)
                                             val maxSendableKas = maxSendableSompi.toDouble() / 100_000_000.0
                                             fiatAmountState.setMaxKas(maxSendableKas, fiatPriceInCurrency)
                                         }) {
@@ -510,11 +628,13 @@ fun ChatThreadScreen(
                                 singleLine = true
                             )
                             
-                            ChatActionButton(Icons.AutoMirrored.Filled.Chat, onClick = { 
+                            // Deliberately no mic in payment mode (matches iOS): the message
+                            // button is the only mode exit — audio stays reachable through
+                            // message mode's "+" menu as usual.
+                            ChatActionButton(Icons.AutoMirrored.Filled.Chat, onClick = {
                                 paymentMode = false
                                 chatViewModel.setPaymentAmount("")
                             })
-                            ChatActionButton(Icons.Default.Mic)
                         }
 
                         Button(
@@ -746,14 +866,36 @@ fun ChatThreadScreen(
                                 ),
                                 // Quick-access camera, replacing what used to be a "Camera" entry
                                 // in the "+" menu - living right in the message bubble instead
-                                // since it's the most common non-text action.
+                                // since it's the most common non-text action. The Kaspa logo
+                                // beside it jumps straight into payment mode - the exact same
+                                // switch the "+" menu's Send Kaspa entry flips, one tap instead
+                                // of two (iOS places the same shortcut inside its input bubble).
                                 trailingIcon = {
-                                    IconButton(onClick = { startCameraCapture() }) {
-                                        Icon(
-                                            Icons.Default.CameraAlt,
-                                            contentDescription = stringResource(R.string.camera),
-                                            tint = LocalAppColors.current.textSecondary
-                                        )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(onClick = { startCameraCapture() }) {
+                                            Icon(
+                                                Icons.Default.CameraAlt,
+                                                contentDescription = stringResource(R.string.camera),
+                                                tint = LocalAppColors.current.textSecondary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        IconButton(onClick = { startVoiceRecordingIfPermitted() }) {
+                                            Icon(
+                                                Icons.Default.Mic,
+                                                contentDescription = stringResource(R.string.send_audio_message),
+                                                tint = LocalAppColors.current.textSecondary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        IconButton(onClick = { paymentMode = true }) {
+                                            Icon(
+                                                painterResource(R.drawable.ic_kaspa_logo),
+                                                contentDescription = stringResource(R.string.send_kaspa),
+                                                tint = Color.Unspecified,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
                                     }
                                 },
                                 maxLines = 4
@@ -768,7 +910,8 @@ fun ChatThreadScreen(
                                         composerMenuAnchor = coords.positionInWindow()
                                     }
                                 ) {
-                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true })
+                                    // Slightly smaller than the stock 40dp so the input bubble gets the width.
+                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true }, size = 34.dp, iconSize = 18.dp)
                                 }
                                 if (showComposerMenu) {
                                     CenteredOptionsMenu(onDismissRequest = { showComposerMenu = false }, anchor = composerMenuAnchor) {
@@ -776,20 +919,24 @@ fun ChatThreadScreen(
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
                                         }
+                                        if (nextcloudAccount != null) {
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                            PopupMenuRow(Icons.Default.Cloud, "Send from Nextcloud") {
+                                                showComposerMenu = false
+                                                showNextcloudPicker = true
+                                            }
+                                        }
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.Mic, stringResource(R.string.send_audio_message)) {
                                             showComposerMenu = false
                                             startVoiceRecordingIfPermitted()
                                         }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(painterResource(R.drawable.ic_kaspa_logo), stringResource(R.string.send_kaspa), iconTint = Color.Unspecified) {
-                                            showComposerMenu = false
-                                            paymentMode = true
-                                        }
+                                        // Send Kaspa left this menu: the Kaspa logo inside the
+                                        // input bubble is the one entry point to payment mode now.
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.Apps, stringResource(R.string.play_chess)) {
                                             showComposerMenu = false
-                                            chatViewModel.startChessGame(contactId)
+                                            showChessTimeControlMenu = true
                                         }
                                         if (conversation?.contact?.handshakeComplete != true) {
                                             HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
@@ -799,6 +946,37 @@ fun ChatThreadScreen(
                                             }
                                         }
                                     }
+                                }
+                                if (showChessTimeControlMenu) {
+                                    // Timed options carry the clock icon; the untimed row keeps
+                                    // the chess menu's own icon so "Casual" reads as today's
+                                    // plain game. Minutes/increment pairs match iOS exactly.
+                                    CenteredOptionsMenu(onDismissRequest = { showChessTimeControlMenu = false }, anchor = composerMenuAnchor) {
+                                        for ((minutes, increment) in listOf(3 to 2, 2 to 1, 1 to 1)) {
+                                            PopupMenuRow(Icons.Default.Timer, "$minutes | $increment") {
+                                                showChessTimeControlMenu = false
+                                                chatViewModel.startChessGame(contactId, tcMinutes = minutes, tcIncSeconds = increment)
+                                            }
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                        }
+                                        PopupMenuRow(Icons.Default.Apps, "Casual (no timer)") {
+                                            showChessTimeControlMenu = false
+                                            chatViewModel.startChessGame(contactId)
+                                        }
+                                    }
+                                }
+                                if (showNextcloudPicker) {
+                                    NextcloudPickerDialog(
+                                        service = chatViewModel.nextcloud,
+                                        onDismiss = { showNextcloudPicker = false },
+                                        onPick = { link ->
+                                            showNextcloudPicker = false
+                                            // Stage the link in the composer for review instead of
+                                            // auto-sending — the user presses send themselves.
+                                            val current = messageText.trim()
+                                            chatViewModel.setMessageText(if (current.isEmpty()) link else "$current $link")
+                                        }
+                                    )
                                 }
                             } else {
                                 IconButton(
@@ -844,17 +1022,49 @@ fun ChatThreadScreen(
         // Auto-scroll to bottom when new messages arrive. The very first population of the list
         // (opening the chat) jumps instantly instead of animating - the LazyColumn otherwise
         // renders at the top first, and animating from there visibly scrolls through the whole
-        // history before settling at the bottom. Only messages arriving while the chat is already
-        // open get the smooth animated scroll.
+        // history before settling at the bottom. After that, an arrival only auto-scrolls when
+        // the reader is already at (or within a row of) the bottom, or when the newest message
+        // is their own send. Scrolled up reading history, the viewport stays put - LazyColumn
+        // keeps its own anchor when items are appended below the fold, and the scroll-to-latest
+        // button is the way back down. (The 2s open-chat poll and the live mirror both land
+        // here, so the old unconditional scroll yanked the viewport on every insert.)
+        val userIsDraggingList by scrollState.interactionSource.collectIsDraggedAsState()
         var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
+        // Message count as of the previous auto-scroll decision. "Was at bottom" is measured
+        // against THIS count, not the new one - when the effect fires the just-inserted rows
+        // haven't laid out yet, so the last visible index still refers to the pre-insert list,
+        // and a multi-message catch-up batch would otherwise fail the gate for a reader who
+        // was genuinely pinned to the end.
+        var autoScrollBaselineCount by remember { mutableStateOf(0) }
         LaunchedEffect(messages.size) {
             if (messages.isNotEmpty()) {
                 if (!hasScrolledToInitialPosition) {
                     scrollState.scrollToItem(messages.size - 1)
                     hasScrolledToInitialPosition = true
-                } else {
-                    scrollState.animateScrollToItem(messages.size - 1)
+                } else if (messages.size > autoScrollBaselineCount) {
+                    val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                    // Same 1-item tolerance as showScrollToBottom below - keyboard/fee-row
+                    // resizes can hide the very last row without any real scroll-up.
+                    val wasAtBottom = lastVisible >= autoScrollBaselineCount - 2
+                    // Sent on THIS device, just now - not merely direction=="sent". Every
+                    // optimistic local send (text, voice, photo, chess, payment) inserts its
+                    // row under a synthetic provisional id before the broadcast returns, and
+                    // that id is transient device-local state a mirror import can never carry
+                    // (see MessageEntity.PROVISIONAL_ID_PREFIX). An own message mirrored in
+                    // from another device arrives under its real txId, so it goes through the
+                    // at-bottom gate like any other insert instead of yanking the viewport
+                    // away from history.
+                    val newest = messages.last()
+                    val sentFromThisDevice = newest.direction == "sent" &&
+                        MessageEntity.isProvisionalId(newest.id)
+                    // Never fight an active finger drag - starting a programmatic animated
+                    // scroll mid-drag both stutters and steals the gesture. Local sends are
+                    // exempt: they come from the send button, not from a drag.
+                    if (sentFromThisDevice || (wasAtBottom && !userIsDraggingList)) {
+                        scrollState.animateScrollToItem(messages.size - 1)
+                    }
                 }
+                autoScrollBaselineCount = messages.size
             }
         }
 
@@ -862,10 +1072,16 @@ fun ChatThreadScreen(
         // just when messageText changes — the IME resize is system-driven and can complete
         // after Compose's own recomposition, so keying on messageText alone raced with it
         // and left the latest message hidden behind the keyboard without a real scroll-up).
+        // Gated the same way as arrivals: only re-pin when already at (or within a row of)
+        // the bottom - opening the keyboard while scrolled up reading history must not yank
+        // the viewport down.
         val imeVisible = WindowInsets.isImeVisible
         LaunchedEffect(imeVisible, messageText.isEmpty()) {
             if (messages.isNotEmpty()) {
-                scrollState.animateScrollToItem(messages.size - 1)
+                val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                if (lastVisible >= messages.lastIndex - 1) {
+                    scrollState.animateScrollToItem(messages.size - 1)
+                }
             }
         }
 
@@ -889,6 +1105,17 @@ fun ChatThreadScreen(
         // BroadcastScreens.kt for the full rationale; kept in sync with it.
         val revealOffsetPx = remember { Animatable(0f) }
         val maxRevealOffsetPx = with(LocalDensity.current) { 64.dp.toPx() }
+        // True only while a finger is actively dragging the reveal. Guards every snapTo so a
+        // straggler delta (launched during the drag but dispatched after release) can never
+        // cancel the settle animation — Animatable mutations are mutually exclusive, and that
+        // cancellation is exactly what used to leave the reveal stuck mid-swipe.
+        val isRevealDragging = remember { mutableStateOf(false) }
+        // Release ALWAYS springs the rows back; a vertical scroll stealing the gesture (which
+        // can end the drag without a clean stop) forces the same settle.
+        LaunchedEffect(isRevealDragging.value, scrollState.isScrollInProgress) {
+            if (scrollState.isScrollInProgress) isRevealDragging.value = false
+            if (!isRevealDragging.value) revealOffsetPx.animateTo(0f)
+        }
 
         // Computed here (not inside the LazyColumn content below) - LazyListScope's item-builder
         // lambda isn't a real @Composable context, so a bare remember() call in it fails to
@@ -913,10 +1140,15 @@ fun ChatThreadScreen(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
                         coroutineScope.launch {
-                            revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
+                            if (isRevealDragging.value) {
+                                revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
+                            }
                         }
                     },
-                    onDragStopped = { coroutineScope.launch { revealOffsetPx.animateTo(0f) } }
+                    onDragStarted = { isRevealDragging.value = true },
+                    // The settle LaunchedEffect above owns the spring-back — flipping the flag
+                    // both triggers it and disarms any still-queued snapTo deltas.
+                    onDragStopped = { isRevealDragging.value = false }
                 )
         ) {
             LazyColumn(
@@ -989,6 +1221,7 @@ fun ChatThreadScreen(
                                 },
                                 onOpenChessGame = { gameId -> navController.navigate("chess_game/$contactId/$gameId") },
                                 contactAvatarUrl = conversation?.contact?.knsAvatarUrl,
+                                contactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 contactAvatarFallback = conversation?.contact?.alias ?: contactId.takeLast(8),
                                 myAvatarUrl = myKnsProfile?.avatarUrl,
                                 myAvatarFallback = myAddress?.takeLast(8) ?: "",
@@ -1053,9 +1286,6 @@ fun ChatThreadScreen(
                             }
                         }
                     }
-                    if (ChatViewModel.shouldShowUnnotifiedWarning(messages)) {
-                        item { UnnotifiedMessageBanner() }
-                    }
                 }
             }
 
@@ -1076,6 +1306,19 @@ fun ChatThreadScreen(
                         tint = LocalAppColors.current.textPrimary
                     )
                 }
+            }
+
+            // Zero-balance funding gate card — floats over the (usually still empty) thread
+            // while the composer below sits dimmed and inert. Deliberately not full-screen:
+            // received messages stay readable and scrollable around it, only sending is gated.
+            // Gone reactively the moment the chatting balance confirms as > 0.
+            if (fundingGate.active) {
+                ZeroBalanceFundingCard(
+                    walletAddress = fundingGate.chattingAddress,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp)
+                )
             }
         }
     }
@@ -1175,30 +1418,83 @@ fun ChatThreadScreen(
     }
 }
 
+/**
+ * The new-chat handshake warning, matching desktop's `handshake-warning-banner` word for word.
+ *
+ * Sits directly above the composer and is visible from the moment a 1:1 chat opens (it is not
+ * gated on typing) until the conversation is genuinely reciprocated — see
+ * [ChatViewModel.shouldShowUnnotifiedWarning] for the exact rule. Styled off the theme's own
+ * surface/warning tokens like the app's other inline banners, rather than the hardcoded orange
+ * this used before.
+ */
 @Composable
-private fun UnnotifiedMessageBanner() {
-    Row(
+private fun UnnotifiedMessageBanner(
+    /** Null hides the action — nothing to offer once the handshake is already complete. */
+    onSendHandshake: (() -> Unit)? = null,
+    isSendingHandshake: Boolean = false
+) {
+    val colors = LocalAppColors.current
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFFF9500).copy(alpha = 0.08f))
-            .border(0.5.dp, Color(0xFFFF9500).copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(10.dp),
-        verticalAlignment = Alignment.Top
+            .padding(bottom = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surface)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = null,
-            tint = Color(0xFFFF9500),
-            modifier = Modifier.size(16.dp).padding(top = 2.dp)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.when_you_message_someone_new_on),
-            color = LocalAppColors.current.textSecondary,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Row(verticalAlignment = Alignment.Top) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = colors.warning,
+                modifier = Modifier.size(16.dp).padding(top = 2.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.the_recipient_wont_see_your_messages),
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        if (onSendHandshake != null) {
+            Spacer(Modifier.height(8.dp))
+            // Compact accent pill on its own row rather than beside the text — the copy runs to
+            // three lines, so an end-aligned button would squeeze it badly on narrow screens.
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Surface(
+                    color = if (isSendingHandshake) colors.accent.copy(alpha = 0.4f) else colors.accent,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.clickable(enabled = !isSendingHandshake, onClick = onSendHandshake)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isSendingHandshake) {
+                            CircularProgressIndicator(
+                                color = colors.textOnAccent,
+                                strokeWidth = 1.5.dp,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.BackHand,
+                                contentDescription = null,
+                                tint = colors.textOnAccent,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.send_handshake),
+                            color = colors.textOnAccent,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1206,11 +1502,119 @@ private fun UnnotifiedMessageBanner() {
 const val MESSAGE_TEXT_TRUNCATION_THRESHOLD = 2_000
 const val MESSAGE_TEXT_PREVIEW_LENGTH = 500
 
+/**
+ * Splits a payment bubble's display text into (amountText, note) for the rich payment card —
+ * ported from iOS's `paymentCardParts`. NOT regex/word-based, so it's locale-proof: the head
+ * (before an optional " — " em-dash separator) contributes its first whitespace-separated token
+ * that parses as a number (after `,` -> `.`); everything after the separator is the note.
+ * Returns null (text-bubble fallback) for oversized or non-numeric content.
+ */
+internal fun parsePaymentCardParts(content: String?): Pair<String, String?>? {
+    if (content == null || content.length > 512) return null
+    val pieces = content.split(" — ")
+    val head = pieces.first()
+    val amountToken = head.split(Regex("\\s+")).firstOrNull { token ->
+        token.replace(",", ".").toDoubleOrNull() != null
+    } ?: return null
+    val note = pieces.drop(1).joinToString(" — ").trim().ifEmpty { null }
+    return amountToken to note
+}
+
+/**
+ * Apple-Pay-style card for 1:1 payment messages — iOS's `paymentCardBubble` ported to Compose.
+ * Sent: teal gradient background, Kaspa logo in a SOLID WHITE circle (translucent white made the
+ * teal logo invisible on teal); received: neutral surface with teal accents. Used for detected
+ * payments AND pool payment_notice bubbles (both are `type == "pay"`).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PaymentCardBubble(
+    amountText: String,
+    note: String?,
+    isSent: Boolean,
+    isWarning: Boolean = false,
+    onLongPress: () -> Unit = {},
+    onDoubleClick: () -> Unit = {}
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val background = if (isSent) {
+        Modifier.background(
+            androidx.compose.ui.graphics.Brush.linearGradient(
+                colors = listOf(KaspaTeal, KaspaTeal.copy(alpha = 0.78f))
+            ),
+            shape
+        )
+    } else {
+        Modifier.background(LocalAppColors.current.surface, shape)
+    }
+    val strokeColor = if (isSent) Color.White.copy(alpha = 0.22f) else KaspaTeal.copy(alpha = 0.35f)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .widthIn(min = 170.dp, max = 300.dp)
+            .clip(shape)
+            .then(background)
+            .border(0.8.dp, strokeColor, shape)
+            .combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .background(if (isSent) Color.White else KaspaTeal.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_kaspa_logo),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(34.dp)
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = if (isSent) "Sent" else "Received",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSent) Color.White.copy(alpha = 0.85f) else LocalAppColors.current.textSecondary
+            )
+            Text(
+                text = "$amountText KAS",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (isSent) Color.White else LocalAppColors.current.textPrimary
+            )
+            if (note != null) {
+                Text(
+                    text = note,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isSent) Color.White.copy(alpha = 0.8f) else LocalAppColors.current.textSecondary
+                )
+            }
+            if (isWarning) {
+                // payment_notice chain verification found no output to the claimed address.
+                Text(
+                    text = "⚠︎ Unverified on-chain",
+                    fontSize = 11.sp,
+                    color = if (isSent) Color.White.copy(alpha = 0.9f) else Color(0xFFF39C12)
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     message: MessageEntity,
     contactAvatarUrl: String? = null,
+    /** Device address-book photo of this contact — the fallback when they have no KNS avatar. */
+    contactPhotoUri: String? = null,
     contactAvatarFallback: String = "",
     myAvatarUrl: String? = null,
     myAvatarFallback: String = "",
@@ -1281,6 +1685,12 @@ fun MessageBubble(
     val separateLinkPreviewUrl = remember(bodyText, isPlainTextMessage, isEntirelyLinkMessage) {
         if (isPlainTextMessage && !isEntirelyLinkMessage) TextLinkify.findUrls(bodyText).firstOrNull()?.uri else null
     }
+    // Link previews auto-fetch only for accepted contacts (the same conversationStatus ==
+    // "active" trust signal shouldAutoDisplayPhotos uses, passed in as isHandshakeComplete) and
+    // for the user's own sent links; a non-accepted stranger's link gets a tap-to-load
+    // placeholder instead, so no request leaves the device just by reading the message.
+    // Matches iOS (2026-08 audit, decision 5A).
+    val linkPreviewAutoFetch = isSent || isHandshakeComplete
 
     if (isPendingRequest) {
         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
@@ -1362,7 +1772,7 @@ fun MessageBubble(
             verticalAlignment = Alignment.Bottom
         ) {
         if (!isSent) {
-            ContactAvatar(imageUrl = contactAvatarUrl, fallbackText = contactAvatarFallback, size = 32.dp)
+            ContactAvatar(imageUrl = contactAvatarUrl, deviceContactPhotoUri = contactPhotoUri, fallbackText = contactAvatarFallback, size = 32.dp)
             Spacer(Modifier.width(8.dp))
         }
         Column(
@@ -1399,25 +1809,45 @@ fun MessageBubble(
         }
         Box {
             if (message.type == "pay") {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                    Icon(painterResource(R.drawable.ic_kaspa_logo), null, tint = Color.Unspecified, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.payment), color = Color(0xFFF39C12), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-
-                Surface(
-                    color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                    shape = RoundedCornerShape(20.dp),
-                    // Same off-screen-avatar risk as the plain text bubble — a long payment memo
-                    // needs the same cap.
-                    modifier = Modifier.widthIn(max = 280.dp).combinedClickable(onClick = {}, onLongClick = { showMenu = true })
-                ) {
-                    Text(
-                        text = message.plaintextBody ?: "Payment",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold
+                // Apple-Pay-style payment card (ported from iOS's paymentCardBubble): teal
+                // gradient with the Kaspa logo in a SOLID WHITE circle on the sent side, neutral
+                // surface with teal accents for received, big bold amount, Sent/Received line
+                // and optional note line. Unparseable content (legacy/foreign payments) falls
+                // back to the old plain text bubble plus the orange "Payment" capsule — the
+                // capsule only shows in that fallback, never alongside the card.
+                val cardParts = remember(message.plaintextBody, isSent) { parsePaymentCardParts(message.plaintextBody) }
+                if (cardParts != null) {
+                    PaymentCardBubble(
+                        amountText = cardParts.first,
+                        note = cardParts.second,
+                        isSent = isSent,
+                        isWarning = message.deliveryStatus == "warning",
+                        onLongPress = { showMenu = true },
+                        onDoubleClick = { showQuickReactionBar = true }
                     )
+                } else {
+                    Column(horizontalAlignment = if (isSent) Alignment.End else Alignment.Start) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+                            Icon(painterResource(R.drawable.ic_kaspa_logo), null, tint = Color.Unspecified, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(stringResource(R.string.payment), color = Color(0xFFF39C12), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Surface(
+                            color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
+                            shape = RoundedCornerShape(20.dp),
+                            // Same off-screen-avatar risk as the plain text bubble — a long payment memo
+                            // needs the same cap.
+                            modifier = Modifier.widthIn(max = 280.dp).combinedClickable(onClick = {}, onLongClick = { showMenu = true })
+                        ) {
+                            Text(
+                                text = message.plaintextBody ?: "Payment",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             } else if (message.type == MessageProtocol.TYPE_HANDSHAKE) {
                 // A message I sent is either my initial outreach ("Request to communicate",
@@ -1538,7 +1968,8 @@ fun MessageBubble(
                         kaspaExplorer = kaspaExplorer,
                         fallbackText = bodyText,
                         onSelect = onSelect,
-                        onDoubleTap = { showQuickReactionBar = true }
+                        onDoubleTap = { showQuickReactionBar = true },
+                        autoFetch = linkPreviewAutoFetch
                     )
                 } else {
                     var textLayoutResult by remember(bodyText) { mutableStateOf<TextLayoutResult?>(null) }
@@ -1664,7 +2095,7 @@ fun MessageBubble(
         // attaches to that Box) sizes against just the text bubble, not this taller card too -
         // matches iOS's identical placement outside its equivalent `Group`.
         separateLinkPreviewUrl?.let { url ->
-            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
+            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, autoFetch = linkPreviewAutoFetch)
         }
 
         if (isSent) {
@@ -1798,7 +2229,7 @@ fun ChessBubble(
     onLongPress: () -> Unit = {}
 ) {
     when (envelope) {
-        is com.kachat.app.util.ChessEnvelope.Invite -> ChessInviteBubble(isSent, summary, onRespond, onOpen, onLongPress)
+        is com.kachat.app.util.ChessEnvelope.Invite -> ChessInviteBubble(isSent, envelope.content, summary, onRespond, onOpen, onLongPress)
         else -> {
             if (isLatest && summary != null) {
                 ChessLiveCard(summary, onOpen, onLongPress)
@@ -1813,11 +2244,15 @@ fun ChessBubble(
 @Composable
 private fun ChessInviteBubble(
     isSent: Boolean,
+    invite: com.kachat.app.util.ChessInviteContent,
     summary: com.kachat.app.util.ChessGameSummary?,
     onRespond: (Boolean) -> Unit,
     onOpen: () -> Unit,
     onLongPress: () -> Unit = {}
 ) {
+    // Read the time control off the envelope itself (not just the summary, which can lag null
+    // while messages are still loading) so "Chess - 3 | 2" shows the moment the bubble renders.
+    val timeControlLabel = invite.tcMinutes?.let { "Chess - $it | ${invite.tcIncSeconds ?: 0}" }
     val showsResponseButtons = !isSent && summary?.status?.kind == com.kachat.app.util.ChessGameStatusKind.PENDING_RESPONSE
     Surface(
         color = LocalAppColors.current.surfaceVariant,
@@ -1841,6 +2276,10 @@ private fun ChessInviteBubble(
                     color = LocalAppColors.current.textPrimary,
                     fontSize = 14.sp
                 )
+            }
+            if (timeControlLabel != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(timeControlLabel, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
             if (showsResponseButtons) {
                 Spacer(Modifier.height(10.dp))
@@ -1885,6 +2324,11 @@ private fun ChessLiveCard(summary: com.kachat.app.util.ChessGameSummary, onOpen:
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
+            val timeControlLabel = summary.timeControlLabel
+            if (timeControlLabel != null) {
+                Spacer(Modifier.height(2.dp))
+                Text("Chess - $timeControlLabel", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+            }
         }
     }
 }
@@ -1912,7 +2356,8 @@ private fun ChessLogEntry(
             val promo = envelope.content.promotion?.let { " (${it.uppercase()})" } ?: ""
             "${envelope.content.from} → ${envelope.content.to}$promo"
         }
-        is com.kachat.app.util.ChessEnvelope.Resign -> "Resigned"
+        is com.kachat.app.util.ChessEnvelope.Resign ->
+            if (envelope.content.reason == "timeout") "Lost on time" else "Resigned"
         is com.kachat.app.util.ChessEnvelope.Response -> if (envelope.content.accepted) "Accepted the game" else "Declined the game"
         is com.kachat.app.util.ChessEnvelope.Invite -> "Chess invite"
     }
@@ -2256,14 +2701,14 @@ fun ImageBubble(
 }
 
 @Composable
-fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}) {
+fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}, size: Dp = 40.dp, iconSize: Dp = 20.dp) {
     IconButton(
         onClick = onClick,
         modifier = Modifier
-            .size(40.dp)
+            .size(size)
             .background(LocalAppColors.current.surface, CircleShape)
     ) {
-        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(iconSize))
     }
 }
 
@@ -2378,6 +2823,125 @@ fun ProfileScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
+                // Bold title + the global notification bell beside it (KaPosts activity, group
+                // @mentions, live broadcasts) - mirrors iOS's Profile toolbar bell.
+                val notifCenterVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
+                val notifEntries by notifCenterVm.store.entries.collectAsState()
+                val notifLastSeen by notifCenterVm.store.lastSeenAt.collectAsState()
+                var showNotifCenter by remember { mutableStateOf(false) }
+                val notifUnread = notifEntries.count { it.timestampMs > notifLastSeen }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.profile),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable {
+                                notifCenterVm.store.reloadIfNeeded()
+                                showNotifCenter = true
+                            }
+                            .padding(6.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = LocalAppColors.current.textPrimary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        if (notifUnread > 0) {
+                            // A plain red DOT (no count) - "there is something unread" is the signal.
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(8.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFE0245E)),
+                            )
+                        }
+                    }
+                }
+                if (showNotifCenter) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            notifCenterVm.store.markAllSeen()
+                            showNotifCenter = false
+                        },
+                        containerColor = LocalAppColors.current.surface,
+                        title = { Text("Notifications", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                        text = {
+                            if (notifEntries.isEmpty()) {
+                                Text(
+                                    "KaPosts activity, group @mentions, and live broadcast messages show up here.",
+                                    color = LocalAppColors.current.textSecondary,
+                                )
+                            } else {
+                                androidx.compose.foundation.lazy.LazyColumn(
+                                    modifier = Modifier.heightIn(max = 420.dp),
+                                ) {
+                                    items(notifEntries.size) { index ->
+                                        val entry = notifEntries[index]
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                // KaPosts rows deep-open the exact post/comment via the
+                                                // same deep-link flow notification taps use.
+                                                .let {
+                                                    if (entry.source == "kaposts") it.clickable {
+                                                        notifCenterVm.store.markAllSeen()
+                                                        showNotifCenter = false
+                                                        KaPostsDeepLink.pendingPostTxId.value = entry.targetId ?: ""
+                                                    } else it
+                                                }
+                                                .padding(vertical = 6.dp),
+                                        ) {
+                                            Text(
+                                                entry.title,
+                                                color = LocalAppColors.current.textPrimary,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 13.5.sp,
+                                            )
+                                            if (entry.body.isNotBlank()) {
+                                                Text(
+                                                    entry.body,
+                                                    color = LocalAppColors.current.textSecondary,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 2,
+                                                )
+                                            }
+                                            Text(
+                                                "${entry.source} · ${android.text.format.DateUtils.getRelativeTimeSpanString(entry.timestampMs)}",
+                                                color = LocalAppColors.current.textSecondary,
+                                                fontSize = 10.5.sp,
+                                            )
+                                        }
+                                        HorizontalDivider(color = LocalAppColors.current.surfaceVariant)
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                notifCenterVm.store.markAllSeen()
+                                showNotifCenter = false
+                            }) { Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                        },
+                        dismissButton = {
+                            if (notifEntries.isNotEmpty()) {
+                                TextButton(onClick = { notifCenterVm.store.clearAll() }) {
+                                    Text("Clear All", color = LocalAppColors.current.textSecondary)
+                                }
+                            }
+                        },
+                    )
+                }
                 TopStatusBar(
                     balance = balance,
                     onStatusClick = { navController.navigate("connection_status") },
@@ -2406,172 +2970,116 @@ fun ProfileScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            if (pendingKnsCommit != null) {
-                SettingsSection(title = stringResource(R.string.unfinished_inscription)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.a_kns_inscription_s_commit_transaction),
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
+            // 4.0 Profile redesign (matches iOS): inline-editable account name up top, then a
+            // KaPosts-style hero (KNS banner, overlapping avatar, display name, bio), then the
+            // KNS profile editing entry - the old boxed Account section is gone.
+            run {
+                var isEditingName by remember { mutableStateOf(false) }
+                var editedName by remember { mutableStateOf("") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isEditingName) {
+                        OutlinedTextField(
+                            value = editedName,
+                            onValueChange = { editedName = it },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            textStyle = MaterialTheme.typography.titleMedium.copy(color = LocalAppColors.current.textPrimary)
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.retryPendingKnsReveal() },
-                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                            enabled = knsInscribeState.status != WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL
-                        ) {
-                            Text(stringResource(R.string.retry_inscription_reveal), color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            if (!accountName.isNullOrBlank()) {
-                SettingsSection(title = stringResource(R.string.account)) {
-                    Text(
-                        accountName!!,
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-
-            if (showSetupGuides) {
-                SettingsSection(title = stringResource(R.string.welcome_guide)) {
-                    SettingsNavigationItem(stringResource(R.string.welcome_guide), Icons.Default.WavingHand, onClick = {
-                        navController.navigate("welcome_guide")
-                    })
-                }
-            }
-
-            GiftClaimProfileSection(walletAddress = address)
-
-            SettingsSection(title = stringResource(R.string.kns_profile)) {
-                if (profileAssetId == null || activeProfileDomainName == null) {
-                    // No domain yet - nothing to show an avatar/chevron-row for (there's no
-                    // profile data at all), so this collapses to a single centered call-to-action
-                    // that opens the guided creation wizard instead of the editor built for
-                    // *existing* profiles.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { navController.navigate("create_kns_profile") }
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            stringResource(R.string.create_kns_profile),
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.clickable { navController.navigate("edit_kns_profile") }
-                    ) {
-                        val bannerUrl = knsProfile?.bannerUrl?.takeIf { it.isNotBlank() }
-                        if (bannerUrl != null) {
-                            SubcomposeAsyncImage(
-                                model = bannerUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(90.dp)
-                                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                                    .background(LocalAppColors.current.surface)
-                            )
-                        }
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            ContactAvatar(
-                                imageUrl = knsProfile?.avatarUrl,
-                                fallbackText = activeProfileDomainName,
-                                size = 48.dp
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(activeProfileDomainName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                                val bio = knsProfile?.bio?.takeIf { it.isNotBlank() }
-                                if (bio != null) {
-                                    Text(
-                                        text = bio,
-                                        color = LocalAppColors.current.textPrimary,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 5
-                                    )
-                                } else {
-                                    Text(
-                                        text = if (hasAnyProfileData) "On-chain profile data available." else "No on-chain profile data yet.",
-                                        color = LocalAppColors.current.textSecondary,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
+                        IconButton(onClick = {
+                            val trimmed = editedName.trim()
+                            isEditingName = false
+                            if (trimmed.isNotEmpty() && trimmed != accountName) {
+                                address?.let { viewModel.renameAccount(it, trimmed) }
                             }
-                            Spacer(Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
+                        }) {
+                            Icon(Icons.Default.CheckCircle, null, tint = KaspaTeal)
                         }
-                        val knsProfileSnapshot = knsProfile
-                        val hasMoreInfo = knsProfileSnapshot != null && listOf(
-                            knsProfileSnapshot.bio, knsProfileSnapshot.x, knsProfileSnapshot.website, knsProfileSnapshot.telegram,
-                            knsProfileSnapshot.discord, knsProfileSnapshot.contactEmail, knsProfileSnapshot.github
-                        ).any { !it.isNullOrBlank() }
-                        if (hasMoreInfo) {
-                            HorizontalDivider(color = LocalAppColors.current.divider)
+                    } else {
+                        Text(
+                            accountName ?: stringResource(R.string.account_name),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1
+                        )
+                        IconButton(onClick = {
+                            editedName = accountName ?: ""
+                            isEditingName = true
+                        }) {
+                            Icon(Icons.Default.Edit, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
                         }
-                        var moreInfoExpanded by remember { mutableStateOf(false) }
-                        if (hasMoreInfo) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { moreInfoExpanded = !moreInfoExpanded }
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    }
+                }
+            }
+
+            Surface(
+                color = LocalAppColors.current.surface,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    val bannerUrl = knsProfile?.bannerUrl
+                    if (bannerUrl != null) {
+                        SubcomposeAsyncImage(
+                            model = bannerUrl,
+                            contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxWidth().height(140.dp),
+                            loading = { Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f))) },
+                            error = { Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f))) }
+                        )
+                    } else {
+                        Box(
+                            Modifier.fillMaxWidth().height(140.dp).background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(KaspaTeal.copy(alpha = 0.55f), KaspaTeal.copy(alpha = 0.15f))
+                                )
+                            )
+                        )
+                    }
+                    val heroName = activeProfileDomainName?.removeSuffix(".kas") ?: accountName ?: ""
+                    // This card only ever renders the user's own profile (ProfileScreen is
+                    // own-account only), so the edit/create entry is always shown here.
+                    // Label follows the same reactive condition as the destination: no profile
+                    // yet means "Create KNS Profile", and it flips to "Edit KNS Profile" the
+                    // moment activeProfileDomainName lands - no app restart needed.
+                    val hasKnsProfile = !activeProfileDomainName.isNullOrBlank()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(modifier = Modifier.padding(start = 16.dp).offset(y = (-38).dp)) {
+                            Box(
+                                modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text(stringResource(R.string.more_info), color = KaspaTeal, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Icon(
-                                    if (moreInfoExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (moreInfoExpanded) "Collapse" else "Expand",
-                                    tint = KaspaTeal
-                                )
+                                ContactAvatar(imageUrl = knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
                             }
                         }
-                        if (moreInfoExpanded) {
-                            HorizontalDivider(color = LocalAppColors.current.divider)
-                            val context = LocalContext.current
-                            Column(modifier = Modifier.padding(16.dp)) {
-
-                                val socialLinks = listOfNotNull(
-                                    knsProfile?.x?.takeIf { it.isNotBlank() }?.let { "X" to it },
-                                    knsProfile?.website?.takeIf { it.isNotBlank() }?.let { "Website" to it },
-                                    knsProfile?.telegram?.takeIf { it.isNotBlank() }?.let { "Telegram" to it },
-                                    knsProfile?.discord?.takeIf { it.isNotBlank() }?.let { "Discord" to it },
-                                    knsProfile?.contactEmail?.takeIf { it.isNotBlank() }?.let { "Email" to it },
-                                    knsProfile?.github?.takeIf { it.isNotBlank() }?.let { "GitHub" to it }
-                                )
-                                socialLinks.forEachIndexed { index, (label, value) ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                val url = if (value.startsWith("http")) value else "https://$value"
-                                                try {
-                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                                } catch (e: Exception) { /* no browser available */ }
-                                            }
-                                            .padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(label, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
-                                        Text(value, color = KaspaTeal, style = MaterialTheme.typography.bodyMedium)
-                                    }
-                                    if (index < socialLinks.lastIndex) {
-                                        HorizontalDivider(color = LocalAppColors.current.divider)
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            stringResource(if (hasKnsProfile) R.string.edit_kns_profile else R.string.create_kns_profile),
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .padding(top = 8.dp, end = 8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (hasKnsProfile) {
+                                        navController.navigate("edit_kns_profile")
+                                    } else {
+                                        navController.navigate("create_kns_profile")
                                     }
                                 }
-                            }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
+                        Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
+                        knsProfile?.bio?.takeIf { it.isNotBlank() }?.let { bio ->
+                            Spacer(Modifier.height(4.dp))
+                            Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -2599,103 +3107,89 @@ fun ProfileScreen(
                 }
             }
 
-            val chattingAddressClipboardManager = LocalClipboardManager.current
-            CollapsibleAddressSection(title = "Chatting Address", balance = balance) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                address?.let { chattingAddressClipboardManager.setText(AnnotatedString(it)) }
-                                Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            // Compact action rows (iOS parity: ContactsView.addressDropdownsSection), one per
+            // address role. Each shows the role title with its balance, plus three icon-only
+            // circle buttons: Copy, Send, Manage. Replaces the old expanding dropdown sections
+            // that hid the exact same three actions behind a chevron tap; the rich management
+            // screens stay reachable via Manage exactly as before.
+            val addressCardClipboardManager = LocalClipboardManager.current
+            ProfileAddressActionCard(
+                title = "Chatting",
+                address = address,
+                balanceText = balance,
+                onCopy = {
+                    address?.let {
+                        addressCardClipboardManager.setText(AnnotatedString(it))
+                        showAddressCopiedToast(context, it)
                     }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showWithdrawDialog = true }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.send_kaspa), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-                    if (address != null) {
-                        HorizontalDivider(color = LocalAppColors.current.divider)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigate("identity_address_detail") }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Receipt, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.manage_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
+                },
+                onSend = { if (address != null) showWithdrawDialog = true },
+                onManage = { if (address != null) navController.navigate("identity_address_detail") }
+            )
 
             // Separate from the identity address above, purely for payment privacy — "Pay in
             // Kaspa" sends always come out of this address, never the identity one above. It
             // rotates to a freshly derived address after every send (see WalletManager's
             // spending-address doc comment), so this always shows whichever one is current.
-            val spendingAddressClipboardManager = LocalClipboardManager.current
-            CollapsibleAddressSection(title = "Spending Address", balance = spendingBalance) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                spendingAddress?.let { spendingAddressClipboardManager.setText(AnnotatedString(it)) }
-                                Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            ProfileAddressActionCard(
+                title = "Spending",
+                address = spendingAddress,
+                balanceText = spendingBalance,
+                onCopy = {
+                    spendingAddress?.let {
+                        addressCardClipboardManager.setText(AnnotatedString(it))
+                        showAddressCopiedToast(context, it)
                     }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showSpendingWithdrawDialog = true }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.send_kaspa), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { navController.navigate("manage_addresses") }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.List, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.manage_addresses), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                },
+                onSend = { showSpendingWithdrawDialog = true },
+                onManage = { navController.navigate("manage_addresses") }
+            )
+
+            if (pendingKnsCommit != null) {
+                SettingsSection(title = null) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.a_kns_inscription_s_commit_transaction),
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { viewModel.retryPendingKnsReveal() },
+                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                            enabled = knsInscribeState.status != WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL
+                        ) {
+                            Text(stringResource(R.string.retry_inscription_reveal), color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
 
+            // Curated Kaspa sites (4.0): its own page, matching iOS's ProfileAppsView -
+            // Apps sits ABOVE Help, same as iOS.
+            SettingsSection(title = null) {
+                SettingsNavigationItem(stringResource(R.string.apps), Icons.Default.Apps, onClick = {
+                    navController.navigate("kaspa_apps")
+                })
+            }
+
+            SettingsSection(title = null) {
+                SettingsNavigationItem(stringResource(R.string.help), Icons.AutoMirrored.Filled.HelpOutline, onClick = {
+                    navController.navigate("help")
+                })
+            }
+
+            GiftClaimProfileSection(walletAddress = address)
+
             // Bottom-most section on Profile - merges what used to be a separate "Info" section
             // (just "Created") with Settings' old "About" section (Version/Website/Support
             // Email/Donate), now reached without needing to open Settings at all.
+            SettingsSection(title = null) {
+                SettingsActionItem(stringResource(R.string.log_out), Icons.AutoMirrored.Filled.Logout, Color.Red) {
+                    showLogoutConfirmation = true
+                }
+            }
+
             SettingsSection(title = stringResource(R.string.about)) {
                 SettingsInfoItem(stringResource(R.string.created), "Apr 22, 2026 at 8:33 AM")
                 SettingsDivider()
@@ -2740,11 +3234,6 @@ fun ProfileScreen(
 
             // Moved here from Settings > Actions - Profile is where the rest of the
             // account-level actions (address management, About) already live.
-            SettingsSection(title = stringResource(R.string.actions)) {
-                SettingsActionItem(stringResource(R.string.log_out), Icons.AutoMirrored.Filled.Logout, Color.Red) {
-                    showLogoutConfirmation = true
-                }
-            }
 
             Spacer(modifier = Modifier.height(80.dp))
         }
@@ -2890,12 +3379,15 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     viewModel.resetKnsInscribeState()
                     showInscribeDialog = true
                 },
-                containerColor = KaspaTeal,
-                contentColor = Color.Black,
+                // Deliberately NOT teal - the domain cards are teal-filled, so the action
+                // button contrasts: surface background, teal text, teal outline.
+                containerColor = LocalAppColors.current.surface,
+                contentColor = KaspaTeal,
                 shape = RoundedCornerShape(28.dp),
                 modifier = Modifier
                     .height(56.dp)
                     .widthIn(min = 120.dp)
+                    .border(1.5.dp, KaspaTeal, RoundedCornerShape(28.dp))
             ) {
                 Text(
                     stringResource(R.string.inscribe_new_domain),
@@ -3210,7 +3702,13 @@ fun KnsDomainSendScreen(
     domain: com.kachat.app.services.KnsAsset,
     viewModel: WalletViewModel,
     onDone: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /** Non-null: sign/fund the transfer from this spending-chain address index instead of the
+     *  identity address (the spending-address detail screen's KNS Domains tab passes it). */
+    fromSpendingAddressIndex: Int? = null,
+    /** The source address matching [fromSpendingAddressIndex] — recipient validation checks the
+     *  recipient differs from the SOURCE, not necessarily from the identity address. */
+    sourceAddress: String? = null
 ) {
     val recipientPreview by viewModel.transferRecipientPreview.collectAsState()
     val transferState by viewModel.transferDomainState.collectAsState()
@@ -3258,7 +3756,7 @@ fun KnsDomainSendScreen(
             if (transferState.status != WalletViewModel.KnsInscribeUiStatus.SUCCESS) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Button(
-                        onClick = { viewModel.transferDomain(domainName, assetId, priorityFeeSompi) },
+                        onClick = { viewModel.transferDomain(domainName, assetId, priorityFeeSompi, fromSpendingAddressIndex) },
                         enabled = canSend,
                         colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = KaspaTeal.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -3346,7 +3844,7 @@ fun KnsDomainSendScreen(
                         value = recipientInput,
                         onValueChange = {
                             recipientInput = it
-                            viewModel.checkTransferRecipient(it)
+                            viewModel.checkTransferRecipient(it, sourceAddress)
                         },
                         placeholder = { Text(stringResource(R.string.recipient_address_or_kas_name)) },
                         singleLine = true,
@@ -3455,6 +3953,7 @@ fun ManageAddressesScreen(
     onBack: () -> Unit,
     onNavigateToTxHistory: (Int) -> Unit = {},
     onNavigateToHidden: () -> Unit = {},
+    onNavigateToVisibility: () -> Unit = {},
     onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null
 ) {
     val identityAddress by viewModel.address.collectAsState()
@@ -3473,12 +3972,42 @@ fun ManageAddressesScreen(
     val pullRefreshState = rememberPullToRefreshState()
     val consolidateState by viewModel.consolidateState.collectAsState()
 
-    // Funded addresses always sort to the top; within each group, newest (highest index) first —
-    // so a freshly generated (zero-balance) address lands right below the last funded one rather
-    // than jumping above it just for being newest.
-    val visibleAddresses = remember(addresses) {
-        addresses.filterNot { it.hidden }
+    // Ordering (matches iOS ManageAddressesView): the primary address first, then addresses with
+    // a balance OR an owned KNS domain (funded before domain-only, newest index first within each
+    // group), then fresh addresses. Domain knowledge fills in asynchronously, so rows may
+    // re-partition once the batched KNS lookups land.
+    val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
+    // "Chat privacy address" rows: reserved and offered to a contact by the fresh-address
+    // payment pool. On the normal manage screen these live on their own read-only "Chat
+    // Privacy" tab instead of the main Addresses list (iOS parity); the Swap address picker
+    // variant keeps them inline with their tag. Never offered a Hide action while the offer
+    // stands. A reverted offer (revoke, superseding re-offer, or funding) leaves the set and
+    // its row moves back to the main list as a normal address again.
+    val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
+    // The Chat Privacy tab exists only while the current account's Chats Payment Privacy
+    // toggle is ON: toggle OFF releases every offered reservation (the active set is empty by
+    // definition), so the screen shows no tab row at all - just the plain Addresses list.
+    val chatsPaymentPrivacyOn by viewModel.chatsPaymentPrivacyEnabled.collectAsState()
+    // 0 = Addresses, 1 = Chat Privacy. Tabs exist only on the normal screen, not the picker.
+    var selectedManageTab by remember { mutableStateOf(0) }
+    val manageTabsVisible = onAddressPicked == null && chatsPaymentPrivacyOn
+    val showingChatPrivacyTab = manageTabsVisible && selectedManageTab == 1
+    // If the toggle flips OFF while the user is sitting on the Chat Privacy tab, land them on
+    // Addresses - the tab they were on no longer exists.
+    LaunchedEffect(chatsPaymentPrivacyOn) {
+        if (!chatsPaymentPrivacyOn) selectedManageTab = 0
+    }
+    val chatPrivacyAddresses = remember(addresses, privacyReservedAddresses) {
+        addresses.filter { it.address in privacyReservedAddresses }.sortedBy { it.index }
+    }
+    val visibleAddresses = remember(addresses, domainOwningAddresses, privacyReservedAddresses) {
+        val visible = addresses.filterNot { it.hidden || (onAddressPicked == null && it.address in privacyReservedAddresses) }
+        val primary = visible.filter { it.isCurrent }
+        val rest = visible.filterNot { it.isCurrent }
             .sortedWith(compareByDescending<com.kachat.app.services.WalletService.SpendingAddressEntry> { it.balanceSompi > 0 }.thenByDescending { it.index })
+        val active = rest.filter { it.balanceSompi > 0 || it.address in domainOwningAddresses }
+        val fresh = rest.filter { it.balanceSompi == 0L && it.address !in domainOwningAddresses }
+        primary + active + fresh
     }
     val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
 
@@ -3505,14 +4034,14 @@ fun ManageAddressesScreen(
         }
     }
 
+    // Pull-to-refresh owns its spinner end-to-end (same pattern as the Profile and Domains
+    // screens): await the refresh, then dismiss. NEVER keyed off manageAddressesLoading — that
+    // flag only flips on the empty-list initial load (a warm pull leaves it false the whole
+    // time, so a spinner waiting on it spun forever) and is also driven by background reloads,
+    // which must not surface or dismiss the pull indicator.
     LaunchedEffect(pullRefreshState.isRefreshing) {
         if (pullRefreshState.isRefreshing) {
-            viewModel.loadManageAddresses()
-        }
-    }
-
-    LaunchedEffect(loading) {
-        if (!loading && pullRefreshState.isRefreshing) {
+            viewModel.loadManageAddressesAndAwait()
             pullRefreshState.endRefresh()
         }
     }
@@ -3527,14 +4056,25 @@ fun ManageAddressesScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
                     }
                 },
+                actions = {
+                    // Bulk visibility manager (iOS parity): compact checkmark list of EVERY
+                    // address, so dozens can be toggled off the main list in one sitting.
+                    if (onAddressPicked == null) {
+                        IconButton(onClick = onNavigateToVisibility) {
+                            Icon(Icons.Default.Checklist, "Manage address visibility", tint = KaspaTeal)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             // Hidden while the QR overlay is up — its Dialog window doesn't fully cover the
-            // screen, so the FAB would otherwise still show through around the QR card.
-            if (qrAddress == null) {
+            // screen, so the FAB would otherwise still show through around the QR card. Also
+            // hidden entirely on the Chat Privacy tab: that tab is purely a viewer, so
+            // Generate/Discover/Consolidate disappear there (iOS parity).
+            if (qrAddress == null && !showingChatPrivacyTab) {
             FloatingActionButton(
                 onClick = { showActionsMenu = true },
                 containerColor = KaspaTeal,
@@ -3571,7 +4111,14 @@ fun ManageAddressesScreen(
                 ) {
                     PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_new_spending_address)) {
                         showActionsMenu = false
-                        viewModel.generateNewSpendingAddress()
+                        viewModel.generateNewSpendingAddress { index ->
+                            Toast.makeText(
+                                context,
+                                if (index != null) "Spending address #$index is ready."
+                                else "Could not check addresses. Try again when connected.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                     PopupMenuRow(Icons.Default.Search, stringResource(R.string.discover_addresses)) {
@@ -3593,12 +4140,110 @@ fun ManageAddressesScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding).nestedScroll(pullRefreshState.nestedScrollConnection)) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Top-of-screen tab switch, same TabRow treatment as the address-details screen's
+        // History/UTXOs/KNS Domains tabs. "Addresses" is the normal spending-address list;
+        // "Chat Privacy" is the read-only view of addresses actively offered to contacts as
+        // Chats Payment Privacy pool reservations. The Swap address picker keeps the plain
+        // list, and so does an account whose Chats Payment Privacy toggle is OFF (no tabs
+        // at all - see manageTabsVisible).
+        if (manageTabsVisible) {
+            TabRow(
+                selectedTabIndex = selectedManageTab,
+                containerColor = LocalAppColors.current.background,
+                contentColor = KaspaTeal
+            ) {
+                Tab(
+                    selected = selectedManageTab == 0,
+                    onClick = { selectedManageTab = 0 },
+                    text = { Text("Addresses") }
+                )
+                Tab(
+                    selected = selectedManageTab == 1,
+                    onClick = { selectedManageTab = 1 },
+                    text = { Text("Chat Privacy") }
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                // Same fix as PortfolioScreen: an idle PullToRefreshContainer "hides" by
+                // translating one full container-height above its own position via graphicsLayer,
+                // and graphicsLayer translation does NOT clip. On screens whose pull Box is the
+                // first child under the Scaffold padding, that resting gray circle lands in the
+                // top-app-bar band and the opaque app bar draws over it - but here the Chat
+                // Privacy TabRow sits above this Box, so without a clip the resting circle drew
+                // right over the tab row, parked there with no pull in progress. clipToBounds
+                // keeps the indicator inside this Box: invisible at rest, revealed by a real pull.
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (showingChatPrivacyTab) {
+                // Read-only viewer for addresses currently offered to contacts in LIVE Chats
+                // Payment Privacy pools. Rows expose only Copy Address and Show QR Code; the
+                // offer lifecycle (revoke/supersede/fund) manages these rows, not the user.
+                item {
+                    Text(
+                        "These are fresh addresses offered to your contacts for private payments. Each contact gets their own, so your payment history stays unlinkable. KaChat keeps at least 2 fresh addresses per chat and replaces them as they are used.",
+                        fontSize = 13.sp,
+                        color = LocalAppColors.current.textSecondary,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)
+                    )
+                }
+                if (loading && addresses.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                } else if (chatPrivacyAddresses.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = LocalAppColors.current.textSecondary,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "No Chat Privacy Addresses",
+                                color = LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "When you chat with someone while Chats Payment Privacy is on, the fresh addresses offered to them appear here.",
+                                color = LocalAppColors.current.textSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    items(chatPrivacyAddresses, key = { it.index }) { entry ->
+                        ChatPrivacyAddressRow(
+                            entry = entry,
+                            onCopyClick = {
+                                clipboardManager.setText(AnnotatedString(entry.address))
+                                showAddressCopiedToast(context, entry.address)
+                            },
+                            onQrClick = { qrAddress = entry.address }
+                        )
+                    }
+                }
+            } else {
             if (onAddressPicked != null) {
                 item {
                     Text(
@@ -3631,7 +4276,9 @@ fun ManageAddressesScreen(
                 }
             }
 
-            if (hiddenAddresses.isNotEmpty()) {
+            // The Hidden (n) sub-screen survives only for Swap's address picker — the normal
+            // screen manages visibility through the checklist button instead (iOS parity).
+            if (hiddenAddresses.isNotEmpty() && onAddressPicked != null) {
                 item {
                     Row(
                         modifier = Modifier
@@ -3664,12 +4311,35 @@ fun ManageAddressesScreen(
                 items(visibleAddresses, key = { it.index }) { entry ->
                     ManageAddressRow(
                         entry = entry,
+                        showsDomainTag = entry.address in domainOwningAddresses,
+                        showsPrivacyTag = entry.address in privacyReservedAddresses,
                         onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
-                        onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
+                        onCopyClick = {
+                            clipboardManager.setText(AnnotatedString(entry.address))
+                            showAddressCopiedToast(context, entry.address)
+                        },
                         onQrClick = { qrAddress = entry.address },
                         onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
-                        onHideToggleClick = { viewModel.setManageAddressHidden(entry.index, true) },
-                        onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
+                        onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
+                        onHideClick = {
+                            // Same guards + copy as the Address Visibility checklist toggle. The
+                            // reserved branch is a backstop only - reserved rows don't show the
+                            // Hide menu entry at all.
+                            if (entry.address in privacyReservedAddresses) {
+                                Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
+                            } else if (entry.balanceSompi > 0) {
+                                Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.setManageAddressHidden(entry.index, true) { ok ->
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Address hidden. Re-enable it in Address Visibility."
+                                        else "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
                     )
                 }
             }
@@ -3678,15 +4348,23 @@ fun ManageAddressesScreen(
                 // Leaves room so the last address row isn't hidden behind the FAB.
                 Spacer(Modifier.height(64.dp))
             }
+            }
         }
 
-        PullToRefreshContainer(
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
+        // Hard guarantee on top of the clipToBounds above: the indicator is only ever composed
+        // while a pull is actually in progress or a refresh is running. At rest (offset 0, not
+        // refreshing) there is nothing to draw, so no layout quirk can park the gray circle
+        // over the content again.
+        if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+            PullToRefreshContainer(
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
 
         qrAddress?.let { address ->
             QrCodeOverlay(value = address, onDismiss = { qrAddress = null })
+        }
         }
         }
     }
@@ -3822,6 +4500,7 @@ fun ManageAddressesHiddenScreen(
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     var activateIndex by remember { mutableStateOf<Int?>(null) }
     var qrAddress by remember { mutableStateOf<String?>(null) }
     var renamingEntry by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
@@ -3878,10 +4557,12 @@ fun ManageAddressesHiddenScreen(
                         ManageAddressRow(
                             entry = entry,
                             onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
-                            onCopyClick = { clipboardManager.setText(AnnotatedString(entry.address)) },
+                            onCopyClick = {
+                                clipboardManager.setText(AnnotatedString(entry.address))
+                                showAddressCopiedToast(context, entry.address)
+                            },
                             onQrClick = { qrAddress = entry.address },
                             onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
-                            onHideToggleClick = { viewModel.setManageAddressHidden(entry.index, false) },
                             onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
                         )
                     }
@@ -3908,6 +4589,226 @@ fun ManageAddressesHiddenScreen(
                 renamingEntry = null
             }
         )
+    }
+}
+
+/**
+ * Address Visibility (iOS parity: SpendingAddressVisibilityView) — a compact checkmark list of
+ * EVERY spending address, paged 50 at a time, so dozens can be toggled off the main Manage
+ * Addresses list in one sitting. The right arrow never runs out: future pages derive addresses
+ * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
+ * intermediate indices hidden. The primary, funded addresses, and addresses offered to a contact
+ * for private payments ("Chat privacy address") are locked visible.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddressVisibilityScreen(
+    viewModel: WalletViewModel,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val addresses by viewModel.manageAddresses.collectAsState()
+    // Chat-privacy pool reservations: locked visible (like primary/funded) and tagged.
+    val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
+    var page by remember { mutableStateOf(0) }
+    val pageSize = 50
+    val byIndex = remember(addresses) { addresses.associateBy { it.index } }
+    val listMax = remember(addresses) { addresses.maxOfOrNull { it.index } ?: -1 }
+    // Lazily filled Used/Unused results for rows derived beyond the loaded list.
+    val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
+
+    // Refresh on entry: rows inherited from a previous screen visit can carry a stale
+    // isCurrent/balance (the primary rotates after every send), and the toggle guards below
+    // read those flags. The live reload also runs the self-heal purge for any wrongly hidden
+    // primary/funded index.
+    LaunchedEffect(Unit) { viewModel.loadManageAddresses() }
+
+    val start = page * pageSize
+    val end = start + pageSize - 1
+    // Active chat-privacy reservations DO get a checklist row: shown checked with an inert
+    // checkbox (they cannot be unchecked - tapping explains why) and the "Chat privacy address"
+    // tag. They still stay OFF the main Addresses list (the Chat Privacy tab owns them there);
+    // this checklist is the complete per-index map, so hiding rows here read as gaps.
+    val pageEntries = remember(byIndex, page) {
+        (start..end).map { index ->
+            byIndex[index] ?: com.kachat.app.services.WalletService.SpendingAddressEntry(
+                index = index,
+                address = viewModel.spendingAddressAt(index) ?: "",
+                balanceSompi = 0L,
+                everUsed = false,
+                isCurrent = false,
+                hidden = true,
+                label = null
+            )
+        }
+    }
+    val listState = rememberLazyListState()
+    // A page flip must land the user at the TOP of the new page, not wherever the previous
+    // page left the scroll offset.
+    LaunchedEffect(page) { listState.scrollToItem(0) }
+
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onBack) {
+                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(LocalAppColors.current.background)
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(onClick = { if (page > 0) page -= 1 }, enabled = page > 0) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        "Previous page",
+                        tint = if (page > 0) KaspaTeal else LocalAppColors.current.textSecondary.copy(alpha = 0.4f)
+                    )
+                }
+                Text(
+                    "#$start - #$end",
+                    color = LocalAppColors.current.textSecondary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                IconButton(onClick = { page += 1 }) {
+                    Icon(Icons.Default.ChevronRight, "Next page", tint = KaspaTeal)
+                }
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(pageEntries, key = { it.index }) { entry ->
+                val funded = entry.balanceSompi > 0
+                val reserved = entry.address.isNotEmpty() && entry.address in privacyReservedAddresses
+                // Reserved rows always render checked: an actively offered chat-privacy address
+                // is locked visible whatever a (stale) hidden flag or a mid-load race says.
+                val visible = reserved || (entry.index <= listMax && !entry.hidden)
+                // Used-state for derived rows the list loader has never seen.
+                if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
+                    LaunchedEffect(entry.index) {
+                        usedCache[entry.index] = viewModel.hasSpendingAddressBeenUsed(entry.address)
+                    }
+                }
+                val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
+                // The WHOLE row toggles, not just the checkmark.
+                val toggleVisibility: () -> Unit = {
+                    when {
+                        entry.isCurrent ->
+                            Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
+                        // Inert checkbox: offered chat-privacy reservations render checked and
+                        // cannot be unchecked - tapping only explains the lock.
+                        reserved ->
+                            Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
+                        funded && visible ->
+                            Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                        entry.index > listMax ->
+                            viewModel.revealSpendingAddress(entry.index)
+                        else -> {
+                            val hiding = !entry.hidden
+                            viewModel.setManageAddressHidden(entry.index, hiding) { ok ->
+                                if (hiding && !ok) {
+                                    Toast.makeText(
+                                        context,
+                                        "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(LocalAppColors.current.surface)
+                        .clickable(onClick = toggleVisibility)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .alpha(if (visible) 1f else 0.55f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = toggleVisibility,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            if (visible) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            if (visible) "Visible" else "Hidden",
+                            tint = if (visible) KaspaTeal else LocalAppColors.current.textSecondary
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "#${entry.index}",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (entry.isCurrent) {
+                                Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(14.dp))
+                            }
+                            entry.label?.takeIf { it.isNotBlank() }?.let { label ->
+                                Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                        Text(
+                            if (entry.address.isNotEmpty()) "${entry.address.take(14)}...${entry.address.takeLast(6)}" else "deriving...",
+                            color = LocalAppColors.current.textPrimary,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    when {
+                        // The tag mirrors the lock order above. A funded reservation leaves the
+                        // active set (reserved is false), so it falls through to the balance
+                        // display and stays locked through the funded rule instead.
+                        reserved -> Text(
+                            "Chat privacy address",
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        funded -> Text(
+                            "%.4f KAS".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        used != null -> Text(
+                            if (used) "Used" else "Unused",
+                            color = if (used) Color(0xFFF39C12) else Color(0xFF4CD964),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -4541,12 +5442,36 @@ fun SpendingAddressTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
+    var sendingDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
+    val knsDomains by viewModel.addressKnsDomains.collectAsState()
+    val isLoadingKnsDomains by viewModel.addressKnsDomainsLoading.collectAsState()
 
     LaunchedEffect(address) {
         if (address.isNotEmpty()) {
             viewModel.loadSpendingAddressTxHistory(address)
             viewModel.loadSpendingAddressUtxos(address)
+            viewModel.loadAddressKnsDomains(address)
             utxoLabels = viewModel.getSpendingUtxoLabels(address)
+        }
+    }
+
+    // Domain-transfer send flow parameterized to sign/fund from THIS spending address — same
+    // full-screen-swap idiom as the Withdraw flow below. Mirrors iOS's
+    // KNSDomainSendView(domain:spendingAddressIndex:) from the spending detail's KNS tab.
+    sendingDomain?.let { domain ->
+        if (entry != null) {
+            KnsDomainSendScreen(
+                domain = domain,
+                viewModel = viewModel,
+                fromSpendingAddressIndex = entry.index,
+                sourceAddress = entry.address,
+                onDone = {
+                    sendingDomain = null
+                    viewModel.loadAddressKnsDomains(address)
+                },
+                onBack = { sendingDomain = null }
+            )
+            return
         }
     }
 
@@ -4677,12 +5602,17 @@ fun SpendingAddressTxHistoryScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text(stringResource(R.string.transaction_history)) }
+                    text = { Text("History") }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text("KNS Domains (${knsDomains.size})") }
                 )
             }
             when (selectedTab) {
@@ -4707,6 +5637,37 @@ fun SpendingAddressTxHistoryScreen(
                                 SpendingAddressTxHistoryRow(
                                     tx = tx,
                                     onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) }
+                                )
+                            }
+                        }
+                    }
+                }
+                2 -> when {
+                    isLoadingKnsDomains && knsDomains.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                    knsDomains.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("No KNS domains on this address.", color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(knsDomains, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domain ->
+                                // Tapping a domain card opens the transfer flow signed/funded
+                                // from THIS spending address.
+                                KnsDomainCard(
+                                    domain = domain,
+                                    modifier = Modifier.clickable {
+                                        viewModel.resetTransferDomainState()
+                                        sendingDomain = domain
+                                    }
                                 )
                             }
                         }
@@ -5385,6 +6346,21 @@ private fun SpendingAddressUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo
  * on its own line instead of being squeezed by four icon buttons. Send/receive for a specific
  * address live in [SpendingAddressTxHistoryScreen] instead (reached via `onClick`).
  */
+/** "Contains domain" capsule tag shown on spending/cold address rows that own at least one KNS
+ *  domain — shared component ported from iOS's ContainsDomainTag. */
+@Composable
+fun ContainsDomainTag() {
+    Text(
+        text = "Contains domain",
+        color = KaspaTeal,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .background(KaspaTeal.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    )
+}
+
 @Composable
 private fun ManageAddressRow(
     entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
@@ -5392,75 +6368,98 @@ private fun ManageAddressRow(
     onCopyClick: () -> Unit,
     onQrClick: () -> Unit,
     onActivateClick: () -> Unit,
-    onHideToggleClick: () -> Unit,
-    onRenameClick: () -> Unit
+    onRenameClick: () -> Unit,
+    /** Row-menu "Hide Address" (iOS parity) — same flag the Address Visibility checklist edits.
+     *  Null hides the menu entry (e.g. the picker variant of this row). */
+    onHideClick: (() -> Unit)? = null,
+    /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
+    showsDomainTag: Boolean = false,
+    /** "Chat privacy address" tag — this address is reserved and currently offered to a contact
+     *  for private payments (fresh-address payment pool). Such rows never offer Hide; the
+     *  authoritative refusal lives in the pool-store-backed guards below the UI. */
+    showsPrivacyTag: Boolean = false
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
-    val canHide = entry.hidden || (entry.balanceSompi == 0L && !entry.isCurrent)
     var showMenu by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
-    SwipeActionRow(
-        enabled = canHide,
-        cornerRadius = 12.dp,
-        trailingIcon = if (entry.hidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-        trailingLabel = if (entry.hidden) "Unhide" else "Hide",
-        trailingColor = Color(0xFF48484A),
-        onTrailingClick = onHideToggleClick
+    // Swipe-to-hide was retired in favor of the bulk Address Visibility checklist (iOS parity).
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(LocalAppColors.current.surface)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(LocalAppColors.current.surface)
-                .clickable(onClick = onClick)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (entry.isCurrent) {
-                        Spacer(Modifier.width(6.dp))
-                        Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
-                    color = LocalAppColors.current.textPrimary,
-                    fontSize = 14.sp,
-                    maxLines = 1
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "%.8f KAS".format(java.util.Locale.US, kas),
-                    color = LocalAppColors.current.textPrimary,
-                    fontSize = 14.sp
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = if (entry.everUsed) "Used" else "Unused",
-                    color = if (entry.everUsed) Color(0xFFF39C12) else Color(0xFF4CD964),
+                    text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
+                    color = LocalAppColors.current.textSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
+                if (entry.isCurrent) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                }
             }
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier
-                    .size(44.dp)
-                    .onGloballyPositioned { coords ->
-                        menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                    }
-            ) {
-                Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp,
+                maxLines = 1
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "%.8f KAS".format(java.util.Locale.US, kas),
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Three honest states, never a guess: "Used" is monotonic (persisted used-memory
+                // plus live probes, so a confirmed-used address can never flip back), "Unused"
+                // only when THIS load's live check actually confirmed it, and a neutral
+                // "Unverified" when the probe failed or the row was painted from the snapshot —
+                // a failed check must not masquerade as a fresh address.
+                val (usedTagText, usedTagColor) = when {
+                    entry.everUsed -> "Used" to Color(0xFFF39C12)
+                    entry.liveChecked -> "Unused" to Color(0xFF4CD964)
+                    else -> "Unverified" to LocalAppColors.current.textSecondary
+                }
+                Text(
+                    text = usedTagText,
+                    color = usedTagColor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (showsPrivacyTag) {
+                    // Same plain-badge styling as the Used/Unused/Unverified states above.
+                    Text(
+                        text = "Chat privacy address",
+                        color = KaspaTeal,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (showsDomainTag) {
+                    ContainsDomainTag()
+                }
             }
+        }
+        IconButton(
+            onClick = { showMenu = true },
+            modifier = Modifier
+                .size(44.dp)
+                .onGloballyPositioned { coords ->
+                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+                }
+        ) {
+            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
         }
     }
 
@@ -5486,6 +6485,103 @@ private fun ManageAddressRow(
                     showMenu = false
                     onActivateClick()
                 }
+            }
+            // Hide straight from the row (iOS parity) — never offered for the primary address or
+            // for a chat-privacy reservation (offered to a contact, locked visible); the funded
+            // guard lives in the caller so it can toast the reason.
+            if (onHideClick != null && !entry.isCurrent && !showsPrivacyTag) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.VisibilityOff, "Hide Address") {
+                    showMenu = false
+                    onHideClick()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One read-only row on [ManageAddressesScreen]'s Chat Privacy tab: an address reserved and
+ * actively offered to a contact by the fresh-address payment pool (Chats Payment Privacy).
+ * Same card styling as [ManageAddressRow], but the overflow menu offers ONLY Copy Address and
+ * Show QR Code - no rename, hide, set-primary, or history navigation; the offer lifecycle
+ * (revoke/supersede/fund) manages these rows, not the user. Balance shows only once funds
+ * arrive, so a funded-but-still-active offer displays what came in.
+ */
+@Composable
+private fun ChatPrivacyAddressRow(
+    entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
+    onCopyClick: () -> Unit,
+    onQrClick: () -> Unit
+) {
+    val kas = entry.balanceSompi / 100_000_000.0
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Address #${entry.index}",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                entry.label?.takeIf { it.isNotBlank() }?.let { label ->
+                    Text(
+                        text = label,
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp,
+                maxLines = 1
+            )
+            if (entry.balanceSompi > 0) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "%.8f KAS".format(java.util.Locale.US, kas),
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        IconButton(
+            onClick = { showMenu = true },
+            modifier = Modifier
+                .size(44.dp)
+                .onGloballyPositioned { coords ->
+                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+                }
+        ) {
+            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
+                showMenu = false
+                onCopyClick()
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.QrCode, stringResource(R.string.show_qr_code)) {
+                showMenu = false
+                onQrClick()
             }
         }
     }
@@ -6286,17 +7382,13 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
     }
 }
 
-/** Unwraps a Compose [android.content.Context] (often a ContextWrapper) to find the real hosting Activity — needed for Credential Manager / Drive authorization, which require an Activity, not just any Context. */
-private tailrec fun android.content.Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavController,
+    // 4.0 (matches iOS): null renders the settings HUB (one row per category); a key renders
+    // just that category's items as its own page.
+    sectionKey: String? = null,
     walletViewModel: WalletViewModel = hiltViewModel(),
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel(),
@@ -6308,8 +7400,6 @@ fun SettingsScreen(
     val showSetupGuides by walletViewModel.showSetupGuides.collectAsState()
     val currencyCode by walletViewModel.currency.collectAsState()
     val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
-    val biometricAccountLoginEnabled by walletViewModel.biometricAccountLoginEnabled.collectAsState()
-    val biometricSpendingKeyEnabled by walletViewModel.biometricSpendingKeyEnabled.collectAsState()
     val notificationsEnabled by settingsViewModel.notificationsEnabled.collectAsState()
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val chatPhotoQualityPreset by chatViewModel.chatPhotoQualityPreset.collectAsState()
@@ -6318,7 +7408,6 @@ fun SettingsScreen(
     val autoCreateSystemContactsEnabled by chatViewModel.autoCreateSystemContactsEnabled.collectAsState()
     val exportChatHistoryState by chatViewModel.exportState.collectAsState()
     val importChatHistoryState by chatViewModel.importState.collectAsState()
-    val diagnosticsExportState by chatViewModel.diagnosticsExportState.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -6336,6 +7425,12 @@ fun SettingsScreen(
         walletViewModel.refreshBalance()
     }
 
+    // Danger Zone "Wipe and Re-sync" flow: the chat picker and the blocking progress modal
+    // render as full-screen overlays over the whole Scaffold (same in-composition Box pattern
+    // as ChatRestoreProgressOverlay on the storage pages), so their visibility lives up here.
+    var showResyncChatPicker by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -6347,6 +7442,13 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.settings),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 TopStatusBar(
                     balance = balance,
                     onStatusClick = { navController.navigate("connection_status") },
@@ -6365,6 +7467,54 @@ fun SettingsScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            if (sectionKey == null) {
+                // Flat hub list (matches iOS): no section titles - just the categories, the
+                // seed-phrase action, and Danger Zone in one card.
+                Surface(
+                    color = LocalAppColors.current.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                    SettingsNavigationItem(stringResource(R.string.customization), Icons.Default.Palette, onClick = { navController.navigate("settings_section/customization") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Shield, onClick = { navController.navigate("settings_section/security") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.connection), Icons.Default.Language, onClick = { navController.navigate("settings_section/connection") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    // Top-level Notifications hub (4.0, matches iOS): Chats / Wallet / KaPosts
+                    // subpages - sits between Connection and Chats like iOS's settings list.
+                    SettingsNavigationItem(stringResource(R.string.notifications), Icons.Default.NotificationsNone, onClick = { navController.navigate("settings_section/notifications") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = { navController.navigate("settings_section/chats") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.contacts), Icons.Default.People, onClick = { navController.navigate("settings_section/contacts") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.storage), Icons.Default.Storage, onClick = { navController.navigate("settings_section/storage") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.chat_history), Icons.Default.History, onClick = { navController.navigate("settings_section/chat_history") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal) {
+                        if (biometricSeedPhraseEnabled) {
+                            context.authenticateWithDeviceCredential(
+                                title = "Unlock to View Seed Phrase",
+                                onSuccess = { navController.navigate("seed_phrase") }
+                            )
+                        } else {
+                            navController.navigate("seed_phrase")
+                        }
+                    }
+                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsActionItem(stringResource(R.string.danger_zone), Icons.Default.Warning, Color.Red) {
+                        navController.navigate("settings_section/danger_zone")
+                    }
+                    }
+                }
+            }
+
+            if (sectionKey == "customization") {
             SettingsSection(title = stringResource(R.string.customization)) {
                 SettingsSwitchItem(stringResource(R.string.dark_mode), darkModeEnabled) { enabled ->
                     walletViewModel.setDarkModeEnabled(enabled)
@@ -6381,26 +7531,21 @@ fun SettingsScreen(
                 SettingsNavigationItem(stringResource(R.string.currency), Icons.Default.AttachMoney, currencyCode.uppercase(), onClick = {
                     navController.navigate("currency_settings")
                 })
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.show_setup_guides), showSetupGuides) { enabled ->
-                    walletViewModel.setShowSetupGuides(enabled)
-                }
+            }
             }
 
+            if (sectionKey == "security") {
             SettingsSection(title = stringResource(R.string.security)) {
-                SettingsSwitchItem(stringResource(R.string.biometrics_for_seed_phrase), biometricSeedPhraseEnabled) { enabled ->
-                    walletViewModel.setBiometricSeedPhraseEnabled(enabled)
-                }
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.biometrics_for_account_login), biometricAccountLoginEnabled) { enabled ->
-                    walletViewModel.setBiometricAccountLoginEnabled(enabled)
-                }
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.biometrics_for_address_private_keys), biometricSpendingKeyEnabled) { enabled ->
-                    walletViewModel.setBiometricSpendingKeyEnabled(enabled)
-                }
+                // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt) -
+                // every row is app-wide, so both entry points render the exact same items.
+                SecuritySettingsItems(
+                    walletViewModel = walletViewModel,
+                    onNavigateToChildMode = { navController.navigate("child_mode_settings") }
+                )
+            }
             }
 
+            if (sectionKey == "connection") {
             SettingsSection(title = stringResource(R.string.connection)) {
                 SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, "Mainnet", onClick = {
                     navController.navigate("connection_settings")
@@ -6410,7 +7555,26 @@ fun SettingsScreen(
                     navController.navigate("kaspa_explorer_settings")
                 })
             }
+            }
 
+            if (sectionKey == "notifications") {
+            // Notifications hub (matches iOS's NotificationsHubPage): three subpages.
+            SettingsSection(title = stringResource(R.string.notifications)) {
+                SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = {
+                    navController.navigate("notification_settings")
+                })
+                SettingsDivider()
+                SettingsNavigationItem("Wallet", Icons.Default.AccountBalanceWallet, onClick = {
+                    navController.navigate("wallet_notification_settings")
+                })
+                SettingsDivider()
+                SettingsNavigationItem("KaPosts", Icons.Default.Edit, onClick = {
+                    navController.navigate("kaposts_notification_settings")
+                })
+            }
+            }
+
+            if (sectionKey == "chats") {
             SettingsSection(title = stringResource(R.string.chats)) {
                 SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
                     settingsViewModel.setShowFeeEstimate(enabled)
@@ -6423,13 +7587,6 @@ fun SettingsScreen(
                     onClick = { navController.navigate("photo_quality_settings") }
                 )
                 SettingsDivider()
-                SettingsNavigationItem(
-                    stringResource(R.string.notifications),
-                    Icons.Default.NotificationsNone,
-                    if (notificationsEnabled) "On" else "Off",
-                    onClick = { navController.navigate("notification_settings") }
-                )
-                SettingsDivider()
                 val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
                 SettingsNavigationItem(
                     "Quick Reactions",
@@ -6438,7 +7595,9 @@ fun SettingsScreen(
                     onClick = { navController.navigate("quick_reaction_settings") }
                 )
             }
+            }
 
+            if (sectionKey == "contacts") {
             SettingsSection(title = stringResource(R.string.contacts)) {
                 SettingsSwitchItem(stringResource(R.string.sync_system_contacts), syncSystemContactsEnabled) { enabled ->
                     chatViewModel.setSyncSystemContactsEnabled(enabled)
@@ -6455,160 +7614,40 @@ fun SettingsScreen(
                 }
                 SettingsFooter(stringResource(R.string.uses_your_device_contacts_to_match))
             }
+            }
 
-            SettingsSection(title = stringResource(R.string.storage)) {
-                val googleBackupEnabled by chatViewModel.googleBackupEnabled.collectAsState()
-                val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
-                val restoreState by chatViewModel.restoreState.collectAsState()
-                val pendingConsentIntent by chatViewModel.pendingConsentIntent.collectAsState()
-                val activity = LocalContext.current.findActivity()
-
-                val consentLauncher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.StartIntentSenderForResult()
-                ) { result ->
-                    chatViewModel.consentIntentLaunched()
-                    result.data?.let { chatViewModel.completeGoogleDriveAuthorization(it) }
-                }
-
-                LaunchedEffect(pendingConsentIntent) {
-                    pendingConsentIntent?.let { pendingIntent ->
-                        consentLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
-                    }
-                }
-
-                val backupInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
-                val restoreInFlight = restoreState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-
-                SettingsSwitchItem(
-                    stringResource(R.string.back_up_to_google_drive),
-                    checked = googleBackupEnabled,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            activity?.let { chatViewModel.enableGoogleDriveBackup(it) }
-                        } else {
-                            chatViewModel.disableGoogleDriveBackup()
-                        }
-                    }
-                )
-                val backupFooterText = when {
-                    backupInFlight -> "Working..."
-                    googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.FAILED -> googleBackupOpState.message ?: "Something went wrong"
-                    googleBackupEnabled && googleBackupOpState.signedInEmail != null -> "Signed in as ${googleBackupOpState.signedInEmail}"
-                    else -> "Off by default. Backs up chat history to your own Google Drive as hidden storage, not visible in your regular Drive files."
-                }
-                SettingsFooter(backupFooterText)
-
-                // Local vs. cloud storage — mirrors iOS's "Local storage used"/"iCloud storage
-                // used" split. Android has no live per-record cloud sync like CloudKit; Google
-                // Drive backup is one flat JSON file per account, so "cloud" here is just that
-                // one file's current size in Drive.
-                SettingsDivider()
-                val context = LocalContext.current
+            if (sectionKey == "storage") {
+            // Storage hub (matches iOS's Settings > Storage): one category row per backup
+            // provider, each pushing its own page (see StorageScreens.kt). Google Drive is
+            // Android's counterpart to iOS's iCloud row. On-device usage has no settings of its
+            // own, so it stays inline here as a readout rather than a row leading to a page with
+            // a single read-only line.
+            // On-device settings first (message retention + local usage), matching iOS's Storage
+            // screen, before the cloud-provider rows below.
+            SettingsSection(title = stringResource(R.string.on_this_device)) {
                 val localStorageSizeBytes by chatViewModel.localStorageSizeBytes.collectAsState()
                 LaunchedEffect(Unit) { chatViewModel.refreshLocalStorageSize() }
+                MessageRetentionSetting(chatViewModel)
+                SettingsDivider()
                 SettingsInfoItem(
-                    label = "Local storage used",
+                    label = stringResource(R.string.local_storage_used),
                     value = localStorageSizeBytes?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
                         ?: "Calculating..."
                 )
-
-                SettingsDivider()
-                val driveBackupSizeState by chatViewModel.driveBackupSizeState.collectAsState()
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(stringResource(R.string.google_drive_backup_used), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            text = when (driveBackupSizeState.status) {
-                                ChatViewModel.DriveSizeStatus.IDLE -> "Not checked"
-                                ChatViewModel.DriveSizeStatus.LOADING -> "Checking..."
-                                ChatViewModel.DriveSizeStatus.LOADED -> driveBackupSizeState.bytes?.let {
-                                    android.text.format.Formatter.formatShortFileSize(context, it)
-                                } ?: "No backup found"
-                                ChatViewModel.DriveSizeStatus.FAILED -> "Unavailable"
-                            },
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    if (driveBackupSizeState.status == ChatViewModel.DriveSizeStatus.LOADING) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                    } else {
-                        IconButton(onClick = { chatViewModel.refreshDriveBackupSize() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.check_drive_backup_size), tint = KaspaTeal)
-                        }
-                    }
-                }
-
-                if (googleBackupEnabled) {
-                    SettingsDivider()
-                    SettingsActionItem(
-                        label = if (backupInFlight) "Backing Up..." else "Back Up Now",
-                        icon = Icons.Default.CloudUpload,
-                        color = if (backupInFlight) Color.Gray else KaspaTeal
-                    ) {
-                        if (!backupInFlight) chatViewModel.backupNow()
-                    }
-                    SettingsDivider()
-                    SettingsActionItem(
-                        label = if (restoreInFlight) "Restoring..." else "Restore from Google Drive",
-                        icon = Icons.Default.CloudDownload,
-                        color = if (restoreInFlight) Color.Gray else KaspaTeal
-                    ) {
-                        if (!restoreInFlight) chatViewModel.restoreFromGoogleDrive()
-                    }
-                    if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
-                        SettingsFooter(restoreState.message ?: "Restore complete.")
-                    }
-                    if (restoreState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                        SettingsFooter(restoreState.message ?: "Restore failed.")
-                    }
-
-                    SettingsDivider()
-
-                    val backupRetention by chatViewModel.backupRetention.collectAsState()
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.retention), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(8.dp))
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            val options = listOf(
-                                Triple("Forever", BackupRetention.FOREVER, 0),
-                                Triple("30 Days", BackupRetention.DAYS_30, 1),
-                                Triple("90 Days", BackupRetention.DAYS_90, 2)
-                            )
-                            options.forEach { (label, value, index) ->
-                                SegmentedButton(
-                                    selected = backupRetention == value,
-                                    onClick = { chatViewModel.setBackupRetention(value) },
-                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                                    colors = SegmentedButtonDefaults.colors(
-                                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                                        activeContentColor = LocalAppColors.current.textPrimary,
-                                        inactiveContainerColor = LocalAppColors.current.surface,
-                                        inactiveContentColor = LocalAppColors.current.textSecondary
-                                    )
-                                ) {
-                                    Text(label, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = if (backupRetention == BackupRetention.FOREVER) {
-                                "Chat history is kept forever and backed up as-is."
-                            } else {
-                                "Messages older than ${backupRetention.days} days are permanently deleted from this device, not just excluded from the backup. This cannot be undone."
-                            },
-                            color = if (backupRetention == BackupRetention.FOREVER) Color.Gray else Color(0xFFFF3B30),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
             }
 
+            SettingsSection(title = stringResource(R.string.cloud_storage)) {
+                SettingsNavigationItem(stringResource(R.string.google_drive), Icons.Default.CloudQueue, onClick = {
+                    navController.navigate("storage_google_drive")
+                })
+                SettingsDivider()
+                SettingsNavigationItem(stringResource(R.string.nextcloud), Icons.Default.Cloud, onClick = {
+                    navController.navigate("storage_nextcloud")
+                })
+            }
+            }
+
+            if (sectionKey == "chat_history") {
             SettingsSection(title = stringResource(R.string.chat_history)) {
                 val exportInFlight = exportChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
                 val importInFlight = importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
@@ -6667,199 +7706,277 @@ fun SettingsScreen(
                 }
                 SettingsFooter(stringResource(R.string.exports_a_plaintext_json_file_of))
             }
+            }
 
+            if (sectionKey == "diagnostics") {
             SettingsSection(title = stringResource(R.string.diagnostics)) {
-                val diagnosticsExportInFlight = diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-
-                SettingsActionItem(
-                    label = if (diagnosticsExportInFlight) "Exporting..." else "Export Diagnostics Archive",
-                    icon = Icons.Default.BugReport,
-                    color = if (diagnosticsExportInFlight) Color.Gray else KaspaTeal
-                ) {
-                    if (!diagnosticsExportInFlight) {
-                        chatViewModel.exportDiagnostics { uri ->
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/zip"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Export Diagnostics Archive"))
-                        }
-                    }
-                }
-                if (diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                    Text(
-                        diagnosticsExportState.message ?: "Export failed",
-                        color = Color(0xFFFF3B30),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-                SettingsFooter(stringResource(R.string.exports_app_device_info_connection_settings))
+                // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt).
+                DiagnosticsSettingsItems(chatViewModel = chatViewModel)
+            }
             }
 
-            SettingsSection(title = stringResource(R.string.actions)) {
-                SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal) {
-                    if (biometricSeedPhraseEnabled) {
-                        context.authenticateWithDeviceCredential(
-                            title = "Unlock to View Seed Phrase",
-                            onSuccess = { navController.navigate("seed_phrase") }
-                        )
-                    } else {
-                        navController.navigate("seed_phrase")
-                    }
-                }
-            }
-
+            if (sectionKey == "danger_zone") {
             SettingsSection(title = stringResource(R.string.danger_zone)) {
-                val activeAddress by walletViewModel.address.collectAsState()
-                val wipeIncomingState by chatViewModel.wipeIncomingState.collectAsState()
-                val wipeAccountState by chatViewModel.wipeAccountState.collectAsState()
-                var showWipeIncomingConfirm by remember { mutableStateOf(false) }
-                var showWipeAccountConfirm by remember { mutableStateOf(false) }
-                var showWipeAccountCloudConfirm by remember { mutableStateOf(false) }
+                val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
+                val resyncPhase by chatViewModel.restoreCoordinator.phase.collectAsState()
+                var showResyncScopeDialog by remember { mutableStateOf(false) }
+                var showDriveWipeConfirm by remember { mutableStateOf(false) }
+                // The shared Drive op state also carries backup/restore results from the storage
+                // pages; only surface it here once a wipe was actually requested from this row.
+                var driveWipeRequested by remember { mutableStateOf(false) }
 
-                val wipeIncomingInFlight = wipeIncomingState.status == ChatViewModel.DangerZoneOpStatus.IN_PROGRESS
-                val wipeAccountInFlight = wipeAccountState.status == ChatViewModel.DangerZoneOpStatus.IN_PROGRESS
+                val resyncInFlight = resyncPhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
+                val driveWipeInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
 
+                // Runs through the BackupRestoreCoordinator: scope chooser first (All Chats or a
+                // multi-select of conversations), then the same un-leavable progress modal as a
+                // backup restore. See the overlays after this Scaffold.
                 SettingsActionItem(
-                    label = if (wipeIncomingInFlight) "Wiping..." else "Wipe and re-sync incoming messages",
+                    label = "Wipe and Re-sync Incoming Messages",
                     icon = Icons.Default.Cached,
-                    color = if (wipeIncomingInFlight) Color.Gray else Color.Red
+                    color = if (resyncInFlight) Color.Gray else Color.Red
                 ) {
-                    if (!wipeIncomingInFlight) showWipeIncomingConfirm = true
-                }
-                if (wipeIncomingState.status == ChatViewModel.DangerZoneOpStatus.SUCCESS || wipeIncomingState.status == ChatViewModel.DangerZoneOpStatus.FAILED) {
-                    SettingsFooter(wipeIncomingState.message ?: "Done")
+                    if (!resyncInFlight) showResyncScopeDialog = true
                 }
                 SettingsDivider()
+                // 4.0 (matches iOS): the old combined "wipe account & messages (& Cloud)"
+                // entries are gone. This row touches ONLY the current wallet's Google Drive
+                // backup file (ChatViewModel.deleteDriveBackup); the account, local messages,
+                // and other wallets' backups stay. Account removal keeps its own flow on the
+                // accounts screen (WalletViewModel.deleteWallet).
                 SettingsActionItem(
-                    label = if (wipeAccountInFlight) "Wiping..." else "Wipe account & messages",
-                    icon = Icons.Default.PersonRemoveAlt1,
-                    color = if (wipeAccountInFlight) Color.Gray else Color.Red
-                ) {
-                    if (!wipeAccountInFlight && activeAddress != null) showWipeAccountConfirm = true
-                }
-                SettingsDivider()
-                SettingsActionItem(
-                    label = if (wipeAccountInFlight) "Wiping..." else "Wipe account & messages & Cloud",
+                    label = if (driveWipeInFlight) "Wiping..." else "Wipe Google Drive Backup",
                     icon = Icons.Default.CloudOff,
-                    color = if (wipeAccountInFlight) Color.Gray else Color.Red
+                    color = if (driveWipeInFlight) Color.Gray else Color.Red
                 ) {
-                    if (!wipeAccountInFlight && activeAddress != null) showWipeAccountCloudConfirm = true
+                    if (!driveWipeInFlight) showDriveWipeConfirm = true
                 }
-                if (wipeAccountState.status == ChatViewModel.DangerZoneOpStatus.FAILED) {
-                    SettingsFooter(wipeAccountState.message ?: "Failed")
+                if (driveWipeRequested && (googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.SUCCESS || googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.FAILED)) {
+                    SettingsFooter(googleBackupOpState.message ?: "Done")
                 }
 
-                if (showWipeIncomingConfirm) {
+                if (showResyncScopeDialog) {
                     AlertDialog(
-                        onDismissRequest = { showWipeIncomingConfirm = false },
+                        onDismissRequest = { showResyncScopeDialog = false },
                         containerColor = LocalAppColors.current.surface,
-                        title = { Text(stringResource(R.string.wipe_and_re_sync_incoming_messages), color = LocalAppColors.current.textPrimary) },
+                        title = { Text("Wipe and Re-sync Incoming Messages", color = LocalAppColors.current.textPrimary) },
                         text = {
                             Text(
-                                stringResource(R.string.this_removes_all_incoming_messages_locally),
+                                "This removes incoming messages from this device, then re-syncs them from the blockchain. Your account info and sent messages are preserved. Re-sync every chat, or only chats you select.",
                                 color = LocalAppColors.current.textSecondary
                             )
                         },
                         confirmButton = {
-                            TextButton(onClick = {
-                                showWipeIncomingConfirm = false
-                                chatViewModel.wipeIncomingMessages()
-                            }) {
-                                Text(stringResource(R.string.wipe_incoming_messages), color = Color.Red, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showWipeIncomingConfirm = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                            }
-                        }
-                    )
-                }
-
-                if (showWipeAccountConfirm) {
-                    val address = activeAddress
-                    AlertDialog(
-                        onDismissRequest = { showWipeAccountConfirm = false },
-                        containerColor = LocalAppColors.current.surface,
-                        title = { Text(stringResource(R.string.wipe_account_messages), color = LocalAppColors.current.textPrimary) },
-                        text = {
-                            Text(
-                                stringResource(R.string.this_permanently_deletes_this_account_s),
-                                color = LocalAppColors.current.textSecondary
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showWipeAccountConfirm = false
-                                if (address != null) {
-                                    chatViewModel.wipeAccountAndMessages(address, alsoDeleteCloud = false) {
-                                        walletViewModel.deleteWallet(address)
-                                    }
+                            Column(horizontalAlignment = Alignment.End) {
+                                TextButton(onClick = {
+                                    showResyncScopeDialog = false
+                                    chatViewModel.wipeAndResyncIncomingMessages(null)
+                                }) {
+                                    Text("All Chats", color = Color.Red, fontWeight = FontWeight.Bold)
                                 }
-                            }) {
-                                Text(stringResource(R.string.wipe_account), color = Color.Red, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showWipeAccountConfirm = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                                TextButton(onClick = {
+                                    showResyncScopeDialog = false
+                                    showResyncChatPicker = true
+                                }) {
+                                    Text("Select Chats", color = KaspaTeal)
+                                }
+                                TextButton(onClick = { showResyncScopeDialog = false }) {
+                                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                                }
                             }
                         }
                     )
                 }
 
-                if (showWipeAccountCloudConfirm) {
-                    val address = activeAddress
+                if (showDriveWipeConfirm) {
                     AlertDialog(
-                        onDismissRequest = { showWipeAccountCloudConfirm = false },
+                        onDismissRequest = { showDriveWipeConfirm = false },
                         containerColor = LocalAppColors.current.surface,
-                        title = { Text(stringResource(R.string.wipe_account_messages_cloud), color = LocalAppColors.current.textPrimary) },
+                        title = { Text("Wipe Google Drive Backup?", color = LocalAppColors.current.textPrimary) },
                         text = {
                             Text(
-                                stringResource(R.string.this_permanently_deletes_this_account_s_2),
+                                "This deletes this wallet's chat history backup file from your Google Drive. Your account and the messages on this device stay as they are. Only the Drive copy is deleted, and other wallets' backups are not affected.",
                                 color = LocalAppColors.current.textSecondary
                             )
                         },
                         confirmButton = {
                             TextButton(onClick = {
-                                showWipeAccountCloudConfirm = false
-                                if (address != null) {
-                                    chatViewModel.wipeAccountAndMessages(address, alsoDeleteCloud = true) {
-                                        walletViewModel.deleteWallet(address)
-                                    }
-                                }
+                                showDriveWipeConfirm = false
+                                driveWipeRequested = true
+                                chatViewModel.deleteDriveBackup()
                             }) {
-                                Text(stringResource(R.string.wipe_everything), color = Color.Red, fontWeight = FontWeight.Bold)
+                                Text("Wipe Backup", color = Color.Red, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showWipeAccountCloudConfirm = false }) {
+                            TextButton(onClick = { showDriveWipeConfirm = false }) {
                                 Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                             }
                         }
                     )
                 }
+            }
             }
 
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+
+    // Danger Zone overlays, over the whole settings Scaffold: the scoped-resync chat picker,
+    // and the same blocking progress modal the storage pages use for restores (the coordinator
+    // owns the job in its own scope; the overlay is un-leavable while it runs).
+    if (sectionKey == "danger_zone") {
+        if (showResyncChatPicker) {
+            ResyncChatPickerOverlay(
+                chatViewModel = chatViewModel,
+                onStart = { ids ->
+                    showResyncChatPicker = false
+                    chatViewModel.wipeAndResyncIncomingMessages(ids)
+                },
+                onDismiss = { showResyncChatPicker = false }
+            )
+        }
+        ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
+    }
+    }
+}
+
+/**
+ * Full-screen chooser for a chat-scoped "Wipe and Re-sync Incoming Messages" — the same
+ * in-composition overlay pattern as [ChatRestoreProgressOverlay], listing the account's 1:1
+ * conversations in chat-list row styling (avatar, name, short address) with a checkbox per
+ * chat. Groups are not listed: the wipe has only ever covered 1:1 message history.
+ */
+@Composable
+private fun ResyncChatPickerOverlay(
+    chatViewModel: ChatViewModel,
+    onStart: (List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val conversations by chatViewModel.conversations.collectAsState()
+    val colors = LocalAppColors.current
+    val selected = remember { mutableStateListOf<String>() }
+
+    BackHandler { onDismiss() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            // Claims the hit test so the settings page underneath is unreachable while choosing.
+            .pointerInput(Unit) { detectTapGestures { } }
+            .statusBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel), tint = colors.textPrimary)
+            }
+            Text(
+                "Select Chats to Re-sync",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        }
+        Text(
+            "Only the chats you select are wiped and re-synced from the blockchain. Every other chat keeps its history untouched.",
+            color = colors.textSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(conversations, key = { it.contact.id }) { convo ->
+                val isSelected = convo.contact.id in selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (isSelected) selected.remove(convo.contact.id) else selected.add(convo.contact.id)
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ContactAvatar(
+                        imageUrl = convo.contact.knsAvatarUrl,
+                        deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
+                        backupPhotoBase64 = convo.contact.backupPhotoBase64,
+                        fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
+                        size = 48.dp
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = convo.contact.alias ?: KaspaAddress.shortDisplay(convo.contact.id),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = KaspaAddress.shortDisplay(convo.contact.id),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                if (!isSelected) selected.add(convo.contact.id)
+                            } else {
+                                selected.remove(convo.contact.id)
+                            }
+                        },
+                        colors = CheckboxDefaults.colors(checkedColor = KaspaTeal)
+                    )
+                }
+            }
+        }
+        Button(
+            onClick = { onStart(selected.toList()) },
+            enabled = selected.isNotEmpty(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Red,
+                disabledContainerColor = colors.surfaceVariant
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .navigationBarsPadding()
+        ) {
+            Text(
+                when {
+                    selected.isEmpty() -> "Wipe and Re-sync"
+                    selected.size == 1 -> "Wipe and Re-sync 1 Chat"
+                    else -> "Wipe and Re-sync ${selected.size} Chats"
+                },
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
 }
 
 @Composable
-fun SettingsSection(title: String, headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = LocalAppColors.current.textSecondary,
-                modifier = Modifier.weight(1f).padding(start = 8.dp, bottom = 8.dp)
-            )
-            headerAction?.invoke()
+        if (title != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.weight(1f).padding(start = 8.dp, bottom = 8.dp)
+                )
+                headerAction?.invoke()
+            }
         }
         Column(
             modifier = Modifier
@@ -6868,71 +7985,6 @@ fun SettingsSection(title: String, headerAction: (@Composable () -> Unit)? = nul
                 .background(LocalAppColors.current.surface)
         ) {
             content()
-        }
-    }
-}
-
-/**
- * Same card chrome as [SettingsSection], but starts collapsed to a single summary row — for
- * sections whose content (KNS domains/profile fields) isn't relevant on every visit to the
- * Profile screen and would otherwise push more useful sections further down.
- */
-@Composable
-fun CollapsibleSettingsSection(
-    title: String,
-    summary: String,
-    description: String? = null,
-    initiallyExpanded: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    var expanded by remember { mutableStateOf(initiallyExpanded) }
-    Column {
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.titleMedium.fontSize)) {
-                    append(title)
-                }
-                if (!description.isNullOrBlank()) {
-                    append("  ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = MaterialTheme.typography.bodySmall.fontSize)) {
-                        append(description)
-                    }
-                }
-            },
-            color = LocalAppColors.current.textSecondary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(LocalAppColors.current.surface)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    summary,
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = KaspaTeal
-                )
-            }
-            if (expanded) {
-                HorizontalDivider(color = LocalAppColors.current.divider)
-                content()
-            }
         }
     }
 }
@@ -6972,52 +8024,88 @@ private fun ProfileCircleAction(
 }
 
 /**
- * Same card chrome as [CollapsibleSettingsSection], but the title itself (with its optional
- * description) is the clickable dropdown header — there's no separate outer label or truncated
- * preview line, since revealing the address is the entire point of expanding.
+ * One compact address action row on [ProfileScreen] (iOS parity: ContactsView's
+ * addressActionRow), one per address role (Chatting Address / Spending Address): the role title
+ * with its balance underneath, and three icon-only circle buttons on the right: Copy, Send,
+ * Manage. Sits directly on the screen background - no card surface - matching how the big QR
+ * circle buttons ([ProfileCircleAction]) sit above it. Replaces the old collapsible address
+ * dropdowns that hid the same three actions behind an expand
+ * chevron. `address` is nullable because the current spending address can be momentarily
+ * unresolvable right after wallet load; in that state the row shows a loading placeholder and
+ * the caller's actions guard against the nil address.
  */
 @Composable
-fun CollapsibleAddressSection(
+private fun ProfileAddressActionCard(
     title: String,
-    balance: String? = null,
-    description: String? = null,
-    initiallyExpanded: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit
+    address: String?,
+    balanceText: String?,
+    onCopy: () -> Unit,
+    onSend: () -> Unit,
+    onManage: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(initiallyExpanded) }
-    Column(
+    // Two buttons instead of three now, so the row centers as one cluster instead of
+    // splitting to the screen edges.
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(LocalAppColors.current.surface)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)
     ) {
-        Row(
+        // The title + balance block IS the copy affordance: tapping it copies the address,
+        // replacing the old dedicated Copy button.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            // Fixed width so Send and Manage land in the same column on both cards
+            // regardless of title and balance text width.
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .width(140.dp)
+                .clickable(enabled = address != null) { onCopy() }
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                if (!description.isNullOrBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(description, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            if (!balance.isNullOrBlank()) {
-                Text(balance, color = KaspaTeal, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 8.dp))
-            }
-            Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = KaspaTeal
+            Text(
+                title,
+                color = LocalAppColors.current.textPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1
             )
+            if (address == null) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    "Loading...",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp
+                )
+            } else if (!balanceText.isNullOrBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    balanceText,
+                    color = KaspaTeal,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
         }
-        if (expanded) {
-            HorizontalDivider(color = LocalAppColors.current.divider)
-            content()
-        }
+        ProfileAddressCardAction(Icons.AutoMirrored.Filled.Send, "Send", onSend)
+        ProfileAddressCardAction(Icons.Default.Settings, "Manage", onManage)
+    }
+}
+
+/** One circular icon button inside [ProfileAddressActionCard] — a smaller sibling of [ProfileCircleAction] with the same teal-on-circle look. No text label: the icon carries the meaning, [contentDescription] keeps it accessible. */
+@Composable
+private fun ProfileAddressCardAction(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(54.dp)
+            .clip(CircleShape)
+            .background(KaspaTeal.copy(alpha = 0.15f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = KaspaTeal, modifier = Modifier.size(26.dp))
     }
 }
 
@@ -7115,6 +8203,140 @@ fun SettingsFooter(text: String) {
     )
 }
 
+/**
+ * The Security section's rows — every one app-wide (biometric toggles + Child Mode), so the same
+ * items render both in the in-account Settings > Security page and in the accounts screen's App
+ * Settings sheet (see AppSettingsScreen.kt), one source of truth. Caller supplies the enclosing
+ * [SettingsSection] and the navigation to the Child Mode screen (each host has its own NavHost).
+ */
+@Composable
+fun SecuritySettingsItems(
+    walletViewModel: WalletViewModel,
+    onNavigateToChildMode: () -> Unit
+) {
+    val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
+    val biometricAccountLoginEnabled by walletViewModel.biometricAccountLoginEnabled.collectAsState()
+    val biometricSpendingKeyEnabled by walletViewModel.biometricSpendingKeyEnabled.collectAsState()
+    SettingsSwitchItem(stringResource(R.string.biometrics_for_seed_phrase), biometricSeedPhraseEnabled) { enabled ->
+        walletViewModel.setBiometricSeedPhraseEnabled(enabled)
+    }
+    SettingsDivider()
+    SettingsSwitchItem(stringResource(R.string.biometrics_for_account_login), biometricAccountLoginEnabled) { enabled ->
+        walletViewModel.setBiometricAccountLoginEnabled(enabled)
+    }
+    SettingsDivider()
+    SettingsSwitchItem(stringResource(R.string.biometrics_for_address_private_keys), biometricSpendingKeyEnabled) { enabled ->
+        walletViewModel.setBiometricSpendingKeyEnabled(enabled)
+    }
+    SettingsDivider()
+    // Child Mode (matches iOS Settings > Security > Child Mode). NEVER biometric-gated - the
+    // whole point is that the device owner (the child) can pass fingerprint/face unlock but
+    // must not know the parent's password. Fully functional with no account active: the
+    // password record and enabled flag are device-global (ChildModeService/DataStore).
+    val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
+    SettingsNavigationItem(
+        stringResource(R.string.child_mode),
+        Icons.Default.FamilyRestroom,
+        if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+        onClick = onNavigateToChildMode
+    )
+    SettingsDivider()
+    // Per-account fresh-address payment pool toggle - moved here from the Chats page
+    // (all 3 platforms keep it under Security now).
+    val privacySettingsViewModel: SettingsViewModel = hiltViewModel()
+    val chatsPaymentPrivacyEnabled by privacySettingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
+    SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
+        privacySettingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
+    }
+    SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one.")
+}
+
+/**
+ * The Diagnostics section's rows — the export gathers app/device/settings/node-pool info and is
+ * account-tolerant (see DiagnosticsExportService's no-active-account fallbacks), so the same
+ * items render both in the in-account Settings > Diagnostics page and in the accounts screen's
+ * App Settings sheet. Caller supplies the enclosing [SettingsSection].
+ */
+@Composable
+fun DiagnosticsSettingsItems(chatViewModel: ChatViewModel = hiltViewModel()) {
+    val diagnosticsExportState by chatViewModel.diagnosticsExportState.collectAsState()
+    val context = LocalContext.current
+    val diagnosticsExportInFlight = diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+
+    SettingsActionItem(
+        label = if (diagnosticsExportInFlight) "Exporting..." else "Export Diagnostics Archive",
+        icon = Icons.Default.BugReport,
+        color = if (diagnosticsExportInFlight) Color.Gray else KaspaTeal
+    ) {
+        if (!diagnosticsExportInFlight) {
+            chatViewModel.exportDiagnostics { uri ->
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/zip"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Export Diagnostics Archive"))
+            }
+        }
+    }
+    if (diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
+        Text(
+            diagnosticsExportState.message ?: "Export failed",
+            color = Color(0xFFFF3B30),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    }
+    SettingsFooter(stringResource(R.string.exports_app_device_info_connection_settings))
+}
+
+/**
+ * Kaspa-logo total-balance row — Android port of iOS's BalanceToolbarLabel
+ * (SettingsView.swift): 15dp Kaspa logo + full 8-decimal balance in bold with
+ * tabular figures and secondary color, so the header balance reads identically
+ * on every main page (Chats/Settings via TopStatusBar; Broadcasts, Cold Storage,
+ * Swap, Portfolio and KaPosts via BalanceTopBarLabel below).
+ */
+@Composable
+fun BalanceLabelRow(balance: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_kaspa_logo),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(15.dp)
+        )
+        Text(
+            text = balance,
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                fontFeatureSettings = "tnum"
+            )
+        )
+    }
+}
+
+/**
+ * Self-contained variant for screens that don't already collect the wallet balance:
+ * observes WalletViewModel.fullBalance and refreshes it once on appearance (matches
+ * the iOS label's `.task { refreshBalance() }`).
+ */
+@Composable
+fun BalanceTopBarLabel(
+    modifier: Modifier = Modifier,
+    walletViewModel: WalletViewModel = hiltViewModel()
+) {
+    val balance by walletViewModel.fullBalance.collectAsState()
+    LaunchedEffect(Unit) { walletViewModel.refreshBalance() }
+    BalanceLabelRow(balance, modifier)
+}
+
 @Composable
 fun TopStatusBar(
     balance: String,
@@ -7155,14 +8377,7 @@ fun TopStatusBar(
             )
         }
 
-        Text(
-            text = balance,
-            color = LocalAppColors.current.textPrimary,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-        )
+        BalanceLabelRow(balance)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (isEditing && selectAllLabel != null) {
@@ -7230,6 +8445,13 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
     val activeNodes by viewModel.activeNodes.collectAsState()
     val allNodes by viewModel.allNodes.collectAsState()
+    // Pool sections only make sense when the POOL is choosing the node. Pinned to a specific
+    // node (the shipped default or the user's own), there is no pool at work - discovery is
+    // off and the app only ever talks to that one address - so pool status, pool actions, and
+    // the node lists would just show a pool of one. Null (not yet loaded) hides them too, so
+    // a pinned user never sees them flash on screen entry.
+    val nodeSelectionIsAutomatic by viewModel.nodeSelectionIsAutomatic.collectAsState()
+    val showPoolSections = nodeSelectionIsAutomatic == true
     // "Other Nodes" means genuinely other than what's already listed above under Active
     // Nodes — allNodes includes every known node (active and not), so without this filter
     // the same active nodes showed up twice, once in each section.
@@ -7237,6 +8459,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
     val status by viewModel.status.collectAsState()
     val dotColorHex by viewModel.dotColorHex.collectAsState()
     val lastSyncAt by viewModel.lastSyncAt.collectAsState()
+    val nodeConnectionsBlocked by viewModel.nodeConnectionsBlocked.collectAsState()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -7305,35 +8528,55 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                 ConnectionInfoRow(stringResource(R.string.indexer), indexerUrl.substringAfter("://").substringBefore("/"))
                 SettingsDivider()
                 ConnectionInfoRow(stringResource(R.string.last_sync), lastSyncAt)
+                // Honest all-blocked explanation: only shown once the pool has concluded that
+                // NO node answers at all on this network (see NodePoolManager's
+                // nodeConnectionsBlocked doc) - a plain red "Disconnected" with no reason
+                // otherwise reads as an app bug on firewalled/captive networks.
+                if (nodeConnectionsBlocked && status == ConnStatus.DISCONNECTED) {
+                    SettingsDivider()
+                    Text(
+                        stringResource(R.string.node_connections_blocked),
+                        color = Color(0xFFF39C12),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
 
-            SettingsSection(title = stringResource(R.string.pool_status)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    PoolStatItem(stringResource(R.string.active), activeNodes.size.toString(), Color(0xFF4CD964))
-                    PoolStatItem(stringResource(R.string.verified), verifiedCount.toString(), Color(0xFF2196F3))
-                    PoolStatItem(stringResource(R.string.total), allNodes.size.toString(), Color.Gray)
-                }
-                SettingsDivider()
-                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(R.string.pool_health), color = LocalAppColors.current.textPrimary)
-                    Text(poolHealthText, color = statusColor)
+            if (showPoolSections) {
+                SettingsSection(title = stringResource(R.string.pool_status)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        PoolStatItem(stringResource(R.string.active), activeNodes.size.toString(), Color(0xFF4CD964))
+                        PoolStatItem(stringResource(R.string.verified), verifiedCount.toString(), Color(0xFF2196F3))
+                        PoolStatItem(stringResource(R.string.total), allNodes.size.toString(), Color.Gray)
+                    }
+                    SettingsDivider()
+                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.pool_health), color = LocalAppColors.current.textPrimary)
+                        Text(poolHealthText, color = statusColor)
+                    }
                 }
             }
 
             SettingsSection(title = stringResource(R.string.actions)) {
-                SettingsActionItem(stringResource(R.string.refresh_pool), Icons.Default.Refresh, KaspaTeal, onClick = {
-                    viewModel.refreshPool()
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Refreshing pool…") }
-                })
-                SettingsDivider()
-                SettingsActionItem(stringResource(R.string.clear_connection_pool), Icons.Default.DeleteSweep, Color.Red, onClick = {
-                    viewModel.clearPool()
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Pool cleared, reconnecting to seed nodes") }
-                })
-                SettingsDivider()
+                // Refresh/Clear operate on pool discovery, which is off while pinned to a
+                // specific node - only Reconnect still means something there.
+                if (showPoolSections) {
+                    SettingsActionItem(stringResource(R.string.refresh_pool), Icons.Default.Refresh, KaspaTeal, onClick = {
+                        viewModel.refreshPool()
+                        coroutineScope.launch { snackbarHostState.showSnackbar("Refreshing pool…") }
+                    })
+                    SettingsDivider()
+                    SettingsActionItem(stringResource(R.string.clear_connection_pool), Icons.Default.DeleteSweep, Color.Red, onClick = {
+                        viewModel.clearPool()
+                        coroutineScope.launch { snackbarHostState.showSnackbar("Pool cleared, reconnecting to seed nodes") }
+                    })
+                    SettingsDivider()
+                }
                 SettingsActionItem(stringResource(R.string.reconnect), Icons.Default.Replay, KaspaTeal, onClick = {
                     viewModel.reconnect()
                     coroutineScope.launch { snackbarHostState.showSnackbar("Reconnecting…") }
@@ -7342,64 +8585,91 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
             KaspaNodeQuickAccessSection(viewModel)
 
-            Text(
-                text = "Primary: ${activeNodes.firstOrNull()?.ip ?: "None"}",
-                color = LocalAppColors.current.textSecondary,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(start = 8.dp)
-            )
+            if (showPoolSections) {
+                Text(
+                    text = "Primary: ${activeNodes.firstOrNull()?.ip ?: "None"}",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CD964), CircleShape))
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.active_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CD964), CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.active_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                    }
+                    Text(text = activeNodes.size.toString(), color = LocalAppColors.current.textSecondary)
                 }
-                Text(text = activeNodes.size.toString(), color = LocalAppColors.current.textSecondary)
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
-            ) {
-                activeNodes.forEachIndexed { index, node ->
-                    ActiveNodeRow(node)
-                    if (index < activeNodes.size - 1) SettingsDivider()
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
+                ) {
+                    activeNodes.forEachIndexed { index, node ->
+                        ActiveNodeRow(node)
+                        if (index < activeNodes.size - 1) SettingsDivider()
+                    }
                 }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).background(Color.Gray, CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.other_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                    }
+                    Text(text = otherNodes.size.toString(), color = LocalAppColors.current.textSecondary)
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
+                ) {
+                    otherNodes.forEachIndexed { index, node ->
+                        AllNodeRow(node)
+                        if (index < otherNodes.size - 1) SettingsDivider()
+                    }
+                }
+
+                Text(
+                    text = stringResource(R.string.all_discovered_nodes_sorted_by_state),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(8.dp).background(Color.Gray, CircleShape))
-                    Spacer(Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.other_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
-                }
-                Text(text = otherNodes.size.toString(), color = LocalAppColors.current.textSecondary)
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
-            ) {
-                otherNodes.forEachIndexed { index, node ->
-                    AllNodeRow(node)
-                    if (index < otherNodes.size - 1) SettingsDivider()
-                }
-            }
 
-            Text(
-                text = stringResource(R.string.all_discovered_nodes_sorted_by_state),
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalAppColors.current.textSecondary,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            
             Spacer(modifier = Modifier.height(100.dp))
         }
+    }
+}
+
+/** Read-only label/value row for the push-diagnostics section of [NotificationSettingsScreen]. */
+@Composable
+private fun PushDiagnosticRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            color = LocalAppColors.current.textPrimary,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f).padding(end = 12.dp)
+        )
+        Text(
+            text = value,
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
@@ -7409,6 +8679,8 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val soundEnabled by viewModel.notificationSoundEnabled.collectAsState()
     val vibrationEnabled by viewModel.notificationVibrationEnabled.collectAsState()
+    val pushActive by viewModel.pushActive.collectAsState()
+    val pushDiag by viewModel.pushDiagnostics.collectAsState()
 
     val context = LocalContext.current
     var permissionGranted by remember {
@@ -7425,7 +8697,9 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.notifications), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                // "Chats" since 4.0: this page is the Chats subpage of the top-level
+                // Notifications hub (Settings > Notifications > Chats), matching iOS.
+                title = { Text(stringResource(R.string.chats), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
@@ -7482,7 +8756,7 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                 }
                 SettingsFooter(
                     if (notificationsEnabled && permissionGranted)
-                        "Receive notifications when contacts send messages while KaChat is running. There's no remote push server yet, so nothing arrives once the app has been fully closed by the system."
+                        "Messages, broadcasts, and KaPosts notifications are delivered by the KaChat push service, including while the app is closed. Group notifications are checked in the background about every 15 minutes."
                     else
                         "Notifications are disabled."
                 )
@@ -7500,7 +8774,133 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                 }
             }
 
+            // Read-only push diagnostics — background delivery for DMs/broadcasts/KaPosts has no
+            // polling fallback, so when pushes don't arrive this is the first place to look
+            // (paired with `adb logcat -s KaChatPush` for the full story).
+            SettingsSection(title = "Push diagnostics") {
+                PushDiagnosticRow("Remote push active", if (pushActive) "Yes" else "No")
+                SettingsDivider()
+                PushDiagnosticRow(
+                    "FCM token",
+                    when {
+                        pushDiag.fcmTokenPresent -> "Present"
+                        pushDiag.lastAttemptAtMs == null -> "—"
+                        else -> "Missing"
+                    }
+                )
+                SettingsDivider()
+                PushDiagnosticRow(
+                    "Last registration",
+                    pushDiag.lastAttemptAtMs?.let { ts ->
+                        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                            .format(java.util.Date(ts))
+                        val outcome = if (pushDiag.lastAttemptSucceeded == true) "OK" else "failed"
+                        "${pushDiag.lastAction ?: "attempt"} $outcome · $time"
+                    } ?: "None yet"
+                )
+                SettingsFooter(
+                    pushDiag.lastError?.let { "Last error: $it" }
+                        ?: "Delivery problems? Capture logs with: adb logcat -s KaChatPush"
+                )
+            }
+
             Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+/**
+ * Settings > Notifications > Wallet — the Address Activity toggle (default ON). Gates
+ * [com.kachat.app.services.AddressActivityNotifier]'s local notifications for external receipts
+ * on any spending or cold storage address. Mirrors iOS's WalletNotificationSettingsView.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WalletNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+    val addressActivityEnabled by viewModel.addressActivityNotificationsEnabled.collectAsState()
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Wallet", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Spacer(Modifier.height(8.dp))
+            SettingsSection(title = null) {
+                SettingsSwitchItem("Address Activity", addressActivityEnabled) {
+                    viewModel.setAddressActivityNotificationsEnabled(it)
+                }
+                SettingsFooter("Notify when any of your spending or cold storage addresses receives Kaspa from an external source. Transfers between your own addresses are ignored.")
+            }
+        }
+    }
+}
+
+/**
+ * Settings > Notifications > KaPosts — five default-ON toggles choosing which KaPosts activity
+ * kinds post a notification. Filtering happens at the poll source
+ * ([com.kachat.app.services.KaPostsNotificationPoller]) via the K API contentType/voteType
+ * mapping (vote+downvote = dislike, vote = like, reply = comment, quote = repost,
+ * follow = follow). Mirrors iOS's KaPostsNotificationSettingsView.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KaPostsNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+    val likes by viewModel.kaPostsNotifyLikes.collectAsState()
+    val reposts by viewModel.kaPostsNotifyReposts.collectAsState()
+    val follows by viewModel.kaPostsNotifyFollows.collectAsState()
+    val dislikes by viewModel.kaPostsNotifyDislikes.collectAsState()
+    val comments by viewModel.kaPostsNotifyComments.collectAsState()
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("KaPosts", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Spacer(Modifier.height(8.dp))
+            SettingsSection(title = null) {
+                SettingsSwitchItem("Likes", likes) { viewModel.setKaPostsNotifyLikes(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Reposts", reposts) { viewModel.setKaPostsNotifyReposts(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Follows", follows) { viewModel.setKaPostsNotifyFollows(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Dislikes", dislikes) { viewModel.setKaPostsNotifyDislikes(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Comments", comments) { viewModel.setKaPostsNotifyComments(it) }
+                SettingsFooter("Choose which KaPosts activity sends a notification. Quotes of your posts count as reposts.")
+            }
         }
     }
 }
@@ -7892,7 +9292,7 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
                         .fillMaxWidth()
                         .clickable {
                             clipboardManager.setText(AnnotatedString(entry.address))
-                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                            showAddressCopiedToast(context, entry.address)
                         }
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -7911,7 +9311,20 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
                             Text(entry.address, color = LocalAppColors.current.textPrimary, fontFamily = FontFamily.Monospace)
                         }
                     }
-                    IconButton(onClick = { viewModel.removeSavedNodeAddress(entry.id) }) {
+                    // Immediate delete (matching this screen's convention: row taps copy with a
+                    // toast, no confirm dialogs anywhere), so a toast confirms the removal.
+                    // Deleting the entry the Kaspa Node dropdown currently pins does NOT touch
+                    // node selection: only the book entry goes, the pinned address stays set
+                    // and the dropdown falls back to showing the raw address (see
+                    // KaspaNodeQuickAccessSection's selectedLabel).
+                    IconButton(onClick = {
+                        viewModel.removeSavedNodeAddress(entry.id)
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.address_removed_from_book),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }) {
                         Icon(Icons.Default.Delete, null, tint = LocalAppColors.current.textSecondary)
                     }
                 }
@@ -7928,6 +9341,10 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val indexerUrl by viewModel.indexerUrl.collectAsState()
     val knsApiUrl by viewModel.knsApiUrl.collectAsState()
     val kaspaRestApiUrl by viewModel.kaspaRestApiUrl.collectAsState()
+    val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
+    val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
+    val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
+    val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -7963,26 +9380,26 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            SettingsSection(title = stringResource(R.string.network)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.network), color = LocalAppColors.current.textPrimary)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(network, color = KaspaTeal)
-                        Icon(Icons.Default.UnfoldMore, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(16.dp))
-                    }
-                }
-                SettingsFooter(stringResource(R.string.select_mainnet_for_real_transactions_or))
-            }
-
             SettingsSection(title = stringResource(R.string.kachat_indexer)) {
                 ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
                 SettingsFooter(stringResource(R.string.message_indexer_service_for_chat_functionality))
             }
 
+
+            SettingsSection(title = stringResource(R.string.kapost_indexer)) {
+                ConnectionUrlField(label = "KaPost Indexer URL", value = kapostIndexerUrl)
+                SettingsFooter(stringResource(R.string.kapost_indexer_footer))
+            }
+
+            SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
+                ConnectionUrlField(label = "Broadcast Indexer URL", value = broadcastIndexerUrl)
+                SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
+            }
+
+            SettingsSection(title = "Push Registration") {
+                ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
+                SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
+            }
 
             SettingsSection(title = stringResource(R.string.kaspa_name_service)) {
                 ConnectionUrlField(label = "KNS API URL", value = knsApiUrl)
@@ -7996,6 +9413,15 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
 
             KaspaNodeQuickAccessSection(viewModel)
             AddressBookSection(viewModel)
+
+            SettingsSection(title = "Diagnostics") {
+                SettingsSwitchItem(
+                    label = "Verbose API Logging",
+                    checked = verboseApiLogging,
+                    onCheckedChange = { viewModel.setVerboseApiLogging(it) }
+                )
+                SettingsFooter("Logs every API request and response to the system log. Failures and slow requests are always logged. Leave off for normal use.")
+            }
 
             Spacer(modifier = Modifier.height(100.dp))
         }
@@ -8262,9 +9688,10 @@ fun AnimatedQrDisplay(frames: List<ByteArray>, modifier: Modifier = Modifier, fr
 }
 
 /** Full-bleed QR overlay over the current screen's content area — matches iOS's push-navigated
- *  QR screens (full-screen white, dismissed via a back arrow/system back, not a tap-anywhere
- *  gesture that could be triggered by mistake). [message], if given, renders as a caption below
- *  the code (e.g. funding guidance). */
+ *  QR screens (full-screen white, dismissed via a back arrow/system back, never by a stray tap).
+ *  Tapping anywhere on the overlay content copies the address — the whole screen is the copy
+ *  target, so there's no dedicated copy button, just the quiet hint under the address. [message],
+ *  if given, renders as a caption below the code (e.g. funding guidance). */
 @Composable
 fun QrCodeOverlay(
     value: String,
@@ -8284,7 +9711,14 @@ fun QrCodeOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(Color.White)
+            // The entire overlay is the copy target (no ripple — the whole screen flashing on
+            // tap would look broken). The back arrow below still consumes its own taps, so
+            // dismissal stays on the arrow / system back only.
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                clipboardManager.setText(AnnotatedString(value))
+                com.kachat.app.util.showAddressCopiedToast(context, value)
+            },
         contentAlignment = Alignment.Center
     ) {
         IconButton(
@@ -8326,14 +9760,11 @@ fun QrCodeOverlay(
                     .padding(horizontal = 16.dp)
             )
             Spacer(Modifier.height(12.dp))
-            TextButton(onClick = {
-                clipboardManager.setText(AnnotatedString(value))
-                Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
-            }) {
-                Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                text = stringResource(R.string.tap_anywhere_to_copy),
+                color = Color(0xFF9A9AA0),
+                style = MaterialTheme.typography.bodySmall
+            )
             if (message != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -8356,17 +9787,21 @@ fun CreateChatScreen(
     onBack: () -> Unit,
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit = {},
+    startInGroupMode: Boolean = false,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
     var address by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
 
-    // Group chat mode — same screen, just a toggle: instead of one address, up to 10, plus a
-    // group name instead of an optional contact nickname.
-    var isGroupMode by remember { mutableStateOf(false) }
+    // Group chat mode. The create button is tab-aware (Chats vs Group Chats), so the screen
+    // opens directly in the right mode instead of exposing a toggle.
+    var isGroupMode by remember { mutableStateOf(startInGroupMode) }
     var groupName by remember { mutableStateOf("") }
     var groupAddressRows by remember { mutableStateOf(listOf(GroupAddressRow())) }
+    // New group flow: members are picked from existing contacts (searchable), not typed.
+    var selectedMemberAddresses by remember { mutableStateOf(setOf<String>()) }
+    var memberSearchText by remember { mutableStateOf("") }
     var scanningGroupRowId by remember { mutableStateOf<String?>(null) }
     var importingGroupRowId by remember { mutableStateOf<String?>(null) }
     val isCreatingGroup by chatViewModel.isCreatingGroup.collectAsState()
@@ -8379,6 +9814,8 @@ fun CreateChatScreen(
     val knsResolvedAddress by chatViewModel.knsResolvedAddress.collectAsState()
     val isResolvingKns by chatViewModel.isResolvingKns.collectAsState()
     val knsError by chatViewModel.knsError.collectAsState()
+    // Existing contacts (via conversations) shown in the group member picker.
+    val conversations by chatViewModel.conversations.collectAsState()
 
     val context = LocalContext.current
     // Reads the picked contact's data via the /entities sub-path of the URI the system picker
@@ -8477,14 +9914,33 @@ fun CreateChatScreen(
         return
     }
 
-    val canCreateGroup = groupName.trim().isNotEmpty() &&
-        groupAddressRows.filter { it.trimmedText.isNotEmpty() }.let { rows ->
-            if (rows.isEmpty() || !rows.all { it.isValid }) return@let false
-            // No two rows may resolve to the same address/KNS domain (same raw address typed
-            // twice, same domain typed twice, or two different domains owned by the same address).
-            val addresses = rows.mapNotNull { it.effectiveAddress?.lowercase() }
-            addresses.size == addresses.toSet().size
-        }
+    val canCreateGroup = groupName.trim().isNotEmpty() && selectedMemberAddresses.isNotEmpty()
+    var showCreateGroupConfirm by remember { mutableStateOf(false) }
+    if (showCreateGroupConfirm) {
+        val k = selectedMemberAddresses.size
+        val txCount = k + 1
+        val fee = chatViewModel.estimateGroupControlTxFeeSompi(1600) * txCount
+        AlertDialog(
+            onDismissRequest = { showCreateGroupConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Create group", color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    "Create \"${groupName.trim()}\" and invite $k member${if (k == 1) "" else "s"}?\n\nEstimated network fee ≈ ${com.kachat.app.repository.ChatRepository.formatKas(fee)} KAS across $txCount transaction${if (txCount == 1) "" else "s"}.",
+                    color = LocalAppColors.current.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCreateGroupConfirm = false
+                    chatViewModel.createGroupChat(groupName, selectedMemberAddresses.toList()) { groupId -> onGroupCreated(groupId) }
+                }) { Text(stringResource(R.string.create), color = KaspaTeal, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateGroupConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -8509,12 +9965,7 @@ fun CreateChatScreen(
                             Spacer(Modifier.width(16.dp))
                         } else {
                             TextButton(
-                                onClick = {
-                                    val resolvedAddresses = groupAddressRows.mapNotNull { it.effectiveAddress }
-                                    chatViewModel.createGroupChat(groupName, resolvedAddresses) { groupId ->
-                                        onGroupCreated(groupId)
-                                    }
-                                },
+                                onClick = { showCreateGroupConfirm = true },
                                 enabled = canCreateGroup
                             ) {
                                 Text(stringResource(R.string.create), color = if (canCreateGroup) KaspaTeal else Color.DarkGray, fontWeight = FontWeight.Bold)
@@ -8550,42 +10001,114 @@ fun CreateChatScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(stringResource(R.string.group_chat), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                Switch(
-                    checked = isGroupMode,
-                    onCheckedChange = {
-                        isGroupMode = it
-                        chatViewModel.clearCreateGroupError()
-                    },
-                    colors = SwitchDefaults.colors(checkedTrackColor = KaspaTeal)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             if (isGroupMode) {
                 GroupChatCreationFields(
                     groupName = groupName,
                     onGroupNameChange = { groupName = it },
-                    rows = groupAddressRows,
-                    onRowsChange = { groupAddressRows = it },
-                    onScanRequested = { rowId -> scanningGroupRowId = rowId },
-                    onImportRequested = { rowId ->
-                        importingGroupRowId = rowId
-                        pickContactForImportLauncher.launch(null)
+                    searchText = memberSearchText,
+                    onSearchTextChange = { memberSearchText = it },
+                    conversations = conversations,
+                    selectedAddresses = selectedMemberAddresses,
+                    onToggleMember = { address ->
+                        selectedMemberAddresses = if (selectedMemberAddresses.contains(address)) {
+                            selectedMemberAddresses - address
+                        } else if (selectedMemberAddresses.size < MAX_GROUP_MEMBERS) {
+                            selectedMemberAddresses + address
+                        } else selectedMemberAddresses
                     },
-                    errorMessage = createGroupError,
-                    chatViewModel = chatViewModel
+                    errorMessage = createGroupError
                 )
+
+                // Add someone who is not in your contacts, by raw address or KNS domain. Reuses
+                // the screen-level `address` state, its KNS resolution, and the scanner/import.
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Add by Address",
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Add anyone by Kaspa address or KNS domain, even if they are not in your contacts.",
+                    color = LocalAppColors.current.textSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                TextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp)),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = LocalAppColors.current.surface,
+                        unfocusedContainerColor = LocalAppColors.current.surface,
+                        focusedTextColor = LocalAppColors.current.textPrimary,
+                        unfocusedTextColor = LocalAppColors.current.textPrimary,
+                        cursorColor = KaspaTeal,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true
+                )
+                if (looksLikeKnsDomain && isResolvingKns) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (looksLikeKnsDomain && knsError != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (isValidAddress) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (looksLikeKnsDomain) "Resolved to ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
+                            color = Color(0xFF4CD964),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
+                        pickContactForImportLauncher.launch(null)
+                    }
+                    CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
+                        clipboardManager.getText()?.text?.let { address = it.trim() }
+                    }
+                    CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = {
+                        val resolved = effectiveAddress
+                        if (resolved != null && isValidAddress && selectedMemberAddresses.size < MAX_GROUP_MEMBERS) {
+                            selectedMemberAddresses = selectedMemberAddresses + resolved
+                            address = ""
+                        }
+                    },
+                    enabled = isValidAddress,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
+                ) {
+                    Text("Add to Group", fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(32.dp))
                 return@Column
             }
 
@@ -8782,73 +10305,13 @@ data class GroupAddressRow(
 fun GroupChatCreationFields(
     groupName: String,
     onGroupNameChange: (String) -> Unit,
-    rows: List<GroupAddressRow>,
-    onRowsChange: (List<GroupAddressRow>) -> Unit,
-    onScanRequested: (String) -> Unit,
-    onImportRequested: (String) -> Unit,
-    errorMessage: String?,
-    chatViewModel: ChatViewModel
+    searchText: String,
+    onSearchTextChange: (String) -> Unit,
+    conversations: List<Conversation>,
+    selectedAddresses: Set<String>,
+    onToggleMember: (String) -> Unit,
+    errorMessage: String?
 ) {
-    val clipboardManager = LocalClipboardManager.current
-
-    // The one member "card" expanded for editing (text field + Import/Paste/Scan + Add Address)
-    // - every other row shows collapsed (name/address + a remove button only). Tapping a
-    // collapsed row re-expands it; committing the expanded one via "Add Address" collapses it
-    // and expands a fresh blank row in its place. Resets whenever this composable enters
-    // composition fresh (i.e. every time group mode is toggled on), same as `rows` itself.
-    var editingRowId by remember { mutableStateOf(rows.firstOrNull()?.id) }
-
-    fun isValidRow(row: GroupAddressRow): Boolean = row.isValid
-
-    // Lowercased effective addresses that appear more than once across all rows - catches the
-    // same raw address typed twice, the same KNS domain typed twice, and two different KNS
-    // domains that happen to resolve to the same owner address.
-    val duplicateAddresses = remember(rows) {
-        val addresses = rows.mapNotNull { it.effectiveAddress?.lowercase() }
-        val seen = mutableSetOf<String>()
-        val duplicates = mutableSetOf<String>()
-        for (address in addresses) {
-            if (!seen.add(address)) duplicates.add(address)
-        }
-        duplicates
-    }
-
-    fun commitRow(id: String) {
-        val row = rows.firstOrNull { it.id == id } ?: return
-        if (!isValidRow(row)) return
-        if (rows.size < MAX_GROUP_MEMBERS) {
-            val newRow = GroupAddressRow()
-            onRowsChange(rows + newRow)
-            editingRowId = newRow.id
-        } else {
-            editingRowId = null
-        }
-    }
-
-    fun setEditingRow(id: String) {
-        val currentId = editingRowId
-        if (currentId != null && currentId != id) {
-            val current = rows.firstOrNull { it.id == currentId }
-            if (current != null && current.trimmedText.isEmpty() && rows.size > 1) {
-                onRowsChange(rows.filterNot { it.id == currentId })
-            }
-        }
-        editingRowId = id
-    }
-
-    fun removeRow(id: String) {
-        val wasEditing = editingRowId == id
-        val newRows = rows.filterNot { it.id == id }
-        if (wasEditing) editingRowId = null
-        if (newRows.isEmpty() || (editingRowId == null && newRows.size < MAX_GROUP_MEMBERS)) {
-            val newRow = GroupAddressRow()
-            onRowsChange(newRows + newRow)
-            editingRowId = newRow.id
-        } else {
-            onRowsChange(newRows)
-        }
-    }
-
     Text(
         text = stringResource(R.string.group_name),
         color = LocalAppColors.current.textPrimary,
@@ -8875,174 +10338,191 @@ fun GroupChatCreationFields(
         singleLine = true
     )
 
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.height(24.dp))
 
-    Text(
-        text = stringResource(R.string.members),
-        color = LocalAppColors.current.textPrimary,
-        fontWeight = FontWeight.Bold,
-        style = MaterialTheme.typography.titleMedium
-    )
-    Spacer(modifier = Modifier.height(12.dp))
-
-    Column(
+    // --- Members (N): collapsible list of who has been added so far ---
+    var membersExpanded by remember { mutableStateOf(false) }
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
-            .padding(16.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { membersExpanded = !membersExpanded }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        rows.forEachIndexed { index, row ->
-            if (index > 0) Spacer(modifier = Modifier.height(12.dp))
-
-            // Debounced KNS resolution for this row, independent of every other row.
-            LaunchedEffect(row.text) {
-                val trimmed = row.text.trim()
-                if (trimmed.isEmpty() || !com.kachat.app.services.KnsService.looksLikeDomain(trimmed)) {
-                    if (row.resolvedAddress != null || row.knsError != null || row.isResolvingKns) {
-                        onRowsChange(rows.map { if (it.id == row.id) it.copy(resolvedAddress = null, knsError = null, isResolvingKns = false) else it })
-                    }
-                    return@LaunchedEffect
-                }
-                onRowsChange(rows.map { if (it.id == row.id) it.copy(isResolvingKns = true, resolvedAddress = null, knsError = null) else it })
-                kotlinx.coroutines.delay(500)
-                val resolved = chatViewModel.resolveKnsDomain(trimmed)
-                onRowsChange(rows.map {
-                    if (it.id == row.id && it.trimmedText == trimmed) {
-                        it.copy(isResolvingKns = false, resolvedAddress = resolved, knsError = if (resolved == null) "KNS domain not found" else null)
-                    } else it
-                })
-            }
-
-            if (row.id == editingRowId) {
-                // The one expanded "card": address field, then Import/Paste/Scan (same
-                // size/style as the single-contact flow), then Add Address to commit it and
-                // open the next blank slot.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextField(
-                        value = row.text,
-                        onValueChange = { newValue ->
-                            onRowsChange(rows.map { if (it.id == row.id) it.copy(text = newValue) else it })
-                        },
-                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
-                        modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            cursorColor = KaspaTeal,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        singleLine = true
-                    )
-                    if (rows.size > 1) {
-                        IconButton(onClick = { removeRow(row.id) }) {
-                            Icon(Icons.Default.RemoveCircle, contentDescription = stringResource(R.string.remove), tint = Color(0xFFFF3B30))
-                        }
-                    }
-                }
-
-                if (row.trimmedText.isNotEmpty() || row.knsError != null) {
-                    when {
-                        row.isResolvingKns -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.resolving_kns_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                        }
-                        row.knsError != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(row.knsError, color = Color(0xFFFF3B30), fontSize = 12.sp)
-                        }
-                        row.effectiveAddress?.lowercase()?.let { it in duplicateAddresses } == true -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Already added to this group", color = Color(0xFFFF3B30), fontSize = 12.sp)
-                        }
-                        row.looksLikeDomain && row.resolvedAddress != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Resolved: ${row.resolvedAddress.takeLast(12)}", color = Color(0xFF4CD964), fontSize = 12.sp)
-                        }
-                        !row.looksLikeDomain -> {
-                            val isValid = KaspaAddress.isValid(row.trimmedText)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    if (isValid) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = if (isValid) Color(0xFF4CD964) else Color(0xFFFF3B30),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    if (isValid) "Valid address" else "Invalid address format",
-                                    color = if (isValid) Color(0xFF4CD964) else Color(0xFFFF3B30),
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = LocalAppColors.current.divider)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                    CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
-                        onImportRequested(row.id)
-                    }
-                    CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
-                        clipboardManager.getText()?.text?.let { pasted ->
-                            onRowsChange(rows.map { if (it.id == row.id) it.copy(text = pasted.trim()) else it })
-                        }
-                    }
-                    CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") {
-                        onScanRequested(row.id)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { commitRow(row.id) },
-                    enabled = isValidRow(row),
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.add_address), color = if (isValidRow(row)) Color.Black else Color.Gray, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                // Committed: collapsed to a single row - tap the name/address to edit it again,
-                // or tap the red button to remove it outright.
+        Text(
+            text = if (selectedAddresses.isEmpty()) stringResource(R.string.members) else "${stringResource(R.string.members)} (${selectedAddresses.size})",
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = if (membersExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary
+        )
+    }
+    if (membersExpanded) {
+        Spacer(modifier = Modifier.height(8.dp))
+        if (selectedAddresses.isEmpty()) {
+            Text(
+                text = "No members added yet. Open Contacts below to add people.",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            val contactsById = remember(conversations) { conversations.map { it.contact }.associateBy { it.id } }
+            selectedAddresses.forEach { address ->
+                val contact = contactsById[address]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { setEditingRow(row.id) },
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = row.trimmedText,
-                        color = LocalAppColors.current.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                    ContactAvatar(
+                        imageUrl = contact?.knsAvatarUrl,
+                        deviceContactPhotoUri = contact?.systemContactPhotoUri,
+                        backupPhotoBase64 = contact?.backupPhotoBase64,
+                        fallbackText = contact?.alias ?: KaspaAddress.shortDisplay(address),
+                        size = 40.dp
                     )
-                    IconButton(onClick = { removeRow(row.id) }) {
-                        Icon(Icons.Default.RemoveCircle, contentDescription = stringResource(R.string.remove), tint = Color(0xFFFF3B30))
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = contact?.alias ?: KaspaAddress.shortDisplay(address),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = KaspaAddress.shortDisplay(address),
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1
+                        )
+                    }
+                    IconButton(onClick = { onToggleMember(address) }) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFFF3B30))
                     }
                 }
             }
         }
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
-    Text(
-        text = "Up to $MAX_GROUP_MEMBERS addresses or KNS domains. Anyone not already a contact will be added automatically.",
-        color = LocalAppColors.current.textSecondary,
-        style = MaterialTheme.typography.bodySmall
-    )
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // --- Contacts: collapsible search + list of people you have chatted with ---
+    var contactsExpanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { contactsExpanded = !contactsExpanded }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Contacts",
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = if (contactsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary
+        )
+    }
+    if (contactsExpanded) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Search box to filter the existing contacts shown below.
+        TextField(
+            value = searchText,
+            onValueChange = onSearchTextChange,
+            placeholder = { Text("Search contacts", color = Color.DarkGray) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = LocalAppColors.current.surface,
+                unfocusedContainerColor = LocalAppColors.current.surface,
+                focusedTextColor = LocalAppColors.current.textPrimary,
+                unfocusedTextColor = LocalAppColors.current.textPrimary,
+                cursorColor = KaspaTeal,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val query = searchText.trim().lowercase()
+        val contacts = remember(conversations, query) {
+            conversations.map { it.contact }
+                .distinctBy { it.id }
+                .sortedBy { (it.alias ?: it.id).lowercase() }
+                .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+        }
+
+        if (conversations.isEmpty()) {
+            Text(
+                text = "You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to a group.",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else if (contacts.isEmpty()) {
+            Text(
+                text = "No contacts match your search.",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            contacts.forEach { contact ->
+                val selected = selectedAddresses.contains(contact.id)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleMember(contact.id) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ContactAvatar(
+                        imageUrl = contact.knsAvatarUrl,
+                        deviceContactPhotoUri = contact.systemContactPhotoUri,
+                        backupPhotoBase64 = contact.backupPhotoBase64,
+                        fallbackText = contact.alias ?: contact.id.takeLast(8),
+                        size = 40.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = contact.alias ?: KaspaAddress.shortDisplay(contact.id),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = KaspaAddress.shortDisplay(contact.id),
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1
+                        )
+                    }
+                    Icon(
+                        imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary
+                    )
+                }
+            }
+        }
+    }
 
     errorMessage?.let { message ->
         Spacer(modifier = Modifier.height(12.dp))
@@ -9052,6 +10532,13 @@ fun GroupChatCreationFields(
             Text(message, color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(
+        text = "Search and tap contacts to add them to the group. You can add up to $MAX_GROUP_MEMBERS.",
+        color = LocalAppColors.current.textSecondary,
+        style = MaterialTheme.typography.bodySmall
+    )
 
     Spacer(modifier = Modifier.height(32.dp))
 }
@@ -9127,17 +10614,24 @@ fun ChatInfoScreen(
     val context = LocalContext.current
     val pickContactLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
+        // PHOTO_URI rides along on the picker's one-shot URI grant (no READ_CONTACTS needed), so a
+        // manual link picks up the device address-book photo the same way the automatic scan does.
         context.contentResolver.query(
             uri,
-            arrayOf(ContactsContract.Contacts.LOOKUP_KEY, ContactsContract.Contacts.DISPLAY_NAME_PRIMARY),
+            arrayOf(
+                ContactsContract.Contacts.LOOKUP_KEY,
+                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+                ContactsContract.Contacts.PHOTO_URI
+            ),
             null, null, null
         )?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val lookupKey = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY))
                 val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY))
+                val photoUri = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_URI))
                 if (lookupKey != null && displayName != null) {
                     contactName = displayName
-                    chatViewModel.linkSystemContact(contactId, lookupKey, displayName)
+                    chatViewModel.linkSystemContact(contactId, lookupKey, displayName, photoUri)
                 }
             }
         }
@@ -9190,6 +10684,7 @@ fun ChatInfoScreen(
                     ) {
                         ContactAvatar(
                             imageUrl = knsFields?.avatarUrl,
+                            deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                             fallbackText = conversation?.contact?.alias ?: contactId.takeLast(8),
                             size = 60.dp,
                             backgroundColor = LocalAppColors.current.surfaceVariant,
@@ -9235,6 +10730,7 @@ fun ChatInfoScreen(
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             ContactAvatar(
                                 imageUrl = knsFields?.avatarUrl,
+                                deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 fallbackText = knsProfile?.selectedDomain ?: contactId.takeLast(8),
                                 size = 48.dp
                             )
@@ -9351,7 +10847,7 @@ fun ChatInfoScreen(
                         .fillMaxWidth()
                         .clickable {
                             clipboardManager.setText(AnnotatedString(contactId))
-                            Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                            showAddressCopiedToast(context, contactId)
                         }
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -9376,6 +10872,74 @@ fun ChatInfoScreen(
                         textAlign = TextAlign.Center
                     )
                 }
+            }
+
+            // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
+            // this conversation's messages on-chain. Receiving = the alias on messages this
+            // contact sends me (what my sync watches - WalletManager.myDeterministicAlias, my
+            // pubkey as HKDF context); Sending = the alias on my messages to them
+            // (WalletManager.theirDeterministicAlias, their pubkey as context) - direction
+            // semantics verified against ChatRepository.syncContextualMessages/
+            // WalletService.sendKasiaMessage usage. Derived only on demand (tap), never at render.
+            var revealedReceivingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+            var revealedSendingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+
+            @Composable
+            fun AliasRow(label: String, revealed: String?, derive: () -> String?, onRevealed: (String?) -> Unit) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (revealed != null) {
+                                clipboardManager.setText(AnnotatedString(revealed))
+                                Toast.makeText(context, context.getString(R.string.alias_copied), Toast.LENGTH_SHORT).show()
+                            } else {
+                                val derived = derive()
+                                if (derived != null) {
+                                    onRevealed(derived)
+                                } else {
+                                    Toast.makeText(context, context.getString(R.string.alias_unavailable), Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(label, color = LocalAppColors.current.textPrimary)
+                    if (revealed != null) {
+                        Text(
+                            revealed,
+                            color = LocalAppColors.current.textSecondary,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("••••••••••••", color = LocalAppColors.current.textSecondary)
+                            Icon(Icons.Default.Visibility, contentDescription = stringResource(R.string.reveal), tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            Column {
+                SettingsSection(title = stringResource(R.string.aliases)) {
+                    AliasRow(
+                        label = stringResource(R.string.receiving_alias),
+                        revealed = revealedReceivingAlias,
+                        derive = { chatViewModel.deriveReceivingAlias(contactId) },
+                        onRevealed = { revealedReceivingAlias = it }
+                    )
+                    SettingsDivider()
+                    AliasRow(
+                        label = stringResource(R.string.sending_alias),
+                        revealed = revealedSendingAlias,
+                        derive = { chatViewModel.deriveSendingAlias(contactId) },
+                        onRevealed = { revealedSendingAlias = it }
+                    )
+                }
+                SettingsFooter(stringResource(R.string.these_identify_this_conversations_messages))
             }
 
             SettingsSection(title = stringResource(R.string.system_contact)) {

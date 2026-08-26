@@ -9,7 +9,6 @@
     <string name="account_name">שם חשבון</string>
     <string name="active_nodes">צמתים פעילים</string>
     <string name="add">הוסף</string>
-    <string name="add_address">הוסף כתובת</string>
     <string name="add_contact">הוסף איש קשר</string>
     <string name="add_transaction">הוסף עסקה</string>
     <string name="add_to_portfolio">הוסף לתיק ההשקעות</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">הגדרות שידור</string>
     <string name="broadcasting">משדר...</string>
     <string name="broadcasts">שידורים</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">שידורים הם ערוצים ציבוריים לא מוצפנים. כל מי שמצטרף לאותו שם ערוץ רואה את אותן ההודעות.</string>
     <string name="build_unsigned_transaction">בנה עסקה לא חתומה</string>
     <string name="building_transaction">בונה עסקה...</string>
     <string name="camera_permission_is_needed_to_scan">נדרשת גישה למצלמה כדי לסרוק קוד QR</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">בטל תגובה</string>
     <string name="change">שינוי</string>
     <string name="changenow_exchange_id">מזהה החלפת ChangeNOW</string>
-    <string name="channels">ערוצים</string>
     <string name="chats">צ\'אטים</string>
     <string name="chatting_address">כתובת צ\'אט</string>
     <string name="chatting_address_2">כתובת צ\'אט</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">נעשה שימוש בגיבוי Google Drive</string>
     <string name="grant_permission">הענק הרשאה</string>
     <string name="grant_permission_2">הענק הרשאה</string>
-    <string name="group_chat">צ\'אט קבוצתי</string>
     <string name="group_chats">צ\'אטים קבוצתיים</string>
     <string name="group_info">מידע על הקבוצה</string>
     <string name="group_name">שם הקבוצה</string>
@@ -169,14 +165,12 @@
     <string name="name">שם</string>
     <string name="name_optional">שם (אופציונלי)</string>
     <string name="name_this_address">תן שם לכתובת זו</string>
-    <string name="network">רשת</string>
     <string name="never_send_kaspa_you_intend_to">לעולם אל תשלח קספה שבכוונתך להוציא לכתובת זו.</string>
     <string name="next">הבא</string>
     <string name="no_conversations_yet">עדיין אין שיחות</string>
     <string name="no_group_chats_yet">אין עדיין צ\'אטים קבוצתיים</string>
     <string name="no_matching_chats">אין צ\'אטים תואמים</string>
     <string name="no_matching_groups">אין קבוצות תואמות</string>
-    <string name="no_broadcast_channels_yet">אין עדיין ערוצי שידור</string>
     <string name="no_cold_storage_accounts_yet_scan">אין עדיין חשבונות אחסון קר. סרוק kpub שיוצא מהמכשיר KasSigner שלך כדי לעקוב אחר היתרה שלו ולשלוח ממנו.</string>
     <string name="no_domains_yet">עדיין אין דומיינים.</string>
     <string name="no_hidden_addresses">אין כתובות מוסתרות.</string>
@@ -210,8 +204,6 @@
     <string name="photos">תמונות</string>
     <string name="polygon_network">רשת Polygon</string>
     <string name="pool_health">בריאות המאגר</string>
-    <string name="popular">פופולרי</string>
-    <string name="popular_tab">לשונית פופולרי</string>
     <string name="portfolio">תיק השקעות</string>
     <string name="powered_by_changenow">מופעל על ידי ChangeNOW</string>
     <string name="price_per_coin">מחיר למטבע</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">דומיין שמור: אין דמי רישום, חלות רק עמלות רשת.</string>
     <string name="resign">התפטר</string>
     <string name="resign_this_game">להתפטר ממשחק זה?</string>
-    <string name="resolving_kns_domain">פותר דומיין KNS…</string>
     <string name="resolving_domain">פותר דומיין…</string>
     <string name="resolving">פותר...</string>
     <string name="retention">שמירה</string>
@@ -271,7 +262,6 @@
     <string name="show_more">הצג עוד</string>
     <string name="show_photo">הצג תמונה</string>
     <string name="show_qr_code">הצג קוד QR</string>
-    <string name="shows_a_tab_of_recommended_broadcast">מציג לשונית של חדרי שידור מומלצים שאליהם תוכל להצטרף.</string>
     <string name="shows_senders_kns_avatars_in_rooms">מציג אווטארים של KNS עבור שולחים בחדרים ומחפש אותם אוטומטית ככל שהודעות מופיעות. כבוי מציג ראשי תיבות פשוטים לכולם ולעולם לא מביא אווטארים.</string>
     <string name="skip">דלג</string>
     <string name="some_changes_failed_to_save">חלק מהשינויים לא נשמרו:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">זה עשוי לקחת כמה דקות בזמן שהיא מתאשרת על השרשרת.</string>
     <string name="this_only_removes_it_from_kachat">זה רק מסיר אותו מרשימת המעקב של KaChat. אין לכך השפעה על מכשיר KasSigner או על כל כספים שהוא מחזיק.</string>
     <string name="this_permanently_deletes_every_message_with">זה מוחק לצמיתות כל הודעה איתם במכשיר זה. לא ניתן לבטל זאת; כתיבה אליהם שוב מתחילה שיחה חדשה לגמרי.</string>
-    <string name="this_permanently_deletes_this_account_s">זה מוחק לצמיתות את מפתחות הארנק של חשבון זה וכל הודעותיו ואנשי הקשר המקומיים שלו מהמכשיר הזה. לא ניתן לבטל זאת אלא אם שמרת את ביטוי השחזור שלך; בלעדיו, כל יתרה שנותרה אינה ניתנת לשחזור.</string>
-    <string name="this_permanently_deletes_this_account_s_2">זה מוחק לצמיתות את מפתחות הארנק של חשבון זה, כל הודעותיו ואנשי הקשר המקומיים שלו, וגיבוי Google Drive שלו. לא ניתן לבטל זאת אלא אם שמרת את ביטוי השחזור שלך; בלעדיו, כל יתרה שנותרה אינה ניתנת לשחזור.</string>
-    <string name="this_removes_all_incoming_messages_locally">זה מסיר את כל ההודעות הנכנסות מקומית, ואז מסנכרן אותן מחדש מהבלוקצ\'יין. פרטי החשבון שלך וההודעות שנשלחו נשמרים.</string>
     <string name="this_removes_the_group_and_its">זה מסיר את הקבוצה והודעותיה ממכשיר זה. לא ניתן לבטל זאת, וחברים אחרים לא יקבלו התראה.</string>
     <string name="this_signs_out_of_your_account">פעולה זו מתנתקת מחשבונך, אך שומרת את נתוני הארנק וההודעות המקומיים במכשיר זה.</string>
     <string name="to">אל</string>
@@ -312,13 +299,6 @@
     <string name="view_on_changenow">צפה ב-ChangeNOW</string>
     <string name="waiting_for_camera">ממתין למצלמה...</string>
     <string name="waiting_on_opponent">ממתין ליריב</string>
-    <string name="when_you_message_someone_new_on">כשאתה שולח הודעה למישהו חדש ב-KaChat, הוא לא יקבל התראה וההודעה שלך תישאר מוסתרת עד שהוא ישיב לך או גם יוסיף אותך. זה מגן מפני ספאם ומגביר את הפרטיות שלך. אם אתה רוצה שהוא יקבל התראה, הקש על סמל היד כדי לשלוח בקשת תקשורת שתעלה 0.2 KAS. (הערה: כל אפליקציות ההודעות שאינן KaChat ידרשו בקשת תקשורת)</string>
-    <string name="wipe_account">מחק חשבון</string>
-    <string name="wipe_everything">מחק הכל</string>
-    <string name="wipe_incoming_messages">מחק הודעות נכנסות</string>
-    <string name="wipe_account_messages">מחק חשבון והודעות</string>
-    <string name="wipe_account_messages_cloud">מחק חשבון והודעות וענן</string>
-    <string name="wipe_and_re_sync_incoming_messages">מחק וסנכרן מחדש הודעות נכנסות</string>
     <string name="you_will_be_shown_a_seed">תוצג לך ביטוי שחזור. זו הדרך היחידה לשחזר את חשבונך. הקפד לרשום אותו בלבד. לעולם אל תצלם מסך ואל תאחסן אותו במכשיר שלך.</string>
     <string name="channel_name">שם-ערוץ</string>
     <string name="host_port_or_grpcs_host">host:port או grpcs://host</string>
@@ -337,7 +317,6 @@
     <string name="swap_failed">ההחלפה נכשלה</string>
     <string name="nothing_to_consolidate">אין מה לאחד</string>
     <string name="about">אודות</string>
-    <string name="account">חשבון</string>
     <string name="actions">פעולות</string>
     <string name="active">פעיל</string>
     <string name="autocreate_system_contacts">יצירת אנשי קשר מערכת אוטומטית</string>
@@ -402,7 +381,6 @@
     <string name="save_photo">שמור תמונה</string>
     <string name="save_your_own_node_addresses_here">שמור כאן את כתובות הצומת שלך, ואז הקש על אחת כדי להעתיק ולהדביק אותה בשדה צומת קספה למעלה.</string>
     <string name="security">אבטחה</string>
-    <string name="select_mainnet_for_real_transactions_or">בחר mainnet לעסקאות אמיתיות או testnet לבדיקות</string>
     <string name="send_audio_message">שלח הודעה קולית</string>
     <string name="send_handshake">שלח בקשת תקשורת</string>
     <string name="send_photo_2">שלח תמונה</string>
@@ -421,7 +399,6 @@
     <string name="system_contact">איש קשר מערכת</string>
     <string name="telegram">Telegram</string>
     <string name="total">סה\"כ</string>
-    <string name="unfinished_inscription">רישום לא גמור</string>
     <string name="uses_your_device_contacts_to_match">משתמש באנשי קשר מהמכשיר להתאמה והעשרת אנשי קשר Kaspa.</string>
     <string name="verified">מאומת</string>
     <string name="verifying_new_ownership_on_chain_this">מאמת בעלות חדשה על השרשרת (זה עשוי לקחת דקה)...</string>
@@ -433,7 +410,6 @@
     <string name="view_seed_phrase">הצג Seed Phrase</string>
     <string name="view_in_explorer">צפה בסייר</string>
     <string name="website">אתר</string>
-    <string name="welcome_guide">מדריך ברוכים הבאים</string>
     <string name="x">X</string>
     <string name="x_twitter">X (טוויטר)</string>
     <string name="language">שפה</string>
@@ -458,7 +434,6 @@
     <string name="best">הכי טוב</string>
     <string name="spending_address">כתובת הוצאה</string>
     <string name="enter_as_host_port_or_grpcs_host">הזן בפורמט host:port או grpcs://host</string>
-    <string name="show_setup_guides">הצג מדריכי הגדרה</string>
     <string name="receive_kaspa">קבל Kaspa</string>
     <string name="currency">מטבע</string>
     <string name="choose_your_currency">בחר את המטבע שלך</string>

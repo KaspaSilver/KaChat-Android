@@ -32,6 +32,21 @@ object VoiceMessage {
     }
 
     /**
+     * Any `{type:"file"}` media envelope regardless of mimeType — the chat-list previews'
+     * last-resort catch (video, documents, or an envelope from another client whose mime the
+     * audio/image parsers don't claim), so raw JSON never leaks into a preview row.
+     */
+    fun parseAnyFileOrNull(text: String?): VoiceMessageContent? {
+        if (text.isNullOrBlank() || text.trimStart().firstOrNull() != '{') return null
+        return try {
+            val parsed = gson.fromJson(text, VoiceMessageContent::class.java) ?: return null
+            if (parsed.type == "file" && parsed.content.startsWith("data:")) parsed else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Parses [text] as a voice message if it looks like one, else returns null — a plain text
      * message never accidentally renders as an audio bubble just because it happens to start
      * with `{`, since this also requires an audio `mimeType` and a `data:` URI in `content`.

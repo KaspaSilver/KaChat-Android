@@ -12,7 +12,11 @@ interface BroadcastDao {
     @Query("SELECT * FROM broadcast_channels WHERE walletAddress = :walletAddress ORDER BY joinedAt DESC")
     fun getJoinedChannels(walletAddress: String): Flow<List<BroadcastChannelEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // IGNORE, never REPLACE: joining is create-if-absent. REPLACE deletes the existing row and
+    // re-inserts entity DEFAULTS, which silently wiped notifyEnabled/alwaysListen every time
+    // ensureFeaturedChannelsJoined re-ran (each BroadcastViewModel init, e.g. entering a room) -
+    // the "bell turns itself off" bug.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun joinChannel(channel: BroadcastChannelEntity)
 
     @Query("DELETE FROM broadcast_channels WHERE channelName = :channelName AND walletAddress = :walletAddress")
@@ -59,6 +63,10 @@ interface BroadcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: BroadcastMessageEntity)
 
+    /** One message row by id — used to look a failed reaction's own message row back up for retry (see BroadcastRepository.retryReactionMessage). */
+    @Query("SELECT * FROM broadcast_messages WHERE id = :id LIMIT 1")
+    suspend fun getMessage(id: String): BroadcastMessageEntity?
+
     /** Removes a single message by id — used to drop a "pending_<uuid>" placeholder once its real send resolves (success swaps it for the real-txId row; see BroadcastRepository.sendBroadcast). */
     @Query("DELETE FROM broadcast_messages WHERE id = :id")
     suspend fun deleteMessage(id: String)
@@ -77,12 +85,13 @@ interface BroadcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun hideSender(entity: HiddenBroadcastSenderEntity)
 
-    @Query("DELETE FROM broadcast_hidden_senders WHERE senderAddress = :senderAddress AND walletAddress = :walletAddress")
-    suspend fun unhideSender(senderAddress: String, walletAddress: String)
+    /** Removes both the room-scoped hide AND any legacy every-room ("") hide for the sender. */
+    @Query("DELETE FROM broadcast_hidden_senders WHERE senderAddress = :senderAddress AND walletAddress = :walletAddress AND (channelName = :channelName OR channelName = '')")
+    suspend fun unhideSender(senderAddress: String, walletAddress: String, channelName: String)
 
     /** Reactive so a fresh hide/unhide immediately re-filters any already-open channel screen and the scanning service's insert-time check (see BroadcastScanningService). */
-    @Query("SELECT senderAddress FROM broadcast_hidden_senders WHERE walletAddress = :walletAddress")
-    fun getHiddenSenderAddresses(walletAddress: String): Flow<List<String>>
+    @Query("SELECT * FROM broadcast_hidden_senders WHERE walletAddress = :walletAddress")
+    fun getHiddenSenders(walletAddress: String): Flow<List<HiddenBroadcastSenderEntity>>
 }
 
 data class ChannelRetention(val channelName: String, val retentionMillis: Long)

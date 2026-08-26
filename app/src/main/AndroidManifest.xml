@@ -9,6 +9,9 @@
     <!-- Push notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Lets the app show the OS "ignore battery optimizations" dialog so data-only encrypted
+         DM/group push can wake a force-closed app (see MainActivity.maybeRequestBatteryExemption). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Voice messages -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -30,12 +33,16 @@
     <!-- Biometric/device-credential prompt guarding the seed phrase and account unlock -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
-    <!-- Keeps the message/handshake/payment poll loop alive in the background —
-         Android freezes a plain background process's threads within seconds otherwise,
-         which silently stopped notifications from firing once the app was backgrounded. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
+    <!-- usesCleartextTraffic stays true DELIBERATELY (2026-08 security audit, decision 3A):
+         Kaspa node gRPC (protowire on port 16110/16210) is plaintext by protocol, and a
+         networkSecurityConfig cannot scope a cleartext allowance by port — only by domain —
+         which is useless for a pool of bare peer IPs. grpc-okhttp builds its own sockets and
+         does not reliably consult the platform's cleartext policy anyway, so tightening the
+         flag would only give a false sense of coverage. Everything HTTP in the app (indexer,
+         KNS, REST API, push registration, Nextcloud, link previews) is https-only at the
+         application layer instead: the URL settings fields are read-only, and the one
+         user-editable server input (Nextcloud) rejects explicit http:// in the UI and again in
+         NextcloudService.normalizeServer. -->
     <application
         android:name=".KaChatApplication"
         android:allowBackup="false"
@@ -57,12 +64,40 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- KaPosts share links: kachat://kapost/<txid> opens the post's thread. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kachat" android:host="kapost" />
+            </intent-filter>
+            <!-- Universal-link form. autoVerify needs /.well-known/assetlinks.json served at
+                 the domain (mirrors iOS's AASA file - see KAPOSTS_INDEXER.md section 7). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/post/" />
+            </intent-filter>
+            <!-- System share sheet: text/links and images shared from any app land in a chat's
+                 composer (see ShareShortcutsManager/ShareIntake + MainActivity.handleShareIntent).
+                 Recent conversations additionally appear as direct-share targets via the sharing
+                 shortcuts published by ShareShortcutsManager + @xml/shortcuts below. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
-
-        <service
-            android:name=".services.SyncForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
 
         <!-- WorkManager's default auto-init is disabled — KaChatApplication implements
              Configuration.Provider so SyncWorker gets constructed via HiltWorkerFactory
@@ -89,8 +124,9 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- FCM Push Notification Service (Phase 7) -->
-        <!-- Uncomment when Firebase is integrated
+        <!-- FCM Push Notification Service. Data-only messages are handled here and turned into
+             notifications via NotificationHelper (mirrors iOS's Notification Service Extension).
+             Inactive at runtime until google-services.json is added (see app/build.gradle.kts). -->
         <service
             android:name=".services.KaChatFirebaseMessagingService"
             android:exported="false">
@@ -98,7 +134,12 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        -->
+
+        <!-- Default notification channel for FCM (used if a message arrives without an explicit
+             channel). Points at the app's primary messages channel. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="kachat_messages_sound_vibrate" />
 
         <!-- Required for AppCompatDelegate.setApplicationLocales() to survive a cold app
              restart on API <33 (the Settings > Language row uses this API) - without this

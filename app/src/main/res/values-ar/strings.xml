@@ -9,7 +9,6 @@
     <string name="account_name">اسم الحساب</string>
     <string name="active_nodes">العقد النشطة</string>
     <string name="add">إضافة</string>
-    <string name="add_address">إضافة عنوان</string>
     <string name="add_contact">إضافة جهة اتصال</string>
     <string name="add_transaction">إضافة معاملة</string>
     <string name="add_to_portfolio">إضافة إلى المحفظة</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">إعدادات البث</string>
     <string name="broadcasting">جارٍ البث...</string>
     <string name="broadcasts">البث</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">البث هو قنوات عامة غير مشفرة. أي شخص ينضم إلى نفس اسم القناة يرى نفس الرسائل.</string>
     <string name="build_unsigned_transaction">إنشاء معاملة غير موقعة</string>
     <string name="building_transaction">جارٍ إنشاء المعاملة...</string>
     <string name="camera_permission_is_needed_to_scan">يلزم الوصول إلى الكاميرا لمسح رمز QR</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">إلغاء الرد</string>
     <string name="change">تغيير</string>
     <string name="changenow_exchange_id">معرّف تبادل ChangeNOW</string>
-    <string name="channels">القنوات</string>
     <string name="chats">المحادثات</string>
     <string name="chatting_address">عنوان الدردشة</string>
     <string name="chatting_address_2">عنوان الدردشة</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">تم استخدام النسخة الاحتياطية من Google Drive</string>
     <string name="grant_permission">منح الإذن</string>
     <string name="grant_permission_2">منح الإذن</string>
-    <string name="group_chat">دردشة جماعية</string>
     <string name="group_chats">دردشات جماعية</string>
     <string name="group_info">معلومات المجموعة</string>
     <string name="group_name">اسم المجموعة</string>
@@ -169,14 +165,12 @@
     <string name="name">الاسم</string>
     <string name="name_optional">الاسم (اختياري)</string>
     <string name="name_this_address">تسمية هذا العنوان</string>
-    <string name="network">الشبكة</string>
     <string name="never_send_kaspa_you_intend_to">لا ترسل أبدًا إلى هذا العنوان كاسبا تنوي إنفاقها.</string>
     <string name="next">التالي</string>
     <string name="no_conversations_yet">مفيش محادثات لسه</string>
     <string name="no_group_chats_yet">لا توجد دردشات جماعية بعد</string>
     <string name="no_matching_chats">لا توجد دردشات مطابقة</string>
     <string name="no_matching_groups">لا توجد مجموعات مطابقة</string>
-    <string name="no_broadcast_channels_yet">لا توجد قنوات بث بعد</string>
     <string name="no_cold_storage_accounts_yet_scan">لا توجد حسابات تخزين بارد بعد. امسح ضوئيًا kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده والإرسال منه.</string>
     <string name="no_domains_yet">لا توجد مجالات حتى الآن.</string>
     <string name="no_hidden_addresses">لا توجد عناوين مخفية.</string>
@@ -210,8 +204,6 @@
     <string name="photos">الصور</string>
     <string name="polygon_network">شبكة Polygon</string>
     <string name="pool_health">صحة المجموعة</string>
-    <string name="popular">شائع</string>
-    <string name="popular_tab">تبويب الأكثر شيوعًا</string>
     <string name="portfolio">المحفظة</string>
     <string name="powered_by_changenow">مدعوم من ChangeNOW</string>
     <string name="price_per_coin">السعر لكل عملة</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">نطاق محجوز: لا توجد رسوم تسجيل، تُطبق رسوم الشبكة فقط.</string>
     <string name="resign">استسلام</string>
     <string name="resign_this_game">الاستسلام في هذه المباراة؟</string>
-    <string name="resolving_kns_domain">جارٍ تحليل نطاق KNS…</string>
     <string name="resolving_domain">جارٍ تحليل النطاق…</string>
     <string name="resolving">جارٍ التحليل...</string>
     <string name="retention">الاحتفاظ</string>
@@ -271,7 +262,6 @@
     <string name="show_more">عرض المزيد</string>
     <string name="show_photo">عرض الصورة</string>
     <string name="show_qr_code">عرض رمز QR</string>
-    <string name="shows_a_tab_of_recommended_broadcast">يعرض تبويبًا لغرف البث الموصى بها التي يمكنك الانضمام إليها.</string>
     <string name="shows_senders_kns_avatars_in_rooms">يعرض صور الملفات الشخصية KNS للمرسلين في الغرف ويبحث عنها تلقائيًا عند ظهور الرسائل. عند الإيقاف، يعرض الأحرف الأولى البسيطة للجميع ولا يجلب الصور الرمزية أبدًا.</string>
     <string name="skip">تخطي</string>
     <string name="some_changes_failed_to_save">فشل حفظ بعض التغييرات:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">قد يستغرق هذا بضع دقائق أثناء التأكيد على السلسلة.</string>
     <string name="this_only_removes_it_from_kachat">هذا يزيله فقط من قائمة مراقبة KaChat. لا تأثير له على جهاز KasSigner أو أي أموال يحتفظ بها.</string>
     <string name="this_permanently_deletes_every_message_with">هذا يحذف نهائيًا كل رسالة معهم على هذا الجهاز. لا يمكن التراجع عن هذا؛ مراسلتهم مرة أخرى تبدأ محادثة جديدة تمامًا.</string>
-    <string name="this_permanently_deletes_this_account_s">هذا يحذف نهائيًا مفاتيح محفظة هذا الحساب وجميع رسائله وجهات اتصاله المحلية من هذا الجهاز. لا يمكن التراجع عن هذا إلا إذا كنت قد حفظت عبارة الاسترداد الخاصة بك؛ بدونها، أي رصيد متبقٍ غير قابل للاسترداد.</string>
-    <string name="this_permanently_deletes_this_account_s_2">هذا يحذف نهائيًا مفاتيح محفظة هذا الحساب، وجميع رسائله وجهات اتصاله المحلية، ونسخته الاحتياطية على Google Drive. لا يمكن التراجع عن هذا إلا إذا كنت قد حفظت عبارة الاسترداد الخاصة بك؛ بدونها، أي رصيد متبقٍ غير قابل للاسترداد.</string>
-    <string name="this_removes_all_incoming_messages_locally">هذا يزيل جميع الرسائل الواردة محليًا، ثم يعيد مزامنتها من سلسلة الكتل. يتم الحفاظ على معلومات حسابك والرسائل المرسلة.</string>
     <string name="this_removes_the_group_and_its">هذا يزيل المجموعة ورسائلها من هذا الجهاز. لا يمكن التراجع عن هذا، ولن يتم إخطار الأعضاء الآخرين.</string>
     <string name="this_signs_out_of_your_account">يؤدي هذا إلى تسجيل الخروج من حسابك، لكنه يحتفظ ببيانات المحفظة والرسائل المحلية على هذا الجهاز.</string>
     <string name="to">إلى</string>
@@ -312,13 +299,6 @@
     <string name="view_on_changenow">عرض على ChangeNOW</string>
     <string name="waiting_for_camera">في انتظار الكاميرا...</string>
     <string name="waiting_on_opponent">في انتظار الخصم</string>
-    <string name="when_you_message_someone_new_on">عندما تراسل شخصًا جديدًا على KaChat، لن يتلقى إشعارًا وستبقى رسالتك مخفية حتى يرد عليك أو يضيفك أيضًا. هذا يحمي من الرسائل غير المرغوب فيها ويزيد خصوصيتك. إذا كنت تريد إخطاره، اضغط على أيقونة اليد لإرسال طلب تواصل سيكلف 0.2 KAS. (ملاحظة: جميع تطبيقات المراسلة غير KaChat ستتطلب طلب تواصل)</string>
-    <string name="wipe_account">مسح الحساب</string>
-    <string name="wipe_everything">مسح كل شيء</string>
-    <string name="wipe_incoming_messages">مسح الرسائل الواردة</string>
-    <string name="wipe_account_messages">مسح الحساب والرسائل</string>
-    <string name="wipe_account_messages_cloud">مسح الحساب والرسائل والسحابة</string>
-    <string name="wipe_and_re_sync_incoming_messages">مسح وإعادة مزامنة الرسائل الواردة</string>
     <string name="you_will_be_shown_a_seed">سيتم عرض عبارة استرداد لك. هذه هي الطريقة الوحيدة لاستعادة حسابك. تأكد من كتابتها فقط. لا تلتقط لقطة شاشة أبدًا ولا تخزنها على جهازك.</string>
     <string name="channel_name">اسم-القناة</string>
     <string name="host_port_or_grpcs_host">host:port أو grpcs://host</string>
@@ -337,7 +317,6 @@
     <string name="swap_failed">فشلت المبادلة</string>
     <string name="nothing_to_consolidate">لا يوجد شيء لدمجه</string>
     <string name="about">حول</string>
-    <string name="account">الحساب</string>
     <string name="actions">إجراءات</string>
     <string name="active">نشط</string>
     <string name="autocreate_system_contacts">إنشاء جهات اتصال النظام تلقائياً</string>
@@ -402,7 +381,6 @@
     <string name="save_photo">حفظ الصورة</string>
     <string name="save_your_own_node_addresses_here">احفظ عناوين عقدك الخاصة هنا، ثم اضغط على واحدة لنسخها ولصقها في حقل عقدة كاسبا أعلاه.</string>
     <string name="security">الأمان</string>
-    <string name="select_mainnet_for_real_transactions_or">اختر mainnet للمعاملات الحقيقية أو testnet للتجربة</string>
     <string name="send_audio_message">إرسال رسالة صوتية</string>
     <string name="send_handshake">إرسال طلب تواصل</string>
     <string name="send_photo_2">إرسال صورة</string>
@@ -421,7 +399,6 @@
     <string name="system_contact">جهة اتصال النظام</string>
     <string name="telegram">Telegram</string>
     <string name="total">الإجمالي</string>
-    <string name="unfinished_inscription">نقش غير مكتمل</string>
     <string name="uses_your_device_contacts_to_match">يستخدم جهات اتصال جهازك لمطابقة وإثراء جهات اتصال Kaspa.</string>
     <string name="verified">موثق</string>
     <string name="verifying_new_ownership_on_chain_this">جارٍ التحقق من الملكية الجديدة على السلسلة (قد يستغرق دقيقة)...</string>
@@ -433,7 +410,6 @@
     <string name="view_seed_phrase">عرض Seed Phrase</string>
     <string name="view_in_explorer">عرض في المستكشف</string>
     <string name="website">الموقع الإلكتروني</string>
-    <string name="welcome_guide">دليل الترحيب</string>
     <string name="x">X</string>
     <string name="x_twitter">X (تويتر)</string>
     <string name="language">اللغة</string>
@@ -458,7 +434,6 @@
     <string name="best">الأفضل</string>
     <string name="spending_address">عنوان الإنفاق</string>
     <string name="enter_as_host_port_or_grpcs_host">أدخل بصيغة host:port أو grpcs://host</string>
-    <string name="show_setup_guides">إظهار أدلة الإعداد</string>
     <string name="receive_kaspa">استلام Kaspa</string>
     <string name="currency">العملة</string>
     <string name="choose_your_currency">اختر عملتك</string>

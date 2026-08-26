@@ -136,6 +136,14 @@ object GroupCipher {
         return byteArrayOf(v.toByte()) + "gctl_epoch".toByteArray(Charsets.UTF_8) + groupId + leBytes(epoch) + reason.toByteArray(Charsets.UTF_8)
     }
 
+    fun buildTombstoneSigningPayload(v: Int, groupId: ByteArray): ByteArray {
+        return byteArrayOf(v.toByte()) + "gctl_tombstone".toByteArray(Charsets.UTF_8) + groupId
+    }
+
+    fun buildPhotoSigningPayload(v: Int, groupId: ByteArray, photo: ByteArray): ByteArray {
+        return byteArrayOf(v.toByte()) + "gctl_photo".toByteArray(Charsets.UTF_8) + groupId + photo
+    }
+
     // -------------------------------------------------------------------------
     // Control payloads (sent over the existing 1:1 encrypted COMM channel, JSON)
     // -------------------------------------------------------------------------
@@ -151,7 +159,12 @@ object GroupCipher {
         @SerializedName("admin_signing_pub") val adminSigningPub: String,
         val members: List<String>,
         val name: String,
-        val sig: String
+        val sig: String,
+        // Present ONLY in the admin's self-addressed recovery copy (Gson omits null fields, so
+        // members' copies never carry it). Not signed; authenticated by re-deriving group_id +
+        // blinding_key from it (see GroupRepository.completeJoin). Lets a seedless re-import
+        // rebuild the group as admin.
+        @SerializedName("group_seed") val groupSeed: String? = null
     )
 
     /** gctl_epoch - admin announces a membership/epoch change ahead of sending a fresh root. */
@@ -174,7 +187,8 @@ object GroupCipher {
         adminSigningPub: ByteArray,
         members: List<String>,
         name: String,
-        adminPrivateKey: ByteArray
+        adminPrivateKey: ByteArray,
+        groupSeed: ByteArray? = null
     ): GroupRootPayload {
         val signingPayload = buildRootSigningPayload(1, groupId, epoch, groupRootEpoch, blindingKey, adminSigningPub)
         val sig = sign(signingPayload, adminPrivateKey)
@@ -186,7 +200,8 @@ object GroupCipher {
             adminSigningPub = adminSigningPub.toHexString(),
             members = members,
             name = name,
-            sig = sig.toHexString()
+            sig = sig.toHexString(),
+            groupSeed = groupSeed?.toHexString()
         )
     }
 
@@ -226,6 +241,67 @@ object GroupCipher {
         }
     }
 
+    /** gctl_tombstone - a self-addressed "I deleted this group" marker so a delete survives a
+     *  seedless re-import (the recovery invite would otherwise resurrect it). Signed by the
+     *  deleter, honored ONLY when signed by + addressed to the reader's own key. */
+    data class GroupTombstonePayload(
+        val type: String = "gctl_tombstone",
+        val v: Int = 1,
+        @SerializedName("group_id") val groupId: String,
+        @SerializedName("signing_pub") val signingPub: String,
+        val sig: String
+    )
+
+    fun buildSignedTombstonePayload(groupId: ByteArray, signingPub: ByteArray, privateKey: ByteArray): GroupTombstonePayload {
+        val sig = sign(buildTombstoneSigningPayload(1, groupId), privateKey)
+        return GroupTombstonePayload(groupId = groupId.toHexString(), signingPub = signingPub.toHexString(), sig = sig.toHexString())
+    }
+
+    fun verifyTombstonePayload(payload: GroupTombstonePayload): Boolean {
+        return try {
+            val groupId = payload.groupId.hexToByteArray()
+            val signingPub = payload.signingPub.hexToByteArray()
+            val sig = payload.sig.hexToByteArray()
+            verify(sig, buildTombstoneSigningPayload(payload.v, groupId), signingPub)
+        } catch (e: Exception) { false }
+    }
+
+    fun tombstonePayloadToJson(payload: GroupTombstonePayload): String = gson.toJson(payload)
+    fun tombstonePayloadFromJson(json: String): GroupTombstonePayload? =
+        try { gson.fromJson(json, GroupTombstonePayload::class.java) } catch (e: Exception) { null }
+
+    /** gctl_photo - admin sets the group photo (hex of a compressed JPEG; "" clears it) for all
+     *  members. A separate signed control type, so it never touches the gctl_root signature. */
+    data class GroupPhotoPayload(
+        val type: String = "gctl_photo",
+        val v: Int = 1,
+        @SerializedName("group_id") val groupId: String,
+        val photo: String,
+        @SerializedName("signing_pub") val signingPub: String,
+        val sig: String
+    )
+
+    fun buildSignedPhotoPayload(groupId: ByteArray, photoHex: String, signingPub: ByteArray, privateKey: ByteArray): GroupPhotoPayload {
+        val photoBytes = try { photoHex.hexToByteArray() } catch (e: Exception) { ByteArray(0) }
+        val sig = sign(buildPhotoSigningPayload(1, groupId, photoBytes), privateKey)
+        return GroupPhotoPayload(groupId = groupId.toHexString(), photo = photoHex, signingPub = signingPub.toHexString(), sig = sig.toHexString())
+    }
+
+    // Verifies the signature only. The caller must also check signing_pub is the group's admin.
+    fun verifyPhotoPayload(payload: GroupPhotoPayload): Boolean {
+        return try {
+            val groupId = payload.groupId.hexToByteArray()
+            val photoBytes = try { payload.photo.hexToByteArray() } catch (e: Exception) { ByteArray(0) }
+            val signingPub = payload.signingPub.hexToByteArray()
+            val sig = payload.sig.hexToByteArray()
+            verify(sig, buildPhotoSigningPayload(payload.v, groupId, photoBytes), signingPub)
+        } catch (e: Exception) { false }
+    }
+
+    fun photoPayloadToJson(payload: GroupPhotoPayload): String = gson.toJson(payload)
+    fun photoPayloadFromJson(json: String): GroupPhotoPayload? =
+        try { gson.fromJson(json, GroupPhotoPayload::class.java) } catch (e: Exception) { null }
+
     fun rootPayloadToJson(payload: GroupRootPayload): String = gson.toJson(payload)
     fun rootPayloadFromJson(json: String): GroupRootPayload? =
         try { gson.fromJson(json, GroupRootPayload::class.java) } catch (e: Exception) { null }
@@ -258,13 +334,17 @@ object GroupCipher {
         ciphertext: ByteArray,
         signature: ByteArray
     ): String {
-        return "ciph_msg:1:gcomm:${blindedGroupId.toHexString()}:$epoch:${senderId.toHexString()}:" +
+        return "kchat:1:gcomm:${blindedGroupId.toHexString()}:$epoch:${senderId.toHexString()}:" +
             "${senderPubKey.toHexString()}:${msgId.toHexString()}:${ciphertext.toHexString()}:${signature.toHexString()}"
     }
 
     fun parseGroupMessagePayload(payloadString: String): ParsedGroupMessage? {
-        val prefix = "ciph_msg:1:gcomm:"
-        if (!payloadString.startsWith(prefix)) return null
+        // Dual-read: new `kchat:` root and legacy `ciph_msg:` root (tail identical).
+        val prefix = when {
+            payloadString.startsWith("kchat:1:gcomm:") -> "kchat:1:gcomm:"
+            payloadString.startsWith("ciph_msg:1:gcomm:") -> "ciph_msg:1:gcomm:"
+            else -> return null
+        }
         val rest = payloadString.substring(prefix.length)
         val parts = rest.split(":")
         if (parts.size != 7) return null
@@ -293,14 +373,20 @@ object GroupCipher {
      * legacy gctl already relied on, a mismatched recipient's ECIES decrypt just fails silently.
      */
     fun normalizeControlPayload(payloadString: String): String {
-        val prefix = "ciph_msg:1:gctl:"
-        if (!payloadString.startsWith(prefix)) return payloadString
-        val rest = payloadString.substring(prefix.length)
+        // Dual-read: accept either root, then ALWAYS re-root to canonical `kchat:1:gctl:` so the
+        // downstream strip (handleIncomingControlMessage) is correct for old and new.
+        val canonical = "kchat:1:gctl:"
+        val root = when {
+            payloadString.startsWith(canonical) -> canonical
+            payloadString.startsWith("ciph_msg:1:gctl:") -> "ciph_msg:1:gctl:"
+            else -> return payloadString
+        }
+        val rest = payloadString.substring(root.length)
         val parts = rest.split(":")
         if (parts.size != 2 || parts[0].length != 64 || !parts[0].all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
-            return payloadString
+            return canonical + rest
         }
-        return prefix + parts[1]
+        return canonical + parts[1]
     }
 
     // -------------------------------------------------------------------------

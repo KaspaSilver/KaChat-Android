@@ -225,8 +225,57 @@ class KaspaWalletEngine @Inject constructor(
             // submits exclusively over gRPC — so payload-carrying sends go straight to
             // a node via gRPC here, bypassing the REST gateway entirely. Plain payments
             // (no payload) keep using REST since that path is already proven working.
+            //
+            // allowOrphan: when this send chains onto our own not-yet-confirmed change (the
+            // reconciled pending UTXOs above have blockDaaScore == 0), the pooled node this
+            // lands on may not have seen the parent transaction yet — with allowOrphan=false
+            // it would reject with kaspad's "transaction ... is an orphan, where orphan is
+            // disallowed" (the exact failure users saw sending broadcast messages/reactions
+            // back-to-back). allowOrphan=true parks it in the node's orphan pool until the
+            // parent propagates (sub-second), matching what iOS's broadcast/1:1 send does.
+            // And even with confirmed-only inputs, the submit node can briefly lag the node
+            // that served the UTXO snapshot — retry that rejection once tolerating orphan
+            // (same recovery KnsInscriptionEngine's reveal step uses) instead of failing.
+            val usesUnconfirmedInputs = selectionResult.selectedUtxos.any { it.utxoEntry.blockDaaScore == 0L }
             val transactionId = if (payloadBytes != null) {
-                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx)
+                try {
+                    nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                } catch (e: Exception) {
+                    val isOrphanRejection = e.message?.contains("orphan", ignoreCase = true) == true
+                    // Transport-shaped failure (timeout / dead gRPC stream) — NOT a node verdict.
+                    // The cached connection can die silently and only gets reaped by the 30s probe
+                    // cycle; every send in that window failed after the full timeout while the app
+                    // looked connected. Reconnect fresh and retry ONCE. Definitive node rejections
+                    // (mass/fee/double-spend) are rethrown untouched — blind-retrying those is wrong.
+                    val isTransportFailure = e is kotlinx.coroutines.TimeoutCancellationException ||
+                        e is io.grpc.StatusException || e is io.grpc.StatusRuntimeException
+                    when {
+                        !usesUnconfirmedInputs && isOrphanRejection -> {
+                            Log.w("KaspaWalletEngine", "Submit rejected as orphan (node behind), retrying with allowOrphan=true", e)
+                            nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = true)
+                        }
+                        isTransportFailure -> {
+                            Log.w("KaspaWalletEngine", "Submit transport failure, reconnecting and retrying once", e)
+                            nodePoolManager.refreshBroadcastConnection()
+                            try {
+                                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                            } catch (e2: Exception) {
+                                // Payload-carrying sends have no REST fallback (the REST gateway
+                                // rejects them, see the broadcast comment above), so when the pool
+                                // has already concluded the whole network blocks gRPC, surface that
+                                // honestly instead of a raw DEADLINE_EXCEEDED string.
+                                if (nodePoolManager.nodeConnectionsBlocked.value) {
+                                    throw IllegalStateException(
+                                        "No Kaspa node is reachable on this network. Node connections appear blocked, so the message could not be sent.",
+                                        e2
+                                    )
+                                }
+                                throw e2
+                            }
+                        }
+                        else -> throw e
+                    }
+                }
             } else {
                 api.postTransaction(PostTransactionRequest(signedTx)).transactionId
             }
@@ -266,7 +315,14 @@ class KaspaWalletEngine @Inject constructor(
             ?: return Result.failure(IllegalStateException("No active account"))
         val currentSpendingAddress = walletManager.deriveSpendingAddress(currentIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(currentIndex)
-        val nextSpendingAddress = walletManager.deriveSpendingAddress(currentIndex + 1)
+        // Change goes one past the ALL-TIME max index (not just currentIndex + 1) — guarantees it
+        // never lands on an address that's already been used, offered as a payment-pool
+        // reservation, or manually generated from Manage Addresses. The allocation bumps the max
+        // atomically, so a concurrent pool reservation can't collide either (matches iOS's
+        // `sendPaymentInternal` fresh-change-index rule). On failure the allocated index is
+        // simply burned unused — revealing an index is always safe, reusing one is not.
+        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+            ?: return Result.failure(IllegalStateException("Could not derive change address"))
 
         val result = sendKaspa(
             toAddress = toAddress,
@@ -278,7 +334,7 @@ class KaspaWalletEngine @Inject constructor(
             feeRateOverride = feeRateOverride
         )
         if (result.isSuccess) {
-            walletManager.advanceSpendingAddressIndex(identityAddress)
+            walletManager.setSpendingAddressIndex(identityAddress, nextIndex)
         }
         return result
     }

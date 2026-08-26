@@ -41,9 +41,21 @@ interface GroupDao {
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     fun getMessages(groupId: String, walletAddress: String): Flow<List<GroupMessageEntity>>
 
+    /** One-shot variant for backup export (no Flow subscription). */
+    @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
+    suspend fun getMessagesOnce(groupId: String, walletAddress: String): List<GroupMessageEntity>
+
     /** Returns the Room-generated row id, or -1 if the insert was ignored as a duplicate (same txId+walletAddress already present) — lets callers detect "was this genuinely new" without a separate existence query. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMessage(message: GroupMessageEntity): Long
+
+    /** One message by tx id — backs the reaction notification's "does this reaction target one of OUR messages?" check. */
+    @Query("SELECT * FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress LIMIT 1")
+    suspend fun getMessage(txId: String, walletAddress: String): GroupMessageEntity?
+
+    /** Existence check by tx id — see GroupRepository.isGroupTxIngested (FCM fallback decision). */
+    @Query("SELECT COUNT(*) FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress")
+    suspend fun countMessagesByTxId(txId: String, walletAddress: String): Int
 
     /** Removes a single message by id — used to drop a "pending_<uuid>" placeholder once its real send resolves. */
     @Query("DELETE FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress")

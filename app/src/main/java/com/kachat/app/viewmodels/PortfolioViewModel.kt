@@ -9,16 +9,17 @@ import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.AddressImportResult
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.PortfolioRepository
+import com.kachat.app.services.KnsService
 import com.kachat.app.services.PortfolioManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -47,15 +48,23 @@ data class PortfolioSummary(
     val totalProceeds: Double,
     val currentValue: Double,
     val totalPL: Double,
-    val totalPLPercent: Double
+    val totalPLPercent: Double,
+    /** Lifetime cost basis per KAS across every buy (totalInvested / total KAS ever bought); null
+     *  with no buys yet. Matches iOS/desktop's `averageBuyPriceUsd`. */
+    val averageBuyPriceUsd: Double? = null
 )
 
 @HiltViewModel
 class PortfolioViewModel @Inject constructor(
     private val repository: PortfolioRepository,
     private val settings: AppSettingsRepository,
-    private val portfolioManager: PortfolioManager
+    private val portfolioManager: PortfolioManager,
+    private val knsService: KnsService
 ) : ViewModel() {
+
+    /** Forward KNS domain resolution for the Add Kaspa Address field — lets typing "name.kas"
+     *  resolve to a Kaspa address the same way the send flows' address fields already do. */
+    suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
 
     val transactions = repository.getTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -112,11 +121,14 @@ class PortfolioViewModel @Inject constructor(
 
     private var priceHistoryJob: Job? = null
 
-    // Per-range (days -> history) cache. Re-selecting an already-fetched range applies instantly
-    // with no network call — both nicer UX and, more importantly, far less likely to hit
-    // CoinGecko's public-API rate limit (429) than re-fetching on every single tap of the range
-    // cycle. Cleared on refreshPrice() (an explicit "get me current data" action) since a genuine
-    // refresh should bypass stale cached history, not just the current range's live price.
+    // Per-range (days -> history) session cache. Re-selecting an already-fetched range applies
+    // instantly with no network call — both nicer UX and, more importantly, far less likely to
+    // hit CoinGecko's public-API rate limit (429) than re-fetching on every single tap of the
+    // range cycle. Backed by a second, persistent layer surviving relaunches (see
+    // [PortfolioRepository.readPersistedPriceHistory] and fetchPriceHistory below for the
+    // session -> persisted -> network lookup order). Cleared on refreshPrice() (an explicit "get
+    // me current data" action) since a genuine refresh should bypass stale cached history, not
+    // just the current range's live price.
     //
     // Declared before the init block below, which calls refreshPrice() -> this map, on purpose:
     // Kotlin runs property initializers and init blocks in textual declaration order, so this had
@@ -151,30 +163,74 @@ class PortfolioViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** The currency code the most recent [refreshPrice] actually fetched in — lets the currency
+     *  collector below distinguish "DataStore just emitted the currency we already fetched" from
+     *  a real change, without drop(1)'s ordering assumption (which skipped the stored currency's
+     *  first emission entirely: a non-USD user's init fetch ran with the "usd" placeholder before
+     *  DataStore had emitted, and the real currency's arrival was then dropped). */
+    private var lastFetchedCurrency: String? = null
+
+    /** Deferred retry after a failed fetch — waits out CoinGecko's Retry-After window when the
+     *  repository recorded one, exponential backoff otherwise. See [scheduleRetry]. */
+    private var retryJob: Job? = null
+    private var retryBackoffMillis = INITIAL_RETRY_BACKOFF_MILLIS
+
     init {
-        refreshPrice()
+        // Non-forced: paints the persisted price/history instantly and only hits the network for
+        // what's actually stale. Every screen that instantiates its own PortfolioViewModel (Send,
+        // Cold Storage, Portfolio tab...) runs this init, and the forced variant's cache-bypassing
+        // triple fetch (price + chart range + 7d cards) was enough to trip CoinGecko's keyless
+        // throttle (429, Retry-After 59s) during ordinary navigation — leaving the price blank
+        // with nothing ever retrying.
+        refreshPrice(force = false)
         // Currency changed elsewhere (Settings, or the Welcome Guide's currency step) while
         // Portfolio is already alive - re-fetch in the new currency rather than leaving stale
-        // numbers on screen mislabeled with a new currency's symbol. drop(1) skips the initial
-        // emission refreshPrice() above already covers.
+        // numbers on screen mislabeled with a new currency's symbol.
         viewModelScope.launch {
-            settings.currency.drop(1).distinctUntilChanged().collect {
-                refreshPrice()
+            settings.currency.distinctUntilChanged().collect { code ->
+                if (code != lastFetchedCurrency) {
+                    refreshPrice()
+                }
             }
         }
     }
 
-    fun refreshPrice() {
+    /**
+     * [force] (the default — pull-to-refresh and currency changes) bypasses every cache; the
+     * init-time call passes false so fresh persisted data short-circuits the network entirely.
+     * Either way the persisted last-known price paints first, so a failed or throttled fetch
+     * degrades to a slightly stale number instead of a blank dash, and any failure schedules a
+     * deferred retry via [scheduleRetry] rather than parking forever.
+     */
+    fun refreshPrice(force: Boolean = true) {
+        retryJob?.cancel()
         val currencyCode = currency.value
+        lastFetchedCurrency = currencyCode
+        // Paint the last-known price immediately — it's the latest successful fetch for this
+        // currency, so it's never worse than what's on screen (and clears a stale currency's
+        // number after a currency switch, since the key is per-currency).
+        val persisted = repository.readPersistedPrice(currencyCode)
+        persisted?.let {
+            _currentPriceUsd.value = it.price
+            _priceChange24h.value = it.change24hPercent
+        }
+        val priceIsFresh = persisted != null &&
+            System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.CURRENT_PRICE_FRESH_MILLIS
         val priceJob = viewModelScope.launch {
+            if (!force && priceIsFresh) return@launch
             val result = repository.getCurrentPriceUsd(currencyCode)
             if (result != null) {
                 _currentPriceUsd.value = result.price
                 _priceChange24h.value = result.change24hPercent
+                retryBackoffMillis = INITIAL_RETRY_BACKOFF_MILLIS
+            } else {
+                scheduleRetry()
             }
         }
-        priceHistoryCache.clear()
-        fetchPriceHistory(_priceRangeDays.value)
+        if (force) {
+            priceHistoryCache.clear()
+        }
+        fetchPriceHistory(_priceRangeDays.value, force = force)
         fetchSevenDayPriceHistoryForCards()
         val historyJob = priceHistoryJob
         viewModelScope.launch {
@@ -185,12 +241,50 @@ class PortfolioViewModel @Inject constructor(
         }
     }
 
-    /** Fetches (or refetches, on a currency change) the fixed 7-day window [_sevenDayPriceHistory] relies on — independent of whatever range the visible chart is currently toggled to. */
+    /**
+     * Retries a failed fetch after CoinGecko's own Retry-After window when the repository
+     * recorded one ([PortfolioRepository.throttledUntilMillis], observed live at 59 seconds —
+     * far past the old in-place retry's 10s cap, which guaranteed every retry landed inside the
+     * window and failed too), and with exponential backoff for plain failures (offline, DNS).
+     * The retry is a non-forced [refreshPrice], so anything cached fresh in the meantime is
+     * served without burning more rate-limit budget. Re-scheduling with the same window is
+     * idempotent; the job dies with the ViewModel's scope.
+     */
+    private fun scheduleRetry() {
+        val throttleWaitMillis = repository.throttledUntilMillis?.let {
+            maxOf(it - System.currentTimeMillis(), 0L) + 1_000L
+        }
+        val waitMillis = throttleWaitMillis ?: retryBackoffMillis.also {
+            retryBackoffMillis = minOf(it * 2, MAX_RETRY_BACKOFF_MILLIS)
+        }
+        retryJob?.cancel()
+        retryJob = viewModelScope.launch {
+            delay(waitMillis)
+            refreshPrice(force = false)
+        }
+    }
+
+    /**
+     * Fetches (or refetches, on a currency change) the fixed 7-day window [_sevenDayPriceHistory]
+     * relies on — independent of whatever range the visible chart is currently toggled to.
+     * Served from the persisted 10-minute cache when fresh enough (the cards tolerate slight
+     * staleness), and otherwise staggered 1.5s behind the main chart's fetch — this call landing
+     * in the same instant as the price + chart fetches was part of the launch burst that tripped
+     * CoinGecko's keyless-tier throttle (see [PortfolioRepository.getPriceHistory]).
+     */
     private fun fetchSevenDayPriceHistoryForCards() {
         val currencyCode = currency.value
+        repository.readPersistedPriceHistory(7, currencyCode)?.let { persisted ->
+            if (System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
+                _sevenDayPriceHistory.value = persisted.points
+                return
+            }
+        }
         viewModelScope.launch {
+            delay(1_500)
             val result = repository.getPriceHistory(7, currencyCode)
             if (result.isNotEmpty()) {
+                repository.persistPriceHistory(result, 7, currencyCode)
                 _sevenDayPriceHistory.value = result
             }
         }
@@ -204,31 +298,64 @@ class PortfolioViewModel @Inject constructor(
     }
 
     /**
-     * Serves [days] from [priceHistoryCache] if already fetched this session; otherwise fetches
-     * it, cancelling any still-in-flight fetch first (rapidly tapping the range cycle otherwise
-     * fires overlapping requests — see [priceHistoryCache]'s doc comment for why that's a real
-     * problem, not just wasteful).
+     * Serves [days] from [priceHistoryCache] if already fetched this session, then from the
+     * persisted 10-minute cache (surviving relaunches — see
+     * [PortfolioRepository.readPersistedPriceHistory]), before hitting the network — cancelling
+     * any still-in-flight fetch first (rapidly tapping the range cycle otherwise fires
+     * overlapping requests — see [priceHistoryCache]'s doc comment for why that's a real problem,
+     * not just wasteful). [force] (explicit refresh, see [refreshPrice]) skips both caches.
      *
-     * On failure, [_priceHistory] is deliberately left alone rather than overwritten with the
-     * empty list [PortfolioRepository.getPriceHistory] returns on any error, and nothing is
-     * cached — a failed/rate-limited fetch was previously either wiping out the whole chart card
-     * (it only renders when `priceHistory.size >= 2`) or, after that first fix, getting stuck
-     * silently showing a stale range forever with no way to recover since nothing was ever cached
-     * to notice the mismatch — both confirmed via on-device repro. Now a failed fetch is simply
-     * retried the next time this range is selected, since it's still uncached.
+     * An empty network result gets one paced retry (on top of the Retry-After-honoring retry
+     * inside [PortfolioRepository.getPriceHistory] itself), then falls back to the persisted copy
+     * for this range even if stale — a rate-limited fetch was previously either wiping out the
+     * whole chart card (it only renders when `priceHistory.size >= 2`) or getting stuck silently
+     * showing a stale *range* forever (every range's fetch coming back empty left the first
+     * loaded range's ~1-day curve on screen no matter which range was selected) — both confirmed
+     * via on-device repro; a stale curve for the *requested* range beats either. Only if there's
+     * nothing at all is [_priceHistory] left alone, preserving whatever chart is on screen
+     * instead of blanking it, and the range simply retried on its next selection since nothing
+     * was cached.
      */
-    private fun fetchPriceHistory(days: Int) {
-        priceHistoryCache[days]?.let { cached ->
-            _priceHistory.value = cached
-            return
+    private fun fetchPriceHistory(days: Int, force: Boolean = false) {
+        val currencyCode = currency.value
+        if (!force) {
+            priceHistoryCache[days]?.let { cached ->
+                _priceHistory.value = cached
+                return
+            }
+            repository.readPersistedPriceHistory(days, currencyCode)?.let { persisted ->
+                if (System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
+                    priceHistoryCache[days] = persisted.points
+                    _priceHistory.value = persisted.points
+                    return
+                }
+            }
         }
         priceHistoryJob?.cancel()
-        val currencyCode = currency.value
         priceHistoryJob = viewModelScope.launch {
-            val result = repository.getPriceHistory(days, currencyCode)
+            var result = repository.getPriceHistory(days, currencyCode)
+            if (result.isEmpty() && repository.throttledUntilMillis == null) {
+                // One paced retry — worth it only when we're not inside a known throttle window
+                // (a recorded Retry-After means this retry is guaranteed to 429 too; let
+                // scheduleRetry below wait the window out instead).
+                delay(3_000)
+                result = repository.getPriceHistory(days, currencyCode)
+            }
+            val networkFailed = result.isEmpty()
+            if (result.isNotEmpty()) {
+                repository.persistPriceHistory(result, days, currencyCode)
+            } else {
+                result = repository.readPersistedPriceHistory(days, currencyCode)?.points ?: emptyList()
+            }
             if (result.isNotEmpty()) {
                 priceHistoryCache[days] = result
                 _priceHistory.value = result
+            }
+            if (networkFailed) {
+                // The stale fallback (if any) is on screen; get fresh data once the throttle
+                // window or backoff passes rather than leaving this range stale until the next
+                // manual refresh.
+                scheduleRetry()
             }
         }
     }
@@ -286,15 +413,23 @@ class PortfolioViewModel @Inject constructor(
     }
 
     companion object {
+        /** First deferred-retry wait for a plain (non-throttled) failure — offline, DNS, 5xx with no Retry-After. */
+        private const val INITIAL_RETRY_BACKOFF_MILLIS = 15_000L
+
+        /** Backoff ceiling — a persistent outage retries every 5 minutes, cheap enough to leave running for the ViewModel's lifetime. */
+        private const val MAX_RETRY_BACKOFF_MILLIS = 5 * 60_000L
+
         internal fun computeSummary(transactions: List<PortfolioTransactionEntity>, currentPriceUsd: Double): PortfolioSummary {
             var holdingsSompi = 0L
             var totalInvested = 0.0
             var totalProceeds = 0.0
+            var totalBoughtSompi = 0L
             for (tx in transactions) {
                 when (tx.type) {
                     "buy" -> {
                         holdingsSompi += tx.amountSompi
                         totalInvested += tx.fiatValue
+                        totalBoughtSompi += tx.amountSompi
                     }
                     "sell" -> {
                         holdingsSompi -= tx.amountSompi
@@ -306,13 +441,16 @@ class PortfolioViewModel @Inject constructor(
             val currentValue = holdingsKas * currentPriceUsd
             val totalPL = (currentValue + totalProceeds) - totalInvested
             val totalPLPercent = if (totalInvested > 0) (totalPL / totalInvested) * 100.0 else 0.0
+            val totalBoughtKas = totalBoughtSompi / 100_000_000.0
+            val averageBuyPriceUsd = if (totalBoughtKas > 0) totalInvested / totalBoughtKas else null
             return PortfolioSummary(
                 holdingsKas = holdingsKas,
                 totalInvested = totalInvested,
                 totalProceeds = totalProceeds,
                 currentValue = currentValue,
                 totalPL = totalPL,
-                totalPLPercent = totalPLPercent
+                totalPLPercent = totalPLPercent,
+                averageBuyPriceUsd = averageBuyPriceUsd
             )
         }
 

@@ -1,26 +1,33 @@
 package com.kachat.app.viewmodels
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kachat.app.models.BroadcastChannelEntity
 import com.kachat.app.models.BroadcastMessageEntity
 import com.kachat.app.models.ContactEntity
+import com.kachat.app.models.ReactionEntity
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.services.BroadcastScanningService
 import com.kachat.app.services.KnsService
+import com.kachat.app.services.LinkPreviewService
 import com.kachat.app.services.NetworkService
+import com.kachat.app.services.NextcloudService
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.services.WalletManager
+import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.VoiceMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,10 +39,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class BroadcastViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val broadcastRepository: BroadcastRepository,
     private val broadcastScanningService: BroadcastScanningService,
     private val voiceRecorderService: VoiceRecorderService,
@@ -44,7 +53,8 @@ class BroadcastViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     private val knsService: KnsService,
     private val chatRepository: ChatRepository,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    private val nextcloudService: NextcloudService
 ) : ViewModel() {
 
     // Address -> KNS avatar URL (or null if fetched but no avatar/domain exists) for whoever's
@@ -129,7 +139,16 @@ class BroadcastViewModel @Inject constructor(
 
     private val _messageText = MutableStateFlow("")
     val messageText: StateFlow<String> = _messageText.asStateFlow()
-    fun setMessageText(text: String) { _messageText.value = text }
+    fun setMessageText(text: String) {
+        _messageText.value = text
+        // The red failure line above the composer would otherwise sit there for the entire next
+        // message being typed (it only cleared on the next send attempt). The failed bubble keeps
+        // its own red icon + Retry, so once the user starts typing again the banner has done its
+        // job — drop it rather than alarm them mid-composition.
+        if (_sendBroadcastState.value.status == SendBroadcastStatus.FAILED) {
+            _sendBroadcastState.value = SendBroadcastUiState()
+        }
+    }
 
     private val _currentUtxos = MutableStateFlow<List<UtxoEntry>>(emptyList())
     private val _networkFeeRate = MutableStateFlow(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble())
@@ -159,10 +178,12 @@ class BroadcastViewModel @Inject constructor(
      * while composing, or a rough elapsed-time-based estimate of the final encoded size while
      * recording a voice message — same approach as 1:1 chats, applies equally to both since a
      * broadcast's content is never encrypted (no extra encryption overhead to account for).
+     * Via Nextcloud, the chain only carries the ~100-byte share link regardless of recording
+     * length — mirrors ChatViewModel.previewPayloadSize's identical branch.
      */
-    private val previewPayloadSize = combine(_messageText, voiceRecordingState) { text, recording ->
+    private val previewPayloadSize = combine(_messageText, voiceRecordingState, nextcloudService.mediaSendEnabled) { text, recording, mediaSend ->
         if (recording.status == VoiceRecordingStatus.RECORDING) {
-            VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
+            if (mediaSend && nextcloudService.isConnected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
         } else {
             text.toByteArray().size
         }
@@ -269,16 +290,50 @@ class BroadcastViewModel @Inject constructor(
     val kaspaExplorer: StateFlow<com.kachat.app.models.KaspaExplorer> = settings.kaspaExplorer
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.kachat.app.models.KaspaExplorer.default)
 
-    /** The active account's hidden sender addresses — set via "Hide User" on a sender's avatar. */
-    val hiddenSenderAddresses: StateFlow<Set<String>> = broadcastRepository.getHiddenSenderAddresses()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    /** The active account's hidden-sender rows - PER ROOM since 4.0 ("" = legacy every-room hide). */
+    val hiddenSenders: StateFlow<List<com.kachat.app.models.HiddenBroadcastSenderEntity>> =
+        broadcastRepository.getHiddenSenders()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun hideSender(senderAddress: String) {
-        viewModelScope.launch { broadcastRepository.hideSender(senderAddress) }
+    /** Senders hidden in [channelName] - room-scoped rows plus legacy every-room rows. */
+    fun hiddenAddressesIn(channelName: String): Set<String> =
+        com.kachat.app.repository.BroadcastRepository.hiddenAddressesIn(channelName, hiddenSenders.value)
+
+    /** Hides a sender in ONE room: their messages and notifications from that room disappear; other rooms are unaffected. */
+    fun hideSender(senderAddress: String, channelName: String) {
+        viewModelScope.launch { broadcastRepository.hideSender(senderAddress, channelName) }
     }
 
-    fun unhideSender(senderAddress: String) {
-        viewModelScope.launch { broadcastRepository.unhideSender(senderAddress) }
+    fun unhideSender(senderAddress: String, channelName: String) {
+        viewModelScope.launch { broadcastRepository.unhideSender(senderAddress, channelName) }
+    }
+
+    // MARK: - Indexer backfill (featured rooms): once on open, then every 8s while the room
+    // stays open - messages sent while the app was closed appear, and the room stays fresh
+    // even when live block scanning lags. Dedupe by txId happens in the DAO's REPLACE insert.
+
+    init {
+        // The curated #kaspa/#kachat-bugs rooms are always present (4.0): auto-joined with
+        // fixed 3-day retention, backed by the broadcast indexer.
+        viewModelScope.launch { broadcastRepository.ensureFeaturedChannelsJoined() }
+    }
+
+    private var indexerPollJob: kotlinx.coroutines.Job? = null
+
+    fun startIndexerBackfill(channelName: String) {
+        if (channelName !in com.kachat.app.models.FeaturedBroadcastChannels.NAMES) return
+        stopIndexerBackfill()
+        indexerPollJob = viewModelScope.launch {
+            while (true) {
+                broadcastRepository.backfillFromIndexer(channelName)
+                kotlinx.coroutines.delay(8_000)
+            }
+        }
+    }
+
+    fun stopIndexerBackfill() {
+        indexerPollJob?.cancel()
+        indexerPollJob = null
     }
 
     /** Per-channel opt-in to background scanning — toggled via the speaker icon next to a channel. */
@@ -375,9 +430,25 @@ class BroadcastViewModel @Inject constructor(
                 Log.e("BroadcastViewModel", "Error sending broadcast", e)
                 _sendBroadcastState.value = SendBroadcastUiState(
                     status = SendBroadcastStatus.FAILED,
-                    message = e.message ?: "Failed to send"
+                    message = humanizeSendError(e)
                 )
             }
+        }
+    }
+
+    /**
+     * Node-level rejection text ("transaction ... is an orphan, where orphan is disallowed",
+     * "already spent", ...) means "the network hasn't caught up with your previous send yet" —
+     * meaningless and alarming rendered raw above the composer. Map it (after the engine's own
+     * orphan retry is exhausted) to plain language; anything unrecognized passes through as-is.
+     */
+    private fun humanizeSendError(e: Exception): String {
+        val raw = e.message ?: return "Failed to send"
+        val lower = raw.lowercase()
+        return if (lower.contains("orphan") || lower.contains("already spent") || lower.contains("double spend")) {
+            "The network is still confirming your previous send — please try again in a few seconds."
+        } else {
+            raw
         }
     }
 
@@ -415,11 +486,19 @@ class BroadcastViewModel @Inject constructor(
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
+        // Same dynamic ceiling as 1:1/group chats: on-chain broadcast notes are payload-capped
+        // at 10s, but a Nextcloud-uploaded note only needs to fit the server, so the cap
+        // relaxes to 10 minutes while the toggle is on.
+        val maxDurationMs = if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
+        } else {
+            VoiceRecorderService.MAX_RECORDING_DURATION_MS
+        }
         recordingTickerJob = viewModelScope.launch {
             while (isActive && _voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _voiceRecordingState.value = _voiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= VoiceRecorderService.MAX_RECORDING_DURATION_MS) {
+                if (elapsed >= maxDurationMs) {
                     stopAndSendVoiceRecording(channelName)
                     break
                 }
@@ -451,10 +530,38 @@ class BroadcastViewModel @Inject constructor(
         voiceRecorderService.cancelRecording()
     }
 
+    /** With "Send Media via Nextcloud" on (and an account connected), the recorded file (exactly
+     *  as captured — no re-encode, so the full relaxed-cap length ships byte-for-byte) uploads to
+     *  the server and the broadcast is just the public share link, sent as plain text through the
+     *  normal [sendBroadcast] pipeline; any upload/share failure falls back to the embedded
+     *  on-chain audio envelope below, with a toast so the sender knows. Mirrors ChatViewModel's
+     *  1:1/group Nextcloud voice gates exactly. */
     private fun sendVoiceMessage(channelName: String, file: java.io.File) {
         viewModelScope.launch {
             try {
-                val bytes = file.readBytes()
+                val bytes = withContext(Dispatchers.IO) { file.readBytes() }
+                if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                    try {
+                        val extension = file.extension.ifEmpty { "webm" }
+                        val mimeType = when (extension.lowercase()) {
+                            "webm" -> "audio/webm"
+                            "ogg", "opus" -> "audio/ogg"
+                            "m4a", "mp4" -> "audio/mp4"
+                            else -> "application/octet-stream"
+                        }
+                        // The recorder already names files voice_<timestamp>.<ext> — keep that name.
+                        val url = nextcloudService.uploadMediaAndShare(bytes, file.name, mimeType)
+                        sendBroadcast(channelName, url)
+                        // Warm the preview cache in the background so the sender's own bubble
+                        // renders the audio attachment card immediately instead of after its
+                        // LinkPreviewCard's lazy fetch round-trips.
+                        launch { LinkPreviewService.fetchPreview(url) }
+                        return@launch
+                    } catch (e: Exception) {
+                        Log.w("BroadcastViewModel", "Nextcloud broadcast voice upload failed, falling back to on-chain send", e)
+                        android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                 val json = VoiceMessage.encode(fileName = file.name, sizeBytes = bytes.size.toLong(), base64Audio = base64)
                 sendBroadcast(channelName, json)
@@ -464,5 +571,54 @@ class BroadcastViewModel @Inject constructor(
                 file.delete()
             }
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Reactions — same MessageReaction JSON codec and pill/picker UI as 1:1/group chats, sent as
+    // a normal plain-text broadcast through the existing sendBroadcast pipeline (never wrapped in
+    // a reply envelope). Aggregation/persistence is derived from the cached broadcast message
+    // rows themselves — see BroadcastRepository.getReactions.
+    // -------------------------------------------------------------------------
+
+    /** Reactions in [channelName], aggregated one-per-(target, reactor) — group by `targetTxId` at the call site, same as group chat's screen does. */
+    fun getReactions(channelName: String) = broadcastRepository.getReactions(channelName)
+
+    /**
+     * Reacts to [targetTxId] with [emoji] ("add"), or removes this wallet's existing reaction on
+     * it ("remove"). The reaction is just a broadcast whose content is the [MessageReaction]
+     * JSON — the optimistic pending row sendBroadcast inserts is what makes the pill appear
+     * immediately (it aggregates like any other cached reaction row), mirroring group chat's
+     * optimistic apply.
+     */
+    fun sendReaction(channelName: String, targetTxId: String, emoji: String, action: String) {
+        // A still-pending target has no real txId yet — reacting to it would put a useless
+        // "pending_<uuid>" target on-chain that no other client could ever resolve.
+        if (targetTxId.startsWith("pending_")) return
+        viewModelScope.launch {
+            try {
+                broadcastRepository.sendBroadcast(channelName, MessageReaction.encode(targetTxId, emoji, action))
+            } catch (e: Exception) {
+                // The pending reaction row flips to "failed" inside sendBroadcast — the pill shows
+                // the red error icon and a Retry appears under the message, same as groups.
+                Log.e("BroadcastViewModel", "Error sending broadcast reaction", e)
+            }
+        }
+    }
+
+    /** Retries a reaction whose send previously failed — re-attempts the stored reaction message row (see the pill's error icon + Retry, matching groups). */
+    fun retryReaction(reaction: ReactionEntity) {
+        viewModelScope.launch {
+            try {
+                broadcastRepository.retryReactionMessage(reaction.reactionTxId)
+            } catch (e: Exception) {
+                Log.e("BroadcastViewModel", "Error retrying broadcast reaction", e)
+            }
+        }
+    }
+
+    companion object {
+        /** Rough on-chain payload size of a Nextcloud share link — the message is just the URL.
+         *  Same figure as ChatViewModel's identically-named constant. */
+        private const val NEXTCLOUD_LINK_PREVIEW_BYTES = 100
     }
 }

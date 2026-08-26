@@ -35,6 +35,8 @@ playServicesAuth = "21.4.0"
 playIntegrity = "1.4.0"
 biometric = "1.1.0"
 appcompat = "1.7.0"
+firebaseBom = "33.7.0"
+googleServices = "4.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -127,6 +129,10 @@ play-integrity = { group = "com.google.android.play", name = "integrity", versio
 # Biometric / device-credential prompt — gates the seed phrase and unlocking a saved account.
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
+# Firebase Cloud Messaging — native push. Versions come from the BOM.
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -134,3 +140,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

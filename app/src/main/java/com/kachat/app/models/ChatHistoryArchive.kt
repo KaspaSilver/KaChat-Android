@@ -11,17 +11,63 @@ data class ChatHistoryArchive(
     val schemaVersion: Int = CURRENT_SCHEMA_VERSION,
     val exportedAt: String,
     val walletAddress: String?,
-    val conversations: List<ChatHistoryArchiveConversation>
+    val conversations: List<ChatHistoryArchiveConversation>,
+    // Cross-platform group key material (optional; older archives omit it). Carries the full
+    // bag - including the admin's groupSeed - so another device of the same account recovers
+    // admin groups that have no on-chain invite addressed to it.
+    val groups: List<ChatHistoryArchiveGroup>? = null,
+    // Deletion tombstones (optional; older archives omit it): addresses whose chats the user
+    // deleted. A restore - local file, Google Drive, or Nextcloud - must never resurrect
+    // them, even on a fresh install with no local tombstones. Field name matches iOS.
+    val deletedContactAddresses: List<String>? = null
 ) {
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1
     }
 }
 
+// Field names match the desktop/iOS archive schema exactly. deviceId/msgCounter are per-device
+// and deliberately NOT carried (the importer mints its own).
+data class ChatHistoryArchiveGroup(
+    val groupId: String,
+    val name: String,
+    val isAdmin: Boolean,
+    val adminAddress: String?,
+    val adminSigningPub: String?,
+    val groupSeed: String?,
+    val groupRootEpoch: String?,
+    val blindingKey: String?,
+    val currentEpoch: Long,
+    val members: List<ChatHistoryArchiveGroupMember>,
+    // Decrypted message history so it survives even if the indexer has pruned old messages
+    // (older archives omit it). Cross-platform shape shared with desktop/iOS.
+    val messages: List<ChatHistoryArchiveGroupMessage>? = null,
+    // Admin-set group photo (hex of a compressed JPEG); null = none. Cross-platform field.
+    val photo: String? = null
+)
+
+data class ChatHistoryArchiveGroupMessage(
+    val msgIdHex: String?,
+    val txId: String?,
+    val senderAddress: String?,
+    val senderIdHex: String?,
+    val content: String,     // decrypted plaintext
+    val blockTime: Long,
+    val isOutgoing: Boolean
+)
+
+data class ChatHistoryArchiveGroupMember(
+    val address: String,
+    val xOnlyPubKeyHex: String?,
+    val isAdmin: Boolean
+)
+
 data class ChatHistoryArchiveConversation(
     val conversationId: String? = null,
     val contactAddress: String,
     val contactAlias: String?,
+    // Cross-platform base64 JPEG contact photo (optional; older archives omit it).
+    val contactPhoto: String? = null,
     val unreadCount: Int,
     val messages: List<ChatHistoryArchiveMessage>
 )

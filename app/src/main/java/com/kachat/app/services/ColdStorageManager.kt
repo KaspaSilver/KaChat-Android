@@ -31,6 +31,7 @@ class ColdStorageManager @Inject constructor(
         private const val PREF_ADDRESS_LABELS = "cold_address_labels"
         private const val PREF_HIDDEN_ADDRESSES = "cold_hidden_addresses"
         private const val PREF_UTXO_LABELS = "cold_utxo_labels"
+        private const val PREF_ADDRESS_SNAPSHOT = "cold_address_snapshot"
     }
 
     data class ColdAccount(
@@ -122,6 +123,18 @@ class ColdStorageManager @Inject constructor(
 
     fun deleteAccount(id: String) {
         saveAccounts(getAllAccounts().filter { it.id != id })
+        sharedPrefs.edit().remove("${PREF_ADDRESS_SNAPSHOT}_$id").apply()
+    }
+
+    // --- Address-list snapshot: opaque JSON of the last fully-loaded row list, persisted per
+    // account so the detail screen paints instantly while the live refresh runs — the cold twin
+    // of WalletManager's Manage Addresses snapshot (ColdStorageViewModel owns the row type and
+    // its serialization; this is just the per-account keyed store).
+    fun getAddressSnapshot(accountId: String): String? =
+        sharedPrefs.getString("${PREF_ADDRESS_SNAPSHOT}_$accountId", null)
+
+    fun setAddressSnapshot(accountId: String, json: String) {
+        sharedPrefs.edit().putString("${PREF_ADDRESS_SNAPSHOT}_$accountId", json).apply()
     }
 
     fun ensureMaxDerivedIndexAtLeast(id: String, minIndex: Int) {

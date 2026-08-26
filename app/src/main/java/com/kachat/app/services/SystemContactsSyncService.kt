@@ -19,9 +19,16 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class SystemContactLinkTarget(val lookupKey: String, val displayName: String)
+data class SystemContactLinkTarget(val lookupKey: String, val displayName: String, val photoUri: String? = null)
 
-internal data class ScannedRow(val contactId: Long, val lookupKey: String, val displayName: String, val value: String)
+internal data class ScannedRow(
+    val contactId: Long,
+    val lookupKey: String,
+    val displayName: String,
+    val value: String,
+    /** `Contacts.PHOTO_URI` for this contact, if it has a photo — the device-address-book avatar. */
+    val photoUri: String? = null
+)
 
 /**
  * Automatic system-contacts sync, matching iOS's real algorithm (ContactsManager.swift's
@@ -47,10 +54,13 @@ class SystemContactsSyncService @Inject constructor(
         if (!hasReadPermission() || addresses.isEmpty()) return emptyMap()
 
         val rows = mutableListOf<ScannedRow>()
+        // PHOTO_URI comes along for the ride on the same scan (the Data table joins the Contacts
+        // columns, so it costs nothing extra) — it's what backs the device-contact avatar fallback.
         val projection = arrayOf(
             ContactsContract.Data.CONTACT_ID,
             ContactsContract.Data.LOOKUP_KEY,
             ContactsContract.Data.DISPLAY_NAME_PRIMARY,
+            ContactsContract.Data.PHOTO_URI,
             ContactsContract.Data.DATA1
         )
         val selection = "${ContactsContract.Data.MIMETYPE} IN (?, ?, ?)"
@@ -61,12 +71,13 @@ class SystemContactsSyncService @Inject constructor(
                 val contactIdIdx = cursor.getColumnIndexOrThrow(ContactsContract.Data.CONTACT_ID)
                 val lookupKeyIdx = cursor.getColumnIndexOrThrow(ContactsContract.Data.LOOKUP_KEY)
                 val nameIdx = cursor.getColumnIndexOrThrow(ContactsContract.Data.DISPLAY_NAME_PRIMARY)
+                val photoIdx = cursor.getColumnIndexOrThrow(ContactsContract.Data.PHOTO_URI)
                 val valueIdx = cursor.getColumnIndexOrThrow(ContactsContract.Data.DATA1)
                 while (cursor.moveToNext()) {
                     val value = cursor.getString(valueIdx) ?: continue
                     val lookupKey = cursor.getString(lookupKeyIdx) ?: continue
                     val displayName = cursor.getString(nameIdx) ?: continue
-                    rows.add(ScannedRow(cursor.getLong(contactIdIdx), lookupKey, displayName, value))
+                    rows.add(ScannedRow(cursor.getLong(contactIdIdx), lookupKey, displayName, value, cursor.getString(photoIdx)))
                 }
             }
         } catch (e: Exception) {
@@ -75,6 +86,32 @@ class SystemContactsSyncService @Inject constructor(
         }
 
         return matchScannedRows(rows, addresses)
+    }
+
+    /**
+     * The device address-book photo of an already-linked contact, re-read by its LOOKUP_KEY.
+     * Lets contacts that were linked before photos were stored — and contacts whose photo changed
+     * in the phone's address book since — pick the image up on the next sync. Null when the
+     * contact has no photo, has been deleted, or READ_CONTACTS isn't granted.
+     *
+     * Hits the ContentResolver, so callers must stay off the main thread.
+     */
+    fun photoUriForLookupKey(lookupKey: String): String? {
+        if (!hasReadPermission()) return null
+        return try {
+            val lookupUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_LOOKUP_URI, lookupKey)
+            val contactUri = ContactsContract.Contacts.lookupContact(context.contentResolver, lookupUri) ?: return null
+            context.contentResolver.query(
+                contactUri,
+                arrayOf(ContactsContract.Contacts.PHOTO_URI),
+                null,
+                null,
+                null
+            )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+        } catch (e: Exception) {
+            Log.e("SystemContactsSyncService", "Failed to read system contact photo", e)
+            null
+        }
     }
 
     /** Creates a new local phone contact embedding [address] and an auto-marker. Returns its LOOKUP_KEY, or null on failure. */
@@ -196,7 +233,7 @@ class SystemContactsSyncService @Inject constructor(
                     val realAddress = normalizedTargets[candidate.lowercase()] ?: continue
                     val existing = found[realAddress]
                     if (existing == null || row.displayName.length > existing.displayName.length) {
-                        found[realAddress] = SystemContactLinkTarget(row.lookupKey, row.displayName)
+                        found[realAddress] = SystemContactLinkTarget(row.lookupKey, row.displayName, row.photoUri)
                     }
                 }
             }

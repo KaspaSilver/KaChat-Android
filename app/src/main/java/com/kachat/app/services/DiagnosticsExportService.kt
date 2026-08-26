@@ -35,7 +35,8 @@ class DiagnosticsExportService @Inject constructor(
     private val chatRepository: ChatRepository,
     private val walletManager: WalletManager,
     private val settingsRepository: AppSettingsRepository,
-    private val nodePoolManager: NodePoolManager
+    private val nodePoolManager: NodePoolManager,
+    private val pushState: PushState
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -88,7 +89,10 @@ class DiagnosticsExportService @Inject constructor(
             @Suppress("DEPRECATION") (packageInfo?.versionCode?.toLong() ?: -1L)
         }
 
-        val messages = chatRepository.getAllMessages()
+        // Exporting must also work from the accounts screen with NO active account (the App
+        // Settings gear there includes Diagnostics) - getAllMessages() throws in that state, so
+        // fall back to an empty store summary instead of failing the whole archive.
+        val messages = runCatching { chatRepository.getAllMessages() }.getOrDefault(emptyList())
         val messageStore = DiagnosticsArchive.MessageStoreDiagnostics(
             contactCount = chatRepository.getContacts().first().size,
             totalMessages = messages.size,
@@ -109,14 +113,24 @@ class DiagnosticsExportService @Inject constructor(
             "indexerUrl" to settingsRepository.indexerUrl.first(),
             "knsApiUrl" to settingsRepository.knsApiUrl.first(),
             "kaspaRestUrl" to settingsRepository.kaspaRestUrl.first(),
-            "activeAddress" to (settingsRepository.activeAddress.first() ?: walletManager.getAddress()),
+            // Same no-active-account tolerance as above - "none" rather than a thrown export.
+            "activeAddress" to (settingsRepository.activeAddress.first()
+                ?: runCatching { walletManager.getAddress() }.getOrDefault("none")),
             "notificationsEnabled" to settingsRepository.notificationsEnabled.first().toString(),
             "syncSystemContactsEnabled" to settingsRepository.syncSystemContactsEnabled.first().toString(),
             "autoCreateSystemContactsEnabled" to settingsRepository.autoCreateSystemContactsEnabled.first().toString(),
             "googleBackupEnabled" to settingsRepository.googleBackupEnabled.first().toString(),
             "backupRetention" to settingsRepository.backupRetention.first().name,
             "broadcastPopularEnabled" to settingsRepository.broadcastPopularEnabled.first().toString(),
-            "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString()
+            "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString(),
+            // Push diagnostics — background DM/broadcast/KaPosts delivery is push-only (no
+            // polling fallback), so this is the state to check when notifications don't arrive.
+            "pushActive" to pushState.isActive.toString(),
+            "pushLastAttemptAtMs" to (pushState.diagnostics.value.lastAttemptAtMs?.toString() ?: "never"),
+            "pushLastAction" to (pushState.diagnostics.value.lastAction ?: "none"),
+            "pushLastAttemptSucceeded" to (pushState.diagnostics.value.lastAttemptSucceeded?.toString() ?: "n/a"),
+            "pushLastError" to (pushState.diagnostics.value.lastError ?: "none"),
+            "pushFcmTokenPresent" to pushState.diagnostics.value.fcmTokenPresent.toString()
         )
 
         return DiagnosticsArchive(

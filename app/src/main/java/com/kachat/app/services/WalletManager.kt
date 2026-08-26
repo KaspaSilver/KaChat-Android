@@ -7,6 +7,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.kachat.app.models.WalletSourceFamily
 import com.kachat.app.util.KaspaAddress
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,11 @@ import javax.inject.Singleton
  */
 @Singleton
 class WalletManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    // Store-only dependency (PaymentPoolStore depends on nothing but Context, so no Dagger
+    // cycle): consulted by [setSpendingAddressHidden] so a spending address currently offered
+    // to a contact for private payments can never be hidden, no matter which caller asks.
+    private val paymentPoolStore: PaymentPoolStore
 ) {
 
     companion object {
@@ -40,6 +45,9 @@ class WalletManager @Inject constructor(
         private const val PREF_HIDDEN_SPENDING_ADDRESSES = "hidden_spending_addresses"
         private const val PREF_SPENDING_ADDRESS_LABELS = "spending_address_labels"
         private const val PREF_SPENDING_UTXO_LABELS = "spending_utxo_labels"
+        private const val PREF_SPENDING_ADDRESS_CACHE = "spending_address_cache"
+        private const val PREF_USED_SPENDING_ADDRESSES = "used_spending_addresses"
+        private const val PREF_MANAGE_ADDRESSES_SNAPSHOT = "manage_addresses_snapshot"
 
         // bitcoinj's own `MnemonicCode.INSTANCE` static initializer loads its wordlist via
         // `Class.getResourceAsStream`, which is documented by bitcoinj itself as "Won't work on
@@ -77,7 +85,19 @@ class WalletManager @Inject constructor(
         // derivation to before), so no migration is needed — same mechanism as the two indices
         // above. Persisted inside the already-encrypted prefs, so it rides the Keystore-backed
         // encryption like the mnemonic itself.
-        val passphrase: String = ""
+        val passphrase: String = "",
+        // [WalletSourceFamily] name — which wallet this seed was imported from, i.e. which BIP32
+        // branch its identity (chatting) address lives on. Deliberately nullable rather than
+        // defaulted: Gson deserializes old-shape stored JSON field-by-field without running the
+        // Kotlin constructor, so an absent field lands as null, and
+        // [WalletSourceFamily.fromRaw] maps null to KASPA_STANDARD — exactly what every account
+        // created before this feature existed used.
+        val sourceFamily: String? = null,
+        // Index on the identity chain this account's chatting address is derived at. 0 for every
+        // create and every plain import; nonzero only when the user picked a different address in
+        // the import wizard's "Change Chatting Address" step. Same Gson zero-default behavior as
+        // the two spending indices above.
+        val chattingAddressIndex: Int = 0
     )
 
     private val gson = Gson()
@@ -110,6 +130,11 @@ class WalletManager @Inject constructor(
     private fun saveAccounts(accounts: List<Account>) {
         val json = gson.toJson(accounts)
         sharedPrefs.edit().putString(PREF_ACCOUNTS, json).apply()
+        // saveAccounts is the single choke point every spendingAddressIndex write goes through
+        // (send rotation via setSpendingAddressIndex, advanceSpendingAddressIndex, manual
+        // activation, import), so refreshing here keeps primarySpendingIndexFlow current no
+        // matter which path rotated the primary.
+        refreshPrimarySpendingIndexFlow()
     }
 
     /**
@@ -128,9 +153,26 @@ class WalletManager @Inject constructor(
         _activeAddress.value = computeActiveAddress()
     }
 
+    /**
+     * The active account's primary ("Pay in Kaspa") spending index, reactive to every rotation —
+     * a successful spending send advances it (see KaspaWalletEngine.sendSpendingPayment), and the
+     * Manage Addresses screen needs to notice PROMPTLY so the old primary row loses its star and
+     * becomes hideable without waiting for a full list reload. Updated from [saveAccounts] (the
+     * choke point for all account mutations) and on account switches.
+     */
+    private val _primarySpendingIndex = MutableStateFlow(computePrimarySpendingIndex())
+    val primarySpendingIndexFlow: StateFlow<Int?> = _primarySpendingIndex.asStateFlow()
+
+    private fun computePrimarySpendingIndex(): Int? = getActiveAccount()?.spendingAddressIndex
+
+    private fun refreshPrimarySpendingIndexFlow() {
+        _primarySpendingIndex.value = computePrimarySpendingIndex()
+    }
+
     fun setActiveAccount(address: String) {
         sharedPrefs.edit().putString(PREF_ACTIVE_ADDRESS, address).apply()
         refreshActiveAddressFlow()
+        refreshPrimarySpendingIndexFlow()
     }
 
     fun getActiveAccount(): Account? {
@@ -158,6 +200,15 @@ class WalletManager @Inject constructor(
         getAllHiddenSpendingAddresses().filter { it.walletAddress == walletAddress }.map { it.index }.toSet()
 
     fun setSpendingAddressHidden(walletAddress: String, index: Int, hidden: Boolean) {
+        // Storage-level backstop for EVERY write path: the primary ("Pay in Kaspa") spending
+        // index must always stay visible, so a hide of it never persists no matter which caller
+        // asked. (Live-balance guarding lives in WalletService.setSpendingAddressHidden; bulk
+        // paths that only touch never-funded fresh indices come straight here.)
+        if (hidden && getAccounts().any { it.address == walletAddress && it.spendingAddressIndex == index }) return
+        // Chat-privacy backstop, same authority level as the primary guard above: an address
+        // currently offered to a contact for private payments (fresh-address payment pool) stays
+        // visible while the offer stands. The pool store is queried directly - never a row flag.
+        if (hidden && paymentPoolStore.isIndexOfferedForPrivacy(index, walletAddress)) return
         val remaining = getAllHiddenSpendingAddresses().filterNot { it.walletAddress == walletAddress && it.index == index }
         saveHiddenSpendingAddresses(if (hidden) remaining + HiddenSpendingAddress(walletAddress, index) else remaining)
     }
@@ -240,7 +291,8 @@ class WalletManager @Inject constructor(
      * "" for no passphrase.
      */
     fun commitCreatedWallet(name: String, mnemonic: List<String>, passphrase: String = "") {
-        val address = deriveAddress(mnemonic, passphrase)
+        // A freshly created wallet is by definition a KaChat wallet: standard family, index 0.
+        val address = deriveIdentityAddress(mnemonic, passphrase, WalletSourceFamily.KASPA_STANDARD, 0)
         val accounts = getAccounts().toMutableList()
         accounts.add(Account(name, address, mnemonic.joinToString(" "), passphrase = passphrase))
         saveAccounts(accounts)
@@ -287,12 +339,25 @@ class WalletManager @Inject constructor(
      * had been generated) to just address #0 any time the same account's seed phrase was
      * re-imported, matching a bug found and fixed on iOS (`WalletManager.importWallet` there had
      * the same "reconstruct a bare wallet, overwrite the real record" shape).
+     *
+     * [family] is the source-wallet derivation family chosen on the import chooser (see
+     * [WalletSourceFamily]); [chattingAddressIndex] is the identity-chain index, nonzero only when
+     * the import wizard's "Change Chatting Address" step picked a different one. Both are
+     * persisted on the account and honored by every later re-derivation.
      */
-    fun importWallet(mnemonic: List<String>, name: String, passphrase: String = "") {
+    fun importWallet(
+        mnemonic: List<String>,
+        name: String,
+        passphrase: String = "",
+        family: WalletSourceFamily = WalletSourceFamily.KASPA_STANDARD,
+        chattingAddressIndex: Int = 0
+    ) {
         MnemonicCode.INSTANCE.check(mnemonic)
         // Derive with the passphrase — a different (or empty) passphrase yields a different address
         // and therefore a different account entry, which is exactly the BIP39 hidden-wallet model.
-        val address = deriveAddress(mnemonic, passphrase)
+        // The family + index shape the identity path the same way (a KDX seed and a KaChat seed
+        // with the same words are genuinely different accounts, on different branches).
+        val address = deriveIdentityAddress(mnemonic, passphrase, family, chattingAddressIndex)
         val existing = getAccounts().firstOrNull { it.address == address }
         val accounts = getAccounts().filter { it.address != address }.toMutableList()
         accounts.add(
@@ -303,7 +368,9 @@ class WalletManager @Inject constructor(
                 mnemonic = mnemonic.joinToString(" "),
                 spendingAddressIndex = existing?.spendingAddressIndex ?: 0,
                 maxSpendingAddressIndex = existing?.maxSpendingAddressIndex ?: 0,
-                passphrase = passphrase
+                passphrase = passphrase,
+                sourceFamily = family.name,
+                chattingAddressIndex = chattingAddressIndex
             )
         )
         saveAccounts(accounts)
@@ -330,13 +397,140 @@ class WalletManager @Inject constructor(
         refreshActiveAddressFlow()
     }
 
+    // --- Identity (chatting) derivation, family-aware -----------------------------------------
+    //
+    // DECISION: KaChat's own spending-address chain stays on the fixed m/44'/111111'/1' branch
+    // REGARDLESS of the imported wallet's source family (see [deriveKey] below, which is now used
+    // by the spending chain only). Spending addresses are funds KaChat itself derives, reveals and
+    // controls (payment pools, fresh change, reservations) — they are not something the source
+    // wallet ever derived, so there is nothing to "find" on the source family's branch, and
+    // keeping them pinned to account 1' guarantees no source family (standard account 0', legacy
+    // 972, OneKey's tweaked account-0' keys) can ever collide with them. Mirrors the identical
+    // decision comment in iOS's WalletManager.
+
     /**
-     * Shared HD path walk — `m/44'/111111'/{accountIndex}'/0/{addressIndex}`. The identity
-     * address/key (used everywhere except spending) is `accountIndex=0, addressIndex=0`, always.
-     * The spending-address chain lives at `accountIndex=1` — a distinct hardened branch, so it
-     * can never collide with the identity path no matter how far its own addressIndex advances.
+     * The family's shared base node, from which each identity index derives with one final step
+     * (see [identityPrivateKeyBytes]). Deriving this once per scan/import is the expensive part
+     * (PBKDF2 mnemonic-to-seed plus the hardened HMAC-SHA512 chain), so callers that need many
+     * indices reuse one node — same reasoning as [spendingChainKey].
      */
-    private fun deriveKey(mnemonic: List<String>, accountIndex: Int = 0, addressIndex: Int = 0, passphrase: String = ""): DeterministicKey {
+    private fun identityBaseNode(
+        mnemonic: List<String>,
+        passphrase: String,
+        family: WalletSourceFamily
+    ): DeterministicKey {
+        val seed = MnemonicCode.toSeed(mnemonic, passphrase)
+        val master = HDKeyDerivation.createMasterPrivateKey(seed)
+        val purpose = HDKeyDerivation.deriveChildKey(master, ChildNumber(44, true))
+        return when (family) {
+            // m/44'/111111'/0'/0 — OneKey shares the standard chain; only the final key is tweaked.
+            WalletSourceFamily.KASPA_STANDARD, WalletSourceFamily.ONE_KEY -> {
+                val coinType = HDKeyDerivation.deriveChildKey(purpose, ChildNumber(111111, true))
+                val account = HDKeyDerivation.deriveChildKey(coinType, ChildNumber(0, true))
+                HDKeyDerivation.deriveChildKey(account, ChildNumber(0, false))
+            }
+            // m/44'/972/0'/0' — 972 deliberately NOT hardened (replicates KasWare's "m/44'/972/0'"
+            // string exactly); the change level is hardened, and so is the final index (applied in
+            // [identityPrivateKeyBytes]).
+            WalletSourceFamily.KASPA_LEGACY_972 -> {
+                val coinType = HDKeyDerivation.deriveChildKey(purpose, ChildNumber(972, false))
+                val account = HDKeyDerivation.deriveChildKey(coinType, ChildNumber(0, true))
+                HDKeyDerivation.deriveChildKey(account, ChildNumber(0, true))
+            }
+        }
+    }
+
+    /** Applies the family's index rule to [baseNode]. Null when the key is unusable (only
+     *  reachable via a failed OneKey tweak). */
+    private fun identityPrivateKeyBytes(
+        baseNode: DeterministicKey,
+        index: Int,
+        family: WalletSourceFamily
+    ): ByteArray? = when (family) {
+        WalletSourceFamily.KASPA_STANDARD ->
+            HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(index, false)).privKeyBytes
+        WalletSourceFamily.KASPA_LEGACY_972 ->
+            HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(index, true)).privKeyBytes
+        WalletSourceFamily.ONE_KEY ->
+            oneKeyTweakedPrivateKey(HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(index, false)).privKeyBytes)
+    }
+
+    /**
+     * OneKey's BIP340 taproot-style key tweak, replicated from KasWare's
+     * `_onekeyPrivateKeyFromOriginPrivateKey` (bip340.ts) and iOS's `oneKeyTweakedPrivateKey`:
+     * if the compressed pubkey has an odd Y (0x03 prefix), negate the private key mod n; then add
+     * taggedHash("TapTweak", xOnlyPubkey) mod n. The address derives from the tweaked key. The
+     * x-only pubkey is unaffected by the negation (negating flips Y only), so it is read off the
+     * original point.
+     */
+    private fun oneKeyTweakedPrivateKey(privateKey: ByteArray): ByteArray? = try {
+        val n = com.kachat.app.util.Secp256k1.N
+        val d0 = java.math.BigInteger(1, privateKey)
+        if (d0.signum() <= 0 || d0 >= n) {
+            null
+        } else {
+            val point = com.kachat.app.util.Secp256k1.G.multiply(d0).normalize()
+            // Compressed prefix 0x03 == odd Y.
+            val d = if (point.affineYCoord.toBigInteger().testBit(0)) n.subtract(d0) else d0
+            val xOnly = to32Bytes(point.affineXCoord.toBigInteger())
+            val tweak = java.math.BigInteger(1, taggedSha256("TapTweak", xOnly))
+            val tweaked = d.add(tweak).mod(n)
+            if (tweaked.signum() == 0) null else to32Bytes(tweaked)
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    /** BIP340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || data). */
+    private fun taggedSha256(tag: String, data: ByteArray): ByteArray {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val tagHash = digest.digest(tag.toByteArray(Charsets.UTF_8))
+        digest.reset()
+        digest.update(tagHash)
+        digest.update(tagHash)
+        digest.update(data)
+        return digest.digest()
+    }
+
+    /** Fixed-width 32-byte big-endian encoding (BigInteger.toByteArray may add a sign byte or drop leading zeros). */
+    private fun to32Bytes(value: java.math.BigInteger): ByteArray {
+        val raw = value.toByteArray()
+        val out = ByteArray(32)
+        if (raw.size >= 32) {
+            System.arraycopy(raw, raw.size - 32, out, 0, 32)
+        } else {
+            System.arraycopy(raw, 0, out, 32 - raw.size, raw.size)
+        }
+        return out
+    }
+
+    private fun addressFromPrivateKeyBytes(privateKey: ByteArray): String =
+        KaspaAddress.encode("kaspa", 0x00, com.kachat.app.util.Schnorr.publicKeyXOnly(privateKey))
+
+    /**
+     * Identity (chatting) address for one seed at one index within one source family — the single
+     * place a chatting address is ever derived from.
+     */
+    private fun deriveIdentityAddress(
+        mnemonic: List<String>,
+        passphrase: String,
+        family: WalletSourceFamily,
+        index: Int
+    ): String {
+        val base = identityBaseNode(mnemonic, passphrase, family)
+        val privateKey = identityPrivateKeyBytes(base, index, family)
+            ?: throw IllegalStateException("This wallet type has no address at index $index.")
+        return addressFromPrivateKeyBytes(privateKey)
+    }
+
+    /**
+     * Shared HD path walk for the SPENDING chain — `m/44'/111111'/{accountIndex}'/0/{addressIndex}`.
+     * The spending-address chain lives at `accountIndex=1`, a distinct hardened branch pinned
+     * regardless of the account's [WalletSourceFamily] (see the decision comment above), so it can
+     * never collide with any family's identity path no matter how far its own addressIndex
+     * advances. Identity keys no longer come through here — see [identityBaseNode].
+     */
+    private fun deriveKey(mnemonic: List<String>, accountIndex: Int = 1, addressIndex: Int = 0, passphrase: String = ""): DeterministicKey {
         // The optional BIP39 passphrase feeds bitcoinj's PBKDF2 seed derivation. Empty string =
         // no passphrase = the account's historical derivation. Every identity/spending/private-key
         // call funnels through here, so this one parameter makes the whole account passphrase-aware.
@@ -356,11 +550,16 @@ class WalletManager @Inject constructor(
         return KaspaAddress.encode("kaspa", 0x00, xOnlyPubKey)
     }
 
-    private fun deriveAddress(mnemonic: List<String>, passphrase: String = ""): String =
-        addressFromKey(deriveKey(mnemonic, passphrase = passphrase))
-
     /** The active account's BIP39 passphrase (empty when it has none), used to re-derive its keys. */
     private fun activePassphrase(): String = getActiveAccount()?.passphrase ?: ""
+
+    /** The active account's identity derivation family (KASPA_STANDARD for every account that
+     *  predates the import source-wallet chooser). */
+    fun activeSourceFamily(): WalletSourceFamily =
+        WalletSourceFamily.fromRaw(getActiveAccount()?.sourceFamily)
+
+    /** The identity-chain index the active account's chatting address is derived at (0 = default). */
+    fun activeChattingAddressIndex(): Int = getActiveAccount()?.chattingAddressIndex ?: 0
 
     /**
      * Returns the primary Kaspa address for the active wallet.
@@ -387,9 +586,20 @@ class WalletManager @Inject constructor(
         return getPrivateKeyBytes().joinToString("") { "%02x".format(it) }
     }
 
+    /**
+     * The active account's identity (chatting) private key — re-derived from its persisted
+     * [WalletSourceFamily] and [Account.chattingAddressIndex], so an imported KDX/OneKey seed and
+     * a chosen non-default chatting index both keep producing the key that actually matches the
+     * stored address. Every identity consumer (handshakes, ECIES, deterministic aliases, message
+     * signing) funnels through here.
+     */
     fun getPrivateKeyBytes(): ByteArray {
-        val mnemonic = getActiveMnemonic()?.split(" ") ?: throw IllegalStateException("No active account")
-        return deriveKey(mnemonic, passphrase = activePassphrase()).privKeyBytes
+        val account = getActiveAccount() ?: throw IllegalStateException("No active account")
+        val mnemonic = account.mnemonic.split(" ")
+        val family = WalletSourceFamily.fromRaw(account.sourceFamily)
+        val baseNode = identityBaseNode(mnemonic, account.passphrase ?: "", family)
+        return identityPrivateKeyBytes(baseNode, account.chattingAddressIndex, family)
+            ?: throw IllegalStateException("This wallet type has no address at index ${account.chattingAddressIndex}.")
     }
 
     // --- Spending address (accountIndex=1 branch) ---------------------------------------
@@ -402,8 +612,135 @@ class WalletManager @Inject constructor(
     private fun activeMnemonicWords(): List<String> =
         getActiveMnemonic()?.split(" ") ?: throw IllegalStateException("No active account")
 
-    fun deriveSpendingAddress(index: Int): String =
-        addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()))
+    /** One derived spending-chain ADDRESS (never a key), persisted so repeat lookups skip the
+     *  PBKDF2 seed derivation entirely. Addresses are deterministic per (wallet, index) — the
+     *  wallet address already encodes mnemonic+passphrase, so entries never go stale. Flat
+     *  (walletAddress, index) keying, same pattern as [HiddenSpendingAddress]. */
+    private data class CachedSpendingAddress(val walletAddress: String, val index: Int, val address: String)
+
+    private fun getAllCachedSpendingAddresses(): List<CachedSpendingAddress> {
+        val json = sharedPrefs.getString(PREF_SPENDING_ADDRESS_CACHE, null) ?: return emptyList()
+        val type = object : TypeToken<List<CachedSpendingAddress>>() {}.type
+        return try { gson.fromJson(json, type) } catch (e: Exception) { emptyList() }
+    }
+
+    private fun cacheSpendingAddresses(walletAddress: String, byIndex: Map<Int, String>) {
+        if (byIndex.isEmpty()) return
+        val existing = getAllCachedSpendingAddresses()
+            .filterNot { it.walletAddress == walletAddress && byIndex.containsKey(it.index) }
+        val added = byIndex.map { (index, address) -> CachedSpendingAddress(walletAddress, index, address) }
+        sharedPrefs.edit().putString(PREF_SPENDING_ADDRESS_CACHE, gson.toJson(existing + added)).apply()
+    }
+
+    fun deriveSpendingAddress(index: Int): String {
+        val walletAddress = getActiveAccount()?.address
+        if (walletAddress != null) {
+            getAllCachedSpendingAddresses()
+                .firstOrNull { it.walletAddress == walletAddress && it.index == index }
+                ?.let { return it.address }
+        }
+        val address = addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()))
+        if (walletAddress != null) cacheSpendingAddresses(walletAddress, mapOf(index to address))
+        return address
+    }
+
+    /**
+     * The shared spending-chain node (m/44'/111111'/1'/0), derived once — each
+     * [deriveSpendingAddress] call redoes the expensive PBKDF2 mnemonic-to-seed plus four
+     * derivations from scratch, which is fine for one lookup but dominates when a caller needs
+     * every revealed address (pool validation, address-activity watch sets). Mirrors iOS's
+     * `spendingChangeKey()` optimization.
+     */
+    private fun spendingChainKey(): DeterministicKey {
+        val seed = MnemonicCode.toSeed(activeMnemonicWords(), activePassphrase())
+        val masterKey = HDKeyDerivation.createMasterPrivateKey(seed)
+        val key44h = HDKeyDerivation.deriveChildKey(masterKey, ChildNumber(44, true))
+        val keyKaspaH = HDKeyDerivation.deriveChildKey(key44h, ChildNumber(111111, true))
+        val keyAccountH = HDKeyDerivation.deriveChildKey(keyKaspaH, ChildNumber(1, true))
+        return HDKeyDerivation.deriveChildKey(keyAccountH, ChildNumber(0, false))
+    }
+
+    /** Every revealed spending-chain address (0..max(spendingAddressIndex, maxSpendingAddressIndex)),
+     *  derived with a single seed computation — for own-address watch sets and received-pool
+     *  validation. Empty if there's no active account. */
+    fun allSpendingAddresses(): List<String> {
+        val account = getActiveAccount() ?: return emptyList()
+        val maxIndex = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        // Cache-first: this runs on the 30s address-activity poll, and the full PBKDF2 seed
+        // derivation per pass was pure waste once every index has been derived once.
+        val cached = getAllCachedSpendingAddresses()
+            .filter { it.walletAddress == account.address }
+            .associate { it.index to it.address }
+        if ((0..maxIndex).all { cached.containsKey(it) }) {
+            return (0..maxIndex).map { cached.getValue(it) }
+        }
+        val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyList() }
+        val derived = (0..maxIndex).associateWith { index ->
+            addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }
+        cacheSpendingAddresses(account.address, derived)
+        return (0..maxIndex).map { derived.getValue(it) }
+    }
+
+    // --- "Ever used" cache: monotonic (a used address can never become unused), so positive
+    // answers persist forever and skip the network history probe — mirrors iOS. Address-keyed:
+    // used-ness is intrinsic to the address, not the wallet.
+    fun isAddressKnownUsed(address: String): Boolean {
+        val json = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null) ?: return false
+        val type = object : TypeToken<Set<String>>() {}.type
+        return try { gson.fromJson<Set<String>>(json, type).contains(address) } catch (e: Exception) { false }
+    }
+
+    fun markAddressUsed(address: String) {
+        if (address.isBlank()) return
+        val type = object : TypeToken<Set<String>>() {}.type
+        val current: Set<String> = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null)
+            ?.let { try { gson.fromJson(it, type) } catch (e: Exception) { emptySet<String>() } } ?: emptySet()
+        if (address in current) return
+        sharedPrefs.edit().putString(PREF_USED_SPENDING_ADDRESSES, gson.toJson(current + address)).apply()
+    }
+
+    // --- Manage Addresses snapshot: opaque JSON of the last fully-loaded entry list, persisted
+    // per wallet so the screen paints instantly while the live refresh runs (WalletService owns
+    // the entry type and its serialization; this is just the per-wallet keyed store).
+    fun getManageAddressesSnapshot(walletAddress: String): String? =
+        sharedPrefs.getString("${PREF_MANAGE_ADDRESSES_SNAPSHOT}_$walletAddress", null)
+
+    fun setManageAddressesSnapshot(walletAddress: String, json: String) {
+        sharedPrefs.edit().putString("${PREF_MANAGE_ADDRESSES_SNAPSHOT}_$walletAddress", json).apply()
+    }
+
+    /** True if [address] is one of this wallet's own revealed spending-chain addresses — used to
+     *  reject a received payment pool that tries to feed our own addresses back to us. */
+    fun isOwnSpendingAddress(address: String): Boolean = allSpendingAddresses().contains(address)
+
+    /** Guards every fresh-spending-index allocation (payment change AND pool reservations) so two
+     *  concurrent allocators can never hand out the same index — see [allocateFreshSpendingIndices]. */
+    private val spendingIndexAllocationLock = Any()
+
+    /**
+     * Reveals and returns [count] brand-new spending-chain slots in one atomic step — used both
+     * by the fresh-address payment pool feature (reserving addresses to offer a contact) and by
+     * spending-payment change routing. Indices start strictly past the all-time max
+     * (`max(spendingAddressIndex, maxSpendingAddressIndex) + 1`) and the max is bumped to cover
+     * them BEFORE returning, so: (a) they have never been revealed, funded, or offered before,
+     * and (b) no later payment-change address or pool reservation can ever land on the same
+     * index — both allocation paths funnel through this one synchronized method (the Android
+     * equivalent of iOS serializing reservation + payment-change derivation through the outgoing
+     * tx queue). Returns (index, address) pairs; empty on failure.
+     */
+    fun allocateFreshSpendingIndices(count: Int): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
+        if (count <= 0) return@synchronized emptyList()
+        val account = getActiveAccount() ?: return@synchronized emptyList()
+        val chainKey = try { spendingChainKey() } catch (e: Exception) { return@synchronized emptyList() }
+        val base = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1
+        val result = (0 until count).map { offset ->
+            val index = base + offset
+            index to addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }
+        ensureMaxSpendingAddressIndexAtLeast(account.address, base + count - 1)
+        result
+    }
 
     fun getSpendingPrivateKeyBytes(index: Int): ByteArray =
         deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()).privKeyBytes
@@ -467,6 +804,65 @@ class WalletManager @Inject constructor(
             } else it
         }
         saveAccounts(accounts)
+    }
+
+    // --- Chatting-address scanning + switching (import wizard) --------------------------------
+
+    /**
+     * Derives a contiguous range of the ACTIVE account's identity chain, within its own source
+     * family, reusing a single base node so the expensive PBKDF2 + hardened chain runs once for
+     * the whole batch (rather than once per index). Returns (index, address) pairs in order;
+     * empty when there is no active account or derivation fails outright.
+     */
+    fun deriveChattingAddresses(indices: IntRange): List<Pair<Int, String>> {
+        val account = getActiveAccount() ?: return emptyList()
+        val family = WalletSourceFamily.fromRaw(account.sourceFamily)
+        val baseNode = try {
+            identityBaseNode(account.mnemonic.split(" "), account.passphrase ?: "", family)
+        } catch (e: Exception) {
+            return emptyList()
+        }
+        return indices.mapNotNull { index ->
+            if (index < 0) return@mapNotNull null
+            val privateKey = identityPrivateKeyBytes(baseNode, index, family) ?: return@mapNotNull null
+            index to addressFromPrivateKeyBytes(privateKey)
+        }
+    }
+
+    /**
+     * Switches the active account's identity to the chatting address at [index] on its own source
+     * family's identity chain, and returns the new address.
+     *
+     * This is a CLEAN identity selection, not a migration: nothing is moved or deleted. The old
+     * address's conversation history stays on-chain and in its own address-scoped storage (every
+     * ChatRepository query is scoped by [activeAddressFlow]); switching simply parks it there. The
+     * account entry is rewritten in place — same seed, same passphrase, same family, now living at
+     * a different address — and the stale old entry is dropped so the saved-accounts list doesn't
+     * keep a dead index-0 row forever (matches iOS's `setChattingAddress`). The spending-chain
+     * indices carry over unchanged: the spending chain is pinned to m/44'/111111'/1' and is
+     * therefore identical for both identities of this seed.
+     *
+     * Making the new address active goes through [setActiveAccount], the same account-switch
+     * machinery every account switch uses, so [activeAddressFlow] re-emits and every scoped
+     * consumer (chat repository, push registration, balance/spending refresh) re-scopes itself.
+     */
+    fun switchChattingAddress(index: Int): String {
+        require(index >= 0) { "Invalid chatting address index" }
+        val account = getActiveAccount() ?: throw IllegalStateException("No active account")
+        if (index == account.chattingAddressIndex) return account.address
+        val family = WalletSourceFamily.fromRaw(account.sourceFamily)
+        val mnemonic = account.mnemonic.split(" ")
+        val newAddress = deriveIdentityAddress(mnemonic, account.passphrase ?: "", family, index)
+        val switched = account.copy(address = newAddress, chattingAddressIndex = index)
+        // Drop both the old entry and any pre-existing entry for the new address, then insert the
+        // switched account at the top — the same "remove, re-insert at 0" shape importWallet uses.
+        val accounts = getAccounts()
+            .filter { it.address != account.address && it.address != newAddress }
+            .toMutableList()
+        accounts.add(0, switched)
+        saveAccounts(accounts)
+        setActiveAccount(newAddress)
+        return newAddress
     }
 
     /**

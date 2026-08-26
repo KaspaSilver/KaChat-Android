@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
@@ -20,8 +21,11 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WavingHand
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,8 +69,11 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
+import com.kachat.app.util.showAddressCopiedToast
 
-private enum class WelcomeGuideStep { WELCOME, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
+private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING, PAYMENT_PRIVACY }
+
+private enum class UserTypeChoice { ADULT, CHILD }
 
 private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 
@@ -81,12 +88,39 @@ private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 fun WelcomeGuideScreen(
     walletViewModel: WalletViewModel,
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
+    /** Re-presentation after an interrupted first run (app killed before the Adult/Child step
+     *  was answered): jump straight back to the choice instead of replaying from Welcome. */
+    startAtUserType: Boolean = false,
+    /**
+     * Explicit presentation context, supplied by the presenter and NEVER inferred from persisted
+     * markers (matches iOS): true only for auto-presented onboarding runs (create AND import,
+     * including re-presentations of an interrupted run) — those are fully unskippable end to
+     * end, from Welcome through Finish. Help replays leave this false and keep the Skip (X) and
+     * back-dismiss.
+     */
+    isOnboardingRun: Boolean = false,
     onFinished: () -> Unit
 ) {
-    var step by remember { mutableStateOf(WelcomeGuideStep.WELCOME) }
+    var step by remember {
+        mutableStateOf(if (startAtUserType) WelcomeGuideStep.USER_TYPE else WelcomeGuideStep.WELCOME)
+    }
     val chattingAddress by walletViewModel.address.collectAsState()
     val spendingAddress by walletViewModel.spendingAddress.collectAsState()
+    val justImportedWallet by walletViewModel.justImportedWallet.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
+
+    // Skip gating: an onboarding run is unskippable END TO END (top-bar X hidden and system back
+    // swallowed until Finish). Replays additionally stay locked while the Adult/Child choice is
+    // still owed (persisted marker "pending" - see AppSettingsRepository.userTypeChoiceState);
+    // once answered, a replay skips exactly as before.
+    val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
+    var answeredThisSession by remember { mutableStateOf(false) }
+    val userTypeAnswered = answeredThisSession || userTypePendingMarker == false
+    val canSkip = !isOnboardingRun && userTypeAnswered
+    androidx.activity.compose.BackHandler(enabled = !canSkip) {
+        // Swallowed - onboarding runs must reach Finish; replays must answer Adult/Child first.
+    }
 
     var nodeChoice by remember(trustedNodeAddress) {
         mutableStateOf(
@@ -108,8 +142,26 @@ fun WelcomeGuideScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onFinished) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
+                    // Skip exists only on replays with the Adult/Child step answered — an
+                    // onboarding run has no way out until Finish (back-dismiss swallowed too).
+                    if (canSkip) {
+                        IconButton(onClick = onFinished) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
+                        }
+                    }
+                    // Previous-step navigation: every run (onboarding included) can go BACK —
+                    // only skipping forward stays forbidden. Backing INTO the answered
+                    // Adult/Child step is not allowed (its choice applies immediately), so
+                    // from Language the button returns to Welcome.
+                    if (step != WelcomeGuideStep.WELCOME) {
+                        IconButton(onClick = {
+                            step = when (step) {
+                                WelcomeGuideStep.USER_TYPE, WelcomeGuideStep.LANGUAGE -> WelcomeGuideStep.WELCOME
+                                else -> WelcomeGuideStep.entries[step.ordinal - 1]
+                            }
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous", tint = KaspaTeal)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)
@@ -124,7 +176,17 @@ fun WelcomeGuideScreen(
                     title = stringResource(R.string.welcome_to_kachat),
                     body = stringResource(R.string.lets_walk_through_the_basics_so),
                     buttonLabel = stringResource(R.string.next),
-                    onNext = { step = WelcomeGuideStep.LANGUAGE }
+                    onNext = { step = WelcomeGuideStep.USER_TYPE }
+                )
+                WelcomeGuideStep.USER_TYPE -> WelcomeGuideUserTypeStep(
+                    settingsViewModel = settingsViewModel,
+                    onAnswered = {
+                        // Persist the marker (so relaunches stop re-presenting the wizard) and
+                        // restore the Skip affordance for the rest of the guide.
+                        settingsViewModel.markUserTypeChosen()
+                        answeredThisSession = true
+                        step = WelcomeGuideStep.LANGUAGE
+                    }
                 )
                 WelcomeGuideStep.LANGUAGE -> WelcomeGuideLanguageStep(
                     walletViewModel = walletViewModel,
@@ -143,6 +205,11 @@ fun WelcomeGuideScreen(
                 )
                 WelcomeGuideStep.FUNDING -> WelcomeGuideFundingStep(
                     chattingAddress = chattingAddress,
+                    // "Change Chatting Address" is offered ONLY on import onboarding runs: a
+                    // freshly created wallet has nothing but index 0, and a Help replay must never
+                    // let the user re-pick an identity behind their existing conversations.
+                    walletViewModel = walletViewModel,
+                    canChangeChattingAddress = isOnboardingRun && justImportedWallet,
                     onNext = { step = WelcomeGuideStep.NODE_CONNECTION }
                 )
                 WelcomeGuideStep.NODE_CONNECTION -> WelcomeGuideNodeConnectionStep(
@@ -176,10 +243,110 @@ fun WelcomeGuideScreen(
                     icon = Icons.AutoMirrored.Filled.Chat,
                     title = stringResource(R.string.starting_a_conversation),
                     body = stringResource(R.string.to_chat_with_someone_press_create),
-                    buttonLabel = stringResource(R.string.finish),
-                    onNext = onFinished
+                    buttonLabel = stringResource(R.string.next),
+                    onNext = { step = WelcomeGuideStep.PAYMENT_PRIVACY }
+                )
+                WelcomeGuideStep.PAYMENT_PRIVACY -> WelcomeGuidePaymentPrivacyStep(
+                    walletViewModel = walletViewModel,
+                    settingsViewModel = settingsViewModel,
+                    onFinish = {
+                        // Reaching Finish is what completes an onboarding run — clear the
+                        // persisted re-presentation marker (no-op on replays, which never set it).
+                        walletViewModel.clearOnboardingWizardPending()
+                        onFinished()
+                    }
                 )
             }
+        }
+    }
+}
+
+/**
+ * "Chat Payment Privacy" — the wizard's final step (after Starting a Conversation), ported from
+ * iOS WelcomeGuideView's paymentPrivacy step with its exact copy. On is preselected (Recommended);
+ * tapping either option writes the per-account value IMMEDIATELY (not deferred to Finish), via
+ * [WalletViewModel.setChatsPaymentPrivacyFromWizard] — which deliberately skips the Settings
+ * toggle's revoke/re-offer propagation, matching iOS.
+ */
+@Composable
+private fun WelcomeGuidePaymentPrivacyStep(
+    walletViewModel: WalletViewModel,
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
+    onFinish: () -> Unit
+) {
+    val stored by settingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
+    var choice by remember { mutableStateOf(true) }
+    var seeded by remember { mutableStateOf(false) }
+    // Seed once from the stored per-account value (default ON for a new account, the current
+    // value on a replay) — after that the user's taps own the state.
+    androidx.compose.runtime.LaunchedEffect(stored) {
+        if (!seeded) {
+            choice = stored
+            seeded = true
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.VisibilityOff,
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Chat Payment Privacy",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalAppColors.current.textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "How would you like to send and receive payments in chats?",
+            color = LocalAppColors.current.textSecondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(20.dp))
+
+        NodeChoiceRow(
+            selected = choice,
+            title = "On",
+            badge = stringResource(R.string.recommended),
+            subtitle = "Payments in your chats travel between fresh private addresses. When you pay a contact who also has privacy on, the money goes to a fresh address only the two of you know about, and payments you receive arrive on fresh addresses of your own the same way. Nobody watching the network can tie chat payments to you or your contacts.",
+            onClick = {
+                choice = true
+                walletViewModel.setChatsPaymentPrivacyFromWizard(true)
+            }
+        )
+        Spacer(Modifier.height(10.dp))
+        NodeChoiceRow(
+            selected = !choice,
+            title = "Off",
+            badge = null,
+            subtitle = "Payments you send and receive are tied to your chatting address only, where anyone can see the full payment history.",
+            onClick = {
+                choice = false
+                walletViewModel.setChatsPaymentPrivacyFromWizard(false)
+            }
+        )
+
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = {
+                walletViewModel.setChatsPaymentPrivacyFromWizard(choice)
+                onFinish()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.finish), color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -219,6 +386,144 @@ private fun WelcomeGuideStepScaffold(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(buttonLabel, color = Color.Black, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/**
+ * "Who will use KaChat?" - deliberately placed BEFORE the language step (matches iOS). Adult
+ * continues untouched; Child sets a free-form password (stored salted-hashed via
+ * [com.kachat.app.services.ChildModeService]) and Child Mode turns ON immediately - persisted
+ * right here at the step, not deferred to the end of the guide, so the choice survives no matter
+ * what the rest of the wizard writes (or whether it finishes). When the guide is REPLAYED with
+ * Child Mode already on, the step is informational only - offering "Adult" there would be a
+ * password-free way out.
+ */
+@Composable
+private fun WelcomeGuideUserTypeStep(
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
+    onAnswered: () -> Unit
+) {
+    val childModeEnabled by settingsViewModel.childModeEnabled.collectAsState()
+    var choice by remember { mutableStateOf(UserTypeChoice.ADULT) }
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var setupError by remember { mutableStateOf<String?>(null) }
+    val enterPasswordFirst = stringResource(R.string.enter_a_password_first)
+    val passwordsDontMatch = stringResource(R.string.passwords_dont_match)
+    val couldntSavePassword = stringResource(R.string.couldnt_save_the_password)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.FamilyRestroom,
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.size(56.dp)
+        )
+        Spacer(Modifier.height(20.dp))
+        Text(
+            stringResource(R.string.who_will_use_kachat),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalAppColors.current.textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(12.dp))
+
+        if (childModeEnabled) {
+            // Replay with Child Mode already on: purely informational, just continue. Still
+            // counts as answered - Child Mode being on IS the standing choice.
+            Text(
+                stringResource(R.string.child_mode_is_on_guide_info),
+                color = LocalAppColors.current.textSecondary,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                stringResource(R.string.a_child_gets_a_simpler_safer),
+                color = LocalAppColors.current.textSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(20.dp))
+
+            NodeChoiceRow(
+                selected = choice == UserTypeChoice.ADULT,
+                title = stringResource(R.string.adult),
+                badge = null,
+                subtitle = stringResource(R.string.the_full_app_everything_available),
+                onClick = { choice = UserTypeChoice.ADULT; setupError = null }
+            )
+            Spacer(Modifier.height(10.dp))
+            NodeChoiceRow(
+                selected = choice == UserTypeChoice.CHILD,
+                title = stringResource(R.string.child),
+                badge = null,
+                subtitle = stringResource(R.string.chats_portfolio_and_cold_storage_only),
+                onClick = { choice = UserTypeChoice.CHILD; setupError = null }
+            )
+
+            if (choice == UserTypeChoice.CHILD) {
+                Spacer(Modifier.height(12.dp))
+                RevealableSecureField(
+                    value = password,
+                    onValueChange = { password = it; setupError = null },
+                    label = stringResource(R.string.password)
+                )
+                Spacer(Modifier.height(8.dp))
+                RevealableSecureField(
+                    value = confirm,
+                    onValueChange = { confirm = it; setupError = null },
+                    label = stringResource(R.string.confirm_password)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.child_mode_password_helper),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+
+            setupError?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = Color(0xFFFF3B30), fontSize = 12.sp, textAlign = TextAlign.Center)
+            }
+        }
+
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = {
+                when {
+                    // Informational replay - Child Mode being on is the standing choice.
+                    childModeEnabled -> onAnswered()
+                    choice == UserTypeChoice.ADULT -> onAnswered()
+                    else -> {
+                        when {
+                            password.isEmpty() -> setupError = enterPasswordFirst
+                            password != confirm -> setupError = passwordsDontMatch
+                            !settingsViewModel.setChildModePassword(password) -> setupError = couldntSavePassword
+                            else -> {
+                                // Persisted at this step, not wizard end - Child Mode is on from
+                                // first launch no matter what happens to the rest of the guide.
+                                settingsViewModel.enableChildMode()
+                                password = ""
+                                confirm = ""
+                                setupError = null
+                                onAnswered()
+                            }
+                        }
+                    }
+                }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -386,10 +691,28 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onNext: (
 }
 
 @Composable
-private fun WelcomeGuideFundingStep(chattingAddress: String?, onNext: () -> Unit) {
+private fun WelcomeGuideFundingStep(
+    chattingAddress: String?,
+    walletViewModel: WalletViewModel,
+    canChangeChattingAddress: Boolean,
+    onNext: () -> Unit
+) {
     var showQr by remember { mutableStateOf(false) }
+    var showChattingAddressPicker by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+
+    // The picker takes over the whole step while open, and pops back here on Back or after a
+    // switch — this step re-renders with the new address, since [chattingAddress] reads the live
+    // WalletViewModel state the switch updates.
+    if (showChattingAddressPicker) {
+        ChattingAddressPickerScreen(
+            walletViewModel = walletViewModel,
+            onBack = { showChattingAddressPicker = false },
+            onSwitched = { showChattingAddressPicker = false }
+        )
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -421,7 +744,7 @@ private fun WelcomeGuideFundingStep(chattingAddress: String?, onNext: () -> Unit
                 modifier = Modifier
                     .clickable {
                         clipboardManager.setText(AnnotatedString(chattingAddress))
-                        Toast.makeText(context, context.getString(R.string.address_copied), Toast.LENGTH_SHORT).show()
+                        showAddressCopiedToast(context, chattingAddress)
                     }
                     .padding(horizontal = 16.dp)
             )
@@ -430,6 +753,16 @@ private fun WelcomeGuideFundingStep(chattingAddress: String?, onNext: () -> Unit
                 Icon(Icons.Default.QrCode, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.show_qr_code), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (canChangeChattingAddress) {
+            TextButton(onClick = {
+                walletViewModel.resetChattingAddressScan()
+                showChattingAddressPicker = true
+            }) {
+                Icon(Icons.Default.PersonSearch, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.change_chatting_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(24.dp))

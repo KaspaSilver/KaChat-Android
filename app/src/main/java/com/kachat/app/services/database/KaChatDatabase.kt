@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 32,
+    version = 36,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -372,10 +372,63 @@ abstract class KaChatDatabase : RoomDatabase() {
          * icon + Retry (see [com.kachat.app.models.ReactionEntity]). Purely additive; existing rows
          * default to "sent".
          */
+        /**
+         * v32 -> v33: broadcast hidden senders become PER-ROOM - adds `channelName` to
+         * `broadcast_hidden_senders` (default "" = every room, so existing hides keep their
+         * old app-wide effect) and widens the primary key to include it. Table rebuild, same
+         * portable pattern as MIGRATION_15_16.
+         */
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `broadcast_hidden_senders_new` (" +
+                        "`senderAddress` TEXT NOT NULL, `walletAddress` TEXT NOT NULL, " +
+                        "`channelName` TEXT NOT NULL DEFAULT '', `hiddenAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`senderAddress`, `walletAddress`, `channelName`))"
+                )
+                db.execSQL(
+                    "INSERT OR IGNORE INTO `broadcast_hidden_senders_new` (senderAddress, walletAddress, channelName, hiddenAt) " +
+                        "SELECT senderAddress, walletAddress, '', hiddenAt FROM `broadcast_hidden_senders`"
+                )
+                db.execSQL("DROP TABLE `broadcast_hidden_senders`")
+                db.execSQL("ALTER TABLE `broadcast_hidden_senders_new` RENAME TO `broadcast_hidden_senders`")
+            }
+        }
+
         val MIGRATION_31_32 = object : Migration(31, 32) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `reactions` ADD COLUMN `deliveryStatus` TEXT NOT NULL DEFAULT 'sent'")
                 db.execSQL("ALTER TABLE `reactions` ADD COLUMN `failedAction` TEXT DEFAULT NULL")
+            }
+        }
+
+        /**
+         * v33 -> v34: adds `contacts.systemContactPhotoUri` — the device address-book photo of a
+         * linked phone contact, so it can stand in wherever a KNS avatar would render. A single
+         * nullable column, so the plain `ALTER TABLE ... ADD COLUMN` form is enough (same shape as
+         * v18->v19/v20->v21). Existing linked contacts start `NULL` and are backfilled lazily by
+         * `ChatViewModel.syncSystemContacts`, which now re-reads the photo URI for already-linked
+         * contacts too — no migration-time ContactsContract access (a Migration has only the raw
+         * database, and READ_CONTACTS may not even be granted at upgrade time).
+         */
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `contacts` ADD COLUMN `systemContactPhotoUri` TEXT DEFAULT NULL")
+            }
+        }
+
+        // Cross-platform contact photo carried in the shared backup (base64 JPEG), an avatar
+        // fallback when there is no KNS or device-contact photo.
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `contacts` ADD COLUMN `backupPhotoBase64` TEXT DEFAULT NULL")
+            }
+        }
+
+        // Admin-set group photo (hex of a compressed JPEG), distributed to members via gctl_photo.
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `groups` ADD COLUMN `photoHex` TEXT DEFAULT NULL")
             }
         }
     }

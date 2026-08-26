@@ -29,7 +29,40 @@ data class MessageEntity(
     val isRead: Boolean = false,
     val syncedAt: Long = System.currentTimeMillis(),
     val deliveryStatus: String = "sent"     // "pending" | "sent" | "failed" — only meaningful for direction="sent"
-)
+) {
+    /** See [isSentPlaceholder]. */
+    val isSentPlaceholder: Boolean
+        get() = isSentPlaceholder(plaintextBody)
+
+    companion object {
+        /**
+         * Exact content of the cross-device fill-in row iOS creates when a device discovers this
+         * wallet's own outgoing message on-chain but cannot decrypt it (own sends are encrypted
+         * for the recipient). Android never creates these itself, but archives written by iOS can
+         * carry them, and builds before the import-time skip (see
+         * ChatHistoryExportImportService.importArchive) inserted them as real rows. They must
+         * NEVER be visible in any UI. Mirrors iOS's ChatMessage.sentViaOtherDevicePlaceholder -
+         * single source of truth for the literal; do not duplicate the string.
+         */
+        const val SENT_VIA_OTHER_DEVICE_PLACEHOLDER = "📤 Sent via another device"
+
+        /** True if [content] is exactly the cross-device placeholder above. Use this everywhere
+         *  the placeholder is matched or hidden - mirrors iOS's ChatMessage.isSentPlaceholder. */
+        fun isSentPlaceholder(content: String?): Boolean = content == SENT_VIA_OTHER_DEVICE_PLACEHOLDER
+
+        /**
+         * Prefix of the synthetic local id the optimistic send paths give a row BEFORE the
+         * broadcast returns ("pending_<uuid>", see ChatViewModel.sendMessageAwait/sendPayment).
+         * Such an id is transient device-local state, never an on-chain identity: it must never
+         * be exported into a shared backup archive, never be accepted from one at import, and is
+         * what the stuck-send repair sweep looks for. Single source of truth for the literal.
+         */
+        const val PROVISIONAL_ID_PREFIX = "pending_"
+
+        /** True if [id] is a synthetic pre-broadcast placeholder id rather than a real txId. */
+        fun isProvisionalId(id: String): Boolean = id.startsWith(PROVISIONAL_ID_PREFIX)
+    }
+}
 
 /**
  * A reaction (tapback) sent or received on a message — 1:1 ([contactId] set) or group ([groupId]
@@ -99,9 +132,11 @@ data class ContactEntity(
     val knsAvatarUrl: String? = null,       // Cached from the KNS profile of `knsName`, so the chat list can render an avatar without a live fetch per row
     val systemContactId: String? = null,    // Phone contact's LOOKUP_KEY, once linked via "Link from Contacts" — takes priority over KNS auto-rename
     val systemContactName: String? = null,  // Name snapshot at link time, for the "Linked: X" row
+    val systemContactPhotoUri: String? = null, // Device address-book photo (content:// URI) of the linked phone contact — the fallback every avatar uses when there's no KNS avatar. Stored (not resolved per-render) so the chat list never touches ContactsContract on the main thread; refreshed by ChatViewModel.syncSystemContacts.
     val systemContactLinkSource: String? = null, // "manual" | "autoCreated" — only "autoCreated" shadow contacts get deleted if Autocreate is turned off
     val photoAutoDisplayOverride: String? = null, // PhotoAutoDisplayMode.name, null = automatic (see ChatRepository.shouldAutoDisplayPhotos)
-    val notificationOverride: String? = null // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
+    val notificationOverride: String? = null, // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
+    val backupPhotoBase64: String? = null // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS or system-contact photo (e.g. a photo set on desktop)
 )
 
 /**

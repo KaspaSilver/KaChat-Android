@@ -16,9 +16,24 @@
 *.keystore
 keystore.properties
 
+# Firebase — this device-side config is per-operator (your own Firebase project). Drop your
+# downloaded app/google-services.json in place; FCM stays inactive until you do (see
+# app/build.gradle.kts's conditional google-services apply and PUSH_ANDROID_SETUP.md).
+/app/google-services.json
+
 # Local Claude Code session state — not part of the app
 /.claude/
 
 # Self-hosted gift faucet backend — runs only on the operator's machine, holds the hot-wallet
 # private key and Play Integrity secrets. MUST never be committed/published.
 /gift-server/
+
+# Release binaries live on the GitHub Releases page, never in the repo (142 MB of
+# stale v3.0 APKs/AABs used to be tracked here).
+/release-builds/
+
+# Machine-local Android Studio state
+.idea/caches/
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/appInsightsSettings.xml

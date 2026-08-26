@@ -1,20 +1,32 @@
 package com.kachat.app.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,12 +47,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.services.LinkPreviewData
 import com.kachat.app.services.LinkPreviewService
@@ -52,7 +66,7 @@ private val VIDEO_HOSTS = setOf("youtube.com", "www.youtube.com", "youtu.be", "m
  *  mirrors iMessage. Renders nothing while the fetch is in flight, rather than a placeholder that
  *  could flash or look broken. If no preview data is found (a bare/broken link, or a site with no
  *  Open Graph tags), falls back to [fallbackText] if given, else renders nothing. Used by
- *  [MessageBubble] and `GroupMessageBubble` only - broadcast rooms never call this.
+ *  [MessageBubble], `GroupMessageBubble`, and broadcast rooms' message rows.
  *
  *  [txId] is the owning message's transaction id, for the "View in Explorer" long-press action -
  *  matches every other bubble type's identical action ([MessageBubble]'s
@@ -74,21 +88,136 @@ fun LinkPreviewCard(
     /** Double-tapping the preview opens the owning message's quick-reaction menu (reactions +
      *  reply), exactly like double-tapping a normal message bubble. Null disables it. Single tap
      *  still opens the link. Mirrors iOS's `LinkPreviewCardView.onDoubleTap`. */
-    onDoubleTap: (() -> Unit)? = null
+    onDoubleTap: (() -> Unit)? = null,
+    /** Privacy gate (2026-08 audit, decision 5A, matching iOS): rendering a preview fetches the
+     *  stranger-controlled URL from THIS device, revealing the reader's IP and that the message
+     *  was seen. True (the default) fetches on render — for accepted/handshaken 1:1 contacts,
+     *  group messages, and the user's own sent messages. False renders a "Tap to load preview"
+     *  placeholder instead and only fetches after an explicit tap — for non-accepted 1:1
+     *  senders and ALL broadcast messages (broadcast senders are always strangers). */
+    autoFetch: Boolean = true
 ) {
+    var fetchApproved by remember(url, autoFetch) { mutableStateOf(autoFetch) }
     var preview by remember(url) { mutableStateOf<LinkPreviewData?>(null) }
     var hasFinishedLoading by remember(url) { mutableStateOf(false) }
 
-    LaunchedEffect(url) {
+    if (!fetchApproved) {
+        TapToLoadPreviewBubble(
+            text = fallbackText ?: url,
+            url = url,
+            txId = txId,
+            kaspaExplorer = kaspaExplorer,
+            onLoad = { fetchApproved = true },
+            onSelect = onSelect,
+            onDoubleTap = onDoubleTap
+        )
+        return
+    }
+
+    LaunchedEffect(url, fetchApproved) {
         hasFinishedLoading = false
         preview = LinkPreviewService.fetchPreview(url)
         hasFinishedLoading = true
     }
 
     if (hasFinishedLoading && preview != null) {
-        LinkPreviewCardContent(data = preview!!, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+        val data = preview!!
+        if (data.nextcloudMedia == "image" || data.nextcloudMedia == "video") {
+            // Nextcloud media renders as a bare photo/video bubble (like a sent photo), not a
+            // titled link card — the media IS the message. Mirrors iOS's nextcloudMediaBubble.
+            NextcloudMediaBubble(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+        } else if (data.nextcloudMedia != null) {
+            // Audio/PDF/generic files get an attachment card: icon + filename + kind/size caption.
+            NextcloudAttachmentCard(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+        } else {
+            LinkPreviewCardContent(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+        }
     } else if (hasFinishedLoading && fallbackText != null) {
         LinkPreviewFallbackBubble(text = fallbackText, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+    }
+}
+
+/**
+ * Placeholder shown instead of an auto-fetched preview when [LinkPreviewCard]'s `autoFetch` gate
+ * is off (non-accepted 1:1 senders, all broadcast messages): the raw message/link text in a plain
+ * bubble with a "Tap to load preview" caption. Tapping fetches and swaps in the real preview;
+ * until then no request of any kind leaves the device for this URL. Long-press menu matches
+ * [LinkPreviewFallbackBubble]'s exactly.
+ */
+@Composable
+private fun TapToLoadPreviewBubble(
+    text: String,
+    url: String,
+    txId: String,
+    kaspaExplorer: KaspaExplorer,
+    onLoad: () -> Unit,
+    onSelect: (() -> Unit)? = null,
+    onDoubleTap: (() -> Unit)? = null
+) {
+    val uriHandler = LocalUriHandler.current
+    val clipboardManager = LocalClipboardManager.current
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+
+    Column(
+        modifier = Modifier
+            .widthIn(max = 280.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .onGloballyPositioned { coords ->
+                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+            }
+            .pointerInput(url) {
+                detectTapGestures(
+                    onLongPress = { showMenu = true },
+                    onDoubleTap = { onDoubleTap?.invoke() },
+                    onTap = { onLoad() }
+                )
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text,
+            color = LocalAppColors.current.textPrimary,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Public,
+                contentDescription = null,
+                tint = LocalAppColors.current.textSecondary,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "Tap to load preview",
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                clipboardManager.setText(AnnotatedString(url))
+                showMenu = false
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+                uriHandler.openUri(kaspaExplorer.txUrl(txId))
+                showMenu = false
+            }
+            if (onSelect != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                    onSelect()
+                    showMenu = false
+                }
+            }
+        }
     }
 }
 
@@ -141,8 +270,248 @@ private fun LinkPreviewFallbackBubble(text: String, url: String, txId: String, k
     }
 }
 
+/**
+ * Bare media bubble for a Nextcloud public-share link — just the poster image at its real aspect
+ * ratio (no title/description/site chrome), centered play badge for videos. Tap: photos open the
+ * in-app full-screen viewer; videos hand the `/download` URL (streams via range requests) to the
+ * system player via ACTION_VIEW — the app deliberately has no bundled media player dependency.
+ * Long-press menu matches every other link preview's.
+ */
+@Composable
+private fun NextcloudMediaBubble(data: LinkPreviewData, url: String, txId: String, kaspaExplorer: KaspaExplorer, onSelect: (() -> Unit)? = null, onDoubleTap: (() -> Unit)? = null) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val clipboardManager = LocalClipboardManager.current
+    val isVideo = data.nextcloudMedia == "video"
+
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+    var showPhotoViewer by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .onGloballyPositioned { coords ->
+                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+            }
+            .pointerInput(url) {
+                detectTapGestures(
+                    onLongPress = { showMenu = true },
+                    onDoubleTap = { onDoubleTap?.invoke() },
+                    onTap = {
+                        val download = data.mediaDownloadUrl
+                        when {
+                            download == null -> uriHandler.openUri(url)
+                            isVideo -> {
+                                // No media3/ExoPlayer in this app — the system player streams it.
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(android.net.Uri.parse(download), "video/*")
+                                    })
+                                } catch (e: Exception) {
+                                    uriHandler.openUri(url)
+                                }
+                            }
+                            else -> showPhotoViewer = true
+                        }
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        SubcomposeAsyncImage(
+            model = data.imageUrl,
+            contentDescription = data.title,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .widthIn(max = 240.dp)
+                .heightIn(max = 320.dp),
+            loading = {
+                Box(
+                    modifier = Modifier
+                        .size(width = 240.dp, height = 180.dp)
+                        .background(LocalAppColors.current.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = LocalAppColors.current.textSecondary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            },
+            error = {
+                Box(
+                    modifier = Modifier
+                        .size(width = 240.dp, height = 180.dp)
+                        .background(LocalAppColors.current.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (isVideo) Icons.Default.Movie else Icons.Default.Photo,
+                        contentDescription = null,
+                        tint = LocalAppColors.current.textSecondary
+                    )
+                }
+            }
+        )
+        if (isVideo) {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .padding(10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+            }
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                clipboardManager.setText(AnnotatedString(url))
+                showMenu = false
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+                uriHandler.openUri(kaspaExplorer.txUrl(txId))
+                showMenu = false
+            }
+            if (onSelect != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                    onSelect()
+                    showMenu = false
+                }
+            }
+        }
+    }
+
+    if (showPhotoViewer && data.mediaDownloadUrl != null) {
+        NextcloudPhotoViewerDialog(
+            downloadUrl = data.mediaDownloadUrl,
+            shareUrl = url,
+            onDismiss = { showPhotoViewer = false }
+        )
+    }
+}
+
+/**
+ * Attachment card for non-visual Nextcloud shares (audio/pdf/generic file): leading kind icon,
+ * filename, and a "KIND · SIZE" caption. Tap: audio streams via the system player (ACTION_VIEW,
+ * same approach as video); PDFs open the in-app PdfRenderer viewer; everything else opens the
+ * SHARE url in the browser — Nextcloud's web viewer is the only renderer for Office docs.
+ */
+@Composable
+private fun NextcloudAttachmentCard(data: LinkPreviewData, url: String, txId: String, kaspaExplorer: KaspaExplorer, onSelect: (() -> Unit)? = null, onDoubleTap: (() -> Unit)? = null) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val clipboardManager = LocalClipboardManager.current
+    val kind = data.nextcloudMedia ?: "file"
+
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+    var showPdfViewer by remember { mutableStateOf(false) }
+
+    val icon = when (kind) {
+        "audio" -> Icons.Default.GraphicEq
+        "pdf" -> Icons.Default.PictureAsPdf
+        else -> Icons.Default.Description
+    }
+    val kindLabel = when (kind) {
+        "audio" -> "AUDIO"
+        "pdf" -> "PDF"
+        else -> data.title?.substringAfterLast('.', "")?.takeIf { it.isNotEmpty() }?.uppercase() ?: "FILE"
+    }
+    val sizeText = data.mediaByteSize?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
+    val caption = listOfNotNull(kindLabel, sizeText).joinToString(" · ")
+
+    Row(
+        modifier = Modifier
+            .widthIn(max = 260.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(LocalAppColors.current.surface)
+            .onGloballyPositioned { coords ->
+                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+            }
+            .pointerInput(url) {
+                detectTapGestures(
+                    onLongPress = { showMenu = true },
+                    onDoubleTap = { onDoubleTap?.invoke() },
+                    onTap = {
+                        val download = data.mediaDownloadUrl
+                        when {
+                            kind == "audio" && download != null -> {
+                                // Same system-player streaming approach as video.
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(android.net.Uri.parse(download), "audio/*")
+                                    })
+                                } catch (e: Exception) {
+                                    uriHandler.openUri(url)
+                                }
+                            }
+                            kind == "pdf" && download != null -> showPdfViewer = true
+                            else -> uriHandler.openUri(url)
+                        }
+                    }
+                )
+            }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(30.dp))
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(
+                data.title ?: "File",
+                color = LocalAppColors.current.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                caption,
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                clipboardManager.setText(AnnotatedString(url))
+                showMenu = false
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+                uriHandler.openUri(kaspaExplorer.txUrl(txId))
+                showMenu = false
+            }
+            if (onSelect != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                    onSelect()
+                    showMenu = false
+                }
+            }
+        }
+    }
+
+    if (showPdfViewer && data.mediaDownloadUrl != null) {
+        NextcloudPdfViewerDialog(
+            downloadUrl = data.mediaDownloadUrl,
+            shareUrl = url,
+            onDismiss = { showPdfViewer = false }
+        )
+    }
+}
+
 @Composable
 private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: String, kaspaExplorer: KaspaExplorer, onSelect: (() -> Unit)? = null, onDoubleTap: (() -> Unit)? = null) {
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
     val isVideoLink = remember(url) {
@@ -170,8 +539,20 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
     ) {
         if (data.imageUrl != null) {
             Box {
+                // Load the OG image with a real browser UA + Referer (the page it came from).
+                // Image CDNs like cdninstagram/fbcdn 403 the header-less request Coil sends by
+                // default, which is why Instagram previews showed no picture. Mirrors iOS's
+                // LinkPreviewService.imageData(referer:).
+                val imageRequest = remember(data.imageUrl, data.url) {
+                    ImageRequest.Builder(context)
+                        .data(data.imageUrl)
+                        .addHeader("User-Agent", LinkPreviewService.BROWSER_USER_AGENT)
+                        .addHeader("Referer", data.url)
+                        .crossfade(true)
+                        .build()
+                }
                 SubcomposeAsyncImage(
-                    model = data.imageUrl,
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

@@ -40,7 +40,8 @@ import com.kachat.app.ui.theme.LocalAppColors
  * In-app language override, independent of the device's system language. `SYSTEM` (tag = null)
  * means "follow the device setting" - selecting it clears any override via an empty
  * [LocaleListCompat] instead of pinning to a specific tag. Mirrors the iOS `AppLanguage` enum's
- * shape and the same 18 already-translated languages (`values-<tag>/strings.xml`).
+ * shape and the same 19 already-translated languages (`values-<tag>/strings.xml`; note Indonesian
+ * uses the BCP 47 tag "id" here but Android's legacy resource qualifier `values-in/`).
  */
 enum class AppLanguage(val tag: String?, val displayName: String) {
     SYSTEM(null, "System"),
@@ -54,6 +55,7 @@ enum class AppLanguage(val tag: String?, val displayName: String) {
     FR("fr", "Français"),
     HE("he", "עברית"),
     HI("hi", "हिन्दी"),
+    ID("id", "Bahasa Indonesia"),
     IT("it", "Italiano"),
     JA("ja", "日本語"),
     KO("ko", "한국어"),

@@ -3,6 +3,7 @@ package com.kachat.app.repository
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.google.gson.Gson
 import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.services.CoinGeckoApi
 import com.kachat.app.services.ColdStorageAddressDiscovery
@@ -10,13 +11,18 @@ import com.kachat.app.services.PortfolioManager
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.database.KaChatDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import retrofit2.HttpException
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -133,29 +139,195 @@ class PortfolioRepository @Inject constructor(
      */
     data class PriceWithChange(val price: Double, val change24hPercent: Double?)
 
+    /**
+     * Wall-clock time before which CoinGecko told us not to retry (a 429's Retry-After header,
+     * observed live at 59 seconds on the keyless tier) — null when no throttle window is known.
+     * Callers scheduling a deferred retry should wait until this passes rather than retrying
+     * blind; cleared on any successful request.
+     */
+    @Volatile
+    var throttledUntilMillis: Long? = null
+        private set
+
+    private fun recordThrottleWindow(retryAfterSeconds: Double) {
+        throttledUntilMillis = System.currentTimeMillis() + (retryAfterSeconds * 1000).toLong()
+    }
+
+    /**
+     * A 429/5xx gets one in-place retry only when the server's Retry-After fits inside
+     * [MAX_INLINE_RETRY_SECONDS] — CoinGecko's real throttle window is ~59s, and parking a
+     * caller that long just holds a refresh spinner hostage. Longer windows are recorded in
+     * [throttledUntilMillis] for the ViewModel's deferred retry instead. Successes persist to
+     * [readPersistedPrice]'s cache so the UI can paint the last-known price instantly on the
+     * next open even when every fetch in a session is throttled.
+     */
     suspend fun getCurrentPriceUsd(currency: String = "usd"): PriceWithChange? {
+        repeat(2) { attempt ->
+            try {
+                val kaspa = coinGeckoApi.getSimplePrice(vsCurrencies = currency).kaspa
+                val price = kaspa[currency] ?: return null
+                val result = PriceWithChange(price, kaspa["${currency}_24h_change"])
+                persistCurrentPrice(result, currency)
+                throttledUntilMillis = null
+                return result
+            } catch (e: HttpException) {
+                if (attempt > 0 || (e.code() != 429 && e.code() < 500)) return null
+                val retryAfterSeconds = e.response()?.headers()?.get("Retry-After")?.toDoubleOrNull() ?: 2.0
+                if (retryAfterSeconds > MAX_INLINE_RETRY_SECONDS) {
+                    recordThrottleWindow(retryAfterSeconds)
+                    return null
+                }
+                delay((retryAfterSeconds * 1000).toLong())
+            } catch (e: Exception) {
+                // Includes coroutine cancellation mid-request — bail out quietly, same
+                // "degrade gracefully" contract as getPriceHistory.
+                return null
+            }
+        }
+        return null
+    }
+
+    /**
+     * (timestampMillis, price) pairs in [currency], oldest first — empty on failure rather than
+     * throwing, so callers must not blindly overwrite existing cached history with an empty
+     * result (see [com.kachat.app.viewmodels.PortfolioViewModel]'s fetchPriceHistory).
+     *
+     * CoinGecko's keyless tier throttles bursts hard (429 for a stretch after just a few rapid
+     * calls) — a launch plus a couple of chart-range taps was enough to make every subsequent
+     * range fetch come back empty, leaving the chart stuck on whatever range loaded first. A
+     * 429/5xx here gets one in-place retry when Retry-After fits [MAX_INLINE_RETRY_SECONDS];
+     * a longer window is recorded in [throttledUntilMillis] for a deferred retry instead.
+     */
+    suspend fun getPriceHistory(days: Int = 30, currency: String = "usd"): List<Pair<Long, Double>> {
+        repeat(2) { attempt ->
+            try {
+                return coinGeckoApi.getMarketChart(vsCurrency = currency, days = days).prices.mapNotNull { point ->
+                    if (point.size < 2) null else point[0].toLong() to point[1]
+                }
+            } catch (e: HttpException) {
+                if (attempt > 0 || (e.code() != 429 && e.code() < 500)) return emptyList()
+                val retryAfterSeconds = e.response()?.headers()?.get("Retry-After")?.toDoubleOrNull() ?: 2.0
+                if (retryAfterSeconds > MAX_INLINE_RETRY_SECONDS) {
+                    // The real window (observed: 59s) doesn't fit an in-place park — capping the
+                    // delay at 10s just guaranteed the retry landed inside the window and failed
+                    // too. Record the window for the ViewModel's deferred retry and bail now.
+                    recordThrottleWindow(retryAfterSeconds)
+                    return emptyList()
+                }
+                delay((retryAfterSeconds * 1000).toLong())
+            } catch (e: Exception) {
+                // Includes coroutine cancellation mid-request — bail out quietly, same
+                // "degrade gracefully" contract as getCurrentPriceUsd.
+                return emptyList()
+            }
+        }
+        return emptyList()
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistent price-history cache (10-minute TTL)
+    // -------------------------------------------------------------------------
+    //
+    // CoinGecko's keyless tier throttles bursts aggressively — a cold launch already costs a few
+    // calls, so cycling chart ranges could exhaust the limit and leave every new range's fetch
+    // returning empty, with the chart stuck showing the first range's ~1-day curve no matter
+    // which range was selected. Persisting each (currency, days) history for 10 minutes makes
+    // range cycling free after the first fetch (and across relaunches), and on a failed fetch the
+    // stale copy for the *requested* range still beats showing the wrong range. Storage is a
+    // SharedPreferences JSON payload per (currency, days) key, same prefs+Gson pattern as
+    // GiftManager; the freshness policy (TTL check, stale fallback) lives with the caller —
+    // see PortfolioViewModel's fetchPriceHistory.
+
+    /** Gson payload persisted per (currency, days) — [t] = timestampMillis, [p] = price, kept short since a 365-day history is thousands of points. */
+    private data class StoredPricePoint(val t: Long, val p: Double)
+    private data class StoredPriceHistory(val fetchedAt: Long, val points: List<StoredPricePoint>)
+
+    /** A previously fetched history plus when it was fetched, so callers can apply their own freshness policy (see [PRICE_HISTORY_CACHE_TTL_MILLIS]). */
+    data class PersistedPriceHistory(val fetchedAtMillis: Long, val points: List<Pair<Long, Double>>)
+
+    private val priceHistoryPrefs = context.getSharedPreferences(PRICE_HISTORY_PREFS_NAME, Context.MODE_PRIVATE)
+    private val gson = Gson()
+
+    private fun priceHistoryCacheKey(days: Int, currency: String) = "kachat_price_history_${currency}_$days"
+
+    /** Null when nothing was ever persisted for this (currency, days) — or the payload is corrupt/empty, which callers treat the same way. */
+    fun readPersistedPriceHistory(days: Int, currency: String): PersistedPriceHistory? {
+        val json = priceHistoryPrefs.getString(priceHistoryCacheKey(days, currency), null) ?: return null
         return try {
-            val kaspa = coinGeckoApi.getSimplePrice(vsCurrencies = currency).kaspa
-            val price = kaspa[currency] ?: return null
-            PriceWithChange(price, kaspa["${currency}_24h_change"])
+            val stored = gson.fromJson(json, StoredPriceHistory::class.java) ?: return null
+            if (stored.points.isNullOrEmpty()) return null
+            PersistedPriceHistory(stored.fetchedAt, stored.points.map { it.t to it.p })
         } catch (e: Exception) {
             null
         }
     }
 
-    /** (timestampMillis, price) pairs in [currency], oldest first — empty on failure rather than throwing. */
-    suspend fun getPriceHistory(days: Int = 30, currency: String = "usd"): List<Pair<Long, Double>> {
+    fun persistPriceHistory(points: List<Pair<Long, Double>>, days: Int, currency: String) {
+        if (points.isEmpty()) return
+        val stored = StoredPriceHistory(System.currentTimeMillis(), points.map { StoredPricePoint(it.first, it.second) })
+        priceHistoryPrefs.edit().putString(priceHistoryCacheKey(days, currency), gson.toJson(stored)).apply()
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistent current-price cache
+    // -------------------------------------------------------------------------
+    //
+    // The current price previously had no cache and no retry at all — one throttled launch burst
+    // and the portfolio showed a bare dash until the user pulled to refresh (firing another
+    // burst, usually still inside the same throttle window). Persisting every successful fetch
+    // per currency lets the UI paint the last-known price instantly on open; freshness policy
+    // lives with the caller (see PortfolioViewModel.refreshPrice), same split as the history
+    // cache above.
+
+    /** Gson payload persisted per currency — fetchedAt lets callers decide whether a network refresh is even needed. */
+    private data class StoredCurrentPrice(val fetchedAt: Long, val price: Double, val change: Double?)
+
+    /** The last successfully fetched price plus when it was fetched, so callers can apply their own freshness policy (see [CURRENT_PRICE_FRESH_MILLIS]). */
+    data class PersistedPrice(val fetchedAtMillis: Long, val price: Double, val change24hPercent: Double?)
+
+    private fun currentPriceCacheKey(currency: String) = "kachat_current_price_$currency"
+
+    /** Null when no price was ever successfully fetched for this currency (or the payload is corrupt). */
+    fun readPersistedPrice(currency: String): PersistedPrice? {
+        val json = priceHistoryPrefs.getString(currentPriceCacheKey(currency), null) ?: return null
         return try {
-            coinGeckoApi.getMarketChart(vsCurrency = currency, days = days).prices.mapNotNull { point ->
-                if (point.size < 2) null else point[0].toLong() to point[1]
-            }
+            val stored = gson.fromJson(json, StoredCurrentPrice::class.java) ?: return null
+            PersistedPrice(stored.fetchedAt, stored.price, stored.change)
         } catch (e: Exception) {
-            emptyList()
+            null
         }
+    }
+
+    private fun persistCurrentPrice(price: PriceWithChange, currency: String) {
+        val stored = StoredCurrentPrice(System.currentTimeMillis(), price.price, price.change24hPercent)
+        priceHistoryPrefs.edit().putString(currentPriceCacheKey(currency), gson.toJson(stored)).apply()
     }
 
     private val historyDateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.US).apply {
         timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistent historical-price cache (per currency + UTC day, no TTL)
+    // -------------------------------------------------------------------------
+    //
+    // A finished UTC day's snapshot price never changes, so unlike the current-price/history
+    // caches above this one has no TTL — once a day is priced it's priced forever, and
+    // re-importing an address (or importing a second address active on the same days) costs
+    // zero CoinGecko calls for already-known days. Today's still-moving price is deliberately
+    // never persisted.
+
+    private fun historicalPriceCacheKey(dayStartMillis: Long, currency: String) =
+        "kachat_hist_price_${currency}_$dayStartMillis"
+
+    /** Null when this (currency, day) was never successfully priced. */
+    fun readPersistedHistoricalPrice(dayStartMillis: Long, currency: String): Double? =
+        priceHistoryPrefs.getString(historicalPriceCacheKey(dayStartMillis, currency), null)?.toDoubleOrNull()
+
+    private fun persistHistoricalPrice(dayStartMillis: Long, currency: String, price: Double) {
+        // Only a *finished* UTC day's snapshot is immutable — never freeze today's price.
+        if (dayStartMillis >= utcDayStartMillis(System.currentTimeMillis())) return
+        priceHistoryPrefs.edit().putString(historicalPriceCacheKey(dayStartMillis, currency), price.toString()).apply()
     }
 
     /**
@@ -163,14 +335,38 @@ class PortfolioRepository @Inject constructor(
      * day-start timestamp) — used by "Add Kaspa Address" to price auto-imported transactions.
      * Null on any failure or when CoinGecko simply has no data for that date, same "degrade
      * gracefully" contract as [getCurrentPriceUsd]/[getPriceHistory].
+     *
+     * Served from the persistent per-day cache first (see [readPersistedHistoricalPrice]).
+     * A 429/5xx gets the same Retry-After treatment as [getCurrentPriceUsd]: one in-place
+     * retry when the window fits [MAX_INLINE_RETRY_SECONDS], otherwise the window is recorded
+     * in [throttledUntilMillis] so callers (the import backfill) can wait it out instead of
+     * burning attempts inside it — the raw one-shot fetch this used to be was the main reason
+     * address imports came back mostly unpriced.
      */
     suspend fun getHistoricalPrice(dayStartMillis: Long, currency: String = "usd"): Double? {
-        return try {
-            val dateString = synchronized(historyDateFormat) { historyDateFormat.format(java.util.Date(dayStartMillis)) }
-            coinGeckoApi.getHistory(date = dateString).marketData?.currentPrice?.get(currency)
-        } catch (e: Exception) {
-            null
+        readPersistedHistoricalPrice(dayStartMillis, currency)?.let { return it }
+        repeat(2) { attempt ->
+            try {
+                val dateString = synchronized(historyDateFormat) { historyDateFormat.format(java.util.Date(dayStartMillis)) }
+                val price = coinGeckoApi.getHistory(date = dateString).marketData?.currentPrice?.get(currency)
+                    ?: return null // CoinGecko has no data for that date — retrying won't create any.
+                persistHistoricalPrice(dayStartMillis, currency, price)
+                throttledUntilMillis = null
+                return price
+            } catch (e: HttpException) {
+                if (attempt > 0 || (e.code() != 429 && e.code() < 500)) return null
+                val retryAfterSeconds = e.response()?.headers()?.get("Retry-After")?.toDoubleOrNull() ?: 2.0
+                if (retryAfterSeconds > MAX_INLINE_RETRY_SECONDS) {
+                    recordThrottleWindow(retryAfterSeconds)
+                    return null
+                }
+                delay((retryAfterSeconds * 1000).toLong())
+            } catch (e: Exception) {
+                // Includes coroutine cancellation mid-request — bail out quietly.
+                return null
+            }
         }
+        return null
     }
 
     private fun utcDayStartMillis(timestampMillis: Long): Long {
@@ -191,6 +387,10 @@ class PortfolioRepository @Inject constructor(
         }
     }
 
+    /** Runs price backfill after an address import — outlives the import dialog's coroutine on
+     *  purpose, so closing the progress dialog (or leaving the screen) never kills the backfill. */
+    private val priceBackfillScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
      * Fetches [address]'s on-chain transaction history and adds new buy/sell rows into the
      * active portfolio — every received transaction becomes a buy, every sent transaction
@@ -198,9 +398,15 @@ class PortfolioRepository @Inject constructor(
      * filter out ordinary KaChat payments/protocol overhead (see PortfolioTransactionEntity's
      * doc comment on why manual entry was originally the only path) — an explicit, simpler
      * alternative the user opted into. Re-entering the same address later only adds transactions
-     * not already present for it (deduped by on-chain tx id). Every matching transaction is
-     * imported even if its day's price couldn't be fetched — it lands with fiatValue 0.0 and a
-     * note flagging it, rather than being silently dropped from the ledger.
+     * not already present for it (deduped by on-chain tx id).
+     *
+     * Never all-or-nothing: every row is inserted IMMEDIATELY — priced from the persistent
+     * per-day cache when the day is already known, otherwise with fiatValue 0.0 and
+     * [PRICE_UNAVAILABLE_NOTE] — so the ledger (and the portfolio's KAS balance) appears the
+     * moment the on-chain history lands, and the remaining days' prices backfill in the
+     * background via [backfillHistoricalPrices] as each CoinGecko fetch succeeds. A day whose
+     * price never arrives (persistent offline, CoinGecko has no data) simply keeps its
+     * flagging note for the user to price manually; nothing is dropped or rolled back.
      */
     suspend fun importAddress(address: String, currency: String = "usd", onProgress: (String) -> Unit): AddressImportResult {
         val trimmed = address.trim()
@@ -230,53 +436,93 @@ class PortfolioRepository @Inject constructor(
             throw PortfolioAddressImportError.NoTransactions
         }
 
-        // One historical-price fetch per unique day (not per transaction) — CoinGecko's history
-        // endpoint is daily-granularity anyway, and this keeps request count bounded even for a
-        // very active address. Paced sequentially to stay under the free tier's rate limit.
-        val priceRequestSpacingMillis = 1_200L
-        val uniqueDays = candidates.map { it.dayStartMillis }.distinct().sorted()
-        val priceByDay = mutableMapOf<Long, Double?>()
-        for ((index, day) in uniqueDays.withIndex()) {
-            onProgress("Pricing ${index + 1}/${uniqueDays.size} days…")
-            var price = getHistoricalPrice(day, currency)
-            if (price == null) {
-                // One retry — a single transient failure shouldn't cost that whole day's rows.
-                delay(priceRequestSpacingMillis)
-                price = getHistoricalPrice(day, currency)
-            }
-            priceByDay[day] = price
-            if (index < uniqueDays.size - 1) {
-                delay(priceRequestSpacingMillis)
-            }
-        }
-
-        // Every candidate is imported regardless of whether its day's price could be fetched —
-        // a row with no price is still real ledger data (type, amount, date, source tx) the user
-        // can see and fill the price into themselves, rather than silently disappearing.
+        onProgress("Saving ${candidates.size} transaction${if (candidates.size == 1) "" else "s"}…")
         var importedCount = 0
-        var missingPriceCount = 0
+        var pendingPriceCount = 0
+        val pendingIdsByDay = mutableMapOf<Long, MutableList<String>>()
         for (candidate in candidates) {
-            val price = priceByDay[candidate.dayStartMillis]
-            if (price == null) missingPriceCount++
+            // Days already in the persistent cache price instantly and for free — only genuinely
+            // unknown days go to the background backfill.
+            val cachedPrice = readPersistedHistoricalPrice(candidate.dayStartMillis, currency)
             val amountKas = candidate.amountSompi / 100_000_000.0
+            val id = UUID.randomUUID().toString()
             database.portfolioDao().insert(
                 PortfolioTransactionEntity(
-                    id = UUID.randomUUID().toString(),
+                    id = id,
                     walletAddress = walletAddress,
                     portfolioId = portfolioId,
                     type = if (candidate.sent) "sell" else "buy",
                     amountSompi = candidate.amountSompi,
-                    fiatValue = amountKas * (price ?: 0.0),
+                    fiatValue = amountKas * (cachedPrice ?: 0.0),
                     timestampMillis = candidate.timestampMillis,
-                    notes = if (price == null) PRICE_UNAVAILABLE_NOTE else null,
+                    notes = if (cachedPrice == null) PRICE_UNAVAILABLE_NOTE else null,
                     sourceAddress = trimmed,
                     sourceTxId = candidate.txId
                 )
             )
             importedCount++
+            if (cachedPrice == null) {
+                pendingPriceCount++
+                pendingIdsByDay.getOrPut(candidate.dayStartMillis) { mutableListOf() }.add(id)
+            }
         }
 
-        return AddressImportResult(importedCount, missingPriceCount)
+        if (pendingIdsByDay.isNotEmpty()) {
+            priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency) }
+        }
+
+        return AddressImportResult(importedCount, pendingPriceCount)
+    }
+
+    /**
+     * Prices imported-but-unpriced rows day by day, updating each day's rows as its price lands.
+     * One historical-price fetch per unique day (CoinGecko's history endpoint is daily-granularity
+     * anyway), paced [PRICE_REQUEST_SPACING_MILLIS] apart to stay under the free tier's limit.
+     * A recorded Retry-After window ([throttledUntilMillis]) is waited out before each attempt —
+     * the old inline loop's blind 1.2s retry always landed inside the ~59s window and failed —
+     * and plain failures back off exponentially per day, [MAX_BACKFILL_ATTEMPTS_PER_DAY] tries
+     * each. Rows the user has manually priced meanwhile (note no longer [PRICE_UNAVAILABLE_NOTE])
+     * are left alone.
+     */
+    private suspend fun backfillHistoricalPrices(
+        walletAddress: String,
+        pendingIdsByDay: Map<Long, List<String>>,
+        currency: String
+    ) {
+        val days = pendingIdsByDay.keys.sorted()
+        for ((index, day) in days.withIndex()) {
+            var price: Double? = null
+            var backoffMillis = 3_000L
+            for (attempt in 0 until MAX_BACKFILL_ATTEMPTS_PER_DAY) {
+                // Don't spend an attempt inside a known throttle window — wait it out instead.
+                throttledUntilMillis?.let { until ->
+                    val wait = until - System.currentTimeMillis()
+                    if (wait > 0) delay(wait + 1_000L)
+                }
+                price = getHistoricalPrice(day, currency)
+                if (price != null) break
+                if (attempt < MAX_BACKFILL_ATTEMPTS_PER_DAY - 1 && throttledUntilMillis == null) {
+                    delay(backoffMillis)
+                    backoffMillis = minOf(backoffMillis * 2, 60_000L)
+                }
+            }
+            if (price != null) {
+                val dayPrice = price
+                val idsForDay = pendingIdsByDay.getValue(day).toSet()
+                val currentRows = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
+                for (row in currentRows) {
+                    // Re-check the marker so a price the user already set by hand mid-backfill
+                    // is never overwritten.
+                    if (row.id in idsForDay && row.notes == PRICE_UNAVAILABLE_NOTE) {
+                        val amountKas = row.amountSompi / 100_000_000.0
+                        database.portfolioDao().insert(row.copy(fiatValue = amountKas * dayPrice, notes = null))
+                    }
+                }
+            }
+            if (index < days.size - 1) {
+                delay(PRICE_REQUEST_SPACING_MILLIS)
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -463,10 +709,39 @@ class PortfolioRepository @Inject constructor(
         fields.add(current.toString())
         return fields
     }
+
+    companion object {
+        private const val PRICE_HISTORY_PREFS_NAME = "kachat_price_history_cache"
+
+        /** How long a persisted (currency, days) history counts as fresh — long enough to make range cycling and relaunches free, short enough that the chart never looks meaningfully out of date. */
+        const val PRICE_HISTORY_CACHE_TTL_MILLIS = 10 * 60 * 1000L
+
+        /** How long a persisted current price counts as fresh enough to skip the network entirely
+         *  on a non-forced refresh — CoinGecko itself caches this endpoint 30-60s server-side
+         *  (Cache-Control max-age=30, s-maxage=60), so refetching inside a minute buys nothing
+         *  and burns keyless-tier rate-limit budget. Every screen that instantiates its own
+         *  PortfolioViewModel (Send, Cold Storage, Portfolio tab) fires a refresh on init, so
+         *  this window is what keeps normal navigation from tripping the throttle. */
+        const val CURRENT_PRICE_FRESH_MILLIS = 60 * 1000L
+
+        /** The longest Retry-After worth honoring with an in-place delay inside a fetch call —
+         *  anything longer (CoinGecko's real throttle window is ~59s) is recorded in
+         *  [throttledUntilMillis] for a deferred, non-blocking retry instead. */
+        const val MAX_INLINE_RETRY_SECONDS = 10.0
+
+        /** Spacing between sequential historical-price fetches during an import's backfill. */
+        const val PRICE_REQUEST_SPACING_MILLIS = 1_200L
+
+        /** Attempts per day before the backfill moves on and leaves that day's rows flagged for
+         *  manual pricing — each attempt already waits out any known throttle window first. */
+        const val MAX_BACKFILL_ATTEMPTS_PER_DAY = 4
+    }
 }
 
-/** [missingPriceCount] rows were still imported (with fiatValue 0.0 and a flagging note) — not skipped — because that day's historical price couldn't be fetched. */
-data class AddressImportResult(val importedCount: Int, val missingPriceCount: Int)
+/** [pendingPriceCount] rows were imported with fiatValue 0.0 and a flagging note — their days'
+ *  prices are being backfilled in the background and fill in as each fetch lands; only rows
+ *  whose price never arrives keep the note for manual pricing. */
+data class AddressImportResult(val importedCount: Int, val pendingPriceCount: Int)
 
 /** Marks a [PortfolioTransactionEntity.notes] value as "auto-imported but couldn't be priced" — checked by [com.kachat.app.ui.screens.PortfolioScreen]'s transaction row to show a warning icon flagging rows that still need the user to fill in a price. */
 const val PRICE_UNAVAILABLE_NOTE = "Price unavailable — set manually"

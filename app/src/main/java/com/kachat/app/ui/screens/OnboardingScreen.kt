@@ -2,6 +2,7 @@ package com.kachat.app.ui.screens
 
 import android.app.Activity
 import android.view.WindowManager
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +37,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.kachat.app.R
+import com.kachat.app.models.SourceWalletOption
+import com.kachat.app.models.WalletSourceFamily
 import com.kachat.app.services.WalletManager
 import com.kachat.app.ui.theme.KaspaSubtext
 import com.kachat.app.ui.theme.KaspaTeal
@@ -62,6 +65,7 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
             WelcomeScreen(
                 viewModel,
                 onNavigateToCreate = { navController.navigate("create_account") },
+                onOpenAppSettings = { navController.navigate("app_settings") },
                 onNavigateToImport = {
                     // A stale SUCCESS/FAILED status left over from a previous import would
                     // otherwise fire ImportWalletScreen's success LaunchedEffect immediately on
@@ -69,12 +73,23 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                     // silently logging into whatever account is currently active instead of
                     // letting the user type a new phrase.
                     viewModel.resetImportWalletState()
-                    navController.navigate("import_wallet")
+                    // KasWare-style source-wallet chooser comes FIRST, before seed entry — the
+                    // choice sets the identity derivation family the seed is read with.
+                    navController.navigate("import_source")
                 }
             )
         }
         composable("create_account") {
             CreateAccountScreen(viewModel, onBack = { navController.popBackStack() })
+        }
+        composable("import_source") {
+            ImportSourceWalletScreen(
+                onBack = { navController.popBackStack() },
+                onContinue = { family ->
+                    viewModel.setPendingSourceFamily(family)
+                    navController.navigate("import_wallet")
+                }
+            )
         }
         composable("import_wallet") {
             ImportWalletScreen(
@@ -116,15 +131,81 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 onProceed = { passphrase -> viewModel.commitImport(passphrase) }
             )
         }
+
+        // App Settings (the gear on the accounts screen, matching iOS's gearshape sheet on
+        // OnboardingView): ONLY the app-wide settings tier - Customization/Security/Connection/
+        // Diagnostics - every leaf reusing the exact screens the in-account Settings uses.
+        composable("app_settings") {
+            AppSettingsHubScreen(
+                onBack = { navController.popBackStack() },
+                onOpenCustomization = { navController.navigate("app_settings_customization") },
+                onOpenSecurity = { navController.navigate("app_settings_security") },
+                onOpenConnection = { navController.navigate("app_settings_connection") },
+                onOpenDiagnostics = { navController.navigate("app_settings_diagnostics") }
+            )
+        }
+        composable("app_settings_customization") {
+            AppCustomizationScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToLanguage = { navController.navigate("app_settings_language") },
+                onNavigateToCurrency = { navController.navigate("app_settings_currency") },
+                walletViewModel = viewModel
+            )
+        }
+        composable("app_settings_language") {
+            LanguageSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_currency") {
+            CurrencySettingsScreen(onBack = { navController.popBackStack() }, walletViewModel = viewModel)
+        }
+        composable("app_settings_security") {
+            AppSecurityScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToChildMode = { navController.navigate("app_settings_child_mode") },
+                walletViewModel = viewModel
+            )
+        }
+        composable("app_settings_child_mode") {
+            // Fully functional with no account active - the password record and enabled flag
+            // are device-global (ChildModeService's EncryptedSharedPreferences + DataStore).
+            ChildModeSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_connection") {
+            ConnectionSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_diagnostics") {
+            AppDiagnosticsScreen(onBack = { navController.popBackStack() })
+        }
     }
 }
 
 @Composable
-fun WelcomeScreen(viewModel: WalletViewModel, onNavigateToCreate: () -> Unit, onNavigateToImport: () -> Unit) {
+fun WelcomeScreen(
+    viewModel: WalletViewModel,
+    onNavigateToCreate: () -> Unit,
+    onNavigateToImport: () -> Unit,
+    onOpenAppSettings: () -> Unit = {}
+) {
     Surface(
         color = LocalAppColors.current.background,
         modifier = Modifier.fillMaxSize()
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+        // Top-right gear (matches iOS OnboardingView's gearshape toolbar button): app-wide
+        // settings that make sense with no account active - see AppSettingsHubScreen.
+        IconButton(
+            onClick = onOpenAppSettings,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 8.dp, end = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = stringResource(R.string.app_settings),
+                tint = LocalAppColors.current.textSecondary
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -248,13 +329,14 @@ fun WelcomeScreen(viewModel: WalletViewModel, onNavigateToCreate: () -> Unit, on
                 }
             }
         }
+        }
     }
 }
 
 @Composable
 fun SavedAccountCard(
     account: WalletManager.Account,
-    requireBiometricLogin: Boolean = true,
+    requireBiometricLogin: Boolean = false,
     onLogin: () -> Unit,
     onRename: (String) -> Unit,
     onDelete: () -> Unit
@@ -611,6 +693,18 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
     val filled = slots.count { it.isNotEmpty() && wordList.contains(it.lowercase()) }
     val allValid = slots.size == wordCount && slots.all { it.isNotEmpty() && wordList.contains(it.lowercase()) }
     val canImport = allValid && accountName.isNotBlank()
+
+    // The typed-in phrase is fully visible in the slot grid — exactly as sensitive as the reveal
+    // screens, so it gets the same screenshot/recording block. The custom keyboard already keeps
+    // it away from the OS keyboard and clipboard; this closes the screen-capture side. Cleared
+    // on dispose like BackupMnemonicScreen/SeedPhraseScreen's identical guards.
+    val window = (LocalContext.current as? Activity)?.window
+    DisposableEffect(window) {
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
 
     Surface(color = LocalAppColors.current.background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -1173,4 +1267,139 @@ private fun PassphraseInputField(
             unfocusedIndicatorColor = Color.Transparent
         )
     )
+}
+
+/**
+ * KasWare-style "which wallet is this seed from?" chooser, shown FIRST when the user taps Import
+ * Existing Account (before seed entry, which then continues exactly as before). Ported from iOS's
+ * `ImportSourceWalletView`. The selection maps a wallet name to its identity derivation-path
+ * family ([WalletSourceFamily], rules replicated from KasWare's RESTORE_WALLETS/ADDRESS_TYPES +
+ * hd-keyring derivation), so KaChat derives the chatting identity where that wallet actually kept
+ * the user's funds and KNS domains. KaChat is preselected at the top; KaChat's own spending chain
+ * always stays on the m/44'/111111'/1' branch regardless of this choice (see WalletManager's
+ * decision comment).
+ */
+@Composable
+fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily) -> Unit) {
+    val options = remember { SourceWalletOption.ALL }
+    var selectedName by remember { mutableStateOf(options.first().displayName) }
+    val selectedFamily = options.firstOrNull { it.displayName == selectedName }?.family
+        ?: WalletSourceFamily.KASPA_STANDARD
+
+    Surface(color = LocalAppColors.current.background, modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(LocalAppColors.current.surface, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                    tint = LocalAppColors.current.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Icon(
+                Icons.Default.AccountBalanceWallet,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier
+                    .size(48.dp)
+                    .align(Alignment.CenterHorizontally)
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.where_is_this_seed_phrase_from),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = LocalAppColors.current.textPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.different_wallets_store_your_kaspa),
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(16.dp))
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                options.forEach { option ->
+                    val isSelected = option.displayName == selectedName
+                    Surface(
+                        color = LocalAppColors.current.surface,
+                        shape = RoundedCornerShape(12.dp),
+                        border = if (isSelected) BorderStroke(1.5.dp, KaspaTeal) else null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedName = option.displayName }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = null,
+                                tint = if (isSelected) KaspaTeal else LocalAppColors.current.textSecondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        option.displayName,
+                                        color = LocalAppColors.current.textPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    if (option.isDefault) {
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            stringResource(R.string.default_label),
+                                            color = KaspaTeal,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    option.family.pathDescription,
+                                    color = LocalAppColors.current.textSecondary,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { onContinue(selectedFamily) },
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.continue_label), color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
 }

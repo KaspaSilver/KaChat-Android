@@ -9,7 +9,6 @@
     <string name="account_name">アカウント名</string>
     <string name="active_nodes">アクティブノード</string>
     <string name="add">追加</string>
-    <string name="add_address">アドレスを追加</string>
     <string name="add_contact">連絡先を追加</string>
     <string name="add_transaction">取引を追加</string>
     <string name="add_to_portfolio">ポートフォリオに追加</string>
@@ -31,7 +30,6 @@
     <string name="broadcast_settings">ブロードキャスト設定</string>
     <string name="broadcasting">ブロードキャスト中...</string>
     <string name="broadcasts">ブロードキャスト</string>
-    <string name="broadcasts_are_public_unencrypted_channels_anyone">ブロードキャストは公開された暗号化されていないチャンネルです。同じチャンネル名に参加した人は誰でも同じメッセージを見ます。</string>
     <string name="build_unsigned_transaction">未署名トランザクションを作成</string>
     <string name="building_transaction">トランザクションを作成中...</string>
     <string name="camera_permission_is_needed_to_scan">QRコードをスキャンするにはカメラアクセスが必要です</string>
@@ -41,7 +39,6 @@
     <string name="cancel_reply">返信をキャンセル</string>
     <string name="change">変更</string>
     <string name="changenow_exchange_id">ChangeNOW交換ID</string>
-    <string name="channels">チャンネル</string>
     <string name="chats">チャット</string>
     <string name="chatting_address">チャットアドレス</string>
     <string name="chatting_address_2">チャットアドレス</string>
@@ -112,7 +109,6 @@
     <string name="google_drive_backup_used">Google Driveバックアップを使用しました</string>
     <string name="grant_permission">許可を付与</string>
     <string name="grant_permission_2">許可を付与</string>
-    <string name="group_chat">グループチャット</string>
     <string name="group_chats">グループチャット</string>
     <string name="group_info">グループ情報</string>
     <string name="group_name">グループ名</string>
@@ -169,14 +165,12 @@
     <string name="name">名前</string>
     <string name="name_optional">名前（任意）</string>
     <string name="name_this_address">このアドレスに名前を付ける</string>
-    <string name="network">ネットワーク</string>
     <string name="never_send_kaspa_you_intend_to">使用するつもりのKaspaをこのアドレスに送らないでください。</string>
     <string name="next">次へ</string>
     <string name="no_conversations_yet">まだ会話がありません</string>
     <string name="no_group_chats_yet">まだグループチャットがありません</string>
     <string name="no_matching_chats">一致するチャットがありません</string>
     <string name="no_matching_groups">一致するグループがありません</string>
-    <string name="no_broadcast_channels_yet">まだブロードキャストチャンネルがありません</string>
     <string name="no_cold_storage_accounts_yet_scan">まだコールドストレージアカウントがありません。残高を監視してそこから送金するには、KasSignerデバイスからエクスポートされたkpubをスキャンしてください。</string>
     <string name="no_domains_yet">まだドメインがありません。</string>
     <string name="no_hidden_addresses">非表示のアドレスはありません。</string>
@@ -210,8 +204,6 @@
     <string name="photos">写真</string>
     <string name="polygon_network">Polygonネットワーク</string>
     <string name="pool_health">プールの状態</string>
-    <string name="popular">人気</string>
-    <string name="popular_tab">人気タブ</string>
     <string name="portfolio">ポートフォリオ</string>
     <string name="powered_by_changenow">ChangeNOW提供</string>
     <string name="price_per_coin">コインあたりの価格</string>
@@ -235,7 +227,6 @@
     <string name="reserved_domain_no_registration_fee_only">予約済みドメイン: 登録料なし、ネットワーク手数料のみ適用されます。</string>
     <string name="resign">投了</string>
     <string name="resign_this_game">この対局を投了しますか?</string>
-    <string name="resolving_kns_domain">KNSドメインを解決中…</string>
     <string name="resolving_domain">ドメインを解決中…</string>
     <string name="resolving">解決中...</string>
     <string name="retention">保持</string>
@@ -271,7 +262,6 @@
     <string name="show_more">もっと見る</string>
     <string name="show_photo">写真を表示</string>
     <string name="show_qr_code">QRコードを表示</string>
-    <string name="shows_a_tab_of_recommended_broadcast">参加できるおすすめのブロードキャストルームのタブを表示します。</string>
     <string name="shows_senders_kns_avatars_in_rooms">部屋の送信者のKNSアバターを表示し、メッセージが表示されると自動的に検索します。オフにすると、全員にシンプルなイニシャルが表示され、アバターは取得されません。</string>
     <string name="skip">スキップ</string>
     <string name="some_changes_failed_to_save">一部の変更を保存できませんでした:</string>
@@ -290,9 +280,6 @@
     <string name="this_could_take_a_few_minutes">チェーン上で確認されるまで数分かかる場合があります。</string>
     <string name="this_only_removes_it_from_kachat">これはKaChatのウォッチリストから削除するだけです。KasSignerデバイスや保有する資金には影響しません。</string>
     <string name="this_permanently_deletes_every_message_with">これはこのデバイス上の彼らとのすべてのメッセージを完全に削除します。これは元に戻せません。再度メッセージを送ると、まったく新しい会話が始まります。</string>
-    <string name="this_permanently_deletes_this_account_s">これはこのアカウントのウォレットキーと、このデバイスからのすべてのローカルメッセージおよび連絡先を完全に削除します。シードフレーズを保存していない限り元に戻せません。それがないと、残りの残高は復元できません。</string>
-    <string name="this_permanently_deletes_this_account_s_2">これはこのアカウントのウォレットキー、すべてのローカルメッセージと連絡先、およびGoogle Driveバックアップを完全に削除します。シードフレーズを保存していない限り元に戻せません。それがないと、残りの残高は復元できません。</string>
-    <string name="this_removes_all_incoming_messages_locally">これはすべての受信メッセージをローカルで削除し、その後ブロックチェーンから再同期します。アカウント情報と送信済みメッセージは保持されます。</string>
     <string name="this_removes_the_group_and_its">これはこのデバイスからグループとそのメッセージを削除します。これは元に戻せず、他のメンバーには通知されません。</string>
     <string name="this_signs_out_of_your_account">アカウントからサインアウトしますが、ローカルのウォレットとメッセージデータはこのデバイスに残ります。</string>
     <string name="to">送信先</string>
@@ -312,13 +299,6 @@
     <string name="view_on_changenow">ChangeNOWで表示</string>
     <string name="waiting_for_camera">カメラを待っています...</string>
     <string name="waiting_on_opponent">相手を待っています</string>
-    <string name="when_you_message_someone_new_on">KaChatで新しい相手にメッセージを送ると、相手には通知が届かず、相手が返信するかあなたを追加するまであなたのメッセージは非表示のままです。これによりスパムから保護され、プライバシーが向上します。相手に通知させたい場合は、手のアイコンをタップして通信リクエストを送信してください。費用は0.2 KASです。(注: KaChat以外のすべてのメッセージングアプリは通信リクエストが必要です)</string>
-    <string name="wipe_account">アカウントを削除</string>
-    <string name="wipe_everything">すべて削除</string>
-    <string name="wipe_incoming_messages">受信メッセージを消去</string>
-    <string name="wipe_account_messages">アカウントとメッセージを消去</string>
-    <string name="wipe_account_messages_cloud">アカウントとメッセージとクラウドを削除</string>
-    <string name="wipe_and_re_sync_incoming_messages">受信メッセージを消去して再同期</string>
     <string name="you_will_be_shown_a_seed">シードフレーズが表示されます。これがアカウントを復元する唯一の方法です。必ず書き留めるだけにしてください。スクリーンショットを撮ったり、デバイスに保存したりしないでください。</string>
     <string name="channel_name">チャンネル名</string>
     <string name="host_port_or_grpcs_host">host:port または grpcs://host</string>
@@ -337,7 +317,6 @@
     <string name="swap_failed">スワップに失敗しました</string>
     <string name="nothing_to_consolidate">統合するものがありません</string>
     <string name="about">情報</string>
-    <string name="account">アカウント</string>
     <string name="actions">アクション</string>
     <string name="active">アクティブ</string>
     <string name="autocreate_system_contacts">システム連絡先を自動作成</string>
@@ -402,7 +381,6 @@
     <string name="save_photo">写真を保存</string>
     <string name="save_your_own_node_addresses_here">ここに自分のノードアドレスを保存し、コピーして上のKaspaノードフィールドに貼り付けるには1つをタップしてください。</string>
     <string name="security">セキュリティ</string>
-    <string name="select_mainnet_for_real_transactions_or">本番のトランザクションにはmainnet、テストにはtestnetを選択</string>
     <string name="send_audio_message">音声メッセージを送信</string>
     <string name="send_handshake">通信リクエストを送信</string>
     <string name="send_photo_2">写真を送信</string>
@@ -421,7 +399,6 @@
     <string name="system_contact">システム連絡先</string>
     <string name="telegram">Telegram</string>
     <string name="total">合計</string>
-    <string name="unfinished_inscription">未完了のインスクリプション</string>
     <string name="uses_your_device_contacts_to_match">デバイスの連絡先を使用してKaspa連絡先とマッチングし補完します。</string>
     <string name="verified">検証済み</string>
     <string name="verifying_new_ownership_on_chain_this">チェーン上で新しい所有権を確認中 (1分ほどかかる場合があります)...</string>
@@ -433,7 +410,6 @@
     <string name="view_seed_phrase">Seed Phraseを表示</string>
     <string name="view_in_explorer">エクスプローラーで表示</string>
     <string name="website">ウェブサイト</string>
-    <string name="welcome_guide">ようこそガイド</string>
     <string name="x">X</string>
     <string name="x_twitter">X (Twitter)</string>
     <string name="language">言語</string>
@@ -458,7 +434,6 @@
     <string name="best">最適</string>
     <string name="spending_address">支出用アドレス</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port または grpcs://host の形式で入力してください</string>
-    <string name="show_setup_guides">セットアップガイドを表示</string>
     <string name="receive_kaspa">Kaspaを受け取る</string>
     <string name="currency">通貨</string>
     <string name="choose_your_currency">通貨を選択してください</string>

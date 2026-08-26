@@ -11,7 +11,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -107,6 +110,19 @@ class KaspadConnection internal constructor(
     var isConnected: Boolean = false
         private set
 
+    /**
+     * Bumped on every stream-lifecycle transition: each (re)connect in [connect], each
+     * unexpected stream death, and [close]. Server-side subscription state (e.g. a block-added
+     * NOTIFY_START — see [subscribeToBlockAdded]) lives on the underlying stream and dies with
+     * it, so a subscriber that must survive failover watches this flow: any change from the
+     * value observed at subscribe time means "your subscription is gone — re-send NOTIFY_START
+     * on whatever connection is best now". This exists because the returned notification Flow
+     * is a SharedFlow whose collectors never complete on their own, so "collect returned" can
+     * never be the death signal (it never returns).
+     */
+    private val generation = MutableStateFlow(0L)
+    val connectionGeneration: StateFlow<Long> = generation.asStateFlow()
+
     /** Set by [close] before cancelling the stream job, so the job's own cancellation doesn't
      * get mistaken for an unexpected drop and trigger [scheduleAutoReconnect]. */
     @Volatile
@@ -137,6 +153,7 @@ class KaspadConnection internal constructor(
         if (isConnected) return
         isConnected = true
         reconnectAttempts = 0
+        generation.value++
         streamJob = scope.launch {
             try {
                 stub.messageStream(outbound.receiveAsFlow()).collect { response ->
@@ -154,6 +171,10 @@ class KaspadConnection internal constructor(
                 throw e
             } catch (e: Exception) {
                 isConnected = false
+                // Death is its own generation bump (not just the later reconnect's): a watcher
+                // must learn its subscription is gone even if this connection never reconnects
+                // (e.g. NodePoolManager closes it and hands out a different node next).
+                generation.value++
                 pending.values.forEach { it.completeExceptionally(e) }
                 pending.clear()
                 Log.w("KaspadConnection", "Stream died unexpectedly on $address: ${e.javaClass.simpleName}: ${e.message}")
@@ -210,12 +231,14 @@ class KaspadConnection internal constructor(
         }
     }
 
-    suspend fun getInfo(): Rpc.GetInfoResponseMessage = call(
+    suspend fun getInfo(timeoutMs: Long = 5000): Rpc.GetInfoResponseMessage = call(
+        timeoutMs = timeoutMs,
         build = { id -> kaspadRequest { this.id = id; getInfoRequest = getInfoRequestMessage {} } },
         extract = { it.getInfoResponse }
     )
 
-    suspend fun getBlockDagInfo(): Rpc.GetBlockDagInfoResponseMessage = call(
+    suspend fun getBlockDagInfo(timeoutMs: Long = 5000): Rpc.GetBlockDagInfoResponseMessage = call(
+        timeoutMs = timeoutMs,
         build = { id -> kaspadRequest { this.id = id; getBlockDagInfoRequest = getBlockDagInfoRequestMessage {} } },
         extract = { it.getBlockDagInfoResponse }
     )
@@ -328,6 +351,7 @@ class KaspadConnection internal constructor(
     fun close() {
         closed = true
         isConnected = false
+        generation.value++
         streamJob?.cancel()
         pending.values.forEach { it.cancel() }
         pending.clear()

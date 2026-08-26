@@ -31,6 +31,16 @@ class NetworkService @Inject constructor(
     private val _knsApi = MutableStateFlow<KnsApi?>(null)
     val knsApi: StateFlow<KnsApi?> = _knsApi
 
+    private val _kapostApi = MutableStateFlow<KaPostApi?>(null)
+    val kapostApi: StateFlow<KaPostApi?> = _kapostApi
+
+    // Push registration lives on the same host as KaPosts (kachat.duckdns.org).
+    private val _pushApi = MutableStateFlow<PushApi?>(null)
+    val pushApi: StateFlow<PushApi?> = _pushApi
+
+    private val _broadcastIndexerApi = MutableStateFlow<BroadcastIndexerApi?>(null)
+    val broadcastIndexerApi: StateFlow<BroadcastIndexerApi?> = _broadcastIndexerApi
+
     init {
         observeSettings()
     }
@@ -49,6 +59,23 @@ class NetworkService @Inject constructor(
         scope.launch {
             settings.knsApiUrl.collectLatest { url ->
                 createApi<KnsApi>(url)?.let { _knsApi.value = it }
+            }
+        }
+        scope.launch {
+            settings.kapostIndexerUrl.collectLatest { url ->
+                createApi<KaPostApi>(url)?.let { _kapostApi.value = it }
+            }
+        }
+        scope.launch {
+            // Push registration has its own configurable host (mirrors iOS's pushIndexerURL),
+            // defaulting to the same kachat.duckdns.org.
+            settings.pushIndexerUrl.collectLatest { url ->
+                createApi<PushApi>(url)?.let { _pushApi.value = it }
+            }
+        }
+        scope.launch {
+            settings.broadcastIndexerUrl.collectLatest { url ->
+                createApi<BroadcastIndexerApi>(url)?.let { _broadcastIndexerApi.value = it }
             }
         }
     }

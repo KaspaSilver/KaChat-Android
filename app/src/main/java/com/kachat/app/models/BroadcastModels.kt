@@ -7,6 +7,11 @@ object BroadcastRetention {
     val MAX_MILLIS = 3L * 24 * 60 * 60 * 1000L
     val DEFAULT_MILLIS = 3L * 60 * 60 * 1000L
 
+    /** Retention for the FEATURED indexer-backed rooms (#kaspa / #kachat-bugs): the KaChat
+     *  indexer holds 30 days and the room should always show all of it — the 3-day cap
+     *  silently pruned days 4-30 locally even after a full backfill (matches iOS/desktop). */
+    val INDEXER_MILLIS = 30L * 24 * 60 * 60 * 1000L
+
     /** A unit the retention settings dialog lets the user enter an amount in — each capped so amount * millisPerUnit can never exceed MAX_MILLIS. */
     enum class Unit(val label: String, val millisPerUnit: Long) {
         SECONDS("seconds", 1_000L),
@@ -92,9 +97,14 @@ data class BroadcastMessageEntity(
  * before the hide), and skipped entirely at scan-time insertion (see BroadcastScanningService, so
  * hidden senders' messages are never stored going forward either).
  */
-@Entity(tableName = "broadcast_hidden_senders", primaryKeys = ["senderAddress", "walletAddress"])
+@Entity(tableName = "broadcast_hidden_senders", primaryKeys = ["senderAddress", "walletAddress", "channelName"])
 data class HiddenBroadcastSenderEntity(
     val senderAddress: String,
     val walletAddress: String,
+    /**
+     * PER-ROOM since 4.0 (matches iOS): a hide applies to one channel. "" is the legacy
+     * every-room scope - rows migrated from before this column keep hiding everywhere.
+     */
+    val channelName: String = "",
     val hiddenAt: Long = System.currentTimeMillis()
 )

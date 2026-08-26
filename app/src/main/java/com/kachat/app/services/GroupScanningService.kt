@@ -2,16 +2,19 @@ package com.kachat.app.services
 
 import android.util.Log
 import com.kachat.app.repository.GroupRepository
+import com.kachat.app.services.grpc.KaspadConnection
 import com.kachat.app.util.GroupCipher
 import com.kachat.app.util.KaspaAddress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import protowire.Rpc
 import javax.inject.Inject
@@ -35,11 +38,24 @@ private fun hexPrefix(prefix: String): String = prefix.toByteArray(Charsets.US_A
  * own doc comment, and its call sites in `ChatViewModel.refreshChats()` and `KaChatApplication`'s
  * app-foreground observer.
  *
- * Runs whenever a wallet is active - NOT gated on already having a joined group. A `gctl_root`
- * direct-add (from [GroupRepository.createGroup]/`addMember` on the *admin's* device) is a push
- * from someone who may be adding us to a group we've never heard of before, so there's no local
- * state to gate discovery on: if scanning only started once a group already existed locally, a
- * brand-new member could never receive the very message that creates that first local record.
+ * Runs only while the wallet actually HAS at least one group AND the app is foregrounded AND
+ * the network is unmetered. The block stream pushes every mined block (roughly 1-4 GB/day at
+ * Kaspa's block rate), so subscribing "just in case" is by far the app's biggest data cost:
+ *
+ *  - **Zero groups**: nothing live to scan for. A `gctl_root` direct-add ("you were added to a
+ *    group you've never heard of") does NOT need this stream — [GroupRepository.syncGroups] runs
+ *    `GET /group-control/by-recipient` (cursored) unconditionally, before it looks at any local
+ *    group state, so the invite arrives via the on-foreground catch-up in `KaChatApplication`,
+ *    the 15-minute `SyncWorker`, or a manual refresh. The moment that invite creates the first
+ *    local group record, the group-count flow below flips and live scanning starts.
+ *  - **Backgrounded**: the stream would pull full blocks for hours on battery-exempted devices
+ *    with nobody watching; the 15-minute `SyncWorker` catch-up is delivery there, exactly as it
+ *    is for a closed app. Re-foregrounding restarts the stream (with a catch-up sync first).
+ *  - **Metered (cellular)**: never stream, even with groups and foregrounded — full blocks over
+ *    mobile data is the wrong trade. Group messages/invites still arrive via the same cursored
+ *    indexer catch-ups (foreground sync, per-chat refresh, 15-min worker); the cost is latency
+ *    (seconds-to-minutes instead of instant), not lost delivery.
+ *
  * `gcomm` matches remain cheap no-ops when irrelevant, since they're filtered against known
  * groups downstream in [GroupRepository] regardless.
  *
@@ -49,13 +65,25 @@ private fun hexPrefix(prefix: String): String = prefix.toByteArray(Charsets.US_A
 @Singleton
 class GroupScanningService @Inject constructor(
     private val nodePoolManager: NodePoolManager,
-    private val groupRepository: GroupRepository
+    private val groupRepository: GroupRepository,
+    private val notificationHelper: NotificationHelper,
+    private val meteredNetwork: MeteredNetwork
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
+    // True once a live block scan has ever been established this process. Any scan started
+    // after that point follows a gap (stream error, node failover, empty-pool window) during
+    // which group txs may have been mined unseen - the block scan is purely live, so without
+    // an indexer catch-up those messages would not appear until the next app foreground,
+    // 15-min SyncWorker run, or manual pull-to-refresh (iOS runs the same catch-up on its
+    // .rpcSubscriptionsRestored signal).
+    private var hadLiveScan = false
 
-    private val gcommPrefixHex = hexPrefix("ciph_msg:1:gcomm:")
-    private val gctlPrefixHex = hexPrefix("ciph_msg:1:gctl:")
+    // Dual-read: write the new `kchat:` root, still scan for the legacy `ciph_msg:` root too.
+    private val gcommPrefixHex = hexPrefix("kchat:1:gcomm:")
+    private val gctlPrefixHex = hexPrefix("kchat:1:gctl:")
+    private val legacyGcommPrefixHex = hexPrefix("ciph_msg:1:gcomm:")
+    private val legacyGctlPrefixHex = hexPrefix("ciph_msg:1:gctl:")
 
     init {
         // Gated on the pool already having a proven-active node, not just hasActiveWallet alone -
@@ -65,9 +93,18 @@ class GroupScanningService @Inject constructor(
         // own cold-start discovery/probing - real contention that visibly delayed the app
         // connecting to any nodes at all. Waiting for at least one active node means this reuses
         // an already-established, already-healthy connection instead.
+        //
+        // The group-count / foreground / metered gates are the data-cost side — see the class
+        // doc for why each is safe for invite and message delivery.
         scope.launch {
-            combine(groupRepository.hasActiveWallet, nodePoolManager.activeNodes) { active, nodes ->
-                active && nodes.isNotEmpty()
+            combine(
+                groupRepository.hasActiveWallet,
+                nodePoolManager.activeNodes,
+                groupRepository.getGroupCount(),
+                notificationHelper.appForegroundFlow,
+                meteredNetwork.isMeteredFlow
+            ) { active, nodes, groupCount, foreground, metered ->
+                active && nodes.isNotEmpty() && groupCount > 0 && foreground && !metered
             }.distinctUntilChanged().collectLatest { shouldRun ->
                 onWalletActiveChanged(shouldRun)
             }
@@ -81,15 +118,49 @@ class GroupScanningService @Inject constructor(
         if (active) startInternal() else stopInternal()
     }
 
+    /** The exact connection the live NOTIFY_START went to — [stopInternal] must send its
+     *  NOTIFY_STOP to THIS node. A fresh getBroadcastConnection() there could hand back a
+     *  different (or newly dialed) node, leaving the actually-subscribed one streaming forever. */
+    @Volatile
+    private var subscribedConnection: KaspadConnection? = null
+
     private fun startInternal() {
         if (isRunning) return
         scanJob = scope.launch {
             while (true) {
+                var conn: KaspadConnection? = null
                 try {
-                    val blocks = nodePoolManager.getBroadcastConnection().subscribeToBlockAdded()
-                    blocks.collect { block -> processBlock(block) }
+                    conn = nodePoolManager.getBroadcastConnection()
+                    // Captured BEFORE subscribing: a death/reconnect racing the NOTIFY_START
+                    // must read as "generation moved" below, not get swallowed.
+                    val subscribedGeneration = conn.connectionGeneration.value
+                    val blocks = conn.subscribeToBlockAdded()
+                    subscribedConnection = conn
+                    // Re-establishing after a gap: backfill from the indexer what the dead
+                    // stream missed, then go live again - see hadLiveScan's doc comment.
+                    if (hadLiveScan) {
+                        try {
+                            groupRepository.syncGroups()
+                        } catch (e: Exception) {
+                            Log.w("GroupScanningService", "Post-reconnect group catch-up failed", e)
+                        }
+                    }
+                    hadLiveScan = true
+                    coroutineScope {
+                        val collector = launch { blocks.collect { block -> processBlock(block) } }
+                        // The blocks Flow is a SharedFlow — its collector NEVER completes, so
+                        // "collect returned" can never signal stream death. The real signal is
+                        // the connection's generation counter, bumped on every stream death,
+                        // reconnect, and close: when it moves past the value captured at
+                        // subscribe time, the server-side NOTIFY_START state is gone and the
+                        // loop must re-send it on whatever connection is best now.
+                        conn.connectionGeneration.first { it != subscribedGeneration }
+                        collector.cancel()
+                    }
                 } catch (e: Exception) {
                     Log.w("GroupScanningService", "Block scanning interrupted, retrying", e)
+                } finally {
+                    if (subscribedConnection === conn) subscribedConnection = null
                 }
                 delay(RETRY_DELAY_MS)
             }
@@ -97,13 +168,18 @@ class GroupScanningService @Inject constructor(
     }
 
     private fun stopInternal() {
+        // Read the subscribed connection BEFORE cancelling — the job's finally block clears it.
+        val conn = subscribedConnection
+        subscribedConnection = null
         scanJob?.cancel()
         scanJob = null
-        scope.launch {
-            try {
-                nodePoolManager.getBroadcastConnection().unsubscribeFromBlockAdded()
-            } catch (e: Exception) {
-                Log.w("GroupScanningService", "Failed to send NOTIFY_STOP", e)
+        if (conn != null) {
+            scope.launch {
+                try {
+                    conn.unsubscribeFromBlockAdded()
+                } catch (e: Exception) {
+                    Log.w("GroupScanningService", "Failed to send NOTIFY_STOP", e)
+                }
             }
         }
     }
@@ -115,8 +191,8 @@ class GroupScanningService @Inject constructor(
             if (txId.isBlank()) continue
 
             val payloadHex = tx.payload
-            val matchesGcomm = payloadHex.startsWith(gcommPrefixHex)
-            val matchesGctl = payloadHex.startsWith(gctlPrefixHex)
+            val matchesGcomm = payloadHex.startsWith(gcommPrefixHex) || payloadHex.startsWith(legacyGcommPrefixHex)
+            val matchesGctl = payloadHex.startsWith(gctlPrefixHex) || payloadHex.startsWith(legacyGctlPrefixHex)
             if (!matchesGcomm && !matchesGctl) continue
 
             val payloadBytes = payloadHex.hexToBytesOrNull() ?: continue

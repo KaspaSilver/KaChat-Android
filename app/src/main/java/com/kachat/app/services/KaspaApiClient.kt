@@ -20,6 +20,11 @@ data class BalanceResponse(
     val balance: Long   // in sompi (1 KAS = 100_000_000 sompi)
 )
 
+/** Request body for the batched `POST addresses/balances` endpoint. */
+data class BalancesRequest(
+    val addresses: List<String>
+)
+
 // Field names verified live against api.kaspa.org's real response (snake_case) —
 // a bare Gson converter (no naming policy) needs explicit @SerializedName for these.
 data class TransactionResponse(
@@ -77,6 +82,18 @@ interface KaspaRestApi {
     suspend fun getBalance(
         @Path("address") address: String
     ): BalanceResponse
+
+    /**
+     * Batched balances for many addresses in ONE round trip (api.kaspa.org's
+     * `POST /addresses/balances`) — used by the import wizard's chatting-address scanner, which
+     * checks 50 derived addresses per pass and must never fan that out into 50 raw requests.
+     * Callers fall back to a bounded-concurrency [getBalance] sweep if a given REST host doesn't
+     * expose this endpoint.
+     */
+    @POST("addresses/balances")
+    suspend fun getBalances(
+        @Body request: BalancesRequest
+    ): List<BalanceResponse>
 
     @GET("addresses/{address}/utxos")
     suspend fun getUtxos(
@@ -166,6 +183,16 @@ interface KasiaIndexerApi {
     /** [blockTime], when given, returns only handshakes at or after that block time — the indexer's own cursor param, letting sync fetch just what's new instead of the same recent window every time. */
     @GET("handshakes/by-receiver")
     suspend fun getHandshakesByReceiver(
+        @Query("address") address: String,
+        @Query("limit") limit: Int = 50,
+        @Query("block_time") blockTime: Long? = null
+    ): List<HandshakeIndexerResponse>
+
+    /** Handshakes YOU sent (requests you initiated + acceptances of others' requests) — the
+     *  restore-parity pass: after a fresh import these prove which conversations were mutual so
+     *  they don't resurface as stranger requests (matches iOS's getHandshakesBySender). */
+    @GET("handshakes/by-sender")
+    suspend fun getHandshakesBySender(
         @Query("address") address: String,
         @Query("limit") limit: Int = 50,
         @Query("block_time") blockTime: Long? = null

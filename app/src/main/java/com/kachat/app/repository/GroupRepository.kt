@@ -5,6 +5,9 @@ package com.kachat.app.repository
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.kachat.app.models.ChatHistoryArchiveGroup
+import com.kachat.app.models.ChatHistoryArchiveGroupMember
+import com.kachat.app.models.ChatHistoryArchiveGroupMessage
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.GroupEntity
 import com.kachat.app.models.GroupMember
@@ -53,6 +56,12 @@ data class GroupMessage(
     val deliveryStatus: String
 )
 
+/** Reserved sender marker for iMessage-style membership system lines ("X was added/removed").
+ *  Stored as a negative-epoch plaintext row; the group thread renders these centered, not as bubbles. */
+const val GROUP_SYSTEM_SENDER = "system"
+
+fun GroupMessage.isSystemMessage(): Boolean = senderAddress == GROUP_SYSTEM_SENDER
+
 /** In-memory model for the Group Chats tab's list - mirrors [com.kachat.app.models.Conversation]'s shape for 1:1 chats. */
 data class GroupConversation(
     val group: GroupEntity,
@@ -91,7 +100,9 @@ class GroupRepository @Inject constructor(
     private val groupSecretStore: GroupSecretStore,
     private val networkService: NetworkService,
     private val notificationHelper: NotificationHelper,
-    private val settings: AppSettingsRepository
+    private val settings: AppSettingsRepository,
+    private val notificationCenter: com.kachat.app.services.GlobalNotificationCenterStore,
+    private val knsService: com.kachat.app.services.KnsService,
 ) {
     private val gson = Gson()
     private val membersListType = object : TypeToken<List<GroupMember>>() {}.type
@@ -107,6 +118,75 @@ class GroupRepository @Inject constructor(
     }
 
     fun getGroupCount(): Flow<Int> = getGroups().map { it.size }
+
+    /** groupId -> that group's newest reaction (with whether it targets one of our own messages) —
+     *  backs the Group Chats tab's "Alice reacted to a message" card preview, mirroring
+     *  [ChatRepository.getLatestReactions] for 1:1 rows. Reactions never become message rows, so
+     *  without this the card silently shows a stale last message when the truly newest activity
+     *  was a reaction. */
+    fun getLatestGroupReactions(): Flow<List<com.kachat.app.services.database.LatestGroupReactionRow>> {
+        return walletManager.activeAddressFlow.flatMapLatest { address ->
+            if (address == null) flowOf(emptyList()) else database.reactionDao().getLatestReactionPerGroup(address)
+        }
+    }
+
+    // Recently-ingested gcomm txIds (messages AND reactions, including reaction removals that
+    // leave no row behind) — lets the FCM group push handler ask "did the local pipeline already
+    // handle this tx?" without a DB shape that covers every case. LRU-capped; synchronized
+    // because the live scan, catch-up sync, and FCM-triggered sync run on different coroutines.
+    private val handledGroupTxIds = object : LinkedHashMap<String, Boolean>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 256
+    }
+
+    @Synchronized
+    private fun markGroupTxHandled(txId: String) {
+        handledGroupTxIds[txId] = true
+    }
+
+    @Synchronized
+    private fun isGroupTxHandledInMemory(txId: String): Boolean = handledGroupTxIds.containsKey(txId)
+
+    /**
+     * Whether [txId] has been ingested by the group pipeline — as a decrypted message row, an
+     * applied reaction, or an in-memory record of processing it this session. The FCM handler
+     * calls this after a push-triggered [syncGroups]: true means the local path already posted
+     * the precise banner (or deliberately stayed silent, e.g. a reaction to someone else's
+     * message), so the generic "New group message" fallback must not fire.
+     */
+    suspend fun isGroupTxIngested(txId: String): Boolean {
+        if (txId.isBlank()) return false
+        if (isGroupTxHandledInMemory(txId)) return true
+        val walletAddress = walletManager.getActiveAccount()?.address ?: return false
+        return database.groupDao().countMessagesByTxId(txId, walletAddress) > 0 ||
+            database.reactionDao().countByReactionTxId(txId, walletAddress) > 0
+    }
+
+    /**
+     * Resolves a push payload's `blinded_group_id` back to the local group it belongs to, or
+     * null when no local group matches (e.g. a membership this device hasn't synced yet).
+     * Blinded ids are per-(group, sender) - see PushRegistrationManager.collectWatchedGroupIds -
+     * so this recomputes every known (group, member) blinded id and compares. Lets the FCM
+     * generic-fallback path consult per-group notification settings (mentions-only) even though
+     * the push itself only carries the blinded id.
+     */
+    suspend fun findGroupByBlindedId(blindedGroupIdHex: String): GroupEntity? {
+        val target = blindedGroupIdHex.trim().lowercase()
+        if (target.isEmpty()) return null
+        val walletAddress = walletManager.getActiveAccount()?.address ?: return null
+        for (group in database.groupDao().getGroupsOnce(walletAddress)) {
+            val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
+            val blindingKey = try { bag.blindingKey.hexToByteArray() } catch (e: Exception) { continue }
+            for (member in membersOf(group)) {
+                val pub = try { member.xOnlyPubKeyHex.hexToByteArray() } catch (e: Exception) { continue }
+                if (GroupCipher.deriveBlindedGroupId(blindingKey, pub).toHexString() == target) return group
+            }
+        }
+        return null
+    }
+
+    /** Whether the per-group "Only Notify if I'm Mentioned" toggle is on for [groupId]. */
+    suspend fun isGroupMentionsOnly(groupId: String): Boolean =
+        groupId in settings.groupMentionsOnly.first()
 
     /** Marks a group's thread as read as of now - backs the Group Chats tab's unread badge. Call when its thread screen opens. */
     suspend fun markGroupRead(groupId: String) {
@@ -129,6 +209,79 @@ class GroupRepository @Inject constructor(
     fun membersOf(group: GroupEntity): List<GroupMember> =
         try { gson.fromJson<List<GroupMember>>(group.membersJson, membersListType) ?: emptyList() } catch (e: Exception) { emptyList() }
 
+    /** Best display name for a membership system line: live contact alias → roster snapshot name → short address. */
+    private suspend fun groupMemberLabel(address: String, walletAddress: String, fallbackDisplayName: String?): String {
+        val alias = try { database.contactDao().getContact(address, walletAddress)?.alias?.trim() } catch (e: Exception) { null }
+        if (!alias.isNullOrEmpty()) return alias
+        val snap = fallbackDisplayName?.trim()
+        if (!snap.isNullOrEmpty()) return snap
+        return address.takeLast(10)
+    }
+
+    /** Best display name for a group member in a notification banner: live contact alias (most
+     *  likely to be current/deliberate - may have been set/changed after this person was added to
+     *  the group) > their primary KNS domain > the group roster's `displayName` snapshot (set
+     *  once, from whoever added them, at add-time) > a shortened address as a last resort - the
+     *  same chain the chat cards and the group thread's sender labels resolve with, so a banner
+     *  never regresses to a raw address for someone the UI names. The KNS step only runs when
+     *  there's no alias (rare - members get a contact row when added), is cached per address for
+     *  10 minutes so a chatty no-alias member can't hammer the KNS API, and any failure just
+     *  falls through to the roster snapshot. */
+    private suspend fun groupSenderLabel(senderAddress: String, walletAddress: String, group: GroupEntity): String {
+        val alias = try { database.contactDao().getContact(senderAddress, walletAddress)?.alias?.trim() } catch (e: Exception) { null }
+        if (!alias.isNullOrEmpty()) return alias
+        val kns = cachedPrimaryKnsDomain(senderAddress)
+        if (!kns.isNullOrEmpty()) return kns
+        val snap = membersOf(group).firstOrNull { it.address == senderAddress }?.displayName?.trim()
+        if (!snap.isNullOrEmpty()) return snap
+        return KaspaAddress.shortDisplay(senderAddress)
+    }
+
+    /** address -> (fetchedAtMs, primary KNS domain or null) for [groupSenderLabel] - a negative
+     *  ("owns no domain") answer is cached too, so it's one lookup per no-alias member per TTL
+     *  window, not per message. */
+    private val senderKnsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String?>>()
+
+    private suspend fun cachedPrimaryKnsDomain(address: String): String? {
+        val now = System.currentTimeMillis()
+        senderKnsCache[address]?.let { (fetchedAt, domain) ->
+            if (now - fetchedAt < 10 * 60_000L) return domain
+        }
+        val domain = try { knsService.reverseResolve(address)?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }
+        senderKnsCache[address] = now to domain
+        return domain
+    }
+
+    /** Insert an iMessage-style membership line into the group thread, stored as a negative-epoch
+     *  plaintext row keyed on the reserved [GROUP_SYSTEM_SENDER] so the UI renders it centered. */
+    private suspend fun insertGroupSystemMessage(groupId: String, walletAddress: String, text: String, blockTime: Long) {
+        val txId = "sys_${groupId.take(8)}_${blockTime}_${text.hashCode()}"
+        database.groupDao().insertMessage(
+            GroupMessageEntity(
+                txId = txId, walletAddress = walletAddress, groupId = groupId,
+                senderAddress = GROUP_SYSTEM_SENDER, senderIdHex = "", epoch = -1L,
+                msgIdHex = "", contentEncryptedHex = text.toByteArray(Charsets.UTF_8).toHexString(),
+                blockTimestamp = blockTime, isOutgoing = false, deliveryStatus = "sent"
+            )
+        )
+    }
+
+    /** Emit "X was added" / "Y was removed" lines for a roster change (old → new), for both the
+     *  admin who made the change and any member who receives the rotated root. */
+    private suspend fun emitMembershipSystemMessages(
+        groupId: String, walletAddress: String, oldMembers: List<GroupMember>, newMembers: List<GroupMember>, blockTime: Long
+    ) {
+        val oldAddrs = oldMembers.map { it.address }.toSet()
+        val newAddrs = newMembers.map { it.address }.toSet()
+        var t = blockTime
+        for (m in newMembers) if (m.address !in oldAddrs) {
+            insertGroupSystemMessage(groupId, walletAddress, "${groupMemberLabel(m.address, walletAddress, m.displayName)} was added to the group chat", t++)
+        }
+        for (m in oldMembers) if (m.address !in newAddrs) {
+            insertGroupSystemMessage(groupId, walletAddress, "${groupMemberLabel(m.address, walletAddress, m.displayName)} was removed from the group chat", t++)
+        }
+    }
+
     /** Decrypted messages for a group, oldest first - decryption happens here, on read, from stored ciphertext. */
     fun getMessages(groupId: String): Flow<List<GroupMessage>> {
         return walletManager.activeAddressFlow.flatMapLatest { address ->
@@ -149,6 +302,16 @@ class GroupRepository @Inject constructor(
     }
 
     private fun decryptEntity(entity: GroupMessageEntity, bag: GroupBag, groupIdBytes: ByteArray): GroupMessage? {
+        // Imported-from-backup rows carry decrypted plaintext (hex of UTF-8) under a negative
+        // epoch sentinel — no group key or ciphertext involved. Preserves message history that
+        // the indexer may have pruned.
+        if (entity.epoch < 0) {
+            val plaintext = try { String(entity.contentEncryptedHex.hexToByteArray(), Charsets.UTF_8) } catch (e: Exception) { return null }
+            return GroupMessage(
+                txId = entity.txId, groupId = entity.groupId, senderAddress = entity.senderAddress, senderIdHex = entity.senderIdHex,
+                content = plaintext, blockTimestamp = entity.blockTimestamp, isOutgoing = entity.isOutgoing, deliveryStatus = entity.deliveryStatus
+            )
+        }
         val root = groupRootEpochFor(entity.epoch, bag, groupIdBytes) ?: return null
         val senderId = try { entity.senderIdHex.hexToByteArray() } catch (e: Exception) { return null }
         val msgId = try { entity.msgIdHex.hexToByteArray() } catch (e: Exception) { return null }
@@ -222,6 +385,9 @@ class GroupRepository @Inject constructor(
                 // failed member doesn't abort the rest.
             }
         }
+        // Self-addressed recovery copy so a seedless re-import finds this group. Best-effort;
+        // the sync backfill retries if it fails here.
+        try { sendSelfRootControlMessage(entity, roster, bag, privateKey) } catch (e: Exception) {}
 
         return entity
     }
@@ -261,6 +427,11 @@ class GroupRepository @Inject constructor(
 
         val updatedEntity = entity.copy(name = newName)
         database.groupDao().upsertGroup(updatedEntity)
+        if (entity.name != newName) {
+            insertGroupSystemMessage(groupId, walletAddress, "You changed the group name to \"$newName\"", System.currentTimeMillis())
+        }
+        // Self-addressed root so the SAME account's OTHER devices pick up the new name.
+        try { sendSelfRootControlMessage(updatedEntity, roster, bag, privateKey) } catch (e: Exception) {}
 
         var failures = 0
         for (member in roster) {
@@ -276,6 +447,69 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /** Re-broadcast the CURRENT root to every member (admin) - retries invites that failed to send,
+     *  without rotating the epoch. Throws if any member still can't be reached. */
+    suspend fun resendInvites(groupId: String) {
+        val walletAddress = walletManager.getAddress()
+        val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        if (!entity.isAdmin) throw IllegalStateException("Only the group admin can resend invites.")
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing admin group secrets.")
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val roster = membersOf(entity)
+        var failures = 0
+        for (member in roster) {
+            if (member.address == walletAddress) continue
+            try { sendRootControlMessage(entity, roster, bag, member.address, privateKey) } catch (e: Exception) { failures++ }
+        }
+        // Also re-push the group photo so anyone who missed it catches up.
+        entity.photoHex?.let { try { distributeGroupPhoto(entity, roster, it, privateKey) } catch (e: Exception) {} }
+        if (failures > 0) throw IllegalStateException("$failures invite(s) still could not be sent.")
+    }
+
+    /** Admin: set (photoHex = hex of a compressed JPEG) or clear (photoHex = "") the group photo,
+     *  then push it to every member via a signed gctl_photo control message. */
+    suspend fun setGroupPhoto(groupId: String, photoHex: String) {
+        val walletAddress = walletManager.getAddress()
+        val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        if (!entity.isAdmin) throw IllegalStateException("Only the group admin can change the group photo.")
+        val privateKey = walletManager.getPrivateKeyBytes()
+        database.groupDao().upsertGroup(entity.copy(photoHex = photoHex.ifEmpty { null }))
+        insertGroupSystemMessage(groupId, walletAddress,
+            if (photoHex.isEmpty()) "You removed the group photo" else "You changed the group photo",
+            System.currentTimeMillis())
+        distributeGroupPhoto(entity, membersOf(entity), photoHex, privateKey)
+    }
+
+    /** Send the current group photo to every member (admin). Best-effort per member. */
+    private suspend fun distributeGroupPhoto(entity: GroupEntity, roster: List<GroupMember>, photoHex: String, adminPrivateKey: ByteArray) {
+        val walletAddress = walletManager.getAddress()
+        val payload = GroupCipher.buildSignedPhotoPayload(
+            entity.groupId.hexToByteArray(), photoHex, entity.adminXOnlyPubKeyHex.hexToByteArray(), adminPrivateKey
+        )
+        val json = GroupCipher.photoPayloadToJson(payload)
+        for (member in roster) {
+            if (member.address == walletAddress) continue
+            val recipientXOnlyPub = xOnlyPubKeyOrNull(member.address) ?: continue
+            try { sendControlPayload(json, recipientXOnlyPub, adminPrivateKey) } catch (e: Exception) {}
+        }
+        // Also send a self-addressed copy so the SAME account's OTHER devices sync the photo change.
+        xOnlyPubKeyOrNull(walletAddress)?.let { selfPub ->
+            try { sendControlPayload(json, selfPub, adminPrivateKey) } catch (e: Exception) {}
+        }
+    }
+
+    /** Re-broadcast the current root to ONE member (admin) - a targeted retry of a single invite. */
+    suspend fun resendInviteToMember(groupId: String, address: String) {
+        val walletAddress = walletManager.getAddress()
+        val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        if (!entity.isAdmin) throw IllegalStateException("Only the group admin can resend invites.")
+        if (address == walletAddress) return
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing admin group secrets.")
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val roster = membersOf(entity)
+        sendRootControlMessage(entity, roster, bag, address, privateKey)
+    }
+
     private suspend fun rotateEpoch(groupId: String, reason: String, mutateRoster: (MutableList<GroupMember>) -> Unit) {
         val walletAddress = walletManager.getAddress()
         val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
@@ -285,7 +519,8 @@ class GroupRepository @Inject constructor(
         val groupIdBytes = groupId.hexToByteArray()
         val privateKey = walletManager.getPrivateKeyBytes()
 
-        val roster = membersOf(entity).toMutableList()
+        val previousRoster = membersOf(entity)
+        val roster = previousRoster.toMutableList()
         mutateRoster(roster)
 
         val newEpoch = bag.currentEpoch + 1
@@ -296,6 +531,10 @@ class GroupRepository @Inject constructor(
         val updatedEntity = entity.copy(currentEpoch = newEpoch, membersJson = gson.toJson(roster))
         database.groupDao().upsertGroup(updatedEntity)
 
+        // iMessage-style membership lines for the admin who made the change (other members get
+        // theirs when they receive the rotated root — see completeJoin).
+        emitMembershipSystemMessages(groupId, walletAddress, previousRoster, roster, System.currentTimeMillis())
+
         for (member in roster) {
             if (member.address == walletAddress) continue
             try {
@@ -305,6 +544,8 @@ class GroupRepository @Inject constructor(
                 // Best effort, same as createGroup - one member's failed delivery doesn't block the rest.
             }
         }
+        // A newly-added member should also receive the current group photo (root doesn't carry it).
+        updatedEntity.photoHex?.let { try { distributeGroupPhoto(updatedEntity, roster, it, privateKey) } catch (e: Exception) {} }
     }
 
     /**
@@ -320,6 +561,25 @@ class GroupRepository @Inject constructor(
         database.groupDao().deleteMessagesForGroup(groupId, walletAddress)
         database.reactionDao().deleteAllForGroup(groupId, walletAddress)
         database.groupDao().deleteGroup(groupId, walletAddress)
+        // Tombstone it so discovery/recovery never re-adds it, and publish an on-chain delete
+        // marker (best-effort; the sync backfill retries) so the delete survives a seedless
+        // re-import too. Local intent is recorded now; the chain write is best-effort.
+        groupSecretStore.recordTombstone(walletAddress, groupId, published = false)
+        try { publishGroupTombstone(walletAddress, groupId) } catch (e: Exception) {
+            Log.w("GroupRepository", "Group tombstone publish failed for ${groupId.take(12)}", e)
+        }
+    }
+
+    /** Self-addressed, self-signed delete marker — only our key can produce one, only our key
+     *  can read it (see the signing_pub == self + verify check in handleIncomingControlMessage). */
+    private suspend fun publishGroupTombstone(walletAddress: String, groupId: String) {
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val signingPub = Schnorr.publicKeyXOnly(privateKey)
+        val selfXOnlyPub = xOnlyPubKeyOrNull(walletAddress) ?: return
+        val payload = GroupCipher.buildSignedTombstonePayload(groupId.hexToByteArray(), signingPub, privateKey)
+        val json = GroupCipher.tombstonePayloadToJson(payload)
+        sendControlPayload(json, selfXOnlyPub, privateKey)
+        groupSecretStore.markTombstonePublished(walletAddress, groupId)
     }
 
     /** Deletes individual messages from this device only - local-only, never on-chain (other
@@ -494,6 +754,24 @@ class GroupRepository @Inject constructor(
         sendControlPayload(json, recipientXOnlyPub, adminPrivateKey)
     }
 
+    /** Self-addressed recovery copy carrying the group seed (ECIES to our own key, so members
+     *  never see it). A seedless re-import rediscovers the group via the by-recipient scan and
+     *  rebuilds it as admin. Marks selfInviteEpoch on the bag. */
+    private suspend fun sendSelfRootControlMessage(entity: GroupEntity, roster: List<GroupMember>, bag: GroupBag, adminPrivateKey: ByteArray) {
+        val walletAddress = walletManager.getAddress()
+        val seedHex = bag.groupSeed ?: return
+        val selfXOnlyPub = xOnlyPubKeyOrNull(walletAddress) ?: return
+        val rootPayload = GroupCipher.buildSignedRootPayload(
+            groupId = entity.groupId.hexToByteArray(), epoch = bag.currentEpoch, groupRootEpoch = bag.groupRootEpoch.hexToByteArray(),
+            blindingKey = bag.blindingKey.hexToByteArray(), adminSigningPub = entity.adminXOnlyPubKeyHex.hexToByteArray(),
+            members = roster.map { it.address }, name = entity.name, adminPrivateKey = adminPrivateKey,
+            groupSeed = seedHex.hexToByteArray()
+        )
+        val json = GroupCipher.rootPayloadToJson(rootPayload)
+        sendControlPayload(json, selfXOnlyPub, adminPrivateKey)
+        groupSecretStore.saveBag(walletAddress, bag.copy(selfInviteEpoch = bag.currentEpoch))
+    }
+
     private suspend fun sendEpochControlMessage(groupIdBytes: ByteArray, epoch: Long, reason: String, recipientAddress: String, adminPrivateKey: ByteArray) {
         val recipientXOnlyPub = xOnlyPubKeyOrNull(recipientAddress) ?: throw IllegalArgumentException("Invalid address")
         val epochPayload = GroupCipher.buildSignedEpochPayload(groupIdBytes, epoch, reason, adminPrivateKey)
@@ -511,8 +789,22 @@ class GroupRepository @Inject constructor(
     private suspend fun sendControlPayload(json: String, recipientXOnlyPub: ByteArray, privateKey: ByteArray) {
         val walletAddress = walletManager.getAddress()
         val encrypted = KasiaCipher.encrypt(json, recipientXOnlyPub)
-        val payloadString = "ciph_msg:1:gctl:" + recipientXOnlyPub.toHexString() + ":" + encrypted.toBytes().toHexString()
-        walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+        val payloadString = "kchat:1:gctl:" + recipientXOnlyPub.toHexString() + ":" + encrypted.toBytes().toHexString()
+        // Retry to ride out UTXO contention: each member's invite is its own tx, and a
+        // back-to-back send fails until the prior tx's change output settles. Without this a
+        // multi-member invite can silently drop the 2nd+ members.
+        val attempts = 4
+        var lastError: Exception? = null
+        for (i in 0 until attempts) {
+            try {
+                walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+                return
+            } catch (e: Exception) {
+                lastError = e
+                if (i < attempts - 1) kotlinx.coroutines.delay(1800)
+            }
+        }
+        throw lastError ?: IllegalStateException("Group invite send failed.")
     }
 
     // -------------------------------------------------------------------------
@@ -561,6 +853,11 @@ class GroupRepository @Inject constructor(
                 return
             }
 
+            // Decrypted successfully for a known group: remember the txId so the FCM group push
+            // handler knows this tx was ingested locally (and can skip its generic fallback
+            // banner) — see isGroupTxIngested.
+            markGroupTxHandled(txId)
+
             // Reactions are never shown as their own chat bubble - just attached to the message
             // they target - so intercept and route to the reactions table before this ever
             // becomes a GroupMessageEntity row. Our own outgoing reactions already apply their
@@ -568,12 +865,49 @@ class GroupRepository @Inject constructor(
             val reaction = MessageReaction.parseOrNull(plaintext)
             if (reaction != null) {
                 if (reaction.action == "add") {
+                    // Same reaction txId already applied by another delivery path (live scan vs
+                    // catch-up sync vs push-triggered sync) - must not notify a second time.
+                    val alreadyApplied = database.reactionDao()
+                        .getReaction(reaction.targetTxId, walletAddress, senderAddress)?.reactionTxId == txId
                     database.reactionDao().upsertReaction(
                         ReactionEntity(
                             targetTxId = reaction.targetTxId, walletAddress = walletAddress, reactorAddress = senderAddress,
                             emoji = reaction.emoji, reactionTxId = txId, blockTimestamp = blockTimestamp, groupId = group.groupId
                         )
                     )
+                    // "Alice reacted 👍 to your message" / "... to a message" for a live,
+                    // incoming reaction (matches iOS: title is the group name, emoji omitted
+                    // when absent). Muted members stay silent. In a mentions-only group, only a
+                    // reaction to YOUR OWN message notifies - it's as personal as a reply to you
+                    // - while reactions to others' messages stay silent there.
+                    // NotificationHelper's txId dedupe additionally collapses a racing FCM push
+                    // for the same reaction.
+                    if (!alreadyApplied && senderAddress != walletAddress && !isBackfill(blockTimestamp)) {
+                        val target = database.groupDao().getMessage(reaction.targetTxId, walletAddress)
+                        val targetIsMine = target?.isOutgoing == true
+                        val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
+                        val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
+                        if (!isMuted && (targetIsMine || !mentionsOnly)) {
+                            // alias > KNS primary domain > roster snapshot > short address -
+                            // see groupSenderLabel; decodes the reactor the same way the chat
+                            // cards and thread do.
+                            val senderLabel = groupSenderLabel(senderAddress, walletAddress, group)
+                            val emojiPart = reaction.emoji.trim().takeIf { it.isNotEmpty() }?.let { " $it" } ?: ""
+                            val targetPhrase = if (targetIsMine) "your message" else "a message"
+                            notificationHelper.showGroup(
+                                groupId = group.groupId,
+                                title = group.name,
+                                text = "$senderLabel reacted$emojiPart to $targetPhrase",
+                                dedupeTxId = txId
+                            )
+                        } else {
+                            // Deliberate silence (muted reactor, or mentions-only group with a
+                            // reaction to someone else's message). Claim the txId anyway so a
+                            // racing FCM push for this same reaction can't post the banner this
+                            // path just suppressed.
+                            notificationHelper.claimWithoutNotifying(txId)
+                        }
+                    }
                 } else {
                     database.reactionDao().deleteReaction(reaction.targetTxId, walletAddress, senderAddress)
                 }
@@ -592,6 +926,20 @@ class GroupRepository @Inject constructor(
             // already-seen txId (e.g. catch-up re-fetching something the live scan already
             // processed) - only notify for a genuinely new, incoming (not our own) message.
             if (rowId != -1L && !isOutgoing) {
+                if (isBackfill(blockTimestamp)) {
+                    // History being backfilled (e.g. right after an account import): keep the
+                    // group read and silent - only live traffic notifies or counts unread.
+                    markGroupRead(group.groupId)
+                    return
+                }
+                // Global notification center (Profile bell): list this message when it
+                // @mentions the wallet's own KNS domain (deduped by txId inside the store).
+                notificationCenter.recordGroupMentionIfNeeded(
+                    groupId = group.groupId, groupName = group.name,
+                    senderAddress = senderAddress,
+                    senderName = com.kachat.app.util.KaspaAddress.shortDisplay(senderAddress),
+                    text = plaintext, txId = txId, timestampMs = blockTimestamp,
+                )
                 if (notificationHelper.isViewingGroup(group.groupId)) {
                     // Already looking at this group's thread right now - keep it marked read
                     // instead of letting the badge tick up for a message arriving live.
@@ -604,23 +952,32 @@ class GroupRepository @Inject constructor(
                 // Android has no remote push to gate the same way).
                 val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
                 val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
-                val mentionsMe = plaintext.contains("@$walletAddress")
+                // "Mentions me" uses the SAME definition as the composer's @mention feature:
+                // members are mentioned by their primary KNS domain (insertMention writes
+                // "@domain"), so match the shared @token grammar against our own reverse-resolved
+                // domain via GlobalNotificationCenterStore.mentionsMyDomain — never a naive
+                // substring scan. A raw "@<full address>" paste still counts as a mention.
+                // Only evaluated when the group is mentions-only (short-circuit).
+                val mentionsMe = mentionsOnly &&
+                    (plaintext.contains("@$walletAddress") || notificationCenter.mentionsMyDomain(plaintext))
                 val isReplyToMe = replyContent?.replyToSender == walletAddress
                 if (!isMuted && (!mentionsOnly || mentionsMe || isReplyToMe)) {
-                    // Prefer a live 1:1 contact alias (most likely to be current/deliberate -
-                    // may have been set/changed after this person was added to the group) over
-                    // the group roster's displayName snapshot (set once, from whoever added
-                    // them, at add-time), over a shortened address as a last resort.
-                    val senderLabel = database.contactDao().getContact(senderAddress, walletAddress)?.alias
-                        ?: membersOf(group).firstOrNull { it.address == senderAddress }?.displayName
-                        ?: senderAddress.takeLast(8)
+                    // alias > KNS primary domain > roster snapshot > short address - see
+                    // groupSenderLabel; same chain the reaction banner and the chat cards use.
+                    val senderLabel = groupSenderLabel(senderAddress, walletAddress, group)
                     val notificationText = when {
                         replyContent != null -> "$senderLabel replied to \"${replyContent.replyToPreview}\""
                         VoiceMessage.parseOrNull(plaintext) != null -> "$senderLabel sent a voice message"
                         ImageMessage.parseOrNull(plaintext) != null -> "$senderLabel sent a photo"
                         else -> "$senderLabel: $plaintext"
                     }
-                    notificationHelper.showGroup(group.groupId, group.name, notificationText)
+                    notificationHelper.showGroup(group.groupId, group.name, notificationText, dedupeTxId = txId)
+                } else {
+                    // Deliberate silence (muted sender, or mentions-only group and this message
+                    // neither mentions us nor replies to us). Claim the txId anyway so a racing
+                    // FCM push for this same message can't post the banner this path just
+                    // suppressed.
+                    notificationHelper.claimWithoutNotifying(txId)
                 }
             }
             return
@@ -628,28 +985,79 @@ class GroupRepository @Inject constructor(
         Log.w("GroupRepository", "Rejected gcomm: no local group matched blindedGroupId ${parsed.blindedGroupId.toHexString()}")
     }
 
-    suspend fun handleIncomingControlMessage(payloadString: String, senderAddress: String) {
+    suspend fun handleIncomingControlMessage(payloadString: String, senderAddress: String, blockTime: Long? = null) {
         val walletAddress = walletManager.getAddress()
-        if (senderAddress == walletAddress) return
+        // Normally ignore our own echoed controls — EXCEPT the self-addressed recovery root
+        // (sender == us, carries group_seed), which is how a seedless import rebuilds an admin
+        // group. A non-recovery self-echo is dropped in completeJoin below.
+        val isSelfSent = senderAddress == walletAddress
         val privateKey = walletManager.getPrivateKeyBytes()
-        val prefix = "ciph_msg:1:gctl:"
-        if (!payloadString.startsWith(prefix)) return
+        // Dual-read: strip whichever gctl root the payload carries (new kchat: or legacy).
+        val prefix = when {
+            payloadString.startsWith("kchat:1:gctl:") -> "kchat:1:gctl:"
+            payloadString.startsWith("ciph_msg:1:gctl:") -> "ciph_msg:1:gctl:"
+            else -> return
+        }
         val hexPayload = payloadString.substring(prefix.length)
         val encryptedBytes = try { hexPayload.hexToByteArray() } catch (e: Exception) { return }
         val encrypted = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes) ?: return
         val plaintext = try { KasiaCipher.decrypt(encrypted, privateKey) } catch (e: Exception) { return }
 
+        // A self-addressed delete marker — honor ONLY our own (signed by + addressed to us).
+        val tomb = GroupCipher.tombstonePayloadFromJson(plaintext)
+        if (tomb != null && tomb.type == "gctl_tombstone") {
+            val myPub = try { Schnorr.publicKeyXOnly(privateKey).toHexString() } catch (e: Exception) { null }
+            if (tomb.signingPub == myPub && GroupCipher.verifyTombstonePayload(tomb)) {
+                groupSecretStore.recordTombstone(walletAddress, tomb.groupId, published = true)
+                // Remove locally WITHOUT re-publishing (record already done above).
+                groupSecretStore.deleteBag(walletAddress, tomb.groupId)
+                database.groupDao().deleteMessagesForGroup(tomb.groupId, walletAddress)
+                database.reactionDao().deleteAllForGroup(tomb.groupId, walletAddress)
+                database.groupDao().deleteGroup(tomb.groupId, walletAddress)
+            }
+            return
+        }
+        // An admin-set group photo — apply ONLY if signed by THIS group's known admin.
+        val photo = GroupCipher.photoPayloadFromJson(plaintext)
+        if (photo != null && photo.type == "gctl_photo") {
+            val entity = database.groupDao().getGroup(photo.groupId, walletAddress) ?: return
+            if (photo.signingPub == entity.adminXOnlyPubKeyHex && GroupCipher.verifyPhotoPayload(photo)) {
+                val newHex = photo.photo.ifEmpty { null }
+                val changed = entity.photoHex != newHex
+                database.groupDao().upsertGroup(entity.copy(photoHex = newHex))
+                // iMessage-style line for members (the admin emits its own in setGroupPhoto).
+                if (changed && !isBackfill(blockTime)) {
+                    val who = if (entity.isAdmin) "You" else groupMemberLabel(entity.adminAddress, walletAddress, null)
+                    insertGroupSystemMessage(photo.groupId, walletAddress,
+                        if (newHex == null) "$who removed the group photo" else "$who changed the group photo",
+                        blockTime ?: System.currentTimeMillis())
+                }
+            }
+            return
+        }
         val rootPayload = GroupCipher.rootPayloadFromJson(plaintext)
         if (rootPayload != null && rootPayload.type == "gctl_root" && GroupCipher.verifyRootPayload(rootPayload)) {
-            completeJoin(rootPayload)
+            if (isSelfSent && rootPayload.groupSeed == null) return // our own member-copy echo
+            completeJoin(rootPayload, blockTime)
         }
         // gctl_epoch is an advance-notice heads-up only (state updates on gctl_root arrival,
         // not on gctl_epoch) - no local state change needed here in the data layer.
     }
 
+    /** See [AppSettingsRepository.liveNotificationBaseline]: history older than this account's
+     *  first sync on this device is backfill — kept read and silent. A null [blockTime]
+     *  (live block scan, no timestamp in hand) always counts as live. */
+    private suspend fun isBackfill(blockTime: Long?): Boolean {
+        val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { return true }
+        return (blockTime ?: Long.MAX_VALUE) < settings.liveNotificationBaseline(walletAddress)
+    }
+
     /** Applies a verified gctl_root payload: creates or updates the local group secrets + roster. Refuses to downgrade to an older epoch than what's already stored (replay protection). */
-    private suspend fun completeJoin(payload: GroupCipher.GroupRootPayload) {
+    private suspend fun completeJoin(payload: GroupCipher.GroupRootPayload, blockTime: Long? = null) {
         val walletAddress = walletManager.getAddress()
+        // A tombstoned group must never be re-added — this makes a delete survive a seedless
+        // re-import against the recovery invite.
+        if (groupSecretStore.isTombstoned(walletAddress, payload.groupId)) return
         val existingBag = groupSecretStore.loadBag(walletAddress, payload.groupId)
         if (existingBag != null && existingBag.currentEpoch > payload.epoch) return
         val isFirstTimeJoin = existingBag == null
@@ -664,9 +1072,24 @@ class GroupRepository @Inject constructor(
         // admin secrets for this group.
         val deviceId = existingBag?.deviceId ?: GroupCipher.generateDeviceId().toHexString()
         val preservedCounter = if (existingBag?.currentEpoch == payload.epoch) existingBag.msgCounter else 0
+        // Admin self-recovery: a self-addressed root carries the group seed. Trust it ONLY if it
+        // re-derives the SIGNED group_id + blinding_key (that binding authenticates the otherwise
+        // unsigned seed). When valid, this is our own group and we hold admin secrets again.
+        var recoveredSeedHex: String? = null
+        val seedHex = payload.groupSeed
+        val myXOnlyPubHex = try { Schnorr.publicKeyXOnly(walletManager.getPrivateKeyBytes()).toHexString() } catch (e: Exception) { null }
+        if (seedHex != null && myXOnlyPubHex != null && payload.adminSigningPub == myXOnlyPubHex) {
+            try {
+                val seed = seedHex.hexToByteArray()
+                val derivedId = GroupCipher.deriveGroupId(seed).toHexString()
+                val derivedBlinding = GroupCipher.deriveBlindingKey(seed, payload.groupId.hexToByteArray()).toHexString()
+                if (derivedId == payload.groupId && derivedBlinding == payload.blindingKey) recoveredSeedHex = seedHex
+            } catch (e: Exception) { recoveredSeedHex = null }
+        }
         val bag = GroupBag(
-            groupId = payload.groupId, groupSeed = existingBag?.groupSeed, groupRootEpoch = payload.groupRootEpoch,
-            blindingKey = payload.blindingKey, currentEpoch = payload.epoch, deviceId = deviceId, msgCounter = preservedCounter
+            groupId = payload.groupId, groupSeed = recoveredSeedHex ?: existingBag?.groupSeed, groupRootEpoch = payload.groupRootEpoch,
+            blindingKey = payload.blindingKey, currentEpoch = payload.epoch, deviceId = deviceId, msgCounter = preservedCounter,
+            selfInviteEpoch = if (recoveredSeedHex != null) payload.epoch else existingBag?.selfInviteEpoch
         )
         groupSecretStore.saveBag(walletAddress, bag)
 
@@ -680,14 +1103,43 @@ class GroupRepository @Inject constructor(
             members.firstOrNull { it.isAdmin }?.address ?: ""
         }
 
+        // Membership diff for iMessage-style system lines: capture the roster we held BEFORE this
+        // root updates it, so a receiving member sees "X was added"/"Y was removed" when the admin
+        // rotates the key. Skipped on a first-time join and on backfill (no false "added" storm for
+        // the members who were already there when we joined).
+        val existingEntity = database.groupDao().getGroup(payload.groupId, walletAddress)
+        val backfill = isBackfill(blockTime)
+        val previousRosterForDiff: List<GroupMember>? =
+            if (!isFirstTimeJoin && !backfill) existingEntity?.let(::membersOf) else null
+
         val entity = GroupEntity(
             groupId = payload.groupId, walletAddress = walletAddress, name = payload.name, adminAddress = adminAddress,
             adminXOnlyPubKeyHex = payload.adminSigningPub, currentEpoch = payload.epoch, isAdmin = walletAddress == adminAddress,
-            membersJson = gson.toJson(members)
+            membersJson = gson.toJson(members),
+            // upsertGroup is a whole-row REPLACE and this path builds a fresh entity (it can't use
+            // entity.copy() - there may be no existing row), so read state and creation time must
+            // carry over explicitly. Without this, every received root (rename, roster change,
+            // epoch rotation, recovery root) reset lastReadAt to null and flipped the whole
+            // thread's messages back to unread. A backfilled first-time join (group re-discovered
+            // during an import's history sync) stamps "now" so restored history never surfaces as
+            // an unread badge - only a genuinely live invite stays null ("new group" badge).
+            createdAt = existingEntity?.createdAt ?: System.currentTimeMillis(),
+            lastReadAt = existingEntity?.lastReadAt ?: if (backfill) System.currentTimeMillis() else null,
+            // Group photo rides a separate gctl_photo control, not the root - preserve any we hold.
+            photoHex = existingEntity?.photoHex
         )
         database.groupDao().upsertGroup(entity)
 
-        if (isFirstTimeJoin) {
+        previousRosterForDiff?.let { prev ->
+            emitMembershipSystemMessages(payload.groupId, walletAddress, prev, members, blockTime ?: System.currentTimeMillis())
+        }
+        // iMessage-style rename line for members (the admin emits its own in renameGroup).
+        if (existingEntity != null && existingEntity.name != payload.name && !backfill) {
+            val who = if (walletAddress == adminAddress) "You" else groupMemberLabel(adminAddress, walletAddress, null)
+            insertGroupSystemMessage(payload.groupId, walletAddress, "$who changed the group name to \"${payload.name}\"", blockTime ?: System.currentTimeMillis())
+        }
+
+        if (isFirstTimeJoin && !backfill) {
             notificationHelper.showGroup(payload.groupId, "", "You were added to \"${payload.name}\"")
         }
     }
@@ -716,6 +1168,29 @@ class GroupRepository @Inject constructor(
         // account yet, and getAddress() would throw IllegalStateException. Bail out the same way
         // as the missing-api guard above rather than crashing the on-foreground catch-up.
         val walletAddress = walletManager.getActiveAccount()?.address ?: return
+
+        // Backfill recovery invites for any admin group lacking one for its current epoch — i.e.
+        // every group created before this feature existed. One-time per group per epoch; once on
+        // chain, a seedless import of this wallet rediscovers the group with no cloud backup.
+        val privateKeyForBackfill = try { walletManager.getPrivateKeyBytes() } catch (e: Exception) { null }
+        if (privateKeyForBackfill != null) {
+            for (group in database.groupDao().getGroupsOnce(walletAddress)) {
+                if (!group.isAdmin) continue
+                val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
+                if (bag.groupSeed == null || bag.selfInviteEpoch == bag.currentEpoch) continue
+                try { sendSelfRootControlMessage(group, membersOf(group), bag, privateKeyForBackfill) } catch (e: Exception) {
+                    Log.w("GroupRepository", "Group self-invite backfill failed for ${group.groupId.take(12)}", e)
+                }
+            }
+        }
+        // Backfill delete markers for groups deleted while offline (or whose publish failed).
+        val tombState = groupSecretStore.loadTombstones(walletAddress)
+        for (groupId in tombState.deleted) {
+            if (groupId in tombState.published) continue
+            try { publishGroupTombstone(walletAddress, groupId) } catch (e: Exception) {
+                Log.w("GroupRepository", "Group tombstone backfill failed for ${groupId.take(12)}", e)
+            }
+        }
 
         syncGroupControlByRecipient(api, walletAddress)
 
@@ -747,7 +1222,7 @@ class GroupRepository @Inject constructor(
         }
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
-            val payloadString = reconstructPayloadString("ciph_msg:1:gcomm:", msg.messagePayload) ?: continue
+            val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
             val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
             handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
         }
@@ -764,8 +1239,8 @@ class GroupRepository @Inject constructor(
         }
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
-            val payloadString = reconstructPayloadString("ciph_msg:1:gctl:", msg.messagePayload) ?: continue
-            handleIncomingControlMessage(payloadString, msg.sender)
+            val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
+            handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
         }
     }
 
@@ -784,8 +1259,8 @@ class GroupRepository @Inject constructor(
         }
         advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
         for (msg in messages) {
-            val payloadString = reconstructPayloadString("ciph_msg:1:gctl:", msg.messagePayload) ?: continue
-            handleIncomingControlMessage(payloadString, msg.sender)
+            val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
+            handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
         }
     }
 
@@ -817,6 +1292,107 @@ class GroupRepository @Inject constructor(
             if (version == 0x00.toByte() && payload.size == 32) payload else null
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Full group key material for the shared backup archive (see ChatHistoryArchive.groups) -
+     * including the admin's groupSeed, which lives ONLY on the creating device and has no
+     * on-chain invite for other devices of the same account to recover from. deviceId/msgCounter
+     * are per-device and deliberately omitted (the importer mints its own).
+     */
+    suspend fun exportArchiveGroups(): List<ChatHistoryArchiveGroup> {
+        val walletAddress = walletManager.getAddress()
+        if (walletAddress.isEmpty()) return emptyList()
+        return database.groupDao().getGroupsOnce(walletAddress).mapNotNull { entity ->
+            val bag = groupSecretStore.loadBag(walletAddress, entity.groupId) ?: return@mapNotNull null
+            val members = try { gson.fromJson<List<GroupMember>>(entity.membersJson, membersListType) ?: emptyList() } catch (e: Exception) { emptyList() }
+            ChatHistoryArchiveGroup(
+                groupId = entity.groupId,
+                name = entity.name,
+                isAdmin = entity.isAdmin,
+                adminAddress = entity.adminAddress,
+                adminSigningPub = entity.adminXOnlyPubKeyHex,
+                groupSeed = bag.groupSeed,
+                groupRootEpoch = bag.groupRootEpoch,
+                blindingKey = bag.blindingKey,
+                currentEpoch = bag.currentEpoch,
+                members = members.map { ChatHistoryArchiveGroupMember(it.address, it.xOnlyPubKeyHex, it.isAdmin) },
+                messages = run {
+                    val groupIdBytes = try { entity.groupId.hexToByteArray() } catch (e: Exception) { return@run emptyList() }
+                    database.groupDao().getMessagesOnce(entity.groupId, walletAddress).mapNotNull { row ->
+                        val decoded = decryptEntity(row, bag, groupIdBytes) ?: return@mapNotNull null
+                        // Membership system lines are re-derived from roster changes on each device —
+                        // don't ship them in the backup (they'd re-appear out of context on restore).
+                        if (decoded.isSystemMessage()) return@mapNotNull null
+                        ChatHistoryArchiveGroupMessage(
+                            msgIdHex = row.msgIdHex.ifEmpty { null }, txId = row.txId.takeUnless { it.startsWith("pending_") },
+                            senderAddress = decoded.senderAddress, senderIdHex = row.senderIdHex.ifEmpty { null },
+                            content = decoded.content, blockTime = decoded.blockTimestamp, isOutgoing = decoded.isOutgoing
+                        )
+                    }
+                },
+                photo = entity.photoHex
+            )
+        }
+    }
+
+    /**
+     * Restore groups from a shared backup archive. Recovers admin groups (groupSeed present) as
+     * well as member ones. Mints a fresh deviceId per group so this device's sends can't collide
+     * with msg_ids the exporting device already used; never downgrades a newer epoch.
+     */
+    suspend fun importArchiveGroups(groups: List<ChatHistoryArchiveGroup>) {
+        val walletAddress = walletManager.getAddress()
+        if (walletAddress.isEmpty()) return
+        for (g in groups) {
+            // Never resurrect a group you deleted (tombstoned) — same rule as the on-chain path.
+            if (groupSecretStore.isTombstoned(walletAddress, g.groupId)) continue
+            val groupRootEpoch = g.groupRootEpoch ?: continue
+            val blindingKey = g.blindingKey ?: continue
+            val existingBag = groupSecretStore.loadBag(walletAddress, g.groupId)
+            if (existingBag != null && existingBag.currentEpoch > g.currentEpoch) continue
+            val deviceId = existingBag?.deviceId ?: GroupCipher.generateDeviceId().toHexString()
+            val msgCounter = if (existingBag?.currentEpoch == g.currentEpoch) existingBag.msgCounter else 0L
+            val bag = GroupBag(
+                groupId = g.groupId, groupSeed = g.groupSeed, groupRootEpoch = groupRootEpoch,
+                blindingKey = blindingKey, currentEpoch = g.currentEpoch, deviceId = deviceId, msgCounter = msgCounter
+            )
+            groupSecretStore.saveBag(walletAddress, bag)
+            val roster = g.members.map { GroupMember(it.address, it.xOnlyPubKeyHex ?: "", it.isAdmin, null) }
+            val existingEntity = database.groupDao().getGroup(g.groupId, walletAddress)
+            val entity = GroupEntity(
+                groupId = g.groupId, walletAddress = walletAddress, name = g.name,
+                adminAddress = g.adminAddress ?: "", adminXOnlyPubKeyHex = g.adminSigningPub ?: "",
+                currentEpoch = g.currentEpoch, isAdmin = g.isAdmin, membersJson = gson.toJson(roster),
+                createdAt = existingEntity?.createdAt ?: System.currentTimeMillis(),
+                // Restored history is never unread: advance lastReadAt past every message this
+                // archive carries (never backward - a newer read marker this device already holds
+                // wins). Without this, restoring onto a fresh install left lastReadAt null, so the
+                // whole restored thread counted as unread (plus the "never opened" badge). A group
+                // restored with no messages stamps "now" - a restore is history, not a new invite.
+                lastReadAt = maxOf(
+                    existingEntity?.lastReadAt ?: 0L,
+                    g.messages.orEmpty().maxOfOrNull { it.blockTime } ?: 0L
+                ).takeIf { it > 0L } ?: System.currentTimeMillis(),
+                photoHex = g.photo ?: existingEntity?.photoHex
+            )
+            database.groupDao().upsertGroup(entity)
+
+            // Restore decrypted message history as negative-epoch sentinel rows (content hex =
+            // UTF-8 plaintext), deduped by txId via the DAO's IGNORE-on-conflict insert.
+            for (m in g.messages.orEmpty()) {
+                val txId = m.txId?.takeIf { it.isNotEmpty() } ?: ("imported_" + (m.msgIdHex ?: java.util.UUID.randomUUID().toString()))
+                val contentHex = m.content.toByteArray(Charsets.UTF_8).toHexString()
+                database.groupDao().insertMessage(
+                    GroupMessageEntity(
+                        txId = txId, walletAddress = walletAddress, groupId = g.groupId,
+                        senderAddress = m.senderAddress, senderIdHex = m.senderIdHex ?: "", epoch = -1L,
+                        msgIdHex = m.msgIdHex ?: "", contentEncryptedHex = contentHex,
+                        blockTimestamp = m.blockTime, isOutgoing = m.isOutgoing, deliveryStatus = "sent"
+                    )
+                )
+            }
         }
     }
 

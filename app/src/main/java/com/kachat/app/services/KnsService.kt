@@ -2,6 +2,9 @@ package com.kachat.app.services
 
 import android.util.Log
 import com.kachat.app.util.KaspaMessageSigner
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -68,6 +71,41 @@ class KnsService @Inject constructor(
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    /** address -> (fetchedAtMs, domains) cache for [getOwnedDomainsCached] — keeps the address
+     *  lists' "Contains domain" tags from re-hitting the KNS API on every screen load. */
+    private val ownedDomainsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<KnsAsset>>>()
+
+    /** Cached variant of [getOwnedDomains] — a fresh fetch at most every [maxAgeMs] per address. */
+    suspend fun getOwnedDomainsCached(address: String, maxAgeMs: Long = 10 * 60_000L): List<KnsAsset> {
+        val now = System.currentTimeMillis()
+        ownedDomainsCache[address]?.let { (fetchedAt, domains) ->
+            if (now - fetchedAt < maxAgeMs) return domains
+        }
+        val domains = getOwnedDomains(address)
+        ownedDomainsCache[address] = now to domains
+        return domains
+    }
+
+    /**
+     * Which of [addresses] own at least one verified KNS domain — batched cached lookups in
+     * slices of 4 concurrent requests (mirrors iOS KNSService.refreshIfNeeded's concurrency
+     * cap), powering the "Contains domain" tags on the spending/cold address lists.
+     */
+    suspend fun domainOwningAddresses(addresses: List<String>): Set<String> = coroutineScope {
+        val owners = mutableSetOf<String>()
+        for (chunk in addresses.chunked(4)) {
+            val results: List<Pair<String, List<KnsAsset>>> = chunk.map { address ->
+                async {
+                    address to (try { getOwnedDomainsCached(address) } catch (e: Exception) { emptyList<KnsAsset>() })
+                }
+            }.awaitAll()
+            for ((address, domains) in results) {
+                if (domains.isNotEmpty()) owners.add(address)
+            }
+        }
+        owners
     }
 
     /** Avatar/bio/social-links profile attached to a specific owned domain (by its assetId, not its name). */

@@ -92,100 +92,372 @@ class ColdStorageViewModel @Inject constructor(
         val balanceSompi: Long,
         val hasHistory: Boolean,
         val label: String? = null,
-        val hidden: Boolean = false
+        val hidden: Boolean = false,
+        // Whether THIS session's live load (the batched balance pass or a per-address check)
+        // actually confirmed the row's balance. Snapshot-painted rows come back false — the
+        // spending list's identical rule — so visibility toggles know when they can trust the
+        // row instantly versus when they must fall back to a fail-closed live check.
+        val liveChecked: Boolean = false
     )
 
     private val _addresses = MutableStateFlow<List<AddressRow>>(emptyList())
     val addresses: StateFlow<List<AddressRow>> = _addresses.asStateFlow()
 
+    // Which account [_addresses] currently belongs to. The rows are shared VM state across every
+    // cold account's detail screen, so opening account B while A's rows were still loaded used to
+    // merge A's balances/used flags into B's list (refreshAddresses seeds its "known" map from
+    // whatever is painted) and let Generate recycle indices using A's data. Loading a different
+    // account now starts from an empty list.
+    private var loadedAccountId: String? = null
+
+    private fun resetAddressesIfAccountChanged(accountId: String) {
+        if (loadedAccountId != accountId) {
+            _addresses.value = emptyList()
+            loadedAccountId = accountId
+        }
+    }
+
     private val _isDiscovering = MutableStateFlow(false)
     val isDiscovering: StateFlow<Boolean> = _isDiscovering.asStateFlow()
 
     /**
-     * Gap-limit scan for used/funded addresses, plus every index up to [ColdStorageManager.ColdAccount.maxDerivedIndex]
-     * regardless of whether the scan itself reached that far — an index a user manually generated
-     * via [generateMoreAddresses] sits past where a fresh unused-account scan would ever stop,
-     * so it'd otherwise vanish again on the very next refresh.
+     * Loads the account's address list the way iOS does (ColdStorageManager.getAddressList +
+     * ColdStorageView.loadEntries): instant paint from the persisted snapshot of the last full
+     * load, then every index up to [ColdStorageManager.ColdAccount.maxDerivedIndex] derived
+     * locally with ONE batched balance call — funded addresses always land in that first live
+     * commit — then a gap-limit scan past the bound for addresses used before they were ever
+     * shown here, and finally a background Used backfill. The old shape (a full sequential
+     * 2-calls-per-index scan, committed only at the very end, wiped to an empty list on any
+     * error) meant one failed or throttled history lookup at index 0 showed NOTHING at all.
      */
     fun refreshAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
+        resetAddressesIfAccountChanged(accountId)
         val previousCount = _addresses.value.size
         viewModelScope.launch {
             _isDiscovering.value = true
+            var loaded: List<AddressRow>? = null
             try {
-                val parsed = KaspaExtendedPublicKey.parse(account.kpub).getOrThrow()
-                val rootKey = KaspaExtendedPublicKey.toDeterministicKey(parsed)
                 val labels = coldStorageManager.getAddressLabels(accountId)
                 val hiddenIndices = coldStorageManager.getHiddenIndices(accountId)
-                val byIndex = mutableMapOf<Int, ColdStorageAddressDiscovery.DiscoveredAddress>()
-
-                addressDiscovery.discoverAddresses(rootKey).forEach { byIndex[it.index] = it }
-
-                for (index in 0..account.maxDerivedIndex) {
-                    if (index !in byIndex) {
-                        addressDiscovery.checkAddress(rootKey, chain = 0, index = index)?.let {
-                            byIndex[it.index] = it
+                // Instant paint from the snapshot (balances may be a refresh stale — the live
+                // pass replaces them). Only seeds an empty screen so live data never regresses;
+                // labels/hidden always come from their own live stores, not the snapshot.
+                if (_addresses.value.isEmpty()) {
+                    snapshotRows(accountId)?.let { rows ->
+                        _addresses.value = rows.map {
+                            // A snapshot row's confirmation belonged to a previous session:
+                            // untrusted until the live pass below re-confirms it.
+                            it.copy(label = labels[it.index], hidden = it.index in hiddenIndices, liveChecked = false)
                         }
                     }
                 }
-
-                val maxIndex = maxOf(account.maxDerivedIndex, byIndex.keys.maxOrNull() ?: 0)
-                coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, maxIndex)
-
-                // Single commit once everything's ready, not one per address as each REST check
-                // resolved — that made rows visibly trickle in one at a time instead of the whole
-                // list appearing together like iOS (whose balance fetch is one batched gRPC call,
-                // so it has nothing to trickle). Newest (highest index) first — a just-generated
-                // address should be immediately visible at the top.
-                _addresses.value = byIndex.values.sortedByDescending { it.index }.map {
-                    AddressRow(it.index, it.address, it.balanceSompi, it.hasHistory, labels[it.index], it.index in hiddenIndices)
+                val rootKey = rootKeyFor(accountId)
+                if (rootKey == null) {
+                    onResult(0)
+                    return@launch
                 }
+
+                // Pass 1 — fast: derive 0..maxDerivedIndex locally, one batched balance round
+                // trip for all of them (iOS's single getUtxosByAddresses call).
+                val known = _addresses.value.associateBy { it.index }
+                val derived = (0..account.maxDerivedIndex).mapNotNull { index ->
+                    runCatching { KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index) }
+                        .getOrNull()?.let { index to it }
+                }
+                val balances = addressDiscovery.fetchBalances(derived.map { it.second })
+                if (balances == null) {
+                    // Nothing could be checked live. Keep whatever is painted (snapshot or
+                    // previous rows) — a stale list beats a blank screen claiming no addresses.
+                    onResult(0)
+                    return@launch
+                }
+                _addresses.value = derived.map { (index, address) ->
+                    val liveBalance = balances[address]
+                    val balance = liveBalance ?: known[index]?.balanceSompi ?: 0L
+                    AddressRow(
+                        index, address, balance,
+                        // Used-ness is monotonic, and a live balance also proves it; the
+                        // backfill below fills in the rest.
+                        hasHistory = known[index]?.hasHistory == true || balance > 0L,
+                        label = labels[index],
+                        hidden = index in hiddenIndices,
+                        liveChecked = liveBalance != null
+                    )
+                }.sortedByDescending { it.index }
+
+                // Pass 2 — discovery: gap-limit scan BEYOND the derived bound for addresses
+                // funded/used before they were ever shown here (plus the scan's trailing fresh
+                // rows, same as before). A failed lookup stops only this scan; pass 1's rows
+                // stay put.
+                val beyond = addressDiscovery.discoverAddresses(rootKey, startIndex = account.maxDerivedIndex + 1)
+                if (beyond.isNotEmpty()) {
+                    // Raise the persisted bound only to cover USED/funded finds — raising it to
+                    // the scan's trailing unused rows would grow it by another gap every refresh.
+                    beyond.filter { it.hasHistory || it.balanceSompi > 0 }.maxOfOrNull { it.index }?.let { usedMax ->
+                        coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, usedMax)
+                        _accounts.value = coldStorageManager.getAccounts()
+                    }
+                    _addresses.value = (
+                        _addresses.value.filterNot { row -> beyond.any { it.index == row.index } } +
+                            beyond.map {
+                                AddressRow(
+                                    it.index, it.address, it.balanceSompi, it.hasHistory,
+                                    labels[it.index], it.index in hiddenIndices,
+                                    liveChecked = true
+                                )
+                            }
+                        ).sortedByDescending { it.index }
+                }
+                loaded = _addresses.value
                 onResult((_addresses.value.size - previousCount).coerceAtLeast(0))
+                // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
+                refreshDomainOwningAddresses(_addresses.value.map { it.address })
             } catch (e: Exception) {
-                _addresses.value = emptyList()
+                // Never wipe the list on failure — that was exactly the "cold wallet shows
+                // nothing" bug.
                 onResult(0)
             } finally {
                 _isDiscovering.value = false
+            }
+
+            // Pass 3 — background Used backfill for zero-balance rows, sequential on purpose
+            // (same rate-limit reasoning as iOS's loadEntries backfill), then persist the
+            // snapshot so the next open paints instantly.
+            val rows = loaded ?: return@launch
+            for (row in rows) {
+                if (row.balanceSompi > 0L || row.hasHistory) continue
+                val used = addressDiscovery.hasHistory(row.address) ?: continue
+                if (used) {
+                    _addresses.value = _addresses.value.map { if (it.index == row.index) it.copy(hasHistory = true) else it }
+                }
+            }
+            try { coldStorageManager.setAddressSnapshot(accountId, gson.toJson(_addresses.value)) } catch (e: Exception) { /* best-effort */ }
+        }
+    }
+
+    private val gson = com.google.gson.Gson()
+
+    /** Last fully-loaded row list for [accountId], from [ColdStorageManager.getAddressSnapshot] —
+     *  the instant-paint cache behind [refreshAddresses]. Null when absent or unreadable. */
+    private fun snapshotRows(accountId: String): List<AddressRow>? {
+        val json = coldStorageManager.getAddressSnapshot(accountId) ?: return null
+        val type = object : com.google.gson.reflect.TypeToken<List<AddressRow>>() {}.type
+        return try { gson.fromJson<List<AddressRow>>(json, type) } catch (e: Exception) { null }
+    }
+
+    // -------------------------------------------------------------------------
+    // KNS domains on cold addresses: the "Contains domain" list tags and the per-address
+    // "KNS Domains (n)" tab (LIST-ONLY here - a KNS transfer's reveal input spends a P2SH
+    // redeem script, and the KSPT QR format only carries plain single-sig Schnorr inputs,
+    // so KasSigner can't sign inscription transactions).
+    // -------------------------------------------------------------------------
+
+    private val _domainOwningAddresses = MutableStateFlow<Set<String>>(emptySet())
+    val domainOwningAddresses: StateFlow<Set<String>> = _domainOwningAddresses.asStateFlow()
+
+    private fun refreshDomainOwningAddresses(addresses: List<String>) {
+        if (addresses.isEmpty()) return
+        viewModelScope.launch {
+            _domainOwningAddresses.value = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
+        }
+    }
+
+    private val _addressKnsDomains = MutableStateFlow<List<com.kachat.app.services.KnsAsset>>(emptyList())
+    val addressKnsDomains: StateFlow<List<com.kachat.app.services.KnsAsset>> = _addressKnsDomains.asStateFlow()
+    private val _addressKnsDomainsLoading = MutableStateFlow(false)
+    val addressKnsDomainsLoading: StateFlow<Boolean> = _addressKnsDomainsLoading.asStateFlow()
+
+    fun loadAddressKnsDomains(address: String) {
+        viewModelScope.launch {
+            _addressKnsDomainsLoading.value = true
+            _addressKnsDomains.value = try { knsService.getOwnedDomains(address) } catch (e: Exception) { emptyList() }
+            _addressKnsDomainsLoading.value = false
+        }
+    }
+
+    // Parsed kpub root keys, cached per account — the Address Visibility pager derives 50
+    // addresses per page on demand, and re-parsing the kpub for each would be wasted work
+    // (mirrors WalletManager.spendingChainKey's caching on the spending side).
+    private val rootKeyCache = mutableMapOf<String, org.bitcoinj.crypto.DeterministicKey>()
+
+    private fun rootKeyFor(accountId: String): org.bitcoinj.crypto.DeterministicKey? {
+        rootKeyCache[accountId]?.let { return it }
+        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return null
+        return KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
+            ?.let { KaspaExtendedPublicKey.toDeterministicKey(it) }
+            ?.also { rootKeyCache[accountId] = it }
+    }
+
+    /** On-demand watch-only derivation of a single receive address — the cold twin of
+     *  WalletViewModel.spendingAddressAt, used by the visibility pager's beyond-bound rows. */
+    fun coldAddressAt(accountId: String, index: Int): String? {
+        val rootKey = rootKeyFor(accountId) ?: return null
+        return runCatching { KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index) }.getOrNull()
+    }
+
+    /** One-off used check for a pager-derived index (balance or history). Degrades to false
+     *  on network failure, matching WalletService.hasSpendingAddressBeenUsed. */
+    suspend fun hasColdAddressBeenUsed(accountId: String, index: Int): Boolean {
+        val rootKey = rootKeyFor(accountId) ?: return false
+        val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index)
+        return discovered != null && (discovered.hasHistory || discovered.balanceSompi > 0)
+    }
+
+    /**
+     * Reveals a specific index from the Address Visibility pager, extending the derived chain
+     * when the index is beyond the current bound — intermediate newly-covered indices are marked
+     * hidden so checking ONE far-out row doesn't flood the main list with everything below it.
+     * The cold twin of WalletViewModel.revealSpendingAddress.
+     */
+    fun revealColdAddress(accountId: String, index: Int) {
+        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
+        val currentMax = maxOf(account.maxDerivedIndex, _addresses.value.maxOfOrNull { it.index } ?: -1)
+        if (index > currentMax) {
+            coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, index)
+            for (i in (currentMax + 1) until index) coldStorageManager.setAddressHidden(accountId, i, true)
+            _accounts.value = coldStorageManager.getAccounts()
+        }
+        coldStorageManager.setAddressHidden(accountId, index, false)
+        if (_addresses.value.any { it.index == index }) {
+            _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = false) else it }
+            return
+        }
+        // Stamp a placeholder row into the loaded list so the detail screen (which shares this
+        // ViewModel) shows it the moment the sheet closes, then backfill its real balance/history.
+        val address = coldAddressAt(accountId, index) ?: return
+        val label = coldStorageManager.getAddressLabels(accountId)[index]
+        _addresses.value = (_addresses.value + AddressRow(index, address, 0L, false, label, false))
+            .sortedByDescending { it.index }
+        viewModelScope.launch {
+            val rootKey = rootKeyFor(accountId) ?: return@launch
+            addressDiscovery.checkAddress(rootKey, chain = 0, index = index)?.let { d ->
+                _addresses.value = _addresses.value.map {
+                    if (it.index == index) it.copy(balanceSompi = d.balanceSompi, hasHistory = d.hasHistory, liveChecked = true) else it
+                }
             }
         }
     }
 
     /**
-     * Derives and shows one more address past whatever's currently listed — for pulling up a
-     * fresh unused address on demand, without waiting for it to gain history first. Checks only
-     * this one new index rather than going through [refreshAddresses]'s full gap-limit rescan
-     * (which sequentially re-checks every already-known address too) — that made the new address
-     * take as long to appear as a full account re-scan, when only one address actually changed.
+     * Visibility-checklist toggle that also works for rows the loaded list has never seen
+     * (a hidden intermediate whose one-off check failed, say) — [setAddressHidden] requires a
+     * loaded row.
+     *
+     * THE TOGGLE RULE (same as the spending checklist's): the screen batch-loads live balances
+     * when it opens, so a hide against a row that load confirmed ([AddressRow.liveChecked])
+     * commits instantly and optimistically — no per-toggle network round trip; the funded guard
+     * is enforced from that same fresh row. Only when no live-confirmed row exists (list painted
+     * from the snapshot, live load failed, or the row was never loaded) does hiding fall back to
+     * the fail-closed live check: one balance fetch, and no network answer means no hide.
+     * Unhiding is always instant. [onResult] reports whether the flag actually committed.
      */
-    fun generateMoreAddresses(accountId: String) {
-        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
-        val nextIndex = (_addresses.value.maxOfOrNull { it.index } ?: -1) + 1
-        coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, nextIndex)
-        _accounts.value = coldStorageManager.getAccounts()
+    fun setColdVisibilityHidden(accountId: String, index: Int, hidden: Boolean, onResult: (Boolean) -> Unit = {}) {
+        val row = _addresses.value.find { it.index == index }
+        if (!hidden) {
+            coldStorageManager.setAddressHidden(accountId, index, false)
+            if (row != null) {
+                _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = false) else it }
+            }
+            onResult(true)
+            return
+        }
+        if (row != null && row.balanceSompi > 0) {
+            onResult(false)
+            return
+        }
+        if (row != null && row.liveChecked) {
+            coldStorageManager.setAddressHidden(accountId, index, true)
+            _addresses.value = _addresses.value.map { if (it.index == index) it.copy(hidden = true) else it }
+            onResult(true)
+            return
+        }
+        viewModelScope.launch {
+            val rootKey = rootKeyFor(accountId)
+            if (rootKey == null) {
+                onResult(false)
+                return@launch
+            }
+            val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index)
+            if (discovered == null) {
+                onResult(false)
+                return@launch
+            }
+            if (discovered.balanceSompi > 0) {
+                if (row != null) {
+                    _addresses.value = _addresses.value.map {
+                        if (it.index == index) it.copy(balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory, liveChecked = true) else it
+                    }
+                }
+                onResult(false)
+                return@launch
+            }
+            coldStorageManager.setAddressHidden(accountId, index, true)
+            _addresses.value = _addresses.value.map {
+                if (it.index == index) it.copy(hidden = true, balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory, liveChecked = true) else it
+            }
+            onResult(true)
+        }
+    }
 
+    /**
+     * "Generate More Addresses" — a SEQUENCE: every press must land another unused row on the
+     * visible list, forever. A press first un-hides the LOWEST HIDDEN index this session
+     * live-confirmed as truly unused (zero balance, no on-chain history); the hidden requirement
+     * is what makes press N+1 different from press N — a row that is already visible is already
+     * "generated", and re-picking it (the old behavior) made the second press a silent no-op.
+     * When no hidden unused row remains, it derives one past the all-time max, which is always a
+     * distinct new index. Reports the ready index via [onResult]; null means the kpub could not
+     * derive an address at all (nothing was landed or persisted).
+     */
+    fun generateMoreAddresses(accountId: String, onResult: (Int?) -> Unit = {}) {
+        val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         viewModelScope.launch {
             _isDiscovering.value = true
             try {
-                val parsed = KaspaExtendedPublicKey.parse(account.kpub).getOrThrow()
-                val rootKey = KaspaExtendedPublicKey.toDeterministicKey(parsed)
-                val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = nextIndex)
-                if (discovered != null) {
-                    val labels = coldStorageManager.getAddressLabels(accountId)
-                    val hiddenIndices = coldStorageManager.getHiddenIndices(accountId)
-                    val newRow = AddressRow(
-                        discovered.index,
-                        discovered.address,
-                        discovered.balanceSompi,
-                        discovered.hasHistory,
-                        labels[discovered.index],
-                        discovered.index in hiddenIndices
-                    )
-                    _addresses.value = (_addresses.value.filterNot { it.index == nextIndex } + newRow)
-                        .sortedByDescending { it.index }
+                // Recycle only HIDDEN rows this session live-confirmed as empty and unused — a
+                // snapshot-painted row could be funded since; deriving past the end (below) is
+                // always safe, so unconfirmed rows are skipped rather than trusted.
+                val recycled = _addresses.value.sortedBy { it.index }
+                    .firstOrNull { it.hidden && it.liveChecked && it.balanceSompi == 0L && !it.hasHistory }
+                if (recycled != null) {
+                    coldStorageManager.setAddressHidden(accountId, recycled.index, false)
+                    _addresses.value = _addresses.value.map {
+                        if (it.index == recycled.index) it.copy(hidden = false) else it
+                    }
+                    onResult(recycled.index)
+                    return@launch
                 }
-            } catch (e: Exception) {
-                // Leave the existing list as-is — the next full refreshAddresses (e.g. re-entering
-                // this screen) will pick up the new address if this one-off check failed.
+                val nextIndex = maxOf(account.maxDerivedIndex, _addresses.value.maxOfOrNull { it.index } ?: -1) + 1
+                // Derive BEFORE persisting anything: if the kpub can't produce this address the
+                // press must refuse cleanly instead of toasting an index that never appears.
+                val address = coldAddressAt(accountId, nextIndex)
+                if (address == null) {
+                    onResult(null)
+                    return@launch
+                }
+                coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, nextIndex)
+                coldStorageManager.setAddressHidden(accountId, nextIndex, false)
+                _accounts.value = coldStorageManager.getAccounts()
+                // iOS parity (ColdStorageView.generateMore awaits its reload before toasting):
+                // the new row lands on screen NOW — its address derives locally — so the toast
+                // never names a row the list doesn't show. The live check afterwards only
+                // backfills balance/used flags; its failure no longer makes the row vanish.
+                val labels = coldStorageManager.getAddressLabels(accountId)
+                _addresses.value = (
+                    _addresses.value.filterNot { it.index == nextIndex } +
+                        AddressRow(nextIndex, address, 0L, false, labels[nextIndex], hidden = false)
+                    ).sortedByDescending { it.index }
+                onResult(nextIndex)
+                val rootKey = rootKeyFor(accountId)
+                val discovered = rootKey?.let { addressDiscovery.checkAddress(it, chain = 0, index = nextIndex) }
+                if (discovered != null) {
+                    _addresses.value = _addresses.value.map {
+                        if (it.index == nextIndex) {
+                            it.copy(balanceSompi = discovered.balanceSompi, hasHistory = discovered.hasHistory, liveChecked = true)
+                        } else it
+                    }
+                }
             } finally {
                 _isDiscovering.value = false
             }
@@ -212,12 +484,8 @@ class ColdStorageViewModel @Inject constructor(
      * a case you'd want to keep an eye on, not tuck away.
      */
     fun setAddressHidden(accountId: String, index: Int, hidden: Boolean) {
-        val row = _addresses.value.find { it.index == index } ?: return
-        if (hidden && row.balanceSompi > 0) return
-        coldStorageManager.setAddressHidden(accountId, index, hidden)
-        _addresses.value = _addresses.value.map {
-            if (it.index == index) it.copy(hidden = hidden) else it
-        }
+        // Same live-balance fail-closed rule as the checklist path; one implementation.
+        setColdVisibilityHidden(accountId, index, hidden)
     }
 
     // -------------------------------------------------------------------------

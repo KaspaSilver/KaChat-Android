@@ -62,8 +62,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -128,6 +133,10 @@ fun ChessGameScreen(
     // it here as text would just be clutter.
     val chatMessages = remember(messages) {
         messages.filter { message ->
+            // Cross-device "sent via another device" fill-ins must never render here - Android
+            // doesn't create them, but rows restored from an iOS archive by builds predating the
+            // import-time skip can still be in the DB (see MessageEntity.isSentPlaceholder).
+            if (message.isSentPlaceholder) return@filter false
             val unwrapped = MessageReply.parseOrNull(message.plaintextBody)?.text ?: message.plaintextBody
             ChessMessage.parseOrNull(unwrapped) == null
         }.sortedBy { it.blockTimestamp }
@@ -153,6 +162,104 @@ fun ChessGameScreen(
         if (address != null) summary?.colorFor(address) else null
     }
     val isMyTurn = summary != null && myColor != null && summary.status.kind == ChessGameStatusKind.IN_PROGRESS && summary.board.sideToMove == myColor
+
+    // ------------------------------------------------------------------
+    // Chess clocks (timed games only). Casual-async semantics: my clock runs only while THIS
+    // screen is open (resumed) AND it's my turn AND the game is in progress - closing the board
+    // pauses it, because the opponent may be offline for hours and the clock measures thinking
+    // time at the board, not wall time. Each side's authoritative remaining time is the clockMs
+    // carried on their own most recent move (increment already added by the sender); my displayed
+    // time additionally subtracts thinking time accumulated locally this turn, which is persisted
+    // to SharedPreferences (key "chess_clock_<gameId>", value "moveCount|elapsedMs") so process
+    // death mid-think doesn't refund the time already spent. The opponent's clock is never ticked
+    // speculatively while they think - it just shows their last reported value.
+    // ------------------------------------------------------------------
+    val isTimed = summary?.isTimed == true
+    val incrementMs = (summary?.tcIncSeconds ?: 0) * 1000L
+    val moveCount = summary?.moveHistory?.size ?: 0
+    val context = LocalContext.current
+    val clockPrefs = remember(context) {
+        context.getSharedPreferences("chess_clocks", android.content.Context.MODE_PRIVATE)
+    }
+    val clockPrefsKey = remember(gameId) { "chess_clock_$gameId" }
+
+    // Thinking time (ms) spent at the board this turn. Seeded from the persisted record when it
+    // matches the current move count; reset to zero whenever the move count advances (my own
+    // optimistic send included) or the stored record belongs to an older turn.
+    var thinkingElapsedMs by remember(gameId) { mutableStateOf(0L) }
+    LaunchedEffect(gameId, moveCount, isTimed, summary != null) {
+        if (!isTimed || summary == null) return@LaunchedEffect
+        val stored = clockPrefs.getString(clockPrefsKey, null)?.split("|")
+        thinkingElapsedMs = if (stored?.size == 2 && stored[0].toIntOrNull() == moveCount) {
+            stored[1].toLongOrNull() ?: 0L
+        } else {
+            0L
+        }
+    }
+
+    // Screen resumed-ness gates the tick: a backgrounded app (or this destination left) must not
+    // burn clock. No lifecycle-runtime-compose dependency in this project, so observe manually.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isResumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val myLastReportedClockMs = remember(summary, myColor) {
+        val color = myColor
+        if (color != null) summary?.lastReportedClockMs(color) else null
+    }
+    val opponentRemainingMs = remember(summary, myColor) {
+        val color = myColor
+        if (color != null) summary?.lastReportedClockMs(color.opposite) else null
+    }
+    val myRemainingMs = if (isTimed) {
+        ((myLastReportedClockMs ?: 0L) - thinkingElapsedMs).coerceAtLeast(0L)
+    } else {
+        null
+    }
+
+    val clockRunning = isTimed && isMyTurn && isResumed && (myRemainingMs ?: 0L) > 0L
+    LaunchedEffect(clockRunning, moveCount, gameId) {
+        if (!clockRunning) return@LaunchedEffect
+        var lastTick = android.os.SystemClock.elapsedRealtime()
+        var lastPersist = lastTick
+        try {
+            while (true) {
+                delay(100)
+                val now = android.os.SystemClock.elapsedRealtime()
+                thinkingElapsedMs += now - lastTick
+                lastTick = now
+                if (now - lastPersist >= 1000) {
+                    clockPrefs.edit().putString(clockPrefsKey, "$moveCount|$thinkingElapsedMs").apply()
+                    lastPersist = now
+                }
+            }
+        } finally {
+            // Screen closed / turn ended / app backgrounded: persist the final tally so reopening
+            // resumes from here rather than refunding up to a second of think time.
+            clockPrefs.edit().putString(clockPrefsKey, "$moveCount|$thinkingElapsedMs").apply()
+        }
+    }
+
+    // Flagging: my clock hit zero on my turn -> auto-resign with reason "timeout", exactly once
+    // per screen session (the resign lands optimistically, flipping the game to RESIGNED, so this
+    // can't re-fire after that either). Input below is also gated on not-flagged.
+    val hasFlagged = isTimed && isMyTurn && myRemainingMs != null && myRemainingMs <= 0L
+    var timeoutSent by remember(gameId) { mutableStateOf(false) }
+    LaunchedEffect(hasFlagged) {
+        if (hasFlagged && !timeoutSent) {
+            timeoutSent = true
+            clockPrefs.edit().remove(clockPrefsKey).apply()
+            chatViewModel.resignChessGame(contactId, gameId, reason = "timeout")
+        }
+    }
 
     // Cumulative wins/losses against this contact, across every chess game ever played with them
     // (not just the current one) - see ChessGameEngine.record.
@@ -190,12 +297,25 @@ fun ChessGameScreen(
     }
 
     fun send(move: ChessMove) {
-        chatViewModel.sendChessMove(contactId, gameId, move)
+        if (isTimed) {
+            // Stamp the move with my remaining clock AFTER the move, increment already added -
+            // that value becomes my authoritative clock until my next move. The local thinking
+            // accumulator resets (the persisted record is keyed to a move count that just
+            // advanced, so it's stale either way; clear it eagerly).
+            val newClockMs = (myRemainingMs ?: 0L) + incrementMs
+            clockPrefs.edit().remove(clockPrefsKey).apply()
+            thinkingElapsedMs = 0L
+            chatViewModel.sendChessMove(contactId, gameId, move, clockMs = newClockMs)
+        } else {
+            chatViewModel.sendChessMove(contactId, gameId, move)
+        }
     }
 
     fun handleTap(square: ChessSquare) {
         val board = summary?.board ?: return
         if (!isMyTurn) return
+        // Flagged: the timeout resign is on its way - no further moves.
+        if (hasFlagged) return
         val currentSelection = selectedSquare
         if (currentSelection != null) {
             if (legalDestinations.contains(square)) {
@@ -258,9 +378,14 @@ fun ChessGameScreen(
                 },
                 actions = {
                     Column(horizontalAlignment = Alignment.End) {
-                        if (summary != null && summary.status.kind == ChessGameStatusKind.IN_PROGRESS) {
+                        // Available whenever the game isn't over - including a still-pending
+                        // invite, which the sender must be able to close (a resign on a pending
+                        // game is already how starting a new game retires the previous one).
+                        if (summary != null && !summary.status.isGameOver) {
+                            val resignLabel = if (summary.status.kind == ChessGameStatusKind.PENDING_RESPONSE)
+                                stringResource(R.string.chess_cancel_game) else stringResource(R.string.resign)
                             TextButton(onClick = { showResignConfirm = true }) {
-                                Text(stringResource(R.string.resign), color = Color(0xFFFF3B30))
+                                Text(resignLabel, color = Color(0xFFFF3B30))
                             }
                         }
                         WinLossCounter(wins = chessRecord.first, losses = chessRecord.second)
@@ -330,6 +455,17 @@ fun ChessGameScreen(
         ) {
             if (summary != null) {
                 Spacer(Modifier.height(8.dp))
+                if (isTimed && opponentRemainingMs != null) {
+                    // Opponent's chip above the board (their side), mine below - the standard
+                    // over-the-board clock arrangement. Theirs shows their last *reported* time
+                    // (never ticked speculatively while they think off-device).
+                    ChessClockRow(
+                        remainingMs = opponentRemainingMs,
+                        isSideToMove = summary.status.kind == ChessGameStatusKind.IN_PROGRESS &&
+                            myColor != null && summary.board.sideToMove == myColor.opposite
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
                 CapturedPiecesBar(summary, myColor ?: ChessColor.WHITE)
                 Spacer(Modifier.height(8.dp))
                 Box(contentAlignment = Alignment.Center) {
@@ -344,6 +480,10 @@ fun ChessGameScreen(
                     if (!isMyTurn && summary.status.kind == ChessGameStatusKind.IN_PROGRESS) {
                         WaitingOnOpponentOverlay()
                     }
+                }
+                if (isTimed && myRemainingMs != null) {
+                    Spacer(Modifier.height(6.dp))
+                    ChessClockRow(remainingMs = myRemainingMs, isSideToMove = isMyTurn)
                 }
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider()
@@ -445,6 +585,53 @@ private fun WinLossCounter(wins: Int, losses: Int) {
             Text("L", fontSize = 9.sp, color = LocalAppColors.current.textSecondary)
             Text("$losses", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LocalAppColors.current.textPrimary)
         }
+    }
+}
+
+/** One clock chip row (timed games only) - opponent's above the board, the local player's below,
+ *  both hugging the trailing edge like a physical clock beside the board. The side to move is
+ *  emphasized (teal fill, bold, brighter text); under 20 seconds the chip tints red. Monospace
+ *  digits so the display doesn't jitter as it ticks. */
+@Composable
+private fun ChessClockRow(remainingMs: Long, isSideToMove: Boolean) {
+    val lowTime = remainingMs < 20_000L
+    val containerColor = when {
+        lowTime -> Color(0xFFFF3B30).copy(alpha = if (isSideToMove) 0.30f else 0.16f)
+        isSideToMove -> KaspaTeal.copy(alpha = 0.28f)
+        else -> LocalAppColors.current.surface
+    }
+    val textColor = when {
+        lowTime -> Color(0xFFFF3B30)
+        isSideToMove -> LocalAppColors.current.textPrimary
+        else -> LocalAppColors.current.textSecondary
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Surface(color = containerColor, shape = RoundedCornerShape(10.dp)) {
+            Text(
+                formatChessClock(remainingMs),
+                color = textColor,
+                fontSize = 16.sp,
+                fontWeight = if (isSideToMove) FontWeight.Bold else FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+            )
+        }
+    }
+}
+
+/** m:ss normally; under ten seconds switch to tenths (e.g. "0:07.3") so the final countdown
+ *  visibly moves between whole seconds. */
+private fun formatChessClock(ms: Long): String {
+    val clamped = ms.coerceAtLeast(0L)
+    return if (clamped < 10_000L) {
+        val tenths = clamped / 100
+        "0:0${tenths / 10}.${tenths % 10}"
+    } else {
+        val totalSeconds = clamped / 1000
+        "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
     }
 }
 
