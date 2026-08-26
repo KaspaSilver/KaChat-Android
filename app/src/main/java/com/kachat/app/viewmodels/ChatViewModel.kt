@@ -1889,7 +1889,7 @@ class ChatViewModel @Inject constructor(
      *  pending-response game is auto-resigned first rather than left orphaned alongside a second
      *  one. Looks up the contact's messages fresh (rather than relying on a UI-side cache) so this
      *  check is correct even right after the very latest message. */
-    fun startChessGame(contactId: String) {
+    fun startChessGame(contactId: String, tcMinutes: Int? = null, tcIncSeconds: Int? = null) {
         cancelReply()
         viewModelScope.launch {
             val myAddress = walletManager.getAddress()
@@ -1907,7 +1907,9 @@ class ChatViewModel @Inject constructor(
             }
             val content = com.kachat.app.util.ChessInviteContent(
                 gameId = java.util.UUID.randomUUID().toString(),
-                inviterColor = if (kotlin.random.Random.nextBoolean()) com.kachat.app.util.ChessInviteColor.WHITE else com.kachat.app.util.ChessInviteColor.BLACK
+                inviterColor = if (kotlin.random.Random.nextBoolean()) com.kachat.app.util.ChessInviteColor.WHITE else com.kachat.app.util.ChessInviteColor.BLACK,
+                tcMinutes = tcMinutes,
+                tcIncSeconds = tcIncSeconds
             )
             sendMessage(contactId, com.kachat.app.util.ChessMessage.encode(content))
         }
@@ -1919,20 +1921,24 @@ class ChatViewModel @Inject constructor(
         sendMessage(contactId, com.kachat.app.util.ChessMessage.encode(content))
     }
 
-    fun sendChessMove(contactId: String, gameId: String, move: com.kachat.app.util.ChessMove) {
+    /** `clockMs`: timed games only - the mover's remaining time in ms after this move, increment
+     *  already added (computed by ChessGameScreen from its local thinking-time accumulator). */
+    fun sendChessMove(contactId: String, gameId: String, move: com.kachat.app.util.ChessMove, clockMs: Long? = null) {
         cancelReply()
         val content = com.kachat.app.util.ChessMoveContent(
             gameId = gameId,
             from = move.from.algebraic,
             to = move.to.algebraic,
-            promotion = move.promotion?.promotionLetter
+            promotion = move.promotion?.promotionLetter,
+            clockMs = clockMs
         )
         sendMessage(contactId, com.kachat.app.util.ChessMessage.encode(content))
     }
 
-    fun resignChessGame(contactId: String, gameId: String) {
+    /** `reason`: "timeout" when the local player flagged, null for a manual resign. */
+    fun resignChessGame(contactId: String, gameId: String, reason: String? = null) {
         cancelReply()
-        val content = com.kachat.app.util.ChessResignContent(gameId = gameId)
+        val content = com.kachat.app.util.ChessResignContent(gameId = gameId, reason = reason)
         sendMessage(contactId, com.kachat.app.util.ChessMessage.encode(content))
     }
 

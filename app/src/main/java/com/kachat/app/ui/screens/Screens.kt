@@ -217,6 +217,9 @@ fun ChatThreadScreen(
     val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
+    // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
+    // casual untimed game (the pre-timer behavior). Same CenteredOptionsMenu style, same anchor.
+    var showChessTimeControlMenu by remember { mutableStateOf(false) }
     // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
     // Storage > Nextcloud). Picking a file sends its public share link as a normal text message,
     // which the recipient's link-preview feature renders as tappable media.
@@ -933,7 +936,7 @@ fun ChatThreadScreen(
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.Apps, stringResource(R.string.play_chess)) {
                                             showComposerMenu = false
-                                            chatViewModel.startChessGame(contactId)
+                                            showChessTimeControlMenu = true
                                         }
                                         if (conversation?.contact?.handshakeComplete != true) {
                                             HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
@@ -941,6 +944,24 @@ fun ChatThreadScreen(
                                                 showComposerMenu = false
                                                 chatViewModel.sendHandshake(contactId)
                                             }
+                                        }
+                                    }
+                                }
+                                if (showChessTimeControlMenu) {
+                                    // Timed options carry the clock icon; the untimed row keeps
+                                    // the chess menu's own icon so "Casual" reads as today's
+                                    // plain game. Minutes/increment pairs match iOS exactly.
+                                    CenteredOptionsMenu(onDismissRequest = { showChessTimeControlMenu = false }, anchor = composerMenuAnchor) {
+                                        for ((minutes, increment) in listOf(3 to 2, 2 to 1, 1 to 1)) {
+                                            PopupMenuRow(Icons.Default.Timer, "$minutes | $increment") {
+                                                showChessTimeControlMenu = false
+                                                chatViewModel.startChessGame(contactId, tcMinutes = minutes, tcIncSeconds = increment)
+                                            }
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                        }
+                                        PopupMenuRow(Icons.Default.Apps, "Casual (no timer)") {
+                                            showChessTimeControlMenu = false
+                                            chatViewModel.startChessGame(contactId)
                                         }
                                     }
                                 }
@@ -2208,7 +2229,7 @@ fun ChessBubble(
     onLongPress: () -> Unit = {}
 ) {
     when (envelope) {
-        is com.kachat.app.util.ChessEnvelope.Invite -> ChessInviteBubble(isSent, summary, onRespond, onOpen, onLongPress)
+        is com.kachat.app.util.ChessEnvelope.Invite -> ChessInviteBubble(isSent, envelope.content, summary, onRespond, onOpen, onLongPress)
         else -> {
             if (isLatest && summary != null) {
                 ChessLiveCard(summary, onOpen, onLongPress)
@@ -2223,11 +2244,15 @@ fun ChessBubble(
 @Composable
 private fun ChessInviteBubble(
     isSent: Boolean,
+    invite: com.kachat.app.util.ChessInviteContent,
     summary: com.kachat.app.util.ChessGameSummary?,
     onRespond: (Boolean) -> Unit,
     onOpen: () -> Unit,
     onLongPress: () -> Unit = {}
 ) {
+    // Read the time control off the envelope itself (not just the summary, which can lag null
+    // while messages are still loading) so "Chess - 3 | 2" shows the moment the bubble renders.
+    val timeControlLabel = invite.tcMinutes?.let { "Chess - $it | ${invite.tcIncSeconds ?: 0}" }
     val showsResponseButtons = !isSent && summary?.status?.kind == com.kachat.app.util.ChessGameStatusKind.PENDING_RESPONSE
     Surface(
         color = LocalAppColors.current.surfaceVariant,
@@ -2251,6 +2276,10 @@ private fun ChessInviteBubble(
                     color = LocalAppColors.current.textPrimary,
                     fontSize = 14.sp
                 )
+            }
+            if (timeControlLabel != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(timeControlLabel, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
             if (showsResponseButtons) {
                 Spacer(Modifier.height(10.dp))
@@ -2295,6 +2324,11 @@ private fun ChessLiveCard(summary: com.kachat.app.util.ChessGameSummary, onOpen:
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
+            val timeControlLabel = summary.timeControlLabel
+            if (timeControlLabel != null) {
+                Spacer(Modifier.height(2.dp))
+                Text("Chess - $timeControlLabel", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+            }
         }
     }
 }
@@ -2322,7 +2356,8 @@ private fun ChessLogEntry(
             val promo = envelope.content.promotion?.let { " (${it.uppercase()})" } ?: ""
             "${envelope.content.from} → ${envelope.content.to}$promo"
         }
-        is com.kachat.app.util.ChessEnvelope.Resign -> "Resigned"
+        is com.kachat.app.util.ChessEnvelope.Resign ->
+            if (envelope.content.reason == "timeout") "Lost on time" else "Resigned"
         is com.kachat.app.util.ChessEnvelope.Response -> if (envelope.content.accepted) "Accepted the game" else "Declined the game"
         is com.kachat.app.util.ChessEnvelope.Invite -> "Chess invite"
     }

@@ -25,7 +25,13 @@ enum class ChessInviteColor {
 data class ChessInviteContent(
     val type: String = "chess_invite",
     val gameId: String,
-    val inviterColor: ChessInviteColor
+    val inviterColor: ChessInviteColor,
+    /** Optional time control (e.g. 3/2, 2/1, 1/1) - both null means an untimed casual game,
+     *  which is also what every pre-timer client sends and how they read these two absent keys
+     *  (Gson ignores unknown fields on parse and omits null fields on encode, so the wire stays
+     *  byte-compatible with legacy invites). Shared wire spec with iOS - field names must match. */
+    val tcMinutes: Int? = null,
+    val tcIncSeconds: Int? = null
 )
 
 data class ChessResponseContent(
@@ -39,12 +45,19 @@ data class ChessMoveContent(
     val gameId: String,
     val from: String,
     val to: String,
-    val promotion: String?
+    val promotion: String?,
+    /** Timed games only: the mover's remaining clock in ms AFTER this move, increment already
+     *  added. Each side's authoritative remaining time is the clockMs of their own most recent
+     *  move. Null/absent on untimed games and on moves from pre-timer clients. */
+    val clockMs: Long? = null
 )
 
 data class ChessResignContent(
     val type: String = "chess_resign",
-    val gameId: String
+    val gameId: String,
+    /** "timeout" when the player flagged (clock hit zero) - new clients render "lost on time",
+     *  old clients ignore the field and show a plain resignation. Null for a manual resign. */
+    val reason: String? = null
 )
 
 /** Any one of the four chess envelope shapes, parsed generically. */
@@ -103,7 +116,10 @@ enum class ChessGameStatusKind { PENDING_RESPONSE, DECLINED, IN_PROGRESS, CHECKM
 data class ChessGameStatus(
     val kind: ChessGameStatusKind,
     /** Only meaningful for CHECKMATE (winner) / RESIGNED (loser). */
-    val color: ChessColor? = null
+    val color: ChessColor? = null,
+    /** RESIGNED only: true when the resign carried reason "timeout" (the loser flagged), so
+     *  status rendering says "lost on time" instead of "resigned". */
+    val timedOut: Boolean = false
 ) {
     val isGameOver: Boolean get() = kind != ChessGameStatusKind.PENDING_RESPONSE && kind != ChessGameStatusKind.IN_PROGRESS
 }
@@ -121,7 +137,10 @@ data class ChessMoveRecord(
     val promotion: ChessPieceType?,
     /** id of the chat message this move came from - lets a specific log entry look up its own
      *  record via `moveHistory.firstOrNull { it.messageId == message.id }`. */
-    val messageId: String
+    val messageId: String,
+    /** The mover's remaining clock in ms after this move (increment included), straight from the
+     *  move envelope - null on untimed games and on moves sent by pre-timer clients. */
+    val clockMs: Long? = null
 )
 
 data class ChessGameSummary(
@@ -138,8 +157,27 @@ data class ChessGameSummary(
      *  stop and translate back to "wait, am I white or black in this one?" every time. */
     val viewerColor: ChessColor? = null,
     /** Every move actually applied during replay, in play order. */
-    val moveHistory: List<ChessMoveRecord> = emptyList()
+    val moveHistory: List<ChessMoveRecord> = emptyList(),
+    /** Time control from the invite - both null for an untimed casual game. */
+    val tcMinutes: Int? = null,
+    val tcIncSeconds: Int? = null
 ) {
+    val isTimed: Boolean get() = tcMinutes != null
+
+    /** "3 | 2"-style label for a timed game, null for casual - shown on the invite bubble, live
+     *  card, and anywhere else the game is previewed. */
+    val timeControlLabel: String?
+        get() = tcMinutes?.let { minutes -> "$minutes | ${tcIncSeconds ?: 0}" }
+
+    /** Authoritative remaining clock for `color` as of their own most recent move that carried a
+     *  clock, else the initial allotment; null on untimed games. The viewer's *displayed* own
+     *  clock additionally subtracts locally-accumulated thinking time (see ChessGameScreen). */
+    fun lastReportedClockMs(color: ChessColor): Long? {
+        val minutes = tcMinutes ?: return null
+        return moveHistory.lastOrNull { it.color == color && it.clockMs != null }?.clockMs
+            ?: (minutes * 60_000L)
+    }
+
     /** Pieces captured so far, grouped by the color that captured them (i.e. `capturedByWhite`
      *  are black pieces White has taken) - drives a captured-pieces tray. */
     val capturedByWhite: List<ChessPieceType>
@@ -169,7 +207,11 @@ data class ChessGameSummary(
             }
             ChessGameStatusKind.STALEMATE -> "Stalemate - draw"
             ChessGameStatusKind.RESIGNED -> {
-                if (viewerColor == null) {
+                if (status.timedOut) {
+                    if (viewerColor == null) {
+                        "${if (status.color == ChessColor.WHITE) "White" else "Black"} lost on time"
+                    } else if (status.color == viewerColor) "You lost on time" else "They lost on time"
+                } else if (viewerColor == null) {
                     "${if (status.color == ChessColor.WHITE) "White" else "Black"} resigned"
                 } else if (status.color == viewerColor) "You resigned" else "They resigned"
             }
@@ -205,6 +247,7 @@ object ChessGameEngine {
         var response: ChessResponseContent? = null
         var board = ChessEngine.initialBoard()
         var resignerAddress: String? = null
+        var resignReason: String? = null
         var lastMessageId: String? = null
         val moveHistory = mutableListOf<ChessMoveRecord>()
 
@@ -247,12 +290,14 @@ object ChessGameEngine {
                             capturedType = capturedPiece?.type,
                             capturedColor = capturedPiece?.color,
                             promotion = promotion,
-                            messageId = message.id
+                            messageId = message.id,
+                            clockMs = envelope.content.clockMs
                         )
                     )
                 }
                 is ChessEnvelope.Resign -> {
                     resignerAddress = senderAddress
+                    resignReason = envelope.content.reason
                 }
             }
         }
@@ -266,7 +311,7 @@ object ChessGameEngine {
         val status = when {
             resignerAddress != null -> {
                 val loser = if (resignerAddress == whiteAddress) ChessColor.WHITE else ChessColor.BLACK
-                ChessGameStatus(ChessGameStatusKind.RESIGNED, loser)
+                ChessGameStatus(ChessGameStatusKind.RESIGNED, loser, timedOut = resignReason == "timeout")
             }
             response != null && !response.accepted -> ChessGameStatus(ChessGameStatusKind.DECLINED)
             response == null -> ChessGameStatus(ChessGameStatusKind.PENDING_RESPONSE)
@@ -289,7 +334,9 @@ object ChessGameEngine {
             blackAddress = blackAddress,
             lastMessageId = lastMessageId ?: "",
             viewerColor = viewerColor,
-            moveHistory = moveHistory
+            moveHistory = moveHistory,
+            tcMinutes = nonNullInvite.tcMinutes,
+            tcIncSeconds = nonNullInvite.tcIncSeconds
         )
     }
 
