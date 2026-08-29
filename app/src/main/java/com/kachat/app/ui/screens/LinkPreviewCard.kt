@@ -20,12 +20,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -58,7 +60,9 @@ import coil.request.ImageRequest
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.services.LinkPreviewData
 import com.kachat.app.services.LinkPreviewService
+import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.MessageProtocol
 
 private val VIDEO_HOSTS = setOf("youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com")
 
@@ -97,6 +101,23 @@ fun LinkPreviewCard(
      *  senders and ALL broadcast messages (broadcast senders are always strangers). */
     autoFetch: Boolean = true
 ) {
+    // An in-app KaChat link (a shared KaPosts post or broadcast room) is previewed LOCALLY: no
+    // metadata fetch, and therefore no stranger tap-to-load gate either. Handled here rather than
+    // only at the call sites so every bubble type that already renders a preview card - 1:1,
+    // group and broadcast alike - picks up the https form of the contract for free.
+    val internalRef = remember(url) { KaChatLink.parse(url) }
+    if (internalRef != null) {
+        KaChatInternalLinkCard(
+            ref = internalRef,
+            url = url,
+            txId = txId,
+            kaspaExplorer = kaspaExplorer,
+            onSelect = onSelect,
+            onDoubleTap = onDoubleTap
+        )
+        return
+    }
+
     var fetchApproved by remember(url, autoFetch) { mutableStateOf(autoFetch) }
     var preview by remember(url) { mutableStateOf<LinkPreviewData?>(null) }
     var hasFinishedLoading by remember(url) { mutableStateOf(false) }
@@ -607,6 +628,248 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                clipboardManager.setText(AnnotatedString(url))
+                showMenu = false
+            }
+            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+                uriHandler.openUri(kaspaExplorer.txUrl(txId))
+                showMenu = false
+            }
+            if (onSelect != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                    onSelect()
+                    showMenu = false
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// In-app KaChat links (shared with iOS - both platforms emit and accept exactly these forms)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A KaChat link found in message text. These are the ONLY links that never touch the network for
+ * a preview: everything the card shows is built from the link itself plus whatever text it was
+ * pasted with, and tapping one routes inside the app instead of handing the URL to a browser.
+ *
+ * Wire forms (identical on iOS):
+ *   KaPosts post   kachat://kapost/<txid>       https://kachat.duckdns.org/post/<txid>
+ *   Broadcast room kachat://broadcast/<channel> https://kachat.duckdns.org/broadcast/<channel>
+ *
+ * `<channel>` is the normalized channel name with NO leading '#'
+ * (see [MessageProtocol.normalizeChannelName]).
+ */
+sealed class KaChatLinkRef {
+    data class KaPost(val txId: String) : KaChatLinkRef()
+    data class BroadcastRoom(val channel: String) : KaChatLinkRef()
+}
+
+/** [raw] is the exact link substring as it appears in the message, [range] where it sits in it. */
+data class KaChatLinkMatch(val range: IntRange, val raw: String, val ref: KaChatLinkRef)
+
+object KaChatLink {
+    const val WEB_HOST = "kachat.duckdns.org"
+
+    fun kaPostUrl(txId: String) = "kachat://kapost/$txId"
+    fun kaPostWebUrl(txId: String) = "https://$WEB_HOST/post/$txId"
+    fun broadcastUrl(channel: String) = "kachat://broadcast/$channel"
+    fun broadcastWebUrl(channel: String) = "https://$WEB_HOST/broadcast/$channel"
+
+    // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
+    // second path component, a query string or a fragment into the app.
+    private val LINK_REGEX = Regex(
+        """(?:kachat://(kapost|broadcast)/|https?://kachat\.duckdns\.org/(post|broadcast)/)([^\s/?#]+)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')
+    private val TX_ID_REGEX = Regex("[0-9a-fA-F]{6,64}")
+
+    /** True when [raw] is nothing but one of these links (no surrounding text). */
+    fun parse(raw: String): KaChatLinkRef? {
+        val match = LINK_REGEX.matchEntire(raw.trim()) ?: return null
+        return refFor(match)
+    }
+
+    /** The first valid KaChat link in [text], or null. Invalid ones are skipped, not accepted. */
+    fun findFirst(text: String): KaChatLinkMatch? {
+        for (match in LINK_REGEX.findAll(text)) {
+            var end = match.range.last
+            while (end >= match.range.first && text[end] in TRAILING_PUNCTUATION) end--
+            if (end < match.range.first) continue
+            val range = match.range.first..end
+            val raw = text.substring(range.first, range.last + 1)
+            val ref = parse(raw) ?: continue
+            return KaChatLinkMatch(range, raw, ref)
+        }
+        return null
+    }
+
+    /**
+     * Normalizes an incoming broadcast channel name from an UNTRUSTED source (a pasted link, an
+     * inbound intent), returning null when it is malformed or hostile rather than joining it.
+     *
+     * [MessageProtocol.isValidChannelName] is the protocol gate (non-blank, no whitespace, no
+     * colons, within the length cap); on top of it a link-borne name must also survive being put
+     * in a navigation route and rendered as a room title, so anything that could re-encode as
+     * another URL, split the route, or hide characters in the title is rejected too.
+     */
+    fun sanitizeChannelName(raw: String): String? {
+        val name = MessageProtocol.normalizeChannelName(raw.trim().removePrefix("#"))
+        if (!MessageProtocol.isValidChannelName(name)) return null
+        if (name.any { it in "/?#%&\\" || it.isISOControl() }) return null
+        return name
+    }
+
+    /**
+     * A local, network-free snippet for the card: whatever the sender pasted ahead of the link.
+     * KaPosts' own share text puts the quoted post there, so this recovers it without asking the
+     * indexer for anything. The trailing "Open in KaChat:" style label and any wrapping quotes
+     * are dropped.
+     */
+    fun snippetFor(text: String, range: IntRange): String? {
+        val lines = text.substring(0, range.first).lines().map { it.trim() }.filter { it.isNotEmpty() }
+        var snippet = lines.dropLastWhile { it.endsWith(":") }.joinToString(" ").trim()
+        if (snippet.length >= 2 && snippet.first() == '"' && snippet.last() == '"') {
+            snippet = snippet.substring(1, snippet.length - 1).trim()
+        }
+        return snippet.take(160).takeIf { it.isNotBlank() }
+    }
+
+    private fun refFor(match: MatchResult): KaChatLinkRef? {
+        val kind = match.groupValues[1].ifEmpty { match.groupValues[2] }.lowercase()
+        // Percent-decoding only (NOT URLDecoder, which would turn a legal '+' in a channel name
+        // into a space).
+        val segment = try {
+            android.net.Uri.decode(match.groupValues[3])
+        } catch (e: Exception) {
+            null
+        } ?: return null
+        return when (kind) {
+            "kapost", "post" ->
+                segment.takeIf { TX_ID_REGEX.matches(it) }?.lowercase()?.let(KaChatLinkRef::KaPost)
+            "broadcast" ->
+                sanitizeChannelName(segment)?.let(KaChatLinkRef::BroadcastRoom)
+            else -> null
+        }
+    }
+}
+
+/**
+ * Hands an in-app link to the app's own routing instead of the browser. Both paths land in the
+ * same deep-link holders a notification tap uses, so Child Mode is enforced in exactly one place
+ * (MainShell's deep-link effects) for taps, notifications and system intents alike.
+ */
+fun openKaChatLink(ref: KaChatLinkRef) {
+    when (ref) {
+        is KaChatLinkRef.KaPost -> {
+            // Focus first, post id second - the post id is what KaPostsScreen keys on.
+            KaPostsDeepLink.pendingFocusReplyTxId.value = null
+            KaPostsDeepLink.pendingPostTxId.value = ref.txId
+        }
+        is KaChatLinkRef.BroadcastRoom -> BroadcastDeepLink.request(ref.channel)
+    }
+}
+
+/**
+ * The rich preview for an in-app KaChat link, built entirely from local data: the link's own
+ * identity (KaPosts post / broadcast room) plus [snippet], which callers recover from the text the
+ * link was pasted with. No request of any kind leaves the device for one of these, so there is no
+ * "tap to load" gate either - a stranger's KaChat link is as safe to render as your own.
+ *
+ * Long-press menu matches every other preview card's.
+ */
+@Composable
+fun KaChatInternalLinkCard(
+    ref: KaChatLinkRef,
+    url: String,
+    txId: String,
+    snippet: String? = null,
+    kaspaExplorer: KaspaExplorer = KaspaExplorer.default,
+    onSelect: (() -> Unit)? = null,
+    onDoubleTap: (() -> Unit)? = null
+) {
+    val uriHandler = LocalUriHandler.current
+    val clipboardManager = LocalClipboardManager.current
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+
+    val icon = when (ref) {
+        is KaChatLinkRef.KaPost -> Icons.Default.EditNote
+        is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
+    }
+    val title = when (ref) {
+        is KaChatLinkRef.KaPost -> "KaPosts post"
+        is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
+    }
+    val body = snippet?.takeIf { it.isNotBlank() } ?: when (ref) {
+        is KaChatLinkRef.KaPost -> "Tap to open this post in KaChat"
+        is KaChatLinkRef.BroadcastRoom -> "Tap to join this broadcast room"
+    }
+    val caption = when (ref) {
+        is KaChatLinkRef.KaPost -> "KAPOSTS"
+        is KaChatLinkRef.BroadcastRoom -> "BROADCAST ROOM"
+    }
+
+    Row(
+        modifier = Modifier
+            .widthIn(max = 260.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(LocalAppColors.current.surface)
+            .onGloballyPositioned { coords ->
+                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+            }
+            .pointerInput(url) {
+                detectTapGestures(
+                    onLongPress = { showMenu = true },
+                    onDoubleTap = { onDoubleTap?.invoke() },
+                    onTap = { openKaChatLink(ref) }
+                )
+            }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(KaspaTeal.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(
+                title,
+                color = LocalAppColors.current.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                body,
+                color = LocalAppColors.current.textSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                caption,
+                color = KaspaTeal,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1
+            )
         }
     }
 

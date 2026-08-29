@@ -71,6 +71,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kachat" android:host="kapost" />
             </intent-filter>
+            <!-- Broadcast room share links: kachat://broadcast/<channel> opens (and, for a room
+                 that isn't one of the curated ones, joins) that room. <channel> is the normalized
+                 name with no leading '#' - see MessageProtocol.normalizeChannelName. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kachat" android:host="broadcast" />
+            </intent-filter>
             <!-- Universal-link form. autoVerify needs /.well-known/assetlinks.json served at
                  the domain (mirrors iOS's AASA file - see KAPOSTS_INDEXER.md section 7). -->
             <intent-filter android:autoVerify="true">
@@ -78,6 +87,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/post/" />
+                <!-- Broadcast rooms share the same universal-link host/verification. -->
+                <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/broadcast/" />
             </intent-filter>
             <!-- System share sheet: text/links and images shared from any app land in a chat's
                  composer (see ShareShortcutsManager/ShareIntake + MainActivity.handleShareIntent).

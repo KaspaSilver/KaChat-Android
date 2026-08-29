@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -95,7 +96,52 @@ import com.kachat.app.util.VoiceMessage
 import com.kachat.app.viewmodels.BroadcastViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+/**
+ * Broadcast room share links (`kachat://broadcast/<channel>`,
+ * `https://kachat.duckdns.org/broadcast/<channel>`) land here — from an inbound system intent
+ * (MainActivity) or from a tap on an in-app invite card ([openKaChatLink]). MainShell watches
+ * [pendingChannel] and navigates; the room screen itself consumes [consumeJoinRequest] so a room
+ * the user isn't in yet is created/joined before it opens, landing in their own channel list.
+ *
+ * The Child Mode check lives with the navigation in MainShell, exactly like the KaPosts link and
+ * broadcast-notification paths, so a link can never route into a hidden feature.
+ */
+object BroadcastDeepLink {
+    private val _pendingChannel = MutableStateFlow<String?>(null)
+    val pendingChannel: StateFlow<String?> = _pendingChannel.asStateFlow()
+
+    /** Channels a link asked for that aren't curated — joined on open so they stick around. */
+    private val joinRequests = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * Gates an untrusted channel name through [KaChatLink.sanitizeChannelName] (which is
+     * [MessageProtocol.normalizeChannelName] + [MessageProtocol.isValidChannelName] plus the
+     * route/rendering safety rules). Returns false — and does nothing at all — for a malformed or
+     * hostile name, rather than joining it.
+     */
+    fun request(rawName: String): Boolean {
+        val name = KaChatLink.sanitizeChannelName(rawName) ?: return false
+        // Curated rooms are permanent fixtures that always exist, so they just open.
+        if (name !in FeaturedBroadcastChannels.INDEXED_NAMES) joinRequests.add(name)
+        _pendingChannel.value = name
+        return true
+    }
+
+    fun consumePending() {
+        _pendingChannel.value = null
+    }
+
+    fun consumeJoinRequest(channelName: String): Boolean = joinRequests.remove(channelName)
+
+    fun clearJoinRequests() {
+        joinRequests.clear()
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -826,6 +872,27 @@ fun BroadcastChannelScreen(
     var showRoomHiddenUsers by remember { mutableStateOf(false) }
     val roomHiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
 
+    // Opened from a share link for a room the user isn't in: create/join it first so it lands in
+    // "Your Channels" instead of vanishing the moment they navigate away. Curated rooms never
+    // register a join request (they always exist), so they just open. joinChannel is idempotent
+    // (INSERT IGNORE) and re-validates the name itself, so a stale request can't do damage.
+    LaunchedEffect(channelName) {
+        if (BroadcastDeepLink.consumeJoinRequest(channelName)) {
+            broadcastViewModel.joinChannel(channelName)
+        }
+    }
+
+    val shareContext = LocalContext.current
+    val shareRoomLink = {
+        val text = "Join #$channelName on KaChat: ${KaChatLink.broadcastUrl(channelName)}"
+        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_TEXT, text)
+        }
+        runCatching { shareContext.startActivity(android.content.Intent.createChooser(send, null)) }
+        Unit
+    }
+
     LaunchedEffect(myAddress) {
         myAddress?.let { broadcastViewModel.ensureSenderProfileFetched(it) }
     }
@@ -857,6 +924,12 @@ fun BroadcastChannelScreen(
                     }
                 },
                 actions = {
+                    // Shares this room's invite link (kachat://broadcast/<channel>) through the
+                    // system share sheet - same shape as KaPosts' post share. Opening it joins
+                    // the room if the recipient isn't in it yet, then lands them in it.
+                    IconButton(onClick = shareRoomLink) {
+                        Icon(Icons.Default.Share, contentDescription = "Share room link", tint = LocalAppColors.current.textSecondary)
+                    }
                     // Per-room hidden users (4.0, matches iOS): manage who's hidden in THIS room.
                     IconButton(onClick = { showRoomHiddenUsers = true }) {
                         Icon(Icons.Default.VisibilityOff, contentDescription = "Hidden users", tint = LocalAppColors.current.textSecondary)
@@ -991,7 +1064,14 @@ fun BroadcastChannelScreen(
                                 unfocusedTextColor = LocalAppColors.current.textPrimary,
                                 focusedBorderColor = KaspaTeal,
                                 unfocusedBorderColor = LocalAppColors.current.textSecondary
-                            )
+                            ),
+                            // Load-bearing, same value as the 1:1 composer. Without a cap this
+                            // field grows a line per line of text; the Scaffold measures its
+                            // bottom bar against the screen height, so past ~a screenful the
+                            // Column stopped growing and the newest lines - the ones with the
+                            // caret - overflowed past its bottom edge and under the keyboard.
+                            // Capped, the field scrolls internally and the caret stays put.
+                            maxLines = 4
                         )
                         val sending = sendState.status == BroadcastViewModel.SendBroadcastStatus.SENDING
                         if (messageText.isEmpty()) {
@@ -1084,6 +1164,17 @@ fun BroadcastChannelScreen(
                             TextLinkify.findUrls(displayContent).firstOrNull()?.uri
                         } else null
                     }
+                    // An in-app KaChat link (shared KaPosts post / broadcast room invite) takes
+                    // priority over the generic link path: it previews from local data only and
+                    // opens in-app. Detected separately from TextLinkify because the kachat://
+                    // form isn't a web URL at all and so is never linkified.
+                    val internalLinkMatch = remember(displayContent, voiceContent) {
+                        if (voiceContent == null && displayContent.length <= MESSAGE_TEXT_TRUNCATION_THRESHOLD) {
+                            KaChatLink.findFirst(displayContent)
+                        } else null
+                    }
+                    val isEntirelyInternalLinkMessage =
+                        internalLinkMatch != null && displayContent.trim() == internalLinkMatch.raw
                     val messageReactions = reactionsByTxId[message.id] ?: emptyList()
                     var showMenu by remember { mutableStateOf(false) }
                     var showQuickReactionBar by remember { mutableStateOf(false) }
@@ -1272,6 +1363,16 @@ fun BroadcastChannelScreen(
                                             onCopy = { clipboardManager.setText(AnnotatedString(displayContent)) }
                                         )
                                     }
+                                } else if (isEntirelyInternalLinkMessage) {
+                                    // Nothing but an in-app KaChat link: the invite/post card IS
+                                    // the message. Built locally, so no autoFetch gate applies.
+                                    KaChatInternalLinkCard(
+                                        ref = internalLinkMatch!!.ref,
+                                        url = internalLinkMatch.raw,
+                                        txId = message.id,
+                                        kaspaExplorer = kaspaExplorer,
+                                        onDoubleTap = { showQuickReactionBar = true }
+                                    )
                                 } else if (isEntirelyLinkMessage) {
                                     // Message is nothing but a link — the shared preview card
                                     // (bare media for image/video, attachment card for
@@ -1302,6 +1403,13 @@ fun BroadcastChannelScreen(
                                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                                             }
+                                            // kachat:// isn't a web URL, so TextLinkify never
+                                            // sees it - style/annotate it here so it's tappable
+                                            // inline too.
+                                            KaChatLink.findFirst(displayContent)?.let { internal ->
+                                                addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), internal.range.first, internal.range.last + 1)
+                                                addStringAnnotation("URL", internal.raw, internal.range.first, internal.range.last + 1)
+                                            }
                                         }
                                     }
                                     Column(
@@ -1325,7 +1433,13 @@ fun BroadcastChannelScreen(
                                                             val layout = textLayoutResult ?: return@detectTapGestures
                                                             val charOffset = layout.getOffsetForPosition(offset)
                                                             annotatedBody.getStringAnnotations("URL", charOffset, charOffset)
-                                                                .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                                                .firstOrNull()?.let { annotation ->
+                                                                    // In-app KaChat links route
+                                                                    // in-app, never to a browser.
+                                                                    val internal = KaChatLink.parse(annotation.item)
+                                                                    if (internal != null) openKaChatLink(internal)
+                                                                    else uriHandler.openUri(annotation.item)
+                                                                }
                                                         }
                                                     )
                                                 },
@@ -1427,7 +1541,19 @@ fun BroadcastChannelScreen(
                             // A link mixed with other text keeps the bubble above and stacks the
                             // shared preview card below it, as its own sibling — same placement
                             // (and same reasoning) as 1:1's MessageBubble/group's GroupMessageBubble.
-                            separateLinkPreviewUrl?.let { url ->
+                            if (internalLinkMatch != null && !isEntirelyInternalLinkMessage) {
+                                // A KaChat link pasted alongside other text (e.g. the shared
+                                // snippet KaPosts' own share text carries) - the snippet comes
+                                // from that text, never from the network.
+                                KaChatInternalLinkCard(
+                                    ref = internalLinkMatch.ref,
+                                    url = internalLinkMatch.raw,
+                                    txId = message.id,
+                                    snippet = KaChatLink.snippetFor(displayContent, internalLinkMatch.range),
+                                    kaspaExplorer = kaspaExplorer,
+                                    onDoubleTap = { showQuickReactionBar = true }
+                                )
+                            } else separateLinkPreviewUrl?.let { url ->
                                 // Tap-to-load for all broadcast previews - see the entire-link
                                 // branch above for why.
                                 LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true }, autoFetch = false)

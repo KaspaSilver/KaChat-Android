@@ -1685,6 +1685,16 @@ fun MessageBubble(
     val separateLinkPreviewUrl = remember(bodyText, isPlainTextMessage, isEntirelyLinkMessage) {
         if (isPlainTextMessage && !isEntirelyLinkMessage) TextLinkify.findUrls(bodyText).firstOrNull()?.uri else null
     }
+    // An in-app KaChat link (a shared KaPosts post, or a broadcast room invite) takes priority
+    // over the generic link path: it previews from local data only - never a metadata fetch, so
+    // never the stranger tap-to-load gate either - and tapping it routes inside the app. Detected
+    // separately from TextLinkify because the kachat:// form isn't a web URL at all and so is
+    // never linkified; the https form would otherwise be fetched like any external address.
+    val internalLinkMatch = remember(bodyText, isPlainTextMessage) {
+        if (isPlainTextMessage) KaChatLink.findFirst(bodyText) else null
+    }
+    val isEntirelyInternalLinkMessage =
+        internalLinkMatch != null && bodyText.trim() == internalLinkMatch.raw
     // Link previews auto-fetch only for accepted contacts (the same conversationStatus ==
     // "active" trust signal shouldAutoDisplayPhotos uses, passed in as isHandshakeComplete) and
     // for the user's own sent links; a non-accepted stranger's link gets a tap-to-load
@@ -1957,6 +1967,16 @@ fun MessageBubble(
                             onCopy = { clipboardManager.setText(AnnotatedString(bodyText)) }
                         )
                     }
+                } else if (isEntirelyInternalLinkMessage) {
+                    // Nothing but an in-app KaChat link: the post/invite card IS the message.
+                    KaChatInternalLinkCard(
+                        ref = internalLinkMatch!!.ref,
+                        url = internalLinkMatch.raw,
+                        txId = message.id,
+                        kaspaExplorer = kaspaExplorer,
+                        onSelect = onSelect,
+                        onDoubleTap = { showQuickReactionBar = true }
+                    )
                 } else if (isEntirelyLinkMessage) {
                     // Message is nothing but a link - the preview card replaces the plain-text
                     // bubble entirely (matches iMessage/iOS's `MessageBubbleView`) instead of
@@ -1983,6 +2003,13 @@ fun MessageBubble(
                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                             }
+                            // kachat:// isn't a web URL, so TextLinkify never sees it - style and
+                            // annotate it here so it's tappable inline too (the https form is
+                            // already covered above and resolves to the same in-app route).
+                            KaChatLink.findFirst(bodyText)?.let { internal ->
+                                addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), internal.range.first, internal.range.last + 1)
+                                addStringAnnotation("URL", internal.raw, internal.range.first, internal.range.last + 1)
+                            }
                         }
                     }
                     Surface(
@@ -2005,7 +2032,13 @@ fun MessageBubble(
                                             val layout = textLayoutResult ?: return@detectTapGestures
                                             val charOffset = layout.getOffsetForPosition(offset)
                                             annotatedBody.getStringAnnotations("URL", charOffset, charOffset)
-                                                .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                                .firstOrNull()?.let { annotation ->
+                                                    // An in-app KaChat link routes in-app; it
+                                                    // must never be handed to a browser.
+                                                    val internal = KaChatLink.parse(annotation.item)
+                                                    if (internal != null) openKaChatLink(internal)
+                                                    else uriHandler.openUri(annotation.item)
+                                                }
                                         }
                                     )
                                 },
@@ -2094,7 +2127,20 @@ fun MessageBubble(
         // text bubble instead of overlapping it, and so the reaction pill's corner-anchor (which
         // attaches to that Box) sizes against just the text bubble, not this taller card too -
         // matches iOS's identical placement outside its equivalent `Group`.
-        separateLinkPreviewUrl?.let { url ->
+        if (internalLinkMatch != null && !isEntirelyInternalLinkMessage) {
+            // A KaChat link pasted alongside other text - e.g. KaPosts' own share text, whose
+            // quoted snippet sits right above the link and becomes this card's snippet. Nothing
+            // here is fetched; the whole card is built from the message that's already on screen.
+            KaChatInternalLinkCard(
+                ref = internalLinkMatch.ref,
+                url = internalLinkMatch.raw,
+                txId = message.id,
+                snippet = KaChatLink.snippetFor(bodyText, internalLinkMatch.range),
+                kaspaExplorer = kaspaExplorer,
+                onSelect = onSelect,
+                onDoubleTap = { showQuickReactionBar = true }
+            )
+        } else separateLinkPreviewUrl?.let { url ->
             LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, autoFetch = linkPreviewAutoFetch)
         }
 
@@ -2715,6 +2761,29 @@ fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}, size: Dp = 40.
 /** "0:07" — the composer's live recording timer, capped display-wise the same way the recording itself is capped at 10s. */
 fun formatRecordingElapsed(elapsedMs: Long): String = VoiceMessage.formatDuration(elapsedMs.toInt())
 
+/**
+ * One-line body for a broadcast row in the in-app notification center (the Profile bell).
+ *
+ * The store records the raw on-chain broadcast content and truncates it to 90 characters, so a
+ * photo/voice/chess envelope arrives here as a clipped JSON blob that no parser can read back.
+ * The full-envelope cases go through the same mapping the shade uses
+ * ([NotificationHelper.broadcastNotificationText]); anything still JSON-shaped after that is a
+ * truncated envelope, recognized by its surviving type marker instead.
+ */
+private fun broadcastCenterBody(body: String): String {
+    val humanized = com.kachat.app.services.NotificationHelper.broadcastNotificationText(body)
+    if (humanized.trimStart().firstOrNull() != '{') return humanized
+    val compact = humanized.replace(" ", "")
+    return when {
+        compact.contains("\"mimeType\":\"audio") -> "\uD83C\uDFA4 Audio message"
+        compact.contains("\"mimeType\":\"image") -> "\uD83D\uDCF7 Photo"
+        compact.contains("\"mimeType\":\"video") -> "\uD83C\uDFAC Video"
+        compact.contains("\"type\":\"chess") -> "\u265F\uFE0F Chess game"
+        compact.contains("\"type\":\"file") -> "\uD83D\uDCCE File"
+        else -> "New message"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -2908,9 +2977,15 @@ fun ProfileScreen(
                                                 fontWeight = FontWeight.SemiBold,
                                                 fontSize = 13.5.sp,
                                             )
-                                            if (entry.body.isNotBlank()) {
+                                            // Broadcast rows carry the raw on-chain body, which is
+                                            // a JSON envelope for anything but plain text - same
+                                            // problem the shade had. See the helper below.
+                                            val entryBody = remember(entry.id, entry.body, entry.source) {
+                                                if (entry.source == "broadcast") broadcastCenterBody(entry.body) else entry.body
+                                            }
+                                            if (entryBody.isNotBlank()) {
                                                 Text(
-                                                    entry.body,
+                                                    entryBody,
                                                     color = LocalAppColors.current.textSecondary,
                                                     fontSize = 12.sp,
                                                     maxLines = 2,

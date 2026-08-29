@@ -31,6 +31,7 @@ import com.kachat.app.services.PendingShare
 import com.kachat.app.services.ShareIntake
 import com.kachat.app.ui.theme.KaChatTheme
 import com.kachat.app.ui.KaChatApp
+import com.kachat.app.ui.screens.BroadcastDeepLink
 import com.kachat.app.ui.screens.KaPostsDeepLink
 import com.kachat.app.viewmodels.WalletViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -116,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         pendingChannelName = intent?.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent?.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         intent?.let(::handleKaPostDeepLink)
+        intent?.let(::handleBroadcastDeepLink)
         intent?.let(::handleShareIntent)
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
@@ -145,7 +147,30 @@ class MainActivity : AppCompatActivity() {
         pendingChannelName = intent.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         handleKaPostDeepLink(intent)
+        handleBroadcastDeepLink(intent)
         handleShareIntent(intent)
+    }
+
+    /**
+     * Broadcast room share links: kachat://broadcast/<channel> (the share-text form) and
+     * https://kachat.duckdns.org/broadcast/<channel> (universal-link form). The name is untrusted,
+     * so [BroadcastDeepLink.request] runs it through normalizeChannelName/isValidChannelName (plus
+     * the route-safety rules) and drops it outright if it doesn't pass — nothing is joined and no
+     * navigation happens. MainShell picks up a request that does pass, enforces Child Mode, and
+     * opens the room (joining it first when it isn't one of the curated ones).
+     */
+    private fun handleBroadcastDeepLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        val rawChannel = when {
+            uri.scheme.equals("kachat", ignoreCase = true) &&
+                uri.host.equals("broadcast", ignoreCase = true) -> uri.lastPathSegment
+            uri.scheme.equals("https", ignoreCase = true) &&
+                uri.host.equals("kachat.duckdns.org", ignoreCase = true) &&
+                uri.pathSegments.firstOrNull() == "broadcast" -> uri.pathSegments.getOrNull(1)
+            else -> null
+        } ?: return
+        BroadcastDeepLink.request(rawChannel)
     }
 
     /**

@@ -395,6 +395,25 @@ fun MainShell(
         }
     }
 
+    // Broadcast room share/deep links (kachat://broadcast/<channel>,
+    // https://kachat.duckdns.org/broadcast/…) and taps on an in-app room-invite card. The name has
+    // already been normalized and validated by BroadcastDeepLink.request; a room that isn't one of
+    // the curated ones carries a join request that BroadcastChannelScreen consumes on open, so it
+    // lands in the user's own channel list rather than disappearing when they navigate away.
+    val pendingBroadcastLinkChannel by BroadcastDeepLink.pendingChannel.collectAsState()
+    LaunchedEffect(pendingBroadcastLinkChannel) {
+        val channel = pendingBroadcastLinkChannel ?: return@LaunchedEffect
+        BroadcastDeepLink.consumePending()
+        // Child Mode hides Broadcasts entirely - a link must not route into it, and must not
+        // silently join a room either. Read race-free (suspend), same as the notification path.
+        if (walletViewModel.isChildModeEnabled()) {
+            BroadcastDeepLink.clearJoinRequests()
+            navController.popBackStack(Screen.Chats.route, false)
+        } else {
+            navController.navigate("broadcast_channel/$channel")
+        }
+    }
+
     // Shows the Welcome Guide automatically the first time this shell renders after an account is
     // added — whether created or imported — see `WalletViewModel.pendingWelcomeGuide`. Always shown
     // on create/import, independent of the "show setup guides" setting.

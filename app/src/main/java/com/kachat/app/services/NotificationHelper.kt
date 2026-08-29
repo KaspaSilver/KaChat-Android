@@ -283,6 +283,12 @@ class NotificationHelper @Inject constructor(
     }
 
     suspend fun showBroadcast(channelName: String, title: String, text: String, dedupeTxId: String? = null) {
+        // Every broadcast notification funnels through here - the live block scan
+        // (BroadcastScanningService) AND the remote push (KaChatFirebaseMessagingService, whose
+        // `body` is whatever the indexer relayed, i.e. the raw on-chain content). Humanizing at
+        // this single point is what stops a reply/photo/chess envelope's raw JSON reaching the
+        // shade, and keeps both delivery paths' wording identical.
+        val bodyText = broadcastNotificationText(text)
         if (activeChannelName.value == channelName) return // already looking at this channel
         if (!settings.notificationsEnabled.first()) return
         // Child Mode removes Broadcasts entirely - no local banners for them either. Covers the
@@ -310,7 +316,7 @@ class NotificationHelper @Inject constructor(
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_kachat_logo)
             .setContentTitle(title)
-            .setContentText(text)
+            .setContentText(bodyText)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -368,6 +374,34 @@ class NotificationHelper @Inject constructor(
     }
 
     companion object {
+        /**
+         * Friendly one-line preview for a broadcast room's notification, mirroring the mapping
+         * 1:1 chats use (`ChatRepository`'s `notificationText`, and the identical one in
+         * `KaChatFirebaseMessagingService.notificationPreview`).
+         *
+         * Broadcast content is the raw on-chain `bcast` body, which for anything but plain text
+         * is a JSON envelope: a reply ([MessageReply]), a voice note, a photo, a chess move, or a
+         * reaction. Without this the shade showed the envelope verbatim — the reported bug was a
+         * reply's `{"type":"reply",...}` blob.
+         *
+         * A reply shows its own text (unwrapping one level, then mapping that in turn, so a voice
+         * reply reads as a voice note rather than a JSON blob); every other envelope becomes its
+         * placeholder. Wording matches what the chat list and the scan path already print for the
+         * same envelopes, so the two delivery paths for one message never disagree. Idempotent:
+         * an already-humanized string isn't JSON, so it passes straight through.
+         */
+        fun broadcastNotificationText(content: String): String {
+            com.kachat.app.util.MessageReaction.parseOrNull(content)?.let { return "Reacted ${it.emoji}" }
+            val unwrapped = com.kachat.app.util.MessageReply.parseOrNull(content)?.text ?: content
+            if (com.kachat.app.util.VoiceMessage.parseOrNull(unwrapped) != null) return "🎤 Audio message"
+            if (com.kachat.app.util.ImageMessage.parseOrNull(unwrapped) != null) return "📷 Photo"
+            if (com.kachat.app.util.ChessMessage.parseOrNull(unwrapped) != null) return "♟️ Chess game"
+            com.kachat.app.util.VoiceMessage.parseAnyFileOrNull(unwrapped)?.let {
+                return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
+            }
+            return unwrapped
+        }
+
         const val CHANNEL_ID = "kachat_messages_sound_vibrate"
         const val EXTRA_CONTACT_ID = "contact_id"
         const val EXTRA_CHANNEL_NAME = "channel_name"
