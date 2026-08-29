@@ -11,6 +11,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -93,6 +94,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
@@ -117,10 +119,15 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -149,6 +156,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * Cross-screen deep-link handoff: MainActivity (kachat://kapost/<txid>, universal links) and
@@ -1678,6 +1686,55 @@ private fun CountdownBadge(deadlineMs: Long) {
 
 // MARK: - Composer with the 25k ring meter
 
+/**
+ * Keeps the text caret inside [scroll]'s viewport.
+ *
+ * Compose foundation 1.6's legacy `BasicTextField` only asks an ancestor scroller to reveal the
+ * caret ONCE, when the field gains focus (`CoreTextField` -> `bringSelectionEndIntoView`). After
+ * that the caret is kept visible purely by the field's OWN internal scroller, and that scroller
+ * skips its `coerceOffset` unless the caret rect itself moved - a shrinking container just clamps
+ * the stale offset. So anything that shrinks the composer without the user typing (the IME
+ * animating in, the @mention list appearing, a thread segment being stacked, a quote card being
+ * attached) leaves the caret below the visible area, behind the keyboard.
+ *
+ * Running the field unbounded inside a real scroll container and driving that container from BOTH
+ * the caret offset and [ScrollState.viewportSize] closes the hole: a viewport change is as good a
+ * reason to re-reveal the caret as a keystroke. No keyboard-height arithmetic is involved - the
+ * viewport already shrank because the composer is inset-padded for the IME.
+ *
+ * @param textTopPaddingPx distance from the top of the scroll content to the first text line
+ *        (the field's own top padding), since the caret rect is relative to the text.
+ */
+@Composable
+private fun KeepCaretVisible(
+    scroll: ScrollState,
+    value: TextFieldValue,
+    layout: TextLayoutResult?,
+    textTopPaddingPx: Int,
+) {
+    LaunchedEffect(value.selection, layout, scroll.viewportSize, scroll.maxValue) {
+        val result = layout ?: return@LaunchedEffect
+        val viewport = scroll.viewportSize
+        if (viewport <= 0) return@LaunchedEffect
+        val caret = runCatching {
+            result.getCursorRect(value.selection.end.coerceIn(0, value.text.length))
+        }.getOrNull() ?: return@LaunchedEffect
+        val caretTop = caret.top + textTopPaddingPx
+        val caretBottom = caret.bottom + textTopPaddingPx
+        val current = scroll.value.toFloat()
+        // Same padding again as breathing room, so the line being typed never sits flush against
+        // the edge of the card (the scroll content already reserves it at both ends).
+        val target = when {
+            caretBottom > current + viewport -> caretBottom + textTopPaddingPx - viewport
+            caretTop < current -> caretTop - textTopPaddingPx
+            else -> return@LaunchedEffect
+        }
+        val max = scroll.maxValue
+        if (max <= 0) return@LaunchedEffect
+        scroll.scrollTo(target.roundToInt().coerceIn(0, max))
+    }
+}
+
 @Composable
 fun KaPostComposerDialog(
     title: String,
@@ -1692,19 +1749,21 @@ fun KaPostComposerDialog(
     onSubmitThread: ((List<String>) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
-    var text by remember { mutableStateOf("") }
+    // TextFieldValue rather than String: the caret offset is what [KeepCaretVisible] below needs
+    // to scroll the editor to, and the String overload never exposes it.
+    var text by remember { mutableStateOf(TextFieldValue("")) }
     var threadSegments by remember { mutableStateOf(listOf<String>()) }
     val limit = KaPostDraft.POST_CHARACTER_LIMIT
-    val totalSegments = threadSegments.size + (if (text.isNotBlank()) 1 else 0)
-    val canPost = totalSegments > 0 && text.length <= limit
+    val totalSegments = threadSegments.size + (if (text.text.isNotBlank()) 1 else 0)
+    val canPost = totalSegments > 0 && text.text.length <= limit
     val threadingEnabled = onSubmitThread != null && quoted == null
 
     // Warm the KNS caches so typing @ has domains to offer.
     LaunchedEffect(Unit) { viewModel?.prefetchMentionCandidates() }
     // The @token being typed at the END of the text ("" right after "@"), or null.
-    val mentionQuery = remember(text) {
+    val mentionQuery = remember(text.text) {
         MENTION_QUERY_REGEX
-            .find(text)?.groupValues?.get(2)?.lowercase()
+            .find(text.text)?.groupValues?.get(2)?.lowercase()
     }
     // Anyone-with-a-KNS-domain mentions: debounce-resolve the typed query live.
     var resolvedAnyDomain by remember { mutableStateOf<String?>(null) }
@@ -1715,7 +1774,7 @@ fun KaPostComposerDialog(
         kotlinx.coroutines.delay(400)
         resolvedAnyDomain = viewModel.resolveMentionQuery(query)
     }
-    val mentionSuggestions = remember(text, resolvedAnyDomain) {
+    val mentionSuggestions = remember(text.text, resolvedAnyDomain) {
         val query = mentionQuery
         if (query == null || viewModel == null) emptyList()
         else {
@@ -1770,7 +1829,7 @@ fun KaPostComposerDialog(
                     fontSize = 20.sp,
                     modifier = Modifier.weight(1f),
                 )
-                KaPostCharacterMeter(count = text.length)
+                KaPostCharacterMeter(count = text.text.length)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     if (totalSegments > 1) "Post All ($totalSegments)" else "Post",
@@ -1781,7 +1840,7 @@ fun KaPostComposerDialog(
                         .clip(RoundedCornerShape(50))
                         .background(if (canPost) KaspaTeal else colors.surface)
                         .clickable(enabled = canPost) {
-                            val trimmed = text.trim()
+                            val trimmed = text.text.trim()
                             val segments = threadSegments + (if (trimmed.isNotEmpty()) listOf(trimmed) else emptyList())
                             if (segments.isEmpty()) return@clickable
                             if (segments.size > 1 && onSubmitThread != null) onSubmitThread(segments)
@@ -1862,7 +1921,10 @@ fun KaPostComposerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    text = text.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                                    val replaced = text.text.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                                    // Caret to the end of the inserted mention, otherwise it would
+                                    // snap back to offset 0 and the editor would scroll to the top.
+                                    text = TextFieldValue(replaced, TextRange(replaced.length))
                                 }
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                         ) {
@@ -1879,34 +1941,64 @@ fun KaPostComposerDialog(
             }
             // Bordered editor card with the X-style + floating in its corner: tapping + stacks
             // the current text as a thread segment and clears the editor for the next post.
+            //
+            // The card is the SCROLL VIEWPORT and the field inside it grows with the text, rather
+            // than the field being fillMaxSize() and relying on BasicTextField's own scroller.
+            // That internal scroller (foundation's TextFieldScrollerPosition.update) only re-scrolls
+            // to the caret when the CARET rect moves - when the container shrinks under it the old
+            // offset is merely clamped, so every shrink that is not caused by typing (the IME
+            // opening, the @mention list appearing, a thread segment being stacked, the quote card
+            // arriving) left the caret parked below the visible area, i.e. behind the keyboard.
+            // KeepCaretVisible below re-runs on viewport changes as well as caret changes.
+            val editorScroll = rememberScrollState()
+            var editorLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+            var editorViewportPx by remember { mutableIntStateOf(0) }
+            val editorDensity = LocalDensity.current
+            KeepCaretVisible(
+                scroll = editorScroll,
+                value = text,
+                layout = editorLayout,
+                textTopPaddingPx = with(editorDensity) { 12.dp.roundToPx() },
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+                    .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                    .onSizeChanged { editorViewportPx = it.height },
             ) {
-                BasicTextField(
-                    value = text,
-                    onValueChange = { if (it.length <= limit) text = it },
-                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp, lineHeight = 22.sp),
-                    cursorBrush = SolidColor(KaspaTeal),
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(12.dp),
-                    decorationBox = { inner ->
-                        if (text.isEmpty()) {
-                            Text(
-                                if (threadSegments.isEmpty()) "What's happening on Kaspa?" else "Add another post",
-                                color = colors.textSecondary,
-                                fontSize = 16.sp,
-                            )
-                        }
-                        inner()
-                    },
-                )
-                if (threadingEnabled && text.isNotBlank()) {
+                        .verticalScroll(editorScroll),
+                ) {
+                    BasicTextField(
+                        value = text,
+                        onValueChange = { if (it.text.length <= limit) text = it },
+                        onTextLayout = { editorLayout = it },
+                        textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp, lineHeight = 22.sp),
+                        cursorBrush = SolidColor(KaspaTeal),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Short drafts still fill the whole card, so a tap anywhere inside the
+                            // border lands in the field exactly as it did when it was fillMaxSize().
+                            .heightIn(min = with(editorDensity) { editorViewportPx.toDp() })
+                            .padding(12.dp),
+                        decorationBox = { inner ->
+                            if (text.text.isEmpty()) {
+                                Text(
+                                    if (threadSegments.isEmpty()) "What's happening on Kaspa?" else "Add another post",
+                                    color = colors.textSecondary,
+                                    fontSize = 16.sp,
+                                )
+                            }
+                            inner()
+                        },
+                    )
+                }
+                if (threadingEnabled && text.text.isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -1915,8 +2007,8 @@ fun KaPostComposerDialog(
                             .clip(RoundedCornerShape(50))
                             .background(KaspaTeal.copy(alpha = 0.15f))
                             .clickable {
-                                threadSegments = threadSegments + text.trim()
-                                text = ""
+                                threadSegments = threadSegments + text.text.trim()
+                                text = TextFieldValue("")
                             },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -2454,6 +2546,14 @@ private fun ThreadReplyComposer(
                     onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
                     textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
                     cursorBrush = SolidColor(KaspaTeal),
+                    // Load-bearing cap, same idea as the chat composer's maxLines = 4. Without it
+                    // this field has no height bound at all: Column measures the pinned composer
+                    // BEFORE the weighted thread list, so a long reply grew until it had eaten the
+                    // entire overlay, and - because the field's own scroll container only starts
+                    // clamping once it hits that ceiling - the caret rode the bottom edge down
+                    // behind the IME on the way there. Capped at six lines the container size is
+                    // constant, so foundation's internal caret scroller keeps the caret in view.
+                    maxLines = 6,
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(focusRequester)

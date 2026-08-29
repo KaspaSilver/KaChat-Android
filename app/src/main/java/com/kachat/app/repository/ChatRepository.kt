@@ -257,7 +257,75 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun addContact(contact: ContactEntity) {
+        val previous = database.contactDao().getContact(contact.id, contact.walletAddress)
         database.contactDao().insert(contact)
+        noteConversationActivated(previous, contact)
+    }
+
+    /**
+     * The moment a conversation becomes mutual, re-read the peer's history from scratch.
+     *
+     * A contact only exists locally once we have some reason to create one, and
+     * [syncContextualMessages] only ever asks the indexer for messages by-sender for addresses
+     * that already have a contact row. So everything a peer sent BEFORE that row existed was
+     * never requested — not dropped, not undecryptable (incoming messages are ECIES-sealed to our
+     * own key with the ephemeral pubkey carried in the message, so our private key alone always
+     * opens them; see KasiaCipher.decrypt), just never asked for. Their whole earlier window is
+     * still sitting on the indexer.
+     *
+     * Activation is the trigger because it is the point where that changes:
+     *  - accepting their request (`WalletService.acceptHandshake` -> `sendHandshake(isResponse =
+     *    true)` -> [addContact] with "active"),
+     *  - sending them a handshake yourself,
+     *  - their response handshake landing (see [processHandshake]),
+     *  - the restore-parity pass finding your own past acceptance (see [syncOutgoingHandshakes]).
+     *
+     * Dropping the per-(contact, alias) cursors is what makes the re-read possible at all: without
+     * it the next fetch resumes from wherever the pending-state sync got to and asks only for
+     * what is newer. Re-reading is safe and idempotent - every insert is txId-deduped
+     * ([MessageDao.exists]) and a deleted conversation is still protected by [isTombstoned].
+     *
+     * Only a real transition re-scans. A brand-new contact needs nothing (its cursors are empty,
+     * so its first ordinary sync already asks for full history), and the many cosmetic
+     * [addContact] calls (renames, avatar/KNS refresh, notification overrides) never move the
+     * status and so never trigger this.
+     */
+    private suspend fun noteConversationActivated(previous: ContactEntity?, updated: ContactEntity) {
+        if (updated.conversationStatus != "active") return
+        if (previous == null || previous.conversationStatus == "active") return
+        rescanContactHistory(updated.id, updated.walletAddress)
+    }
+
+    /** Contacts with a [rescanContactHistory] pass in flight, so repeat activations can't stack. */
+    private val historyRescansInFlight = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * Resets [contactId]'s message sync cursors and immediately re-syncs that one conversation,
+     * so the peer's pre-activation history lands without waiting for a sweep. Fire-and-forget on
+     * the repository scope: callers are UI actions (accepting a request, sending a handshake) that
+     * must not block on a full-history fetch.
+     */
+    private fun rescanContactHistory(contactId: String, walletAddress: String) {
+        val key = "$walletAddress|$contactId"
+        if (!historyRescansInFlight.add(key)) return
+        scope.launch {
+            try {
+                database.messageDao().deleteSyncCursorsForContact(contactId, walletAddress)
+                // Pinned to the wallet the activation happened under. If the user switched accounts
+                // in the meantime, stop: liveBaselineMs below is process-wide and the poll loop
+                // owns it for the active account. The cursors are already cleared, so the next
+                // sweep under that account finishes the job.
+                val active = try { walletManager.getAddress() } catch (e: Exception) { null }
+                if (active != walletAddress) return@launch
+                val api = networkService.indexerApi.value ?: return@launch
+                liveBaselineMs = settingsRepository.liveNotificationBaseline(walletAddress)
+                syncContextualMessages(walletAddress, api, onlyContactIds = setOf(contactId))
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "History re-scan for $contactId failed", e)
+            } finally {
+                historyRescansInFlight.remove(key)
+            }
+        }
     }
 
     /** Every tombstoned contact address for the active wallet — carried in backups so restores skip deleted chats. */
@@ -748,7 +816,12 @@ class ChatRepository @Inject constructor(
                         )
                     )
                 } else if (existing.conversationStatus != "active" || !existing.handshakeComplete) {
-                    database.contactDao().insert(existing.copy(conversationStatus = "active", handshakeComplete = true))
+                    val activated = existing.copy(conversationStatus = "active", handshakeComplete = true)
+                    database.contactDao().insert(activated)
+                    // Your own past acceptance, rediscovered after a restore — see
+                    // [noteConversationActivated]: re-read the peer's history from zero, since the
+                    // pending-state cursors only ever asked for what was newer than the pending sync.
+                    noteConversationActivated(existing, activated)
                 }
 
                 if (!database.messageDao().exists(handshake.txId, myAddress)) {
@@ -830,14 +903,18 @@ class ChatRepository @Inject constructor(
         val existing = database.contactDao().getContact(handshake.sender, myAddress)
         val newStatus = deriveIncomingHandshakeStatus(existing?.conversationStatus, existing?.handshakeComplete ?: false, payload?.isResponse ?: false)
 
-        database.contactDao().insert(
+        val updatedContact =
             (existing ?: ContactEntity(id = handshake.sender, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
                 .copy(
                     publicKeyHex = senderPubKeyHex,
                     conversationStatus = newStatus,
                     theirAlias = theirAlias ?: existing?.theirAlias
                 )
-        )
+        database.contactDao().insert(updatedContact)
+        // Their response handshake ("I am chatting with you too") flipping a pending/never-
+        // handshaked conversation active — the mirror of accepting their request, and the same
+        // reason to re-read their earlier window. See [noteConversationActivated].
+        noteConversationActivated(existing, updatedContact)
 
         val backfill = isBackfill(handshake.blockTime)
         insertMessage(
@@ -949,30 +1026,55 @@ class ChatRepository @Inject constructor(
             for (aliasHex in listOfNotNull(legacyAliasHex, deterministicAliasHex).distinct()) {
                 // block_time cursor, tracked per (contact, alias) since each is its own independent
                 // stream on the indexer — see MessageSyncCursorEntity's doc comment.
-                val cursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, aliasHex)
-                val messages = try {
-                    api.getContextualMessagesBySender(contact.id, aliasHex, blockTime = cursor)
-                } catch (e: Exception) {
-                    noteIndexerError()
-                    Log.w("ChatRepository", "Failed to fetch messages for ${contact.id}", e)
-                    continue
-                }
-
-                for (message in messages) {
-                    try {
-                        if (database.messageDao().exists(message.txId, myAddress)) continue
-                        if (isTombstoned(deleted, message.txId, message.blockTime)) continue
-                        processContextualMessage(myAddress, contact, message)
+                //
+                // PAGINATED. The single un-paged fetch this replaced asked for one page and then
+                // advanced the cursor to that page's newest block_time, so anything the indexer
+                // could not fit in one page was left permanently BELOW the cursor and could never
+                // be requested again. That is invisible for a live conversation (a page easily
+                // covers one poll interval) and fatal for the case this method exists to serve:
+                // the first fetch after a contact row finally appears, which is meant to pull the
+                // peer's WHOLE history — including everything they sent before any handshake
+                // existed, which nothing had ever asked the indexer for.
+                var cursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, aliasHex)
+                var page = 0
+                while (page < CONTEXTUAL_MAX_PAGES_PER_SWEEP) {
+                    page++
+                    val messages = try {
+                        api.getContextualMessagesBySender(
+                            contact.id, aliasHex,
+                            limit = CONTEXTUAL_PAGE_LIMIT,
+                            blockTime = cursor,
+                        )
                     } catch (e: Exception) {
-                        Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
+                        noteIndexerError()
+                        Log.w("ChatRepository", "Failed to fetch messages for ${contact.id}", e)
+                        break
                     }
-                }
+                    if (messages.isEmpty()) break
 
-                val maxBlockTime = messages.maxOfOrNull { it.blockTime }
-                if (maxBlockTime != null && maxBlockTime > (cursor ?: 0L)) {
-                    database.messageDao().setMessageSyncCursor(
-                        MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = aliasHex, lastBlockTime = maxBlockTime)
-                    )
+                    for (message in messages) {
+                        try {
+                            if (database.messageDao().exists(message.txId, myAddress)) continue
+                            if (isTombstoned(deleted, message.txId, message.blockTime)) continue
+                            processContextualMessage(myAddress, contact, message)
+                        } catch (e: Exception) {
+                            Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
+                        }
+                    }
+
+                    val maxBlockTime = messages.maxOfOrNull { it.blockTime }
+                    val advanced = maxBlockTime != null && maxBlockTime > (cursor ?: 0L)
+                    if (advanced) {
+                        database.messageDao().setMessageSyncCursor(
+                            MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = aliasHex, lastBlockTime = maxBlockTime!!)
+                        )
+                        cursor = maxBlockTime
+                    }
+                    // Short page = caught up. `!advanced` is the termination guard for a full page
+                    // that all shares one block_time: the cursor is inclusive (`>=`), so without it
+                    // the same page would be re-requested forever. The page cap keeps one sweep
+                    // bounded; a deep backlog simply finishes on the following sweeps.
+                    if (messages.size < CONTEXTUAL_PAGE_LIMIT || !advanced) break
                 }
             }
             onContactDone?.invoke(index + 1, syncableContacts.size)
@@ -1290,6 +1392,16 @@ class ChatRepository @Inject constructor(
         private const val CONTACT_SWEEP_MIN_INTERVAL_MS = 5_000L
         private const val CONTACT_SWEEP_CAP = 40
         private const val CONTACT_SWEEP_SPACING_MS = 110L
+
+        /**
+         * Page size and per-sweep page cap for the paginated contextual-message fetch in
+         * [syncContextualMessages]. A caught-up conversation always ends on its first, short page,
+         * so the cap only bites while a genuine backlog is draining (the first fetch of a peer's
+         * whole pre-handshake history) - and that simply continues on the next sweep from the
+         * cursor this one left behind.
+         */
+        private const val CONTEXTUAL_PAGE_LIMIT = 50
+        private const val CONTEXTUAL_MAX_PAGES_PER_SWEEP = 20
 
         /**
          * How far apart a provisional placeholder's wall-clock timestamp and its confirmed
