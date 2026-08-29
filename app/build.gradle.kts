@@ -87,8 +87,12 @@ android {
         applicationId = "com.kachat.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 32
-        versionName = "4.0"
+        // Play's versionCode high-water mark is permanent and per app, and unlike iOS it does
+        // NOT reset when versionName changes. 32 was the last value this repo built (the 4.0
+        // bundle); 33 may also have been uploaded from elsewhere. Codes are free to skip, so
+        // 4.1 starts at 35 to clear both rather than risk a rejected upload for one integer.
+        versionCode = 35
+        versionName = "4.1"
 
         buildConfigField(
             "String",
