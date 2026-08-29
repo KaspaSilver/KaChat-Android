@@ -202,8 +202,9 @@ class KnsService @Inject constructor(
                 // Retrofit throws a generic HttpException with no real detail on non-2xx
                 // responses (e.g. "HTTP 413 ") — the server's actual rejection reason lives in
                 // the error body, which has to be read out explicitly.
-                val serverMessage = (e as? HttpException)?.response()?.errorBody()?.string()
-                val effective = serverMessage?.takeIf { it.isNotBlank() } ?: e.message
+                val http = e as? HttpException
+                val serverMessage = http?.response()?.errorBody()?.string()
+                val effective = sanitizeKnsError(serverMessage, http?.code()) ?: e.message
                 Log.w("KnsService", "Signed KNS request failed mode=$mode", e)
                 lastError = IllegalStateException(effective, e)
                 if (!isSignatureVerificationFailure(effective)) throw lastError as Exception
@@ -214,6 +215,30 @@ class KnsService @Inject constructor(
     }
 
     companion object {
+        /**
+         * Readable text for a failed KNS call.
+         *
+         * The KNS API sits behind Cloudflare, which answers a rate limit with a FULL HTML error
+         * page. Passing the error body straight through put that entire page in front of the
+         * user. Only a short, plain, non-markup body is ever shown; anything else is described
+         * by its status, and a rate limit gets wording a user can act on. Returns null when
+         * there is nothing useful to say, so the caller falls back to the exception's own
+         * message.
+         *
+         * Kept null-returning rather than throwing so [isSignatureVerificationFailure] still
+         * sees a real server message when there is one.
+         */
+        internal fun sanitizeKnsError(body: String?, status: Int?): String? {
+            if (status == 429) return "KNS is busy right now. Please try again in a moment."
+            val raw = body?.trim().orEmpty()
+            if (raw.isEmpty()) return status?.let { "KNS request failed (HTTP $it)." }
+            val looksLikeMarkup = raw.startsWith("<") || raw.take(20).lowercase().startsWith("<!doctype")
+            if (looksLikeMarkup || raw.length > 200) {
+                return status?.let { "KNS request failed (HTTP $it)." } ?: "KNS request failed."
+            }
+            return raw
+        }
+
         /** Matches iOS's crude-but-real fallback trigger: only advance to the next signing mode on what looks like an auth/signature rejection, not any other error. */
         internal fun isSignatureVerificationFailure(message: String?): Boolean {
             val lower = message?.lowercase() ?: return false
