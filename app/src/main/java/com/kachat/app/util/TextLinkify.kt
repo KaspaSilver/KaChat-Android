@@ -11,8 +11,11 @@ object TextLinkify {
 
     private const val LABEL = """[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"""
 
+    // `kachat://` is matched too, so an in-app link pasted into any chat is linkified rather
+    // than left as dead text. Recognition of WHICH in-app link it is, and routing it in place
+    // instead of out to a browser, is the caller's job (see KaChatLink).
     private val URL_REGEX = Regex(
-        """https?://\S+|(?:www\.)?$LABEL(?:\.$LABEL)*\.(?:$TLDS)\b(?:/\S*)?""",
+        """kachat://\S+|https?://\S+|(?:www\.)?$LABEL(?:\.$LABEL)*\.(?:$TLDS)\b(?:/\S*)?""",
         RegexOption.IGNORE_CASE
     )
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')

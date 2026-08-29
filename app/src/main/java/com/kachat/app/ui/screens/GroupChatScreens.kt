@@ -1312,7 +1312,13 @@ private fun GroupMessageBubble(
                                                     navController.navigate("chat/${mention.item}") // straight to a 1:1 with that person
                                                 } else {
                                                     annotatedGroupBody.getStringAnnotations("URL", charOffset, charOffset)
-                                                        .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                                                        .firstOrNull()?.let { annotation ->
+                                                            // An in-app link opens the post or room in place; only a real
+                                                            // web link leaves for the browser (see KaChatLink).
+                                                            val internal = KaChatLink.parse(annotation.item)
+                                                            if (internal != null) openKaChatLink(internal)
+                                                            else uriHandler.openUri(annotation.item)
+                                                        }
                                                 }
                                             }
                                         )
