@@ -1414,6 +1414,15 @@ fun KaPostCell(
                     onDislike = { viewModel.toggleDislike(post) },
                     onBookmark = { viewModel.toggleBookmark(post) },
                     onCancelCountdown = { viewModel.cancelUndoable(it) },
+                    onShare = {
+                        viewModel.shareText(post)?.let { text ->
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, text)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share Post"))
+                        }
+                    },
                     onTip = if (!isMine) onTip else null,
                     // X-style anchored repost menu; quote routes through the VM's quoteRequest
                     // flow so the main screen's composer opens from any cell.
@@ -1490,6 +1499,8 @@ private fun EngagementRow(
     onDislike: () -> Unit,
     onBookmark: () -> Unit,
     onCancelCountdown: (String) -> Unit,
+    // Share sits in the action row itself, as on iOS, rather than only behind the overflow menu.
+    onShare: (() -> Unit)? = null,
     onTip: (() -> Unit)? = null,
     // X-style repost menu: when BOTH are set (and the post is on-chain), tapping repost opens
     // a compact anchored two-row menu (Repost / Quote) instead of the old dialog.
@@ -1601,6 +1612,25 @@ private fun EngagementRow(
             onTap = onBookmark,
             onCancel = onCancelCountdown,
         )
+        // Share: only for posts that exist on chain, matching iOS, which hides it until the
+        // post has a remote id to link to.
+        if (onShare != null && post.remoteId != null) {
+            Spacer(modifier = Modifier.weight(1f))
+            EngagementAction(
+                countdownKey = null,
+                deadline = null,
+                icon = {
+                    Icon(
+                        Icons.Default.Share, null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                count = null,
+                onTap = onShare,
+                onCancel = onCancelCountdown,
+            )
+        }
         if (onTip != null) {
             Spacer(modifier = Modifier.weight(1f))
             Row(
@@ -1976,7 +2006,15 @@ fun KaPostComposerDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    // Quoting shows the post being quoted directly beneath the editor, so the
+                    // editor takes a modest fixed height instead of the whole screen (iOS uses a
+                    // 120pt floor for exactly this). With weight(1f) here the editor ate every
+                    // remaining pixel and pushed the quoted post off the bottom edge, so you
+                    // could not see what you were replying to.
+                    .then(
+                        if (quoted != null) Modifier.height(160.dp)
+                        else Modifier.weight(1f)
+                    )
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
