@@ -56,6 +56,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.FormatUnderlined
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.StrikethroughS
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -149,6 +157,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.kachat.app.models.KaPostDraft
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.KaPostsMarkdown
 import com.kachat.app.services.PostTranslationService
 import com.kachat.app.viewmodels.KaPostsViewModel
 import com.kachat.app.viewmodels.WalletViewModel
@@ -1494,7 +1503,12 @@ private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String, 
         }
         Spacer(modifier = Modifier.height(3.dp))
         Text(
-            text = quoted.text.ifBlank { "Reposted" },
+            // Markdown-rendered, or the card would show the raw **markers** the author typed.
+            // Only the text, not the annotations: this card is itself tappable through to the
+            // quoted post, and a link inside it would compete with that.
+            text = remember(quoted.text) {
+                KaPostsMarkdown.render(quoted.text).text.ifBlank { "Reposted" }
+            },
             color = colors.textPrimary,
             fontSize = 13.sp,
             maxLines = 5,
@@ -2127,6 +2141,70 @@ fun KaPostComposerDialog(
                         avatarUrl = quotedAvatarUrl,
                     )
                 }
+            }
+            // Last in the column, so it rides directly on top of the keyboard, where a formatting
+            // bar belongs.
+            MarkdownFormattingToolbar { action ->
+                val edit = KaPostsMarkdown.apply(
+                    action,
+                    text.text,
+                    text.selection.min,
+                    text.selection.max,
+                )
+                if (edit.text.length <= limit) {
+                    text = TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The formatting buttons above the keyboard.
+ *
+ * Exists because the syntax is only discoverable if you already know it: someone who has never
+ * typed `~~` cannot guess that it means strikethrough. Every button toggles, and every one of them
+ * writes the same markers a person could have typed by hand, so the two ways of formatting a post
+ * produce identical text.
+ */
+@Composable
+private fun MarkdownFormattingToolbar(onAction: (KaPostsMarkdown.ToolbarAction) -> Unit) {
+    val colors = LocalAppColors.current
+    // Order runs from the formatting people reach for most to the least.
+    val items = listOf(
+        Triple(KaPostsMarkdown.ToolbarAction.BOLD, Icons.Default.FormatBold, "Bold"),
+        Triple(KaPostsMarkdown.ToolbarAction.ITALIC, Icons.Default.FormatItalic, "Italic"),
+        Triple(KaPostsMarkdown.ToolbarAction.UNDERLINE, Icons.Default.FormatUnderlined, "Underline"),
+        Triple(KaPostsMarkdown.ToolbarAction.STRIKETHROUGH, Icons.Default.StrikethroughS, "Strikethrough"),
+        Triple(KaPostsMarkdown.ToolbarAction.BULLET_LIST, Icons.Default.FormatListBulleted, "Bulleted list"),
+        Triple(KaPostsMarkdown.ToolbarAction.NUMBERED_LIST, Icons.Default.FormatListNumbered, "Numbered list"),
+        Triple(KaPostsMarkdown.ToolbarAction.SUBTEXT, Icons.Default.FormatSize, "Small text"),
+        Triple(KaPostsMarkdown.ToolbarAction.LINK, Icons.Default.Link, "Link"),
+    )
+    HorizontalDivider(color = colors.textPrimary.copy(alpha = 0.08f))
+    // Scrolls rather than squeezing: eight buttons at a comfortable tap size do not fit a narrow
+    // phone, and shrinking them to fit would make them hard to hit.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items.forEach { (action, icon, label) ->
+            Box(
+                modifier = Modifier
+                    .size(width = 40.dp, height = 38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onAction(action) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(19.dp),
+                )
             }
         }
     }
@@ -3476,9 +3554,47 @@ private val POST_URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)\S+""")
 
 /** Post text with @mention tokens tinted teal AND annotated for tap-to-profile, and URLs
  *  tinted+underlined AND annotated for the tap-to-Copy/Open dialog. */
-private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedString =
-    androidx.compose.ui.text.buildAnnotatedString {
+private fun annotatedPostText(source: String): androidx.compose.ui.text.AnnotatedString {
+    // Markdown first: it decides what the text actually READS as (markers gone, bullets and
+    // numbers materialised), and the linkifier's offsets have to be into that string, not the
+    // source. Its spans are then layered on top.
+    val rendered = KaPostsMarkdown.render(source)
+    val text = rendered.text
+    return androidx.compose.ui.text.buildAnnotatedString {
         append(text)
+        for (span in rendered.spans) {
+            if (span.start >= span.end || span.end > text.length) continue
+            val style = span.style
+            val decorations = buildList {
+                if (style.underline) add(androidx.compose.ui.text.style.TextDecoration.Underline)
+                if (style.strikethrough) add(androidx.compose.ui.text.style.TextDecoration.LineThrough)
+                // An explicit [label](url) link is underlined like a detected one, so the two
+                // kinds of link look the same to a reader.
+                if (style.link != null) add(androidx.compose.ui.text.style.TextDecoration.Underline)
+            }
+            addStyle(
+                androidx.compose.ui.text.SpanStyle(
+                    fontWeight = if (style.bold) FontWeight.Bold else null,
+                    fontStyle = if (style.italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
+                    fontSize = if (style.subtext) 13.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
+                    color = when {
+                        style.link != null -> KaspaTeal
+                        style.subtext -> Color(0xFF8A8A8E)
+                        else -> Color.Unspecified
+                    },
+                    textDecoration = if (decorations.isEmpty()) {
+                        null
+                    } else {
+                        androidx.compose.ui.text.style.TextDecoration.combine(decorations)
+                    },
+                ),
+                span.start,
+                span.end,
+            )
+            if (style.link != null) {
+                addStringAnnotation(LINK_ANNOTATION_TAG, style.link, span.start, span.end)
+            }
+        }
         for (match in KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text)) {
             val domain = match.groups[2] ?: continue
             val start = domain.range.first - 1 // include the '@'
@@ -3518,6 +3634,7 @@ private fun annotatedPostText(text: String): androidx.compose.ui.text.AnnotatedS
             )
         }
     }
+}
 
 private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind): String = when (kind) {
     KaPostsViewModel.NotificationItem.Kind.LIKE -> "liked your post"
