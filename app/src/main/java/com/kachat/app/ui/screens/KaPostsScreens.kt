@@ -119,6 +119,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -2612,7 +2613,14 @@ private fun ThreadReplyComposer(
     onSubmit: (String) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    var replyText by remember(postId) { mutableStateOf("") }
+    // TextFieldValue rather than String: the formatting bar below needs to know what is
+    // highlighted, and the String overload never exposes it.
+    var reply by remember(postId) { mutableStateOf(TextFieldValue("")) }
+    val replyText = reply.text
+    // The formatting bar only appears while the field has focus - this composer is pinned in the
+    // thread whether or not the keyboard is up, and a permanent row of eight icons over the
+    // thread is clutter with nothing to act on. Matches iOS.
+    var replyFocused by remember(postId) { mutableStateOf(false) }
     Box {
         Column(
             modifier = Modifier
@@ -2696,7 +2704,11 @@ private fun ThreadReplyComposer(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    replyText = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                                    // The caret goes to the end with the text: this rewrites the
+                                    // field from outside, and the completion always happens at the
+                                    // end, so leaving the old offset would strand it mid-sentence.
+                                    val completed = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                                    reply = TextFieldValue(completed, TextRange(completed.length))
                                 }
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                         ) {
@@ -2710,6 +2722,13 @@ private fun ThreadReplyComposer(
                     }
                 }
             }
+            // Replies are posts, so they get the same formatting bar.
+            if (replyFocused) MarkdownFormattingToolbar { action ->
+                val edit = KaPostsMarkdown.apply(action, replyText, reply.selection.min, reply.selection.max)
+                if (edit.text.length <= KaPostDraft.POST_CHARACTER_LIMIT) {
+                    reply = TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd))
+                }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2717,8 +2736,8 @@ private fun ThreadReplyComposer(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicTextField(
-                    value = replyText,
-                    onValueChange = { if (it.length <= KaPostDraft.POST_CHARACTER_LIMIT) replyText = it },
+                    value = reply,
+                    onValueChange = { if (it.text.length <= KaPostDraft.POST_CHARACTER_LIMIT) reply = it },
                     textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
                     cursorBrush = SolidColor(KaspaTeal),
                     // Load-bearing cap, same idea as the chat composer's maxLines = 4. Without it
@@ -2732,6 +2751,7 @@ private fun ThreadReplyComposer(
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(focusRequester)
+                        .onFocusChanged { replyFocused = it.isFocused }
                         .clip(RoundedCornerShape(20.dp))
                         .background(colors.surface)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -2751,7 +2771,7 @@ private fun ThreadReplyComposer(
                 TextButton(
                     onClick = {
                         onSubmit(replyText.trim())
-                        replyText = ""
+                        reply = TextFieldValue("")
                     },
                     enabled = replyText.isNotBlank(),
                 ) {
