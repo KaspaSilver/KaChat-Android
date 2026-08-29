@@ -12,6 +12,7 @@ import com.kachat.app.repository.ChatRepository
 import com.kachat.app.services.KPost
 import com.kachat.app.services.KaPostsService
 import com.kachat.app.services.KnsService
+import com.kachat.app.services.PostTranslationService
 import com.kachat.app.services.WalletManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,6 +47,7 @@ class KaPostsViewModel @Inject constructor(
     private val knsService: KnsService,
     private val chatRepository: ChatRepository,
     private val settings: AppSettingsRepository,
+    private val translationService: PostTranslationService,
 ) : ViewModel() {
 
     companion object {
@@ -326,6 +328,103 @@ class KaPostsViewModel @Inject constructor(
         visiblePosts, visibleFollowingPosts, _selectedFeed,
     ) { global, followingFeed, tab -> feedFor(tab, global, followingFeed) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // MARK: - On-device post translation
+
+    /**
+     * Per-post translation state, keyed by the post's remote id (its txid) so a translation
+     * survives the feed being re-sorted or re-paged; local session posts key by their local id.
+     */
+    private val _translations = MutableStateFlow<Map<String, PostTranslationService.TranslationState>>(emptyMap())
+    val translations: StateFlow<Map<String, PostTranslationService.TranslationState>> = _translations.asStateFlow()
+
+    /** Posts the reader flipped back to the original. Separate from [_translations] so toggling
+     *  back and forth never re-runs the translation. */
+    private val _showingOriginal = MutableStateFlow<Set<String>>(emptySet())
+    val showingOriginal: StateFlow<Set<String>> = _showingOriginal.asStateFlow()
+
+    /**
+     * Posts we have decided ARE worth offering a Translate link for. Language identification is
+     * async, so the cell cannot ask the question inline while rendering; it calls
+     * [considerTranslation] once per post and this set drives the affordance when the answer
+     * arrives. Posts already in the reader's language simply never appear here.
+     */
+    private val _translatable = MutableStateFlow<Map<String, String>>(emptyMap())
+    val translatable: StateFlow<Map<String, String>> = _translatable.asStateFlow()
+
+    private val considered = mutableSetOf<String>()
+
+    fun translationKey(post: KaPostDraft): String = post.remoteId ?: post.id
+
+    /** Identifies the post's language once, and records it if it is worth offering to translate. */
+    fun considerTranslation(post: KaPostDraft) {
+        val key = translationKey(post)
+        if (!considered.add(key)) return
+        viewModelScope.launch {
+            val source = translationService.detectLanguage(post.text) ?: return@launch
+            if (!translationService.canOfferTranslation(post.text)) return@launch
+            _translatable.value = _translatable.value + (key to source)
+        }
+    }
+
+    fun translatePost(post: KaPostDraft) {
+        val key = translationKey(post)
+        val source = _translatable.value[key] ?: return
+        _showingOriginal.value = _showingOriginal.value - key
+        // Say "Downloading" only when the pack really is missing - otherwise the first translation
+        // of an already-installed pair would flash a download message it never performs.
+        _translations.value = _translations.value + (key to
+            if (translationService.isLanguagePackReady(source)) {
+                PostTranslationService.TranslationState.Translating
+            } else {
+                PostTranslationService.TranslationState.Downloading
+            })
+        viewModelScope.launch {
+            val next = try {
+                PostTranslationService.TranslationState.Translated(
+                    text = translationService.translate(post.text, source),
+                    sourceName = translationService.displayName(source),
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Translation failed", e)
+                PostTranslationService.TranslationState.Failed
+            }
+            _translations.value = _translations.value + (key to next)
+        }
+    }
+
+    fun showOriginal(post: KaPostDraft) {
+        _showingOriginal.value = _showingOriginal.value + translationKey(post)
+    }
+
+    fun showTranslation(post: KaPostDraft) {
+        _showingOriginal.value = _showingOriginal.value - translationKey(post)
+    }
+
+    /** The text a cell should render: the translation unless there is none yet, it failed, or the
+     *  reader asked for the original back. */
+    fun displayText(
+        post: KaPostDraft,
+        state: PostTranslationService.TranslationState?,
+        showingOriginal: Boolean,
+    ): String = if (state is PostTranslationService.TranslationState.Translated && !showingOriginal) {
+        state.text
+    } else {
+        post.text
+    }
+
+    private fun resetTranslations() {
+        _translations.value = emptyMap()
+        _showingOriginal.value = emptySet()
+        _translatable.value = emptyMap()
+        considered.clear()
+        translationService.release()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        translationService.release()
+    }
 
     // MARK: - Toasts + undo scheduler
 
@@ -616,7 +715,11 @@ class KaPostsViewModel @Inject constructor(
             // one-shot chain sync so the NEW account's on-chain follow graph is imported into
             // ITS scoped key on the next feed load (`following` above already swaps the
             // persisted key itself via flatMapLatest).
-            walletManager.activeAddressFlow.drop(1).collect { followingChainSyncStarted = false }
+            walletManager.activeAddressFlow.drop(1).collect {
+                followingChainSyncStarted = false
+                // One account's reading history must not linger on screen under another's feed.
+                resetTranslations()
+            }
         }
         // One-time cleanup of the legacy GLOBAL follow set, which leaked one account's follows
         // into every other account on this device (fresh accounts started with them).

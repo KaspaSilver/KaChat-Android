@@ -149,6 +149,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.kachat.app.models.KaPostDraft
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.services.PostTranslationService
 import com.kachat.app.viewmodels.KaPostsViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
@@ -1207,9 +1208,20 @@ fun KaPostCell(
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     val isMine = post.posterAddress == viewModel.myAddress()
-    // Long enough that the feed should fold it (X-style ~280-char threshold, or a wall of
-    // newlines) - same numbers as iOS's KaPostCellView.isLongPost.
-    val isLongPost = post.text.length > 280 || post.text.count { it == '\n' } >= 8
+
+    // On-device translation, X-style. Per-post slices like everything else in this cell, so one
+    // reader translating one post never re-renders the viewport. Language identification is async,
+    // so the cell asks once and the affordance appears when the answer arrives.
+    val translationKey = remember(post.remoteId, post.id) { viewModel.translationKey(post) }
+    val translationState by viewModel.translations.collectSelectedAsState(translationKey) { it[translationKey] }
+    val showingOriginal by viewModel.showingOriginal.collectSelectedAsState(translationKey) { translationKey in it }
+    val canTranslate by viewModel.translatable.collectSelectedAsState(translationKey) { translationKey in it }
+    LaunchedEffect(translationKey) { viewModel.considerTranslation(post) }
+    val bodyText = viewModel.displayText(post, translationState, showingOriginal)
+
+    // Measured on what is actually rendered, so a translation that runs longer than its original
+    // still folds. Same numbers as iOS's KaPostCellView.isLongPost.
+    val isLongPost = bodyText.length > 280 || bodyText.count { it == '\n' } >= 8
     val foldText = truncatesLongText && isLongPost
 
     Column(
@@ -1315,7 +1327,7 @@ fun KaPostCell(
                 // action by hand - the body covers most of the cell, and without this
                 // "tap the post to open its thread" only worked on the padding around it.
                 // Root cells keep body taps inert, matching their disabled row clickable.
-                val postAnnotated = remember(post.text) { annotatedPostText(post.text) }
+                val postAnnotated = remember(bodyText) { annotatedPostText(bodyText) }
                 androidx.compose.foundation.text.ClickableText(
                     text = postAnnotated,
                     style = TextStyle(color = colors.textPrimary, fontSize = 15.sp, lineHeight = 20.sp),
@@ -1364,6 +1376,14 @@ fun KaPostCell(
                         modifier = Modifier.clickable { onOpenThread() },
                     )
                 }
+                TranslateAffordance(
+                    state = translationState,
+                    canTranslate = canTranslate,
+                    showingOriginal = showingOriginal,
+                    onTranslate = { viewModel.translatePost(post) },
+                    onShowOriginal = { viewModel.showOriginal(post) },
+                    onShowTranslation = { viewModel.showTranslation(post) },
+                )
                 post.quoted?.let { quoted ->
                     Spacer(modifier = Modifier.height(8.dp))
                     // Same per-address slices for the quoted author as for the cell's own.
@@ -3370,6 +3390,86 @@ const val MENTION_ANNOTATION_TAG = "mention"
 /** Annotation tag carried by URL ranges - ClickableText opens a Copy/Open dialog (iOS parity:
  *  a link tap never auto-opens the browser). Value = normalized (https-prefixed) URL. */
 const val LINK_ANNOTATION_TAG = "link"
+
+/**
+ * X-style translate link under the post text. Absent unless the post is confidently in another
+ * language, so ordinary same-language feeds look exactly as they did.
+ */
+@Composable
+private fun TranslateAffordance(
+    state: PostTranslationService.TranslationState?,
+    canTranslate: Boolean,
+    showingOriginal: Boolean,
+    onTranslate: () -> Unit,
+    onShowOriginal: () -> Unit,
+    onShowTranslation: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    when (state) {
+        null -> if (canTranslate) {
+            TranslateLink("Translate post", onTranslate)
+        }
+        // Named separately from Translating: the first use of a language pair downloads tens of
+        // MB, and a plain spinner for that long reads as the app having hung.
+        PostTranslationService.TranslationState.Downloading,
+        PostTranslationService.TranslationState.Translating -> {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    color = colors.textSecondary,
+                    strokeWidth = 1.5.dp,
+                    modifier = Modifier.size(12.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (state == PostTranslationService.TranslationState.Downloading) {
+                        "Downloading language pack..."
+                    } else {
+                        "Translating..."
+                    },
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                )
+            }
+        }
+        is PostTranslationService.TranslationState.Translated -> if (showingOriginal) {
+            TranslateLink("Show translation", onShowTranslation)
+        } else {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Translated from ${state.sourceName} -",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    "Show original",
+                    color = KaspaTeal,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onShowOriginal() },
+                )
+            }
+        }
+        // Almost always a language pack that could not be fetched - tapping again once there is a
+        // connection is the fix, so this stays a live link rather than dead text.
+        PostTranslationService.TranslationState.Failed ->
+            TranslateLink("Translation unavailable - try again", onTranslate)
+    }
+}
+
+@Composable
+private fun TranslateLink(title: String, onClick: () -> Unit) {
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        title,
+        color = KaspaTeal,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        modifier = Modifier.clickable { onClick() },
+    )
+}
 
 /** Detected links in post text: http(s) URLs plus bare www. hosts, like iOS's linkifier. */
 private val POST_URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)\S+""")

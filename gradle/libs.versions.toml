@@ -33,6 +33,8 @@ credentials = "1.5.0"
 googleid = "1.1.1"
 playServicesAuth = "21.4.0"
 playIntegrity = "1.4.0"
+mlkitTranslate = "17.0.3"
+mlkitLanguageId = "17.0.6"
 biometric = "1.1.0"
 appcompat = "1.7.0"
 firebaseBom = "33.7.0"
@@ -125,6 +127,11 @@ androidx-credentials-play-services-auth = { group = "androidx.credentials", name
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 play-integrity = { group = "com.google.android.play", name = "integrity", version.ref = "playIntegrity" }
+
+# On-device translation for KaPosts — the model runs locally, so no post text (and no record of
+# which posts a reader translated) ever leaves the device. Language packs download on first use.
+mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }
+mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkitLanguageId" }
 
 # Biometric / device-credential prompt — gates the seed phrase and unlocking a saved account.
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }

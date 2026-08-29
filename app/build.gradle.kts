@@ -211,6 +211,11 @@ dependencies {
     // (Android equivalent of iOS's DeviceCheck + App Attest).
     implementation(libs.play.integrity)
 
+    // ML Kit on-device translation for KaPosts (translate + source-language identification).
+    // Both run locally against downloaded language packs; nothing is sent to a server.
+    implementation(libs.mlkit.translate)
+    implementation(libs.mlkit.language.id)
+
     // DataStore (settings/preferences)
     implementation(libs.datastore.preferences)
 
