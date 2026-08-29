@@ -453,9 +453,15 @@ fun ChatThreadScreen(
                     // handshake is complete there's nothing left to ping, so the action drops
                     // away while the banner itself stays until the chat is actually reciprocated.
                     val canSendHandshake = conversation?.contact?.handshakeComplete != true
+                    val handshakeAwaitingReply = ChatViewModel.hasUnansweredOutgoingHandshake(messages)
                     UnnotifiedMessageBanner(
-                        onSendHandshake = if (canSendHandshake) ({ chatViewModel.sendHandshake(contactId) }) else null,
-                        isSendingHandshake = contactId in handshakeSendInFlight
+                        onSendHandshake = if (canSendHandshake && !handshakeAwaitingReply) {
+                            ({ chatViewModel.sendHandshake(contactId) })
+                        } else null,
+                        isSendingHandshake = contactId in handshakeSendInFlight,
+                        // The request is out and unanswered: say so rather than offering a second
+                        // 0.2 KAS send that the unchanged banner makes look necessary.
+                        awaitingReply = canSendHandshake && handshakeAwaitingReply
                     )
                 }
                 if (paymentMode) {
@@ -938,7 +944,9 @@ fun ChatThreadScreen(
                                             showComposerMenu = false
                                             showChessTimeControlMenu = true
                                         }
-                                        if (conversation?.contact?.handshakeComplete != true) {
+                                        if (conversation?.contact?.handshakeComplete != true &&
+                                            !ChatViewModel.hasUnansweredOutgoingHandshake(messages)
+                                        ) {
                                             HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                             PopupMenuRow(Icons.Default.BackHand, stringResource(R.string.send_handshake)) {
                                                 showComposerMenu = false
@@ -1431,7 +1439,9 @@ fun ChatThreadScreen(
 private fun UnnotifiedMessageBanner(
     /** Null hides the action — nothing to offer once the handshake is already complete. */
     onSendHandshake: (() -> Unit)? = null,
-    isSendingHandshake: Boolean = false
+    isSendingHandshake: Boolean = false,
+    /** A handshake is already out and unanswered: show what happened, offer no second send. */
+    awaitingReply: Boolean = false
 ) {
     val colors = LocalAppColors.current
     Column(
@@ -1456,15 +1466,18 @@ private fun UnnotifiedMessageBanner(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        if (onSendHandshake != null) {
+        if (onSendHandshake != null || awaitingReply) {
             Spacer(Modifier.height(8.dp))
             // Compact accent pill on its own row rather than beside the text — the copy runs to
             // three lines, so an end-aligned button would squeeze it badly on narrow screens.
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Surface(
-                    color = if (isSendingHandshake) colors.accent.copy(alpha = 0.4f) else colors.accent,
+                    color = if (isSendingHandshake || awaitingReply) colors.accent.copy(alpha = 0.4f) else colors.accent,
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.clickable(enabled = !isSendingHandshake, onClick = onSendHandshake)
+                    modifier = Modifier.clickable(
+                        enabled = !isSendingHandshake && onSendHandshake != null,
+                        onClick = onSendHandshake ?: {},
+                    )
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -1478,7 +1491,7 @@ private fun UnnotifiedMessageBanner(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.BackHand,
+                                imageVector = if (awaitingReply) Icons.Default.Check else Icons.Default.BackHand,
                                 contentDescription = null,
                                 tint = colors.textOnAccent,
                                 modifier = Modifier.size(14.dp)
@@ -1486,7 +1499,9 @@ private fun UnnotifiedMessageBanner(
                         }
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = stringResource(R.string.send_handshake),
+                            text = stringResource(
+                                if (awaitingReply) R.string.handshake_sent else R.string.send_handshake
+                            ),
                             color = colors.textOnAccent,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold

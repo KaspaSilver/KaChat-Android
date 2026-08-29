@@ -2410,6 +2410,26 @@ class ChatViewModel @Inject constructor(
          * messages, but counts a payment either way — an actual KAS transfer is real two-way
          * contact even when it carries no note.
          */
+        /**
+         * A handshake we sent that they have not answered - no handshake back, no genuine message
+         * back. Their answer of either kind makes the action available again.
+         *
+         * A handshake costs 0.2 KAS, and the notice banner deliberately stays up until they
+         * reply, so the screen looks identical before and after a send: tapping again
+         * (reasonably, since nothing appeared to happen) simply spent another 0.2 KAS. Matches
+         * iOS's `hasUnansweredOutgoingHandshake`.
+         */
+        internal fun hasUnansweredOutgoingHandshake(messages: List<MessageEntity>): Boolean {
+            val handshake = com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE
+            val sentHandshake = messages.any { it.direction == "sent" && it.type == handshake }
+            if (!sentHandshake) return false
+            val answered = messages.any {
+                it.direction == "received" &&
+                    (it.type == handshake || !it.plaintextBody.isNullOrBlank())
+            }
+            return !answered
+        }
+
         internal fun shouldShowUnnotifiedWarning(messages: List<MessageEntity>): Boolean {
             fun isGenuine(m: MessageEntity): Boolean =
                 m.type != com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE &&
