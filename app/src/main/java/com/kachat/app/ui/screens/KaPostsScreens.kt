@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1712,10 +1713,22 @@ private fun KeepCaretVisible(
     layout: TextLayoutResult?,
     textTopPaddingPx: Int,
 ) {
-    LaunchedEffect(value.selection, layout, scroll.viewportSize, scroll.maxValue) {
+    // The IME inset is read as a key so the reveal re-runs while the keyboard ANIMATES in, not
+    // just once when it is already up. Without this the effect could compute its target against
+    // a viewport that was still shrinking and land short.
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(value.selection, value.text.length, layout, scroll.viewportSize, scroll.maxValue, imeBottom) {
         val result = layout ?: return@LaunchedEffect
         val viewport = scroll.viewportSize
         if (viewport <= 0) return@LaunchedEffect
+        // Writing at the very end - which is what composing a post IS - always pins the view to
+        // the bottom. This does not depend on the caret rect, the text height or the padding
+        // arithmetic below being fresh in the same frame, which is the fragile part when several
+        // of those settle across different frames while the keyboard is opening.
+        if (value.selection.collapsed && value.selection.end >= value.text.length) {
+            if (scroll.maxValue > 0) scroll.scrollTo(scroll.maxValue)
+            return@LaunchedEffect
+        }
         val caret = runCatching {
             result.getCursorRect(value.selection.end.coerceIn(0, value.text.length))
         }.getOrNull() ?: return@LaunchedEffect
