@@ -1,5 +1,7 @@
 package com.kachat.app.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -420,14 +422,28 @@ private fun PortfolioTransactionsContent(
                     CenteredOptionsMenu(onDismissRequest = { showCsvMenu = false }) {
                         PopupMenuRow(Icons.Default.FileDownload, stringResource(R.string.export_csv)) {
                             showCsvMenu = false
-                            viewModel.exportCsv { uri ->
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/csv"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            viewModel.exportCsv(
+                                onReady = { uri ->
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/csv"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        // clipData carries the URI grant to targets that read
+                                        // the stream off the ClipData rather than the extra.
+                                        clipData = ClipData.newRawUri("Portfolio CSV", uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    // No share target installed at all throws rather than showing
+                                    // an empty chooser; say so instead of crashing the tab.
+                                    try {
+                                        context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
+                                    } catch (e: ActivityNotFoundException) {
+                                        Toast.makeText(context, "No app available to share the CSV", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onUnavailable = { message ->
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
-                            }
+                            )
                         }
                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                         PopupMenuRow(Icons.Default.FileUpload, stringResource(R.string.import_csv)) {

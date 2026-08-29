@@ -376,12 +376,24 @@ class PortfolioViewModel @Inject constructor(
         viewModelScope.launch { repository.deleteTransaction(id) }
     }
 
-    /** No network/DB work involved (transactions are already in memory), so no loading-state UI is needed. */
-    fun exportCsv(onReady: (Uri) -> Unit) {
+    /**
+     * No network/DB work involved (transactions are already in memory), so no loading-state UI is
+     * needed. [onUnavailable] carries the reason nothing can be shared, so the caller always has
+     * something to say: an empty ledger would otherwise export a header-only CSV, and a write or
+     * FileProvider failure used to be swallowed into a silent log line, leaving the Export tap
+     * looking like a dead button.
+     */
+    fun exportCsv(onReady: (Uri) -> Unit, onUnavailable: (String) -> Unit = {}) {
+        val rows = transactions.value
+        if (rows.isEmpty()) {
+            onUnavailable("No transactions to export yet")
+            return
+        }
         try {
-            onReady(repository.exportCsv(transactions.value))
+            onReady(repository.exportCsv(rows))
         } catch (e: Exception) {
             Log.w("PortfolioViewModel", "CSV export failed", e)
+            onUnavailable("Export failed. Please try again")
         }
     }
 
