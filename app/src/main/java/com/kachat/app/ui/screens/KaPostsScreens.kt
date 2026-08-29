@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
@@ -1674,7 +1675,7 @@ private fun EngagementAction(
             .padding(horizontal = 4.dp, vertical = 4.dp),
     ) {
         if (deadline != null) {
-            CountdownBadge(deadlineMs = deadline)
+            UndoBadge()
         } else {
             icon()
         }
@@ -1690,7 +1691,11 @@ private fun EngagementAction(
     }
 }
 
-/** Live "5…4…3" ring shown in an icon's place while its undo window runs. Tap = cancel. */
+/**
+ * Live "5...4...3" ring with the seconds left. Belongs to the undo TOAST and nothing else - it is
+ * the one place a countdown can be read without hunting for the row it came from, and the only
+ * one on screen at a time.
+ */
 @Composable
 private fun CountdownBadge(deadlineMs: Long) {
     var remainingMs by remember(deadlineMs) { mutableLongStateOf(deadlineMs - System.currentTimeMillis()) }
@@ -1713,6 +1718,26 @@ private fun CountdownBadge(deadlineMs: Long) {
             )
         }
         Text(text = "$seconds", color = Color(0xFFFFA726), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/**
+ * Takes an icon's place while its undo window runs. Tap = cancel.
+ *
+ * Deliberately NO seconds and no ring. The ticking number belongs in the undo toast, which is the
+ * one place it can be read without hunting for the row it came from; on the icon it turned a
+ * static engagement row into digits counting down, and cost every pending cell a recomposition
+ * ten times a second to do it. The row just says "you can still take this back".
+ */
+@Composable
+private fun UndoBadge() {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(20.dp)) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.Undo,
+            contentDescription = "Undo",
+            tint = Color(0xFFFFA726),
+            modifier = Modifier.size(17.dp),
+        )
     }
 }
 
