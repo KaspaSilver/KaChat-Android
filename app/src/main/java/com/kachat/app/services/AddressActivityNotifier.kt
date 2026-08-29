@@ -271,7 +271,8 @@ class AddressActivityNotifier @Inject constructor(
         notificationHelper.showAddressActivity(
             title = "Received ${formatKas(totalSompi)} KAS",
             text = describe(address, coldLabels),
-            dedupeKey = dedupeKey
+            dedupeKey = dedupeKey,
+            kind = kindOf(address, coldLabels)
         )
         // Also list it in the Profile notifications bell.
         notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} KAS", describe(address, coldLabels), System.currentTimeMillis(), null)
@@ -284,10 +285,16 @@ class AddressActivityNotifier @Inject constructor(
         notificationHelper.showAddressActivity(
             title = "Balance increased by ${formatKas(delta)} KAS",
             text = describe(address, coldLabels),
-            dedupeKey = dedupeKey
+            dedupeKey = dedupeKey,
+            kind = kindOf(address, coldLabels)
         )
         notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} KAS", describe(address, coldLabels), System.currentTimeMillis(), null)
     }
+
+    /** Which wallet screen the notification's tap should open - mirrors iOS's `kindKey(for:)`,
+     *  which puts the same string in the notification's `userInfo["kind"]`. */
+    private fun kindOf(address: String, coldLabels: Map<String, String>): String =
+        if (coldLabels[address] != null) NotificationHelper.KIND_COLD else NotificationHelper.KIND_SPENDING
 
     private fun describe(address: String, coldLabels: Map<String, String>): String {
         val label = coldLabels[address]

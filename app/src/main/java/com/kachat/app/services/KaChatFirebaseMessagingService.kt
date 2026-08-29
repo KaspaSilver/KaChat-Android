@@ -30,7 +30,8 @@ import javax.inject.Inject
  *
  * Data schema:
  *   broadcast : type, channel, title, subtitle, body, thread_id, tx_id
- *   kaposts   : type, title, subtitle, body, thread_id, tx_id, [post_id]
+ *   kaposts   : type, title, subtitle, body, thread_id, tx_id, [post_id | postId | content_id]
+ *               (the target content's txid, absent for a follow — see [POST_ID_KEYS])
  *   chat/DM   : type(contextual|payment|handshake|group_message|group_control), sender, title,
  *               body, tx_id, timestamp, daa_score, [amount], [enc_payload], [blinded_group_id]
  */
@@ -80,12 +81,20 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
                     "kaposts" -> {
                         val txId = data["tx_id"].orEmpty()
-                        // Prefer the containing post's id when the server sends one; fall back to
-                        // the action txid so the tap still deep-opens something relevant.
+                        // The id of the content that was acted ON. The published contract calls
+                        // it `postId` (PUSH_EXTENSIONS.md section 3), this file's own schema
+                        // comment said `post_id`, and the code read `content_id` — accept all
+                        // three rather than let one server-side spelling silently disable the
+                        // deep link. It is deliberately absent for a follow.
+                        //
+                        // No fallback to the ACTION's txid: that is a vote/follow/reply
+                        // transaction, not a post, so opening it as one just produced a "post
+                        // not found" toast. Null lands the tap on the Notifications list.
+                        val postTxId = POST_ID_KEYS.firstNotNullOfOrNull { data[it]?.takeIf { v -> v.isNotBlank() } }
                         notificationHelper.showKaPosts(
                             text = body.ifEmpty { title },
                             actionTxId = txId,
-                            postTxId = data["content_id"]?.takeIf { it.isNotBlank() } ?: txId.takeIf { it.isNotBlank() },
+                            postTxId = postTxId,
                         )
                     }
 
@@ -136,20 +145,34 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                                     title = resolvedGroup?.name ?: title.ifEmpty { "Group" },
                                     text = body.ifEmpty { "New group message" },
                                     dedupeTxId = txId.takeIf { it.isNotBlank() },
+                                    // Unresolved: `groupId` here is the per-sender BLINDED id,
+                                    // which is not a route argument any thread can be found by.
+                                    // Send the tap to the Group Chats list instead.
+                                    targetGroupId = resolvedGroup?.groupId,
                                 )
                             }
                         }
                     }
 
                     "group_control" -> {
-                        // "You were added to a group" / group update. These carry no
+                        // "You were added to a group" / group update. These usually carry no
                         // blinded_group_id, so key the notification on the tx id instead.
-                        val key = data["blinded_group_id"] ?: data["tx_id"] ?: "group"
+                        val blindedId = data["blinded_group_id"]?.takeIf { it.isNotBlank() }
+                        val key = blindedId ?: data["tx_id"] ?: "group"
+                        // Neither a blinded id nor a tx id is a local group id, so a tap keyed on
+                        // one opened `group_chat/<tx id>` — a thread with no group behind it, no
+                        // title, no messages and a composer that could not send. Resolve it when
+                        // the blinded id is there; otherwise route to the Group Chats list, where
+                        // the group appears as soon as the next sync ingests its root.
+                        val resolvedGroup = blindedId?.let {
+                            try { groupRepository.findGroupByBlindedId(it) } catch (e: Exception) { null }
+                        }
                         notificationHelper.showGroup(
-                            groupId = key,
-                            title = title.ifEmpty { "Group" },
+                            groupId = resolvedGroup?.groupId ?: key,
+                            title = resolvedGroup?.name ?: title.ifEmpty { "Group" },
                             text = body.ifEmpty { "Group update" },
                             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
+                            targetGroupId = resolvedGroup?.groupId,
                         )
                     }
 
@@ -242,5 +265,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // Same tag as PushRegistrationManager: `adb logcat -s KaChatPush` shows registrations,
         // token rotations, and every received push in one stream.
         private const val TAG = PushRegistrationManager.TAG
+
+        /** Every spelling the KaPosts push has used for "the content that was acted on".
+         *  Kept in sync with MainActivity.FCM_KEYS_POST_ID, which reads the same payload when
+         *  FCM drew the notification itself. */
+        private val POST_ID_KEYS = listOf("post_id", "postId", "content_id")
     }
 }

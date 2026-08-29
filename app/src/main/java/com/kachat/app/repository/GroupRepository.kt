@@ -1140,7 +1140,9 @@ class GroupRepository @Inject constructor(
         }
 
         if (isFirstTimeJoin && !backfill) {
-            notificationHelper.showGroup(payload.groupId, "", "You were added to \"${payload.name}\"")
+            // Title is the group, like every other group banner - it was blank here, so the
+            // shade showed a title-less notification.
+            notificationHelper.showGroup(payload.groupId, payload.name, "You were added to this group")
         }
     }
 

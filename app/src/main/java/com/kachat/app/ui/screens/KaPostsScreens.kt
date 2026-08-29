@@ -169,6 +169,12 @@ object KaPostsDeepLink {
     /** For reply notifications: the reply's own txid, so the opened PARENT thread (which is
      *  what [pendingPostTxId] carries) can scroll to the new comment. */
     val pendingFocusReplyTxId = MutableStateFlow<String?>(null)
+
+    /** Set alongside a blank [pendingPostTxId] when a KaPosts notification names no post to open
+     *  (a follow, or a push whose payload carried no post id): KaPostsScreen opens its
+     *  Notifications list instead of just dropping the user on the feed with no idea what the
+     *  ping was about. Mirrors iOS's `KaPostsDeepLink.pendingOpenNotifications`. */
+    val pendingOpenNotifications = MutableStateFlow(false)
 }
 
 /**
@@ -564,9 +570,16 @@ fun KaPostsScreen(
         val focusReplyTxId = KaPostsDeepLink.pendingFocusReplyTxId.value
         KaPostsDeepLink.pendingPostTxId.value = null
         KaPostsDeepLink.pendingFocusReplyTxId.value = null
-        // "" is the tab-only sentinel (a notification with no target txid): landing on the
-        // freshly-loaded feed is the whole job, nothing to deep-open.
-        if (txId.isNotEmpty()) openShared(txId, focusReplyTxId)
+        // "" is the tab-only sentinel (a notification with no target txid). Nothing to
+        // deep-open, but the ping still has to land somewhere that explains itself: open the
+        // Notifications list (follows, and pushes whose payload named no post), matching iOS.
+        if (txId.isNotEmpty()) {
+            KaPostsDeepLink.pendingOpenNotifications.value = false
+            openShared(txId, focusReplyTxId)
+        } else if (KaPostsDeepLink.pendingOpenNotifications.value) {
+            KaPostsDeepLink.pendingOpenNotifications.value = false
+            showNotifications = true
+        }
     }
 
     val repostHandler: (KaPostDraft) -> Unit = { post ->

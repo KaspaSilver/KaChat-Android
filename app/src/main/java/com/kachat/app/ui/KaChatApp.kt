@@ -181,7 +181,11 @@ fun KaChatApp(
     pendingChannelName: String? = null,
     onPendingChannelHandled: () -> Unit = {},
     pendingGroupId: String? = null,
-    onPendingGroupHandled: () -> Unit = {}
+    onPendingGroupHandled: () -> Unit = {},
+    pendingOpenGroups: Boolean = false,
+    onPendingOpenGroupsHandled: () -> Unit = {},
+    pendingWalletActivityKind: String? = null,
+    onPendingWalletActivityHandled: () -> Unit = {}
 ) {
     val isLoggedIn by walletViewModel.isLoggedIn.collectAsState()
     val mnemonic by walletViewModel.mnemonic.collectAsState()
@@ -205,7 +209,11 @@ fun KaChatApp(
             pendingChannelName = pendingChannelName,
             onPendingChannelHandled = onPendingChannelHandled,
             pendingGroupId = pendingGroupId,
-            onPendingGroupHandled = onPendingGroupHandled
+            onPendingGroupHandled = onPendingGroupHandled,
+            pendingOpenGroups = pendingOpenGroups,
+            onPendingOpenGroupsHandled = onPendingOpenGroupsHandled,
+            pendingWalletActivityKind = pendingWalletActivityKind,
+            onPendingWalletActivityHandled = onPendingWalletActivityHandled
         )
     }
 }
@@ -220,7 +228,11 @@ fun MainShell(
     pendingChannelName: String? = null,
     onPendingChannelHandled: () -> Unit = {},
     pendingGroupId: String? = null,
-    onPendingGroupHandled: () -> Unit = {}
+    onPendingGroupHandled: () -> Unit = {},
+    pendingOpenGroups: Boolean = false,
+    onPendingOpenGroupsHandled: () -> Unit = {},
+    pendingWalletActivityKind: String? = null,
+    onPendingWalletActivityHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -321,10 +333,15 @@ fun MainShell(
     // initial value) so a cold-start tap can't slip through before DataStore loads.
     LaunchedEffect(pendingChannelName) {
         if (pendingChannelName != null) {
-            if (walletViewModel.isChildModeEnabled()) {
+            // The name can come straight off a server push payload (see MainActivity's
+            // applyFcmNotificationTarget), so it gets the same sanitizing the share-link path
+            // uses - an unnormalized or hostile name would otherwise be pasted raw into the
+            // route and land on nothing.
+            val channel = com.kachat.app.ui.screens.KaChatLink.sanitizeChannelName(pendingChannelName)
+            if (channel == null || walletViewModel.isChildModeEnabled()) {
                 navController.popBackStack(Screen.Chats.route, false)
             } else {
-                navController.navigate("broadcast_channel/$pendingChannelName")
+                navController.navigate("broadcast_channel/$channel")
             }
             onPendingChannelHandled()
         }
@@ -335,6 +352,33 @@ fun MainShell(
         if (pendingGroupId != null) {
             navController.navigate("group_chat/$pendingGroupId")
             onPendingGroupHandled()
+        }
+    }
+
+    // A group notification that names no local group (a "you were added" push, or a group push
+    // this device could not resolve or ingest): the Group Chats list, which is where the new
+    // group appears once the next sync lands. Better than a group_chat/<blinded id> route that
+    // resolves to an empty, unusable thread.
+    LaunchedEffect(pendingOpenGroups) {
+        if (pendingOpenGroups) {
+            ChatsTabIntake.pendingGroupsTab.value = true
+            navController.popBackStack(Screen.Chats.route, false)
+            onPendingOpenGroupsHandled()
+        }
+    }
+
+    // Wallet address-activity receipt ("Received X KAS" on a spending or cold-storage address).
+    // Cold storage has its own tab; spending addresses live in Manage Addresses, which is a real
+    // route here (on iOS it is a sheet several screens deep, so iOS only fronts the app).
+    LaunchedEffect(pendingWalletActivityKind) {
+        val kind = pendingWalletActivityKind
+        if (kind != null) {
+            if (kind == com.kachat.app.services.NotificationHelper.KIND_COLD) {
+                navController.navigate(Screen.ColdStorage.route) { launchSingleTop = true }
+            } else {
+                navController.navigate("manage_addresses") { launchSingleTop = true }
+            }
+            onPendingWalletActivityHandled()
         }
     }
 

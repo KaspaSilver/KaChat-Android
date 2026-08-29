@@ -174,7 +174,10 @@ class NotificationHelper @Inject constructor(
         }
         // Stable per-contact request code so a burst of updates for the same
         // conversation replaces the pending intent instead of leaking a new one each time.
-        val notificationId = contactId.hashCode()
+        // Namespaced ("chat:"), like every other family below: the request code doubles as the
+        // PendingIntent key, so two families sharing one raw hash would have made a tap on one
+        // notification open the other one's destination.
+        val notificationId = "chat:$contactId".hashCode()
         val pendingIntent = PendingIntent.getActivity(
             context,
             notificationId,
@@ -253,11 +256,17 @@ class NotificationHelper @Inject constructor(
 
     /** Wallet address-activity notification ("Received X KAS" on a spending/cold address) — see
      *  [AddressActivityNotifier]. Gated only by the global notifications toggle here; the
-     *  Address Activity setting itself is checked by the notifier before calling. */
-    suspend fun showAddressActivity(title: String, text: String, dedupeKey: String) {
+     *  Address Activity setting itself is checked by the notifier before calling.
+     *
+     *  [kind] is [KIND_COLD] or [KIND_SPENDING] (iOS sends the same string in the notification's
+     *  `userInfo["kind"]`): the tap opens Storage or Manage Addresses respectively, so the
+     *  receipt lands on a screen that actually shows the address it was about. Without it the
+     *  tap only re-opened whatever screen the app was last on. */
+    suspend fun showAddressActivity(title: String, text: String, dedupeKey: String, kind: String = KIND_SPENDING) {
         if (!settings.notificationsEnabled.first()) return
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_WALLET_ACTIVITY_KIND, kind)
         }
         val notificationId = "addr_activity_$dedupeKey".hashCode()
         val pendingIntent = PendingIntent.getActivity(
@@ -302,7 +311,7 @@ class NotificationHelper @Inject constructor(
             putExtra(EXTRA_CHANNEL_NAME, channelName)
         }
         // Stable per-channel request code, same reasoning as the per-contact one above.
-        val notificationId = channelName.hashCode()
+        val notificationId = "bcast:$channelName".hashCode()
         val pendingIntent = PendingIntent.getActivity(
             context,
             notificationId,
@@ -332,18 +341,39 @@ class NotificationHelper @Inject constructor(
         }
     }
 
-    /** Per-group opt-in notification for a new `gcomm` message or a "you were added" `gctl_root` join — see [EXTRA_GROUP_ID]/GroupRepository. */
-    suspend fun showGroup(groupId: String, title: String, text: String, dedupeTxId: String? = null) {
+    /**
+     * Per-group opt-in notification for a new `gcomm` message or a "you were added" `gctl_root`
+     * join — see [EXTRA_GROUP_ID]/GroupRepository.
+     *
+     * [groupId] is the notification's identity (dedupe + open-thread suppression + request code).
+     * [targetGroupId] is what the TAP opens, and defaults to the same thing. A remote push whose
+     * only group handle is a blinded id or a tx id (see KaChatFirebaseMessagingService's
+     * `group_control` / un-ingested `group_message` fallbacks) must pass null instead: those
+     * strings are not local group ids, and routing `group_chat/<blinded id>` landed the user on a
+     * permanently empty thread with no title and a composer that could not send. Null routes the
+     * tap to the Group Chats list, which is the closest destination that actually exists.
+     */
+    suspend fun showGroup(
+        groupId: String,
+        title: String,
+        text: String,
+        dedupeTxId: String? = null,
+        targetGroupId: String? = groupId,
+    ) {
         if (activeGroupId.value == groupId) return // already looking at this group's thread
         if (!settings.notificationsEnabled.first()) return
         if (!claimTxId(dedupeTxId)) return // the other delivery path (scan/sync vs push) got here first
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_GROUP_ID, groupId)
+            if (targetGroupId != null) {
+                putExtra(EXTRA_GROUP_ID, targetGroupId)
+            } else {
+                putExtra(EXTRA_OPEN_GROUPS, true)
+            }
         }
         // Stable per-group request code, same reasoning as the per-contact/per-channel ones above.
-        val notificationId = groupId.hashCode()
+        val notificationId = "group:$groupId".hashCode()
         val pendingIntent = PendingIntent.getActivity(
             context,
             notificationId,
@@ -409,6 +439,16 @@ class NotificationHelper @Inject constructor(
         const val EXTRA_OPEN_KAPOSTS = "open_kaposts"
         const val EXTRA_KAPOST_TXID = "kapost_txid"
         const val EXTRA_KAPOST_FOCUS_TXID = "kapost_focus_txid"
+
+        /** Set instead of [EXTRA_GROUP_ID] when the notification has no resolvable local group —
+         *  the tap opens the Group Chats list rather than a `group_chat/<id>` route that would
+         *  resolve to nothing. See [showGroup]'s `targetGroupId`. */
+        const val EXTRA_OPEN_GROUPS = "open_groups"
+
+        /** [KIND_COLD] / [KIND_SPENDING] — which wallet screen an address-activity tap opens. */
+        const val EXTRA_WALLET_ACTIVITY_KIND = "wallet_activity_kind"
+        const val KIND_COLD = "cold"
+        const val KIND_SPENDING = "spending"
 
         // (channelId, soundEnabled, vibrationEnabled)
         private val CHANNELS = listOf(

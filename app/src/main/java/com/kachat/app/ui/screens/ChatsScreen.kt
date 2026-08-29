@@ -87,6 +87,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
+ * Lets something outside this screen ask it to open on a particular tab. Set by MainShell when a
+ * group notification names no local group to open (see NotificationHelper.EXTRA_OPEN_GROUPS):
+ * landing on the 1:1 Chats list would say nothing about the group the ping was for.
+ */
+object ChatsTabIntake {
+    val pendingGroupsTab = kotlinx.coroutines.flow.MutableStateFlow(false)
+}
+
+/**
  * Chats tab — conversation list.
  * Phase 4 will wire this up to ChatService / ChatViewModel.
  */
@@ -122,6 +131,16 @@ fun ChatsScreen(
     // selections together, so the other tab is blocked while editing (matches iOS).
     val isOnGroupsTab = pagerState.currentPage == 1
     val tabCoroutineScope = rememberCoroutineScope()
+
+    // A group notification with no openable thread asked for the Group Chats tab — see
+    // [ChatsTabIntake]. Consumed once, so a later manual swipe back to Chats sticks.
+    val pendingGroupsTab by ChatsTabIntake.pendingGroupsTab.collectAsState()
+    LaunchedEffect(pendingGroupsTab) {
+        if (pendingGroupsTab) {
+            ChatsTabIntake.pendingGroupsTab.value = false
+            runCatching { pagerState.animateScrollToPage(1) }
+        }
+    }
 
     // Matches on whatever's already shown per row — display name/alias, KNS domain, the raw
     // address (so pasting/typing part of an address you recognize still finds it), and the last
