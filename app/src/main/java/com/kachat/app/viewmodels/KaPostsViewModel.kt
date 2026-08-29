@@ -67,6 +67,27 @@ class KaPostsViewModel @Inject constructor(
          *  never turn one flick of the thumb into an unbounded crawl of the whole index. */
         private const val MAX_REQUESTS_PER_TRIGGER = 5
 
+        /**
+         * How many ranked posts the Popular tab wants under it before its top row means anything.
+         *
+         * The indexer has no popularity endpoint - every feed comes back reverse-chronological -
+         * so Popular can only rank what the client has actually pulled. Ranking one page made
+         * "most popular" mean "the most-liked of the last couple of dozen posts", and a genuinely
+         * big post from last week never appeared. Popular sweeps this far back before it trusts
+         * its own order.
+         */
+        private const val POPULAR_RANKING_DEPTH = 300
+
+        /** Request budget for one sweep pass (see [KaPostsViewModel.deepenPopularRanking]). */
+        private const val POPULAR_SWEEP_REQUESTS_PER_PASS = 8
+
+        /**
+         * Hard ceiling on sweep passes. Heavily-filtered stretches of history (a run of non-KaChat
+         * posts, a muted author) can return two visible rows for a whole pass, so depth alone is
+         * not a bound - without this, one tab tap could spend dozens of requests on cellular.
+         */
+        private const val POPULAR_SWEEP_MAX_PASSES = 4
+
         /** How close to the end of a list counts as "nearing the end" (in rows). */
         const val LOAD_MORE_THRESHOLD = 5
 
@@ -118,6 +139,9 @@ class KaPostsViewModel @Inject constructor(
     private val generations = mutableMapOf<String, Int>()
     private val loadMoreJobs = mutableMapOf<String, Job>()
 
+    /** The Popular tab's deep ranking sweep (see [deepenPopularRanking]); at most one at a time. */
+    private var popularSweepJob: Job? = null
+
     /** True once this surface has been loaded at least once in this session. */
     private fun surfaceLoaded(key: String): Boolean = generations.containsKey(key)
 
@@ -125,6 +149,9 @@ class KaPostsViewModel @Inject constructor(
         val generation = (generations[key] ?: 0) + 1
         generations[key] = generation
         loadMoreJobs.remove(key)?.cancel()
+        // A refresh or account change invalidates the window the sweep was extending; letting it
+        // continue would append pages from the old cursor onto a list that just started over.
+        if (key == PAGE_GLOBAL_FEED) popularSweepJob?.cancel()
         _paging.value = _paging.value + (key to PagingState())
         return generation
     }
@@ -155,6 +182,7 @@ class KaPostsViewModel @Inject constructor(
         startCursor: String?,
         target: Int,
         seenIds: Set<String>,
+        maxRequests: Int = MAX_REQUESTS_PER_TRIGGER,
         idOf: (T) -> String,
         map: (T) -> R?,
         isVisible: (R) -> Boolean,
@@ -167,7 +195,7 @@ class KaPostsViewModel @Inject constructor(
         var visibleCount = 0
         var requests = 0
         var error: String? = null
-        while (requests < MAX_REQUESTS_PER_TRIGGER && visibleCount < target && hasMore) {
+        while (requests < maxRequests && visibleCount < target && hasMore) {
             requests++
             val page = try {
                 fetch(cursor)
@@ -284,7 +312,13 @@ class KaPostsViewModel @Inject constructor(
     ): List<KaPostDraft> = when (tab) {
         FeedTab.FOLLOWING -> followingVisible
         FeedTab.FEED -> globalVisible
-        FeedTab.POPULAR -> globalVisible.sortedByDescending { it.likes + it.reposts + it.dislikes }
+        // Every interaction counts - a post people argue with is popular in the same sense a post
+        // people like is - including comments, which the cell already shows but the old ordering
+        // ignored entirely. Ties break by recency so the many equal-scoring posts deep in the
+        // window keep a stable order instead of the sort's whim.
+        FeedTab.POPULAR -> globalVisible.sortedWith(
+            compareByDescending<KaPostDraft> { popularityScore(it) }.thenByDescending { it.timestamp }
+        )
     }
 
     /** The selected tab's feed - kept for callers that only care about what's on screen. */
@@ -452,9 +486,73 @@ class KaPostsViewModel @Inject constructor(
      * riding on them) must survive a swipe away and back. Only a never-loaded tab loads here; the
      * Refresh control is what resets to page one.
      */
+    /** A post's popularity score. See the ordering in [feedFor]. */
+    private fun popularityScore(post: KaPostDraft): Int =
+        post.likes + post.reposts + post.dislikes + commentCount(post)
+
+    /**
+     * Pulls the global feed until Popular has [POPULAR_RANKING_DEPTH] posts to rank, so its top
+     * row is the most popular post in a real window of history rather than the most popular of
+     * whatever page one happened to contain.
+     *
+     * Runs only while Popular is the selected tab, and re-checks the surface generation between
+     * passes, so a tab switch, a refresh or an account change stops it instead of paging a feed
+     * the user has left.
+     */
+    private fun deepenPopularRanking() {
+        val key = PAGE_GLOBAL_FEED
+        if (popularSweepJob?.isActive == true) return
+        popularSweepJob = viewModelScope.launch {
+            var passes = 0
+            while (
+                _globalPosts.value.size < POPULAR_RANKING_DEPTH &&
+                passes < POPULAR_SWEEP_MAX_PASSES &&
+                _selectedFeed.value == FeedTab.POPULAR
+            ) {
+                passes++
+                val generation = generations[key] ?: 0
+                val state = pagingState(key)
+                if (state.isLoadingMore || !state.hasMore || _isLoadingFeed.value) return@launch
+                updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+                val result = accumulate(
+                    startCursor = state.cursor,
+                    target = POPULAR_RANKING_DEPTH,
+                    seenIds = _globalPosts.value.mapNotNull { it.remoteId }.toSet(),
+                    maxRequests = POPULAR_SWEEP_REQUESTS_PER_PASS,
+                    idOf = KPost::id,
+                    map = { mapRemotePost(it) },
+                    isVisible = { isFeedRowVisible(FeedTab.POPULAR, it) },
+                    fetch = { before -> fetchFeedPage(FeedTab.POPULAR, before) },
+                )
+                if (generations[key] != generation) return@launch
+                if (result.items.isNotEmpty()) {
+                    _globalPosts.value = appendUnique(_globalPosts.value, result.items)
+                }
+                updatePaging(key) {
+                    it.copy(
+                        cursor = result.cursor,
+                        hasMore = if (result.error != null) it.hasMore else result.hasMore,
+                        isLoadingMore = false,
+                        error = result.error,
+                    )
+                }
+                // A pass that added nothing (everything filtered out, or the fetch failed) would
+                // otherwise spin against the same cursor.
+                if (result.items.isEmpty() || result.error != null || !result.hasMore) return@launch
+            }
+        }
+    }
+
     fun selectFeed(tab: FeedTab) {
         _selectedFeed.value = tab
-        if (!surfaceLoaded(feedKey(tab))) viewModelScope.launch { loadFeed(tab) }
+        if (!surfaceLoaded(feedKey(tab))) {
+            viewModelScope.launch {
+                loadFeed(tab)
+                if (tab == FeedTab.POPULAR) deepenPopularRanking()
+            }
+        } else if (tab == FeedTab.POPULAR) {
+            deepenPopularRanking()
+        }
     }
 
     /**
