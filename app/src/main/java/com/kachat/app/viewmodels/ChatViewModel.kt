@@ -1463,7 +1463,15 @@ class ChatViewModel @Inject constructor(
     data class KnsProfileUiState(
         val ownedDomains: List<String> = emptyList(),
         val selectedDomain: String? = null,
-        val profile: KnsProfileFields? = null
+        val profile: KnsProfileFields? = null,
+        /**
+         * The contact's REAL primary, straight from the reverse lookup, as distinct from
+         * [selectedDomain], which prefers a domain the user pinned for this chat. The Domains
+         * section marks this one, so it agrees with iOS and never presents a local preference,
+         * or the mere first domain owned, as the contact's own choice. Null when they have not
+         * set one.
+         */
+        val explicitPrimaryDomain: String? = null
     )
 
     private val _knsProfiles = MutableStateFlow<Map<String, KnsProfileUiState>>(emptyMap())
@@ -1530,12 +1538,14 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
 
-            val primary = knsService.reverseResolve(contactId)
+            // The real answer, before pickActiveDomain folds in the user's pinned choice.
+            val explicitPrimary = knsService.getExplicitPrimaryDomain(contactId)
+            val primary = explicitPrimary ?: ownedAssets.firstOrNull()?.asset
             val activeName = KnsService.pickActiveDomain(ownedNames, contact?.knsName, primary)
             val activeAsset = ownedAssets.firstOrNull { it.asset == activeName }
             val profile = activeAsset?.assetId?.let { knsService.getProfile(it) }
 
-            _knsProfiles.update { it + (contactId to KnsProfileUiState(ownedNames, activeName, profile)) }
+            _knsProfiles.update { it + (contactId to KnsProfileUiState(ownedNames, activeName, profile, explicitPrimary)) }
 
             // Keep the chat list's cached avatar current — only meaningful for an actual saved contact.
             if (contact != null && profile?.avatarUrl != contact.knsAvatarUrl) {

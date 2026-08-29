@@ -2960,13 +2960,36 @@ fun ProfileScreen(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                // KaPosts rows deep-open the exact post/comment via the
-                                                // same deep-link flow notification taps use.
+                                                // Every row opens what it is about, the same way
+                                                // the matching shade notification's tap does:
+                                                // KaPosts rows deep-open the exact post/comment
+                                                // via the deep-link flow, group @mentions open
+                                                // the group's thread, broadcast rows open the
+                                                // room. (Group and broadcast rows used to be
+                                                // inert even though the entry already carried
+                                                // the target id.)
                                                 .let {
-                                                    if (entry.source == "kaposts") it.clickable {
+                                                    val open: (() -> Unit)? = when (entry.source) {
+                                                        "kaposts" -> {
+                                                            {
+                                                                KaPostsDeepLink.pendingOpenNotifications.value = false
+                                                                KaPostsDeepLink.pendingPostTxId.value = entry.targetId ?: ""
+                                                            }
+                                                        }
+                                                        "group" -> entry.targetId?.takeIf { id -> id.isNotBlank() }?.let { id ->
+                                                            { navController.navigate("group_chat/$id") }
+                                                        }
+                                                        "broadcast" -> entry.targetId
+                                                            ?.let { raw -> KaChatLink.sanitizeChannelName(raw) }
+                                                            ?.let { channel ->
+                                                                { navController.navigate("broadcast_channel/$channel") }
+                                                            }
+                                                        else -> null
+                                                    }
+                                                    if (open != null) it.clickable {
                                                         notifCenterVm.store.markAllSeen()
                                                         showNotifCenter = false
-                                                        KaPostsDeepLink.pendingPostTxId.value = entry.targetId ?: ""
+                                                        open()
                                                     } else it
                                                 }
                                                 .padding(vertical = 6.dp),
@@ -10900,6 +10923,79 @@ fun ChatInfoScreen(
                             }
                         }
 
+                    }
+                }
+            }
+
+            // Every KNS domain this contact owns, with their primary one marked. Reads the
+            // already-populated ChatViewModel.knsProfiles cache that the LaunchedEffect above
+            // fills via refreshKnsProfile(contactId) — no second network path, and nothing here
+            // blocks the rest of the screen: the section paints immediately with a loading line
+            // and swaps to the real list (or the empty state) when that lookup returns.
+            SettingsSection(title = stringResource(R.string.kns_domains)) {
+                // The contact's OWN primary from the reverse lookup, not selectedDomain, which
+                // prefers a domain pinned locally for this chat. Marking the pinned one would
+                // present a local preference as the contact's choice, and would disagree with
+                // iOS, which marks the reverse-lookup answer.
+                val primaryDomain = knsProfile?.explicitPrimaryDomain
+                when {
+                    // Null state = the lookup hasn't returned yet; a finished lookup always
+                    // stores a KnsProfileUiState, empty ownedDomains and all.
+                    knsProfile == null -> Text(
+                        "Loading domains...",
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    ownedDomains.isEmpty() -> Text(
+                        stringResource(R.string.no_domains_yet),
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    else -> {
+                        // Primary first, the rest alphabetically, so the marked row is always on
+                        // top whatever order the KNS assets endpoint happened to return.
+                        val sortedDomains = remember(ownedDomains, primaryDomain) {
+                            ownedDomains.sortedWith(compareBy({ it != primaryDomain }, { it.lowercase() }))
+                        }
+                        sortedDomains.forEachIndexed { index, domain ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString(domain))
+                                        Toast.makeText(context, "$domain copied", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    domain,
+                                    color = LocalAppColors.current.textPrimary,
+                                    fontWeight = if (domain == primaryDomain) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                if (domain == primaryDomain) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        stringResource(R.string.primary),
+                                        color = KaspaTeal,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(KaspaTeal.copy(alpha = 0.15f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                            if (index < sortedDomains.lastIndex) {
+                                SettingsDivider()
+                            }
+                        }
                     }
                 }
             }
