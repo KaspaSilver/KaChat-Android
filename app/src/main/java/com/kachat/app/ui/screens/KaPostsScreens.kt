@@ -1261,20 +1261,8 @@ fun KaPostCell(
                             onDismissRequest = { showOverflow = false },
                         ) {
                             if (post.remoteId != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Share") },
-                                    leadingIcon = { Icon(Icons.Default.Share, null) },
-                                    onClick = {
-                                        showOverflow = false
-                                        viewModel.shareText(post)?.let { text ->
-                                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_TEXT, text)
-                                            }
-                                            context.startActivity(Intent.createChooser(intent, "Share Post"))
-                                        }
-                                    },
-                                )
+                                // Share lives in the action row itself now, next to bookmark,
+                                // matching iOS - no duplicate entry here.
                                 DropdownMenuItem(
                                     text = { Text("Post Activity") },
                                     leadingIcon = { Icon(Icons.Outlined.BarChart, null) },
