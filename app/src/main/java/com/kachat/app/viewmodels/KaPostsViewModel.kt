@@ -1011,7 +1011,11 @@ class KaPostsViewModel @Inject constructor(
      * pubkey). Unresolvable tokens stay plain text.
      */
     private suspend fun mentionedPubkeys(text: String): List<String> {
-        val domains = mentionDomains(text)
+        // Scanned on the RENDERED text, not the source. The @ token has to start a word, so
+        // "**@alice.kas**" hides the mention behind the bold markers: the reader would see a
+        // highlighted, tappable mention (the cell renders the same rendered text) while the
+        // signed mentions array went out empty and @alice was never notified.
+        val domains = mentionDomains(com.kachat.app.util.KaPostsMarkdown.render(text).text)
         if (domains.isEmpty()) return emptyList()
         val byDomain = mentionCandidates().toMap()
         val found = linkedSetOf<String>()

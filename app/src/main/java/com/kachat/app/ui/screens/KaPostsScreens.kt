@@ -3569,6 +3569,25 @@ private fun TranslateLink(title: String, onClick: () -> Unit) {
     )
 }
 
+/**
+ * [range] minus every protected range, in order. Returns `[range]` when nothing overlaps, which is
+ * the case for the overwhelming majority of posts.
+ */
+private fun subtractRanges(protectedRanges: List<IntRange>, range: IntRange): List<IntRange> {
+    val overlapping = protectedRanges
+        .filter { it.first <= range.last && it.last >= range.first }
+        .sortedBy { it.first }
+    if (overlapping.isEmpty()) return listOf(range)
+    val out = mutableListOf<IntRange>()
+    var cursor = range.first
+    for (blocked in overlapping) {
+        if (blocked.first > cursor) out += cursor until blocked.first
+        cursor = maxOf(cursor, blocked.last + 1)
+    }
+    if (cursor <= range.last) out += cursor..range.last
+    return out.filter { !it.isEmpty() }
+}
+
 /** Detected links in post text: http(s) URLs plus bare www. hosts, like iOS's linkifier. */
 private val POST_URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)\S+""")
 
@@ -3580,6 +3599,14 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
     // source. Its spans are then layered on top.
     val rendered = KaPostsMarkdown.render(source)
     val text = rendered.text
+    // A mention is an identity, not prose: it always looks the same so it stays recognisable at a
+    // glance, and formatting never applies to it. "**@alice.kas** ships it" bolds "ships it" and
+    // leaves the mention alone.
+    val mentionRanges = KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text).mapNotNull { match ->
+        val domain = match.groups[2] ?: return@mapNotNull null
+        val start = domain.range.first - 1 // include the '@'
+        if (start < 0) null else start until (domain.range.last + 1)
+    }.toList()
     return androidx.compose.ui.text.buildAnnotatedString {
         append(text)
         for (span in rendered.spans) {
@@ -3592,27 +3619,27 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
                 // kinds of link look the same to a reader.
                 if (style.link != null) add(androidx.compose.ui.text.style.TextDecoration.Underline)
             }
-            addStyle(
-                androidx.compose.ui.text.SpanStyle(
-                    fontWeight = if (style.bold) FontWeight.Bold else null,
-                    fontStyle = if (style.italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
-                    fontSize = if (style.subtext) 13.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
-                    color = when {
-                        style.link != null -> KaspaTeal
-                        style.subtext -> Color(0xFF8A8A8E)
-                        else -> Color.Unspecified
-                    },
-                    textDecoration = if (decorations.isEmpty()) {
-                        null
-                    } else {
-                        androidx.compose.ui.text.style.TextDecoration.combine(decorations)
-                    },
-                ),
-                span.start,
-                span.end,
+            val spanStyle = androidx.compose.ui.text.SpanStyle(
+                fontWeight = if (style.bold) FontWeight.Bold else null,
+                fontStyle = if (style.italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
+                fontSize = if (style.subtext) 13.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
+                color = when {
+                    style.link != null -> KaspaTeal
+                    style.subtext -> Color(0xFF8A8A8E)
+                    else -> Color.Unspecified
+                },
+                textDecoration = if (decorations.isEmpty()) {
+                    null
+                } else {
+                    androidx.compose.ui.text.style.TextDecoration.combine(decorations)
+                },
             )
-            if (style.link != null) {
-                addStringAnnotation(LINK_ANNOTATION_TAG, style.link, span.start, span.end)
+            // A span crossing a mention is applied to the pieces either side of it, never over it.
+            for (piece in subtractRanges(mentionRanges, span.start until span.end)) {
+                addStyle(spanStyle, piece.first, piece.last + 1)
+                if (style.link != null) {
+                    addStringAnnotation(LINK_ANNOTATION_TAG, style.link, piece.first, piece.last + 1)
+                }
             }
         }
         for (match in KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text)) {
