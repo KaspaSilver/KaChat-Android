@@ -52,7 +52,6 @@ class SettingsViewModel @Inject constructor(
 
     fun saveNetwork(value: String) = viewModelScope.launch { settings.setNetwork(value) }
     fun saveIndexerUrl(value: String) = viewModelScope.launch { settings.setIndexerUrl(value) }
-    fun saveKnsApiUrl(value: String) = viewModelScope.launch { settings.setKnsApiUrl(value) }
     fun saveKaspaRestUrl(value: String) = viewModelScope.launch { settings.setKaspaRestUrl(value) }
     fun setNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationsEnabled(value) }
     fun setNotificationSoundEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationSoundEnabled(value) }

@@ -180,7 +180,6 @@ class ConnectionViewModel @Inject constructor(
 
     fun setNetwork(value: String) { viewModelScope.launch { settings.setNetwork(value) } }
     fun setIndexerUrl(value: String) { viewModelScope.launch { settings.setIndexerUrl(value) } }
-    fun setKnsApiUrl(value: String) { viewModelScope.launch { settings.setKnsApiUrl(value) } }
     fun setKaspaRestApiUrl(value: String) { viewModelScope.launch { settings.setKaspaRestUrl(value) } }
     fun setTrustedNodeAddress(value: String) { viewModelScope.launch { settings.setTrustedNodeAddress(value) } }
     fun setDiscoverNewPeers(value: Boolean) { _discoverNewPeers.value = value }

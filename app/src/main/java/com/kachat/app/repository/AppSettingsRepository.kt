@@ -11,6 +11,7 @@ import com.google.gson.Gson
 import com.kachat.app.models.PendingKnsCommit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,6 +34,10 @@ class AppSettingsRepository @Inject constructor(
         // Network
         val KEY_NETWORK          = stringPreferencesKey("network")           // "mainnet" | "testnet"
         val KEY_INDEXER_URL      = stringPreferencesKey("indexer_url")
+        // No longer read or written - `knsApiUrl` is pinned to DEFAULT_KNS_API_URL. Any value an
+        // older build left in the DataStore is inert; the key stays declared so it is obvious the
+        // name is taken rather than free to reuse.
+        @Suppress("unused")
         val KEY_KNS_API_URL      = stringPreferencesKey("kns_api_url")
         val KEY_KASPA_REST_URL   = stringPreferencesKey("kaspa_rest_url")
         // K social indexer powering KaPosts feeds (the KaChat-owned fork).
@@ -232,28 +237,37 @@ class AppSettingsRepository @Inject constructor(
     // community default kasia.wtf) is moved to the current default (kachat.duckdns.org). Custom
     // indexers the user typed are kept as-is.
     val indexerUrl: Flow<String> = dataStore.data.map {
-        val stored = it[KEY_INDEXER_URL]
+        val stored = it[KEY_INDEXER_URL]?.takeIf { url -> url.isNotBlank() }
         if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
     }
 
-    val knsApiUrl: Flow<String> = dataStore.data.map {
-        it[KEY_KNS_API_URL] ?: DEFAULT_KNS_API_URL
-    }
+    /**
+     * Always the shipped endpoint. Deliberately NOT overridable: it is display-only in Connection
+     * Settings, has no setter, and any value already in the DataStore is ignored.
+     *
+     * On iOS this was an editable field with no empty-string fallback, so clearing it wrote "" and
+     * every KNS call then failed with an unsupported-URL error - there was nothing to point at the
+     * setting that caused it. There is no reason for this endpoint to vary per install, so on both
+     * platforms it is now pinned rather than merely defaulted.
+     */
+    val knsApiUrl: Flow<String> = flowOf(DEFAULT_KNS_API_URL)
 
+    // The rest stay overridable, but a BLANK stored value is treated as unset rather than passed
+    // through - an empty base URL builds a request no HTTP client will send.
     val kaspaRestUrl: Flow<String> = dataStore.data.map {
-        it[KEY_KASPA_REST_URL] ?: DEFAULT_KASPA_REST_URL
+        it[KEY_KASPA_REST_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_KASPA_REST_URL
     }
 
     val kapostIndexerUrl: Flow<String> = dataStore.data.map {
-        it[KEY_KAPOST_INDEXER_URL] ?: DEFAULT_KAPOST_INDEXER_URL
+        it[KEY_KAPOST_INDEXER_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_KAPOST_INDEXER_URL
     }
 
     val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
-        it[KEY_BROADCAST_INDEXER_URL] ?: DEFAULT_BROADCAST_INDEXER_URL
+        it[KEY_BROADCAST_INDEXER_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_BROADCAST_INDEXER_URL
     }
 
     val pushIndexerUrl: Flow<String> = dataStore.data.map {
-        it[KEY_PUSH_INDEXER_URL] ?: DEFAULT_PUSH_INDEXER_URL
+        it[KEY_PUSH_INDEXER_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_PUSH_INDEXER_URL
     }
 
     /**
@@ -555,7 +569,6 @@ class AppSettingsRepository @Inject constructor(
 
     suspend fun setNetwork(value: String) = dataStore.edit { it[KEY_NETWORK] = value }
     suspend fun setIndexerUrl(value: String) = dataStore.edit { it[KEY_INDEXER_URL] = value }
-    suspend fun setKnsApiUrl(value: String) = dataStore.edit { it[KEY_KNS_API_URL] = value }
     suspend fun setKaspaRestUrl(value: String) = dataStore.edit { it[KEY_KASPA_REST_URL] = value }
     suspend fun setKapostIndexerUrl(value: String) = dataStore.edit { it[KEY_KAPOST_INDEXER_URL] = value }
     suspend fun setBroadcastIndexerUrl(value: String) = dataStore.edit { it[KEY_BROADCAST_INDEXER_URL] = value }
