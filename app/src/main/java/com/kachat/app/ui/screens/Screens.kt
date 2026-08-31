@@ -6994,9 +6994,16 @@ fun EditKnsProfileScreen(
     var github by remember { mutableStateOf("") }
     var redirect by remember { mutableStateOf("") }
     var seeded by remember { mutableStateOf(false) }
+    // The domain the fields were last read from. A KNS profile belongs to a DOMAIN, so promoting a
+    // different one to primary swaps which avatar, banner and details are in effect - and these
+    // fields used to seed exactly once, so the screen kept showing the old domain's values until
+    // it was closed and reopened. Keyed on the domain rather than on the profile object so an
+    // ordinary refresh of the SAME profile never overwrites what the user is part-way through
+    // typing.
+    var seededDomain by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(knsProfile) {
-        if (!seeded) {
+    LaunchedEffect(knsProfile, activeProfileDomainName) {
+        if (!seeded || seededDomain != activeProfileDomainName) {
             bio = knsProfile?.bio ?: ""
             x = knsProfile?.x ?: ""
             website = knsProfile?.website ?: ""
@@ -7005,7 +7012,10 @@ fun EditKnsProfileScreen(
             email = knsProfile?.contactEmail ?: ""
             github = knsProfile?.github ?: ""
             redirect = knsProfile?.redirectUrl ?: ""
+            // Staged image picks belonged to the previous domain's profile.
+            if (seeded) viewModel.clearPendingProfileImages()
             seeded = true
+            seededDomain = activeProfileDomainName
         }
     }
 

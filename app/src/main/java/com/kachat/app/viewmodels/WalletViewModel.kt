@@ -1202,11 +1202,30 @@ class WalletViewModel @Inject constructor(
             _setPrimaryState.value = SetPrimaryDomainUiState(assetId = assetId, inFlight = true)
             try {
                 walletService.setPrimaryDomain(assetId)
-                refreshOwnedDomains()
+                refreshUntilPrimarySettles(assetId)
                 _setPrimaryState.value = SetPrimaryDomainUiState()
             } catch (e: Exception) {
                 _setPrimaryState.value = SetPrimaryDomainUiState(assetId = assetId, inFlight = false, errorMessage = e.message ?: "Failed to set primary domain")
             }
+        }
+    }
+
+    /**
+     * Refreshes until KNS actually reports the new primary, or the attempts run out.
+     *
+     * A KNS profile belongs to a DOMAIN, so the avatar, banner and details all change with the
+     * primary - but the write has only just been submitted, and one immediate refresh often races
+     * the indexer and reads back the OLD primary, leaving the editor showing the previous domain's
+     * profile. Bounded, and it keeps whatever the last refresh produced either way, so a slow
+     * indexer costs a stale screen rather than a hang. Matches iOS.
+     */
+    private suspend fun refreshUntilPrimarySettles(assetId: String) {
+        val expected = _ownedDomainAssets.value.firstOrNull { it.assetId == assetId }?.asset
+        repeat(3) { attempt ->
+            if (attempt > 0) kotlinx.coroutines.delay(2_000)
+            refreshOwnedDomainsAndAwait()
+            refreshKnsProfile()
+            if (expected == null || _primaryDomainName.value.equals(expected, ignoreCase = true)) return
         }
     }
 
@@ -1402,6 +1421,19 @@ class WalletViewModel @Inject constructor(
     fun setPendingBanner(uri: Uri?) {
         _pendingBannerUri.value = uri
         if (uri != null) _bannerCleared.value = false
+    }
+
+    /**
+     * Drops any staged avatar/banner pick and the "remove existing" flags.
+     *
+     * Called when the profile being edited changes domain: those images were chosen for the
+     * PREVIOUS domain's profile, and carrying them across silently would save the wrong ones.
+     */
+    fun clearPendingProfileImages() {
+        _pendingAvatarUri.value = null
+        _pendingBannerUri.value = null
+        _avatarCleared.value = false
+        _bannerCleared.value = false
     }
 
     fun clearExistingAvatar() {
