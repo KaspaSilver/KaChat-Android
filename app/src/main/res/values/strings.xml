@@ -496,6 +496,9 @@
     <string name="security">Security</string>
     <string name="send_audio_message">Send Audio Message</string>
     <string name="send_handshake">Send Handshake</string>
+    <string name="placement_in_dock">In your dock</string>
+    <string name="placement_in_kaspa_hub">In Kaspa Hub</string>
+    <string name="placement_nowhere">Dock is full and Kaspa Hub is off - turn one on to reach it</string>
     <string name="handshake_sent">Handshake sent</string>
     <string name="send_photo_2">Send Photo</string>
     <string name="sending_2">Sending...</string>

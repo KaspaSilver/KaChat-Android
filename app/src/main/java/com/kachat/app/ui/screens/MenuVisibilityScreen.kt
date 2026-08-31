@@ -45,8 +45,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import com.kachat.app.ui.ALWAYS_VISIBLE_TAB_ROUTES
 import com.kachat.app.ui.bottomNavItems
-import com.kachat.app.ui.broadcastsAccessibleViaChatsTab
-import com.kachat.app.ui.kaPostsAccessibleViaChatsTab
+import com.kachat.app.ui.Screen
+import com.kachat.app.ui.kaspaHubSections
+import com.kachat.app.ui.resolveTabOrder
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -64,8 +65,8 @@ import com.kachat.app.viewmodels.WalletViewModel
  * Chats/Profile are permanently on (Settings itself is reached from Profile, not its own tab,
  * so it isn't listed here at all); every other tab can be hidden. There's no "+ More" dock
  * entry or enabled-tab limit anymore: anything can be toggled on, and the 5-item dock cap does
- * the rest — over-cap KaPosts/Broadcasts ride the Chats-slot cycle (hint shown on their rows),
- * any other over-cap tab tail-drops until a slot frees up.
+ * the rest — anything over the cap tail-drops out of the dock and is reached through Kaspa Hub
+ * instead, which each row says on itself.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,16 +81,25 @@ fun MenuVisibilityScreen(
     // time filter: the stored per-account order/hidden prefs are never rewritten, so turning
     // Child Mode off restores the user's own arrangement untouched.
     val childModeOn by walletViewModel.childModeEnabled.collectAsState()
-    // No enabled-tab limit anymore (the old "at most 3 optional menus" rule went away with the
-    // "+ More" pseudo-tab): everything can be ON at once, and the 5-item dock cap handles the
-    // rest — over-cap KaPosts/Broadcasts ride the Chats-slot cycle (hinted below), any other
-    // over-cap tab silently tail-drops until the user frees a slot.
-    val kaPostsReTapHint = if ("kaposts" !in hiddenTabs && kaPostsAccessibleViaChatsTab(tabOrder, hiddenTabs, childModeOn)) {
-        stringResource(R.string.kaposts_dock_full_hint)
-    } else null
-    val broadcastsReTapHint = if ("broadcasts" !in hiddenTabs && broadcastsAccessibleViaChatsTab(tabOrder, hiddenTabs, childModeOn)) {
-        stringResource(R.string.kaposts_dock_full_hint)
-    } else null
+    // No enabled-tab limit: everything can be ON at once, and the 5-item dock cap handles the
+    // rest. Where a feature ENDED UP is what a row needs to say - in the dock, in Kaspa Hub, or
+    // nowhere because the Hub is off too, which is the only way to lose access to an enabled
+    // feature and so the one most worth stating.
+    val inDock = resolveTabOrder(tabOrder, hiddenTabs, childModeOn).toSet()
+    val inHub = kaspaHubSections(tabOrder, hiddenTabs, childModeOn).toSet()
+    // Resolved up front: stringResource is itself @Composable and cannot be called from a plain
+    // local function.
+    val hintInDock = stringResource(R.string.placement_in_dock)
+    val hintInHub = stringResource(R.string.placement_in_kaspa_hub)
+    val hintNowhere = stringResource(R.string.placement_nowhere)
+    fun placementHint(screen: Screen): String? = when {
+        screen.route in hiddenTabs -> null
+        screen in inDock -> hintInDock
+        screen in inHub -> hintInHub
+        else -> hintNowhere
+    }
+    val kaPostsReTapHint = placementHint(Screen.KaPosts)
+    val broadcastsReTapHint = placementHint(Screen.Broadcasts)
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
