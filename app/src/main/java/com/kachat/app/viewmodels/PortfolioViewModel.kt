@@ -85,6 +85,10 @@ class PortfolioViewModel @Inject constructor(
         viewModelScope.launch { portfolioManager.renamePortfolio(id, newName) }
     }
 
+    fun reorderPortfolios(orderedIds: List<String>) {
+        viewModelScope.launch { portfolioManager.reorderPortfolios(orderedIds) }
+    }
+
     fun deletePortfolio(id: String) {
         viewModelScope.launch { portfolioManager.deletePortfolio(id) }
     }

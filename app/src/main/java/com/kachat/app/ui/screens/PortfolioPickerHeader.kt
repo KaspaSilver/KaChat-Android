@@ -2,6 +2,23 @@ package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -23,8 +40,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -68,14 +83,15 @@ fun PortfolioPickerHeader(
     onAdd: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
+    /** Commits a reorder; the argument is the full list of ids in their new order. */
+    onReorder: (List<String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
-    var newPortfolioName by remember { mutableStateOf("") }
-    var renamingPortfolio by remember { mutableStateOf<PortfolioEntity?>(null) }
-    var renameText by remember { mutableStateOf("") }
-    var deletingPortfolio by remember { mutableStateOf<PortfolioEntity?>(null) }
-    var menuTargetId by remember { mutableStateOf<String?>(null) }
+    // The card whose long-press sheet is open. Everything that sheet offers - rename, reorder,
+    // delete - happens inside it, so this is the only presentation the long press starts, and it
+    // is built FROM the pressed card so it can never act on a different one.
+    var sheetTarget by remember { mutableStateOf<PortfolioEntity?>(null) }
 
     val canAddMore = portfolios.size < PortfolioManager.MAX_PORTFOLIOS
 
@@ -90,26 +106,18 @@ fun PortfolioPickerHeader(
             PortfolioCard(
                 portfolio = portfolio,
                 isActive = portfolio.id == activePortfolioId,
+                // Stays lifted while ITS sheet is open, the way a home-screen icon stays raised
+                // under its menu - the sheet only covers the lower half, so the card it belongs
+                // to is still on screen and worth identifying.
+                isSheetTarget = sheetTarget?.id == portfolio.id,
                 cardData = cardSummaries[portfolio.id],
                 currencyCode = currencyCode,
                 onClick = { onSelect(portfolio.id) },
-                onLongClick = { menuTargetId = portfolio.id },
-                showMenu = menuTargetId == portfolio.id,
-                onDismissMenu = { menuTargetId = null },
-                canDelete = portfolios.size > 1,
-                onRenameClick = {
-                    renameText = portfolio.name
-                    renamingPortfolio = portfolio
-                    menuTargetId = null
-                },
-                onDeleteClick = {
-                    deletingPortfolio = portfolio
-                    menuTargetId = null
-                }
+                onLongClick = { sheetTarget = portfolio }
             )
         }
         if (canAddMore) {
-            AddPortfolioCard(onClick = { newPortfolioName = ""; showAddDialog = true })
+            AddPortfolioCard(onClick = { showAddDialog = true })
         }
     }
 
@@ -123,69 +131,90 @@ fun PortfolioPickerHeader(
         )
     }
 
-    renamingPortfolio?.let { portfolio ->
-        PortfolioNameDialog(
-            title = "Rename Portfolio",
-            initialText = renameText,
-            confirmLabel = "Save",
-            onConfirm = { onRename(portfolio.id, it); renamingPortfolio = null },
-            onDismiss = { renamingPortfolio = null }
-        )
-    }
-
-    deletingPortfolio?.let { portfolio ->
-        AlertDialog(
-            onDismissRequest = { deletingPortfolio = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Delete Portfolio", color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    "Delete '${portfolio.name}' and its transactions? This can't be undone.",
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { onDelete(portfolio.id); deletingPortfolio = null }) {
-                    Text("Delete", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletingPortfolio = null }) {
-                    Text("Cancel", color = LocalAppColors.current.textSecondary)
-                }
-            }
+    sheetTarget?.let { target ->
+        PortfolioActionsSheet(
+            target = target,
+            portfolios = portfolios,
+            cardSummaries = cardSummaries,
+            currencyCode = currencyCode,
+            onRename = onRename,
+            onDelete = onDelete,
+            onReorder = onReorder,
+            onDismiss = { sheetTarget = null }
         )
     }
 }
+
+/**
+ * How long the card must be held before its sheet opens.
+ *
+ * Shorter than the platform default, which read as a wait. It stays comfortably above a deliberate
+ * tap, and the gesture's own touch-slop is what keeps a scroll of the card row from reaching it,
+ * not the duration. Matches iOS.
+ */
+private const val PORTFOLIO_LONG_PRESS_MS = 250L
+
+/**
+ * Compose reads the long-press threshold from [ViewConfiguration], with no per-gesture override,
+ * so shortening it means handing the card a configuration of its own.
+ */
+private fun ViewConfiguration.withLongPressTimeout(millis: Long): ViewConfiguration =
+    object : ViewConfiguration {
+        override val longPressTimeoutMillis: Long get() = millis
+        override val doubleTapTimeoutMillis: Long get() = this@withLongPressTimeout.doubleTapTimeoutMillis
+        override val doubleTapMinTimeMillis: Long get() = this@withLongPressTimeout.doubleTapMinTimeMillis
+        override val touchSlop: Float get() = this@withLongPressTimeout.touchSlop
+    }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PortfolioCard(
     portfolio: PortfolioEntity,
     isActive: Boolean,
+    isSheetTarget: Boolean,
     cardData: PortfolioCardData?,
     currencyCode: String,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    showMenu: Boolean,
-    onDismissMenu: () -> Unit,
-    canDelete: Boolean,
-    onRenameClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onLongClick: () -> Unit
 ) {
     val isPositive = (cardData?.todayChangeAmount ?: 0.0) >= 0.0
-    Box {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    // Shrinks under the finger and lifts once its sheet is open, so a hold looks like it is being
+    // registered instead of nothing happening and then a sheet appearing.
+    val scale by animateFloatAsState(
+        targetValue = when {
+            isPressed -> 0.94f
+            isSheetTarget -> 1.04f
+            else -> 1f
+        },
+        animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow),
+        label = "portfolioCardScale"
+    )
+
+    CompositionLocalProvider(
+        LocalViewConfiguration provides LocalViewConfiguration.current.withLongPressTimeout(PORTFOLIO_LONG_PRESS_MS)
+    ) {
         Column(
             modifier = Modifier
                 .widthIn(min = 140.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .clip(RoundedCornerShape(16.dp))
                 .background(LocalAppColors.current.surface)
                 .border(
-                    width = if (isActive) 1.5.dp else 0.8.dp,
-                    color = if (isActive) KaspaTeal else Color.White.copy(alpha = 0.15f),
+                    width = if (isSheetTarget) 2.dp else if (isActive) 1.5.dp else 0.8.dp,
+                    color = if (isSheetTarget || isActive) KaspaTeal else Color.White.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(16.dp)
                 )
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -221,12 +250,6 @@ private fun PortfolioCard(
                 }
             } else {
                 Text("—", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        DropdownMenu(expanded = showMenu, onDismissRequest = onDismissMenu) {
-            DropdownMenuItem(text = { Text("Rename") }, onClick = onRenameClick)
-            if (canDelete) {
-                DropdownMenuItem(text = { Text("Delete") }, onClick = onDeleteClick)
             }
         }
     }
@@ -292,4 +315,275 @@ private fun PortfolioNameDialog(
             }
         }
     )
+}
+
+/**
+ * Everything a long press on a portfolio card offers, in one half-height sheet.
+ *
+ * Rename, reorder and delete all happen HERE rather than each opening its own dialog. That is
+ * partly the shape iOS uses and partly a correctness property: the sheet is built from the pressed
+ * card, so every action inside it acts on the portfolio that was held.
+ *
+ * `skipPartiallyExpanded = false` is the half-height stop - the Compose equivalent of iOS's medium
+ * detent. The sheet can still be dragged up to full height for the reorder list.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PortfolioActionsSheet(
+    target: PortfolioEntity,
+    portfolios: List<PortfolioEntity>,
+    cardSummaries: Map<String, PortfolioCardData>,
+    currencyCode: String,
+    onRename: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onReorder: (List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+
+    var mode by remember { mutableStateOf(SheetMode.MENU) }
+    var renameText by remember { mutableStateOf(target.name) }
+    var reorderDraft by remember { mutableStateOf(portfolios) }
+
+    // The last portfolio cannot be deleted - every wallet keeps at least one - and there is nothing
+    // to reorder with only one card.
+    val hasOthers = portfolios.size > 1
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            SheetHeader(
+                title = when (mode) {
+                    SheetMode.MENU -> target.name
+                    SheetMode.RENAME -> "Rename"
+                    SheetMode.REORDER -> "Reorder"
+                    SheetMode.CONFIRM_DELETE -> "Delete Portfolio"
+                },
+                // From a sub-mode this steps back to the menu rather than closing outright, so a
+                // mis-tap costs one tap instead of the whole long press.
+                leadingLabel = if (mode == SheetMode.MENU) "Cancel" else "Back",
+                onLeading = { if (mode == SheetMode.MENU) onDismiss() else mode = SheetMode.MENU },
+                trailingLabel = when (mode) {
+                    SheetMode.RENAME -> "Save"
+                    SheetMode.REORDER -> "Done"
+                    else -> null
+                },
+                trailingEnabled = mode != SheetMode.RENAME || renameText.trim().isNotEmpty(),
+                onTrailing = {
+                    when (mode) {
+                        SheetMode.RENAME -> onRename(target.id, renameText.trim())
+                        SheetMode.REORDER -> onReorder(reorderDraft.map { it.id })
+                        else -> Unit
+                    }
+                    onDismiss()
+                }
+            )
+
+            when (mode) {
+                SheetMode.MENU -> {
+                    SheetActionRow("Rename", Icons.Default.Edit) {
+                        renameText = target.name
+                        mode = SheetMode.RENAME
+                    }
+                    if (hasOthers) {
+                        SheetActionRow("Reorder Portfolios", Icons.Default.SwapVert) {
+                            reorderDraft = portfolios
+                            mode = SheetMode.REORDER
+                        }
+                        SheetActionRow("Delete '${target.name}'", Icons.Default.Delete, destructive = true) {
+                            mode = SheetMode.CONFIRM_DELETE
+                        }
+                    } else {
+                        Text(
+                            "This is your only portfolio, so it can't be deleted or reordered.",
+                            color = colors.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                SheetMode.RENAME -> {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("Portfolio Name") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = KaspaTeal,
+                            unfocusedBorderColor = colors.textSecondary,
+                            focusedLabelColor = KaspaTeal,
+                            unfocusedLabelColor = colors.textSecondary
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                    )
+                    Text(
+                        "Only the name changes. Transactions stay where they are.",
+                        color = colors.textSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
+
+                SheetMode.REORDER -> {
+                    // Up/down controls rather than a drag: Compose has no equivalent of the
+                    // native reorderable list iOS gets for free, and a hand-rolled drag was
+                    // removed from the cards on iOS for being unreliable. With at most five
+                    // portfolios these are quicker anyway, and they work with TalkBack.
+                    reorderDraft.forEachIndexed { index, portfolio ->
+                        ReorderRow(
+                            name = portfolio.name,
+                            value = formatFiatAmount(
+                                cardSummaries[portfolio.id]?.currentValue ?: 0.0,
+                                currencyCode
+                            ),
+                            isTarget = portfolio.id == target.id,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < reorderDraft.lastIndex,
+                            onMoveUp = { reorderDraft = reorderDraft.swapped(index, index - 1) },
+                            onMoveDown = { reorderDraft = reorderDraft.swapped(index, index + 1) }
+                        )
+                    }
+                    Text(
+                        "Move a portfolio to change the order its card appears in.",
+                        color = colors.textSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
+
+                SheetMode.CONFIRM_DELETE -> {
+                    SheetActionRow("Delete '${target.name}'", Icons.Default.Delete, destructive = true) {
+                        onDelete(target.id)
+                        onDismiss()
+                    }
+                    Text(
+                        "'${target.name}' and its transactions will be deleted. This can't be undone.",
+                        color = colors.textSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class SheetMode { MENU, RENAME, REORDER, CONFIRM_DELETE }
+
+private fun <T> List<T>.swapped(a: Int, b: Int): List<T> =
+    toMutableList().also { it[a] = this[b]; it[b] = this[a] }
+
+@Composable
+private fun SheetHeader(
+    title: String,
+    leadingLabel: String,
+    onLeading: () -> Unit,
+    trailingLabel: String?,
+    trailingEnabled: Boolean,
+    onTrailing: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onLeading) { Text(leadingLabel, color = KaspaTeal) }
+        Text(
+            title,
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center
+        )
+        if (trailingLabel != null) {
+            TextButton(onClick = onTrailing, enabled = trailingEnabled) {
+                Text(
+                    trailingLabel,
+                    color = if (trailingEnabled) KaspaTeal else colors.textSecondary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            // Keeps the title centred without a trailing action.
+            Spacer(Modifier.width(72.dp))
+        }
+    }
+}
+
+@Composable
+private fun SheetActionRow(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    destructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    val tint = if (destructive) Color(0xFFFF3B30) else colors.textPrimary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(16.dp))
+        Text(label, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun ReorderRow(
+    name: String,
+    value: String,
+    isTarget: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            name,
+            color = colors.textPrimary,
+            fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            value,
+            color = colors.textSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1
+        )
+        Spacer(Modifier.width(8.dp))
+        IconButton(onClick = onMoveUp, enabled = canMoveUp) {
+            Icon(
+                Icons.Default.ArrowUpward,
+                contentDescription = "Move $name up",
+                tint = if (canMoveUp) KaspaTeal else colors.textSecondary.copy(alpha = 0.4f)
+            )
+        }
+        IconButton(onClick = onMoveDown, enabled = canMoveDown) {
+            Icon(
+                Icons.Default.ArrowDownward,
+                contentDescription = "Move $name down",
+                tint = if (canMoveDown) KaspaTeal else colors.textSecondary.copy(alpha = 0.4f)
+            )
+        }
+    }
 }

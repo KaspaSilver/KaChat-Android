@@ -218,7 +218,8 @@ fun PortfolioScreen(
                 onSelect = { viewModel.setActivePortfolio(it) },
                 onAdd = { viewModel.addPortfolio(it) },
                 onRename = { id, name -> viewModel.renamePortfolio(id, name) },
-                onDelete = { viewModel.deletePortfolio(it) }
+                onDelete = { viewModel.deletePortfolio(it) },
+                onReorder = { viewModel.reorderPortfolios(it) }
             )
             Box(
                 modifier = Modifier

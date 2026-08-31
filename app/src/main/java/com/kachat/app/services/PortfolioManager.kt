@@ -122,8 +122,37 @@ class PortfolioManager @Inject constructor(
             createdAtMillis = System.currentTimeMillis()
         )
         database.portfolioDefinitionDao().insert(entity)
+        normalizeSortOrder(address)
         setActivePortfolio(entity.id)
         return entity
+    }
+
+    /**
+     * Rewrites sortOrder to match position, so the stored order is always 0 until count with no
+     * gaps and no duplicates. Run after every add, delete and reorder - it never was, so deleting
+     * from the middle and adding another handed the new portfolio a sortOrder the survivor already
+     * had.
+     */
+    private suspend fun normalizeSortOrder(walletAddress: String) {
+        val dao = database.portfolioDefinitionDao()
+        val ordered = dao.getPortfoliosOnce(walletAddress)
+        val renumbered = ordered.mapIndexed { index, portfolio ->
+            if (portfolio.sortOrder == index) portfolio else portfolio.copy(sortOrder = index)
+        }
+        if (renumbered != ordered) dao.insertAll(renumbered)
+    }
+
+    /**
+     * Applies a reorder. [orderedIds] must be a permutation of this wallet's portfolios; anything
+     * else is ignored rather than partially applied.
+     */
+    suspend fun reorderPortfolios(orderedIds: List<String>) {
+        val address = walletManager.getAddress()
+        val dao = database.portfolioDefinitionDao()
+        val current = dao.getPortfoliosOnce(address)
+        if (orderedIds.size != current.size || orderedIds.toSet() != current.map { it.id }.toSet()) return
+        val byId = current.associateBy { it.id }
+        dao.insertAll(orderedIds.mapIndexedNotNull { index, id -> byId[id]?.copy(sortOrder = index) })
     }
 
     suspend fun renamePortfolio(id: String, newName: String) {
@@ -139,6 +168,7 @@ class PortfolioManager @Inject constructor(
         if (database.portfolioDefinitionDao().count(address) <= 1) return
         database.portfolioDefinitionDao().delete(id)
         database.portfolioDao().deleteAllForPortfolio(id)
+        normalizeSortOrder(address)
     }
 
     fun setActivePortfolio(id: String) {
