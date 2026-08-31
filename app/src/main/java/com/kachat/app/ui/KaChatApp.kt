@@ -53,6 +53,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kachat.app.ui.screens.*
+import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
@@ -92,6 +93,22 @@ val Screen.hubTitle: String
         Screen.Swap -> "ChangeNOW Swap"
         else -> label
     }
+
+/**
+ * Tabs that always hold a dock slot and cannot be moved into Kaspa Hub.
+ *
+ * Kaspa Hub, because it is what HOLDS whatever is not in the dock - move it inside itself and
+ * everything it holds becomes unreachable. Profile, because it is the way to Settings, the account
+ * list and the wallet's own addresses, so it must never be a level deeper than the dock. Listed in
+ * the order a fresh dock places them, so a missing one can be reinserted sensibly.
+ */
+val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
+
+/** Tabs the user can place. Excludes the pinned two. */
+val ASSIGNABLE_TAB_ROUTES = listOf(
+    Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
+    Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route
+)
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
 val ALWAYS_VISIBLE_TAB_ROUTES = setOf(Screen.Chats.route, Screen.Profile.route)
@@ -134,6 +151,7 @@ val CHILD_MODE_HIDDEN_ROUTES = setOf(Screen.Swap.route, Screen.KaPosts.route, Sc
  * [ALWAYS_VISIBLE_TAB_ROUTES]). [childMode] hard-hides [CHILD_MODE_HIDDEN_ROUTES] on top of
  * whatever the user's own dock settings say.
  */
+@Deprecated("Superseded by resolveDock. Kept only so the one-time placement migration can read what a user could SEE under the old model.")
 fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
     val byRoute = bottomNavItems.associateBy { it.route }
     val resolved = routes.mapNotNull { byRoute[it] }
@@ -153,8 +171,29 @@ fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>, childMode: Bo
     return visible
 }
 
-/** Everything Kaspa Hub can hold as a dock-capable tab, in the order it lists them. */
-val KASPA_HUB_CANDIDATES = listOf(Screen.KaPosts, Screen.Broadcasts, Screen.Swap)
+/**
+ * The dock, from the user's PLACEMENT rather than from the first few of an order.
+ *
+ * That derivation is what let a tab silently disappear: nothing hid it, it was simply pushed past
+ * the cap by the tabs ahead of it. A tab is now placed in the dock or in the Hub, always exactly
+ * one. The pinned tabs are reinserted whatever the stored list says, so no saved - or hand-edited
+ * - arrangement can leave the app without them.
+ */
+fun resolveDock(dockRoutes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
+    val byRoute = bottomNavItems.associateBy { it.route }
+    val placed = dockRoutes.mapNotNull { byRoute[it] }
+        .filter { it.route !in hiddenTabs || it.route in ALWAYS_VISIBLE_TAB_ROUTES }
+        .filter { !(childMode && it.route in CHILD_MODE_HIDDEN_ROUTES) }
+        .toMutableList()
+    for (route in PINNED_DOCK_ROUTES) {
+        val screen = byRoute[route] ?: continue
+        if (screen !in placed) {
+            val position = AppSettingsRepository.DEFAULT_DOCK_TABS.indexOf(route).takeIf { it >= 0 } ?: placed.size
+            placed.add(minOf(position, placed.size), screen)
+        }
+    }
+    return placed.distinct().take(MAX_DOCK_ITEMS)
+}
 
 /**
  * What the Kaspa Hub grid actually shows: its candidates, minus anything hidden, minus anything
@@ -168,13 +207,27 @@ val KASPA_HUB_CANDIDATES = listOf(Screen.KaPosts, Screen.Broadcasts, Screen.Swap
  * a route reached from Profile), so it has nothing to be deduplicated against and the grid always
  * shows it.
  */
-fun kaspaHubSections(routes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
-    val inDock = resolveTabOrder(routes, hiddenTabs, childMode).toSet()
-    return KASPA_HUB_CANDIDATES.filter { screen ->
+fun kaspaHubSections(
+    dockRoutes: List<String>,
+    hubRoutes: List<String>,
+    hiddenTabs: Set<String>,
+    childMode: Boolean = false,
+): List<Screen> {
+    val byRoute = bottomNavItems.associateBy { it.route }
+    val inDock = resolveDock(dockRoutes, hiddenTabs, childMode).toSet()
+    fun eligible(screen: Screen) = screen.route in ASSIGNABLE_TAB_ROUTES &&
         screen !in inDock &&
-            screen.route !in hiddenTabs &&
-            !(childMode && screen.route in CHILD_MODE_HIDDEN_ROUTES)
+        screen.route !in hiddenTabs &&
+        !(childMode && screen.route in CHILD_MODE_HIDDEN_ROUTES)
+
+    val ordered = hubRoutes.mapNotNull { byRoute[it] }.filter(::eligible).toMutableList()
+    // Anything absent from the stored list - a tab added by an update, or one demoted before that
+    // list knew about it - is appended rather than lost, which is the same failure that dropped a
+    // tab from the dock.
+    for (screen in bottomNavItems) {
+        if (eligible(screen) && screen !in ordered) ordered.add(screen)
     }
+    return ordered
 }
 
 /**
@@ -269,7 +322,8 @@ fun MainShell(
     // Child Mode strips Swap/KaPosts/Broadcasts from the dock AND the Chats-slot cycle - derived
     // fresh on every render, never baked into the stored dock prefs (see CHILD_MODE_HIDDEN_ROUTES).
     val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
-    val localTabOrder = resolveTabOrder(persistedTabOrder, hiddenTabs, childModeEnabled)
+    val dockRoutes by walletViewModel.dockTabs.collectAsState()
+    val localTabOrder = resolveDock(dockRoutes, hiddenTabs, childModeEnabled)
     val currentTopRoute = currentDestination?.route
     // Child Mode just turned on (or the app landed on a now-hidden screen): snap home to Chats.
     // Covers the three hidden tab routes plus Broadcasts' pushed room screen.

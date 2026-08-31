@@ -169,7 +169,16 @@ class AppSettingsRepository @Inject constructor(
         val KEY_TAB_ORDER = stringPreferencesKey("tab_order")
         // Kept in sync with KaChatApp.kt's bottomNavItems default order. "settings" is deliberately
         // absent - it isn't a tab (matches iOS), it's reached one tap in from Profile's gear icon.
-        val DEFAULT_TAB_ORDER = listOf("portfolio", "cold_storage", "chats", "swap", "profile", "kaposts", "broadcasts")
+        val DEFAULT_TAB_ORDER = listOf("cold_storage", "portfolio", "chats", "kaspa_hub", "profile", "swap", "kaposts", "broadcasts")
+        // Placement, not visibility: every tab is in the dock or in Kaspa Hub, always exactly one
+        // of them. Replaces the old on/off + "first five of an order" rule, under which a tab
+        // could be pushed past the cap and simply vanish with nothing saying so.
+        val KEY_DOCK_TABS = stringPreferencesKey("dock_tabs")
+        val KEY_HUB_TABS = stringPreferencesKey("hub_tabs")
+        val DEFAULT_DOCK_TABS = listOf("cold_storage", "portfolio", "chats", "kaspa_hub", "profile")
+        val DEFAULT_HUB_TABS = listOf("kaposts", "broadcasts", "swap")
+        // One-time derivation of a placement from what an existing user could already SEE.
+        val KEY_PLACEMENT_APPLIED = booleanPreferencesKey("dock_placement_applied")
         // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >
         // Menu) — "chats"/"profile" are never allowed in here, only "portfolio"/"cold_storage"/
         // "swap". A route absent from this set is visible.
@@ -352,6 +361,23 @@ class AppSettingsRepository @Inject constructor(
         val address = prefs[KEY_ACTIVE_ADDRESS]
         val raw = address?.let { prefs[tabOrderKeyFor(it)] } ?: prefs[KEY_TAB_ORDER]
         raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_TAB_ORDER
+    }
+
+    private fun dockTabsKeyFor(address: String) = stringPreferencesKey("dock_tabs_$address")
+    private fun hubTabsKeyFor(address: String) = stringPreferencesKey("hub_tabs_$address")
+
+    /** Routes in the dock, in order — per-account, falling back to the global key, then defaults. */
+    val dockTabs: Flow<List<String>> = dataStore.data.map { prefs ->
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val raw = address?.let { prefs[dockTabsKeyFor(it)] } ?: prefs[KEY_DOCK_TABS]
+        raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_DOCK_TABS
+    }
+
+    /** Routes in Kaspa Hub, in the order its grid shows them. */
+    val hubTabs: Flow<List<String>> = dataStore.data.map { prefs ->
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val raw = address?.let { prefs[hubTabsKeyFor(it)] } ?: prefs[KEY_HUB_TABS]
+        raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_HUB_TABS
     }
 
     val hiddenTabs: Flow<Set<String>> = dataStore.data.map { prefs ->
@@ -625,6 +651,59 @@ class AppSettingsRepository @Inject constructor(
         val encoded = routes.joinToString(",")
         if (address != null) prefs[tabOrderKeyFor(address)] = encoded else prefs[KEY_TAB_ORDER] = encoded
     }
+    /**
+     * Written together, always: a tab must never be missing from both lists or present in both.
+     */
+    suspend fun setPlacement(dock: List<String>, hub: List<String>) = dataStore.edit { prefs ->
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val encodedDock = dock.joinToString(",")
+        val encodedHub = hub.joinToString(",")
+        if (address != null) {
+            prefs[dockTabsKeyFor(address)] = encodedDock
+            prefs[hubTabsKeyFor(address)] = encodedHub
+        } else {
+            prefs[KEY_DOCK_TABS] = encodedDock
+            prefs[KEY_HUB_TABS] = encodedHub
+        }
+    }
+
+    /**
+     * One-time placement migration: derives a dock from what the user could already SEE rather
+     * than resetting them to the default, so an arrangement they built survives - with the pinned
+     * tabs guaranteed their slots.
+     */
+    suspend fun applyPlacementDefaultsIfNeeded(
+        resolveVisible: (List<String>, Set<String>) -> List<String>,
+        pinned: List<String>,
+        assignable: List<String>,
+        maxDock: Int,
+    ) = dataStore.edit { prefs ->
+        if (prefs[KEY_PLACEMENT_APPLIED] == true) return@edit
+        val address = prefs[KEY_ACTIVE_ADDRESS]
+        val order = (address?.let { prefs[tabOrderKeyFor(it)] } ?: prefs[KEY_TAB_ORDER])
+            ?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_TAB_ORDER
+        val hidden = (address?.let { prefs[hiddenTabsKeyFor(it)] } ?: prefs[KEY_HIDDEN_TABS]) ?: emptySet()
+
+        val dock = resolveVisible(order, hidden).toMutableList()
+        for (route in pinned) {
+            if (route !in dock) {
+                val position = DEFAULT_DOCK_TABS.indexOf(route).takeIf { it >= 0 } ?: dock.size
+                dock.add(minOf(position, dock.size), route)
+            }
+        }
+        val placedDock = dock.take(maxDock)
+        val placedHub = DEFAULT_TAB_ORDER.filter { it in assignable && it !in placedDock }
+
+        if (address != null) {
+            prefs[dockTabsKeyFor(address)] = placedDock.joinToString(",")
+            prefs[hubTabsKeyFor(address)] = placedHub.joinToString(",")
+        } else {
+            prefs[KEY_DOCK_TABS] = placedDock.joinToString(",")
+            prefs[KEY_HUB_TABS] = placedHub.joinToString(",")
+        }
+        prefs[KEY_PLACEMENT_APPLIED] = true
+    }
+
     suspend fun setTabHidden(route: String, hidden: Boolean) = dataStore.edit { prefs ->
         val address = prefs[KEY_ACTIVE_ADDRESS]
         val readKey = if (address != null) hiddenTabsKeyFor(address) else KEY_HIDDEN_TABS

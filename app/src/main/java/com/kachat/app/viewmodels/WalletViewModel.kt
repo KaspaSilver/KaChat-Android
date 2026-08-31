@@ -746,6 +746,20 @@ class WalletViewModel @Inject constructor(
         // preserved via the cap/cycle; fresh installs: minimal Chats/Profile/+More dock).
         // Sentinel-guarded no-op on every later launch.
         viewModelScope.launch { settings.applyKaPostsTabDefaultsIfNeeded() }
+        // Placement migration, derived from what this user could already SEE rather than reset to
+        // the default, so an arrangement they built survives. Runs after the 4.0 seeding so it
+        // reads the settled hidden set.
+        viewModelScope.launch {
+            settings.applyPlacementDefaultsIfNeeded(
+                resolveVisible = { order, hidden ->
+                    @Suppress("DEPRECATION")
+                    com.kachat.app.ui.resolveTabOrder(order, hidden).map { it.route }
+                },
+                pinned = com.kachat.app.ui.PINNED_DOCK_ROUTES,
+                assignable = com.kachat.app.ui.ASSIGNABLE_TAB_ROUTES,
+                maxDock = com.kachat.app.ui.MAX_DOCK_ITEMS,
+            )
+        }
         // (KaPosts social-ping polling is started/stopped by KaChatApplication's process
         // lifecycle observer now — foreground-only, since push covers KaPosts when closed.)
         // Mirror the active account's address into DataStore so the per-account dock keys
@@ -1583,6 +1597,19 @@ class WalletViewModel @Inject constructor(
     }
 
     /** Bottom-tab routes the user has hidden from the nav bar via Settings > Customization > Menu. */
+    /** Routes in the dock, in order — the user's placement (see AppSettingsRepository.dockTabs). */
+    val dockTabs: StateFlow<List<String>> = settings.dockTabs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettingsRepository.DEFAULT_DOCK_TABS)
+
+    /** Routes in Kaspa Hub, in the order its grid shows them. */
+    val hubTabs: StateFlow<List<String>> = settings.hubTabs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettingsRepository.DEFAULT_HUB_TABS)
+
+    /** Both lists are written together so a tab can never be in both or neither. */
+    fun setPlacement(dock: List<String>, hub: List<String>) {
+        viewModelScope.launch { settings.setPlacement(dock, hub) }
+    }
+
     val hiddenTabs: StateFlow<Set<String>> = settings.hiddenTabs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
 

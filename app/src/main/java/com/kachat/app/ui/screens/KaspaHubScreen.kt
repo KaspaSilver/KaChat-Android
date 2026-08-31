@@ -69,12 +69,13 @@ fun KaspaHubScreen(
     chatViewModel: ChatViewModel,
 ) {
     val colors = LocalAppColors.current
-    val tabOrder by walletViewModel.tabOrder.collectAsState()
+    val dockRoutes by walletViewModel.dockTabs.collectAsState()
+    val hubRoutes by walletViewModel.hubTabs.collectAsState()
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val childMode by walletViewModel.childModeEnabled.collectAsState()
     val reselect by walletViewModel.tabReselectSignal.collectAsState()
 
-    val sections = kaspaHubSections(tabOrder, hiddenTabs, childMode)
+    val sections = kaspaHubSections(dockRoutes, hubRoutes, hiddenTabs, childMode)
     var openSection by remember { mutableStateOf<Screen?>(null) }
     var websitesOpen by remember { mutableStateOf(false) }
 
@@ -101,6 +102,9 @@ fun KaspaHubScreen(
                 )
             }
         )
+        openSection == Screen.Chats -> ChatsScreen(navController, walletViewModel, chatViewModel = chatViewModel)
+        openSection == Screen.Portfolio -> PortfolioScreen(navController = navController)
+        openSection == Screen.ColdStorage -> ColdStorageListScreen(navController = navController, walletViewModel = walletViewModel)
         openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel)
         openSection == Screen.Broadcasts -> BroadcastListScreen(
             navController = navController,

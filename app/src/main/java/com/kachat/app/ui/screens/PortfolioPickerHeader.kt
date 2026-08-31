@@ -39,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -113,7 +114,7 @@ fun PortfolioPickerHeader(
                 cardData = cardSummaries[portfolio.id],
                 currencyCode = currencyCode,
                 onClick = { onSelect(portfolio.id) },
-                onLongClick = { sheetTarget = portfolio }
+                onEdit = { sheetTarget = portfolio }
             )
         }
         if (canAddMore) {
@@ -145,27 +146,6 @@ fun PortfolioPickerHeader(
     }
 }
 
-/**
- * How long the card must be held before its sheet opens.
- *
- * Shorter than the platform default, which read as a wait. It stays comfortably above a deliberate
- * tap, and the gesture's own touch-slop is what keeps a scroll of the card row from reaching it,
- * not the duration. Matches iOS.
- */
-private const val PORTFOLIO_LONG_PRESS_MS = 250L
-
-/**
- * Compose reads the long-press threshold from [ViewConfiguration], with no per-gesture override,
- * so shortening it means handing the card a configuration of its own.
- */
-private fun ViewConfiguration.withLongPressTimeout(millis: Long): ViewConfiguration =
-    object : ViewConfiguration {
-        override val longPressTimeoutMillis: Long get() = millis
-        override val doubleTapTimeoutMillis: Long get() = this@withLongPressTimeout.doubleTapTimeoutMillis
-        override val doubleTapMinTimeMillis: Long get() = this@withLongPressTimeout.doubleTapMinTimeMillis
-        override val touchSlop: Float get() = this@withLongPressTimeout.touchSlop
-    }
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PortfolioCard(
@@ -175,26 +155,18 @@ private fun PortfolioCard(
     cardData: PortfolioCardData?,
     currencyCode: String,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onEdit: () -> Unit
 ) {
     val isPositive = (cardData?.todayChangeAmount ?: 0.0) >= 0.0
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    // Shrinks under the finger and lifts once its sheet is open, so a hold looks like it is being
-    // registered instead of nothing happening and then a sheet appearing.
+    // Lifts while ITS sheet is open - the sheet covers only the lower half, so the card it belongs
+    // to is still on screen and worth identifying.
     val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.94f
-            isSheetTarget -> 1.04f
-            else -> 1f
-        },
-        animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow),
+        targetValue = if (isSheetTarget) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
         label = "portfolioCardScale"
     )
 
-    CompositionLocalProvider(
-        LocalViewConfiguration provides LocalViewConfiguration.current.withLongPressTimeout(PORTFOLIO_LONG_PRESS_MS)
-    ) {
+    run {
         Column(
             modifier = Modifier
                 .widthIn(min = 140.dp)
@@ -209,22 +181,35 @@ private fun PortfolioCard(
                     color = if (isSheetTarget || isActive) KaspaTeal else Color.White.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(16.dp)
                 )
-                .combinedClickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                    onLongClick = onLongClick
-                )
+                .clickable(onClick = onClick)
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(
-                portfolio.name,
-                color = if (isActive) LocalAppColors.current.textPrimary else LocalAppColors.current.textSecondary,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            // The gear shares the title row rather than floating over it, so a long portfolio
+            // name is truncated by the layout instead of running underneath the button.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    portfolio.name,
+                    color = if (isActive) LocalAppColors.current.textPrimary else LocalAppColors.current.textSecondary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Edit ${portfolio.name}",
+                    tint = LocalAppColors.current.textSecondary,
+                    modifier = Modifier
+                        // A deliberately generous target: the glyph alone is far below the
+                        // comfortable minimum on a card this size.
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onEdit() }
+                        .padding(3.dp)
+                )
+            }
             Text(
                 formatFiatAmount(cardData?.currentValue ?: 0.0, currencyCode),
                 color = LocalAppColors.current.textPrimary,
