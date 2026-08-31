@@ -1409,7 +1409,19 @@ fun MainShell(
                     onBack = { navController.popBackStack() },
                     fromBroadcast = fromBroadcast,
                     onNavigateToPhotoSettings = { id -> navController.navigate("contact_photo_settings/$id") },
-                    onNavigateToNotificationSettings = { id -> navController.navigate("contact_notification_settings/$id") }
+                    onNavigateToNotificationSettings = { id -> navController.navigate("contact_notification_settings/$id") },
+                    onNavigateToDomains = { id -> navController.navigate("contact_domains/$id") }
+                )
+            }
+
+            composable(
+                "contact_domains/{contactId}",
+                arguments = listOf(navArgument("contactId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val contactId = backStackEntry.arguments?.getString("contactId") ?: return@composable
+                ContactDomainsScreen(
+                    contactId = contactId,
+                    onBack = { navController.popBackStack() }
                 )
             }
 

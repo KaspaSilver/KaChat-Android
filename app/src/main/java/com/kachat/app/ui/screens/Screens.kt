@@ -10665,7 +10665,8 @@ fun ChatInfoScreen(
     walletViewModel: WalletViewModel = hiltViewModel(),
     fromBroadcast: Boolean = false,
     onNavigateToPhotoSettings: (String) -> Unit = {},
-    onNavigateToNotificationSettings: (String) -> Unit = {}
+    onNavigateToNotificationSettings: (String) -> Unit = {},
+    onNavigateToDomains: (String) -> Unit = {}
 ) {
     val conversation = chatViewModel.conversations.collectAsState().value.find { it.contact.id == contactId }
     val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
@@ -10942,77 +10943,27 @@ fun ChatInfoScreen(
                 }
             }
 
-            // Every KNS domain this contact owns, with their primary one marked. Reads the
-            // already-populated ChatViewModel.knsProfiles cache that the LaunchedEffect above
-            // fills via refreshKnsProfile(contactId) — no second network path, and nothing here
-            // blocks the rest of the screen: the section paints immediately with a loading line
-            // and swaps to the real list (or the empty state) when that lookup returns.
+            // One row into a dedicated screen rather than the full list inline: an address that
+            // owns a few dozen domains pushed everything below it - the address card, the media
+            // and notification controls - far enough down the screen to be hard to reach. Still
+            // reads the already-populated ChatViewModel.knsProfiles cache the LaunchedEffect
+            // above fills, so opening the screen costs no fetch.
             SettingsSection(title = stringResource(R.string.kns_domains)) {
-                // The contact's OWN primary from the reverse lookup, not selectedDomain, which
-                // prefers a domain pinned locally for this chat. Marking the pinned one would
-                // present a local preference as the contact's choice, and would disagree with
-                // iOS, which marks the reverse-lookup answer.
-                val primaryDomain = knsProfile?.explicitPrimaryDomain
-                when {
-                    // Null state = the lookup hasn't returned yet; a finished lookup always
-                    // stores a KnsProfileUiState, empty ownedDomains and all.
-                    knsProfile == null -> Text(
-                        "Loading domains...",
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    ownedDomains.isEmpty() -> Text(
-                        stringResource(R.string.no_domains_yet),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    else -> {
-                        // Primary first, the rest alphabetically, so the marked row is always on
-                        // top whatever order the KNS assets endpoint happened to return.
-                        val sortedDomains = remember(ownedDomains, primaryDomain) {
-                            ownedDomains.sortedWith(compareBy({ it != primaryDomain }, { it.lowercase() }))
-                        }
-                        sortedDomains.forEachIndexed { index, domain ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        clipboardManager.setText(AnnotatedString(domain))
-                                        Toast.makeText(context, "$domain copied", Toast.LENGTH_SHORT).show()
-                                    }
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    domain,
-                                    color = LocalAppColors.current.textPrimary,
-                                    fontWeight = if (domain == primaryDomain) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                if (domain == primaryDomain) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        stringResource(R.string.primary),
-                                        color = KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(KaspaTeal.copy(alpha = 0.15f))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                            if (index < sortedDomains.lastIndex) {
-                                SettingsDivider()
-                            }
-                        }
+                SettingsNavigationItem(
+                    stringResource(R.string.kns_domains),
+                    Icons.Default.AlternateEmail,
+                    when {
+                        // Null = the lookup has not returned yet; a finished lookup always stores
+                        // a KnsProfileUiState, empty ownedDomains and all.
+                        knsProfile == null -> "Loading..."
+                        ownedDomains.isEmpty() -> stringResource(R.string.no_domains_yet)
+                        else -> ownedDomains.size.toString()
+                    },
+                    onClick = {
+                        // Nothing to open until the lookup has produced something.
+                        if (ownedDomains.isNotEmpty()) onNavigateToDomains(contactId)
                     }
-                }
+                )
             }
 
             SettingsSection(
@@ -11396,3 +11347,136 @@ fun InfoStatItem(label: String, value: String) {
     }
 }
 
+
+/**
+ * The contact's KNS domains, primary first, on their own screen.
+ *
+ * Pushed from Chat Info rather than listed inline: an address owning a few dozen domains buried
+ * everything below it on that screen. Reads the same [ChatViewModel] profile cache Chat Info
+ * already filled, so opening it costs no fetch; it refreshes on entry only to pick up anything
+ * that landed since. Mirrors iOS's ContactDomainsView.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ContactDomainsScreen(
+    contactId: String,
+    onBack: () -> Unit,
+    chatViewModel: ChatViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val knsProfile = chatViewModel.knsProfiles.collectAsState().value[contactId]
+    val ownedDomains = knsProfile?.ownedDomains ?: emptyList()
+
+    LaunchedEffect(contactId) { chatViewModel.refreshKnsProfile(contactId) }
+
+    // The contact's OWN primary from the reverse lookup, not selectedDomain, which prefers a
+    // domain pinned locally for this chat. Same rule as iOS.
+    val primaryDomain = knsProfile?.explicitPrimaryDomain
+    // Primary first, the rest alphabetically, so the marked row is always on top whatever order
+    // the KNS assets endpoint happened to return.
+    val sortedDomains = remember(ownedDomains, primaryDomain) {
+        ownedDomains.sortedWith(compareBy({ it != primaryDomain }, { it.lowercase() }))
+    }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.kns_domains),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBackIos,
+                            null,
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+        SettingsSection(title = stringResource(R.string.kns_domains)) {
+            when {
+                knsProfile == null -> Text(
+                    "Loading domains...",
+                    color = colors.textSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+                sortedDomains.isEmpty() -> Text(
+                    stringResource(R.string.no_domains_yet),
+                    color = colors.textSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+                else -> sortedDomains.forEachIndexed { index, domain ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                clipboardManager.setText(AnnotatedString(domain))
+                                Toast.makeText(context, "$domain copied", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            domain,
+                            color = colors.textPrimary,
+                            fontWeight = if (domain == primaryDomain) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (domain == primaryDomain) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.primary),
+                                color = KaspaTeal,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(KaspaTeal.copy(alpha = 0.15f))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
+                    }
+                    if (index < sortedDomains.lastIndex) {
+                        SettingsDivider()
+                    }
+                }
+            }
+        }
+        Text(
+            // Says which rule produced the badge, so a primary that looks wrong is explainable
+            // rather than mysterious.
+            if (primaryDomain != null) {
+                "Primary is the domain this contact set as their KNS primary name. Tap any domain to copy it."
+            } else {
+                "This contact hasn't set a KNS primary name. Tap any domain to copy it."
+            },
+            color = colors.textSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+        }
+    }
+}
