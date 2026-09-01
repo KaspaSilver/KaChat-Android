@@ -21,13 +21,21 @@ import javax.inject.Singleton
 class KaspaNetworkStatsService @Inject constructor(
     private val networkService: NetworkService
 ) {
-    /** Hashrate over time as (epochMillis, EH/s), oldest first. Empty until the first fetch. */
+    /** Hashrate over time as (epochMillis, PH/s), oldest first. Empty until the first fetch. */
     private val _hashrateHistory = MutableStateFlow<List<Pair<Long, Double>>>(emptyList())
     val hashrateHistory: StateFlow<List<Pair<Long, Double>>> = _hashrateHistory
 
-    /** The most recent sample, in EH/s. */
+    /** The most recent sample, in PH/s. */
     private val _currentHashrate = MutableStateFlow<Double?>(null)
     val currentHashrate: StateFlow<Double?> = _currentHashrate
+
+    /**
+     * Current block reward in KAS. Kaspa's reward steps down every month (the chromatic halving,
+     * a smooth 1/2^(1/12) rather than a four-yearly cliff), so a hardcoded constant would be wrong
+     * within weeks.
+     */
+    private val _blockRewardKas = MutableStateFlow<Double?>(null)
+    val blockRewardKas: StateFlow<Double?> = _blockRewardKas
 
     private var lastFetchedAt = 0L
     private var inFlight = false
@@ -62,6 +70,13 @@ class KaspaNetworkStatsService @Inject constructor(
             _hashrateHistory.value = points
             _currentHashrate.value = points.last().second
             lastFetchedAt = now
+            try {
+                val reward = api.getBlockReward().blockreward
+                if (reward > 0) _blockRewardKas.value = reward
+            } catch (e: Exception) {
+                // The chart is still useful without it; the estimate just says it is unavailable.
+                Log.w("Hashrate", "Block reward fetch failed: ${e.message}")
+            }
         } catch (e: Exception) {
             // A chart nobody asked for is not worth an error banner; the card simply stays empty.
             Log.w("Hashrate", "Fetch failed: ${e.message}")
@@ -72,27 +87,41 @@ class KaspaNetworkStatsService @Inject constructor(
 
     companion object {
         /**
-         * Maps the API's kilohashes to EH/s and sorts oldest first.
+         * Blocks per second on mainnet since the Crescendo hardfork (May 2025) took Kaspa from 1
+         * to 10. With the block reward this gives daily emission: at today's ~2.31 KAS reward
+         * that is about 2.0 million KAS a day, which is what the network actually pays out.
+         */
+        const val BLOCKS_PER_SECOND = 10.0
+
+        /**
+         * Maps the API's kilohashes to PH/s and sorts oldest first.
          *
          * Deliberately UNFILTERED. The series looks like it carries wild outliers - days
          * reporting four times the current hashrate - and an outlier filter was written on iOS
          * before the data was actually checked. It is not noise: the network really did climb to
-         * around 1,480 EH/s across 2024-25 before falling back to roughly 400. Filtering on a
+         * around 1,480 PH/s across 2024-25 before falling back to roughly 320. Filtering on a
          * multiple of the median deleted about a quarter of the series and drew a history that
          * never happened.
          */
         fun seriesFrom(samples: List<HashrateSample>): List<Pair<Long, Double>> =
             samples
                 .filter { it.hashrateKh > 0 }
-                // 1 EH/s = 1e12 kH/s.
+                // 1 PH/s = 1e12 kH/s. This divisor was right and the LABEL was wrong: the series
+                // was drawn as EH/s, a thousand times what it is. Checked against both endpoints -
+                // /info/hashrate/history's newest sample and /info/hashrate - and they agree at
+                // ~317 PH/s, i.e. 0.32 EH/s.
                 .map { it.timestamp to it.hashrateKh / 1e12 }
                 .sortedBy { it.first }
     }
 }
 
-/** Formats a hashrate in EH/s, stepping down the units so an early-history value stays legible. */
-fun formatHashrate(ehs: Double): String = when {
-    ehs >= 1 -> String.format(Locale.US, "%.2f EH/s", ehs)
-    ehs >= 0.001 -> String.format(Locale.US, "%.1f PH/s", ehs * 1_000)
-    else -> String.format(Locale.US, "%.1f TH/s", ehs * 1_000_000)
+/**
+ * Formats a hashrate given in PH/s, stepping the unit so both the network today (hundreds of PH/s)
+ * and a single miner (tens of TH/s) read naturally.
+ */
+fun formatHashrate(phs: Double): String = when {
+    phs >= 1_000 -> String.format(Locale.US, "%.2f EH/s", phs / 1_000)
+    phs >= 1 -> String.format(Locale.US, "%.1f PH/s", phs)
+    phs >= 0.001 -> String.format(Locale.US, "%.1f TH/s", phs * 1_000)
+    else -> String.format(Locale.US, "%.1f GH/s", phs * 1_000_000)
 }

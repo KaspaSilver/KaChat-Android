@@ -67,6 +67,7 @@ class PortfolioViewModel @Inject constructor(
     /** Network hashrate for the portfolio card and its chart screen - see [KaspaNetworkStatsService]. */
     val hashrateHistory = networkStats.hashrateHistory
     val currentHashrate = networkStats.currentHashrate
+    val blockRewardKas = networkStats.blockRewardKas
 
     fun refreshHashrate(force: Boolean = false) {
         viewModelScope.launch { networkStats.refreshIfNeeded(force) }

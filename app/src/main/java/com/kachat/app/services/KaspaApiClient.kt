@@ -62,6 +62,10 @@ data class TransactionPayloadResponse(
     @SerializedName("block_time") val blockTime: Long?,
 )
 
+data class BlockRewardResponse(
+    val blockreward: Double
+)
+
 data class Outpoint(
     val transactionId: String,
     val index: Int
@@ -139,6 +143,10 @@ interface KaspaRestApi {
         @Query("outputs") outputs: Boolean = false,
         @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "no"
     ): TransactionPayloadResponse
+
+    /** Current block reward in KAS - it steps down monthly, so it is read, not hardcoded. */
+    @GET("info/blockreward")
+    suspend fun getBlockReward(): BlockRewardResponse
 
     @GET("addresses/{address}/full-transactions")
     suspend fun getTransactions(

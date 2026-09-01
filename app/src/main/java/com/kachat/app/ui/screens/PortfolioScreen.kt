@@ -118,6 +118,7 @@ import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.PRICE_UNAVAILABLE_NOTE
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.services.KaspaNetworkStatsService
 import com.kachat.app.services.formatHashrate
 import com.kachat.app.util.currencySymbolFor
 import com.kachat.app.util.formatFiatAmount
@@ -1970,6 +1971,9 @@ fun PortfolioHashrateChartScreen(
     val colors = LocalAppColors.current
     val history by viewModel.hashrateHistory.collectAsState()
     val current by viewModel.currentHashrate.collectAsState()
+    val blockReward by viewModel.blockRewardKas.collectAsState()
+    val price by viewModel.currentPriceUsd.collectAsState()
+    val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
     var rangeDays by remember { mutableStateOf(90) }
 
@@ -2052,6 +2056,13 @@ fun PortfolioHashrateChartScreen(
                 }
             }
 
+            MiningEstimateCard(
+                networkHashratePHs = current,
+                blockRewardKas = blockReward,
+                price = price,
+                currencyCode = currencyCode,
+            )
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2069,6 +2080,131 @@ fun PortfolioHashrateChartScreen(
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                     lineHeight = 20.sp
+                )
+            }
+        }
+    }
+}
+
+// MARK: mining estimate
+
+/**
+ * "If I point this much hashrate at Kaspa, what do I earn?" Mirrors iOS's MiningEstimateCard.
+ *
+ * Straight proportional share: your hashrate over the network's, times what the network pays out.
+ * Deliberately no pool fee, power cost or luck variance - those are the miner's own numbers, and
+ * guessing at them would make this look more precise than it is.
+ */
+@Composable
+private fun MiningEstimateCard(
+    /** The network's hashrate in PH/s. */
+    networkHashratePHs: Double?,
+    blockRewardKas: Double?,
+    price: Double?,
+    currencyCode: String,
+) {
+    val colors = LocalAppColors.current
+    // Miners talk in TH/s (one KS5 Pro is about 21), so that is the default. The unit is part of
+    // the input because typing 21 and meaning PH/s is a thousandfold error, which is exactly the
+    // mistake this screen itself was shipping.
+    val units = listOf("GH/s" to 1e-6, "TH/s" to 1e-3, "PH/s" to 1.0)
+    var amountText by remember { mutableStateOf("21") }
+    var unitIndex by remember { mutableStateOf(1) }
+
+    // KAS the whole network pays out per day: reward per block times blocks per second.
+    val dailyEmission = blockRewardKas?.takeIf { it > 0 }
+        ?.let { it * KaspaNetworkStatsService.BLOCKS_PER_SECOND * 86_400 }
+    val amount = amountText.replace(',', '.').toDoubleOrNull()
+    val dailyKas = if (dailyEmission != null && networkHashratePHs != null &&
+        networkHashratePHs > 0 && amount != null && amount > 0
+    ) {
+        dailyEmission * (amount * units[unitIndex].second / networkHashratePHs)
+    } else {
+        null
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text("Mining Estimate", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+        OutlinedTextField(
+            value = amountText,
+            onValueChange = { amountText = it },
+            label = { Text("Your hashrate", color = colors.textSecondary) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            units.forEachIndexed { index, (label, _) ->
+                val active = index == unitIndex
+                Text(
+                    text = label,
+                    color = if (active) KaspaTeal else colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (active) KaspaTeal.copy(alpha = 0.15f) else Color.Transparent)
+                        .clickable { unitIndex = index }
+                        .padding(vertical = 8.dp)
+                )
+            }
+        }
+
+        if (dailyKas != null) {
+            MiningPayoutRow("Per day", dailyKas, price, currencyCode)
+            HorizontalDivider(color = colors.divider)
+            MiningPayoutRow("Per week", dailyKas * 7, price, currencyCode)
+            HorizontalDivider(color = colors.divider)
+            // 30 days, not a calendar month: the reward steps down monthly anyway, so precision
+            // past "about a month" would be false.
+            MiningPayoutRow("Per month", dailyKas * 30, price, currencyCode)
+
+            Text(
+                text = "At ${formatHashrate(networkHashratePHs!!)} network hashrate and a " +
+                    "${String.format(Locale.US, "%.4f", blockRewardKas!!)} KAS block reward. " +
+                    "Before pool fees, power and luck, and both figures move.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+        } else {
+            Text(
+                "Enter your hashrate to estimate earnings.",
+                color = colors.textSecondary,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun MiningPayoutRow(title: String, kas: Double, price: Double?, currencyCode: String) {
+    val colors = LocalAppColors.current
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                formatKasAmount(kas),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp
+            )
+            if (price != null && price > 0) {
+                Text(
+                    formatFiatAmount(kas * price, currencyCode),
+                    color = colors.textSecondary,
+                    fontSize = 12.sp
                 )
             }
         }
