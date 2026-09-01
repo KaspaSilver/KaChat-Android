@@ -79,4 +79,8 @@ interface GroupDao {
 
     @Query("DELETE FROM group_sync_cursors WHERE walletAddress = :walletAddress")
     suspend fun deleteGroupSyncCursorsForWallet(walletAddress: String)
+
+    /** Drops one group's cursors so its streams are walked from the start - see forceRefreshGroup. */
+    @Query("DELETE FROM group_sync_cursors WHERE walletAddress = :walletAddress AND syncKey LIKE :prefix || '%'")
+    suspend fun deleteGroupSyncCursorsWithPrefix(walletAddress: String, prefix: String)
 }

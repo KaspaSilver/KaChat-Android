@@ -353,7 +353,16 @@ private fun PlacementRow(
             tint = colors.textSecondary.copy(alpha = 0.6f),
             modifier = Modifier.size(20.dp)
         )
-        Icon(screen.icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        Icon(
+            painter = if (screen.usesKaspaLogo) {
+                androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
+            } else {
+                androidx.compose.ui.graphics.vector.rememberVectorPainter(screen.icon)
+            },
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.size(20.dp)
+        )
         Text(
             screen.hubTitle,
             color = colors.textPrimary,

@@ -164,6 +164,7 @@ private fun HubGrid(
                 HubTile(
                     label = screen.hubTitle,
                     icon = screen.icon,
+                    useKaspaLogo = screen.usesKaspaLogo,
                     colors = colors,
                     onClick = { onOpenSection(screen) }
                 )
@@ -193,6 +194,8 @@ private fun HubTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     colors: com.kachat.app.ui.theme.AppColors,
     onClick: () -> Unit,
+    /** Draw the bundled Kaspa mark instead of [icon]. */
+    useKaspaLogo: Boolean = false,
 ) {
     Box(
         modifier = Modifier
@@ -208,7 +211,16 @@ private fun HubTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(28.dp))
+            Icon(
+                painter = if (useKaspaLogo) {
+                    androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
+                } else {
+                    androidx.compose.ui.graphics.vector.rememberVectorPainter(icon)
+                },
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier.size(28.dp)
+            )
             androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
             Text(
                 label,

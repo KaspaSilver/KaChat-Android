@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,6 +66,13 @@ import kotlin.math.roundToInt
  * Top-level navigation destinations.
  */
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
+    /**
+     * True for tabs drawn with the bundled Kaspa mark instead of a Material icon. [icon] stays a
+     * real ImageVector so anything not taught about the drawable still renders something sensible
+     * rather than nothing.
+     */
+    val usesKaspaLogo: Boolean get() = this is KaspaHub
+
     object Settings    : Screen("settings",     "Settings",     Icons.Default.Settings)
     object Chats       : Screen("chats",        "Chats",        Icons.Default.Forum)
     object Portfolio   : Screen("portfolio",    "Portfolio",    Icons.Default.PieChart)
@@ -642,7 +651,11 @@ fun MainShell(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Box {
                                             Icon(
-                                                imageVector = screen.icon,
+                                                painter = if (screen.usesKaspaLogo) {
+                                                    painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
+                                                } else {
+                                                    rememberVectorPainter(screen.icon)
+                                                },
                                                 contentDescription = screen.label,
                                                 tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
                                                 modifier = Modifier.size(24.dp)

@@ -121,6 +121,8 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.kachat.app.R
+import com.kachat.app.models.avatarFallbackText
+import com.kachat.app.models.displayName
 import com.kachat.app.models.Conversation
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.ReactionEntity
@@ -386,12 +388,12 @@ fun ChatThreadScreen(
                         ContactAvatar(
                             imageUrl = conversation?.contact?.knsAvatarUrl,
                             deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
-                            fallbackText = conversation?.contact?.alias ?: contactId.takeLast(8),
+                            fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
                             size = 36.dp
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = conversation?.contact?.alias ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                            text = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
@@ -817,7 +819,7 @@ fun ChatThreadScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        "Replying to ${if (reply.direction == "sent") "yourself" else (conversation?.contact?.alias ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId))}",
+                                        "Replying to ${if (reply.direction == "sent") "yourself" else (conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId))}",
                                         color = KaspaTeal,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
@@ -1240,7 +1242,7 @@ fun ChatThreadScreen(
                                 onOpenChessGame = { gameId -> navController.navigate("chess_game/$contactId/$gameId") },
                                 contactAvatarUrl = conversation?.contact?.knsAvatarUrl,
                                 contactPhotoUri = conversation?.contact?.systemContactPhotoUri,
-                                contactAvatarFallback = conversation?.contact?.alias ?: contactId.takeLast(8),
+                                contactAvatarFallback = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
                                 myAvatarUrl = myKnsProfile?.avatarUrl,
                                 myAvatarFallback = myAddress?.takeLast(8) ?: "",
                                 isPendingRequest = msg.type == MessageProtocol.TYPE_HANDSHAKE &&
@@ -8114,13 +8116,13 @@ private fun ResyncChatPickerOverlay(
                         imageUrl = convo.contact.knsAvatarUrl,
                         deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
                         backupPhotoBase64 = convo.contact.backupPhotoBase64,
-                        fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
+                        fallbackText = convo.contact.avatarFallbackText,
                         size = 48.dp
                     )
                     Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = convo.contact.alias ?: KaspaAddress.shortDisplay(convo.contact.id),
+                            text = convo.contact.displayName,
                             style = MaterialTheme.typography.titleMedium,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.Bold
@@ -10650,13 +10652,13 @@ fun GroupChatCreationFields(
                         imageUrl = contact?.knsAvatarUrl,
                         deviceContactPhotoUri = contact?.systemContactPhotoUri,
                         backupPhotoBase64 = contact?.backupPhotoBase64,
-                        fallbackText = contact?.alias ?: KaspaAddress.shortDisplay(address),
+                        fallbackText = contact?.displayName ?: KaspaAddress.shortDisplay(address),
                         size = 40.dp
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = contact?.alias ?: KaspaAddress.shortDisplay(address),
+                            text = contact?.displayName ?: KaspaAddress.shortDisplay(address),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -10731,8 +10733,8 @@ fun GroupChatCreationFields(
         val contacts = remember(conversations, query) {
             conversations.map { it.contact }
                 .distinctBy { it.id }
-                .sortedBy { (it.alias ?: it.id).lowercase() }
-                .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+                .sortedBy { it.displayName.lowercase() }
+                .filter { query.isEmpty() || it.displayName.lowercase().contains(query) || it.id.lowercase().contains(query) }
         }
 
         if (conversations.isEmpty()) {
@@ -10761,13 +10763,13 @@ fun GroupChatCreationFields(
                         imageUrl = contact.knsAvatarUrl,
                         deviceContactPhotoUri = contact.systemContactPhotoUri,
                         backupPhotoBase64 = contact.backupPhotoBase64,
-                        fallbackText = contact.alias ?: contact.id.takeLast(8),
+                        fallbackText = contact.avatarFallbackText,
                         size = 40.dp
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = contact.alias ?: KaspaAddress.shortDisplay(contact.id),
+                            text = contact.displayName,
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -10951,7 +10953,7 @@ fun ChatInfoScreen(
                         ContactAvatar(
                             imageUrl = knsFields?.avatarUrl,
                             deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
-                            fallbackText = conversation?.contact?.alias ?: contactId.takeLast(8),
+                            fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
                             size = 60.dp,
                             backgroundColor = LocalAppColors.current.surfaceVariant,
                             fontSize = 20.sp

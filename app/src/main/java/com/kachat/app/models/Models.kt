@@ -140,6 +140,26 @@ data class ContactEntity(
 )
 
 /**
+ * What to call a contact: their own alias first, then the KNS domain, then the shortened address.
+ *
+ * The chat list and thread header used `alias ?: shortDisplay(id)` and never looked at [knsName],
+ * so a contact added BY domain - which stores the domain at creation - still showed as an address
+ * until some later path happened to copy it into [alias]. The name was already there; nothing was
+ * reading it.
+ */
+val ContactEntity.displayName: String
+    get() = alias?.takeIf { it.isNotBlank() }
+        ?: knsName?.takeIf { it.isNotBlank() }
+        ?: com.kachat.app.util.KaspaAddress.shortDisplay(id)
+
+/** Avatar initial source - same order, but the raw tail rather than the formatted short address. */
+val ContactEntity.avatarFallbackText: String
+    get() = alias?.takeIf { it.isNotBlank() }
+        ?: knsName?.takeIf { it.isNotBlank() }
+        ?: id.takeLast(8)
+
+
+/**
  * A tombstone marking that [contactId] was deleted (by this wallet), keyed by [deletedAt] —
  * survives the contact's own row being deleted, unlike the old "archive" flag. `syncContextualMessages`/
  * `processHandshake`/`processPayment` check this (via `ChatRepository.isTombstoned`) before ever

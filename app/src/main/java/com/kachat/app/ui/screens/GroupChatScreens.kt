@@ -1578,6 +1578,7 @@ fun GroupChatInfoScreen(
     val contactAliasesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val groupMentionsOnly by chatViewModel.groupMentionsOnly.collectAsState()
     val groupSilent by chatViewModel.groupSilent.collectAsState()
+    val refreshingGroupIds by chatViewModel.refreshingGroupIds.collectAsState()
     val members = remember(group?.membersJson) {
         group?.let(::parseGroupMembers) ?: emptyList()
     }
@@ -1808,6 +1809,32 @@ fun GroupChatInfoScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(LocalAppColors.current.surface)
+                    .clickable(enabled = groupId !in refreshingGroupIds) { chatViewModel.refreshGroup(groupId) }
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Refresh Messages", color = LocalAppColors.current.textPrimary)
+                    Text(
+                        "Re-fetches this group from the start, recovering anything an earlier sync passed over.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+                if (groupId in refreshingGroupIds) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, color = KaspaTeal, modifier = Modifier.size(18.dp))
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = KaspaTeal)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

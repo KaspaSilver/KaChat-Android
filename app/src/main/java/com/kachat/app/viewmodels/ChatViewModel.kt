@@ -1310,6 +1310,25 @@ class ChatViewModel @Inject constructor(
     fun isGroupMemberMuted(groupId: String, address: String) = "$groupId|$address" in groupMutedMembers.value
     fun isGroupMentionsOnly(groupId: String) = groupId in groupMentionsOnly.value
 
+    /** Groups currently being force-refreshed, so the button can show progress and refuse a second tap. */
+    private val _refreshingGroupIds = MutableStateFlow<Set<String>>(emptySet())
+    val refreshingGroupIds: StateFlow<Set<String>> = _refreshingGroupIds.asStateFlow()
+
+    /** Re-fetches one group from the start - see GroupRepository.forceRefreshGroup. */
+    fun refreshGroup(groupId: String) {
+        if (groupId in _refreshingGroupIds.value) return
+        viewModelScope.launch {
+            _refreshingGroupIds.value = _refreshingGroupIds.value + groupId
+            try {
+                groupRepository.forceRefreshGroup(groupId)
+            } catch (e: Exception) {
+                Log.w("ChatViewModel", "Group refresh failed", e)
+            } finally {
+                _refreshingGroupIds.value = _refreshingGroupIds.value - groupId
+            }
+        }
+    }
+
     fun setGroupSilent(groupId: String, enabled: Boolean) {
         viewModelScope.launch { settings.setGroupSilent(groupId, enabled) }
     }

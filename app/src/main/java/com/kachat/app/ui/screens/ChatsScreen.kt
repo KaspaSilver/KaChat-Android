@@ -52,6 +52,8 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.ChatViewModel
+import com.kachat.app.models.avatarFallbackText
+import com.kachat.app.models.displayName
 import com.kachat.app.models.Conversation
 import com.kachat.app.models.GroupMember
 import com.kachat.app.models.MessageEntity
@@ -151,7 +153,7 @@ fun ChatsScreen(
             conversations
         } else {
             conversations.filter { convo ->
-                val contactLabel = convo.contact.alias ?: com.kachat.app.util.KaspaAddress.shortDisplay(convo.contact.id)
+                val contactLabel = convo.contact.displayName
                 listOfNotNull(
                     convo.contact.alias,
                     convo.contact.knsName,
@@ -1271,14 +1273,14 @@ private fun ConversationRow(
             imageUrl = convo.contact.knsAvatarUrl,
             deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
             backupPhotoBase64 = convo.contact.backupPhotoBase64,
-            fallbackText = convo.contact.alias ?: convo.contact.id.takeLast(8),
+            fallbackText = convo.contact.avatarFallbackText,
             size = 48.dp
         )
 
         Spacer(Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            val contactLabel = convo.contact.alias ?: com.kachat.app.util.KaspaAddress.shortDisplay(convo.contact.id)
+            val contactLabel = convo.contact.displayName
             Text(
                 text = contactLabel,
                 style = MaterialTheme.typography.titleMedium,

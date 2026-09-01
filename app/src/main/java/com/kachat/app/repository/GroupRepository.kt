@@ -1257,6 +1257,41 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /**
+     * Re-fetches everything this device is entitled to see in one group, from the beginning.
+     *
+     * Ordinary catch-up is cursor-based: each stream remembers where it got to and asks only for
+     * what is newer. That is right for routine sync and useless as a repair tool - if a cursor
+     * ever advanced past a message (an epoch this device could not decrypt at the time, an ingest
+     * that failed, a roster it did not yet know about), no amount of waiting goes back for it.
+     * This drops those cursors and walks the streams again.
+     *
+     * Control first, for the same reason [syncGroups] does it in that order: the roster and the
+     * current epoch's root have to be in hand before messages are decrypted, or they are rejected
+     * and the fresh cursor advances past them all over again.
+     */
+    suspend fun forceRefreshGroup(groupId: String) {
+        val walletAddress = walletManager.getAddress()
+        val api = networkService.indexerApi.value ?: return
+        database.groupDao().deleteGroupSyncCursorsWithPrefix(walletAddress, "gcomm|$groupId|")
+
+        val group = database.groupDao().getGroup(groupId, walletAddress) ?: return
+        runCatching { syncGroupControlByRecipient(api, walletAddress) }
+        if (group.adminAddress.isNotBlank()) {
+            runCatching { syncGroupControlBySender(api, walletAddress, group.adminAddress) }
+        }
+
+        // Re-read: control catch-up may have changed the roster or the epoch.
+        val refreshed = database.groupDao().getGroup(groupId, walletAddress) ?: return
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: return
+        val blindingKey = bag.blindingKey.hexToByteArray()
+        for (member in gson.fromJson(refreshed.membersJson, Array<GroupMember>::class.java).orEmpty()) {
+            val memberPub = runCatching { member.xOnlyPubKeyHex.hexToByteArray() }.getOrNull() ?: continue
+            val blinded = GroupCipher.deriveBlindedGroupId(blindingKey, memberPub).toHexString()
+            runCatching { syncGroupMessages(api, walletAddress, groupId, blinded) }
+        }
+    }
+
     private suspend fun syncGroupMessages(api: KasiaIndexerApi, walletAddress: String, groupId: String, blindedGroupIdHex: String) {
         val syncKey = "gcomm|$groupId|$blindedGroupIdHex"
         val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
