@@ -324,12 +324,17 @@ class GroupRepository @Inject constructor(
     }
 
     /**
-     * Admins can derive any past epoch's root on demand (they hold groupSeed); non-admins only
-     * retain the current epoch's root - by design, this is the protocol's forward-secrecy
-     * boundary, not a bug.
+     * Admins can derive any past epoch's root on demand (they hold groupSeed); everyone else
+     * relies on [GroupBag.previousRoots], the archive of roots this device has already held.
+     *
+     * That archive is new. This used to stop at the current epoch for non-admins, described as
+     * the protocol's forward-secrecy boundary - but the app keeps the CIPHERTEXT on disk forever
+     * and renders it in the thread, so discarding the key bought no secrecy at all. It only made
+     * a member's own history unreadable to them the moment anyone was added to the group.
      */
     private fun groupRootEpochFor(epoch: Long, bag: GroupBag, groupIdBytes: ByteArray): ByteArray? {
         if (epoch == bag.currentEpoch) return bag.groupRootEpoch.hexToByteArray()
+        bag.previousRoots[epoch]?.let { return it.hexToByteArray() }
         val seedHex = bag.groupSeed ?: return null
         return GroupCipher.deriveGroupRootEpoch(seedHex.hexToByteArray(), groupIdBytes, epoch)
     }
@@ -525,7 +530,13 @@ class GroupRepository @Inject constructor(
 
         val newEpoch = bag.currentEpoch + 1
         val newRoot = GroupCipher.deriveGroupRootEpoch(groupSeed, groupIdBytes, newEpoch)
-        val newBag = bag.copy(currentEpoch = newEpoch, groupRootEpoch = newRoot.toHexString())
+        // Keep the outgoing root so this epoch's messages stay readable afterwards - the same
+        // archive every non-admin member's bag relies on, so both sides behave identically.
+        val newBag = bag.copy(
+            currentEpoch = newEpoch,
+            groupRootEpoch = newRoot.toHexString(),
+            previousRoots = bag.previousRoots + (bag.currentEpoch to bag.groupRootEpoch),
+        )
         groupSecretStore.saveBag(walletAddress, newBag)
 
         val updatedEntity = entity.copy(currentEpoch = newEpoch, membersJson = gson.toJson(roster))
@@ -1086,10 +1097,21 @@ class GroupRepository @Inject constructor(
                 if (derivedId == payload.groupId && derivedBlinding == payload.blindingKey) recoveredSeedHex = seedHex
             } catch (e: Exception) { recoveredSeedHex = null }
         }
+        // Archive the root being replaced. This is THE line that keeps a non-admin member's
+        // history: without it, a rotated root made every message from the previous epoch
+        // undecryptable and the thread rendered empty from that moment on.
+        val carriedRoots = existingBag?.let { previous ->
+            if (previous.currentEpoch != payload.epoch && previous.groupRootEpoch.isNotBlank()) {
+                previous.previousRoots + (previous.currentEpoch to previous.groupRootEpoch)
+            } else {
+                previous.previousRoots
+            }
+        } ?: emptyMap()
         val bag = GroupBag(
             groupId = payload.groupId, groupSeed = recoveredSeedHex ?: existingBag?.groupSeed, groupRootEpoch = payload.groupRootEpoch,
             blindingKey = payload.blindingKey, currentEpoch = payload.epoch, deviceId = deviceId, msgCounter = preservedCounter,
-            selfInviteEpoch = if (recoveredSeedHex != null) payload.epoch else existingBag?.selfInviteEpoch
+            selfInviteEpoch = if (recoveredSeedHex != null) payload.epoch else existingBag?.selfInviteEpoch,
+            previousRoots = carriedRoots,
         )
         groupSecretStore.saveBag(walletAddress, bag)
 

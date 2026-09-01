@@ -22,7 +22,17 @@ data class GroupBag(
     val deviceId: String,         // hex, 16 bytes
     val msgCounter: Long,         // monotonic per (group_id, epoch, device_id)
     // Epoch for which this admin has published its self-addressed recovery invite (null = none).
-    val selfInviteEpoch: Long? = null
+    val selfInviteEpoch: Long? = null,
+    /**
+     * Roots for epochs this group has already left, keyed by epoch.
+     *
+     * Without these a NON-ADMIN member loses the whole thread the moment membership changes.
+     * [groupRootEpoch] only ever held the current epoch, and the fallback that re-derives an older
+     * root needs [groupSeed], which only the admin has - so on every other device an epoch
+     * rotation made every earlier message undecryptable and the thread rendered as empty. The
+     * ciphertext was never lost; the key to read it was being thrown away.
+     */
+    val previousRoots: Map<Long, String> = emptyMap()
 )
 
 /**
