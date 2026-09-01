@@ -129,7 +129,12 @@ fun AddToPortfolioSheet(
                     color = colors.textSecondary,
                     fontSize = 13.sp
                 )
+                // Which portfolios already hold this transaction, so the duplicate is visible
+                // while the choice is being made rather than only after it - same as iOS, and the
+                // same question the swap chooser asks.
+                val duplicateIds = viewModel.portfolioIdsContaining(tx.txId)
                 portfolios.forEach { portfolio ->
+                    val isDuplicate = portfolio.id in duplicateIds
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -138,15 +143,26 @@ fun AddToPortfolioSheet(
                             .clickable {
                                 selectedId = portfolio.id
                                 selectedName = portfolio.name
-                                alreadyAdded = viewModel.isTransactionInPortfolio(tx.txId, portfolio.id)
+                                alreadyAdded = isDuplicate
                             }
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(portfolio.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
-                            if (portfolio.id == activePortfolioId) {
-                                Text("Current", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            when {
+                                isDuplicate -> Text(
+                                    "Already added",
+                                    color = Color_Warning,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                portfolio.id == activePortfolioId -> Text(
+                                    "Current",
+                                    color = KaspaTeal,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                         Icon(Icons.Default.KeyboardArrowRight, null, tint = colors.textSecondary)
