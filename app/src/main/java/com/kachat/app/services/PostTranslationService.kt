@@ -109,7 +109,7 @@ class PostTranslationService @Inject constructor(
      */
     suspend fun translate(text: String, postId: String?): Result {
         val target = targetLanguage() ?: error("No language for the current locale")
-        val base = settings.kapostIndexerUrl.first().trimEnd('/')
+        val base = settings.translationServiceUrl.first().trimEnd('/')
 
         val post = JSONObject().put("text", text)
         if (!postId.isNullOrEmpty()) post.put("id", postId)

@@ -42,6 +42,7 @@ class AppSettingsRepository @Inject constructor(
         val KEY_KASPA_REST_URL   = stringPreferencesKey("kaspa_rest_url")
         // K social indexer powering KaPosts feeds (the KaChat-owned fork).
         val KEY_KAPOST_INDEXER_URL = stringPreferencesKey("kapost_indexer_url")
+        val KEY_TRANSLATION_SERVICE_URL = stringPreferencesKey("translation_service_url")
         // KaChat broadcast indexer serving #kaspa/#kachat-bugs history (same domain).
         val KEY_BROADCAST_INDEXER_URL = stringPreferencesKey("broadcast_indexer_url")
         // Push-registration host (FCM device registration; mirrors iOS's pushIndexerURL). Same
@@ -72,6 +73,8 @@ class AppSettingsRepository @Inject constructor(
         const val DEFAULT_KNS_API_URL    = "https://api.knsdomains.org/mainnet/api/v1"
         const val DEFAULT_KASPA_REST_URL = "https://api.kaspa.org"
         const val DEFAULT_KAPOST_INDEXER_URL = "https://kachat.duckdns.org"
+        /** Server-side KaPost translation - same box as the KaPosts indexer by default. */
+        const val DEFAULT_TRANSLATION_SERVICE_URL = "https://kachat.duckdns.org"
         const val DEFAULT_BROADCAST_INDEXER_URL = "https://kachat.duckdns.org"
         const val DEFAULT_PUSH_INDEXER_URL = "https://kachat.duckdns.org"
         // KaChat ships pinned to Kaspium's public node out of the box, rather than defaulting
@@ -269,6 +272,16 @@ class AppSettingsRepository @Inject constructor(
 
     val kapostIndexerUrl: Flow<String> = dataStore.data.map {
         it[KEY_KAPOST_INDEXER_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_KAPOST_INDEXER_URL
+    }
+
+    /**
+     * Server-side KaPost translation (see TRANSLATION_SERVICE.md). Its own setting rather than
+     * riding on [kapostIndexerUrl], so someone running their own translator does not have to run
+     * their own KaPosts indexer as well - and the reverse. Blank falls back to the default: an
+     * empty base URL builds a request that fails and reads as the server being down.
+     */
+    val translationServiceUrl: Flow<String> = dataStore.data.map {
+        it[KEY_TRANSLATION_SERVICE_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_TRANSLATION_SERVICE_URL
     }
 
     val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
@@ -597,6 +610,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setIndexerUrl(value: String) = dataStore.edit { it[KEY_INDEXER_URL] = value }
     suspend fun setKaspaRestUrl(value: String) = dataStore.edit { it[KEY_KASPA_REST_URL] = value }
     suspend fun setKapostIndexerUrl(value: String) = dataStore.edit { it[KEY_KAPOST_INDEXER_URL] = value }
+    suspend fun setTranslationServiceUrl(value: String) = dataStore.edit { it[KEY_TRANSLATION_SERVICE_URL] = value }
     suspend fun setBroadcastIndexerUrl(value: String) = dataStore.edit { it[KEY_BROADCAST_INDEXER_URL] = value }
     suspend fun setPushIndexerUrl(value: String) = dataStore.edit { it[KEY_PUSH_INDEXER_URL] = value }
     suspend fun setKapostsFollowing(walletAddress: String, value: Set<String>) =

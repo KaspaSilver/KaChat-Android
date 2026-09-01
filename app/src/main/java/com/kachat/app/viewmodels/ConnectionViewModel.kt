@@ -154,6 +154,7 @@ class ConnectionViewModel @Inject constructor(
     val knsApiUrl: StateFlow<String> = settings.knsApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val kaspaRestApiUrl: StateFlow<String> = settings.kaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val kapostIndexerUrl: StateFlow<String> = settings.kapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val translationServiceUrl: StateFlow<String> = settings.translationServiceUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val broadcastIndexerUrl: StateFlow<String> = settings.broadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val pushIndexerUrl: StateFlow<String> = settings.pushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val trustedNodeAddress: StateFlow<String> = settings.trustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
@@ -181,6 +182,19 @@ class ConnectionViewModel @Inject constructor(
     fun setNetwork(value: String) { viewModelScope.launch { settings.setNetwork(value) } }
     fun setIndexerUrl(value: String) { viewModelScope.launch { settings.setIndexerUrl(value) } }
     fun setKaspaRestApiUrl(value: String) { viewModelScope.launch { settings.setKaspaRestUrl(value) } }
+
+    /**
+     * Blank resets to the default rather than being written through: an empty base URL builds a
+     * request that fails and reads as the server being down.
+     */
+    fun setTranslationServiceUrl(value: String) {
+        viewModelScope.launch {
+            val trimmed = value.trim().trimEnd('/')
+            settings.setTranslationServiceUrl(
+                trimmed.ifBlank { AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL }
+            )
+        }
+    }
     fun setTrustedNodeAddress(value: String) { viewModelScope.launch { settings.setTrustedNodeAddress(value) } }
     fun setDiscoverNewPeers(value: Boolean) { _discoverNewPeers.value = value }
     fun setVerboseApiLogging(value: Boolean) { viewModelScope.launch { settings.setVerboseApiLogging(value) } }

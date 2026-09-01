@@ -9525,6 +9525,8 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val knsApiUrl by viewModel.knsApiUrl.collectAsState()
     val kaspaRestApiUrl by viewModel.kaspaRestApiUrl.collectAsState()
     val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
+    val translationServiceUrl by viewModel.translationServiceUrl.collectAsState()
+    var editingTranslationUrl by remember { mutableStateOf(false) }
     val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
     val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
@@ -9574,6 +9576,21 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 SettingsFooter(stringResource(R.string.kapost_indexer_footer))
             }
 
+            SettingsSection(title = "Translation Service") {
+                // Editable, unlike the read-only fields around it: the point of this setting is
+                // that someone can run their own translator and point the app at it.
+                ConnectionUrlField(
+                    label = "Translation Service URL",
+                    value = translationServiceUrl,
+                    onClick = { editingTranslationUrl = true }
+                )
+                SettingsFooter(
+                    "Translates KaPosts written in another language. Runs on the KaPost indexer's " +
+                        "box by default; point this at your own if you host one (see " +
+                        "TRANSLATION_SERVICE.md). Tap to change."
+                )
+            }
+
             SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
                 ConnectionUrlField(label = "Broadcast Indexer URL", value = broadcastIndexerUrl)
                 SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
@@ -9609,12 +9626,52 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+
+    if (editingTranslationUrl) {
+        var draft by remember { mutableStateOf(translationServiceUrl) }
+        AlertDialog(
+            onDismissRequest = { editingTranslationUrl = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Translation Service URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL}",
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setTranslationServiceUrl(draft)
+                    editingTranslationUrl = false
+                }) { Text("Save", color = KaspaTeal) }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingTranslationUrl = false }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
 }
 
 /** Read-only for now — editing these let a mistyped URL crash the whole app (fixed at the NetworkService layer too, but not editable at all is safer). */
 @Composable
-fun ConnectionUrlField(label: String, value: String) {
-    Column(modifier = Modifier.padding(16.dp)) {
+fun ConnectionUrlField(label: String, value: String, onClick: (() -> Unit)? = null) {
+    Column(
+        modifier = Modifier
+            .let { if (onClick != null) it.clickable { onClick() } else it }
+            .padding(16.dp)
+    ) {
         Text(label, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(6.dp))
         Text(
