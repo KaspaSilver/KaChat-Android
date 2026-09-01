@@ -925,9 +925,19 @@ class KaPostsViewModel @Inject constructor(
     // MARK: - Post tree mutation (local + remote lists; profile lists arrive in Phase B)
 
     /** Every list a post can live in, in iOS mutatePost's search order. */
+    /**
+     * Posts read off the chain because the indexer could not answer for them (see [chainPost]).
+     *
+     * They belong to no feed and are never rendered as one - they live here only so the thread
+     * opened onto them can FIND them. The overlay is handed an id, not a post, and resolves it
+     * against these lists; a post in none of them made the overlay close itself on the spot, so
+     * the tap looked like it had done nothing.
+     */
+    private val _chainPosts = MutableStateFlow<List<KaPostDraft>>(emptyList())
+
     private fun allPostLists(): List<MutableStateFlow<List<KaPostDraft>>> = listOf(
         _localPosts, _globalPosts, _followingPosts, _posterProfilePosts, _posterProfileReplies,
-        _myProfilePosts, _myProfileReplies,
+        _myProfilePosts, _myProfileReplies, _chainPosts,
     )
 
     /**
@@ -1791,7 +1801,7 @@ class KaPostsViewModel @Inject constructor(
     val postTree: StateFlow<List<List<KaPostDraft>>> = combine(
         listOf(
             _localPosts, _globalPosts, _followingPosts, _posterProfilePosts, _posterProfileReplies,
-            _myProfilePosts, _myProfileReplies,
+            _myProfilePosts, _myProfileReplies, _chainPosts,
         )
     ) { lists -> lists.toList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -2353,7 +2363,7 @@ class KaPostsViewModel @Inject constructor(
             }
         } else null
         val engagement = chainEngagement(txId)
-        return KaPostDraft(
+        val post = KaPostDraft(
             id = KaPostDraft.stableId(txId),
             text = record.message,
             timestamp = record.blockTimeMillis ?: System.currentTimeMillis(),
@@ -2370,6 +2380,11 @@ class KaPostsViewModel @Inject constructor(
             // A quote's referenced id is the post it quotes, NOT a parent - only a reply has one.
             parentRemoteId = if (record.action == "reply") record.referencedId else null,
         )
+        // Held so the thread overlay can resolve the id it is about to be handed - see
+        // [_chainPosts]. Replacing an existing copy keeps the stable id pointing at one node, so
+        // a like made in the thread does not land on a stale twin.
+        _chainPosts.value = _chainPosts.value.filterNot { it.remoteId == txId } + post
+        return post
     }
 
     private data class ChainEngagement(
