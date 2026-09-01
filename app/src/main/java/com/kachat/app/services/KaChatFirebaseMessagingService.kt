@@ -43,6 +43,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     @Inject lateinit var walletManager: WalletManager
     @Inject lateinit var chatRepository: ChatRepository
     @Inject lateinit var groupRepository: com.kachat.app.repository.GroupRepository
+    @Inject lateinit var settingsRepository: com.kachat.app.repository.AppSettingsRepository
 
     override fun onNewToken(token: String) {
         // FCM rotated the token — re-register it with the indexer (signed with the wallet key).
@@ -91,6 +92,12 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         // transaction, not a post, so opening it as one just produced a "post
                         // not found" toast. Null lands the tap on the Notifications list.
                         val postTxId = POST_ID_KEYS.firstNotNullOfOrNull { data[it]?.takeIf { v -> v.isNotBlank() } }
+                        // The five KaPosts switches governed only the local poller; a push
+                        // arrived whatever they said. See shouldNotifyKaPostsPush.
+                        if (!settingsRepository.shouldNotifyKaPostsPush(data["kaposts_kind"], body.ifEmpty { title })) {
+                            Log.i(TAG, "KaPosts push suppressed by notification settings")
+                            return@runBlocking
+                        }
                         notificationHelper.showKaPosts(
                             text = body.ifEmpty { title },
                             actionTxId = txId,

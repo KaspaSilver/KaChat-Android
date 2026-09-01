@@ -462,6 +462,43 @@ class AppSettingsRepository @Inject constructor(
         }
     }
 
+    /**
+     * The push twin of [shouldNotifyKaPostsAction], for a KaPosts push whose kind the server did
+     * not label.
+     *
+     * The server pushes every kind to any device registered with a `kaposts_pubkey` - it has no
+     * idea what the reader switched off, because nothing ever told it (see PUSH_EXTENSIONS.md
+     * §3, where per-kind registration is now specified as the proper fix). Until it does, the
+     * filtering has to happen here or the five switches only govern the local poller.
+     *
+     * `kaposts_kind` is the field the server should send. Failing that, the body is matched
+     * against the exact English phrases the contract specifies - they are server-generated and
+     * not localized, so this is a fixed set, not a guess about wording.
+     */
+    suspend fun shouldNotifyKaPostsPush(kind: String?, body: String): Boolean {
+        val (contentType, voteType) = when (kind) {
+            "vote_up" -> "vote" to "upvote"
+            "vote_down" -> "vote" to "downvote"
+            "reply" -> "reply" to null
+            "quote", "repost" -> "quote" to null
+            "follow" -> "follow" to null
+            null -> {
+                val lowered = body.lowercase()
+                when {
+                    lowered.contains("disliked your") -> "vote" to "downvote"
+                    lowered.contains("liked your") -> "vote" to "upvote"
+                    lowered.contains("replied to your") -> "reply" to null
+                    lowered.contains("quoted your") || lowered.contains("reposted your") -> "quote" to null
+                    lowered.contains("followed you") -> "follow" to null
+                    // A mention, or wording we do not recognise: notify rather than swallow.
+                    else -> return true
+                }
+            }
+            else -> return true
+        }
+        return shouldNotifyKaPostsAction(contentType, voteType)
+    }
+
     val syncSystemContactsEnabled: Flow<Boolean> = dataStore.data.map {
         it[KEY_SYNC_SYSTEM_CONTACTS] ?: false
     }
