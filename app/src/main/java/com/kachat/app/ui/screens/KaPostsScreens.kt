@@ -16,6 +16,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -699,6 +701,18 @@ fun KaPostsScreen(
                             .clipToBounds()
                             .nestedScroll(pullRefreshState.nestedScrollConnection),
                     ) {
+                    val pendingNew by viewModel.pendingNewPosts.collectAsState()
+                    val newPostsScope = rememberCoroutineScope()
+                    // Only while this feed is the one on screen: the effect is torn down on a tab
+                    // swipe, so nothing polls for a feed nobody is looking at.
+                    if (tab == selectedFeed) {
+                        LaunchedEffect(tab) {
+                            while (true) {
+                                kotlinx.coroutines.delay(viewModel.newPostsCheckIntervalMs)
+                                viewModel.checkForNewPosts(tab)
+                            }
+                        }
+                    }
                     if (feedError != null && pageFeed.isEmpty()) {
                         // Wrapped in a LazyColumn purely so pull-to-refresh works on an error
                         // tab too (same reason iOS wraps its empty feeds in a ScrollView).
@@ -738,6 +752,13 @@ fun KaPostsScreen(
                         EndlessScroll(listState = feedListStates[page], key = tab) {
                             viewModel.loadMoreFeed(tab)
                         }
+                        NewPostsPill(
+                            count = pendingNew.size,
+                            onClick = {
+                                viewModel.showPendingNewPosts(tab)
+                                newPostsScope.launch { feedListStates[page].animateScrollToItem(0) }
+                            }
+                        )
                         LazyColumn(
                             // Hoisted per tab so each feed keeps its own scroll position when you
                             // swipe away and back (the pager disposes off-screen pages).
@@ -4210,4 +4231,46 @@ fun formatEngagementCount(count: Int): String = when {
     count >= 1_000_000 -> "%.1fM".format(count / 1_000_000f).removeSuffix(".0M").let { if (it.endsWith("M")) it else it + "M" }
     count >= 1_000 -> "%.1fK".format(count / 1_000f).removeSuffix(".0K").let { if (it.endsWith("K")) it else it + "K" }
     else -> count.toString()
+}
+
+/**
+ * The floating "Show N new posts" pill, X-style.
+ *
+ * Floating rather than a row in the list: a row only exists where it was inserted, so a reader who
+ * has scrolled past it never learns there is anything new. This stays put at the top of the feed.
+ * Matches iOS.
+ */
+@Composable
+private fun NewPostsPill(count: Int, onClick: () -> Unit) {
+    AnimatedVisibility(
+        visible = count > 0,
+        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+        modifier = Modifier.fillMaxWidth().zIndex(1f)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(KaspaTeal)
+                    .clickable { onClick() }
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.ArrowUpward,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (count == 1) "Show 1 new post" else "Show $count new posts",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
 }

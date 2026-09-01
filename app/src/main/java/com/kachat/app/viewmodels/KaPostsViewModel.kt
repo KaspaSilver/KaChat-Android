@@ -329,6 +329,76 @@ class KaPostsViewModel @Inject constructor(
     ) { global, followingFeed, tab -> feedFor(tab, global, followingFeed) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // MARK: - New posts waiting
+
+    /**
+     * Posts that arrived since the feed was last loaded, held back rather than inserted.
+     *
+     * Splicing new rows in under a reader moves everything they were looking at. Holding them and
+     * offering them is better: nothing shifts until the reader asks, and the count tells them
+     * whether it is worth asking.
+     */
+    private val _pendingNewPosts = MutableStateFlow<List<KaPostDraft>>(emptyList())
+    val pendingNewPosts: StateFlow<List<KaPostDraft>> = _pendingNewPosts.asStateFlow()
+
+    private var checkingForNewPosts = false
+
+    /**
+     * How often the visible feed asks whether anything newer exists. One page, and only while the
+     * feed is on screen - the same cadence as the app's other fallback polls, chosen so a social
+     * feed still feels current without becoming a background data drain on cellular.
+     */
+    val newPostsCheckIntervalMs = 60_000L
+
+    /**
+     * Asks whether anything newer than the loaded feed exists, without touching what is on screen.
+     *
+     * Deliberately page ONE only: this answers "is there anything new", not "fetch everything I
+     * missed" - pulling the gap in full would be a lot of requests for a yes/no question, and
+     * showing the posts refreshes properly anyway.
+     */
+    fun checkForNewPosts(tab: FeedTab = _selectedFeed.value) {
+        if (checkingForNewPosts) return
+        val key = feedKey(tab)
+        if (pagingState(key).isLoadingMore || _isLoadingFeed.value) return
+        val known = feedFlow(tab).value.mapNotNull { it.remoteId }.toSet()
+        if (known.isEmpty()) return
+
+        checkingForNewPosts = true
+        viewModelScope.launch {
+            try {
+                val page = fetchFeedPage(tab, null)
+                if (tab != _selectedFeed.value) return@launch
+                val hidden = muted.value + blocked.value
+                val fresh = page.items
+                    .filterNot { it.id in known }
+                    .mapNotNull { mapRemotePost(it) }
+                    .filterNot { it.posterAddress in hidden }
+                if (fresh.isNotEmpty()) _pendingNewPosts.value = fresh
+            } catch (e: Exception) {
+                // Silent: it is a background question, and the feed on screen is still usable.
+                Log.w(TAG, "New-post check failed", e)
+            } finally {
+                checkingForNewPosts = false
+            }
+        }
+    }
+
+    /** Splices the held posts in at the top, on request. */
+    fun showPendingNewPosts(tab: FeedTab = _selectedFeed.value) {
+        val pending = _pendingNewPosts.value
+        if (pending.isEmpty()) return
+        val flow = feedFlow(tab)
+        val known = flow.value.mapNotNull { it.remoteId }.toSet()
+        val additions = pending.filter { it.remoteId == null || it.remoteId !in known }
+        flow.value = additions + flow.value
+        _pendingNewPosts.value = emptyList()
+    }
+
+    private fun clearPendingNewPosts() {
+        _pendingNewPosts.value = emptyList()
+    }
+
     // MARK: - On-device post translation
 
     /**
@@ -752,6 +822,9 @@ class KaPostsViewModel @Inject constructor(
                 if (isSelected) _feedError.value = result.error
             } else {
                 feedFlow(tab).value = result.items
+                // A refresh just delivered whatever was being offered; leaving the pill up would
+                // promise posts that are already on screen.
+                clearPendingNewPosts()
             }
             updatePaging(key) {
                 it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = null)
