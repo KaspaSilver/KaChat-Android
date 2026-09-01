@@ -25,6 +25,8 @@ class KaPostsChainPayloadTest {
         val parsed = KaPostsProtocol.parseChainPayload(payload)!!
         assertEquals("post", parsed.action)
         assertEquals(pubkey, parsed.authorPubkey)
+        // A plain post points at nothing - field 2 there is the start of the message.
+        assertNull(parsed.referencedId)
         // The exclusivity marker is stripped - it is invisible, but it would still lead the text.
         assertEquals("hello kaspa", parsed.message)
     }
@@ -35,6 +37,8 @@ class KaPostsChainPayloadTest {
         val parsed = KaPostsProtocol.parseChainPayload(payload)!!
         assertEquals("reply", parsed.action)
         assertEquals("agreed", parsed.message)
+        // The parent, so a reply opened off the chain lands inside its own thread.
+        assertEquals(postId, parsed.referencedId)
     }
 
     @Test
@@ -43,6 +47,8 @@ class KaPostsChainPayloadTest {
         val parsed = KaPostsProtocol.parseChainPayload(payload)!!
         assertEquals("quote", parsed.action)
         assertEquals("worth reading", parsed.message)
+        // The quoted post, which is read in turn so the embedded card has its text.
+        assertEquals(postId, parsed.referencedId)
     }
 
     @Test

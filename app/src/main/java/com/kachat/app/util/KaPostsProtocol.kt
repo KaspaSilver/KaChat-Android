@@ -66,7 +66,13 @@ object KaPostsProtocol {
      * [message] is decoded with the exclusivity marker stripped, and may be empty: a quote with
      * no added comment is a repost.
      */
-    data class ChainPost(val action: String, val authorPubkey: String, val message: String)
+    data class ChainPost(
+        val action: String,
+        val authorPubkey: String,
+        val message: String,
+        /** What this one points at: the parent for a reply, the quoted post for a quote. */
+        val referencedId: String? = null,
+    )
 
     /**
      * Parses a decoded transaction payload, or null for anything that is not a KaPosts message -
@@ -92,7 +98,13 @@ object KaPostsProtocol {
         }
         if (fields.size <= messageIndex) return null
         val decoded = decodeB64(fields[messageIndex]) ?: return null
-        return ChainPost(action, fields[1], stripMarker(decoded).trim())
+        return ChainPost(
+            action = action,
+            authorPubkey = fields[1],
+            message = stripMarker(decoded).trim(),
+            // Field 2 for both shapes that have one; a plain post references nothing.
+            referencedId = if (action == "post") null else fields[3].ifEmpty { null },
+        )
     }
 
     // Full payloads:

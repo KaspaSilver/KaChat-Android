@@ -1,8 +1,6 @@
 package com.kachat.app.services
 
-import android.util.Log
 import com.kachat.app.repository.ChatRepository
-import com.kachat.app.util.KaPostsProtocol
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -12,12 +10,9 @@ import javax.inject.Singleton
  * The author and text behind a `kachat://kapost/<txid>` link, so a shared post previews in a chat
  * as the post itself rather than as a URL. Mirrors iOS's `KaPostLinkPreviewCache`.
  *
- * Resolved from the transaction the post IS. The K indexer has no single-post lookup
- * (`get-post?id=` is still listed as NEEDED in KAPOSTS_INDEXER.md), and a post someone shares is
- * usually outside the feed window, so the API cannot answer for it at all. The chain always can:
- * the post id is the transaction id, and the payload holds the same bytes the indexer read. See
- * [KaPostsProtocol.parseChainPayload]. The author's name then comes from KNS, with a local
- * contact alias winning over it exactly as it does everywhere else in KaPosts.
+ * Resolved from the transaction the post IS - see [KaPostChainReader], which is also what makes
+ * an old shared post openable at all. The author's name then comes from KNS, with a local contact
+ * alias winning over it exactly as it does everywhere else in KaPosts.
  *
  * This is the one internal link that goes to the network, and it goes to Kaspa's own REST API
  * with a transaction id - never to the link's host. A pasted KaChat link is still never scraped
@@ -28,7 +23,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class KaPostLinkPreviewService @Inject constructor(
-    private val networkService: NetworkService,
+    private val chainReader: KaPostChainReader,
     private val knsService: KnsService,
     private val chatRepository: ChatRepository,
     private val settings: com.kachat.app.repository.AppSettingsRepository,
@@ -41,15 +36,7 @@ class KaPostLinkPreviewService @Inject constructor(
         // Child Mode hides KaPosts entirely and these links no-op - so there is nothing to
         // preview, and no reason to spend a request finding out.
         if (settings.childModeEnabled.first()) return
-        val api = networkService.kaspaRestApi.value ?: return
-        val payload = try {
-            api.getTransactionPayload(txId).payload
-        } catch (e: Exception) {
-            Log.w(TAG, "No transaction for post $txId: ${e.message}")
-            null
-        }
-        val decoded = payload?.takeIf { it.isNotBlank() }?.let { hexToString(it) }
-        val record = decoded?.let { KaPostsProtocol.parseChainPayload(it) }
+        val record = chainReader.fetch(txId)
         if (record == null) {
             unresolvable.add(txId)
             return
@@ -123,16 +110,6 @@ class KaPostLinkPreviewService @Inject constructor(
         previews.value = next + (txId to preview)
     }
 
-    private fun hexToString(hex: String): String? = try {
-        val clean = hex.trim()
-        if (clean.length % 2 != 0) null
-        else String(ByteArray(clean.length / 2) {
-            clean.substring(it * 2, it * 2 + 2).toInt(16).toByte()
-        }, Charsets.UTF_8)
-    } catch (e: Exception) {
-        null
-    }
-
     /**
      * [snippet] is already card-sized, and empty for a comment-free quote. [action] is "post",
      * "reply" or "quote" - the card says which.
@@ -147,7 +124,6 @@ class KaPostLinkPreviewService @Inject constructor(
     )
 
     companion object {
-        private const val TAG = "KaPostLinkPreview"
         private const val SNIPPET_MAX_LENGTH = 240
         private const val LIMIT = 512
         private const val AVATAR_LOOKUP_LIMIT = 3

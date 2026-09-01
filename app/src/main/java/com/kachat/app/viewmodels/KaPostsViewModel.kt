@@ -45,6 +45,7 @@ class KaPostsViewModel @Inject constructor(
     private val kaPostsService: KaPostsService,
     private val walletManager: WalletManager,
     private val knsService: KnsService,
+    private val chainReader: com.kachat.app.services.KaPostChainReader,
     private val chatRepository: ChatRepository,
     private val settings: AppSettingsRepository,
     private val translationService: PostTranslationService,
@@ -2317,6 +2318,87 @@ class KaPostsViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Shared-post actor-content fetch failed", e)
         }
-        return findPostByRemoteId(txId)
+        findPostByRemoteId(txId)?.let { return it }
+        // Last resort, and the one that always works: read the post off the transaction it was
+        // published as. Everything above searches the indexer, which has no single-post lookup,
+        // so a post outside the feed window and outside the fetched profiles simply could not be
+        // found - that is what "Post not found" always was. The chain has every post that ever
+        // existed. See [KaPostChainReader].
+        return chainPost(txId)
+    }
+
+    /**
+     * Builds a post from its own transaction, for the cases the indexer cannot answer.
+     *
+     * The payload carries the text, the author and (for a reply or a quote) what it points at;
+     * the transaction carries the time. Engagement is then filled from get-post-engagement,
+     * which works for ANY post id, so a post opened this way shows real like/dislike/repost
+     * numbers and your own vote state rather than a row of zeros.
+     */
+    private suspend fun chainPost(txId: String): KaPostDraft? {
+        val record = chainReader.fetch(txId) ?: return null
+        val address = KaPostsService.kaspaAddressFromPubkey(record.authorPubkey) ?: return null
+        // The quoted post's own text is a second chain read - a quoted card with no text is
+        // worse than resolving it properly.
+        val quoted = if (record.action == "quote" && record.referencedId != null) {
+            chainReader.fetch(record.referencedId)?.let { q ->
+                KaPostsService.kaspaAddressFromPubkey(q.authorPubkey)?.let { quotedAddress ->
+                    KaPostDraft.QuotedRef(
+                        remoteId = record.referencedId,
+                        text = q.message,
+                        posterAddress = quotedAddress,
+                        timestamp = q.blockTimeMillis,
+                    )
+                }
+            }
+        } else null
+        val engagement = chainEngagement(txId)
+        return KaPostDraft(
+            id = KaPostDraft.stableId(txId),
+            text = record.message,
+            timestamp = record.blockTimeMillis ?: System.currentTimeMillis(),
+            posterAddress = address,
+            remoteId = txId,
+            posterPubkey = record.authorPubkey,
+            likes = engagement?.likes ?: 0,
+            dislikes = engagement?.dislikes ?: 0,
+            reposts = engagement?.reposts ?: 0,
+            likedByMe = engagement?.likedByMe ?: false,
+            dislikedByMe = engagement?.dislikedByMe ?: false,
+            repostedByMe = engagement?.repostedByMe ?: false,
+            quoted = quoted,
+            // A quote's referenced id is the post it quotes, NOT a parent - only a reply has one.
+            parentRemoteId = if (record.action == "reply") record.referencedId else null,
+        )
+    }
+
+    private data class ChainEngagement(
+        val likes: Int,
+        val dislikes: Int,
+        val reposts: Int,
+        val likedByMe: Boolean,
+        val dislikedByMe: Boolean,
+        val repostedByMe: Boolean,
+    )
+
+    /** Counts the actor rows get-post-engagement returns, and spots our own among them. */
+    private suspend fun chainEngagement(txId: String): ChainEngagement? {
+        val entries = try {
+            kaPostsService.fetchPostEngagementPage(txId, limit = 100).items
+        } catch (e: Exception) {
+            Log.w(TAG, "Chain-post engagement fetch failed", e)
+            return null
+        }
+        val me = try { kaPostsService.requesterPubkey().lowercase() } catch (e: Exception) { null }
+        // A quote counts as a repost, matching how the feed's own counts are built.
+        fun isRepost(kind: String) = kind == "repost" || kind == "quote"
+        return ChainEngagement(
+            likes = entries.count { it.kind == "upvote" },
+            dislikes = entries.count { it.kind == "downvote" },
+            reposts = entries.count { isRepost(it.kind) },
+            likedByMe = me != null && entries.any { it.kind == "upvote" && it.actorPubkey.lowercase() == me },
+            dislikedByMe = me != null && entries.any { it.kind == "downvote" && it.actorPubkey.lowercase() == me },
+            repostedByMe = me != null && entries.any { isRepost(it.kind) && it.actorPubkey.lowercase() == me },
+        )
     }
 }

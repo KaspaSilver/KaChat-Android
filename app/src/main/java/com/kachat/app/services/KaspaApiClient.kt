@@ -56,9 +56,10 @@ data class HashrateSample(
     @SerializedName("hashrate_kh") val hashrateKh: Double
 )
 
-/** Only the field the KaPost link preview needs, so an unrelated shape change cannot break it. */
+/** Only the fields KaPost chain reads need, so an unrelated shape change cannot break them. */
 data class TransactionPayloadResponse(
-    val payload: String?
+    val payload: String?,
+    @SerializedName("block_time") val blockTime: Long?,
 )
 
 data class Outpoint(
