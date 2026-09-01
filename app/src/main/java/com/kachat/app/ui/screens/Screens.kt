@@ -1708,17 +1708,11 @@ fun MessageBubble(
     val internalLinkMatch = remember(bodyText, isPlainTextMessage) {
         if (isPlainTextMessage) KaChatLink.findFirst(bodyText) else null
     }
-    val isEntirelyInternalLinkMessage =
-        internalLinkMatch != null && bodyText.trim() == internalLinkMatch.raw
-    // What the text bubble actually draws. Once a KaChat link previews as a card, the raw
-    // kachat://kapost/<64 hex> under it is noise: the card already says what it points at and
-    // opens it on tap. A link that is the whole message never gets here (the card replaces the
-    // bubble outright), so this only trims it out of a message that also says something. Copy,
-    // reply and forward all still use bodyText, so the link travels with the message.
-    val bubbleText = remember(bodyText, internalLinkMatch, isEntirelyInternalLinkMessage) {
-        if (internalLinkMatch == null || isEntirelyInternalLinkMessage) bodyText
-        else bodyText.replace(internalLinkMatch.raw, "").trim().ifEmpty { bodyText }
-    }
+    // The card is the WHOLE message wherever a KaChat link appears, not only when the link is
+    // alone: KaPosts' own share text quotes the post above the link, so keeping the bubble drew
+    // the post twice - once as a truncated quote, once in full in the card underneath. Copy,
+    // reply and forward still use bodyText, so nothing is lost from the message itself.
+    val isEntirelyInternalLinkMessage = internalLinkMatch != null
     // Link previews auto-fetch only for accepted contacts (the same conversationStatus ==
     // "active" trust signal shouldAutoDisplayPhotos uses, passed in as isHandshakeComplete) and
     // for the user's own sent links; a non-accepted stranger's link gets a tap-to-load
@@ -2020,17 +2014,17 @@ fun MessageBubble(
                     // Sent bubbles are teal (matching broadcast rooms' sent-message color) with black
                     // text/links for contrast — a teal link on a teal background would be unreadable.
                     val linkColor = if (isSent) Color.Black else KaspaTeal
-                    val annotatedBody = remember(bubbleText, isSent) {
+                    val annotatedBody = remember(bodyText, isSent) {
                         buildAnnotatedString {
-                            append(bubbleText)
-                            for (match in TextLinkify.findUrls(bubbleText)) {
+                            append(bodyText)
+                            for (match in TextLinkify.findUrls(bodyText)) {
                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                             }
                             // kachat:// isn't a web URL, so TextLinkify never sees it - style and
                             // annotate it here so it's tappable inline too (the https form is
                             // already covered above and resolves to the same in-app route).
-                            KaChatLink.findFirst(bubbleText)?.let { internal ->
+                            KaChatLink.findFirst(bodyText)?.let { internal ->
                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), internal.range.first, internal.range.last + 1)
                                 addStringAnnotation("URL", internal.raw, internal.range.first, internal.range.last + 1)
                             }
@@ -2151,20 +2145,9 @@ fun MessageBubble(
         // text bubble instead of overlapping it, and so the reaction pill's corner-anchor (which
         // attaches to that Box) sizes against just the text bubble, not this taller card too -
         // matches iOS's identical placement outside its equivalent `Group`.
-        if (internalLinkMatch != null && !isEntirelyInternalLinkMessage) {
-            // A KaChat link pasted alongside other text - e.g. KaPosts' own share text, whose
-            // quoted snippet sits right above the link and becomes this card's snippet. Nothing
-            // here is fetched; the whole card is built from the message that's already on screen.
-            KaChatInternalLinkCard(
-                ref = internalLinkMatch.ref,
-                url = internalLinkMatch.raw,
-                txId = message.id,
-                snippet = KaChatLink.snippetFor(bodyText, internalLinkMatch.range),
-                kaspaExplorer = kaspaExplorer,
-                onSelect = onSelect,
-                onDoubleTap = { showQuickReactionBar = true }
-            )
-        } else separateLinkPreviewUrl?.let { url ->
+        // An internal link is always claimed above as the message itself, so only an external
+        // link can still want a card down here.
+        separateLinkPreviewUrl?.takeIf { internalLinkMatch == null }?.let { url ->
             LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, autoFetch = linkPreviewAutoFetch)
         }
 

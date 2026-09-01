@@ -56,6 +56,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.kachat.app.models.KaspaExplorer
@@ -732,21 +733,6 @@ object KaChatLink {
         return name
     }
 
-    /**
-     * A local, network-free snippet for the card: whatever the sender pasted ahead of the link.
-     * KaPosts' own share text puts the quoted post there, so this recovers it without asking the
-     * indexer for anything. The trailing "Open in KaChat:" style label and any wrapping quotes
-     * are dropped.
-     */
-    fun snippetFor(text: String, range: IntRange): String? {
-        val lines = text.substring(0, range.first).lines().map { it.trim() }.filter { it.isNotEmpty() }
-        var snippet = lines.dropLastWhile { it.endsWith(":") }.joinToString(" ").trim()
-        if (snippet.length >= 2 && snippet.first() == '"' && snippet.last() == '"') {
-            snippet = snippet.substring(1, snippet.length - 1).trim()
-        }
-        return snippet.take(160).takeIf { it.isNotBlank() }
-    }
-
     private fun refFor(match: MatchResult): KaChatLinkRef? {
         val kind = match.groupValues[1].ifEmpty { match.groupValues[2] }.lowercase()
         // Percent-decoding only (NOT URLDecoder, which would turn a legal '+' in a channel name
@@ -798,7 +784,6 @@ fun KaChatInternalLinkCard(
     ref: KaChatLinkRef,
     url: String,
     txId: String,
-    snippet: String? = null,
     kaspaExplorer: KaspaExplorer = KaspaExplorer.default,
     onSelect: (() -> Unit)? = null,
     onDoubleTap: (() -> Unit)? = null
@@ -823,7 +808,6 @@ fun KaChatInternalLinkCard(
         is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
     }
     val body = post?.snippet?.takeIf { it.isNotBlank() }
-        ?: snippet?.takeIf { it.isNotBlank() }
         // A quote with no added comment is a repost: there is no text to show, so say what it is
         // rather than leaving the card looking half-loaded.
         ?: (post?.takeIf { it.action == "quote" }?.let { "Reposted a post." })
@@ -862,14 +846,27 @@ fun KaChatInternalLinkCard(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(KaspaTeal.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        // A resolved post shows its AUTHOR, the same avatar the KaPosts feed draws for them. The
+        // KaPosts glyph is for a post that has not resolved yet, and for room invites, which have
+        // no author at all.
+        val authorAddress = post?.authorAddress?.takeIf { it.isNotEmpty() }
+        if (authorAddress != null) {
+            ContactAvatar(
+                imageUrl = post.authorAvatarUrl,
+                fallbackText = post.authorName ?: "",
+                size = 34.dp,
+                fontSize = 14.sp
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(KaspaTeal.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+            }
         }
         Spacer(Modifier.width(10.dp))
         Column {

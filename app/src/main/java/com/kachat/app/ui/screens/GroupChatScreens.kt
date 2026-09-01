@@ -1260,31 +1260,26 @@ private fun GroupMessageBubble(
                     // rooms: the universal-link form is an ordinary https URL, so without this a
                     // shared post is scraped over the network instead of previewing as the post.
                     val groupInternalLink = remember(displayContent) { KaChatLink.findFirst(displayContent) }
-                    val isEntirelyInternalLinkGroup =
-                        groupInternalLink != null && displayContent.trim() == groupInternalLink.raw
-                    // Once the link previews as a card, the raw URL under it is noise - see 1:1's
-                    // `bubbleText`. Copy keeps the full text.
-                    val groupBubbleText = remember(displayContent, groupInternalLink, isEntirelyInternalLinkGroup) {
-                        if (groupInternalLink == null || isEntirelyInternalLinkGroup) displayContent
-                        else displayContent.replace(groupInternalLink.raw, "").trim().ifEmpty { displayContent }
-                    }
-                    val annotatedGroupBody = remember(groupBubbleText, isSent, groupMembersForMentions, mentionDomains) {
+                    // The card is the WHOLE message wherever a KaChat link appears - see 1:1's
+                    // identical rule. Copy keeps the full text.
+                    val isEntirelyInternalLinkGroup = groupInternalLink != null
+                    val annotatedGroupBody = remember(displayContent, isSent, groupMembersForMentions, mentionDomains) {
                         buildAnnotatedString {
-                            append(groupBubbleText)
+                            append(displayContent)
                             // Clickable @mentions: link each member's @label run to their address (tap opens a 1:1).
                             for (member in groupMembersForMentions) {
                                 if (member.address == myAddress) continue
                                 val label = resolveMentionLabel(member.address)
                                 if (label.isBlank()) continue
                                 val token = "@$label"
-                                var idx = groupBubbleText.indexOf(token)
+                                var idx = displayContent.indexOf(token)
                                 while (idx >= 0) {
                                     addStyle(SpanStyle(color = if (isSent) Color.Black else KaspaTeal), idx, idx + token.length)
                                     addStringAnnotation("MENTION", member.address, idx, idx + token.length)
-                                    idx = groupBubbleText.indexOf(token, idx + token.length)
+                                    idx = displayContent.indexOf(token, idx + token.length)
                                 }
                             }
-                            for (match in TextLinkify.findUrls(groupBubbleText)) {
+                            for (match in TextLinkify.findUrls(displayContent)) {
                                 addStyle(SpanStyle(color = groupLinkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                             }
@@ -1351,16 +1346,9 @@ private fun GroupMessageBubble(
                         // Link within longer text: show the card beneath the text bubble. A
                         // KaChat link wins over an external one in the same message, so a shared
                         // post still previews natively.
-                        if (groupInternalLink != null) {
-                            KaChatInternalLinkCard(
-                                ref = groupInternalLink.ref,
-                                url = groupInternalLink.raw,
-                                txId = message.txId,
-                                snippet = KaChatLink.snippetFor(displayContent, groupInternalLink.range),
-                                onSelect = onSelect,
-                                onDoubleTap = { showQuickReactionBar = true }
-                            )
-                        } else TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
+                        // An internal link is always claimed above as the message itself, so
+                        // only an external link can still want a card down here.
+                        TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
                             LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
                         }
                     }

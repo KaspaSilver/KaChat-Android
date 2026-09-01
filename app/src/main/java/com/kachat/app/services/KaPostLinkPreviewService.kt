@@ -59,18 +59,31 @@ class KaPostLinkPreviewService @Inject constructor(
         // author has a KNS domain nobody has looked up yet. The text is the point of the card;
         // holding it back for a name lookup would leave the URL sitting there for another round
         // trip.
-        publish(txId, Preview(localName(address), address, snippet(record.message), record.action))
+        publish(txId, Preview(localName(address), address, null, snippet(record.message), record.action))
         if (address.isNullOrEmpty()) return
-        val domain = try {
-            knsService.reverseResolve(address)
-        } catch (e: Exception) {
-            null
-        }
-        if (domain.isNullOrBlank()) return
+
+        // Name AND avatar, the same way the feed resolves an author it has not seen before
+        // (KaPostsViewModel.ensureSenderProfileFetched): the profile belongs to a DOMAIN, so the
+        // active one is picked first and its profile is what the card wears.
+        val owned = knsService.getOwnedDomains(address)
+        if (owned.isEmpty()) return
+        val activeName = KnsService.pickActiveDomain(
+            owned.mapNotNull { it.asset },
+            null,
+            knsService.getExplicitPrimaryDomain(address)
+        )
+        val active = owned.firstOrNull { it.asset == activeName }
+        // Active domain first, then the others - a person can hold several and have set the
+        // picture on only one of them. Bounded, because this runs for a chat bubble.
+        val avatar = (listOfNotNull(active) + owned.filterNot { it.asset == activeName })
+            .take(AVATAR_LOOKUP_LIMIT)
+            .firstNotNullOfOrNull { asset -> asset.assetId?.let { knsService.getProfile(it)?.avatarUrl } }
+
         val current = previews.value[txId] ?: return
         // A contact alias the user set themselves still wins over the domain.
-        if (aliasFor(address) != null) return
-        publish(txId, current.copy(authorName = strippingKasSuffix(domain)))
+        val name = if (aliasFor(address) != null) current.authorName
+            else activeName?.let { strippingKasSuffix(it) } ?: current.authorName
+        publish(txId, current.copy(authorName = name, authorAvatarUrl = avatar))
     }
 
     private suspend fun localName(address: String?): String? {
@@ -127,6 +140,8 @@ class KaPostLinkPreviewService @Inject constructor(
     data class Preview(
         val authorName: String?,
         val authorAddress: String?,
+        /** The author's KNS avatar, once their profile has been fetched. */
+        val authorAvatarUrl: String?,
         val snippet: String,
         val action: String,
     )
@@ -135,6 +150,7 @@ class KaPostLinkPreviewService @Inject constructor(
         private const val TAG = "KaPostLinkPreview"
         private const val SNIPPET_MAX_LENGTH = 240
         private const val LIMIT = 512
+        private const val AVATAR_LOOKUP_LIMIT = 3
 
         @Volatile
         private var instance: KaPostLinkPreviewService? = null
