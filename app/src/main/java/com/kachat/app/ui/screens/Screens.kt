@@ -190,6 +190,16 @@ fun ChatThreadScreen(
     val spendingBalanceSompi by walletViewModel.spendingBalanceSompi.collectAsState()
     val myKnsProfile by walletViewModel.knsProfile.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
+    val handshakeAcceptInFlight by chatViewModel.handshakeAcceptInFlight.collectAsState()
+    val handshakeAcceptError by chatViewModel.handshakeAcceptError.collectAsState()
+    // Accepting is an on-chain send and it can fail; without this the button just did nothing.
+    val acceptErrorContext = LocalContext.current
+    LaunchedEffect(handshakeAcceptError) {
+        handshakeAcceptError[contactId]?.let { message ->
+            Toast.makeText(acceptErrorContext, message, Toast.LENGTH_LONG).show()
+            chatViewModel.clearHandshakeAcceptError(contactId)
+        }
+    }
     val paymentAmount by chatViewModel.paymentAmount.collectAsState()
     val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
     val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
@@ -1238,6 +1248,7 @@ fun ChatThreadScreen(
                                     conversation?.contact?.conversationStatus == "pending",
                                 isHandshakeComplete = conversation?.contact?.conversationStatus == "active",
                                 onAccept = { chatViewModel.acceptHandshake(contactId) },
+                                acceptInFlight = contactId in handshakeAcceptInFlight,
                                 onDecline = { chatViewModel.declineHandshake(contactId) },
                                 onRetry = { chatViewModel.retrySendMessage(msg) },
                                 onReply = { chatViewModel.startReplyTo(msg) },
@@ -1636,6 +1647,8 @@ fun MessageBubble(
     isPendingRequest: Boolean = false,
     isHandshakeComplete: Boolean = false,
     onAccept: () -> Unit = {},
+    /** True while the reciprocal handshake is being built and submitted - it is an on-chain send. */
+    acceptInFlight: Boolean = false,
     onDecline: () -> Unit = {},
     onRetry: () -> Unit = {},
     onReply: () -> Unit = {},
@@ -1755,10 +1768,22 @@ fun MessageBubble(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = onAccept,
+                            enabled = !acceptInFlight,
                             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(stringResource(R.string.accept), color = Color.Black, fontWeight = FontWeight.Bold)
+                            if (acceptInFlight) {
+                                // Accepting broadcasts a transaction, which takes seconds. The
+                                // button used to look idle the whole time, so a slow accept and a
+                                // failed one were indistinguishable from a dead one.
+                                CircularProgressIndicator(
+                                    strokeWidth = 2.dp,
+                                    color = Color.Black,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            } else {
+                                Text(stringResource(R.string.accept), color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                         Button(
                             onClick = onDecline,

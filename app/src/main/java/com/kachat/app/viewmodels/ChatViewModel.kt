@@ -702,13 +702,43 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { messageIds.forEach { chatRepository.deleteMessage(it) } }
     }
 
+    /**
+     * Contacts whose Accept is currently building/submitting, and the last failure per contact.
+     *
+     * Accepting is an ON-CHAIN transaction and it can fail - most often on a brand new account
+     * where the 0.2 KAS the handshake itself delivered has not been seen as a spendable UTXO yet.
+     * This used to catch every exception into a log line and change nothing on screen, so a
+     * failure was indistinguishable from a dead button: the reported "I click accept and nothing
+     * happens". Decline is local-only, which is why it always appeared to work.
+     */
+    private val _handshakeAcceptInFlight = MutableStateFlow<Set<String>>(emptySet())
+    val handshakeAcceptInFlight: StateFlow<Set<String>> = _handshakeAcceptInFlight.asStateFlow()
+
+    private val _handshakeAcceptError = MutableStateFlow<Map<String, String>>(emptyMap())
+    val handshakeAcceptError: StateFlow<Map<String, String>> = _handshakeAcceptError.asStateFlow()
+
+    fun clearHandshakeAcceptError(contactId: String) {
+        _handshakeAcceptError.value = _handshakeAcceptError.value - contactId
+    }
+
     /** Sends a real reciprocal handshake and activates the conversation. */
     fun acceptHandshake(contactId: String) {
+        if (contactId in _handshakeAcceptInFlight.value) return
         viewModelScope.launch {
+            _handshakeAcceptInFlight.value = _handshakeAcceptInFlight.value + contactId
+            _handshakeAcceptError.value = _handshakeAcceptError.value - contactId
             try {
+                // The KAS that arrived WITH the handshake is what pays for the reply, and on a
+                // fresh account it landed seconds ago - refresh before building so the send is
+                // not rejected over a UTXO set the app simply had not caught up with.
+                runCatching { walletService.refreshBalance() }
                 walletService.acceptHandshake(contactId)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error accepting handshake", e)
+                _handshakeAcceptError.value = _handshakeAcceptError.value +
+                    (contactId to (e.message?.takeIf { it.isNotBlank() } ?: "Could not accept. Try again."))
+            } finally {
+                _handshakeAcceptInFlight.value = _handshakeAcceptInFlight.value - contactId
             }
         }
     }
