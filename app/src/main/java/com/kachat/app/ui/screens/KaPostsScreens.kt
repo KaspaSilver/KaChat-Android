@@ -3528,9 +3528,6 @@ private fun TranslateAffordance(
         null -> if (canTranslate) {
             TranslateLink("Translate post", onTranslate)
         }
-        // Named separately from Translating: the first use of a language pair downloads tens of
-        // MB, and a plain spinner for that long reads as the app having hung.
-        PostTranslationService.TranslationState.Downloading,
         PostTranslationService.TranslationState.Translating -> {
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -3541,11 +3538,7 @@ private fun TranslateAffordance(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (state == PostTranslationService.TranslationState.Downloading) {
-                        "Downloading language pack..."
-                    } else {
-                        "Translating..."
-                    },
+                    text = "Translating...",
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                 )

@@ -2,63 +2,66 @@ package com.kachat.app.services
 
 import android.util.Log
 import com.google.mlkit.nl.languageid.LanguageIdentification
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.Translator
-import com.google.mlkit.nl.translate.TranslatorOptions
-import com.google.mlkit.common.model.DownloadConditions
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * On-device translation for KaPosts, X-style: a post written in another language offers a
- * "Translate post" link, tapping it swaps the text in place, and the link becomes
- * "Translated from Spanish - Show original".
+ * Translation for KaPosts, X-style: a post written in another language offers a "Translate post"
+ * link, tapping it swaps the text in place, and the link becomes "Translated from Spanish - Show
+ * original".
  *
- * Everything runs through ML Kit, which translates ON DEVICE against a downloaded language pack.
- * No post text is ever sent to a server, which matters here more than in most apps: KaPosts
- * content is public, but WHICH posts a given user chose to read closely is not, and a cloud
- * translator would leak exactly that. Mirrors iOS's `PostTranslationService`, which uses Apple's
- * Translation framework for the same reason.
+ * The translation itself happens on the KaChat server (see `TRANSLATION_SERVICE.md`), the way X
+ * does it, rather than on the device. On-device translation - ML Kit here, Apple's Translation
+ * framework on iOS - was private but cost the reader a language-pack download of tens of megabytes
+ * before the first translation finished, and re-translated the same post on every device that read
+ * it. A KaPost is immutable, so the server translates it once and serves that answer to everyone
+ * forever. Mirrors iOS's `PostTranslationService`.
  *
- * The one network cost is the first-use language pack (tens of MB per pair). It is deliberately
- * NOT restricted to Wi-Fi: the download only ever starts because the reader tapped Translate, and
- * silently refusing on cellular would look like the feature is broken. [TranslationState.Downloading]
- * exists so the UI can say what the wait is for instead of spinning mutely.
+ * The trade, stated plainly because the on-device design was chosen deliberately to avoid it: post
+ * CONTENT is public (it is on the blockDAG), but WHICH posts a reader stopped to translate now
+ * reaches the server. The request carries no identity of any kind - no pubkey, no token, no account
+ * id - and the server is specified not to log bodies and to warm its cache ahead of demand, so most
+ * requests are answered without a translation engine ever seeing them.
+ *
+ * Language IDENTIFICATION stays on the device (ML Kit's language-id, which is bundled and needs no
+ * download). Deciding whether to offer the link at all is asked for every post that scrolls past,
+ * and asking a server that would be a request per post.
  */
 @Singleton
-class PostTranslationService @Inject constructor() {
+class PostTranslationService @Inject constructor(
+    private val settings: com.kachat.app.repository.AppSettingsRepository,
+) {
 
     sealed interface TranslationState {
-        /** Fetching the language pack; the first translation for a pair only. */
-        data object Downloading : TranslationState
         data object Translating : TranslationState
         /** [sourceName] is the localized language name for the "Translated from X" line. */
         data class Translated(val text: String, val sourceName: String) : TranslationState
         data object Failed : TranslationState
     }
 
-    /**
-     * Open translators, keyed by "source>target". ML Kit translators hold native resources and
-     * must be closed, so this is capped and evicts in insertion order - a reader moving through a
-     * multilingual feed would otherwise accumulate one per language they touched.
-     */
-    private val translators = LinkedHashMap<String, Translator>()
-    private val languagePacksReady = mutableSetOf<String>()
-
     private val languageIdentifier by lazy { LanguageIdentification.getClient() }
 
-    /**
-     * The reader's own language. A post already in it is never offered for translation.
-     */
-    private fun targetLanguageTag(): String? =
-        TranslateLanguage.fromLanguageTag(Locale.getDefault().language)
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .callTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+
+    /** The reader's language, as the bare subtag the server expects ("en", not "en-GB"). */
+    private fun targetLanguage(): String? = Locale.getDefault().language.takeIf { it.isNotBlank() }
 
     /**
-     * The post's language, or null when it cannot be identified confidently or ML Kit has no
-     * model for it.
+     * The post's language, or null when it cannot be identified confidently.
      *
      * URLs and @mentions are stripped first: a post that is mostly a link otherwise identifies as
      * whatever language the URL's letters resemble. Below [MIN_LETTERS] letters, identification is
@@ -75,20 +78,16 @@ class PostTranslationService @Inject constructor() {
             return null
         }
         if (tag == UNDETERMINED) return null
-        return TranslateLanguage.fromLanguageTag(tag)
+        // ML Kit returns BCP-47 with a region for some languages ("zh-Hans"); the server takes the
+        // bare subtag.
+        return tag.substringBefore('-').takeIf { it.isNotBlank() }
     }
 
     /** True when this post is worth offering a Translate link for. */
     suspend fun canOfferTranslation(text: String): Boolean {
-        val target = targetLanguageTag() ?: return false
+        val target = targetLanguage() ?: return false
         val source = detectLanguage(text) ?: return false
         return source != target
-    }
-
-    /** Whether the pack for this pair is already on the device, so the UI can skip "Downloading". */
-    fun isLanguagePackReady(source: String): Boolean {
-        val target = targetLanguageTag() ?: return false
-        return "$source>$target" in languagePacksReady
     }
 
     /** Localized name of a language tag, for "Translated from X". */
@@ -96,42 +95,51 @@ class PostTranslationService @Inject constructor() {
         Locale.forLanguageTag(languageTag).getDisplayLanguage(Locale.getDefault())
             .ifBlank { languageTag }
 
-    /**
-     * Translates [text] from [source] into the reader's language. Throws on an unsupported pair or
-     * a pack that could not be downloaded; the caller turns that into [TranslationState.Failed].
-     */
-    suspend fun translate(text: String, source: String): String {
-        val target = targetLanguageTag() ?: error("No on-device model for the current locale")
-        val key = "$source>$target"
-        val translator = translators.getOrPut(key) {
-            Translation.getClient(
-                TranslatorOptions.Builder()
-                    .setSourceLanguage(source)
-                    .setTargetLanguage(target)
-                    .build()
-            )
-        }
-        // Re-inserting keeps the most recently used at the end, so eviction drops the coldest.
-        translators.remove(key)?.let { translators[key] = it }
-        while (translators.size > MAX_OPEN_TRANSLATORS) {
-            val coldest = translators.keys.first()
-            translators.remove(coldest)?.close()
-            languagePacksReady.remove(coldest)
-        }
-        if (key !in languagePacksReady) {
-            // No requireWifi(): the reader asked for this, and refusing on cellular reads as the
-            // feature being broken. The UI says a download is happening.
-            translator.downloadModelIfNeeded(DownloadConditions.Builder().build()).await()
-            languagePacksReady += key
-        }
-        return translator.translate(text).await()
-    }
+    /** The translated text plus the source language the SERVER detected, which beats our guess. */
+    data class Result(val text: String, val sourceLanguage: String?)
 
-    /** Releases every open translator. Called when KaPosts goes away or the account switches. */
-    fun release() {
-        translators.values.forEach { it.close() }
-        translators.clear()
-        languagePacksReady.clear()
+    /**
+     * Translates [text] into the reader's language.
+     *
+     * [postId] is the txid where there is one. The server caches by it, so a post someone else
+     * already translated into this language comes back without a translation engine running at
+     * all; a post with no txid (a local session post) is translated but not cached.
+     *
+     * Throws on any failure; the caller turns that into [TranslationState.Failed].
+     */
+    suspend fun translate(text: String, postId: String?): Result {
+        val target = targetLanguage() ?: error("No language for the current locale")
+        val base = settings.kapostIndexerUrl.first().trimEnd('/')
+
+        val post = JSONObject().put("text", text)
+        if (!postId.isNullOrEmpty()) post.put("id", postId)
+        val body = JSONObject()
+            .put("target", target)
+            .put("posts", JSONArray().put(post))
+
+        val request = Request.Builder()
+            .url("$base/translate")
+            // Deliberately no identity header of any kind - see the note on this class.
+            .post(body.toString().toRequestBody(JSON))
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            val payload = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val message = runCatching { JSONObject(payload).optString("error") }.getOrNull()
+                error(message?.takeIf { it.isNotBlank() } ?: "HTTP ${response.code}")
+            }
+            val entry = JSONObject(payload).optJSONArray("translations")?.optJSONObject(0)
+                ?: error("Unexpected response from the translation service")
+            entry.optString("error").takeIf { it.isNotBlank() }?.let { error(it) }
+            // The server returns the text unchanged when it decides the post was already in the
+            // reader's language - our detection is a guess and is sometimes wrong. Showing the
+            // same text back under a "Translated from" line would look broken.
+            if (entry.optBoolean("untranslated", false)) error("Already in your language")
+            val translated = entry.optString("text").takeIf { it.isNotBlank() }
+                ?: error("Unexpected response from the translation service")
+            return Result(translated, entry.optString("source").takeIf { it.isNotBlank() })
+        }
     }
 
     private fun strippedForDetection(text: String): String =
@@ -141,7 +149,8 @@ class PostTranslationService @Inject constructor() {
         private const val TAG = "KaChatTranslate"
         private const val UNDETERMINED = "und"
         private const val MIN_LETTERS = 12
-        private const val MAX_OPEN_TRANSLATORS = 3
+        private const val TIMEOUT_SECONDS = 20L
+        private val JSON = "application/json; charset=utf-8".toMediaType()
         private val URL_REGEX = Regex("""https?://\S+""")
         private val MENTION_REGEX = Regex("""@[A-Za-z0-9._-]+""")
     }

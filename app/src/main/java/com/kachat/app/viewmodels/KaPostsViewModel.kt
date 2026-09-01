@@ -442,19 +442,17 @@ class KaPostsViewModel @Inject constructor(
         val key = translationKey(post)
         val source = _translatable.value[key] ?: return
         _showingOriginal.value = _showingOriginal.value - key
-        // Say "Downloading" only when the pack really is missing - otherwise the first translation
-        // of an already-installed pair would flash a download message it never performs.
-        _translations.value = _translations.value + (key to
-            if (translationService.isLanguagePackReady(source)) {
-                PostTranslationService.TranslationState.Translating
-            } else {
-                PostTranslationService.TranslationState.Downloading
-            })
+        // A second tap while one is in flight must not start a second request.
+        if (_translations.value[key] == PostTranslationService.TranslationState.Translating) return
+        _translations.value = _translations.value + (key to PostTranslationService.TranslationState.Translating)
         viewModelScope.launch {
             val next = try {
+                val result = translationService.translate(post.text, post.remoteId)
                 PostTranslationService.TranslationState.Translated(
-                    text = translationService.translate(post.text, source),
-                    sourceName = translationService.displayName(source),
+                    text = result.text,
+                    // The server's detection beats our local guess; ours is only there to decide
+                    // whether to offer the link at all.
+                    sourceName = translationService.displayName(result.sourceLanguage ?: source),
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "Translation failed", e)
@@ -489,12 +487,6 @@ class KaPostsViewModel @Inject constructor(
         _showingOriginal.value = emptySet()
         _translatable.value = emptyMap()
         considered.clear()
-        translationService.release()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        translationService.release()
     }
 
     // MARK: - Toasts + undo scheduler

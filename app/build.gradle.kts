@@ -213,7 +213,6 @@ dependencies {
 
     // ML Kit on-device translation for KaPosts (translate + source-language identification).
     // Both run locally against downloaded language packs; nothing is sent to a server.
-    implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
 
     // DataStore (settings/preferences)
