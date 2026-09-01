@@ -1,5 +1,20 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,8 +28,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -95,14 +108,6 @@ fun MenuVisibilityScreen(
         commit(d, h)
     }
 
-    fun shift(list: List<Screen>, index: Int, delta: Int, isDock: Boolean) {
-        val target = index + delta
-        if (target !in list.indices) return
-        val reordered = list.toMutableList()
-        reordered.add(target, reordered.removeAt(index))
-        if (isDock) commit(reordered, hub) else commit(dock, reordered)
-    }
-
     Scaffold(
         containerColor = colors.background,
         topBar = {
@@ -130,20 +135,14 @@ fun MenuVisibilityScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             SectionHeader("In Your Dock", "${dock.size} of $MAX_DOCK_ITEMS", dockIsFull, colors)
-            dock.forEachIndexed { index, screen ->
-                PlacementRow(
-                    screen = screen,
-                    pinned = screen.route in PINNED_DOCK_ROUTES,
-                    actionLabel = "Move to ${Screen.KaspaHub.label}",
-                    actionEnabled = true,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < dock.lastIndex,
-                    onAction = { moveAcross(screen, toDock = false) },
-                    onMoveUp = { shift(dock, index, -1, isDock = true) },
-                    onMoveDown = { shift(dock, index, 1, isDock = true) },
-                    colors = colors
-                )
-            }
+            ReorderableList(
+                items = dock,
+                actionLabel = "Move to ${Screen.KaspaHub.label}",
+                actionEnabled = { true },
+                onAction = { moveAcross(it, toDock = false) },
+                onReorder = { commit(it, hub) },
+                colors = colors
+            )
             Text(
                 if (dockIsFull) {
                     "The dock is full. Move something to ${Screen.KaspaHub.label} to free a slot."
@@ -164,21 +163,15 @@ fun MenuVisibilityScreen(
                     modifier = Modifier.padding(16.dp)
                 )
             } else {
-                hub.forEachIndexed { index, screen ->
-                    PlacementRow(
-                        screen = screen,
-                        pinned = false,
-                        actionLabel = "Move to Dock",
-                        // Refused, not ignored: without this the tap looks broken.
-                        actionEnabled = !dockIsFull,
-                        canMoveUp = index > 0,
-                        canMoveDown = index < hub.lastIndex,
-                        onAction = { moveAcross(screen, toDock = true) },
-                        onMoveUp = { shift(hub, index, -1, isDock = false) },
-                        onMoveDown = { shift(hub, index, 1, isDock = false) },
-                        colors = colors
-                    )
-                }
+                ReorderableList(
+                    items = hub,
+                    actionLabel = "Move to Dock",
+                    // Refused, not ignored: without this the tap looks broken.
+                    actionEnabled = { !dockIsFull },
+                    onAction = { moveAcross(it, toDock = true) },
+                    onReorder = { commit(dock, it) },
+                    colors = colors
+                )
             }
             Text(
                 "Opened from the ${Screen.KaspaHub.label} tab, in this order. Nothing here is switched off - it is one tap further away than the dock.",
@@ -214,29 +207,131 @@ private fun SectionHeader(
     }
 }
 
+/** Fixed so a drag's target slot is arithmetic rather than a measurement of every row. */
+private val ROW_HEIGHT = 56.dp
+
 /**
- * Up/down controls rather than a drag: Compose has no equivalent of the reorderable list iOS gets
- * for free, and a hand-rolled drag was removed from the portfolio cards for being unreliable. With
- * a handful of rows these are quicker anyway, and they work with TalkBack.
+ * A hold-then-drag reorderable list, matching how iOS's Customize Dock reorders.
+ *
+ * Deliberately NOT animated. The dragged row is positioned by an offset that cancels how far its
+ * own slot has travelled, and on iOS animating the slot change while that offset jumped instantly
+ * drew the row a full slot away for the length of the animation. With both instant they cancel
+ * exactly, so the row stays under the finger and the others snap past it.
+ *
+ * A long press is required first, so an ordinary swipe still scrolls the screen rather than
+ * picking a row up by accident.
  */
+@Composable
+private fun ReorderableList(
+    items: List<Screen>,
+    actionLabel: String,
+    actionEnabled: () -> Boolean,
+    onAction: (Screen) -> Unit,
+    onReorder: (List<Screen>) -> Unit,
+    colors: com.kachat.app.ui.theme.AppColors,
+) {
+    val density = LocalDensity.current
+    val rowHeightPx = with(density) { ROW_HEIGHT.toPx() }
+
+    var draggingRoute by remember { mutableStateOf<String?>(null) }
+    var dragStartIndex by remember { mutableStateOf(0) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    // The order being previewed mid-drag; committed on release and discarded otherwise.
+    var preview by remember { mutableStateOf<List<Screen>?>(null) }
+
+    val shown = preview ?: items
+
+    Column {
+        shown.forEachIndexed { index, screen ->
+            val isDragging = draggingRoute == screen.route
+            // Cancels how far this row's slot has moved since the drag began, so it tracks the
+            // finger rather than jumping a slot each time it swaps.
+            val carry = if (isDragging) dragOffsetY - (index - dragStartIndex) * rowHeightPx else 0f
+            PlacementRow(
+                screen = screen,
+                pinned = screen.route in PINNED_DOCK_ROUTES,
+                actionLabel = actionLabel,
+                actionEnabled = actionEnabled(),
+                isDragging = isDragging,
+                offsetY = carry,
+                onAction = { onAction(screen) },
+                colors = colors,
+                dragModifier = Modifier.pointerInput(screen.route, items) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            val order = preview ?: items
+                            dragStartIndex = order.indexOfFirst { it.route == screen.route }
+                            if (dragStartIndex < 0) return@detectDragGesturesAfterLongPress
+                            preview = order
+                            draggingRoute = screen.route
+                            dragOffsetY = 0f
+                        },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            if (draggingRoute != screen.route) return@detectDragGesturesAfterLongPress
+                            dragOffsetY += amount.y
+                            val order = (preview ?: items).toMutableList()
+                            val current = order.indexOfFirst { it.route == screen.route }
+                            if (current < 0) return@detectDragGesturesAfterLongPress
+                            // From the FIXED start index plus whole slots travelled, so the result
+                            // depends only on where the finger is - not on the order of updates,
+                            // which is what stops a fast drag oscillating.
+                            val slots = (dragOffsetY / rowHeightPx).roundToInt()
+                            val target = (dragStartIndex + slots).coerceIn(0, order.lastIndex)
+                            if (target != current) {
+                                order.add(target, order.removeAt(current))
+                                preview = order
+                            }
+                        },
+                        onDragEnd = {
+                            preview?.let { if (it != items) onReorder(it) }
+                            draggingRoute = null
+                            dragOffsetY = 0f
+                            preview = null
+                        },
+                        onDragCancel = {
+                            draggingRoute = null
+                            dragOffsetY = 0f
+                            preview = null
+                        }
+                    )
+                }
+            )
+        }
+    }
+}
+
 @Composable
 private fun PlacementRow(
     screen: Screen,
     pinned: Boolean,
     actionLabel: String,
     actionEnabled: Boolean,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
+    isDragging: Boolean,
+    offsetY: Float,
     onAction: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     colors: com.kachat.app.ui.theme.AppColors,
+    dragModifier: Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(ROW_HEIGHT)
+            .zIndex(if (isDragging) 1f else 0f)
+            .offset { IntOffset(0, offsetY.roundToInt()) }
+            .background(if (isDragging) colors.surface else Color.Transparent)
+            .then(dragModifier)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // The affordance, matching the handle iOS shows in edit mode.
+        Icon(
+            Icons.Default.DragIndicator,
+            contentDescription = "Reorder ${screen.label}",
+            tint = colors.textSecondary.copy(alpha = 0.6f),
+            modifier = Modifier.size(20.dp)
+        )
         Icon(screen.icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
         Text(
             screen.hubTitle,
@@ -245,21 +340,6 @@ private fun PlacementRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-            Icon(
-                Icons.Default.KeyboardArrowUp,
-                contentDescription = "Move ${screen.label} up",
-                tint = if (canMoveUp) KaspaTeal else colors.textSecondary.copy(alpha = 0.4f)
-            )
-        }
-        IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-            Icon(
-                Icons.Default.KeyboardArrowDown,
-                contentDescription = "Move ${screen.label} down",
-                tint = if (canMoveDown) KaspaTeal else colors.textSecondary.copy(alpha = 0.4f)
-            )
-        }
-        Spacer(Modifier.width(4.dp))
         if (pinned) {
             Text("Always in dock", color = colors.textSecondary, fontSize = 11.sp)
         } else {
