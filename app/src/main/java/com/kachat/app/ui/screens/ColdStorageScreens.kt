@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CallMerge
@@ -2026,6 +2027,8 @@ fun ColdStorageTxHistoryScreen(
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val addresses by viewModel.addresses.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // The tapped transaction, while its action chooser is up.
+    var transactionActionTarget by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
     // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
     var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
     var addedPortfolioName by remember { mutableStateOf<String?>(null) }
@@ -2225,8 +2228,10 @@ fun ColdStorageTxHistoryScreen(
                             items(txHistory, key = { it.txId }) { tx ->
                                 ColdTxHistoryRow(
                                     tx = tx,
-                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) },
-                                    onAddToPortfolio = { portfolioCandidate = tx }
+                                    // Tapping a transaction asks what to do with it. It used to
+                                    // open the explorer outright, which left "Add to Portfolio"
+                                    // on a button most people never looked for.
+                                    onClick = { transactionActionTarget = tx }
                                 )
                             }
                         }
@@ -2338,6 +2343,19 @@ fun ColdStorageTxHistoryScreen(
         QrCodeOverlay(value = address, onDismiss = { showQr = false })
     }
 
+    transactionActionTarget?.let { tapped ->
+        CenteredOptionsMenu(onDismissRequest = { transactionActionTarget = null }, centerHorizontally = true) {
+            PopupMenuRow(Icons.Default.OpenInNew, "Open in Explorer") {
+                transactionActionTarget = null
+                uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
+            }
+            PopupMenuRow(Icons.Default.PieChart, "Add to Portfolio") {
+                transactionActionTarget = null
+                portfolioCandidate = tapped
+            }
+        }
+    }
+
     portfolioCandidate?.let { candidate ->
         AddToPortfolioSheet(
             tx = candidate,
@@ -2400,12 +2418,7 @@ private fun ColdUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo, label: St
 }
 
 @Composable
-private fun ColdTxHistoryRow(
-    tx: ColdStorageAddressDiscovery.AddressTransaction,
-    onClick: () -> Unit,
-    /** Shown as a trailing button when the row can be filed into a portfolio. */
-    onAddToPortfolio: (() -> Unit)? = null,
-) {
+private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction, onClick: () -> Unit) {
     val kas = tx.amountSompi / 100_000_000.0
     val dateStr = tx.blockTimeMillis?.let {
         SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(it))
@@ -2454,16 +2467,5 @@ private fun ColdTxHistoryRow(
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
         )
-        if (onAddToPortfolio != null) {
-            Spacer(Modifier.width(4.dp))
-            IconButton(onClick = onAddToPortfolio, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    Icons.Default.PieChart,
-                    contentDescription = "Add to Portfolio",
-                    tint = KaspaTeal,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
     }
 }

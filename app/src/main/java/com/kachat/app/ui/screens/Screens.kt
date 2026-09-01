@@ -5537,6 +5537,8 @@ fun SpendingAddressTxHistoryScreen(
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val biometricSpendingKeyEnabled by viewModel.biometricSpendingKeyEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // The tapped transaction, while its action chooser is up.
+    var transactionActionTarget by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
     // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
     var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
     var addedPortfolioName by remember { mutableStateOf<String?>(null) }
@@ -5744,8 +5746,10 @@ fun SpendingAddressTxHistoryScreen(
                             items(txHistory, key = { it.txId }) { tx ->
                                 SpendingAddressTxHistoryRow(
                                     tx = tx,
-                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) },
-                                    onAddToPortfolio = { portfolioCandidate = tx }
+                                    // Tapping a transaction asks what to do with it. It used to
+                                    // open the explorer outright, which left "Add to Portfolio"
+                                    // on a button most people never looked for.
+                                    onClick = { transactionActionTarget = tx }
                                 )
                             }
                         }
@@ -5892,6 +5896,19 @@ fun SpendingAddressTxHistoryScreen(
         )
     }
 
+    transactionActionTarget?.let { tapped ->
+        CenteredOptionsMenu(onDismissRequest = { transactionActionTarget = null }, centerHorizontally = true) {
+            PopupMenuRow(Icons.Default.OpenInNew, "Open in Explorer") {
+                transactionActionTarget = null
+                uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
+            }
+            PopupMenuRow(Icons.Default.PieChart, "Add to Portfolio") {
+                transactionActionTarget = null
+                portfolioCandidate = tapped
+            }
+        }
+    }
+
     portfolioCandidate?.let { candidate ->
         AddToPortfolioSheet(
             tx = candidate,
@@ -5932,6 +5949,8 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     // uses, not the lower-stakes biometricSpendingKeyEnabled a derived spending address uses.
     val biometricSeedPhraseEnabled by viewModel.biometricSeedPhraseEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // The tapped transaction, while its action chooser is up.
+    var transactionActionTarget by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
     // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
     var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
     var addedPortfolioName by remember { mutableStateOf<String?>(null) }
@@ -6104,8 +6123,10 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                             items(txHistory, key = { it.txId }) { tx ->
                                 SpendingAddressTxHistoryRow(
                                     tx = tx,
-                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) },
-                                    onAddToPortfolio = { portfolioCandidate = tx }
+                                    // Tapping a transaction asks what to do with it. It used to
+                                    // open the explorer outright, which left "Add to Portfolio"
+                                    // on a button most people never looked for.
+                                    onClick = { transactionActionTarget = tx }
                                 )
                             }
                         }
@@ -6226,6 +6247,19 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                 }
             }
         )
+    }
+
+    transactionActionTarget?.let { tapped ->
+        CenteredOptionsMenu(onDismissRequest = { transactionActionTarget = null }, centerHorizontally = true) {
+            PopupMenuRow(Icons.Default.OpenInNew, "Open in Explorer") {
+                transactionActionTarget = null
+                uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
+            }
+            PopupMenuRow(Icons.Default.PieChart, "Add to Portfolio") {
+                transactionActionTarget = null
+                portfolioCandidate = tapped
+            }
+        }
     }
 
     portfolioCandidate?.let { candidate ->
@@ -6372,12 +6406,7 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
 }
 
 @Composable
-private fun SpendingAddressTxHistoryRow(
-    tx: ColdStorageAddressDiscovery.AddressTransaction,
-    onClick: () -> Unit,
-    /** Shown as a trailing button when the row can be filed into a portfolio. */
-    onAddToPortfolio: (() -> Unit)? = null,
-) {
+private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction, onClick: () -> Unit) {
     val kas = tx.amountSompi / 100_000_000.0
     val dateStr = tx.blockTimeMillis?.let {
         java.text.SimpleDateFormat("MMM d, yyyy, h:mm a", java.util.Locale.US).format(java.util.Date(it))
@@ -6426,17 +6455,6 @@ private fun SpendingAddressTxHistoryRow(
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
         )
-        if (onAddToPortfolio != null) {
-            Spacer(Modifier.width(4.dp))
-            IconButton(onClick = onAddToPortfolio, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    Icons.Default.PieChart,
-                    contentDescription = "Add to Portfolio",
-                    tint = KaspaTeal,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
     }
 }
 
