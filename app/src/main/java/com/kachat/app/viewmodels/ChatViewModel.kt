@@ -1273,10 +1273,16 @@ class ChatViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
     val groupMentionsOnly: StateFlow<Set<String>> = settings.groupMentionsOnly
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    val groupSilent: StateFlow<Set<String>> = settings.groupSilent
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     fun isGroupMemberHidden(groupId: String, address: String) = "$groupId|$address" in groupHiddenMembers.value
     fun isGroupMemberMuted(groupId: String, address: String) = "$groupId|$address" in groupMutedMembers.value
     fun isGroupMentionsOnly(groupId: String) = groupId in groupMentionsOnly.value
+
+    fun setGroupSilent(groupId: String, enabled: Boolean) {
+        viewModelScope.launch { settings.setGroupSilent(groupId, enabled) }
+    }
 
     fun hideGroupMember(groupId: String, address: String) {
         viewModelScope.launch { settings.hideGroupMember(groupId, address) }

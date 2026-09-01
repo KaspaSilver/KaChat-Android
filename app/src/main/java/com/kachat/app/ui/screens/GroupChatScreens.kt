@@ -1577,6 +1577,7 @@ fun GroupChatInfoScreen(
     val contactPhotoUrisByAddress by chatViewModel.contactPhotoUrisByAddress.collectAsState()
     val contactAliasesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val groupMentionsOnly by chatViewModel.groupMentionsOnly.collectAsState()
+    val groupSilent by chatViewModel.groupSilent.collectAsState()
     val members = remember(group?.membersJson) {
         group?.let(::parseGroupMembers) ?: emptyList()
     }
@@ -1817,6 +1818,31 @@ fun GroupChatInfoScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    Text("Silent Group Chat", color = LocalAppColors.current.textPrimary)
+                    Text(
+                        "Never notifies you about this group, mentioned or not.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+                Switch(
+                    checked = groupId in groupSilent,
+                    onCheckedChange = { chatViewModel.setGroupSilent(groupId, it) },
+                    colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(LocalAppColors.current.surface)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.only_notify_if_i_m_mentioned), color = LocalAppColors.current.textPrimary)
                     Text(
                         stringResource(R.string.other_messages_still_show_up_in),
@@ -1826,6 +1852,7 @@ fun GroupChatInfoScreen(
                 }
                 Switch(
                     checked = groupId in groupMentionsOnly,
+                    enabled = groupId !in groupSilent,
                     onCheckedChange = { chatViewModel.setGroupMentionsOnly(groupId, it) },
                     colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f))
                 )

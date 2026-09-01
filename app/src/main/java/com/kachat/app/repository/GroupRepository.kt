@@ -184,6 +184,25 @@ class GroupRepository @Inject constructor(
         return null
     }
 
+    /**
+     * True when EVERY group this device knows about is silenced or mentions-only.
+     *
+     * Used for a push that could not be ingested AND whose blinded id matches no local group: we
+     * cannot tell which group it belongs to, so the only sound question is whether the answer
+     * would be the same for all of them.
+     */
+    suspend fun allGroupsSuppressUnidentifiedPushes(): Boolean {
+        val groups = database.groupDao().getGroups(walletManager.getAddress()).first()
+        if (groups.isEmpty()) return false
+        val silent = settings.groupSilent.first()
+        val mentionsOnly = settings.groupMentionsOnly.first()
+        return groups.all { it.groupId in silent || it.groupId in mentionsOnly }
+    }
+
+    /** Whether this group is silenced outright - no banner, mentioned or not. */
+    suspend fun isGroupSilent(groupId: String): Boolean =
+        groupId in settings.groupSilent.first()
+
     /** Whether the per-group "Only Notify if I'm Mentioned" toggle is on for [groupId]. */
     suspend fun isGroupMentionsOnly(groupId: String): Boolean =
         groupId in settings.groupMentionsOnly.first()
@@ -897,8 +916,9 @@ class GroupRepository @Inject constructor(
                         val target = database.groupDao().getMessage(reaction.targetTxId, walletAddress)
                         val targetIsMine = target?.isOutgoing == true
                         val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
+                        val silent = group.groupId in settings.groupSilent.first()
                         val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
-                        if (!isMuted && (targetIsMine || !mentionsOnly)) {
+                        if (!silent && !isMuted && (targetIsMine || !mentionsOnly)) {
                             // alias > KNS primary domain > roster snapshot > short address -
                             // see groupSenderLabel; decodes the reactor the same way the chat
                             // cards and thread do.
@@ -963,6 +983,7 @@ class GroupRepository @Inject constructor(
                 // Android has no remote push to gate the same way).
                 val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
                 val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
+                val silent = group.groupId in settings.groupSilent.first()
                 // "Mentions me" uses the SAME definition as the composer's @mention feature:
                 // members are mentioned by their primary KNS domain (insertMention writes
                 // "@domain"), so match the shared @token grammar against our own reverse-resolved
@@ -972,7 +993,8 @@ class GroupRepository @Inject constructor(
                 val mentionsMe = mentionsOnly &&
                     (plaintext.contains("@$walletAddress") || notificationCenter.mentionsMyDomain(plaintext))
                 val isReplyToMe = replyContent?.replyToSender == walletAddress
-                if (!isMuted && (!mentionsOnly || mentionsMe || isReplyToMe)) {
+                // Silent wins over everything else.
+                if (!silent && !isMuted && (!mentionsOnly || mentionsMe || isReplyToMe)) {
                     // alias > KNS primary domain > roster snapshot > short address - see
                     // groupSenderLabel; same chain the reaction banner and the chat cards use.
                     val senderLabel = groupSenderLabel(senderAddress, walletAddress, group)

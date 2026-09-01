@@ -134,8 +134,19 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             } catch (e: Exception) {
                                 null
                             }
-                            if (resolvedGroup != null && groupRepository.isGroupMentionsOnly(resolvedGroup.groupId)) {
-                                Log.i(TAG, "Generic group fallback suppressed: mentions-only group ${resolvedGroup.groupId.take(12)}")
+                            // When the blinded id resolves, silent and mentions-only both
+                            // suppress. When it does NOT resolve we cannot tell which group it is,
+                            // so the only honest question is whether the answer would be the same
+                            // for all of them - if every known group is silenced or mentions-only,
+                            // no group here would have allowed this banner.
+                            val suppressed = if (resolvedGroup != null) {
+                                groupRepository.isGroupSilent(resolvedGroup.groupId) ||
+                                    groupRepository.isGroupMentionsOnly(resolvedGroup.groupId)
+                            } else {
+                                groupRepository.allGroupsSuppressUnidentifiedPushes()
+                            }
+                            if (suppressed) {
+                                Log.i(TAG, "Generic group fallback suppressed by notification settings")
                             } else {
                                 notificationHelper.showGroup(
                                     // Prefer the resolved real group id/name: the tap intent

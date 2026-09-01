@@ -115,6 +115,7 @@ class AppSettingsRepository @Inject constructor(
         // Group ids with "Only Notify if I'm Mentioned" on - mirrors iOS's
         // GroupChatService.groupMentionsOnlyNotifications.
         val KEY_GROUP_MENTIONS_ONLY  = stringSetPreferencesKey("group_mentions_only")
+        val KEY_GROUP_SILENT         = stringSetPreferencesKey("group_silent")
 
         // Notifications — mirrors iOS's notificationMode/sound/vibration settings, minus
         // the remote-push mode (there's no FCM/APNs-equivalent registration wired up yet,
@@ -487,6 +488,13 @@ class AppSettingsRepository @Inject constructor(
     val groupMutedMembers: Flow<Set<String>> = dataStore.data.map { it[KEY_GROUP_MUTED_MEMBERS] ?: emptySet() }
     val groupMentionsOnly: Flow<Set<String>> = dataStore.data.map { it[KEY_GROUP_MENTIONS_ONLY] ?: emptySet() }
 
+    /**
+     * Groups muted outright - no banner ever, mentioned or not. Sits ABOVE [groupMentionsOnly]:
+     * silent wins, and it is checked before the fallback that fires when a push cannot be
+     * ingested.
+     */
+    val groupSilent: Flow<Set<String>> = dataStore.data.map { it[KEY_GROUP_SILENT] ?: emptySet() }
+
     suspend fun hideGroupMember(groupId: String, address: String) = dataStore.edit {
         it[KEY_GROUP_HIDDEN_MEMBERS] = (it[KEY_GROUP_HIDDEN_MEMBERS] ?: emptySet()) + "$groupId|$address"
     }
@@ -506,6 +514,11 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setGroupMentionsOnly(groupId: String, enabled: Boolean) = dataStore.edit {
         val current = it[KEY_GROUP_MENTIONS_ONLY] ?: emptySet()
         it[KEY_GROUP_MENTIONS_ONLY] = if (enabled) current + groupId else current - groupId
+    }
+
+    suspend fun setGroupSilent(groupId: String, enabled: Boolean) = dataStore.edit {
+        val current = it[KEY_GROUP_SILENT] ?: emptySet()
+        it[KEY_GROUP_SILENT] = if (enabled) current + groupId else current - groupId
     }
 
     val autoCreateSystemContactsEnabled: Flow<Boolean> = dataStore.data.map {
