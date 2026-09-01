@@ -55,6 +55,46 @@ object KaPostsProtocol {
 
     fun unquoteSigningString(contentId: String) = contentId
 
+    /**
+     * The on-chain record behind one post id, read straight off the transaction payload.
+     *
+     * The K indexer has no single-post lookup (`get-post?id=` is still a NEEDED item in
+     * KAPOSTS_INDEXER.md), so a post outside the feed window - which is most posts someone shares
+     * into a chat - cannot be fetched from the API at all. The chain always has it: a post IS a
+     * transaction, and its id IS the transaction id. Mirrors iOS's `ChainPost`.
+     *
+     * [message] is decoded with the exclusivity marker stripped, and may be empty: a quote with
+     * no added comment is a repost.
+     */
+    data class ChainPost(val action: String, val authorPubkey: String, val message: String)
+
+    /**
+     * Parses a decoded transaction payload, or null for anything that is not a KaPosts message -
+     * votes, follows and unquotes carry no text, and other apps' payloads share the chain.
+     *
+     * Reads the legacy `k:1:` root as well as today's `kchat:1:`, matching the indexer's own
+     * dual-read: posts written before the migration are still perfectly good posts.
+     */
+    fun parseChainPayload(payload: String): ChainPost? {
+        val root = listOf(PREFIX, "k:1:").firstOrNull { payload.startsWith(it) } ?: return null
+        // Base64 has no ":" in its alphabet and neither do pubkeys, signatures or ids, so the
+        // fields split cleanly however long the message is.
+        val fields = payload.removePrefix(root).split(":")
+        if (fields.size < 4) return null
+        val action = fields[0]
+        // post:  <pubkey>:<signature>:<b64message>:<mentions>
+        // reply: <pubkey>:<signature>:<postId>:<b64message>:<mentions>
+        // quote: <pubkey>:<signature>:<contentId>:<b64message>:<quotedAuthorPubkey>
+        val messageIndex = when (action) {
+            "post" -> 3
+            "reply", "quote" -> 4
+            else -> return null
+        }
+        if (fields.size <= messageIndex) return null
+        val decoded = decodeB64(fields[messageIndex]) ?: return null
+        return ChainPost(action, fields[1], stripMarker(decoded).trim())
+    }
+
     // Full payloads:
     fun postPayload(pubkey: String, signature: String, b64Message: String, mentionsJson: String) =
         "${PREFIX}post:$pubkey:$signature:$b64Message:$mentionsJson"

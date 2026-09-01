@@ -56,6 +56,11 @@ data class HashrateSample(
     @SerializedName("hashrate_kh") val hashrateKh: Double
 )
 
+/** Only the field the KaPost link preview needs, so an unrelated shape change cannot break it. */
+data class TransactionPayloadResponse(
+    val payload: String?
+)
+
 data class Outpoint(
     val transactionId: String,
     val index: Int
@@ -120,6 +125,19 @@ interface KaspaRestApi {
         @Path("txId") txId: String,
         @Query("inputs") inputs: Boolean = true
     ): TransactionResponse
+
+    /**
+     * Just the payload of one transaction. A separate call from [getTransaction] because that
+     * one's DTO declares inputs/outputs non-null, so it cannot be asked to skip them - and the
+     * KaPost link preview wants nothing but the payload.
+     */
+    @GET("transactions/{txId}")
+    suspend fun getTransactionPayload(
+        @Path("txId") txId: String,
+        @Query("inputs") inputs: Boolean = false,
+        @Query("outputs") outputs: Boolean = false,
+        @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "no"
+    ): TransactionPayloadResponse
 
     @GET("addresses/{address}/full-transactions")
     suspend fun getTransactions(

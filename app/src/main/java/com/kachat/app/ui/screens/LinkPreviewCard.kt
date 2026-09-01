@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +60,7 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.services.LinkPreviewData
+import com.kachat.app.services.KaPostLinkPreviewService
 import com.kachat.app.services.LinkPreviewService
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
@@ -781,10 +783,13 @@ fun openKaChatLink(ref: KaChatLinkRef) {
 }
 
 /**
- * The rich preview for an in-app KaChat link, built entirely from local data: the link's own
- * identity (KaPosts post / broadcast room) plus [snippet], which callers recover from the text the
- * link was pasted with. No request of any kind leaves the device for one of these, so there is no
- * "tap to load" gate either - a stranger's KaChat link is as safe to render as your own.
+ * The rich preview for an in-app KaChat link: the link's own identity (KaPosts post / broadcast
+ * room), and for a post the author and text themselves, resolved from the chain by
+ * [KaPostLinkPreviewService] - a shared post previews AS the post rather than as a URL.
+ *
+ * The only request that leaves the device is that one, to Kaspa's own REST API with a transaction
+ * id. The link's host is never contacted, so there is no "tap to load" gate: a stranger's KaChat
+ * link is as safe to render as your own.
  *
  * Long-press menu matches every other preview card's.
  */
@@ -803,22 +808,41 @@ fun KaChatInternalLinkCard(
     var showMenu by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
+    val postId = (ref as? KaChatLinkRef.KaPost)?.txId
+    val previews by KaPostLinkPreviewService.previews.collectAsState()
+    val post = postId?.let { previews[it] }
+    // Idempotent - the service drops a repeat call, an in-flight one and a known-bad id.
+    LaunchedEffect(postId) { postId?.let { KaPostLinkPreviewService.load(it) } }
+
     val icon = when (ref) {
         is KaChatLinkRef.KaPost -> Icons.Default.NoteAlt
         is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
     }
     val title = when (ref) {
-        is KaChatLinkRef.KaPost -> "KaPosts post"
+        is KaChatLinkRef.KaPost -> post?.authorName ?: "KaPosts post"
         is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
     }
-    val body = snippet?.takeIf { it.isNotBlank() } ?: when (ref) {
-        is KaChatLinkRef.KaPost -> "Tap to open this post in KaChat"
-        is KaChatLinkRef.BroadcastRoom -> "Tap to join this broadcast room"
-    }
+    val body = post?.snippet?.takeIf { it.isNotBlank() }
+        ?: snippet?.takeIf { it.isNotBlank() }
+        // A quote with no added comment is a repost: there is no text to show, so say what it is
+        // rather than leaving the card looking half-loaded.
+        ?: (post?.takeIf { it.action == "quote" }?.let { "Reposted a post." })
+        ?: when (ref) {
+            is KaChatLinkRef.KaPost -> "Tap to open this post in KaChat"
+            is KaChatLinkRef.BroadcastRoom -> "Tap to join this broadcast room"
+        }
     val caption = when (ref) {
-        is KaChatLinkRef.KaPost -> "KAPOSTS"
+        // A reply or a quote is still a KaPosts post, but saying which one it is explains why
+        // the text may read as half a conversation.
+        is KaChatLinkRef.KaPost -> when (post?.action) {
+            "reply" -> "KAPOSTS REPLY"
+            "quote" -> "KAPOSTS QUOTE"
+            else -> "KAPOSTS"
+        }
         is KaChatLinkRef.BroadcastRoom -> "BROADCAST ROOM"
     }
+    // The text of a real post deserves more than the placeholder's two lines.
+    val bodyMaxLines = if (post?.snippet?.isNotBlank() == true) 6 else 2
 
     Row(
         modifier = Modifier
@@ -861,7 +885,7 @@ fun KaChatInternalLinkCard(
                 body,
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
+                maxLines = bodyMaxLines,
                 overflow = TextOverflow.Ellipsis
             )
             Text(

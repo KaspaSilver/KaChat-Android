@@ -95,6 +95,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var notificationHelper: com.kachat.app.services.NotificationHelper
 
+    // Built at startup purely so its companion accessor is live: KaPost link cards render from
+    // several screens with different view models, and none of them owns this.
+    @Inject
+    lateinit var kaPostLinkPreviewService: com.kachat.app.services.KaPostLinkPreviewService
+
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
 

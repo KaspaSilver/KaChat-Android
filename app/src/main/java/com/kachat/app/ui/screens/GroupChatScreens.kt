@@ -1255,30 +1255,52 @@ private fun GroupMessageBubble(
                     // Sent bubbles are teal with black text/links for contrast - matches 1:1 chat's
                     // MessageBubble (Screens.kt) treatment of the same case.
                     val groupLinkColor = if (isSent) Color.Black else KaspaTeal
-                    val annotatedGroupBody = remember(displayContent, isSent, groupMembersForMentions, mentionDomains) {
+                    // A link back into KaChat (shared KaPosts post / broadcast-room invite) is
+                    // claimed before the generic link path, exactly as in 1:1 and broadcast
+                    // rooms: the universal-link form is an ordinary https URL, so without this a
+                    // shared post is scraped over the network instead of previewing as the post.
+                    val groupInternalLink = remember(displayContent) { KaChatLink.findFirst(displayContent) }
+                    val isEntirelyInternalLinkGroup =
+                        groupInternalLink != null && displayContent.trim() == groupInternalLink.raw
+                    // Once the link previews as a card, the raw URL under it is noise - see 1:1's
+                    // `bubbleText`. Copy keeps the full text.
+                    val groupBubbleText = remember(displayContent, groupInternalLink, isEntirelyInternalLinkGroup) {
+                        if (groupInternalLink == null || isEntirelyInternalLinkGroup) displayContent
+                        else displayContent.replace(groupInternalLink.raw, "").trim().ifEmpty { displayContent }
+                    }
+                    val annotatedGroupBody = remember(groupBubbleText, isSent, groupMembersForMentions, mentionDomains) {
                         buildAnnotatedString {
-                            append(displayContent)
+                            append(groupBubbleText)
                             // Clickable @mentions: link each member's @label run to their address (tap opens a 1:1).
                             for (member in groupMembersForMentions) {
                                 if (member.address == myAddress) continue
                                 val label = resolveMentionLabel(member.address)
                                 if (label.isBlank()) continue
                                 val token = "@$label"
-                                var idx = displayContent.indexOf(token)
+                                var idx = groupBubbleText.indexOf(token)
                                 while (idx >= 0) {
                                     addStyle(SpanStyle(color = if (isSent) Color.Black else KaspaTeal), idx, idx + token.length)
                                     addStringAnnotation("MENTION", member.address, idx, idx + token.length)
-                                    idx = displayContent.indexOf(token, idx + token.length)
+                                    idx = groupBubbleText.indexOf(token, idx + token.length)
                                 }
                             }
-                            for (match in TextLinkify.findUrls(displayContent)) {
+                            for (match in TextLinkify.findUrls(groupBubbleText)) {
                                 addStyle(SpanStyle(color = groupLinkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                             }
                         }
                     }
                     val isEntirelyLinkGroup = remember(displayContent) { TextLinkify.isEntirelyLink(displayContent) }
-                    if (isEntirelyLinkGroup) {
+                    if (isEntirelyInternalLinkGroup) {
+                        // Nothing but an in-app KaChat link: the post/invite card IS the message.
+                        KaChatInternalLinkCard(
+                            ref = groupInternalLink!!.ref,
+                            url = groupInternalLink.raw,
+                            txId = message.txId,
+                            onSelect = onSelect,
+                            onDoubleTap = { showQuickReactionBar = true }
+                        )
+                    } else if (groupInternalLink == null && isEntirelyLinkGroup) {
                         // Bare-link message: the preview card replaces the text bubble (matches the
                         // 1:1 chat / iOS). fallbackText keeps the link visible/tappable if no preview
                         // data is ever found, so the message never renders as nothing.
@@ -1326,8 +1348,19 @@ private fun GroupMessageBubble(
                                 onTextLayout = { groupTextLayoutResult = it }
                             )
                         }
-                        // Link within longer text: show the card beneath the text bubble.
-                        TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
+                        // Link within longer text: show the card beneath the text bubble. A
+                        // KaChat link wins over an external one in the same message, so a shared
+                        // post still previews natively.
+                        if (groupInternalLink != null) {
+                            KaChatInternalLinkCard(
+                                ref = groupInternalLink.ref,
+                                url = groupInternalLink.raw,
+                                txId = message.txId,
+                                snippet = KaChatLink.snippetFor(displayContent, groupInternalLink.range),
+                                onSelect = onSelect,
+                                onDoubleTap = { showQuickReactionBar = true }
+                            )
+                        } else TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
                             LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
                         }
                     }

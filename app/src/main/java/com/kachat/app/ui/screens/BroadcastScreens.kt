@@ -1175,6 +1175,14 @@ fun BroadcastChannelScreen(
                     }
                     val isEntirelyInternalLinkMessage =
                         internalLinkMatch != null && displayContent.trim() == internalLinkMatch.raw
+                    // What the text bubble draws - see 1:1's `bubbleText`, same rule: once a
+                    // KaChat link previews as a card, the raw URL under it is noise. Copy and the
+                    // full-text dialog keep using displayContent, so the link is still there to
+                    // take.
+                    val bubbleText = remember(displayContent, internalLinkMatch, isEntirelyInternalLinkMessage) {
+                        if (internalLinkMatch == null || isEntirelyInternalLinkMessage) displayContent
+                        else displayContent.replace(internalLinkMatch.raw, "").trim().ifEmpty { displayContent }
+                    }
                     val messageReactions = reactionsByTxId[message.id] ?: emptyList()
                     var showMenu by remember { mutableStateOf(false) }
                     var showQuickReactionBar by remember { mutableStateOf(false) }
@@ -1396,17 +1404,17 @@ fun BroadcastChannelScreen(
                                     // Sent bubbles are teal with black text/links for contrast —
                                     // matches 1:1/group chats' treatment of the same case.
                                     val linkColor = if (isMine) Color.Black else KaspaTeal
-                                    val annotatedBody = remember(displayContent, isMine) {
+                                    val annotatedBody = remember(bubbleText, isMine) {
                                         buildAnnotatedString {
-                                            append(displayContent)
-                                            for (match in TextLinkify.findUrls(displayContent)) {
+                                            append(bubbleText)
+                                            for (match in TextLinkify.findUrls(bubbleText)) {
                                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                                             }
                                             // kachat:// isn't a web URL, so TextLinkify never
                                             // sees it - style/annotate it here so it's tappable
                                             // inline too.
-                                            KaChatLink.findFirst(displayContent)?.let { internal ->
+                                            KaChatLink.findFirst(bubbleText)?.let { internal ->
                                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), internal.range.first, internal.range.last + 1)
                                                 addStringAnnotation("URL", internal.raw, internal.range.first, internal.range.last + 1)
                                             }
