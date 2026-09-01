@@ -844,6 +844,16 @@ fun MainShell(
                 )
             }
 
+            composable("portfolio_hashrate_chart") { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
+                }
+                PortfolioHashrateChartScreen(
+                    navController = navController,
+                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                )
+            }
+
             composable("seed_phrase") {
                 SeedPhraseScreen(
                     viewModel = walletViewModel,

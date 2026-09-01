@@ -9,6 +9,7 @@ import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.AddressImportResult
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.PortfolioRepository
+import com.kachat.app.services.KaspaNetworkStatsService
 import com.kachat.app.services.KnsService
 import com.kachat.app.services.PortfolioManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -59,8 +60,17 @@ class PortfolioViewModel @Inject constructor(
     private val repository: PortfolioRepository,
     private val settings: AppSettingsRepository,
     private val portfolioManager: PortfolioManager,
-    private val knsService: KnsService
+    private val knsService: KnsService,
+    private val networkStats: KaspaNetworkStatsService
 ) : ViewModel() {
+
+    /** Network hashrate for the portfolio card and its chart screen - see [KaspaNetworkStatsService]. */
+    val hashrateHistory = networkStats.hashrateHistory
+    val currentHashrate = networkStats.currentHashrate
+
+    fun refreshHashrate(force: Boolean = false) {
+        viewModelScope.launch { networkStats.refreshIfNeeded(force) }
+    }
 
     /** Forward KNS domain resolution for the Add Kaspa Address field — lets typing "name.kas"
      *  resolve to a Kaspa address the same way the send flows' address fields already do. */

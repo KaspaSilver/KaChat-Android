@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -95,6 +96,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -115,6 +118,7 @@ import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.PRICE_UNAVAILABLE_NOTE
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.services.formatHashrate
 import com.kachat.app.util.currencySymbolFor
 import com.kachat.app.util.formatFiatAmount
 import com.kachat.app.util.formatKasAmount
@@ -166,6 +170,9 @@ fun PortfolioScreen(
     val activePortfolioId by viewModel.activePortfolioId.collectAsState()
     val cardSummaries by viewModel.cardSummaries.collectAsState()
     val isRefreshing by viewModel.isRefreshingPortfolio.collectAsState()
+    val currentHashrate by viewModel.currentHashrate.collectAsState()
+    val hashrateHistory by viewModel.hashrateHistory.collectAsState()
+    LaunchedEffect(Unit) { viewModel.refreshHashrate() }
     // 0 = Data, 1 = Transactions. Swipeable (see HorizontalPager below) as well as tap-to-switch.
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
     val tabCoroutineScope = rememberCoroutineScope()
@@ -252,6 +259,13 @@ fun PortfolioScreen(
                         currencyCode = currencyCode,
                         onOpenPrice = { navController.navigate("portfolio_price_chart") },
                         onOpenValue = { navController.navigate("portfolio_value_chart") }
+                    )
+                    // Network hashrate, full width under the squares: it is one series with a
+                    // long history, so it reads far better wide than squeezed into a third square.
+                    NetworkHashrateCard(
+                        hashrate = currentHashrate,
+                        history = hashrateHistory,
+                        onOpen = { navController.navigate("portfolio_hashrate_chart") }
                     )
                     PortfolioTransactionsContent(
                         viewModel = viewModel,
@@ -959,15 +973,6 @@ private fun PortfolioValueChartCard(valueHistory: List<Pair<Long, Double>>, curr
     }
 }
 
-// CoinMarketCap-style "what is Kaspa" blurb, paraphrased (not copied verbatim).
-private const val KASPA_ABOUT_TEXT =
-    "Kaspa is a decentralized, open-source, proof-of-work cryptocurrency. It is built on the " +
-    "GHOSTDAG protocol - a generalization of Nakamoto consensus that, instead of discarding " +
-    "blocks created in parallel, orders them together in a blockDAG. This lets Kaspa reach very " +
-    "high block rates and near-instant transaction confirmation while keeping the security " +
-    "guarantees of proof of work. Kaspa launched in November 2021 with a fair release: no " +
-    "pre-mine, no pre-sale, and no coin allocations. Its native coin is KAS."
-
 private fun formatAxisHour(millis: Long): String = SimpleDateFormat("h a", Locale.getDefault()).format(Date(millis))
 private fun formatAxisDate(millis: Long): String = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(millis))
 
@@ -1299,17 +1304,7 @@ fun PortfolioPriceChartScreen(
 
             PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(14.dp)
-            ) {
-                Text("About Kaspa", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(Modifier.height(8.dp))
-                Text(KASPA_ABOUT_TEXT, color = LocalAppColors.current.textSecondary, fontSize = 13.sp, lineHeight = 20.sp)
-            }
+            KasConverterCard(price = currentPriceUsd, currencyCode = currencyCode)
         }
             PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
@@ -1793,5 +1788,264 @@ private fun DateTimePickerFlow(
             },
             dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
         )
+    }
+}
+
+// MARK: KAS <-> fiat converter (replaces the old "About Kaspa" blurb on the price chart screen)
+
+/**
+ * Two-way converter, seeded at 1 KAS.
+ *
+ * Only the field the user is typing in drives the other. Compose helps here - a programmatic
+ * value change does not fire `onValueChange` - but [editing] is still tracked so a price refresh
+ * or a currency switch moves the derived side rather than overwriting what was typed.
+ */
+@Composable
+private fun KasConverterCard(price: Double?, currencyCode: String) {
+    val colors = LocalAppColors.current
+    var kasText by remember { mutableStateOf("1") }
+    var fiatText by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf("kas") }
+
+    fun recompute(from: String) {
+        val rate = price?.takeIf { it > 0 } ?: return
+        if (from == "kas") {
+            val kas = parseAmount(kasText)
+            fiatText = kas?.let { String.format(Locale.US, "%.2f", it * rate) } ?: ""
+        } else {
+            val fiat = parseAmount(fiatText)
+            kasText = fiat?.let { String.format(Locale.US, "%.4f", it / rate) } ?: ""
+        }
+    }
+
+    // Seeds the first value, and keeps the derived side honest when the price or currency moves.
+    LaunchedEffect(price, currencyCode) { recompute(editing) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text("Converter", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+        OutlinedTextField(
+            value = kasText,
+            onValueChange = { kasText = it; editing = "kas"; recompute("kas") },
+            label = { Text("KAS", color = colors.textSecondary) },
+            trailingIcon = { Text("KAS", color = colors.textSecondary, fontSize = 13.sp) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = fiatText,
+            onValueChange = { fiatText = it; editing = "fiat"; recompute("fiat") },
+            label = { Text(currencyCode.uppercase(Locale.US), color = colors.textSecondary) },
+            trailingIcon = { Text(currencySymbolFor(currencyCode), color = colors.textSecondary, fontSize = 13.sp) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Text(
+            text = if (price != null) "1 KAS = ${formatUsdPrice(price, currencyCode)}" else "Waiting for a price...",
+            color = colors.textSecondary,
+            fontSize = 12.sp
+        )
+    }
+}
+
+/**
+ * Accepts either separator: a decimal keypad emits the device locale's, which is a comma in much
+ * of the world, and parsing that as an integer silently multiplied the amount.
+ */
+private fun parseAmount(text: String): Double? {
+    val normalized = text.replace(',', '.')
+    if (normalized.isBlank()) return null
+    return normalized.toDoubleOrNull()
+}
+
+// MARK: network hashrate card + chart
+
+/** A tiny line, no axes or labels - just the shape of the recent window. */
+@Composable
+private fun HashrateSparkline(points: List<Pair<Long, Double>>, modifier: Modifier = Modifier) {
+    if (points.size < 2) return
+    val minV = points.minOf { it.second }
+    val maxV = points.maxOf { it.second }
+    val range = (maxV - minV).takeIf { it > 0 } ?: 1.0
+    Canvas(modifier = modifier) {
+        val stepX = size.width / (points.size - 1)
+        val path = Path()
+        points.forEachIndexed { index, (_, value) ->
+            val x = stepX * index
+            val y = size.height * (1f - ((value - minV) / range).toFloat())
+            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path, color = KaspaTeal, style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+@Composable
+private fun NetworkHashrateCard(
+    hashrate: Double?,
+    history: List<Pair<Long, Double>>,
+    onOpen: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .clickable { onOpen() }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.Bolt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Network Hashrate", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(
+                text = hashrate?.let { formatHashrate(it) } ?: "—",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                maxLines = 1
+            )
+        }
+        // A sparkline of the recent window, so the card says which way it is going without the
+        // user having to open it.
+        if (history.size >= 2) {
+            HashrateSparkline(
+                points = history.takeLast(90),
+                modifier = Modifier.width(96.dp).height(34.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
+    }
+}
+
+/**
+ * The full hashrate history, with a range control of its own.
+ *
+ * "All" is a real option here in a way it is not for price: the series starts at effectively zero
+ * in 2021 and the whole shape of the network's growth is the interesting part.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PortfolioHashrateChartScreen(
+    navController: NavController,
+    viewModel: PortfolioViewModel = hiltViewModel()
+) {
+    val colors = LocalAppColors.current
+    val history by viewModel.hashrateHistory.collectAsState()
+    val current by viewModel.currentHashrate.collectAsState()
+    var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+    var rangeDays by remember { mutableStateOf(90) }
+
+    LaunchedEffect(Unit) { viewModel.refreshHashrate() }
+
+    val visible = remember(history, rangeDays) {
+        if (rangeDays <= 0) history
+        else {
+            val cutoff = System.currentTimeMillis() - rangeDays.toLong() * 86_400_000L
+            val windowed = history.filter { it.first >= cutoff }
+            // A short window with nothing in it would draw an empty chart; fall back rather than that.
+            if (windowed.size >= 2) windowed else history
+        }
+    }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Network Hashrate", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Bolt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Kaspa Network", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                }
+                scrubbed?.let {
+                    Text(formatDateTime(it.first), color = colors.textSecondary, fontSize = 13.sp)
+                }
+                Text(
+                    text = (scrubbed?.second ?: current)?.let { formatHashrate(it) } ?: "—",
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    maxLines = 1
+                )
+            }
+
+            if (visible.size >= 2) {
+                PortfolioBigChart(points = visible, lineColor = KaspaTeal, onScrub = { scrubbed = it })
+            } else {
+                Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
+                    Text("Loading…", color = colors.textSecondary)
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(30 to "1M", 90 to "3M", 365 to "1Y", 0 to "All").forEach { (days, label) ->
+                    val active = days == rangeDays
+                    Text(
+                        text = label,
+                        color = if (active) KaspaTeal else colors.textSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (active) KaspaTeal.copy(alpha = 0.15f) else Color.Transparent)
+                            .clickable { scrubbed = null; rangeDays = days }
+                            .padding(vertical = 8.dp)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.surface)
+                    .padding(14.dp)
+            ) {
+                Text("About Hashrate", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Hashrate is how much computing power miners are pointing at Kaspa. A higher " +
+                        "hashrate means more work securing the chain, and it moves with mining " +
+                        "profitability rather than with the price directly. Figures come from the " +
+                        "Kaspa REST API set in Connection Settings, at one sample per day.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                )
+            }
+        }
     }
 }

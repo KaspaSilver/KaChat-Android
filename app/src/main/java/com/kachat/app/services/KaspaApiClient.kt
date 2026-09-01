@@ -50,6 +50,12 @@ data class TransactionOutput(
     @SerializedName("script_public_key_address") val scriptPublicKeyAddress: String?
 )
 
+/** One row of `/info/hashrate/history`. Only the two fields the chart needs are declared. */
+data class HashrateSample(
+    val timestamp: Long,
+    @SerializedName("hashrate_kh") val hashrateKh: Double
+)
+
 data class Outpoint(
     val transactionId: String,
     val index: Int
@@ -94,6 +100,15 @@ interface KaspaRestApi {
     suspend fun getBalances(
         @Body request: BalancesRequest
     ): List<BalanceResponse>
+
+    /**
+     * Network hashrate over time. `resolution` is one of 15m/1h/3h/1d/7d; the chart uses 1d
+     * because the finer ones return tens of thousands of samples for the full chain history.
+     */
+    @GET("info/hashrate/history")
+    suspend fun getHashrateHistory(
+        @Query("resolution") resolution: String = "1d"
+    ): List<HashrateSample>
 
     @GET("addresses/{address}/utxos")
     suspend fun getUtxos(
