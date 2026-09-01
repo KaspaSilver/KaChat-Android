@@ -1811,10 +1811,10 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
         val rate = price?.takeIf { it > 0 } ?: return
         if (from == "kas") {
             val kas = parseAmount(kasText)
-            fiatText = kas?.let { String.format(Locale.US, "%.2f", it * rate) } ?: ""
+            fiatText = kas?.let { formatFullPrecision(it * rate) } ?: ""
         } else {
             val fiat = parseAmount(fiatText)
-            kasText = fiat?.let { String.format(Locale.US, "%.4f", it / rate) } ?: ""
+            kasText = fiat?.let { formatFullPrecision(it / rate) } ?: ""
         }
     }
 
@@ -1851,11 +1851,36 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
         )
 
         Text(
-            text = if (price != null) "1 KAS = ${formatUsdPrice(price, currencyCode)}" else "Waiting for a price...",
+            // Not formatUsdPrice: that rounds to 5 decimals under a dollar, which for a
+            // sub-cent coin throws away most of the rate the converter is applying.
+            text = if (price != null) {
+                "1 KAS = ${currencySymbolFor(currencyCode)}${formatFullPrecision(price)}"
+            } else {
+                "Waiting for a price..."
+            },
             color = colors.textSecondary,
             fontSize = 12.sp
         )
     }
+}
+
+/**
+ * Full precision, with the padding trimmed off.
+ *
+ * Fixed decimals do not work in either direction here: two decimals on the fiat side rounds 1 KAS
+ * to "0.05" and throws the rate away, and four on the KAS side is coarser than the eight sompi
+ * actually carries. So this writes eight decimals - Kaspa's own precision - and then drops the
+ * trailing zeros, keeping two so a whole amount still reads as money.
+ *
+ * Deliberately Locale.US: the result is written straight back into a text field the user can keep
+ * editing, and a grouping separator would make it unparseable on the way back in.
+ */
+private fun formatFullPrecision(value: Double): String {
+    var text = String.format(Locale.US, "%.8f", value)
+    while (text.endsWith("0") && text.substringAfter('.').length > 2) {
+        text = text.dropLast(1)
+    }
+    return text
 }
 
 /**
