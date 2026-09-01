@@ -26,13 +26,13 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.QrCode
@@ -206,7 +206,7 @@ fun ColdStorageListScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.Lock, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(48.dp))
+                Icon(Icons.Default.Security, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(16.dp))
                 Text(
                     stringResource(R.string.no_cold_storage_accounts_yet_scan),
@@ -233,7 +233,7 @@ fun ColdStorageListScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Lock, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Security, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(account.name, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)

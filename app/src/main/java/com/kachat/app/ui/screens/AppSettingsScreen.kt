@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,7 +68,7 @@ fun AppSettingsHubScreen(
             Column {
                 SettingsNavigationItem(stringResource(R.string.customization), Icons.Default.Palette, onClick = onOpenCustomization)
                 HorizontalDivider(color = LocalAppColors.current.divider)
-                SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Shield, onClick = onOpenSecurity)
+                SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Security, onClick = onOpenSecurity)
                 HorizontalDivider(color = LocalAppColors.current.divider)
                 SettingsNavigationItem(stringResource(R.string.connection), Icons.Default.Language, onClick = onOpenConnection)
                 HorizontalDivider(color = LocalAppColors.current.divider)

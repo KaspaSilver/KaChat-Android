@@ -17,8 +17,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
@@ -86,7 +86,7 @@ fun DockWizardDialog(onDismiss: () -> Unit) {
                     0 -> WizardPage(
                         title = "Meet KaPosts",
                         body = "A social feed built on Kaspa - post, follow, and discover, fully on-chain. It lives in your dock now.",
-                    ) { StaticIconDemo(Icons.Default.EditNote) }
+                    ) { StaticIconDemo(Icons.Default.NoteAlt) }
                     1 -> WizardPage(
                         title = "Tap Chats to cycle",
                         body = "When your dock is full, tapping the Chats tab cycles through Chats, KaPosts and Broadcasts.",
@@ -178,7 +178,7 @@ private fun StaticIconDemo(icon: ImageVector) {
 /** The Chats slot morphing through its cycle: chats -> kaposts -> broadcasts, with a tap pulse. */
 @Composable
 private fun CycleDemo() {
-    val icons = listOf(Icons.Default.Forum, Icons.Default.EditNote, Icons.Default.Sensors)
+    val icons = listOf(Icons.Default.Forum, Icons.Default.NoteAlt, Icons.Default.Sensors)
     var index by remember { mutableIntStateOf(0) }
     var pulsing by remember { androidx.compose.runtime.mutableStateOf(false) }
     val scale by animateFloatAsState(if (pulsing) 0.82f else 1f, tween(180), label = "pulse")
@@ -207,7 +207,7 @@ private fun CycleDemo() {
 @Composable
 private fun HoldSlideDemo() {
     val colors = LocalAppColors.current
-    val icons = listOf(Icons.Default.Forum, Icons.Default.EditNote, Icons.Default.Sensors)
+    val icons = listOf(Icons.Default.Forum, Icons.Default.NoteAlt, Icons.Default.Sensors)
     var highlight by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {

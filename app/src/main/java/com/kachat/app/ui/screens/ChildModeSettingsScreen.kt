@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -257,7 +258,7 @@ fun ChildModeSettingsScreen(
                 SettingsDivider()
                 ChildModeFeatureRow(Icons.Default.PieChart, stringResource(R.string.portfolio))
                 SettingsDivider()
-                ChildModeFeatureRow(Icons.Default.Lock, stringResource(R.string.cold_storage))
+                ChildModeFeatureRow(Icons.Default.Security, stringResource(R.string.cold_storage))
                 SettingsFooter(stringResource(R.string.child_mode_about_footer))
             }
             Spacer(Modifier.height(24.dp))

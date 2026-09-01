@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -171,7 +171,7 @@ private fun HubGrid(
             item(key = "kaspa_websites") {
                 HubTile(
                     label = "Kaspa Websites",
-                    icon = Icons.Default.Hub,
+                    icon = Icons.Default.Public,
                     colors = colors,
                     onClick = onOpenWebsites
                 )

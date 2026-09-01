@@ -15,11 +15,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.BubbleChart
+import androidx.compose.material.icons.filled.NoteAlt
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -72,12 +72,12 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     // Labeled "Storage" (not "Cold Storage") and always in the default tab set, matching iOS's
     // AppTab.coldStorage — hideable like Portfolio/Swap via Settings > Customization > Menu, but
     // no longer a separate opt-in reached through Portfolio's old "Cold Storage Devices" row.
-    object ColdStorage : Screen("cold_storage", "Storage",      Icons.Default.Lock)
-    object KaPosts     : Screen("kaposts",      "KaPosts",      Icons.Default.EditNote)
+    object ColdStorage : Screen("cold_storage", "Storage",      Icons.Default.Security)
+    object KaPosts     : Screen("kaposts",      "KaPosts",      Icons.Default.NoteAlt)
     object Broadcasts  : Screen("broadcasts",   "Broadcasts",   Icons.Default.Sensors)
     // Holds whatever of the above is turned on but not in the dock - see [kaspaHubSections].
     // Route stays "kaspa_hub" once shipped: it is persisted in saved dock arrangements.
-    object KaspaHub    : Screen("kaspa_hub",    "Kaspa Hub",    Icons.Default.Hub)
+    object KaspaHub    : Screen("kaspa_hub",    "Kaspa Hub",    Icons.Default.BubbleChart)
     // The old "+ More" pseudo-tab (opened Customize Dock from the dock itself) is gone —
     // Customize Dock is reached via Settings > Customization instead. The dock still caps at
     // MAX_DOCK_ITEMS, with over-cap KaPosts/Broadcasts riding the Chats-slot cycle.

@@ -7601,7 +7601,7 @@ fun SettingsScreen(
                     Column {
                     SettingsNavigationItem(stringResource(R.string.customization), Icons.Default.Palette, onClick = { navController.navigate("settings_section/customization") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Shield, onClick = { navController.navigate("settings_section/security") })
+                    SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Security, onClick = { navController.navigate("settings_section/security") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.connection), Icons.Default.Language, onClick = { navController.navigate("settings_section/connection") })
                     HorizontalDivider(color = LocalAppColors.current.divider)

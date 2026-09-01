@@ -20,9 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
@@ -804,7 +804,7 @@ fun KaChatInternalLinkCard(
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     val icon = when (ref) {
-        is KaChatLinkRef.KaPost -> Icons.Default.EditNote
+        is KaChatLinkRef.KaPost -> Icons.Default.NoteAlt
         is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
     }
     val title = when (ref) {
