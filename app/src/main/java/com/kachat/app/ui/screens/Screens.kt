@@ -5537,6 +5537,9 @@ fun SpendingAddressTxHistoryScreen(
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val biometricSpendingKeyEnabled by viewModel.biometricSpendingKeyEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
+    var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
+    var addedPortfolioName by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -5741,7 +5744,8 @@ fun SpendingAddressTxHistoryScreen(
                             items(txHistory, key = { it.txId }) { tx ->
                                 SpendingAddressTxHistoryRow(
                                     tx = tx,
-                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) }
+                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) },
+                                    onAddToPortfolio = { portfolioCandidate = tx }
                                 )
                             }
                         }
@@ -5887,6 +5891,19 @@ fun SpendingAddressTxHistoryScreen(
             }
         )
     }
+
+    portfolioCandidate?.let { candidate ->
+        AddToPortfolioSheet(
+            tx = candidate,
+            address = address,
+            viewModel = portfolioViewModel,
+            onDismiss = { portfolioCandidate = null },
+            onAdded = { addedPortfolioName = it },
+        )
+    }
+    addedPortfolioName?.let { name ->
+        PortfolioAddedSnackbar(name) { addedPortfolioName = null }
+    }
 }
 
 /**
@@ -5915,6 +5932,9 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     // uses, not the lower-stakes biometricSpendingKeyEnabled a derived spending address uses.
     val biometricSeedPhraseEnabled by viewModel.biometricSeedPhraseEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
+    var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
+    var addedPortfolioName by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -6084,7 +6104,8 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                             items(txHistory, key = { it.txId }) { tx ->
                                 SpendingAddressTxHistoryRow(
                                     tx = tx,
-                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) }
+                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) },
+                                    onAddToPortfolio = { portfolioCandidate = tx }
                                 )
                             }
                         }
@@ -6205,6 +6226,19 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                 }
             }
         )
+    }
+
+    portfolioCandidate?.let { candidate ->
+        AddToPortfolioSheet(
+            tx = candidate,
+            address = address.orEmpty(),
+            viewModel = portfolioViewModel,
+            onDismiss = { portfolioCandidate = null },
+            onAdded = { addedPortfolioName = it },
+        )
+    }
+    addedPortfolioName?.let { name ->
+        PortfolioAddedSnackbar(name) { addedPortfolioName = null }
     }
 }
 
@@ -6338,7 +6372,12 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
 }
 
 @Composable
-private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction, onClick: () -> Unit) {
+private fun SpendingAddressTxHistoryRow(
+    tx: ColdStorageAddressDiscovery.AddressTransaction,
+    onClick: () -> Unit,
+    /** Shown as a trailing button when the row can be filed into a portfolio. */
+    onAddToPortfolio: (() -> Unit)? = null,
+) {
     val kas = tx.amountSompi / 100_000_000.0
     val dateStr = tx.blockTimeMillis?.let {
         java.text.SimpleDateFormat("MMM d, yyyy, h:mm a", java.util.Locale.US).format(java.util.Date(it))
@@ -6387,6 +6426,17 @@ private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressT
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
         )
+        if (onAddToPortfolio != null) {
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onAddToPortfolio, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.PieChart,
+                    contentDescription = "Add to Portfolio",
+                    tint = KaspaTeal,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }
 

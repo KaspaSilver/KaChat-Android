@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Circle
@@ -2012,7 +2013,12 @@ fun CoinControlScreen(
 /** On-chain transaction history for one Cold Storage address — reached by tapping an address row in [ColdStorageDetailScreen]. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ColdStorageTxHistoryScreen(address: String, onBack: () -> Unit, viewModel: ColdStorageViewModel = hiltViewModel()) {
+fun ColdStorageTxHistoryScreen(
+    address: String,
+    onBack: () -> Unit,
+    viewModel: ColdStorageViewModel = hiltViewModel(),
+    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+) {
     val txHistory by viewModel.txHistory.collectAsState()
     val isLoading by viewModel.isLoadingTxHistory.collectAsState()
     val utxos by viewModel.utxos.collectAsState()
@@ -2020,6 +2026,9 @@ fun ColdStorageTxHistoryScreen(address: String, onBack: () -> Unit, viewModel: C
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val addresses by viewModel.addresses.collectAsState()
     val uriHandler = LocalUriHandler.current
+    // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
+    var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
+    var addedPortfolioName by remember { mutableStateOf<String?>(null) }
 
     // Looked up from the already-loaded address list (shared with the account detail screen)
     // rather than a new route param — avoids widening the nav route just for a display name.
@@ -2216,7 +2225,8 @@ fun ColdStorageTxHistoryScreen(address: String, onBack: () -> Unit, viewModel: C
                             items(txHistory, key = { it.txId }) { tx ->
                                 ColdTxHistoryRow(
                                     tx = tx,
-                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) }
+                                    onClick = { uriHandler.openUri(kaspaExplorer.txUrl(tx.txId)) },
+                                    onAddToPortfolio = { portfolioCandidate = tx }
                                 )
                             }
                         }
@@ -2327,6 +2337,19 @@ fun ColdStorageTxHistoryScreen(address: String, onBack: () -> Unit, viewModel: C
     if (showQr) {
         QrCodeOverlay(value = address, onDismiss = { showQr = false })
     }
+
+    portfolioCandidate?.let { candidate ->
+        AddToPortfolioSheet(
+            tx = candidate,
+            address = address,
+            viewModel = portfolioViewModel,
+            onDismiss = { portfolioCandidate = null },
+            onAdded = { addedPortfolioName = it },
+        )
+    }
+    addedPortfolioName?.let { name ->
+        PortfolioAddedSnackbar(name) { addedPortfolioName = null }
+    }
 }
 
 @Composable
@@ -2377,7 +2400,12 @@ private fun ColdUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo, label: St
 }
 
 @Composable
-private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction, onClick: () -> Unit) {
+private fun ColdTxHistoryRow(
+    tx: ColdStorageAddressDiscovery.AddressTransaction,
+    onClick: () -> Unit,
+    /** Shown as a trailing button when the row can be filed into a portfolio. */
+    onAddToPortfolio: (() -> Unit)? = null,
+) {
     val kas = tx.amountSompi / 100_000_000.0
     val dateStr = tx.blockTimeMillis?.let {
         SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(it))
@@ -2426,5 +2454,16 @@ private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
         )
+        if (onAddToPortfolio != null) {
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onAddToPortfolio, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.PieChart,
+                    contentDescription = "Add to Portfolio",
+                    tint = KaspaTeal,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }

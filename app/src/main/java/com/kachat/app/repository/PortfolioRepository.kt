@@ -88,18 +88,35 @@ class PortfolioRepository @Inject constructor(
 
     private suspend fun currentPortfolioId(): String? = portfolioManager.activePortfolioIdFlow.first()
 
-    suspend fun addTransaction(type: String, amountSompi: Long, fiatValue: Double, timestampMillis: Long = System.currentTimeMillis(), notes: String? = null) {
-        val portfolioId = currentPortfolioId() ?: return
+    /**
+     * [portfolioId] targets a specific ledger rather than whichever is active - "Add to
+     * Portfolio" from an address history lets the user pick. [sourceAddress]/[sourceTxId] are set
+     * when the row came from a real on-chain transaction, so a later add of the same transaction
+     * is recognised instead of silently double-counting it.
+     */
+    suspend fun addTransaction(
+        type: String,
+        amountSompi: Long,
+        fiatValue: Double,
+        timestampMillis: Long = System.currentTimeMillis(),
+        notes: String? = null,
+        portfolioId: String? = null,
+        sourceAddress: String? = null,
+        sourceTxId: String? = null,
+    ) {
+        val targetPortfolioId = portfolioId ?: currentPortfolioId() ?: return
         database.portfolioDao().insert(
             PortfolioTransactionEntity(
                 id = UUID.randomUUID().toString(),
                 walletAddress = walletManager.getAddress(),
-                portfolioId = portfolioId,
+                portfolioId = targetPortfolioId,
                 type = type,
                 amountSompi = amountSompi,
                 fiatValue = fiatValue,
                 timestampMillis = timestampMillis,
-                notes = notes
+                notes = notes,
+                sourceAddress = sourceAddress,
+                sourceTxId = sourceTxId,
             )
         )
     }

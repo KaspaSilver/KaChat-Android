@@ -375,11 +375,35 @@ class PortfolioViewModel @Inject constructor(
         }
     }
 
-    fun addTransaction(type: String, amountKas: Double, fiatValue: Double, timestampMillis: Long = System.currentTimeMillis(), notes: String? = null) {
+    fun addTransaction(
+        type: String,
+        amountKas: Double,
+        fiatValue: Double,
+        timestampMillis: Long = System.currentTimeMillis(),
+        notes: String? = null,
+        portfolioId: String? = null,
+        sourceAddress: String? = null,
+        sourceTxId: String? = null,
+    ) {
         viewModelScope.launch {
-            repository.addTransaction(type, (amountKas * 100_000_000).toLong(), fiatValue, timestampMillis, notes)
+            repository.addTransaction(
+                type, (amountKas * 100_000_000).toLong(), fiatValue, timestampMillis, notes,
+                portfolioId = portfolioId, sourceAddress = sourceAddress, sourceTxId = sourceTxId,
+            )
         }
     }
+
+    /** True when this on-chain transaction is already recorded in [portfolioId]. */
+    fun isTransactionInPortfolio(txId: String, portfolioId: String): Boolean =
+        transactions.value.any { it.portfolioId == portfolioId && it.sourceTxId == txId }
+
+    /**
+     * The KAS price on a given day, for prefilling "Add to Portfolio". Today's price on a
+     * transaction from last year would quietly misstate every figure the portfolio derives from
+     * it, so the sheet asks for the price ON THAT DAY.
+     */
+    suspend fun historicalPrice(timestampMillis: Long): Double? =
+        repository.getHistoricalPrice(timestampMillis, currency.value)
 
     fun updateTransaction(id: String, type: String, amountKas: Double, fiatValue: Double, timestampMillis: Long, notes: String? = null) {
         viewModelScope.launch {
