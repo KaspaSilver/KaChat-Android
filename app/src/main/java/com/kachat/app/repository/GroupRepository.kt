@@ -353,7 +353,7 @@ class GroupRepository @Inject constructor(
      */
     private fun groupRootEpochFor(epoch: Long, bag: GroupBag, groupIdBytes: ByteArray): ByteArray? {
         if (epoch == bag.currentEpoch) return bag.groupRootEpoch.hexToByteArray()
-        bag.previousRoots[epoch]?.let { return it.hexToByteArray() }
+        bag.previousRoots?.get(epoch)?.let { return it.hexToByteArray() }
         val seedHex = bag.groupSeed ?: return null
         return GroupCipher.deriveGroupRootEpoch(seedHex.hexToByteArray(), groupIdBytes, epoch)
     }
@@ -554,7 +554,7 @@ class GroupRepository @Inject constructor(
         val newBag = bag.copy(
             currentEpoch = newEpoch,
             groupRootEpoch = newRoot.toHexString(),
-            previousRoots = bag.previousRoots + (bag.currentEpoch to bag.groupRootEpoch),
+            previousRoots = bag.previousRoots.orEmpty() + (bag.currentEpoch to bag.groupRootEpoch),
         )
         groupSecretStore.saveBag(walletAddress, newBag)
 
@@ -1124,16 +1124,16 @@ class GroupRepository @Inject constructor(
         // undecryptable and the thread rendered empty from that moment on.
         val carriedRoots = existingBag?.let { previous ->
             if (previous.currentEpoch != payload.epoch && previous.groupRootEpoch.isNotBlank()) {
-                previous.previousRoots + (previous.currentEpoch to previous.groupRootEpoch)
+                previous.previousRoots.orEmpty() + (previous.currentEpoch to previous.groupRootEpoch)
             } else {
-                previous.previousRoots
+                previous.previousRoots.orEmpty()
             }
         } ?: emptyMap()
         val bag = GroupBag(
             groupId = payload.groupId, groupSeed = recoveredSeedHex ?: existingBag?.groupSeed, groupRootEpoch = payload.groupRootEpoch,
             blindingKey = payload.blindingKey, currentEpoch = payload.epoch, deviceId = deviceId, msgCounter = preservedCounter,
             selfInviteEpoch = if (recoveredSeedHex != null) payload.epoch else existingBag?.selfInviteEpoch,
-            previousRoots = carriedRoots,
+            previousRoots = carriedRoots.ifEmpty { null },
         )
         groupSecretStore.saveBag(walletAddress, bag)
 

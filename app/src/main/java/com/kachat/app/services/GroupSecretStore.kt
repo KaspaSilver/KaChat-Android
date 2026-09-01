@@ -31,8 +31,15 @@ data class GroupBag(
      * root needs [groupSeed], which only the admin has - so on every other device an epoch
      * rotation made every earlier message undecryptable and the thread rendered as empty. The
      * ciphertext was never lost; the key to read it was being thrown away.
+     *
+     * NULLABLE on purpose. These bags are stored with Gson, which allocates Kotlin data classes
+     * through Unsafe rather than their constructor, so a default value never runs for a field
+     * missing from stored JSON - every bag written before this build would hand back a null map
+     * under a non-null type, and the first read would throw. Declaring it nullable makes that
+     * absence the ordinary case it actually is. (iOS hit the same class of bug from the other
+     * direction: a non-optional Codable field with a default still throws `keyNotFound`.)
      */
-    val previousRoots: Map<Long, String> = emptyMap()
+    val previousRoots: Map<Long, String>? = null
 )
 
 /**
