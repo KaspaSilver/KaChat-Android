@@ -517,10 +517,18 @@ fun SwapScreen(
             title = { Text(stringResource(R.string.add_to_portfolio), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
+                    // Portfolios that already hold this swap say so on their own row, so the
+                    // duplicate is visible while the choice is being made rather than after.
+                    val duplicateIds = selectedSwap?.let {
+                        portfolioViewModel.portfolioIdsContaining(
+                            com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(it.id)
+                        )
+                    } ?: emptySet()
                     allPortfolios.forEach { portfolio ->
+                        val isDuplicate = portfolio.id in duplicateIds
                         Text(
-                            portfolio.name,
-                            color = KaspaTeal,
+                            if (isDuplicate) "${portfolio.name} (already added)" else portfolio.name,
+                            color = if (isDuplicate) LocalAppColors.current.textSecondary else KaspaTeal,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier
                                 .fillMaxWidth()

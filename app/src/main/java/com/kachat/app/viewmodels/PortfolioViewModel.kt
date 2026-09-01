@@ -395,7 +395,18 @@ class PortfolioViewModel @Inject constructor(
 
     /** True when this on-chain transaction is already recorded in [portfolioId]. */
     fun isTransactionInPortfolio(txId: String, portfolioId: String): Boolean =
-        transactions.value.any { it.portfolioId == portfolioId && it.sourceTxId == txId }
+        portfolioIdsContaining(txId).contains(portfolioId)
+
+    /**
+     * Which portfolios already hold a row for this source.
+     *
+     * One question asked by every "Add to Portfolio" path - the address histories and ChangeNOW
+     * swaps - so a duplicate reads the same wherever it is about to happen.
+     */
+    fun portfolioIdsContaining(sourceTxId: String): Set<String> =
+        if (sourceTxId.isEmpty()) emptySet()
+        else transactions.value.filter { it.sourceTxId == sourceTxId }.map { it.portfolioId }.toSet()
+
 
     /**
      * The KAS price on a given day, for prefilling "Add to Portfolio". Today's price on a
@@ -464,6 +475,12 @@ class PortfolioViewModel @Inject constructor(
     }
 
     companion object {
+        /**
+         * The key a ChangeNOW swap is recorded under. Namespaced so it can never collide with a
+         * Kaspa txid.
+         */
+        fun swapSourceTxId(swapId: String) = "changenow:$swapId"
+
         /** First deferred-retry wait for a plain (non-throttled) failure — offline, DNS, 5xx with no Retry-After. */
         private const val INITIAL_RETRY_BACKOFF_MILLIS = 15_000L
 

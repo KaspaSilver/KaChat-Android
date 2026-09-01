@@ -523,7 +523,13 @@ private fun PortfolioTransactionsContent(
                 if (existing != null) {
                     viewModel.updateTransaction(existing.id, type, amountKas, fiatValue, timestampMillis, notes)
                 } else {
-                    viewModel.addTransaction(type, amountKas, fiatValue, timestampMillis, notes)
+                    // A swap carries its own source key, so adding the same one again is
+                    // recognised. Without it swaps had no provenance at all and the ledger had
+                    // nothing to count them by.
+                    viewModel.addTransaction(
+                        type, amountKas, fiatValue, timestampMillis, notes,
+                        sourceTxId = swapIdForThisDialog?.let { PortfolioViewModel.swapSourceTxId(it) },
+                    )
                     swapIdForThisDialog?.let { swapViewModel.markSwapAddedToPortfolio(it) }
                 }
                 showAddDialog = false
