@@ -3,16 +3,15 @@ package com.kachat.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +38,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -243,20 +243,38 @@ private fun ReorderableList(
 
     Column {
         shown.forEachIndexed { index, screen ->
+            // Keyed by route, which is what keeps a drag alive across a swap.
+            //
+            // Compose memoizes by call-site POSITION, so without this the row at index 2 becomes a
+            // different Screen the moment the order changes: its pointerInput gets new keys, the
+            // gesture restarts, and the drag dies mid-swipe. That reads as the drag stuttering or
+            // dropping the row, not as the reorder it actually is.
+            key(screen.route) {
             val isDragging = draggingRoute == screen.route
-            // Cancels how far this row's slot has moved since the drag began, so it tracks the
-            // finger rather than jumping a slot each time it swaps.
-            val carry = if (isDragging) dragOffsetY - (index - dragStartIndex) * rowHeightPx else 0f
             PlacementRow(
                 screen = screen,
                 pinned = screen.route in PINNED_DOCK_ROUTES,
                 actionLabel = actionLabel,
                 actionEnabled = actionEnabled(),
                 isDragging = isDragging,
-                offsetY = carry,
+                // A LAMBDA, read in the draw phase - not a value read here during composition.
+                // Reading dragOffsetY at composition meant every pixel of finger movement
+                // recomposed this whole list and rebuilt every row's modifier chain, which is
+                // what made the drag stutter. Read from inside graphicsLayer it only invalidates
+                // drawing, so a moving finger costs one redraw of one row.
+                //
+                // The subtraction cancels how far this row's slot has moved since the drag began,
+                // so it tracks the finger rather than jumping a slot each time it swaps.
+                offsetProvider = {
+                    if (isDragging) dragOffsetY - (index - dragStartIndex) * rowHeightPx else 0f
+                },
                 onAction = { onAction(screen) },
                 colors = colors,
-                dragModifier = Modifier.pointerInput(screen.route, items) {
+                // Keyed on the ROUTE alone. `items` is recomputed on every recomposition of the
+                // screen, so including it restarted the gesture detector for reasons that have
+                // nothing to do with this row. The handler reads the current order from state
+                // when it runs, so it is never working from a stale list.
+                dragModifier = Modifier.pointerInput(screen.route) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
                             val order = preview ?: items
@@ -297,6 +315,7 @@ private fun ReorderableList(
                     )
                 }
             )
+            }
         }
     }
 }
@@ -308,7 +327,7 @@ private fun PlacementRow(
     actionLabel: String,
     actionEnabled: Boolean,
     isDragging: Boolean,
-    offsetY: Float,
+    offsetProvider: () -> Float,
     onAction: () -> Unit,
     colors: com.kachat.app.ui.theme.AppColors,
     dragModifier: Modifier,
@@ -318,7 +337,9 @@ private fun PlacementRow(
             .fillMaxWidth()
             .height(ROW_HEIGHT)
             .zIndex(if (isDragging) 1f else 0f)
-            .offset { IntOffset(0, offsetY.roundToInt()) }
+            // graphicsLayer, not offset: a translation change here is a DRAW-phase invalidation,
+            // where an offset would re-run layout for the whole column on every frame.
+            .graphicsLayer { translationY = offsetProvider() }
             .background(if (isDragging) colors.surface else Color.Transparent)
             .then(dragModifier)
             .padding(horizontal = 16.dp),
