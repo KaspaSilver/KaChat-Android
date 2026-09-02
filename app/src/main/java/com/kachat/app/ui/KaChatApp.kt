@@ -1047,15 +1047,16 @@ fun MainShell(
                 "manage_addresses_pick/{target}",
                 arguments = listOf(navArgument("target") { type = NavType.StringType })
             ) { backStackEntry ->
-                val target = backStackEntry.arguments?.getString("target") ?: "from"
-                ManageAddressesScreen(
+                // Swap only ever sends the user here to pick where received KAS should land
+                // (target == "to") - the old "pick which address to auto-send KAS from" flow
+                // (target == "from") went with Swap's auto-send. It used to open Manage
+                // Addresses, a MANAGEMENT screen: rename, hide, QR, consolidate, activate, none
+                // of which is the question being asked, and one wrong tap there changes your
+                // primary address. Matches iOS's Choose Address now.
+                SwapAddressPickerScreen(
                     viewModel = walletViewModel,
                     onBack = { navController.popBackStack() },
-                    onNavigateToHidden = { navController.navigate("manage_addresses_hidden_pick/$target") },
                     onAddressPicked = { entry ->
-                        // Swap only ever sends the user here to pick where received KAS should
-                        // land (target == "to") - the old "pick which address to auto-send KAS
-                        // from" flow (target == "from") was removed along with Swap's auto-send.
                         val swapEntry = navController.getBackStackEntry(Screen.Swap.route)
                         swapEntry.savedStateHandle.set("picked_to_index", entry.index)
                         navController.popBackStack(Screen.Swap.route, false)

@@ -2143,7 +2143,11 @@ fun ColdStorageTxHistoryScreen(
                 }
                 Button(
                     onClick = { showSendFlow = true },
-                    enabled = (addressRow?.balanceSompi ?: 0L) > 0L,
+                    // The live UTXO sum, not the account row's cached balance. The row is null
+                    // whenever the account's address list is not loaded in this ViewModel, which
+                    // left Send greyed out on an address plainly holding coins - the same cause
+                    // as the 0.00000000 KAS the balance used to print above a UTXOs (1) tab.
+                    enabled = addressBalanceSompi > 0L,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
