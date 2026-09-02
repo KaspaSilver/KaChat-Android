@@ -1503,6 +1503,10 @@ private fun GroupMessageBubble(
             reactions = reactions,
             isMe = { it == myAddress },
             nameFor = { resolveMentionName(it) },
+            // This bubble only carries its own sender's avatar, so that is the one it can
+            // answer for; everyone else falls back to initials until the roster is threaded
+            // through here.
+            avatarFor = { if (it == message.senderAddress) avatarUrl else if (it == myAddress) myAvatarUrl else null },
             onDismiss = { showReactions = false },
         )
     }

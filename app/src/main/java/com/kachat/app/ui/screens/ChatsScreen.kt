@@ -212,6 +212,8 @@ fun ChatsScreen(
     // list appears — matches iOS's fetchKNSDomainsForAllContacts.
     LaunchedEffect(Unit) {
         chatViewModel.refreshKnsNamesForAllContacts()
+        // And their avatars, which nothing else fills in for a chat you have not opened.
+        chatViewModel.refreshKnsAvatarsForAllContacts()
     }
 
     // Auto-link/autocreate system contacts, same trigger point — matches iOS's

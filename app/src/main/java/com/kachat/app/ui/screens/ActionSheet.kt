@@ -258,6 +258,9 @@ fun ChatReactionsSheet(
     isMe: (String) -> Boolean,
     nameFor: (String) -> String,
     onDismiss: () -> Unit,
+    /** KNS avatar for a reactor, when one is cached. A face is how you recognise someone in a
+     *  list of names you may not have saved. */
+    avatarFor: (String) -> String? = { null },
 ) {
     val colors = LocalAppColors.current
     // Grouped by emoji, most-reacted first, so "12 people" reads before the individual names.
@@ -288,14 +291,23 @@ fun ChatReactionsSheet(
                     )
                 }
                 rows.forEach { row ->
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        if (isMe(row.reactorAddress)) "You" else nameFor(row.reactorAddress),
-                        color = colors.textPrimary,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Spacer(Modifier.height(8.dp))
+                    val label = if (isMe(row.reactorAddress)) "You" else nameFor(row.reactorAddress)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ContactAvatar(
+                            imageUrl = avatarFor(row.reactorAddress),
+                            fallbackText = label,
+                            size = 28.dp,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            label,
+                            color = colors.textPrimary,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }

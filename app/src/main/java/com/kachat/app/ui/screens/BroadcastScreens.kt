@@ -1446,7 +1446,7 @@ fun BroadcastChannelScreen(
                                 }
 
                                 if (showReactions) {
-                                    BroadcastReactionsSheet(
+                                    ChatReactionsSheet(
                                         reactions = messageReactions,
                                         nameFor = { addr ->
                                             contactAliases[addr]
@@ -1454,6 +1454,9 @@ fun BroadcastChannelScreen(
                                                 ?: addr.takeLast(10)
                                         },
                                         isMe = { it == myAddress },
+                                        // Rooms already fetch every sender's KNS profile for the
+                                        // bubbles, so the faces are in hand.
+                                        avatarFor = { senderProfiles[it] },
                                         onDismiss = { showReactions = false },
                                     )
                                 }
@@ -1674,60 +1677,3 @@ fun BroadcastChannelScreen(
     }
 }
 
-
-/**
- * Who reacted to one broadcast message, and with what.
- *
- * The pill on a bubble shows which emoji are on it and nothing else - not how many of each, and
- * not from whom. In a room open to anyone, that second question is the interesting one, so a
- * long press on a message carrying reactions offers this.
- */
-@Composable
-private fun BroadcastReactionsSheet(
-    reactions: List<com.kachat.app.models.ReactionEntity>,
-    nameFor: (String) -> String,
-    isMe: (String) -> Boolean,
-    onDismiss: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    // Grouped by emoji, most-reacted first, so "12 x fire" reads before the individual names.
-    val grouped = remember(reactions) {
-        reactions.groupBy { it.emoji }.entries.sortedByDescending { it.value.size }
-    }
-    ActionSheetContainer(
-        title = "Reactions",
-        subtitle = if (reactions.size == 1) "1 reaction" else "${reactions.size} reactions",
-        onDismiss = onDismiss,
-    ) {
-        grouped.forEach { (emoji, rows) ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.surface)
-                    .padding(14.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(emoji, fontSize = 20.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        if (rows.size == 1) "1 person" else "${rows.size} people",
-                        color = colors.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                rows.forEach { row ->
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        if (isMe(row.reactorAddress)) "You" else nameFor(row.reactorAddress),
-                        color = colors.textPrimary,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
-}

@@ -377,10 +377,14 @@ fun ChatThreadScreen(
         modifier = Modifier.imePadding(),
         containerColor = LocalAppColors.current.background,
         topBar = {
+            // The header and the bar occupy the SAME row: the Box takes the taller child's
+            // height, so the back button and the connection dot sit at the top of it and the
+            // avatar rides level with them. The bar's own title slot has a fixed height and
+            // would clip an avatar this size, which is what it was doing before.
+            Box(modifier = Modifier.fillMaxWidth()) {
             CenterAlignedTopAppBar(
-                // Empty: the header is a large avatar over a name capsule, which is far taller
-                // than a top app bar's title slot gives - putting it here is what drew the
-                // avatar clipped. It renders below the bar instead, see ChatHeaderCard.
+                // Empty: the header rides in the SAME row (see the Box above), so the bar itself
+                // only carries the back button, the connection dot and the trailing actions.
                 title = {},
                 navigationIcon = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -429,6 +433,16 @@ fun ChatThreadScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
+            ChatHeaderCard(
+                imageUrl = conversation?.contact?.knsAvatarUrl,
+                photoUri = conversation?.contact?.systemContactPhotoUri,
+                fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
+                name = conversation?.contact?.displayName
+                    ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                onClick = { navController.navigate("chat_info/$contactId") },
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+            }
         },
         bottomBar = {
             // navigationBarsPadding() keeps the mic/send row clear of the system nav bar
@@ -442,7 +456,11 @@ fun ChatThreadScreen(
                 // Above everything else in the composer stack (including payment mode's fee /
                 // available pills) so it never collides with them, and visible the instant the
                 // chat opens rather than only once the user starts typing.
-                if (ChatViewModel.shouldShowUnnotifiedWarning(messages)) {
+                // Never for a chat with yourself: a handshake is a request to open an
+                // encrypted conversation WITH SOMEONE, and there is nobody on the other side of
+                // your own chatting address to accept it. Reachable after importing the same
+                // wallet on a second device, where your own address is among the contacts.
+                if (ChatViewModel.shouldShowUnnotifiedWarning(messages) && contactId != myAddress) {
                     // Same guard the composer menu's "Send Handshake" row uses — once the
                     // handshake is complete there's nothing left to ping, so the action drops
                     // away while the banner itself stays until the chat is actually reciprocated.
@@ -957,7 +975,9 @@ fun ChatThreadScreen(
                                             showComposerMenu = false
                                             showChessTimeControlMenu = true
                                         }
+                                        // Not offered to yourself - see the banner guard above.
                                         if (conversation?.contact?.handshakeComplete != true &&
+                                            contactId != myAddress &&
                                             !ChatViewModel.hasUnansweredOutgoingHandshake(messages)
                                         ) {
                                             ActionSheetRow(
@@ -1156,20 +1176,10 @@ fun ChatThreadScreen(
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-        // Below the app bar rather than in it: a large avatar over a name capsule is far taller
-        // than a title slot is given, which is what drew the avatar clipped.
-        ChatHeaderCard(
-            imageUrl = conversation?.contact?.knsAvatarUrl,
-            photoUri = conversation?.contact?.systemContactPhotoUri,
-            fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
-            name = conversation?.contact?.displayName
-                ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
-            onClick = { navController.navigate("chat_info/$contactId") },
-        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
@@ -1355,7 +1365,6 @@ fun ChatThreadScreen(
                         .padding(24.dp)
                 )
             }
-        }
         }
     }
 
@@ -2276,6 +2285,9 @@ fun MessageBubble(
             reactions = reactions,
             isMe = { it == myReactorAddress },
             nameFor = { contactAvatarFallback.ifBlank { it.takeLast(10) } },
+            // Two people in a 1:1, so a reactor is either you or them - my own avatar for mine,
+            // theirs for theirs.
+            avatarFor = { if (it == myReactorAddress) myAvatarUrl else contactAvatarUrl },
             onDismiss = { showReactions = false },
         )
     }
@@ -11913,10 +11925,11 @@ private fun ChatHeaderCard(
     fallbackText: String,
     name: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },

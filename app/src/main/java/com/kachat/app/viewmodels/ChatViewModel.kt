@@ -1631,6 +1631,46 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fills in every chat's cached KNS avatar, in bounded-concurrency batches. Run whenever the
+     * chat list appears, alongside the name refresh - matches iOS's `preloadAvatarsForAllChats`.
+     *
+     * Without this the ONLY thing writing `knsAvatarUrl` was [refreshKnsProfile], which runs when
+     * you open a specific thread. So a freshly imported wallet showed initials for every chat
+     * until you had opened each one individually - the avatars were never missing, just never
+     * asked for.
+     *
+     * Skips contacts that already have one: this runs on every appearance, and re-resolving a
+     * cached avatar on each visit is a round trip per contact for an answer that rarely changes.
+     */
+    fun refreshKnsAvatarsForAllContacts() {
+        viewModelScope.launch {
+            val contacts = chatRepository.getContacts().first()
+            for (contact in contacts) {
+                // Skip ones that already have an avatar: this runs on every appearance, and
+                // re-resolving a cached answer per contact per visit is a round trip for
+                // something that rarely changes.
+                if (!contact.knsAvatarUrl.isNullOrBlank()) continue
+                val assets = try {
+                    knsService.getOwnedDomainsCached(contact.id)
+                } catch (e: Exception) {
+                    continue
+                }
+                if (assets.isEmpty()) continue
+                val primary = try { knsService.getExplicitPrimaryDomain(contact.id) } catch (e: Exception) { null }
+                // KnsAsset.asset is nullable on the wire, so filter rather than force it.
+                val names = assets.mapNotNull { it.asset }
+                if (names.isEmpty()) continue
+                val active = KnsService.pickActiveDomain(names, contact.knsName, primary ?: names.first())
+                val assetId = assets.firstOrNull { it.asset == active }?.assetId ?: continue
+                val avatar = try { knsService.getProfile(assetId)?.avatarUrl } catch (e: Exception) { null }
+                if (!avatar.isNullOrBlank() && avatar != contact.knsAvatarUrl) {
+                    chatRepository.addContact(contact.copy(knsAvatarUrl = avatar))
+                }
+            }
+        }
+    }
+
     /** Links a chat to a phone contact picked via ActivityResultContracts.PickContact() — that name always wins over KNS auto-rename. */
     fun linkSystemContact(contactId: String, lookupKey: String, displayName: String, photoUri: String? = null) {
         viewModelScope.launch { chatRepository.linkSystemContact(contactId, lookupKey, displayName, source = "manual", photoUri = photoUri) }
