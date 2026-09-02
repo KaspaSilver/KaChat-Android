@@ -606,14 +606,19 @@ fun MainShell(
                             // state stays attached to the same logical tab as the list reorders,
                             // rather than to whichever position happens to render it.
                             key(screen.route) {
+                                // Standing ON this tab's own route, which is what the reselect
+                                // gesture below keys off.
+                                val onOwnRoute =
+                                    currentDestination?.hierarchy?.any { it.route == screen.route } == true
                                 // Cold Storage's account and address-history screens keep the
-                                // dock, so the Storage tab should stay lit while you are down
-                                // there rather than the bar going blank - iOS's tab bar does.
-                                val selected =
-                                    currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
-                                        (screen.route == Screen.ColdStorage.route &&
-                                            (currentTopRoute == "cold_storage_detail/{accountId}" ||
-                                                currentTopRoute == "cold_storage_tx_history/{address}"))
+                                // dock, so the Storage tab stays lit while you are down there
+                                // rather than the bar going blank - iOS's tab bar does. Lit only:
+                                // a tap from down there still has to pop back up to the list, so
+                                // this must not feed the reselect check.
+                                val selected = onOwnRoute ||
+                                    (screen.route == Screen.ColdStorage.route &&
+                                        (currentTopRoute == "cold_storage_detail/{accountId}" ||
+                                            currentTopRoute == "cold_storage_tx_history/{address}"))
                                 Box(
                                     modifier = Modifier
                                         .height(64.dp)
@@ -631,7 +636,7 @@ fun MainShell(
                                             // with nothing "pushed" above it falls through to navigate() and
                                             // lands back on the graph's start destination (Chats) instead of
                                             // staying put.
-                                            if (selected) {
+                                            if (onOwnRoute) {
                                                 walletViewModel.notifyTabReselected(screen.route)
                                                 return@clickable
                                             }
@@ -907,14 +912,23 @@ fun MainShell(
                 "cold_storage_detail/{accountId}",
                 arguments = listOf(navArgument("accountId") { type = NavType.StringType })
             ) { backStackEntry ->
-                // Shares the "cold_storage" list screen's own ViewModel instance (always on the
-                // back stack — this screen is only ever reached by tapping a row there) rather
-                // than a fresh one scoped to this destination. A fresh instance's deleteAccount()
+                // Shares the "cold_storage" list screen's own ViewModel instance rather than a
+                // fresh one scoped to this destination. A fresh instance's deleteAccount()
                 // updated its own _accounts flow only, leaving the list screen's copy stale until
                 // something else happened to recompose it — deleting an account looked like it
                 // hadn't taken effect until you left and came back.
+                //
+                // The list route is NOT always underneath, though, and getBackStackEntry throws
+                // outright when it is missing: Cold Storage opened from the Kaspa Hub renders the
+                // list inline under "kaspa_hub" without that route ever existing, and tabbing away
+                // from this screen and back restores it on its own. Same fallback (and same
+                // reason) as "cold_storage_tx_history" below.
                 val parentEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry("cold_storage")
+                    try {
+                        navController.getBackStackEntry("cold_storage")
+                    } catch (e: IllegalArgumentException) {
+                        null
+                    }
                 }
                 // The floating dock stays visible here (see onTabRoute), so reserve room for it
                 // the same way the tab screens do rather than letting it sit over the content.
@@ -922,7 +936,7 @@ fun MainShell(
                     ColdStorageDetailScreen(
                         accountId = backStackEntry.arguments?.getString("accountId") ?: "",
                         navController = navController,
-                        viewModel = hiltViewModel(parentEntry)
+                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
                     )
                 }
             }
@@ -974,11 +988,15 @@ fun MainShell(
                 // the whole time that rescan is in flight. Sharing also means visibility edits
                 // show on the detail list the instant this screen pops.
                 val parentEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry("cold_storage_detail/{accountId}")
+                    try {
+                        navController.getBackStackEntry("cold_storage_detail/{accountId}")
+                    } catch (e: IllegalArgumentException) {
+                        null
+                    }
                 }
                 ColdStorageAddressVisibilityScreen(
                     accountId = backStackEntry.arguments?.getString("accountId") ?: "",
-                    viewModel = hiltViewModel(parentEntry),
+                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel(),
                     onBack = { navController.popBackStack() }
                 )
             }

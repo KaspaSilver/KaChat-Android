@@ -3,6 +3,9 @@ package com.kachat.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -15,22 +18,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kachat.app.R
 import com.kachat.app.services.AddressActivityNotifier
 import com.kachat.app.services.ColdStorageAddressDiscovery
 import com.kachat.app.ui.theme.KaspaTeal
@@ -124,6 +139,65 @@ fun ActionSheetRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(subtitle, color = colors.textSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
+/**
+ * The rename half of an [ActionSheetContainer] that renames something in place: a field, a Cancel
+ * that walks back to the options, and a Save that commits and closes.
+ */
+@Composable
+fun ColumnScope.ActionSheetRenameFields(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+    label: String = stringResource(R.string.name),
+) {
+    val colors = LocalAppColors.current
+    val focusRequester = remember { FocusRequester() }
+    // The keyboard should be up the moment the field appears - the tap that revealed it was
+    // already the decision to type.
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { if (value.isNotBlank()) onSave() }),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
+            focusedBorderColor = KaspaTeal,
+            unfocusedBorderColor = colors.textSecondary,
+            focusedLabelColor = KaspaTeal,
+            unfocusedLabelColor = colors.textSecondary,
+        ),
+        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        OutlinedButton(
+            onClick = onCancel,
+            modifier = Modifier.weight(1f).height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+        ) {
+            Text(stringResource(R.string.cancel), fontWeight = FontWeight.SemiBold)
+        }
+        Button(
+            onClick = onSave,
+            enabled = value.isNotBlank(),
+            modifier = Modifier.weight(1f).height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+        ) {
+            Text(stringResource(R.string.save), fontWeight = FontWeight.Bold)
         }
     }
 }

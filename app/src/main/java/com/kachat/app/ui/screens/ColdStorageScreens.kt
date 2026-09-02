@@ -112,7 +112,6 @@ fun ColdStorageListScreen(
     var pendingKpub by remember { mutableStateOf<String?>(null) }
     var nameInput by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
-    var renamingAccount by remember { mutableStateOf<ColdStorageManager.ColdAccount?>(null) }
     /** Account whose kpub QR is on screen. */
     var kpubQrAccount by remember { mutableStateOf<ColdStorageManager.ColdAccount?>(null) }
     var renameInput by remember { mutableStateOf("") }
@@ -274,36 +273,56 @@ fun ColdStorageListScreen(
                     }
 
                     if (showMenu) {
+                        // Renaming happens IN the sheet rather than by dismissing into a dialog:
+                        // the sheet is already the context for "this account", and bouncing out
+                        // to a dialog to type one word threw that away. Matches iOS's
+                        // ColdStorageAccountActionsSheet.
+                        var isRenaming by remember(account.id) { mutableStateOf(false) }
                         ActionSheetContainer(
-                            title = account.name,
-                            subtitle = com.kachat.app.services.AddressActivityNotifier
-                                .shortAddress(account.kpub),
+                            title = if (isRenaming) "Rename Account" else account.name,
+                            subtitle = if (isRenaming) null else {
+                                com.kachat.app.services.AddressActivityNotifier
+                                    .shortAddress(account.kpub)
+                            },
                             onDismiss = { showMenu = false },
                         ) {
-                            ActionSheetRow(
-                                icon = Icons.Default.ContentCopy,
-                                title = stringResource(R.string.copy_kpub),
-                                subtitle = "Puts the account's extended public key on the clipboard.",
-                            ) {
-                                showMenu = false
-                                clipboardManager.setText(AnnotatedString(account.kpub))
-                            }
-                            ActionSheetRow(
-                                icon = Icons.Default.QrCode,
-                                title = "Show kpub QR",
-                                subtitle = "Full screen, for importing this account on another device.",
-                            ) {
-                                showMenu = false
-                                kpubQrAccount = account
-                            }
-                            ActionSheetRow(
-                                icon = Icons.Default.Edit,
-                                title = stringResource(R.string.rename),
-                                subtitle = "Changes the name shown for this account.",
-                            ) {
-                                showMenu = false
-                                renamingAccount = account
-                                renameInput = account.name
+                            if (isRenaming) {
+                                ActionSheetRenameFields(
+                                    value = renameInput,
+                                    onValueChange = { renameInput = it },
+                                    // Cancel walks back to the options rather than closing, so a
+                                    // mis-tap on Rename costs nothing.
+                                    onCancel = { isRenaming = false },
+                                    onSave = {
+                                        viewModel.renameAccount(account.id, renameInput.trim())
+                                        showMenu = false
+                                    },
+                                )
+                            } else {
+                                ActionSheetRow(
+                                    icon = Icons.Default.ContentCopy,
+                                    title = stringResource(R.string.copy_kpub),
+                                    subtitle = "Puts the account's extended public key on the clipboard.",
+                                ) {
+                                    showMenu = false
+                                    clipboardManager.setText(AnnotatedString(account.kpub))
+                                }
+                                ActionSheetRow(
+                                    icon = Icons.Default.QrCode,
+                                    title = "Show kpub QR",
+                                    subtitle = "Full screen, for importing this account on another device.",
+                                ) {
+                                    showMenu = false
+                                    kpubQrAccount = account
+                                }
+                                ActionSheetRow(
+                                    icon = Icons.Default.Edit,
+                                    title = stringResource(R.string.rename),
+                                    subtitle = "Changes the name shown for this account.",
+                                ) {
+                                    renameInput = account.name
+                                    isRenaming = true
+                                }
                             }
                         }
                     }
@@ -436,46 +455,6 @@ fun ColdStorageListScreen(
         )
     }
 
-    renamingAccount?.let { account ->
-        AlertDialog(
-            onDismissRequest = { renamingAccount = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.rename_cold_storage_account), color = LocalAppColors.current.textPrimary) },
-            text = {
-                OutlinedTextField(
-                    value = renameInput,
-                    onValueChange = { renameInput = it },
-                    label = { Text(stringResource(R.string.name)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                        focusedLabelColor = KaspaTeal,
-                        unfocusedLabelColor = LocalAppColors.current.textSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = renameInput.isNotBlank(),
-                    onClick = {
-                        viewModel.renameAccount(account.id, renameInput.trim())
-                        renamingAccount = null
-                    }
-                ) {
-                    Text(stringResource(R.string.save), color = if (renameInput.isNotBlank()) KaspaTeal else Color.Gray, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { renamingAccount = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
