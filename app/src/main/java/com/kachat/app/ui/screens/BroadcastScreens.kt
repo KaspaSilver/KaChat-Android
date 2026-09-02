@@ -156,11 +156,8 @@ fun BroadcastListScreen(
     BackHandler(onBack = onBack)
 
     val channels by broadcastViewModel.joinedChannels.collectAsState()
-    val showKnsAvatarsEnabled by broadcastViewModel.showKnsAvatarsEnabled.collectAsState()
-    val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
     val joinState by broadcastViewModel.joinChannelState.collectAsState()
     var showJoinDialog by remember { mutableStateOf(false) }
-    var showBroadcastSettingsDialog by remember { mutableStateOf(false) }
     var channelInput by remember { mutableStateOf("") }
     var channelToLeave by remember { mutableStateOf<String?>(null) }
     var retentionSettingsChannelName by remember { mutableStateOf<String?>(null) }
@@ -192,13 +189,6 @@ fun BroadcastListScreen(
                 // from the dock or the Kaspa Hub grid, not something you were pushed into.
                 // System back still runs onBack (see the BackHandler above), which is how the
                 // Hub gets back to its grid.
-                actions = {
-                    // Matches iOS BroadcastListView's toolbar: gear only — the join/create
-                    // "+" lives on the "Your Channels" section header row below instead.
-                    IconButton(onClick = { showBroadcastSettingsDialog = true }) {
-                        Icon(Icons.Default.Settings, "Broadcast Settings", tint = KaspaTeal)
-                    }
-                },
             )
         }
     ) { padding ->
@@ -677,53 +667,6 @@ fun BroadcastListScreen(
         }
     }
 
-    if (showBroadcastSettingsDialog) {
-        AlertDialog(
-            onDismissRequest = { showBroadcastSettingsDialog = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.broadcast_settings), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(stringResource(R.string.kns_profile_pictures), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                stringResource(R.string.shows_senders_kns_avatars_in_rooms),
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                        Switch(
-                            checked = showKnsAvatarsEnabled,
-                            onCheckedChange = { broadcastViewModel.setShowKnsAvatarsEnabled(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f))
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
-                    SettingsNavigationItem(
-                        stringResource(R.string.hidden_broadcast_room_users),
-                        Icons.Default.VisibilityOff,
-                        hiddenSenders.size.toString(),
-                        onClick = {
-                            showBroadcastSettingsDialog = false
-                            navController.navigate("hidden_broadcast_users")
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showBroadcastSettingsDialog = false }) {
-                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -753,7 +696,6 @@ fun BroadcastChannelScreen(
     val senderProfiles by broadcastViewModel.senderProfiles.collectAsState()
     val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
     val contactAliases by broadcastViewModel.contactAliases.collectAsState()
-    val showKnsAvatarsEnabled by broadcastViewModel.showKnsAvatarsEnabled.collectAsState()
     val replyingTo by broadcastViewModel.replyingTo.collectAsState()
     val kaspaExplorer by broadcastViewModel.kaspaExplorer.collectAsState()
     val networkFeeRate by broadcastViewModel.networkFeeRate.collectAsState()
@@ -1192,7 +1134,7 @@ fun BroadcastChannelScreen(
                             }
                         ) {
                             ContactAvatar(
-                                imageUrl = if (showKnsAvatarsEnabled) senderProfiles[message.senderAddress] else null,
+                                imageUrl = senderProfiles[message.senderAddress],
                                 fallbackText = message.senderAddress.takeLast(8),
                                 size = 32.dp,
                                 modifier = Modifier.clickable { showAvatarMenu = true }
@@ -1728,98 +1670,3 @@ fun BroadcastChannelScreen(
     }
 }
 
-/** Manages senders hidden from every broadcast room (set via "Hide User" on an avatar) — reachable from the main Settings tab, underneath Archived Chats. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HiddenBroadcastUsersScreen(
-    onBack: () -> Unit,
-    broadcastViewModel: BroadcastViewModel = hiltViewModel()
-) {
-    val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
-    val contactAliases by broadcastViewModel.contactAliases.collectAsState()
-    val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
-
-    // Same alias -> KNS name -> short address fallback used inside a broadcast room — a hidden
-    // user's name here should read the same as it would if they weren't hidden. KNS names aren't
-    // fetched anywhere else for these addresses (no message list is rendering them once hidden),
-    // so this screen has to kick that lookup off itself.
-    LaunchedEffect(hiddenSenders) {
-        hiddenSenders.forEach { broadcastViewModel.ensureSenderProfileFetched(it.senderAddress) }
-    }
-
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.hidden_broadcast_room_users), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        if (hiddenSenders.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    stringResource(R.string.no_hidden_users),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.users_you_hide_from_a_broadcast),
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
-            ) {
-                items(hiddenSenders, key = { "${it.senderAddress}|${it.channelName}" }) { row ->
-                    val address = row.senderAddress
-                    Surface(
-                        color = LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
-                                    color = LocalAppColors.current.textPrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                // Per-room since 4.0 - "" rows are legacy every-room hides.
-                                Text(
-                                    if (row.channelName.isEmpty()) stringResource(R.string.hidden_in_all_rooms)
-                                    else "#${row.channelName}",
-                                    color = LocalAppColors.current.textSecondary,
-                                    fontSize = 12.sp
-                                )
-                            }
-                            TextButton(onClick = { broadcastViewModel.unhideSender(address, row.channelName) }) {
-                                Text(stringResource(R.string.unhide), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

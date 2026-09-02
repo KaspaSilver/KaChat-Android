@@ -344,8 +344,7 @@ fun MainShell(
     LaunchedEffect(childModeEnabled, currentTopRoute) {
         if (childModeEnabled && currentTopRoute != null && (
                 currentTopRoute in CHILD_MODE_HIDDEN_ROUTES ||
-                    currentTopRoute.startsWith("broadcast_channel/") ||
-                    currentTopRoute == "hidden_broadcast_users"
+                    currentTopRoute.startsWith("broadcast_channel/")
                 )
         ) {
             navController.popBackStack(Screen.Chats.route, false)
@@ -1270,12 +1269,6 @@ fun MainShell(
 
             composable("quick_reaction_settings") {
                 QuickReactionSettingsScreen(
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable("hidden_broadcast_users") {
-                HiddenBroadcastUsersScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
