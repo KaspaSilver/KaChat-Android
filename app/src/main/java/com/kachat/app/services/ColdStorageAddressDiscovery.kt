@@ -22,9 +22,17 @@ import javax.inject.Singleton
  */
 @Singleton
 class ColdStorageAddressDiscovery @Inject constructor(
-    private val networkService: NetworkService
+    private val networkService: NetworkService,
+    private val knsService: KnsService,
 ) {
-    data class DiscoveredAddress(val index: Int, val address: String, val balanceSompi: Long, val hasHistory: Boolean)
+    /** [matched] is set by [discoverAddresses] for an address holding a balance or a KNS domain. */
+    data class DiscoveredAddress(
+        val index: Int,
+        val address: String,
+        val balanceSompi: Long,
+        val hasHistory: Boolean,
+        val matched: Boolean = false,
+    )
 
     /**
      * Same brief bounded wait as WalletService.readyApi: right after a cold app launch the REST
@@ -80,7 +88,9 @@ class ColdStorageAddressDiscovery @Inject constructor(
     suspend fun discoverAddresses(
         rootKey: DeterministicKey,
         chain: Int = 0,
-        gapLimit: Int = 5,
+        // 20, matching iOS. Five was too shallow for an account whose funded addresses are not
+        // contiguous - a six-address gap ended the scan early and the rest were never seen.
+        gapLimit: Int = 20,
         startIndex: Int = 0,
         onProgress: ((DiscoveryProgress) -> Unit)? = null,
     ): List<DiscoveredAddress> {
@@ -89,6 +99,17 @@ class ColdStorageAddressDiscovery @Inject constructor(
         var consecutiveUnused = 0
         var index = startIndex
 
+        // An address is worth surfacing when it HOLDS SOMETHING: a balance, or a KNS domain.
+        //
+        // This used to count transaction history instead, and to start from the account's stored
+        // high-water mark - so a rescan began PAST everything already known and reported nothing,
+        // while iOS rescanned from zero and reported the same number every time. Same kpub, two
+        // different answers, neither the one asked for.
+        //
+        // Always from the caller's startIndex (0 for a user-triggered scan), never from a stored
+        // mark: the answer CHANGES over time. An address empty last month can hold a balance
+        // today, and a scan starting past it would never look again.
+        //
         // Sequential, one address at a time - a prior attempt at concurrent/batched lookups here
         // (firing several addresses' history+balance calls at once against the shared public REST
         // API) made things *worse*, not faster: it had no rate-limit handling, so a burst of
@@ -105,8 +126,11 @@ class ColdStorageAddressDiscovery @Inject constructor(
                 )
             )
             val result = checkAddress(rootKey, chain, index) ?: break
-            results.add(result)
-            consecutiveUnused = if (result.hasHistory || result.balanceSompi > 0) 0 else consecutiveUnused + 1
+            // Balance first - it is already in hand from checkAddress, and it short-circuits the
+            // KNS lookup for the common case.
+            val matches = result.balanceSompi > 0 || knsService.getOwnedDomains(result.address).isNotEmpty()
+            if (matches) results.add(result.copy(matched = true))
+            consecutiveUnused = if (matches) 0 else consecutiveUnused + 1
             index++
         }
 

@@ -140,7 +140,6 @@ class ColdStorageViewModel @Inject constructor(
     fun refreshAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         resetAddressesIfAccountChanged(accountId)
-        val previousCount = _addresses.value.size
         viewModelScope.launch {
             _isDiscovering.value = true
             _discoveryProgress.value = ColdStorageAddressDiscovery.DiscoveryProgress(0, 0)
@@ -198,15 +197,20 @@ class ColdStorageViewModel @Inject constructor(
                 // funded/used before they were ever shown here (plus the scan's trailing fresh
                 // rows, same as before). A failed lookup stops only this scan; pass 1's rows
                 // stay put.
+                // From ZERO, not from the account's high-water mark. Starting past what is
+                // already known meant a rescan could only ever report nothing, which is exactly
+                // what it did - and an address that gains a balance later would never be seen.
                 val beyond = addressDiscovery.discoverAddresses(
                     rootKey,
-                    startIndex = account.maxDerivedIndex + 1,
+                    startIndex = 0,
                     onProgress = { _discoveryProgress.value = it },
                 )
                 if (beyond.isNotEmpty()) {
                     // Raise the persisted bound only to cover USED/funded finds — raising it to
                     // the scan's trailing unused rows would grow it by another gap every refresh.
-                    beyond.filter { it.hasHistory || it.balanceSompi > 0 }.maxOfOrNull { it.index }?.let { usedMax ->
+                    // `beyond` now contains ONLY matches (balance or KNS domain), so the bound
+                    // covers exactly the rows worth showing.
+                    beyond.maxOfOrNull { it.index }?.let { usedMax ->
                         coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, usedMax)
                         _accounts.value = coldStorageManager.getAccounts()
                     }
@@ -222,7 +226,11 @@ class ColdStorageViewModel @Inject constructor(
                         ).sortedByDescending { it.index }
                 }
                 loaded = _addresses.value
-                onResult((_addresses.value.size - previousCount).coerceAtLeast(0))
+                // The number of MATCHES, not the growth in list size. Reporting growth meant a
+                // rescan of an account whose addresses were already listed said "found none" -
+                // true of the list, useless as an answer to "what did the scan find?", and the
+                // other half of why the two phones disagreed on the same kpub.
+                onResult(beyond.size)
                 // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
                 refreshDomainOwningAddresses(_addresses.value.map { it.address })
             } catch (e: Exception) {

@@ -828,9 +828,9 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                 discoverySummary = null
                 viewModel.refreshAddresses(accountId) { count ->
                     discoverySummary = if (count > 0) {
-                        "Found $count used address${if (count == 1) "" else "es"}."
+                        "Found $count address${if (count == 1) "" else "es"} with a balance or domain."
                     } else {
-                        "No additional used addresses found."
+                        "No addresses with a balance or domain found."
                     }
                 }
             },
