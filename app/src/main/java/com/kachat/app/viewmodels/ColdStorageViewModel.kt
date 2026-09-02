@@ -232,13 +232,29 @@ class ColdStorageViewModel @Inject constructor(
                         coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, usedMax)
                         _accounts.value = coldStorageManager.getAccounts()
                     }
+                    val beforeMerge = _addresses.value.associateBy { it.index }
                     _addresses.value = (
                         _addresses.value.filterNot { row -> beyond.any { it.index == row.index } } +
                             beyond.map {
+                                // Never let an unconfirmed balance overwrite one pass 1 already
+                                // read: a KNS-matched row whose balance lookup failed carries 0,
+                                // and pass 1's batched figure is the better answer.
+                                val known = beforeMerge[it.index]
+                                val balance = if (it.balanceConfirmed) it.balanceSompi
+                                    else known?.balanceSompi ?: 0L
                                 AddressRow(
-                                    it.index, it.address, it.balanceSompi, it.hasHistory,
+                                    it.index, it.address, balance,
+                                    // A balance IS history - it had to arrive somehow. The scan
+                                    // stopped probing history (it costs a second REST call per
+                                    // address and is not part of what makes an address worth
+                                    // surfacing), so without this a funded address discovered by
+                                    // the scan read "Unused", and pass 3 skips funded rows so it
+                                    // was never corrected. Same rule pass 1 already applies.
+                                    it.hasHistory || balance > 0L || known?.hasHistory == true,
                                     labels[it.index], it.index in hiddenIndices,
-                                    liveChecked = true
+                                    // Only claim a live check when the balance was really read -
+                                    // the hide guard trusts this flag to skip its own re-check.
+                                    liveChecked = it.balanceConfirmed || known?.liveChecked == true
                                 )
                             }
                         ).sortedByDescending { it.index }

@@ -436,7 +436,7 @@ private fun PortfolioTransactionsContent(
                         onDismiss = { showCsvMenu = false },
                     ) {
                         ActionSheetRow(
-                            icon = Icons.Default.FileDownload,
+                            icon = Icons.Default.FileUpload,
                             title = stringResource(R.string.export_csv),
                             subtitle = "Write this portfolio's transactions out to a file.",
                         ) {
@@ -465,7 +465,7 @@ private fun PortfolioTransactionsContent(
                             )
                         }
                         ActionSheetRow(
-                            icon = Icons.Default.FileUpload,
+                            icon = Icons.Default.FileDownload,
                             title = stringResource(R.string.import_csv),
                             subtitle = "Read transactions in from a file.",
                         ) {

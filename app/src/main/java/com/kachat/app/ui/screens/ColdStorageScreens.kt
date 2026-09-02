@@ -316,55 +316,59 @@ fun ColdStorageListScreen(
     }
 
     if (showManualEntry) {
-        AlertDialog(
-            onDismissRequest = { showManualEntry = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.enter_kpub), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.paste_the_kpub_exported_from_your),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = manualKpubInput,
-                        onValueChange = { manualKpubInput = it },
-                        label = { Text(stringResource(R.string.kpub_2)) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+        // A half sheet rather than a dialog: it holds one field, and a kpub is 114 characters -
+        // a dialog's single-line slot showed a sliver of it.
+        ActionSheetContainer(
+            title = stringResource(R.string.enter_kpub),
+            subtitle = stringResource(R.string.paste_the_kpub_exported_from_your),
+            onDismiss = { showManualEntry = false },
+        ) {
+            OutlinedTextField(
+                value = manualKpubInput,
+                onValueChange = { manualKpubInput = it },
+                label = { Text(stringResource(R.string.kpub_2)) },
+                singleLine = false,
+                minLines = 3,
+                maxLines = 5,
+                textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalAppColors.current.textPrimary,
+                    unfocusedTextColor = LocalAppColors.current.textPrimary,
+                    focusedBorderColor = KaspaTeal,
+                    unfocusedBorderColor = LocalAppColors.current.textSecondary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { showManualEntry = false },
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textPrimary)
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = manualKpubInput.trim().isNotEmpty(),
+                Button(
                     onClick = {
                         val trimmed = manualKpubInput.trim()
                         showManualEntry = false
-                        // Feeds the same pendingKpub/nameInput -> import AlertDialog flow the QR
-                        // scanner already uses below - scan vs. paste only differ in how the raw
-                        // kpub string is obtained, not in how it's validated/named/imported.
+                        // Feeds the same pendingKpub/nameInput -> import flow the QR scanner
+                        // already uses - scan vs. paste differ only in how the raw kpub string
+                        // is obtained, not in how it is validated, named or imported.
                         pendingKpub = trimmed
                         nameInput = "Cold Storage ${accounts.size + 1}"
-                    }
+                    },
+                    enabled = manualKpubInput.trim().isNotEmpty(),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
                 ) {
-                    Text(stringResource(R.string.next), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showManualEntry = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                    Text(stringResource(R.string.next), fontWeight = FontWeight.Bold)
                 }
             }
-        )
+        }
     }
 
     if (pendingKpub != null) {

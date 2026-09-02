@@ -32,6 +32,14 @@ class ColdStorageAddressDiscovery @Inject constructor(
         val balanceSompi: Long,
         val hasHistory: Boolean,
         val matched: Boolean = false,
+        /**
+         * Whether the balance was actually read, as opposed to defaulted to 0 by a failed
+         * lookup. Without this a throttled request - and the scan makes one per address, in a
+         * tight loop, against a shared public API - was indistinguishable from a genuinely empty
+         * address, so a transient failure overwrote a good balance with zero and then let the
+         * row be hidden as "empty".
+         */
+        val balanceConfirmed: Boolean = true,
     )
 
     /**
@@ -131,7 +139,11 @@ class ColdStorageAddressDiscovery @Inject constructor(
             val result = checkAddress(rootKey, chain, index, probeHistory = false) ?: break
             // Balance first - it is already in hand from checkAddress, and it short-circuits the
             // KNS lookup for the common case.
-            val matches = result.balanceSompi > 0 || knsService.getOwnedDomains(result.address).isNotEmpty()
+            // A balance only counts when it was actually READ. An unconfirmed lookup is not
+            // evidence of an empty address, and treating it as one both drops real addresses
+            // from the list and overwrites their balance with zero downstream.
+            val matches = (result.balanceConfirmed && result.balanceSompi > 0) ||
+                knsService.getOwnedDomains(result.address).isNotEmpty()
             if (matches) results.add(result.copy(matched = true))
             consecutiveUnused = if (matches) 0 else consecutiveUnused + 1
             index++
@@ -174,12 +186,15 @@ class ColdStorageAddressDiscovery @Inject constructor(
                 return null
             }
         }
+        var balanceConfirmed = true
         val balance = try {
             api.getBalance(address).balance
         } catch (e: Exception) {
+            Log.w("ColdStorageAddressDiscovery", "Balance lookup failed for index $index", e)
+            balanceConfirmed = false
             0L
         }
-        return DiscoveredAddress(index, address, balance, hasHistory)
+        return DiscoveredAddress(index, address, balance, hasHistory, balanceConfirmed = balanceConfirmed)
     }
 
     /** History-only probe for the detail screen's background Used backfill — the balance is
