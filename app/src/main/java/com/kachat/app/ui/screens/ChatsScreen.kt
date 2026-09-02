@@ -189,6 +189,12 @@ fun ChatsScreen(
         refreshing = isRefreshing,
         onRefresh = { chatViewModel.refreshChats() }
     )
+    // The Group Chats tab gets its own: pulling on a list of groups should sync groups, not the
+    // 1:1 messages and the balance the Chats tab's refresh also covers.
+    val groupPullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = { chatViewModel.refreshGroups() }
+    )
 
     // Balance only updates reactively while this screen is actively composed —
     // refresh it fresh every time you land on/return to the Chats tab, since a
@@ -482,7 +488,12 @@ fun ChatsScreen(
             modifier = Modifier.fillMaxSize().padding(padding)
         ) { page ->
         when (page) {
-            1 -> GroupListBody(
+            1 -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pullRefresh(groupPullRefreshState)
+            ) {
+            GroupListBody(
                 navController = navController,
                 groupConversations = filteredGroupConversations,
                 hasAnyGroups = groupConversations.isNotEmpty(),
@@ -503,6 +514,12 @@ fun ChatsScreen(
                 onMarkGroupRead = { chatViewModel.markGroupsAsRead(listOf(it)) },
                 onMarkGroupUnread = { chatViewModel.markGroupsAsUnread(listOf(it)) }
             )
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = groupPullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+            }
             else -> Box(
             modifier = Modifier
                 .fillMaxSize()

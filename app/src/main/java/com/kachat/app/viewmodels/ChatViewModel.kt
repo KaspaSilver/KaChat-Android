@@ -820,6 +820,23 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Pull-to-refresh on the Group Chats tab: groups only, not the 1:1 sync and the balance the
+     * Chats tab's refresh also does. Pulling on a list of groups should ask about groups.
+     */
+    fun refreshGroups() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                groupRepository.syncGroups()
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error refreshing groups", e)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
     // Messages/photos/voice notes are identity-address self-stashes; "Pay in Kaspa" sources
     // from the spending address instead (see WalletManager's spending-address doc comment) —
     // kept as two separate UTXO sets so the live fee preview below prices each correctly rather

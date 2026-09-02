@@ -173,8 +173,18 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     }
 
                     "group_control" -> {
-                        // "You were added to a group" / group update. These usually carry no
-                        // blinded_group_id, so key the notification on the tx id instead.
+                        // "You were added to a group" / group update. This push is usually the
+                        // FIRST this device hears of the group, and nothing else was ingesting
+                        // it - the notification arrived, the tap had nothing to open, and the
+                        // group only turned up on the next manual refresh. Sync here so the
+                        // group actually exists by the time the notification is posted, which
+                        // also lets the blinded id below resolve to a real thread to open.
+                        //
+                        // Bounded: a push handler has seconds, not minutes, and a notification
+                        // that never posts is worse than one whose tap lands on the group list.
+                        runCatching {
+                            kotlinx.coroutines.withTimeoutOrNull(8_000) { groupRepository.syncGroups() }
+                        }
                         val blindedId = data["blinded_group_id"]?.takeIf { it.isNotBlank() }
                         val key = blindedId ?: data["tx_id"] ?: "group"
                         // Neither a blinded id nor a tx id is a local group id, so a tap keyed on
