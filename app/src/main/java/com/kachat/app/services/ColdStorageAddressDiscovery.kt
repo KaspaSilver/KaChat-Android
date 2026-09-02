@@ -69,11 +69,20 @@ class ColdStorageAddressDiscovery @Inject constructor(
      * from a batched balance call first and only gap-scans BEYOND that bound, so a failed lookup
      * here can no longer blank the already-known addresses.
      */
+    /**
+     * Scan progress: the index being checked, and how many used addresses have been found.
+     *
+     * The scan is one network call per address until the gap limit is reached, so it can run for
+     * a while. Reported so the caller can show what is happening instead of an unmoving spinner.
+     */
+    data class DiscoveryProgress(val checkingIndex: Int, val foundCount: Int)
+
     suspend fun discoverAddresses(
         rootKey: DeterministicKey,
         chain: Int = 0,
         gapLimit: Int = 5,
-        startIndex: Int = 0
+        startIndex: Int = 0,
+        onProgress: ((DiscoveryProgress) -> Unit)? = null,
     ): List<DiscoveredAddress> {
         readyApi() ?: return emptyList()
         val results = mutableListOf<DiscoveredAddress>()
@@ -89,6 +98,12 @@ class ColdStorageAddressDiscovery @Inject constructor(
         // faster and more reliably in practice. Matches iOS's WalletManager.discoverSpendingAddresses/
         // ColdStorageManager.discoverAddresses, both deliberately sequential for the same reason.
         while (consecutiveUnused < gapLimit) {
+            onProgress?.invoke(
+                DiscoveryProgress(
+                    checkingIndex = index,
+                    foundCount = results.count { it.hasHistory || it.balanceSompi > 0 },
+                )
+            )
             val result = checkAddress(rootKey, chain, index) ?: break
             results.add(result)
             consecutiveUnused = if (result.hasHistory || result.balanceSompi > 0) 0 else consecutiveUnused + 1

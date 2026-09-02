@@ -447,6 +447,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     val account = accounts.find { it.id == accountId }
     val addresses by viewModel.addresses.collectAsState()
     val isDiscovering by viewModel.isDiscovering.collectAsState()
+    val discoveryProgress by viewModel.discoveryProgress.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -456,8 +457,9 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     var labelingRow by remember { mutableStateOf<ColdStorageViewModel.AddressRow?>(null) }
     var labelInput by remember { mutableStateOf("") }
     var qrRow by remember { mutableStateOf<ColdStorageViewModel.AddressRow?>(null) }
-    var showActionsMenu by remember { mutableStateOf(false) }
-    var actionsMenuAnchor by remember { mutableStateOf(Offset.Zero) }
+    var showActionsSheet by remember { mutableStateOf(false) }
+    /** Result line kept on screen after a scan finishes, until the sheet is dismissed. */
+    var discoverySummary by remember { mutableStateOf<String?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
 
     LaunchedEffect(accountId) {
@@ -527,65 +529,6 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
         },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            // Hidden while the QR overlay is up — its Dialog window doesn't fully cover the
-            // screen, so the FAB would otherwise still show through around the QR card.
-            if (qrRow == null) {
-            FloatingActionButton(
-                onClick = { showActionsMenu = true },
-                containerColor = KaspaTeal,
-                contentColor = Color.Black,
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier
-                    .height(56.dp)
-                    .onGloballyPositioned { coords -> actionsMenuAnchor = coords.positionInWindow() }
-            ) {
-                val addressActionsContentDescription = stringResource(R.string.address_actions_2)
-                Text(
-                    stringResource(R.string.address_actions),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .semantics { contentDescription = addressActionsContentDescription }
-                )
-            }
-            }
-            // Anchored to the FAB's top edge and horizontally centered (this FAB is itself
-            // screen-centered, so the usual left/right-edge-hugging anchor math doesn't apply) —
-            // see ManageAddressesScreen's identical Address Actions menu for the full rationale.
-            if (showActionsMenu) {
-                CenteredOptionsMenu(
-                    onDismissRequest = { showActionsMenu = false },
-                    anchor = actionsMenuAnchor,
-                    centerHorizontally = true
-                ) {
-                    PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_more_addresses)) {
-                        showActionsMenu = false
-                        if (!isDiscovering) viewModel.generateMoreAddresses(accountId) { index ->
-                            Toast.makeText(
-                                context,
-                                if (index != null) "Address #$index is ready."
-                                else "Could not derive a new address.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.Default.Search, stringResource(R.string.discover_addresses)) {
-                        showActionsMenu = false
-                        if (!isDiscovering) {
-                            viewModel.refreshAddresses(accountId) { count ->
-                                Toast.makeText(
-                                    context,
-                                    if (count > 0) "Found $count used address${if (count == 1) "" else "es"}" else "No additional used addresses found",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-                }
-            }
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding).nestedScroll(pullRefreshState.nestedScrollConnection)) {
@@ -660,6 +603,24 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     )
+
+                    Spacer(Modifier.height(16.dp))
+                    // Directly under the balance rather than floating over the list: the actions
+                    // are about this account, so they belong with it, and a FAB covered the last
+                    // address row on a short list.
+                    Button(
+                        onClick = { showActionsSheet = true },
+                        enabled = !isDiscovering,
+                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        if (isDiscovering) {
+                            CircularProgressIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
+                        } else {
+                            Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
 
@@ -845,6 +806,38 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
+        )
+    }
+
+    if (showActionsSheet) {
+        ColdStorageAddressActionsSheet(
+            isDiscovering = isDiscovering,
+            progress = discoveryProgress,
+            summary = discoverySummary,
+            onGenerate = {
+                showActionsSheet = false
+                viewModel.generateMoreAddresses(accountId) { index ->
+                    Toast.makeText(
+                        context,
+                        if (index != null) "Address #$index is ready." else "Could not derive a new address.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            },
+            onDiscover = {
+                discoverySummary = null
+                viewModel.refreshAddresses(accountId) { count ->
+                    discoverySummary = if (count > 0) {
+                        "Found $count used address${if (count == 1) "" else "es"}."
+                    } else {
+                        "No additional used addresses found."
+                    }
+                }
+            },
+            onDismiss = {
+                showActionsSheet = false
+                discoverySummary = null
+            },
         )
     }
 }
@@ -2531,6 +2524,113 @@ private fun KpubQrDialog(account: ColdStorageManager.ColdAccount, onDismiss: () 
                 textAlign = TextAlign.Center
             )
             Text("Tap anywhere to copy", color = Color.Black.copy(alpha = 0.4f), fontSize = 12.sp)
+        }
+    }
+}
+
+/**
+ * The half sheet behind "Address Actions" on a watch-only account. Mirrors iOS's
+ * `addressActionsSheet`.
+ *
+ * Discovery reports its position as it walks, and that lands HERE rather than dismissing: a scan
+ * is one network call per address until the gap limit is reached, so it runs for a while, and a
+ * closed sheet with a toast at the end said nothing about whether anything was happening.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ColdStorageAddressActionsSheet(
+    isDiscovering: Boolean,
+    progress: ColdStorageAddressDiscovery.DiscoveryProgress?,
+    summary: String?,
+    onGenerate: () -> Unit,
+    onDiscover: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
+        // either way - so the sheet holds until it is done.
+        onDismissRequest = { if (!isDiscovering) onDismiss() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(R.string.address_actions),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+            )
+
+            if (isDiscovering) {
+                Spacer(Modifier.height(8.dp))
+                CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+                Text(
+                    "Checking address #${progress?.checkingIndex ?: 0}",
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                )
+                Text(
+                    if ((progress?.foundCount ?: 0) == 0) "No used addresses yet"
+                    else "${progress?.foundCount} found so far",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+                Text(
+                    "Scanning stops after a run of unused addresses.",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+            } else {
+                ColdStorageActionRow(
+                    icon = Icons.Default.AddCircleOutline,
+                    title = stringResource(R.string.generate_more_addresses),
+                    subtitle = "Reveals the next unused address in this account.",
+                    onClick = onGenerate,
+                )
+                ColdStorageActionRow(
+                    icon = Icons.Default.Search,
+                    title = stringResource(R.string.discover_addresses),
+                    subtitle = "Scans the account for addresses that have been used before.",
+                    onClick = onDiscover,
+                )
+                if (summary != null) {
+                    Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColdStorageActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .clickable { onClick() }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(subtitle, color = colors.textSecondary, fontSize = 12.sp)
         }
     }
 }

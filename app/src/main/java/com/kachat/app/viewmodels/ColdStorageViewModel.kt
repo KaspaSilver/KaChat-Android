@@ -130,12 +130,20 @@ class ColdStorageViewModel @Inject constructor(
      * 2-calls-per-index scan, committed only at the very end, wiped to an empty list on any
      * error) meant one failed or throttled history lookup at index 0 showed NOTHING at all.
      */
+    /**
+     * Live scan position while discovering, so the address-actions sheet can show progress rather
+     * than a spinner that says nothing about whether anything is happening.
+     */
+    private val _discoveryProgress = MutableStateFlow<ColdStorageAddressDiscovery.DiscoveryProgress?>(null)
+    val discoveryProgress: StateFlow<ColdStorageAddressDiscovery.DiscoveryProgress?> = _discoveryProgress.asStateFlow()
+
     fun refreshAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         resetAddressesIfAccountChanged(accountId)
         val previousCount = _addresses.value.size
         viewModelScope.launch {
             _isDiscovering.value = true
+            _discoveryProgress.value = ColdStorageAddressDiscovery.DiscoveryProgress(0, 0)
             var loaded: List<AddressRow>? = null
             try {
                 val labels = coldStorageManager.getAddressLabels(accountId)
@@ -190,7 +198,11 @@ class ColdStorageViewModel @Inject constructor(
                 // funded/used before they were ever shown here (plus the scan's trailing fresh
                 // rows, same as before). A failed lookup stops only this scan; pass 1's rows
                 // stay put.
-                val beyond = addressDiscovery.discoverAddresses(rootKey, startIndex = account.maxDerivedIndex + 1)
+                val beyond = addressDiscovery.discoverAddresses(
+                    rootKey,
+                    startIndex = account.maxDerivedIndex + 1,
+                    onProgress = { _discoveryProgress.value = it },
+                )
                 if (beyond.isNotEmpty()) {
                     // Raise the persisted bound only to cover USED/funded finds — raising it to
                     // the scan's trailing unused rows would grow it by another gap every refresh.
@@ -219,6 +231,7 @@ class ColdStorageViewModel @Inject constructor(
                 onResult(0)
             } finally {
                 _isDiscovering.value = false
+                _discoveryProgress.value = null
             }
 
             // Pass 3 — background Used backfill for zero-balance rows, sequential on purpose
@@ -470,6 +483,7 @@ class ColdStorageViewModel @Inject constructor(
                 }
             } finally {
                 _isDiscovering.value = false
+                _discoveryProgress.value = null
             }
         }
     }
