@@ -1303,25 +1303,37 @@ class GroupRepository @Inject constructor(
         val syncKey = "gcomm|$groupId|$blindedGroupIdHex"
         // 40 x 50 = 2000 messages in one sync - beyond any real group, and a bound so a
         // misbehaving cursor cannot loop forever.
+        // The first run per key starts from NOTHING, not the stored cursor - see
+        // [deepBackfilledGroupKeys]. Everything a pre-paging sync skipped lives before that
+        // cursor, and walking forward from it can never reach any of it.
+        val deep = syncKey !in deepBackfilledGroupKeys
+        var cursor: String? = if (deep) null else database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
         var pagesLeft = 40
         while (pagesLeft > 0) {
             pagesLeft -= 1
-            val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
             val messages: List<GroupMessageIndexerResponse> = try {
                 api.getGroupMessagesByBlindedGroupId(blindedGroupIdHex, cursor = cursor)
             } catch (e: Exception) {
                 Log.w("GroupRepository", "Catch-up gcomm fetch failed for group ${groupId.take(12)}", e)
                 return
             }
-            if (messages.isEmpty()) return
-            advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
+            if (messages.isEmpty()) {
+                deepBackfilledGroupKeys.add(syncKey)
+                return
+            }
+            cursor = messages.lastOrNull()?.cursor
+            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             for (msg in messages) {
                 val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
                 val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
                 handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
             }
-            // A short page is the last page.
-            if (messages.size < 50) return
+            // A short page is the last page. Marked only on a real end, so an interrupted run
+            // retries from the beginning rather than leaving a hole behind.
+            if (messages.size < 50) {
+                deepBackfilledGroupKeys.add(syncKey)
+                return
+            }
         }
     }
 
@@ -1332,23 +1344,34 @@ class GroupRepository @Inject constructor(
      */
     private suspend fun syncGroupControlBySender(api: KasiaIndexerApi, walletAddress: String, adminAddress: String) {
         val syncKey = "gctl|${adminAddress.lowercase()}"
+        // Deep-backfilled once, like gcomm - and it matters more here. A skipped control message
+        // is a skipped epoch root, and a member holding no root for the epoch an old message was
+        // sent at cannot DECRYPT it, however many times it is fetched.
+        val deep = syncKey !in deepBackfilledGroupKeys
+        var cursor: String? = if (deep) null else database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
         var pagesLeft = 40
         while (pagesLeft > 0) {
             pagesLeft -= 1
-            val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
             val messages: List<GroupControlIndexerResponse> = try {
                 api.getGroupControlBySender(adminAddress, cursor = cursor)
             } catch (e: Exception) {
                 Log.w("GroupRepository", "Catch-up gctl-by-sender fetch failed for admin ${adminAddress.takeLast(10)}", e)
                 return
             }
-            if (messages.isEmpty()) return
-            advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
+            if (messages.isEmpty()) {
+                deepBackfilledGroupKeys.add(syncKey)
+                return
+            }
+            cursor = messages.lastOrNull()?.cursor
+            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             for (msg in messages) {
                 val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
                 handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
             }
-            if (messages.size < 50) return
+            if (messages.size < 50) {
+                deepBackfilledGroupKeys.add(syncKey)
+                return
+            }
         }
     }
 
@@ -1360,25 +1383,44 @@ class GroupRepository @Inject constructor(
         val syncKey = "gctl-recipient|${walletAddress.lowercase()}"
         // Paged like the other two. This is the path a seedless import discovers groups through,
         // so a wallet in more than 50 lifetime invites would otherwise find only some of them.
+        val deep = syncKey !in deepBackfilledGroupKeys
+        var cursor: String? = if (deep) null else database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
         var pagesLeft = 40
         while (pagesLeft > 0) {
             pagesLeft -= 1
-            val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
             val messages: List<GroupControlIndexerResponse> = try {
                 api.getGroupControlByRecipient(walletAddress, cursor = cursor)
             } catch (e: Exception) {
                 Log.w("GroupRepository", "Catch-up gctl-by-recipient fetch failed", e)
                 return
             }
-            if (messages.isEmpty()) return
-            advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
+            if (messages.isEmpty()) {
+                deepBackfilledGroupKeys.add(syncKey)
+                return
+            }
+            cursor = messages.lastOrNull()?.cursor
+            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             for (msg in messages) {
                 val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
                 handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
             }
-            if (messages.size < 50) return
+            if (messages.size < 50) {
+                deepBackfilledGroupKeys.add(syncKey)
+                return
+            }
         }
     }
+
+    /**
+     * Sync keys whose whole history has been walked from the beginning this launch.
+     *
+     * A cursor only ever moves FORWARD, and until catch-up learned to page it advanced past a
+     * whole 50-row page per sync - so on a device that synced while a group already had history,
+     * everything before the cursor was skipped and walking forward can never reach it. The first
+     * run per key per launch starts from nothing instead, which the DAO's txId dedupe makes free
+     * to repeat.
+     */
+    private val deepBackfilledGroupKeys = mutableSetOf<String>()
 
     private suspend fun advanceGroupSyncCursor(syncKey: String, walletAddress: String, cursor: String?) {
         if (cursor == null) return
