@@ -11823,7 +11823,7 @@ private fun ChatHeaderCard(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(top = 4.dp, bottom = 6.dp),
+            .padding(top = 2.dp, bottom = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(contentAlignment = Alignment.TopCenter) {
@@ -11831,18 +11831,18 @@ private fun ChatHeaderCard(
             // at the top so the name still clears it. Reads as one piece rather than a stack.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
-                    .padding(top = 48.dp)
+                    .padding(top = 34.dp)
                     .clip(CircleShape)
                     .background(colors.surface)
-                    .padding(start = 16.dp, end = 14.dp, top = 20.dp, bottom = 8.dp),
+                    .padding(start = 12.dp, end = 10.dp, top = 15.dp, bottom = 5.dp),
             ) {
                 Text(
                     name,
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
+                    fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -11850,14 +11850,14 @@ private fun ChatHeaderCard(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     tint = colors.textSecondary,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                 )
             }
             ContactAvatar(
                 imageUrl = imageUrl,
                 deviceContactPhotoUri = photoUri,
                 fallbackText = fallbackText,
-                size = 64.dp,
+                size = 46.dp,
             )
         }
     }
