@@ -10848,6 +10848,8 @@ fun ChatInfoScreen(
     onNavigateToDomains: (String) -> Unit = {}
 ) {
     val conversation = chatViewModel.conversations.collectAsState().value.find { it.contact.id == contactId }
+    // Which section's half sheet is up.
+    var infoSheet by remember { mutableStateOf<String?>(null) }
     val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
     val myAddress by walletViewModel.address.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
@@ -11145,50 +11147,67 @@ fun ChatInfoScreen(
                 )
             }
 
-            SettingsSection(
+            // Each section is a card that opens a half sheet holding what the section held.
+            // Matches iOS: the form had grown long enough that reaching any one part of it meant
+            // scrolling past the rest.
+            InfoSectionCard(
                 title = stringResource(R.string.address),
-                headerAction = {
-                    Text(
-                        stringResource(R.string.view_in_explorer),
-                        color = KaspaTeal,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .padding(end = 8.dp, bottom = 8.dp)
-                            .clickable { uriHandler.openUri(kaspaExplorer.addressUrl(contactId)) }
-                    )
-                }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            clipboardManager.setText(AnnotatedString(contactId))
-                            showAddressCopiedToast(context, contactId)
-                        }
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                value = com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                icon = Icons.Default.QrCode,
+            ) { infoSheet = "address" }
+
+            if (infoSheet == "address") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.address),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
                 ) {
-                    val qrPainter = rememberQrBitmapPainter(contactId)
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .size(180.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White)
-                            .border(2.dp, KaspaTeal, RoundedCornerShape(12.dp))
-                            .padding(12.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .clickable {
+                                clipboardManager.setText(AnnotatedString(contactId))
+                                showAddressCopiedToast(context, contactId)
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Image(qrPainter, "QR Code", modifier = Modifier.fillMaxSize())
+                        val qrPainter = rememberQrBitmapPainter(contactId)
+                        Box(
+                            modifier = Modifier
+                                .size(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .border(2.dp, KaspaTeal, RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(qrPainter, "QR Code", modifier = Modifier.fillMaxSize())
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = contactId,
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Tap the code to copy the address.",
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 11.sp,
+                        )
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = contactId,
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center
-                    )
+                    ActionSheetRow(
+                        icon = Icons.Default.Public,
+                        title = stringResource(R.string.view_in_explorer),
+                        subtitle = "Opens this address on the block explorer.",
+                    ) {
+                        infoSheet = null
+                        uriHandler.openUri(kaspaExplorer.addressUrl(contactId))
+                    }
                 }
             }
+
 
             // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
             // this conversation's messages on-chain. Receiving = the alias on messages this
@@ -11657,5 +11676,52 @@ fun ContactDomainsScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
         }
+    }
+}
+
+/**
+ * One Chat Info section, as a card that opens its half sheet. Mirrors iOS's `infoCard`.
+ *
+ * The trailing value is what the sheet would have shown at a glance - the domain count, whether a
+ * system contact is linked - so the card still answers the common question without being opened.
+ */
+@Composable
+private fun InfoSectionCard(
+    title: String,
+    value: String?,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.surface)
+            .clickable { onClick() }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(title, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        if (!value.isNullOrBlank()) {
+            Text(
+                value,
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 160.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textSecondary,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
