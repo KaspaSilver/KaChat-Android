@@ -79,6 +79,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.MarkEmailUnread
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -645,34 +647,63 @@ fun ChatsScreen(
                                         )
                                     }
                                 }
-                                DropdownMenu(
-                                    expanded = menuContactId == convo.contact.id,
-                                    onDismissRequest = { menuContactId = null }
-                                ) {
-                                    if (convo.unreadCount > 0) {
-                                        DropdownMenuItem(
-                                            text = { Text("Mark as Read") },
-                                            onClick = {
+                                if (menuContactId == convo.contact.id) {
+                                    // A sheet, not a dropdown: each option carries a line saying
+                                    // what it does, and Silence needs one - it is not obvious
+                                    // that it overrides the app-wide notification setting.
+                                    val isSilent = com.kachat.app.models.ContactNotificationMode
+                                        .fromName(convo.contact.notificationOverride) ==
+                                        com.kachat.app.models.ContactNotificationMode.OFF
+                                    ActionSheetContainer(
+                                        title = convo.contact.alias
+                                            ?: com.kachat.app.util.KaspaAddress.shortDisplay(convo.contact.id),
+                                        subtitle = null,
+                                        onDismiss = { menuContactId = null },
+                                    ) {
+                                        if (convo.unreadCount > 0) {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.MarkEmailRead,
+                                                title = "Mark as Read",
+                                                subtitle = "Clears the unread badge on this chat.",
+                                            ) {
                                                 menuContactId = null
                                                 chatViewModel.markAsRead(convo.contact.id)
                                             }
-                                        )
-                                    } else {
-                                        DropdownMenuItem(
-                                            text = { Text("Mark as Unread") },
-                                            onClick = {
+                                        } else {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.MarkEmailUnread,
+                                                title = "Mark as Unread",
+                                                subtitle = "Puts the unread badge back so you come across it again.",
+                                            ) {
                                                 menuContactId = null
                                                 chatViewModel.markAsUnread(convo.contact.id)
                                             }
-                                        )
-                                    }
-                                    DropdownMenuItem(
-                                        text = { Text("Delete", color = Color(0xFFFF3B30)) },
-                                        onClick = {
+                                        }
+                                        ActionSheetRow(
+                                            icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                                            title = if (isSilent) "Unsilence" else "Silence",
+                                            subtitle = if (isSilent) {
+                                                "Notifications from this chat resume."
+                                            } else {
+                                                "No notification from this chat, whatever your app-wide setting says."
+                                            },
+                                        ) {
+                                            menuContactId = null
+                                            chatViewModel.updateContactNotificationOverride(
+                                                convo.contact.id,
+                                                if (isSilent) null else com.kachat.app.models.ContactNotificationMode.OFF
+                                            )
+                                        }
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Delete,
+                                            title = "Delete",
+                                            subtitle = "Removes this chat and its messages from this device.",
+                                            tint = Color(0xFFFF3B30),
+                                        ) {
                                             menuContactId = null
                                             contactToDelete = convo.contact.id
                                         }
-                                    )
+                                    }
                                 }
                             }
                         }
@@ -834,11 +865,13 @@ fun GroupListBody(
     selectedGroupIds: Set<String> = emptySet(),
     onToggleGroupSelected: (String) -> Unit = {},
     onMarkGroupRead: (String) -> Unit = {},
-    onMarkGroupUnread: (String) -> Unit = {}
+    onMarkGroupUnread: (String) -> Unit = {},
+    chatViewModel: ChatViewModel = hiltViewModel()
 ) {
     var groupToDelete by remember { mutableStateOf<String?>(null) }
-    // Long-press quick menu target - same Box-anchored DropdownMenu pattern as the 1:1 list.
+    // Long-press action-sheet target - same pattern as the 1:1 list.
     var menuGroupId by remember { mutableStateOf<String?>(null) }
+    val silentGroups by chatViewModel.groupSilent.collectAsState()
 
     if (groupConversations.isEmpty() && hasAnyGroups && searchQuery.isNotBlank()) {
         Column(
@@ -948,12 +981,27 @@ fun GroupListBody(
                             GroupAvatar(photoHex = convo.group.photoHex, size = 48.dp)
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = convo.group.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = LocalAppColors.current.textPrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = convo.group.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = LocalAppColors.current.textPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    // Silenced: no notification from this group, mentions included.
+                                    if (convo.group.groupId in silentGroups) {
+                                        Spacer(Modifier.width(5.dp))
+                                        Icon(
+                                            Icons.Default.NotificationsOff,
+                                            contentDescription = "Silenced",
+                                            tint = LocalAppColors.current.textSecondary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
                                 // Memoized on the roster JSON so scrolling / unread-count changes
                                 // don't re-parse the whole member list (with a fresh Gson) per row.
                                 val groupMembers = remember(convo.group.membersJson) { parseGroupMembers(convo.group) }
@@ -1011,34 +1059,54 @@ fun GroupListBody(
                                 }
                             }
                         }
-                        DropdownMenu(
-                            expanded = menuGroupId == convo.group.groupId,
-                            onDismissRequest = { menuGroupId = null }
-                        ) {
-                            if (convo.unreadCount > 0) {
-                                DropdownMenuItem(
-                                    text = { Text("Mark as Read") },
-                                    onClick = {
+                        if (menuGroupId == convo.group.groupId) {
+                            val isSilent = convo.group.groupId in silentGroups
+                            ActionSheetContainer(
+                                title = convo.group.name,
+                                subtitle = null,
+                                onDismiss = { menuGroupId = null },
+                            ) {
+                                if (convo.unreadCount > 0) {
+                                    ActionSheetRow(
+                                        icon = Icons.Default.MarkEmailRead,
+                                        title = "Mark as Read",
+                                        subtitle = "Clears the unread badge on this group.",
+                                    ) {
                                         menuGroupId = null
                                         onMarkGroupRead(convo.group.groupId)
                                     }
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Mark as Unread") },
-                                    onClick = {
+                                } else {
+                                    ActionSheetRow(
+                                        icon = Icons.Default.MarkEmailUnread,
+                                        title = "Mark as Unread",
+                                        subtitle = "Puts the unread badge back so you come across it again.",
+                                    ) {
                                         menuGroupId = null
                                         onMarkGroupUnread(convo.group.groupId)
                                     }
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text("Delete", color = Color(0xFFFF3B30)) },
-                                onClick = {
+                                }
+                                ActionSheetRow(
+                                    icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                                    title = if (isSilent) "Unsilence" else "Silence",
+                                    subtitle = if (isSilent) {
+                                        "Notifications from this group resume, including mentions."
+                                    } else {
+                                        "No notification from this group, mentions included."
+                                    },
+                                ) {
+                                    menuGroupId = null
+                                    chatViewModel.setGroupSilent(convo.group.groupId, !isSilent)
+                                }
+                                ActionSheetRow(
+                                    icon = Icons.Default.Delete,
+                                    title = "Delete",
+                                    subtitle = "Removes this group and its messages from this device.",
+                                    tint = Color(0xFFFF3B30),
+                                ) {
                                     menuGroupId = null
                                     groupToDelete = convo.group.groupId
                                 }
-                            )
+                            }
                         }
                         }
                         HorizontalDivider(
@@ -1281,12 +1349,30 @@ private fun ConversationRow(
 
         Column(modifier = Modifier.weight(1f)) {
             val contactLabel = convo.contact.displayName
-            Text(
-                text = contactLabel,
-                style = MaterialTheme.typography.titleMedium,
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = contactLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                // Silenced: no notification from this chat, ever. Worth a mark on the row - a
+                // chat that never pings otherwise looks like a chat nobody is using.
+                if (com.kachat.app.models.ContactNotificationMode.fromName(convo.contact.notificationOverride) ==
+                    com.kachat.app.models.ContactNotificationMode.OFF
+                ) {
+                    Spacer(Modifier.width(5.dp))
+                    Icon(
+                        Icons.Default.NotificationsOff,
+                        contentDescription = "Silenced",
+                        tint = LocalAppColors.current.textSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
             // A reaction more recent than the last message gets shown instead - reactions never
             // become messages (they're applied as a corner pill), so without this the preview
             // would silently show a stale last message even when the truly most recent activity
