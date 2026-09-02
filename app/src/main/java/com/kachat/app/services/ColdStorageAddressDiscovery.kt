@@ -122,10 +122,13 @@ class ColdStorageAddressDiscovery @Inject constructor(
             onProgress?.invoke(
                 DiscoveryProgress(
                     checkingIndex = index,
-                    foundCount = results.count { it.hasHistory || it.balanceSompi > 0 },
+                    // Matches found so far. Counted off `matched`, not off balance/history:
+                    // the list holds only matches, and a KNS-domain match has neither.
+                    foundCount = results.size,
                 )
             )
-            val result = checkAddress(rootKey, chain, index) ?: break
+            // Balance only - one request per address, matching iOS. See [checkAddress].
+            val result = checkAddress(rootKey, chain, index, probeHistory = false) ?: break
             // Balance first - it is already in hand from checkAddress, and it short-circuits the
             // KNS lookup for the common case.
             val matches = result.balanceSompi > 0 || knsService.getOwnedDomains(result.address).isNotEmpty()
@@ -143,18 +146,33 @@ class ColdStorageAddressDiscovery @Inject constructor(
      * [com.kachat.app.viewmodels.ColdStorageViewModel.generateMoreAddresses]), which
      * [discoverAddresses] alone would never reach on a fresh unused-account rescan.
      */
-    suspend fun checkAddress(rootKey: DeterministicKey, chain: Int, index: Int): DiscoveredAddress? {
+    suspend fun checkAddress(
+        rootKey: DeterministicKey,
+        chain: Int,
+        index: Int,
+        /**
+         * Whether to also fetch transaction history. The gap-limit scan passes false: history
+         * stopped being part of what makes an address worth surfacing (balance or KNS domain
+         * is), so asking for it cost a second REST round trip PER ADDRESS - double the requests
+         * iOS makes, which is one UTXO lookup - to fill in a badge that pass 3's background
+         * backfill fills in anyway. It also made the scan brittle: a single failed history
+         * lookup returned null, which ended the whole scan early.
+         */
+        probeHistory: Boolean = true,
+    ): DiscoveredAddress? {
         val api = readyApi() ?: return null
         val address = try {
             KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain, index)
         } catch (e: Exception) {
             return null
         }
-        val hasHistory = try {
-            api.getTransactions(address, limit = 1).isNotEmpty()
-        } catch (e: Exception) {
-            Log.w("ColdStorageAddressDiscovery", "Lookup failed for index $index", e)
-            return null
+        val hasHistory = if (!probeHistory) false else {
+            try {
+                api.getTransactions(address, limit = 1).isNotEmpty()
+            } catch (e: Exception) {
+                Log.w("ColdStorageAddressDiscovery", "Lookup failed for index $index", e)
+                return null
+            }
         }
         val balance = try {
             api.getBalance(address).balance

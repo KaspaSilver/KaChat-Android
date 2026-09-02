@@ -2925,7 +2925,17 @@ fun ProfileScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                // Row one is the status row - connection dot, balance, settings - the way every
+                // other main page opens and the way iOS orders its Profile toolbar. The title
+                // and its bell come underneath, not above.
+                TopStatusBar(
+                    balance = balance,
+                    onStatusClick = { ConnectionStatusOverlayState.open() },
+                    dotColorHex = dotColorHex,
+                    showAddButton = false,
+                    showSettingsButton = true,
+                    onSettingsClick = { navController.navigate("settings") }
+                )
                 // Bold title + the global notification bell beside it (KaPosts activity, group
                 // @mentions, live broadcasts) - mirrors iOS's Profile toolbar bell.
                 val notifCenterVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
@@ -3074,14 +3084,6 @@ fun ProfileScreen(
                         },
                     )
                 }
-                TopStatusBar(
-                    balance = balance,
-                    onStatusClick = { ConnectionStatusOverlayState.open() },
-                    dotColorHex = dotColorHex,
-                    showAddButton = false,
-                    showSettingsButton = true,
-                    onSettingsClick = { navController.navigate("settings") }
-                )
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }

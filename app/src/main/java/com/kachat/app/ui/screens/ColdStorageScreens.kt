@@ -2048,6 +2048,14 @@ fun ColdStorageTxHistoryScreen(
     val displayName = addressRow?.label?.takeIf { it.isNotBlank() }
         ?: addressRow?.let { "Address #${it.index}" }
         ?: address
+    // Live balance for this address. Prefers the loaded UTXO set - it is what this screen
+    // fetched for itself and cannot be stale - and falls back to the row only before that
+    // first load lands.
+    val addressBalanceSompi = remember(utxos, addressRow, isLoadingUtxos) {
+        if (utxos.isNotEmpty()) utxos.sumOf { it.amountSompi }
+        else if (isLoadingUtxos) addressRow?.balanceSompi ?: 0L
+        else 0L
+    }
 
     var selectedTab by remember { mutableStateOf(0) }
     var showQr by remember { mutableStateOf(false) }
@@ -2069,7 +2077,7 @@ fun ColdStorageTxHistoryScreen(
     if (showSendFlow) {
         ColdSendFlow(
             fromAddress = address,
-            availableBalanceSompi = addressRow?.balanceSompi ?: 0L,
+            availableBalanceSompi = addressBalanceSompi,
             viewModel = viewModel,
             onDone = {
                 showSendFlow = false
@@ -2083,7 +2091,7 @@ fun ColdStorageTxHistoryScreen(
     if (showCompoundFlow) {
         ColdSendFlow(
             fromAddress = address,
-            availableBalanceSompi = addressRow?.balanceSompi ?: 0L,
+            availableBalanceSompi = addressBalanceSompi,
             viewModel = viewModel,
             isCompoundMode = true,
             onDone = {
@@ -2155,7 +2163,11 @@ fun ColdStorageTxHistoryScreen(
                     style = MaterialTheme.typography.labelMedium
                 )
                 Text(
-                    "%.8f KAS".format(Locale.US, (addressRow?.balanceSompi ?: 0L) / 100_000_000.0),
+                    // Summed from the UTXOs this screen loads for itself. It used to read
+                    // addressRow.balanceSompi, which is null whenever the account's address list
+                    // is not loaded in this ViewModel - so the page showed 0.00000000 KAS above
+                    // a UTXOs (1) tab holding real coins. The UTXO set IS the balance.
+                    "%.8f KAS".format(Locale.US, addressBalanceSompi / 100_000_000.0),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium
@@ -2310,42 +2322,22 @@ fun ColdStorageTxHistoryScreen(
     }
 
     labelingUtxoKey?.let { key ->
-        AlertDialog(
-            onDismissRequest = { labelingUtxoKey = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.rename_utxo), color = LocalAppColors.current.textPrimary) },
-            text = {
-                OutlinedTextField(
-                    value = labelInput,
-                    onValueChange = { labelInput = it },
-                    label = { Text(stringResource(R.string.name)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                        focusedLabelColor = KaspaTeal,
-                        unfocusedLabelColor = LocalAppColors.current.textSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
+        ActionSheetContainer(
+            title = stringResource(R.string.rename_utxo),
+            subtitle = com.kachat.app.services.AddressActivityNotifier.shortAddress(key),
+            onDismiss = { labelingUtxoKey = null },
+        ) {
+            ActionSheetRenameFields(
+                value = labelInput,
+                onValueChange = { labelInput = it },
+                onCancel = { labelingUtxoKey = null },
+                onSave = {
                     viewModel.setUtxoLabel(address, key, labelInput)
                     utxoLabels = viewModel.getUtxoLabels(address)
                     labelingUtxoKey = null
-                }) {
-                    Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { labelingUtxoKey = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
+                },
+            )
+        }
     }
 
     if (showQr) {

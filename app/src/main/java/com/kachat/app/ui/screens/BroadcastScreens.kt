@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -150,6 +151,10 @@ fun BroadcastListScreen(
     onBack: () -> Unit,
     broadcastViewModel: BroadcastViewModel = hiltViewModel()
 ) {
+    // The back arrow is gone from the header (iOS has none), so system back carries what it
+    // did: from the Kaspa Hub this returns to the grid rather than leaving the Hub entirely.
+    BackHandler(onBack = onBack)
+
     val channels by broadcastViewModel.joinedChannels.collectAsState()
     val showKnsAvatarsEnabled by broadcastViewModel.showKnsAvatarsEnabled.collectAsState()
     val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
@@ -183,9 +188,10 @@ fun BroadcastListScreen(
         topBar = {
             MainPageHeader(
                 title = stringResource(R.string.broadcasts),
-                // Kept, unlike the dock destinations: Broadcasts is also reached from the Kaspa
-                // Hub, whose onBack returns to the grid.
-                onBack = onBack,
+                // No back arrow, matching iOS: Broadcasts is a browsing destination you reach
+                // from the dock or the Kaspa Hub grid, not something you were pushed into.
+                // System back still runs onBack (see the BackHandler above), which is how the
+                // Hub gets back to its grid.
                 actions = {
                     // Matches iOS BroadcastListView's toolbar: gear only — the join/create
                     // "+" lives on the "Your Channels" section header row below instead.
