@@ -5924,16 +5924,18 @@ fun SpendingAddressTxHistoryScreen(
     }
 
     transactionActionTarget?.let { tapped ->
-        CenteredOptionsMenu(onDismissRequest = { transactionActionTarget = null }, centerHorizontally = true) {
-            PopupMenuRow(Icons.Default.OpenInNew, "Open in Explorer") {
+        TransactionActionsSheet(
+            tx = tapped,
+            onOpenExplorer = {
                 transactionActionTarget = null
                 uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
-            }
-            PopupMenuRow(Icons.Default.PieChart, "Add to Portfolio") {
+            },
+            onAddToPortfolio = {
                 transactionActionTarget = null
                 portfolioCandidate = tapped
-            }
-        }
+            },
+            onDismiss = { transactionActionTarget = null },
+        )
     }
 
     portfolioCandidate?.let { candidate ->
@@ -6277,16 +6279,18 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     }
 
     transactionActionTarget?.let { tapped ->
-        CenteredOptionsMenu(onDismissRequest = { transactionActionTarget = null }, centerHorizontally = true) {
-            PopupMenuRow(Icons.Default.OpenInNew, "Open in Explorer") {
+        TransactionActionsSheet(
+            tx = tapped,
+            onOpenExplorer = {
                 transactionActionTarget = null
                 uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
-            }
-            PopupMenuRow(Icons.Default.PieChart, "Add to Portfolio") {
+            },
+            onAddToPortfolio = {
                 transactionActionTarget = null
                 portfolioCandidate = tapped
-            }
-        }
+            },
+            onDismiss = { transactionActionTarget = null },
+        )
     }
 
     portfolioCandidate?.let { candidate ->

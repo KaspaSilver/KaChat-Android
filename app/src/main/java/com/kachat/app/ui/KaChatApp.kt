@@ -316,7 +316,12 @@ fun MainShell(
     val onTabRoute = currentDestination?.hierarchy?.any { dest ->
         bottomNavItems.any { it.route == dest.route } ||
             dest.route == Screen.KaPosts.route ||
-            dest.route == "broadcasts" || dest.route == "broadcast_channel/{channelName}"
+            dest.route == "broadcasts" || dest.route == "broadcast_channel/{channelName}" ||
+            // Cold Storage keeps its dock the whole way down, the way iOS's tab bar does: an
+            // account and one of its addresses are still browsing your own holdings, not a
+            // "pushed" screen you want the full height for.
+            dest.route == "cold_storage_detail/{accountId}" ||
+            dest.route == "cold_storage_tx_history/{address}"
     } == true
 
     // Press-and-hold a tab, then drag to reorder — the persisted order (WalletViewModel.tabOrder)
@@ -601,8 +606,14 @@ fun MainShell(
                             // state stays attached to the same logical tab as the list reorders,
                             // rather than to whichever position happens to render it.
                             key(screen.route) {
+                                // Cold Storage's account and address-history screens keep the
+                                // dock, so the Storage tab should stay lit while you are down
+                                // there rather than the bar going blank - iOS's tab bar does.
                                 val selected =
-                                    currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                                    currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
+                                        (screen.route == Screen.ColdStorage.route &&
+                                            (currentTopRoute == "cold_storage_detail/{accountId}" ||
+                                                currentTopRoute == "cold_storage_tx_history/{address}"))
                                 Box(
                                     modifier = Modifier
                                         .height(64.dp)
@@ -905,11 +916,15 @@ fun MainShell(
                 val parentEntry = remember(backStackEntry) {
                     navController.getBackStackEntry("cold_storage")
                 }
-                ColdStorageDetailScreen(
-                    accountId = backStackEntry.arguments?.getString("accountId") ?: "",
-                    navController = navController,
-                    viewModel = hiltViewModel(parentEntry)
-                )
+                // The floating dock stays visible here (see onTabRoute), so reserve room for it
+                // the same way the tab screens do rather than letting it sit over the content.
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    ColdStorageDetailScreen(
+                        accountId = backStackEntry.arguments?.getString("accountId") ?: "",
+                        navController = navController,
+                        viewModel = hiltViewModel(parentEntry)
+                    )
+                }
             }
 
             composable(
@@ -937,11 +952,15 @@ fun MainShell(
                         null
                     }
                 }
-                ColdStorageTxHistoryScreen(
-                    address = backStackEntry.arguments?.getString("address") ?: "",
-                    onBack = { navController.popBackStack() },
-                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
-                )
+                // Dock visible here too, and this screen has its own bottom bar (the pager), so
+                // the padding is what keeps the two from stacking on top of each other.
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    ColdStorageTxHistoryScreen(
+                        address = backStackEntry.arguments?.getString("address") ?: "",
+                        onBack = { navController.popBackStack() },
+                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                    )
+                }
             }
 
             composable(

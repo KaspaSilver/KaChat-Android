@@ -1125,7 +1125,7 @@ private fun SideMenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
  * repaint this 32dp circle only, instead of recomposing the whole KaPosts screen body.
  */
 @Composable
-private fun ConnectionDotButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ConnectionDotButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalAppColors.current
     val dotColorHex by hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
     Box(
