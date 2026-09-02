@@ -410,7 +410,7 @@ fun ChatThreadScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { navController.navigate("connection_status") },
+                                .clickable { ConnectionStatusSheetState.open() },
                             contentAlignment = Alignment.Center
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
@@ -3076,7 +3076,7 @@ fun ProfileScreen(
                 }
                 TopStatusBar(
                     balance = balance,
-                    onStatusClick = { navController.navigate("connection_status") },
+                    onStatusClick = { ConnectionStatusSheetState.open() },
                     dotColorHex = dotColorHex,
                     showAddButton = false,
                     showSettingsButton = true,
@@ -7665,7 +7665,7 @@ fun SettingsScreen(
                 )
                 TopStatusBar(
                     balance = balance,
-                    onStatusClick = { navController.navigate("connection_status") },
+                    onStatusClick = { ConnectionStatusSheetState.open() },
                     dotColorHex = dotColorHex,
                     showAddButton = false
                 )
@@ -8653,7 +8653,13 @@ fun TopStatusBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = hiltViewModel()) {
+fun ConnectionStatusScreen(
+    onBack: () -> Unit,
+    viewModel: ConnectionViewModel = hiltViewModel(),
+    /** Presented inside [ConnectionStatusSheetHost] rather than as a full screen: the sheet is
+     *  already clear of the status bar, so this must not reserve room for it a second time. */
+    inSheet: Boolean = false,
+) {
     val network by viewModel.network.collectAsState()
     val indexerUrl by viewModel.indexerUrl.collectAsState()
 
@@ -8703,9 +8709,11 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
     Scaffold(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = if (inSheet) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.connection_status), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                windowInsets = if (inSheet) WindowInsets(0) else TopAppBarDefaults.windowInsets,
                 actions = {
                     TextButton(onClick = onBack) {
                         Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 16.sp)

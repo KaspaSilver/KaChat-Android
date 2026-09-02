@@ -916,7 +916,7 @@ fun BroadcastChannelScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { navController.navigate("connection_status") },
+                                .clickable { ConnectionStatusSheetState.open() },
                             contentAlignment = Alignment.Center
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(Color(roomDotColorHex), CircleShape))

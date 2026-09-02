@@ -166,7 +166,7 @@ fun ColdStorageListScreen(
                         .padding(horizontal = 12.dp, vertical = 4.dp),
                 ) {
                     ConnectionDotButton(
-                        onClick = { navController.navigate("connection_status") },
+                        onClick = { ConnectionStatusSheetState.open() },
                         modifier = Modifier.align(Alignment.CenterStart),
                     )
                     BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))

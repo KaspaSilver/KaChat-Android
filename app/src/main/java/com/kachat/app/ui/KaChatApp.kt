@@ -709,6 +709,10 @@ fun MainShell(
             }
         }
     ) { innerPadding ->
+        // The green dot's half sheet, hosted once for the whole app rather than by each of the
+        // eight headers that draw a dot - so it comes up OVER whatever you were reading.
+        ConnectionStatusSheetHost()
+
         // Only the bottom-tab destinations (Settings/Chats/Profile) sit inside this
         // shell's floating nav bar and need innerPadding reserved beneath them.
         // "Pushed" detail screens (chat thread, settings sub-screens, etc.) fill the
@@ -1236,12 +1240,6 @@ fun MainShell(
 
             composable("kaspa_explorer_settings") {
                 KaspaExplorerSettingsScreen(
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable("connection_status") {
-                ConnectionStatusScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
