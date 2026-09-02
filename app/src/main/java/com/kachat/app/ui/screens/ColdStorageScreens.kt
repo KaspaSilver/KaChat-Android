@@ -145,41 +145,7 @@ fun ColdStorageListScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        topBar = {
-            // Mirrors iOS's ColdStorageListView navigation bar: the clickable connection dot
-            // leading and the balance centered on the SAME top row (its
-            // ConnectionStatusIndicator / BalanceToolbarLabel toolbar items), then the bold
-            // left-aligned large title under them. No back button - Cold Storage is a dock
-            // destination, not something you were pushed into, and the row it stood in belongs
-            // to the connection dot.
-            Column(
-                modifier = Modifier
-                    .background(LocalAppColors.current.background)
-                    // A CenterAlignedTopAppBar applies this itself; hand-built topBar content
-                    // does not, so without it the dot and the balance draw up inside the system
-                    // status bar, on top of the clock and the battery.
-                    .statusBarsPadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                ) {
-                    ConnectionDotButton(
-                        onClick = { ConnectionStatusSheetState.open() },
-                        modifier = Modifier.align(Alignment.CenterStart),
-                    )
-                    BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))
-                }
-                Text(
-                    text = stringResource(R.string.cold_storage),
-                    color = LocalAppColors.current.textPrimary,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 8.dp),
-                )
-            }
-        },
+        topBar = { MainPageHeader(title = stringResource(R.string.cold_storage)) },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             // Matches iOS's ColdStorageListView: "Paste kpub" (outlined, secondary) and "Scan"

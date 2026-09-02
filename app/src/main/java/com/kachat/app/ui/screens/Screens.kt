@@ -410,7 +410,7 @@ fun ChatThreadScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusSheetState.open() },
+                                .clickable { ConnectionStatusOverlayState.open() },
                             contentAlignment = Alignment.Center
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
@@ -3076,7 +3076,7 @@ fun ProfileScreen(
                 }
                 TopStatusBar(
                     balance = balance,
-                    onStatusClick = { ConnectionStatusSheetState.open() },
+                    onStatusClick = { ConnectionStatusOverlayState.open() },
                     dotColorHex = dotColorHex,
                     showAddButton = false,
                     showSettingsButton = true,
@@ -7665,7 +7665,7 @@ fun SettingsScreen(
                 )
                 TopStatusBar(
                     balance = balance,
-                    onStatusClick = { ConnectionStatusSheetState.open() },
+                    onStatusClick = { ConnectionStatusOverlayState.open() },
                     dotColorHex = dotColorHex,
                     showAddButton = false
                 )
@@ -8653,13 +8653,7 @@ fun TopStatusBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConnectionStatusScreen(
-    onBack: () -> Unit,
-    viewModel: ConnectionViewModel = hiltViewModel(),
-    /** Presented inside [ConnectionStatusSheetHost] rather than as a full screen: the sheet is
-     *  already clear of the status bar, so this must not reserve room for it a second time. */
-    inSheet: Boolean = false,
-) {
+fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = hiltViewModel()) {
     val network by viewModel.network.collectAsState()
     val indexerUrl by viewModel.indexerUrl.collectAsState()
 
@@ -8709,11 +8703,9 @@ fun ConnectionStatusScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        contentWindowInsets = if (inSheet) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.connection_status), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                windowInsets = if (inSheet) WindowInsets(0) else TopAppBarDefaults.windowInsets,
                 actions = {
                     TextButton(onClick = onBack) {
                         Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -9988,8 +9980,13 @@ fun QrCodeOverlay(
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
-    BackHandler(onBack = onDismiss)
-
+    // Its own window, not a Box drawn into the current screen: as inline content, the app's
+    // floating dock stayed on top of the code, which is both wrong to look at and something a
+    // camera can read the edge of. A Dialog is above everything, and it takes system back.
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
     // Full-screen white, not the app's own themed background — a bright, high-contrast quiet
     // zone around the code is what actually gets a reliable scan on another device's camera,
     // regardless of whether KaChat itself is in light or dark mode.
@@ -10006,14 +10003,21 @@ fun QrCodeOverlay(
             },
         contentAlignment = Alignment.Center
     ) {
-        IconButton(
+        // "Close", not a back arrow: this is a modal you dismiss, not somewhere you navigated
+        // to. Same word, same corner as iOS's toolbar button on every one of these.
+        TextButton(
             onClick = onDismiss,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
                 .padding(4.dp)
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = Color.Black)
+            Text(
+                stringResource(R.string.close),
+                color = KaspaTeal,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             val qrPainter = rememberQrBitmapPainter(value)
@@ -10063,6 +10067,7 @@ fun QrCodeOverlay(
                 )
             }
         }
+    }
     }
 }
 

@@ -626,7 +626,7 @@ fun KaPostsScreen(
                     // Same clickable dot as the chat-thread and broadcast-room headers: 32dp
                     // surface circle, 10dp live-status dot, opens the connection status page.
                     ConnectionDotButton(
-                        onClick = { ConnectionStatusSheetState.open() },
+                        onClick = { ConnectionStatusOverlayState.open() },
                         modifier = Modifier.align(Alignment.CenterStart),
                     )
                     BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))

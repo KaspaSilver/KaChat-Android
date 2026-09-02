@@ -181,31 +181,19 @@ fun BroadcastListScreen(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = { Text(stringResource(R.string.broadcasts), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
-                        }
-                    },
-                    actions = {
-                        // Matches iOS BroadcastListView's toolbar: gear only — the join/create
-                        // "+" lives on the "Your Channels" section header row below instead.
-                        IconButton(onClick = { showBroadcastSettingsDialog = true }) {
-                            Icon(Icons.Default.Settings, "Broadcast Settings", tint = KaspaTeal)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-                )
-                // Total balance under the title, same header anatomy as the other main pages
-                // (iOS BroadcastListView's centered BalanceToolbarLabel).
-                BalanceTopBarLabel(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 4.dp)
-                )
-            }
+            MainPageHeader(
+                title = stringResource(R.string.broadcasts),
+                // Kept, unlike the dock destinations: Broadcasts is also reached from the Kaspa
+                // Hub, whose onBack returns to the grid.
+                onBack = onBack,
+                actions = {
+                    // Matches iOS BroadcastListView's toolbar: gear only — the join/create
+                    // "+" lives on the "Your Channels" section header row below instead.
+                    IconButton(onClick = { showBroadcastSettingsDialog = true }) {
+                        Icon(Icons.Default.Settings, "Broadcast Settings", tint = KaspaTeal)
+                    }
+                },
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -916,7 +904,7 @@ fun BroadcastChannelScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusSheetState.open() },
+                                .clickable { ConnectionStatusOverlayState.open() },
                             contentAlignment = Alignment.Center
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(Color(roomDotColorHex), CircleShape))

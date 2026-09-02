@@ -133,21 +133,14 @@ private fun HubGrid(
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        Screen.KaspaHub.label,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+            MainPageHeader(
+                title = Screen.KaspaHub.label,
                 actions = {
                     // Straight to Customize Dock - the one screen that decides what is in here.
                     IconButton(onClick = onCustomize) {
                         Icon(Icons.Default.Tune, contentDescription = "Customize Dock", tint = KaspaTeal)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
     ) { padding ->

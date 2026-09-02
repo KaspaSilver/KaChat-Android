@@ -74,15 +74,7 @@ fun KaspaAppsScreen(onBack: () -> Unit, onOpen: (KaspaApp) -> Unit) {
     androidx.compose.material3.Scaffold(
         containerColor = colors.background,
         topBar = {
-            androidx.compose.material3.CenterAlignedTopAppBar(
-                title = { Text("Apps", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
-            )
+            MainPageHeader(title = "Apps", onBack = onBack)
         },
     ) { padding ->
         Column(

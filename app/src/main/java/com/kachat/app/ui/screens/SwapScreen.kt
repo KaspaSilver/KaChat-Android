@@ -146,17 +146,7 @@ fun SwapScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             Column {
-                CenterAlignedTopAppBar(
-                    title = { Text(stringResource(R.string.swap), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp) },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-                )
-                // Total balance under the title, same as every other main page's header
-                // (iOS SwapView's centered BalanceToolbarLabel).
-                BalanceTopBarLabel(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 4.dp)
-                )
+                MainPageHeader(title = stringResource(R.string.swap))
                 TabRow(
                     selectedTabIndex = pagerState.currentPage,
                     containerColor = LocalAppColors.current.background,

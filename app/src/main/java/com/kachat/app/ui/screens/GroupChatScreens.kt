@@ -475,7 +475,7 @@ fun GroupChatThreadScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusSheetState.open() },
+                                .clickable { ConnectionStatusOverlayState.open() },
                             contentAlignment = Alignment.Center
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))

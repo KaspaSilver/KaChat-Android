@@ -711,7 +711,7 @@ fun MainShell(
     ) { innerPadding ->
         // The green dot's half sheet, hosted once for the whole app rather than by each of the
         // eight headers that draw a dot - so it comes up OVER whatever you were reading.
-        ConnectionStatusSheetHost()
+        ConnectionStatusOverlayHost()
 
         // Only the bottom-tab destinations (Settings/Chats/Profile) sit inside this
         // shell's floating nav bar and need innerPadding reserved beneath them.

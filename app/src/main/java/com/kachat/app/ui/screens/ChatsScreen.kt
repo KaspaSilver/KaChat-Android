@@ -247,7 +247,7 @@ fun ChatsScreen(
                     // underneath the title.
                     TopStatusBar(
                         balance = balance,
-                        onStatusClick = { ConnectionStatusSheetState.open() },
+                        onStatusClick = { ConnectionStatusOverlayState.open() },
                         dotColorHex = dotColorHex,
                         showAddButton = false,
                         showEditButton = if (isOnGroupsTab) groupConversations.isNotEmpty() else conversations.isNotEmpty(),

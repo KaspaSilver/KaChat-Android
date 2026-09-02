@@ -196,26 +196,7 @@ fun PortfolioScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        topBar = {
-            Column(modifier = Modifier.background(LocalAppColors.current.background)) {
-                CenterAlignedTopAppBar(
-                    title = { Text(stringResource(R.string.portfolio), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 26.sp) },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-                )
-                // Total balance under the title, same as every other main page's header
-                // (iOS PortfolioView's centered BalanceToolbarLabel).
-                BalanceTopBarLabel(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 4.dp)
-                )
-            }
-        }
+        topBar = { MainPageHeader(title = stringResource(R.string.portfolio)) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             PortfolioPickerHeader(
