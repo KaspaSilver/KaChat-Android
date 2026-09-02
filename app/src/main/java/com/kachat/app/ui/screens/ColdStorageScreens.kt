@@ -2006,13 +2006,18 @@ fun ColdStorageTxHistoryScreen(
     val displayName = addressRow?.label?.takeIf { it.isNotBlank() }
         ?: addressRow?.let { "Address #${it.index}" }
         ?: address
-    // Live balance for this address. Prefers the loaded UTXO set - it is what this screen
-    // fetched for itself and cannot be stale - and falls back to the row only before that
-    // first load lands.
-    val addressBalanceSompi = remember(utxos, addressRow, isLoadingUtxos) {
+    // Live balance for this address: the UTXO set when this screen has one, the account row's
+    // balance otherwise.
+    //
+    // The fallback is the load-bearing half. An empty `utxos` means either "this address really
+    // holds nothing" or "the fetch failed", and those were treated the same - so with the block
+    // explorer down the page printed 0.00000000 KAS and greyed out Send on an address the list
+    // one screen back showed a balance for. Falling back costs nothing when the address is
+    // genuinely empty (the row reads 0 too, from the same chain state) and is right whenever the
+    // lookup simply did not land. Matches iOS, which reads the row here.
+    val addressBalanceSompi = remember(utxos, addressRow) {
         if (utxos.isNotEmpty()) utxos.sumOf { it.amountSompi }
-        else if (isLoadingUtxos) addressRow?.balanceSompi ?: 0L
-        else 0L
+        else addressRow?.balanceSompi ?: 0L
     }
 
     var selectedTab by remember { mutableStateOf(0) }
