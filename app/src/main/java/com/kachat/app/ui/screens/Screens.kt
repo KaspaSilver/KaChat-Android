@@ -12007,9 +12007,11 @@ private fun ChatHeaderCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
+    // Wraps its content - NOT fillMaxWidth. Filling the width put a full-width tap target over
+    // the whole bar row, so the back button and the connection dot sat underneath it and tapping
+    // either one opened Chat Info instead.
     Column(
         modifier = modifier
-            .fillMaxWidth()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
