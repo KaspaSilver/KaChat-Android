@@ -57,11 +57,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -69,6 +66,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -230,7 +228,6 @@ fun ColdStorageListScreen(
             ) {
                 items(accounts) { account ->
                     var showMenu by remember { mutableStateOf(false) }
-                    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
                     Row(
                         modifier = Modifier
@@ -255,29 +252,40 @@ fun ColdStorageListScreen(
                         }
                         IconButton(
                             onClick = { showMenu = true },
-                            modifier = Modifier
-                                .size(32.dp)
-                                .onGloballyPositioned { coords ->
-                                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                                }
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(Icons.Default.MoreVert, stringResource(R.string.account_actions), tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
                         }
                     }
 
                     if (showMenu) {
-                        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-                            PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_kpub)) {
+                        ColdStorageActionsSheet(
+                            title = account.name,
+                            subtitle = com.kachat.app.services.AddressActivityNotifier
+                                .shortAddress(account.kpub),
+                            onDismiss = { showMenu = false },
+                        ) {
+                            ColdStorageActionRow(
+                                icon = Icons.Default.ContentCopy,
+                                title = stringResource(R.string.copy_kpub),
+                                subtitle = "Puts the account's extended public key on the clipboard.",
+                            ) {
                                 showMenu = false
                                 clipboardManager.setText(AnnotatedString(account.kpub))
                             }
-                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                            PopupMenuRow(Icons.Default.QrCode, "Show kpub QR") {
+                            ColdStorageActionRow(
+                                icon = Icons.Default.QrCode,
+                                title = "Show kpub QR",
+                                subtitle = "Full screen, for importing this account on another device.",
+                            ) {
                                 showMenu = false
                                 kpubQrAccount = account
                             }
-                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                            PopupMenuRow(Icons.Default.Edit, stringResource(R.string.rename)) {
+                            ColdStorageActionRow(
+                                icon = Icons.Default.Edit,
+                                title = stringResource(R.string.rename),
+                                subtitle = "Changes the name shown for this account.",
+                            ) {
                                 showMenu = false
                                 renamingAccount = account
                                 renameInput = account.name
@@ -1076,7 +1084,6 @@ private fun ColdAddressRow(
 ) {
     val kas = row.balanceSompi / 100_000_000.0
     var showMenu by remember { mutableStateOf(false) }
-    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     Row(
             modifier = Modifier
@@ -1131,29 +1138,39 @@ private fun ColdAddressRow(
             }
             IconButton(
                 onClick = { showMenu = true },
-                modifier = Modifier
-                    .size(44.dp)
-                    .onGloballyPositioned { coords ->
-                        menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                    }
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
             }
         }
 
     if (showMenu) {
-        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.Edit, stringResource(R.string.rename_address)) {
+        ColdStorageActionsSheet(
+            title = row.label ?: "Address #${row.index}",
+            subtitle = com.kachat.app.services.AddressActivityNotifier.shortAddress(row.address),
+            onDismiss = { showMenu = false },
+        ) {
+            ColdStorageActionRow(
+                icon = Icons.Default.Edit,
+                title = stringResource(R.string.rename_address),
+                subtitle = "Gives this address a label of your own.",
+            ) {
                 showMenu = false
                 onLabelClick()
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-            PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
+            ColdStorageActionRow(
+                icon = Icons.Default.ContentCopy,
+                title = stringResource(R.string.copy_address),
+                subtitle = "Puts the full address on the clipboard.",
+            ) {
                 showMenu = false
                 onCopyClick()
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-            PopupMenuRow(Icons.Default.QrCode, stringResource(R.string.show_qr_code)) {
+            ColdStorageActionRow(
+                icon = Icons.Default.QrCode,
+                title = stringResource(R.string.show_qr_code),
+                subtitle = "Full screen, for scanning with another device.",
+            ) {
                 showMenu = false
                 onShowQrClick()
             }
@@ -1161,8 +1178,12 @@ private fun ColdAddressRow(
             // watch-only kpub account; the funded guard lives in the caller so it can toast the
             // reason.
             if (onHideClick != null) {
-                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                PopupMenuRow(Icons.Default.VisibilityOff, "Hide Address") {
+                ColdStorageActionRow(
+                    icon = Icons.Default.VisibilityOff,
+                    title = "Hide Address",
+                    subtitle = "Removes it from this list. Re-enable it in Address Visibility.",
+                    tint = Color(0xFFFFA000),
+                ) {
                     showMenu = false
                     onHideClick()
                 }
@@ -2569,7 +2590,7 @@ private fun ColdStorageAddressActionsSheet(
                 ColdStorageActionRow(
                     icon = Icons.Default.Search,
                     title = stringResource(R.string.discover_addresses),
-                    subtitle = "Scans the account for addresses that have been used before.",
+                    subtitle = "Finds addresses holding a balance or a KNS domain.",
                     onClick = onDiscover,
                 )
                 if (summary != null) {
@@ -2580,11 +2601,59 @@ private fun ColdStorageAddressActionsSheet(
     }
 }
 
+/**
+ * The half sheet behind a cold-storage "..." menu - one for the account rows on the list, one for
+ * the address rows inside an account. A sheet rather than a popup menu because the options carry a
+ * line of explanation each, which a popup has no room for. Mirrors iOS's `.sheet(item:)` menus.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ColdStorageActionsSheet(
+    title: String,
+    subtitle: String?,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                title,
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                textAlign = TextAlign.Center,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            content()
+        }
+    }
+}
+
+/** One row in any of the cold-storage half sheets. Same shape as iOS's `ColdStorageActionRow`. */
 @Composable
 private fun ColdStorageActionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    tint: Color = KaspaTeal,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -2597,7 +2666,7 @@ private fun ColdStorageActionRow(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
