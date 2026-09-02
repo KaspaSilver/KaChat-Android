@@ -499,11 +499,9 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     }
                 },
                 actions = {
-                    // Bulk visibility manager: compact checkmark list of EVERY address, so dozens
-                    // can be toggled off the main list in one sitting (same tool as Manage Addresses).
-                    IconButton(onClick = { navController.navigate("cold_storage_visibility/$accountId") }) {
-                        Icon(Icons.Default.Checklist, "Manage address visibility", tint = KaspaTeal)
-                    }
+                    // Address Visibility used to be an unlabelled checklist glyph up here. It is
+                    // one of this account's address actions, so it lives with the others in the
+                    // Address Actions sheet, where it has room to say what it does.
                     IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(Icons.Default.Delete, "Remove account", tint = Color.Red)
                     }
@@ -817,6 +815,11 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         "No addresses with a balance or domain found."
                     }
                 }
+            },
+            onVisibility = {
+                showActionsSheet = false
+                discoverySummary = null
+                navController.navigate("cold_storage_visibility/$accountId")
             },
             onDismiss = {
                 showActionsSheet = false
@@ -2490,6 +2493,7 @@ private fun ColdStorageAddressActionsSheet(
     summary: String?,
     onGenerate: () -> Unit,
     onDiscover: () -> Unit,
+    onVisibility: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -2546,6 +2550,12 @@ private fun ColdStorageAddressActionsSheet(
                     title = stringResource(R.string.discover_addresses),
                     subtitle = "Finds addresses holding a balance or a KNS domain.",
                     onClick = onDiscover,
+                )
+                ActionSheetRow(
+                    icon = Icons.Default.Checklist,
+                    title = "Address Visibility",
+                    subtitle = "Check off every address you want on the list, in one sitting.",
+                    onClick = onVisibility,
                 )
                 if (summary != null) {
                     Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
