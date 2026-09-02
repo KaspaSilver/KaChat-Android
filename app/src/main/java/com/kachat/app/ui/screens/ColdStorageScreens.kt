@@ -153,7 +153,14 @@ fun ColdStorageListScreen(
             // left-aligned large title under them. No back button - Cold Storage is a dock
             // destination, not something you were pushed into, and the row it stood in belongs
             // to the connection dot.
-            Column(modifier = Modifier.background(LocalAppColors.current.background)) {
+            Column(
+                modifier = Modifier
+                    .background(LocalAppColors.current.background)
+                    // A CenterAlignedTopAppBar applies this itself; hand-built topBar content
+                    // does not, so without it the dot and the balance draw up inside the system
+                    // status bar, on top of the clock and the battery.
+                    .statusBarsPadding()
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
