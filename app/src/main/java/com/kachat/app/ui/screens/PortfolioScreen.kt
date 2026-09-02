@@ -18,6 +18,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1256,6 +1257,11 @@ fun PortfolioPriceChartScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                // The window is edge-to-edge, so adjustResize no longer shrinks it - the app
+                // draws BEHIND the keyboard, and the converter's fields ended up under it with
+                // nothing to scroll into. With the inset reserved here, the field Compose is
+                // bringing into view has somewhere above the keyboard to land.
+                .imePadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1822,12 +1828,19 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
 
     fun recompute(from: String) {
         val rate = price?.takeIf { it > 0 } ?: return
+        // groupedFromCanonical, not grouped: formatFullPrecision writes a "." decimal point,
+        // and in a locale where "." IS the grouping separator, grouped() would strip it and read
+        // "1200000.00" as 120000000.
         if (from == "kas") {
-            val kas = parseAmount(kasText)
-            fiatText = kas?.let { formatFullPrecision(it * rate) } ?: ""
+            val kas = com.kachat.app.util.DecimalInputFormat.value(kasText)
+            fiatText = kas?.let {
+                com.kachat.app.util.DecimalInputFormat.groupedFromCanonical(formatFullPrecision(it * rate))
+            } ?: ""
         } else {
-            val fiat = parseAmount(fiatText)
-            kasText = fiat?.let { formatFullPrecision(it / rate) } ?: ""
+            val fiat = com.kachat.app.util.DecimalInputFormat.value(fiatText)
+            kasText = fiat?.let {
+                com.kachat.app.util.DecimalInputFormat.groupedFromCanonical(formatFullPrecision(it / rate))
+            } ?: ""
         }
     }
 
@@ -1846,7 +1859,12 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
 
         OutlinedTextField(
             value = kasText,
-            onValueChange = { kasText = it; editing = "kas"; recompute("kas") },
+            // Grouped as you type - "1200000" is a number you have to count digits on.
+            onValueChange = {
+                kasText = com.kachat.app.util.DecimalInputFormat.grouped(it)
+                editing = "kas"
+                recompute("kas")
+            },
             label = { Text("KAS", color = colors.textSecondary) },
             trailingIcon = { Text("KAS", color = colors.textSecondary, fontSize = 13.sp) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1855,7 +1873,11 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
         )
         OutlinedTextField(
             value = fiatText,
-            onValueChange = { fiatText = it; editing = "fiat"; recompute("fiat") },
+            onValueChange = {
+                fiatText = com.kachat.app.util.DecimalInputFormat.grouped(it)
+                editing = "fiat"
+                recompute("fiat")
+            },
             label = { Text(currencyCode.uppercase(Locale.US), color = colors.textSecondary) },
             trailingIcon = { Text(currencySymbolFor(currencyCode), color = colors.textSecondary, fontSize = 13.sp) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -2020,6 +2042,10 @@ fun PortfolioHashrateChartScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
+                // Same reason as the price screen: edge-to-edge means the window is not resized
+                // for the keyboard, so the mining estimate's field needs the inset reserved here
+                // to have anywhere above the keyboard to scroll into.
+                .imePadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {

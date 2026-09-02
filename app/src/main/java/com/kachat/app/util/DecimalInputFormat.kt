@@ -39,6 +39,17 @@ object DecimalInputFormat {
         return withSeparators + rest
     }
 
+    /**
+     * Groups a string that uses "." as its decimal point - String.format output, say - into the
+     * locale's own form.
+     *
+     * Not the same as calling [grouped] on it: in a locale like German "." IS the grouping
+     * separator, so [grouped] would strip the decimal point out of "1200000.00" and read the
+     * whole thing as 120000000.
+     */
+    fun groupedFromCanonical(text: String): String =
+        grouped(text.replace(".", decimal.toString()))
+
     /** The number behind grouped text, or null when there isn't one yet. */
     fun value(text: String): Double? =
         text.replace(grouping.toString(), "")
