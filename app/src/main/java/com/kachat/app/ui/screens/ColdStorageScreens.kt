@@ -2,6 +2,9 @@ package com.kachat.app.ui.screens
 
 import com.kachat.app.R
 import android.widget.Toast
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.Image
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -111,6 +114,8 @@ fun ColdStorageListScreen(
     var nameInput by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
     var renamingAccount by remember { mutableStateOf<ColdStorageManager.ColdAccount?>(null) }
+    /** Account whose kpub QR is on screen. */
+    var kpubQrAccount by remember { mutableStateOf<ColdStorageManager.ColdAccount?>(null) }
     var renameInput by remember { mutableStateOf("") }
 
     LaunchedEffect(importState.status) {
@@ -266,6 +271,11 @@ fun ColdStorageListScreen(
                                 clipboardManager.setText(AnnotatedString(account.kpub))
                             }
                             HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                            PopupMenuRow(Icons.Default.QrCode, "Show kpub QR") {
+                                showMenu = false
+                                kpubQrAccount = account
+                            }
+                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                             PopupMenuRow(Icons.Default.Edit, stringResource(R.string.rename)) {
                                 showMenu = false
                                 renamingAccount = account
@@ -276,6 +286,10 @@ fun ColdStorageListScreen(
                 }
             }
         }
+    }
+
+    kpubQrAccount?.let { account ->
+        KpubQrDialog(account = account, onDismiss = { kpubQrAccount = null })
     }
 
     if (showManualEntry) {
@@ -2467,5 +2481,56 @@ private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
         )
+    }
+}
+
+/**
+ * The kpub of one cold-storage account, as a QR for moving it to another device or a watch-only
+ * wallet elsewhere. Mirrors iOS's ColdStorageKpubQRView.
+ *
+ * Deliberately says what a kpub is. It holds no private key and cannot spend anything, which is
+ * why it is safe to display at all - but it derives EVERY address in the account, so whoever scans
+ * it can watch the whole balance and history forever. That is a privacy decision the person
+ * holding the phone should get to make knowingly, not discover later.
+ */
+@Composable
+private fun KpubQrDialog(account: ColdStorageManager.ColdAccount, onDismiss: () -> Unit) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White)
+                .clickable {
+                    clipboardManager.setText(AnnotatedString(account.kpub))
+                    Toast.makeText(context, "kpub copied to clipboard.", Toast.LENGTH_SHORT).show()
+                }
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(account.name, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Image(
+                painter = rememberQrBitmapPainter(account.kpub, size = 240),
+                contentDescription = "kpub QR code",
+                modifier = Modifier.size(240.dp)
+            )
+            Text(
+                account.kpub,
+                color = Color.Black.copy(alpha = 0.7f),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Watch-only. This cannot spend, but it reveals every address in this account.",
+                color = Color.Black.copy(alpha = 0.45f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+            Text("Tap anywhere to copy", color = Color.Black.copy(alpha = 0.4f), fontSize = 12.sp)
+        }
     }
 }
