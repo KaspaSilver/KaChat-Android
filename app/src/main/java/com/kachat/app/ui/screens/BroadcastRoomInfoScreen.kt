@@ -4,6 +4,10 @@ import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -46,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +77,8 @@ import java.util.Locale
 fun BroadcastRoomInfoScreen(
     channelName: String,
     onBack: () -> Unit,
+    /** Pushes the room's hidden-users list, the way iOS pushes HiddenBroadcastSendersView. */
+    onOpenHiddenUsers: () -> Unit,
     broadcastViewModel: BroadcastViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
@@ -87,7 +94,6 @@ fun BroadcastRoomInfoScreen(
 
     val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
     val contactAliases by broadcastViewModel.contactAliases.collectAsState()
-    var showHiddenUsers by remember { mutableStateOf(false) }
     var indexerText by remember { mutableStateOf("") }
     // Seeded once the stored value arrives, never on every emission - retyping would fight the
     // user mid-edit.
@@ -179,7 +185,7 @@ fun BroadcastRoomInfoScreen(
                 icon = Icons.Default.VisibilityOff,
                 title = if (hiddenHere == 0) "Hidden users" else "Hidden users ($hiddenHere)",
                 subtitle = "Per room: someone hidden here still shows in every other room.",
-                onClick = { showHiddenUsers = true },
+                onClick = onOpenHiddenUsers,
             )
 
             InfoCard(title = "Indexer for this room") {
@@ -232,55 +238,7 @@ fun BroadcastRoomInfoScreen(
             Spacer(Modifier.height(24.dp))
         }
     }
-
-    if (showHiddenUsers) {
-        val rows = com.kachat.app.repository.BroadcastRepository
-            .hiddenAddressesIn(normalized, hiddenSenders)
-        ActionSheetContainer(
-            title = "Hidden in #$normalized",
-            subtitle = if (rows.isEmpty()) null else {
-                if (rows.size == 1) "1 person" else "${rows.size} people"
-            },
-            onDismiss = { showHiddenUsers = false },
-        ) {
-            if (rows.isEmpty()) {
-                Text(
-                    "Nobody is hidden here. Hide someone from their avatar in the room.",
-                    color = colors.textSecondary,
-                    fontSize = 13.sp,
-                )
-            } else {
-                rows.forEach { address ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.surface)
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
-                            color = colors.textPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { broadcastViewModel.unhideSender(address, normalized) }) {
-                            Text(stringResourceUnhide(), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
-
-@Composable
-private fun stringResourceUnhide(): String =
-    androidx.compose.ui.res.stringResource(R.string.unhide)
 
 @Composable
 private fun stringResourceSave(): String =
@@ -328,5 +286,100 @@ private fun InfoRow(label: String, value: String) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * Who you have hidden in ONE broadcast room. Reached from Room Info; mirrors iOS's pushed
+ * `HiddenBroadcastSendersView`.
+ *
+ * Its own screen rather than a sheet inside Room Info: unhiding is a list you work through, and
+ * a sheet stacked on a sheet gives it no room and no title of its own.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BroadcastHiddenUsersScreen(
+    channelName: String,
+    onBack: () -> Unit,
+    broadcastViewModel: BroadcastViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    val normalized = remember(channelName) { channelName.trim().lowercase() }
+    val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
+    val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
+    val contactAliases by broadcastViewModel.contactAliases.collectAsState()
+
+    // hiddenAddressesIn returns a Set; sorted into a stable list so rows do not reshuffle when
+    // one is unhidden.
+    val rows = remember(hiddenSenders, normalized) {
+        com.kachat.app.repository.BroadcastRepository
+            .hiddenAddressesIn(normalized, hiddenSenders)
+            .sorted()
+    }
+    LaunchedEffect(rows) { rows.forEach { broadcastViewModel.ensureSenderProfileFetched(it) } }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text("Hidden in #$normalized", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
+            )
+        },
+    ) { padding ->
+        if (rows.isEmpty()) {
+            Box(
+                Modifier.fillMaxSize().padding(padding).padding(32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Nobody is hidden here. Hide someone from their avatar in the room.",
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            return@Scaffold
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item { Spacer(Modifier.height(8.dp)) }
+            items(rows, key = { it }) { address ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.surface)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
+                        color = colors.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { broadcastViewModel.unhideSender(address, normalized) }) {
+                        Text(
+                            androidx.compose.ui.res.stringResource(R.string.unhide),
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(24.dp)) }
+        }
     }
 }

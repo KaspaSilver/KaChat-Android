@@ -1286,7 +1286,19 @@ fun MainShell(
                 "broadcast_room_info/{channelName}",
                 arguments = listOf(navArgument("channelName") { type = NavType.StringType })
             ) { backStackEntry ->
+                val room = backStackEntry.arguments?.getString("channelName") ?: ""
                 BroadcastRoomInfoScreen(
+                    channelName = room,
+                    onBack = { navController.popBackStack() },
+                    onOpenHiddenUsers = { navController.navigate("broadcast_hidden_users/$room") }
+                )
+            }
+
+            composable(
+                "broadcast_hidden_users/{channelName}",
+                arguments = listOf(navArgument("channelName") { type = NavType.StringType })
+            ) { backStackEntry ->
+                BroadcastHiddenUsersScreen(
                     channelName = backStackEntry.arguments?.getString("channelName") ?: "",
                     onBack = { navController.popBackStack() }
                 )

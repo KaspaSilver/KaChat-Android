@@ -31,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,20 +77,27 @@ fun KaspaHubScreen(
     val reselect by walletViewModel.tabReselectSignal.collectAsState()
 
     val sections = kaspaHubSections(dockRoutes, hubRoutes, hiddenTabs, childMode)
-    var openSection by remember { mutableStateOf<Screen?>(null) }
-    var websitesOpen by remember { mutableStateOf(false) }
+    // rememberSaveable, keyed by ROUTE (Screen is not Saveable): plain `remember` is discarded
+    // the moment this destination leaves composition, which happens as soon as you open a
+    // broadcast room - so backing out of the room landed on the Hub GRID rather than on the
+    // Broadcasts list you opened the room from.
+    var openSectionRoute by rememberSaveable { mutableStateOf<String?>(null) }
+    var websitesOpen by rememberSaveable { mutableStateOf(false) }
+    val openSection = sections.firstOrNull { it.route == openSectionRoute }
 
     // Re-tapping the Kaspa Hub dock item steps back out to the grid - the same button that got you
     // in gets you out, so nothing competes with each section's own navigation.
     LaunchedEffect(reselect) {
         if (reselect.second == Screen.KaspaHub.route) {
-            openSection = null
+            openSectionRoute = null
             websitesOpen = false
         }
     }
-    // A section moved into the dock (or hidden) must not stay open here, or it is on screen twice.
+    // A section moved into the dock (or hidden) must not stay open here, or it is on screen
+    // twice. `openSection` is already resolved against `sections`, so a route that has left the
+    // list resolves to null on its own - this just clears the stale route behind it.
     LaunchedEffect(sections) {
-        if (openSection != null && openSection !in sections) openSection = null
+        if (openSectionRoute != null && openSection == null) openSectionRoute = null
     }
 
     when {
@@ -116,12 +124,12 @@ fun KaspaHubScreen(
         openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel)
         openSection == Screen.Broadcasts -> BroadcastListScreen(
             navController = navController,
-            onBack = { openSection = null }
+            onBack = { openSectionRoute = null }
         )
         openSection == Screen.Swap -> SwapScreen(navController = navController)
         else -> HubGrid(
             sections = sections,
-            onOpenSection = { openSection = it },
+            onOpenSection = { openSectionRoute = it.route },
             onOpenWebsites = { websitesOpen = true },
             onCustomize = { navController.navigate("settings_menu") },
             colors = colors

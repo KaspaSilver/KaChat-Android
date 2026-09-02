@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -484,52 +485,60 @@ fun BroadcastListScreen(
     }
 
     if (showJoinDialog) {
-        AlertDialog(
-            onDismissRequest = { showJoinDialog = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.join_or_create_a_channel), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.anyone_who_joins_the_same_channel),
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = channelInput,
-                        onValueChange = { channelInput = it },
-                        placeholder = { Text(stringResource(R.string.channel_name), color = Color.DarkGray) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (joinState.status == BroadcastViewModel.JoinChannelStatus.FAILED) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(joinState.message ?: "Invalid channel name", color = Color(0xFFFF3B30), fontSize = 12.sp)
-                    }
+        // Joining and creating are the same action - there is no ownership protocol, so a name
+        // nobody has used becomes a room the moment you post in it. Worth a sentence, which an
+        // AlertDialog's cramped text slot never gave it room for.
+        ActionSheetContainer(
+            title = stringResource(R.string.join_or_create_a_channel),
+            subtitle = stringResource(R.string.anyone_who_joins_the_same_channel),
+            onDismiss = { showJoinDialog = false },
+        ) {
+            OutlinedTextField(
+                value = channelInput,
+                onValueChange = { channelInput = it },
+                placeholder = { Text(stringResource(R.string.channel_name), color = Color.DarkGray) },
+                prefix = { Text("#", color = LocalAppColors.current.textSecondary) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = LocalAppColors.current.textPrimary,
+                    unfocusedTextColor = LocalAppColors.current.textPrimary,
+                    focusedBorderColor = KaspaTeal,
+                    unfocusedBorderColor = LocalAppColors.current.textSecondary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (joinState.status == BroadcastViewModel.JoinChannelStatus.FAILED) {
+                Text(
+                    joinState.message ?: "Invalid channel name",
+                    color = Color(0xFFFF3B30),
+                    fontSize = 12.sp
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { showJoinDialog = false },
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textPrimary)
                 }
-            },
-            confirmButton = {
-                // Doesn't close the dialog itself — joinChannel() updates joinChannelState
-                // asynchronously, so whether this succeeded isn't known yet at click time. The
-                // LaunchedEffect above closes the dialog once SUCCESS actually arrives; on
-                // FAILED it stays open showing the error text instead.
-                TextButton(onClick = { broadcastViewModel.joinChannel(channelInput) }) {
-                    Text(stringResource(R.string.join), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showJoinDialog = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                // Does NOT close the sheet: joinChannel() updates joinChannelState
+                // asynchronously, so whether it worked is not known at click time. The
+                // LaunchedEffect above closes it on SUCCESS; on FAILED it stays, showing why.
+                Button(
+                    onClick = { broadcastViewModel.joinChannel(channelInput) },
+                    enabled = channelInput.isNotBlank(),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                ) {
+                    Text(stringResource(R.string.join), fontWeight = FontWeight.Bold)
                 }
             }
-        )
+        }
     }
 
     channelToLeave?.let { channelName ->
@@ -776,6 +785,19 @@ fun BroadcastChannelScreen(
         }
     }
 
+    // Tapping into the composer scrolls to the newest message rather than letting the keyboard
+    // rise over wherever you happened to be reading. You opened the composer to reply to the
+    // room as it stands now.
+    var composerFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(composerFocused) {
+        if (composerFocused && messages.isNotEmpty()) {
+            // The keyboard is still animating up and the list has not been resized yet, so
+            // scrolling immediately lands short of the bottom.
+            kotlinx.coroutines.delay(120)
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
     // Only show the "jump to latest" button once the last message isn't even partially
     // visible — a real, deliberate scroll away from the bottom to read history — not just a
     // transient viewport shrink. Tolerates a 1-item gap for the same reason as 1:1 chat's
@@ -989,7 +1011,9 @@ fun BroadcastChannelScreen(
                             value = messageText,
                             onValueChange = { broadcastViewModel.setMessageText(it) },
                             placeholder = { Text("Message #$channelName", color = Color.DarkGray) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .onFocusChanged { composerFocused = it.isFocused },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = LocalAppColors.current.textPrimary,
                                 unfocusedTextColor = LocalAppColors.current.textPrimary,
