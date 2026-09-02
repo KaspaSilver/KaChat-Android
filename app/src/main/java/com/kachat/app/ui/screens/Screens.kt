@@ -2576,6 +2576,7 @@ fun ChessPieceGlyph(piece: com.kachat.app.util.ChessPiece, fontSize: androidx.co
 @Composable
 fun AudioBubble(voiceContent: VoiceMessageContent, isSent: Boolean, onLongPress: () -> Unit, onDoubleClick: () -> Unit = {}) {
     val context = LocalContext.current
+
     var isPlaying by remember { mutableStateOf(false) }
     var durationMs by remember { mutableStateOf(0) }
     var isReady by remember { mutableStateOf(false) }
@@ -10909,6 +10910,7 @@ fun ChatInfoScreen(
     val conversation = chatViewModel.conversations.collectAsState().value.find { it.contact.id == contactId }
     // Which section's half sheet is up.
     var infoSheet by remember { mutableStateOf<String?>(null) }
+
     val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
     val myAddress by walletViewModel.address.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
@@ -10966,6 +10968,55 @@ fun ChatInfoScreen(
     val clipboardManager = LocalClipboardManager.current
 
     val context = LocalContext.current
+
+    // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
+    // this conversation's messages on-chain. Receiving = the alias on messages this
+    // contact sends me (what my sync watches - WalletManager.myDeterministicAlias, my
+    // pubkey as HKDF context); Sending = the alias on my messages to them
+    // (WalletManager.theirDeterministicAlias, their pubkey as context) - direction
+    // semantics verified against ChatRepository.syncContextualMessages/
+    // WalletService.sendKasiaMessage usage. Derived only on demand (tap), never at render.
+    var revealedReceivingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+    var revealedSendingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+
+    @Composable
+    fun AliasRow(label: String, revealed: String?, derive: () -> String?, onRevealed: (String?) -> Unit) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    if (revealed != null) {
+                        clipboardManager.setText(AnnotatedString(revealed))
+                        Toast.makeText(context, context.getString(R.string.alias_copied), Toast.LENGTH_SHORT).show()
+                    } else {
+                        val derived = derive()
+                        if (derived != null) {
+                            onRevealed(derived)
+                        } else {
+                            Toast.makeText(context, context.getString(R.string.alias_unavailable), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(label, color = LocalAppColors.current.textPrimary)
+            if (revealed != null) {
+                Text(
+                    revealed,
+                    color = LocalAppColors.current.textSecondary,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("••••••••••••", color = LocalAppColors.current.textSecondary)
+                    Icon(Icons.Default.Visibility, contentDescription = stringResource(R.string.reveal), tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
     val pickContactLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         // PHOTO_URI rides along on the picker's one-shot URI grant (no READ_CONTACTS needed), so a
@@ -11188,32 +11239,59 @@ fun ChatInfoScreen(
             // and notification controls - far enough down the screen to be hard to reach. Still
             // reads the already-populated ChatViewModel.knsProfiles cache the LaunchedEffect
             // above fills, so opening the screen costs no fetch.
-            SettingsSection(title = stringResource(R.string.kns_domains)) {
-                SettingsNavigationItem(
-                    stringResource(R.string.kns_domains),
-                    Icons.Default.AlternateEmail,
-                    when {
-                        // Null = the lookup has not returned yet; a finished lookup always stores
-                        // a KnsProfileUiState, empty ownedDomains and all.
-                        knsProfile == null -> "Loading..."
-                        ownedDomains.isEmpty() -> stringResource(R.string.no_domains_yet)
-                        else -> ownedDomains.size.toString()
-                    },
-                    onClick = {
-                        // Nothing to open until the lookup has produced something.
-                        if (ownedDomains.isNotEmpty()) onNavigateToDomains(contactId)
-                    }
-                )
-            }
-
-            // Each section is a card that opens a half sheet holding what the section held.
-            // Matches iOS: the form had grown long enough that reaching any one part of it meant
-            // scrolling past the rest.
+            // Each section is a card that opens a half sheet holding what the section held, in
+            // the order iOS uses. The form had grown long enough that reaching any one part of
+            // it meant scrolling past the rest.
             InfoSectionCard(
                 title = stringResource(R.string.address),
-                value = com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
                 icon = Icons.Default.QrCode,
             ) { infoSheet = "address" }
+
+            // Straight to the list, no sheet in between: a sheet holding one row that opens a
+            // screen is a step that answers nothing. Same call iOS's KNS Domains sheet makes.
+            InfoSectionCard(
+                title = stringResource(R.string.kns_domains),
+                icon = Icons.Default.AlternateEmail,
+            ) {
+                // Nothing to open until the lookup has produced something.
+                if (ownedDomains.isNotEmpty()) onNavigateToDomains(contactId)
+            }
+
+            InfoSectionCard(
+                title = stringResource(R.string.aliases),
+                icon = Icons.Default.Tag,
+            ) { infoSheet = "aliases" }
+
+            InfoSectionCard(
+                title = stringResource(R.string.system_contact),
+                icon = Icons.Default.AccountCircle,
+            ) { infoSheet = "systemContact" }
+
+            if (!fromBroadcast) {
+                InfoSectionCard(
+                    title = stringResource(R.string.incoming_notifications),
+                    icon = Icons.Default.NotificationsNone,
+                ) { infoSheet = "notifications" }
+
+                InfoSectionCard(
+                    title = stringResource(R.string.photos),
+                    icon = Icons.Default.Photo,
+                ) { infoSheet = "photos" }
+            }
+
+            if (!fromBroadcast) {
+                InfoSectionCard(
+                    title = stringResource(R.string.info),
+                    icon = Icons.Default.Info,
+                ) { infoSheet = "info" }
+            }
+            
+            Spacer(modifier = Modifier.height(100.dp))
+        }
+    }
+
+    // Every section's half sheet, declared here so each can close over the locals the
+    // screen builds above - AliasRow and the reveal state among them.
 
             if (infoSheet == "address") {
                 ActionSheetContainer(
@@ -11267,196 +11345,165 @@ fun ChatInfoScreen(
                 }
             }
 
+            if (infoSheet == "aliases") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.aliases),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
+                ) {
+                        AliasRow(
+                            label = stringResource(R.string.receiving_alias),
+                            revealed = revealedReceivingAlias,
+                            derive = { chatViewModel.deriveReceivingAlias(contactId) },
+                            onRevealed = { revealedReceivingAlias = it }
+                        )
+                        SettingsDivider()
+                        AliasRow(
+                            label = stringResource(R.string.sending_alias),
+                            revealed = revealedSendingAlias,
+                            derive = { chatViewModel.deriveSendingAlias(contactId) },
+                            onRevealed = { revealedSendingAlias = it }
+                        )
+                }
+            }
 
-            // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
-            // this conversation's messages on-chain. Receiving = the alias on messages this
-            // contact sends me (what my sync watches - WalletManager.myDeterministicAlias, my
-            // pubkey as HKDF context); Sending = the alias on my messages to them
-            // (WalletManager.theirDeterministicAlias, their pubkey as context) - direction
-            // semantics verified against ChatRepository.syncContextualMessages/
-            // WalletService.sendKasiaMessage usage. Derived only on demand (tap), never at render.
-            var revealedReceivingAlias by remember(contactId) { mutableStateOf<String?>(null) }
-            var revealedSendingAlias by remember(contactId) { mutableStateOf<String?>(null) }
+            if (infoSheet == "systemContact") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.system_contact),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (systemContactId != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(stringResource(R.string.linked), color = LocalAppColors.current.textPrimary)
+                                Text(systemContactName ?: "", color = LocalAppColors.current.textSecondary)
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            HorizontalDivider(color = LocalAppColors.current.divider)
+                            Spacer(Modifier.height(12.dp))
+                        } else {
+                            Text(stringResource(R.string.not_linked), color = LocalAppColors.current.textSecondary)
+                            Spacer(Modifier.height(12.dp))
+                        }
 
-            @Composable
-            fun AliasRow(label: String, revealed: String?, derive: () -> String?, onRevealed: (String?) -> Unit) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (revealed != null) {
-                                clipboardManager.setText(AnnotatedString(revealed))
-                                Toast.makeText(context, context.getString(R.string.alias_copied), Toast.LENGTH_SHORT).show()
-                            } else {
-                                val derived = derive()
-                                if (derived != null) {
-                                    onRevealed(derived)
-                                } else {
-                                    Toast.makeText(context, context.getString(R.string.alias_unavailable), Toast.LENGTH_SHORT).show()
-                                }
+                        Row(
+                            modifier = Modifier.clickable { pickContactLauncher.launch(null) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.PersonAddAlt1, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.link_from_contacts), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                        }
+
+                        if (systemContactId != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.clickable { chatViewModel.unlinkSystemContact(contactId) },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.RemoveCircleOutline, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.unlink), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
                             }
                         }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    }
+                }
+            }
+
+            if (infoSheet == "notifications") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.incoming_notifications),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
                 ) {
-                    Text(label, color = LocalAppColors.current.textPrimary)
-                    if (revealed != null) {
-                        Text(
-                            revealed,
-                            color = LocalAppColors.current.textSecondary,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodyMedium
+                        val notificationOverride = com.kachat.app.models.ContactNotificationMode.fromName(conversation?.contact?.notificationOverride)
+                        SettingsNavigationItem(
+                            stringResource(R.string.incoming_notifications),
+                            Icons.Default.NotificationsNone,
+                            notificationOverride?.displayName ?: "Default",
+                            onClick = { onNavigateToNotificationSettings(contactId) }
                         )
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("••••••••••••", color = LocalAppColors.current.textSecondary)
-                            Icon(Icons.Default.Visibility, contentDescription = stringResource(R.string.reveal), tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                        }
-                    }
                 }
             }
 
-            Column {
-                SettingsSection(title = stringResource(R.string.aliases)) {
-                    AliasRow(
-                        label = stringResource(R.string.receiving_alias),
-                        revealed = revealedReceivingAlias,
-                        derive = { chatViewModel.deriveReceivingAlias(contactId) },
-                        onRevealed = { revealedReceivingAlias = it }
-                    )
-                    SettingsDivider()
-                    AliasRow(
-                        label = stringResource(R.string.sending_alias),
-                        revealed = revealedSendingAlias,
-                        derive = { chatViewModel.deriveSendingAlias(contactId) },
-                        onRevealed = { revealedSendingAlias = it }
-                    )
-                }
-                SettingsFooter(stringResource(R.string.these_identify_this_conversations_messages))
-            }
-
-            SettingsSection(title = stringResource(R.string.system_contact)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    if (systemContactId != null) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.linked), color = LocalAppColors.current.textPrimary)
-                            Text(systemContactName ?: "", color = LocalAppColors.current.textSecondary)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = LocalAppColors.current.divider)
-                        Spacer(Modifier.height(12.dp))
-                    } else {
-                        Text(stringResource(R.string.not_linked), color = LocalAppColors.current.textSecondary)
-                        Spacer(Modifier.height(12.dp))
-                    }
-
-                    Row(
-                        modifier = Modifier.clickable { pickContactLauncher.launch(null) },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.PersonAddAlt1, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.link_from_contacts), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-
-                    if (systemContactId != null) {
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.clickable { chatViewModel.unlinkSystemContact(contactId) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.RemoveCircleOutline, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.unlink), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                        }
-                    }
+            if (infoSheet == "photos") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.photos),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
+                ) {
+                        val photoOverride = com.kachat.app.models.PhotoAutoDisplayMode.fromName(conversation?.contact?.photoAutoDisplayOverride)
+                        SettingsNavigationItem(
+                            stringResource(R.string.photos),
+                            Icons.Default.Photo,
+                            photoOverride.displayName,
+                            onClick = { onNavigateToPhotoSettings(contactId) }
+                        )
                 }
             }
 
-            if (!fromBroadcast) {
-                SettingsSection(title = stringResource(R.string.incoming_notifications)) {
-                    val notificationOverride = com.kachat.app.models.ContactNotificationMode.fromName(conversation?.contact?.notificationOverride)
-                    SettingsNavigationItem(
-                        stringResource(R.string.incoming_notifications),
-                        Icons.Default.NotificationsNone,
-                        notificationOverride?.displayName ?: "Default",
-                        onClick = { onNavigateToNotificationSettings(contactId) }
-                    )
-                }
+            if (infoSheet == "info") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.info),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
+                ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val addedDate = remember(conversation) {
+                                conversation?.contact?.addedAt?.let {
+                                    java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.US).format(java.util.Date(it))
+                                } ?: "Unknown"
+                            }
 
-                SettingsSection(title = stringResource(R.string.photos)) {
-                    val photoOverride = com.kachat.app.models.PhotoAutoDisplayMode.fromName(conversation?.contact?.photoAutoDisplayOverride)
-                    SettingsNavigationItem(
-                        stringResource(R.string.photos),
-                        Icons.Default.Photo,
-                        photoOverride.displayName,
-                        onClick = { onNavigateToPhotoSettings(contactId) }
-                    )
-                }
-            }
+                            val lastMessageTime = remember(messages) {
+                                messages.firstOrNull()?.blockTimestamp?.let {
+                                    val diff = System.currentTimeMillis() - it
+                                    val hours = diff / (1000 * 60 * 60)
+                                    val minutes = (diff / (1000 * 60)) % 60
+                                    val days = hours / 24
+                                    when {
+                                        days > 0 -> "$days day${if (days == 1L) "" else "s"} ago"
+                                        hours > 0 -> "${hours} hr, ${minutes} min"
+                                        else -> "${minutes} min"
+                                    }
+                                } ?: "None"
+                            }
 
-            if (!fromBroadcast) {
-                SettingsSection(title = stringResource(R.string.info)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        val addedDate = remember(conversation) {
-                            conversation?.contact?.addedAt?.let {
-                                java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.US).format(java.util.Date(it))
-                            } ?: "Unknown"
-                        }
-
-                        val lastMessageTime = remember(messages) {
-                            messages.firstOrNull()?.blockTimestamp?.let {
-                                val diff = System.currentTimeMillis() - it
-                                val hours = diff / (1000 * 60 * 60)
-                                val minutes = (diff / (1000 * 60)) % 60
-                                val days = hours / 24
-                                when {
-                                    days > 0 -> "$days day${if (days == 1L) "" else "s"} ago"
-                                    hours > 0 -> "${hours} hr, ${minutes} min"
-                                    else -> "${minutes} min"
-                                }
-                            } ?: "None"
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.added), color = LocalAppColors.current.textPrimary)
-                            Text(addedDate, color = LocalAppColors.current.textSecondary)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = LocalAppColors.current.divider)
-                        Spacer(Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stringResource(R.string.last_message), color = LocalAppColors.current.textPrimary)
-                            Text(lastMessageTime, color = LocalAppColors.current.textSecondary)
-                        }
-                        if (chessRecord != null) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(R.string.added), color = LocalAppColors.current.textPrimary)
+                                Text(addedDate, color = LocalAppColors.current.textSecondary)
+                            }
                             Spacer(Modifier.height(12.dp))
                             HorizontalDivider(color = LocalAppColors.current.divider)
                             Spacer(Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(stringResource(R.string.chess_stats), color = LocalAppColors.current.textPrimary)
-                                Text("${chessRecord.first}W - ${chessRecord.second}L", color = LocalAppColors.current.textSecondary)
+                                Text(stringResource(R.string.last_message), color = LocalAppColors.current.textPrimary)
+                                Text(lastMessageTime, color = LocalAppColors.current.textSecondary)
+                            }
+                            if (chessRecord != null) {
+                                Spacer(Modifier.height(12.dp))
+                                HorizontalDivider(color = LocalAppColors.current.divider)
+                                Spacer(Modifier.height(12.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(stringResource(R.string.chess_stats), color = LocalAppColors.current.textPrimary)
+                                    Text("${chessRecord.first}W - ${chessRecord.second}L", color = LocalAppColors.current.textSecondary)
+                                }
+                            }
+                            Spacer(Modifier.height(24.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                                InfoStatItem(label = "Sent", value = messages.count { it.direction == "sent" }.toString())
+                                InfoStatItem(label = "Received", value = messages.count { it.direction == "received" }.toString())
+                                InfoStatItem(label = "Total", value = messages.size.toString())
                             }
                         }
-                        Spacer(Modifier.height(24.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                            InfoStatItem(label = "Sent", value = messages.count { it.direction == "sent" }.toString())
-                            InfoStatItem(label = "Received", value = messages.count { it.direction == "received" }.toString())
-                            InfoStatItem(label = "Total", value = messages.size.toString())
-                        }
-                    }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(100.dp))
-        }
-    }
 }
 
 /** Reached from Chat Info's "Photos" row — a selectable list of [PhotoAutoDisplayMode]s for this one contact, matching [KaspaExplorerSettingsScreen]'s picker pattern. */
@@ -11741,13 +11788,12 @@ fun ContactDomainsScreen(
 /**
  * One Chat Info section, as a card that opens its half sheet. Mirrors iOS's `infoCard`.
  *
- * The trailing value is what the sheet would have shown at a glance - the domain count, whether a
- * system contact is linked - so the card still answers the common question without being opened.
+ * Title only - the contents belong in the sheet, and a trailing value on every row turned the
+ * list back into the dense screen the cards were meant to replace.
  */
 @Composable
 private fun InfoSectionCard(
     title: String,
-    value: String?,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
 ) {
@@ -11765,17 +11811,6 @@ private fun InfoSectionCard(
         Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(12.dp))
         Text(title, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        if (!value.isNullOrBlank()) {
-            Text(
-                value,
-                color = colors.textSecondary,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 160.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-        }
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
