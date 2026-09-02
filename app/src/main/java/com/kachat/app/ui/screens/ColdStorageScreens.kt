@@ -707,88 +707,39 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     }
 
     if (showRenameDialog) {
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.rename_cold_storage_account), color = LocalAppColors.current.textPrimary) },
-            text = {
-                OutlinedTextField(
-                    value = renameInput,
-                    onValueChange = { renameInput = it },
-                    label = { Text(stringResource(R.string.name)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                        focusedLabelColor = KaspaTeal,
-                        unfocusedLabelColor = LocalAppColors.current.textSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = renameInput.isNotBlank(),
-                    onClick = {
-                        viewModel.renameAccount(accountId, renameInput.trim())
-                        showRenameDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.save), color = if (renameInput.isNotBlank()) KaspaTeal else Color.Gray, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
+        ActionSheetContainer(
+            title = stringResource(R.string.rename_cold_storage_account),
+            subtitle = account?.name,
+            onDismiss = { showRenameDialog = false },
+        ) {
+            ActionSheetRenameFields(
+                value = renameInput,
+                onValueChange = { renameInput = it },
+                onCancel = { showRenameDialog = false },
+                onSave = {
+                    viewModel.renameAccount(accountId, renameInput.trim())
+                    showRenameDialog = false
+                },
+            )
+        }
     }
 
     labelingRow?.let { row ->
-        AlertDialog(
-            onDismissRequest = { labelingRow = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.name_this_address), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Text(row.address, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = labelInput,
-                        onValueChange = { labelInput = it },
-                        label = { Text(stringResource(R.string.name)) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                            focusedLabelColor = KaspaTeal,
-                            unfocusedLabelColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.setAddressLabel(accountId, row.index, labelInput)
-                        labelingRow = null
-                    }
-                ) {
-                    Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { labelingRow = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
+        ActionSheetContainer(
+            title = stringResource(R.string.name_this_address),
+            subtitle = com.kachat.app.services.AddressActivityNotifier.shortAddress(row.address),
+            onDismiss = { labelingRow = null },
+        ) {
+            ActionSheetRenameFields(
+                value = labelInput,
+                onValueChange = { labelInput = it },
+                onCancel = { labelingRow = null },
+                onSave = {
+                    viewModel.setAddressLabel(accountId, row.index, labelInput)
+                    labelingRow = null
+                },
+            )
+        }
     }
 
     if (showActionsSheet) {

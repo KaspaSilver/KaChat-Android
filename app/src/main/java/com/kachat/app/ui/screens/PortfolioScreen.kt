@@ -393,14 +393,27 @@ private fun PortfolioTransactionsContent(
                     )
                 }
                 if (showAddMenu) {
-                    CenteredOptionsMenu(onDismissRequest = { showAddMenu = false }) {
-                        PopupMenuRow(Icons.Default.MonetizationOn, stringResource(R.string.add_transaction)) {
+                    // A sheet, not a popup: each option gets a line saying what it does - "Add
+                    // Kaspa Address" reads as a contact until you learn otherwise.
+                    ActionSheetContainer(
+                        title = "Add to Portfolio",
+                        subtitle = null,
+                        onDismiss = { showAddMenu = false },
+                    ) {
+                        ActionSheetRow(
+                            icon = Icons.Default.MonetizationOn,
+                            title = stringResource(R.string.add_transaction),
+                            subtitle = "Record a buy or a sell by hand.",
+                        ) {
                             showAddMenu = false
                             pendingPrefillSwapId = null
                             showAddDialog = true
                         }
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.QrCodeScanner, stringResource(R.string.add_kaspa_address)) {
+                        ActionSheetRow(
+                            icon = Icons.Default.QrCodeScanner,
+                            title = stringResource(R.string.add_kaspa_address),
+                            subtitle = "Track an address's balance as part of this portfolio.",
+                        ) {
                             showAddMenu = false
                             showAddAddressDialog = true
                         }
@@ -417,8 +430,16 @@ private fun PortfolioTransactionsContent(
                     )
                 }
                 if (showCsvMenu) {
-                    CenteredOptionsMenu(onDismissRequest = { showCsvMenu = false }) {
-                        PopupMenuRow(Icons.Default.FileDownload, stringResource(R.string.export_csv)) {
+                    ActionSheetContainer(
+                        title = "Import or Export",
+                        subtitle = null,
+                        onDismiss = { showCsvMenu = false },
+                    ) {
+                        ActionSheetRow(
+                            icon = Icons.Default.FileDownload,
+                            title = stringResource(R.string.export_csv),
+                            subtitle = "Write this portfolio's transactions out to a file.",
+                        ) {
                             showCsvMenu = false
                             viewModel.exportCsv(
                                 onReady = { uri ->
@@ -443,8 +464,11 @@ private fun PortfolioTransactionsContent(
                                 }
                             )
                         }
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.FileUpload, stringResource(R.string.import_csv)) {
+                        ActionSheetRow(
+                            icon = Icons.Default.FileUpload,
+                            title = stringResource(R.string.import_csv),
+                            subtitle = "Read transactions in from a file.",
+                        ) {
                             showCsvMenu = false
                             importCsvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
                         }
