@@ -1292,36 +1292,63 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /**
+     * Pages until the indexer runs out, rather than taking one 50-message page per sync.
+     *
+     * One page per sync meant a group whose history is longer than 50 messages could only catch
+     * up 50 at a time - so a freshly imported wallet joined a busy group and saw a fragment of
+     * it. The cursor advances per page, so an interrupted run resumes where it stopped.
+     */
     private suspend fun syncGroupMessages(api: KasiaIndexerApi, walletAddress: String, groupId: String, blindedGroupIdHex: String) {
         val syncKey = "gcomm|$groupId|$blindedGroupIdHex"
-        val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
-        val messages: List<GroupMessageIndexerResponse> = try {
-            api.getGroupMessagesByBlindedGroupId(blindedGroupIdHex, cursor = cursor)
-        } catch (e: Exception) {
-            Log.w("GroupRepository", "Catch-up gcomm fetch failed for group ${groupId.take(12)}", e)
-            return
-        }
-        advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
-        for (msg in messages) {
-            val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
-            val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
-            handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
+        // 40 x 50 = 2000 messages in one sync - beyond any real group, and a bound so a
+        // misbehaving cursor cannot loop forever.
+        var pagesLeft = 40
+        while (pagesLeft > 0) {
+            pagesLeft -= 1
+            val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
+            val messages: List<GroupMessageIndexerResponse> = try {
+                api.getGroupMessagesByBlindedGroupId(blindedGroupIdHex, cursor = cursor)
+            } catch (e: Exception) {
+                Log.w("GroupRepository", "Catch-up gcomm fetch failed for group ${groupId.take(12)}", e)
+                return
+            }
+            if (messages.isEmpty()) return
+            advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
+            for (msg in messages) {
+                val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
+                val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
+                handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
+            }
+            // A short page is the last page.
+            if (messages.size < 50) return
         }
     }
 
+    /**
+     * Paged for the same reason as [syncGroupMessages], and it matters more here: control carries
+     * epoch advances and roster changes, and stopping halfway through them leaves this device
+     * holding a stale root that later messages cannot be decrypted against.
+     */
     private suspend fun syncGroupControlBySender(api: KasiaIndexerApi, walletAddress: String, adminAddress: String) {
         val syncKey = "gctl|${adminAddress.lowercase()}"
-        val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
-        val messages: List<GroupControlIndexerResponse> = try {
-            api.getGroupControlBySender(adminAddress, cursor = cursor)
-        } catch (e: Exception) {
-            Log.w("GroupRepository", "Catch-up gctl-by-sender fetch failed for admin ${adminAddress.takeLast(10)}", e)
-            return
-        }
-        advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
-        for (msg in messages) {
-            val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
-            handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
+        var pagesLeft = 40
+        while (pagesLeft > 0) {
+            pagesLeft -= 1
+            val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
+            val messages: List<GroupControlIndexerResponse> = try {
+                api.getGroupControlBySender(adminAddress, cursor = cursor)
+            } catch (e: Exception) {
+                Log.w("GroupRepository", "Catch-up gctl-by-sender fetch failed for admin ${adminAddress.takeLast(10)}", e)
+                return
+            }
+            if (messages.isEmpty()) return
+            advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
+            for (msg in messages) {
+                val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
+                handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
+            }
+            if (messages.size < 50) return
         }
     }
 
@@ -1331,17 +1358,25 @@ class GroupRepository @Inject constructor(
      */
     private suspend fun syncGroupControlByRecipient(api: KasiaIndexerApi, walletAddress: String) {
         val syncKey = "gctl-recipient|${walletAddress.lowercase()}"
-        val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
-        val messages: List<GroupControlIndexerResponse> = try {
-            api.getGroupControlByRecipient(walletAddress, cursor = cursor)
-        } catch (e: Exception) {
-            Log.w("GroupRepository", "Catch-up gctl-by-recipient fetch failed", e)
-            return
-        }
-        advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
-        for (msg in messages) {
-            val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
-            handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
+        // Paged like the other two. This is the path a seedless import discovers groups through,
+        // so a wallet in more than 50 lifetime invites would otherwise find only some of them.
+        var pagesLeft = 40
+        while (pagesLeft > 0) {
+            pagesLeft -= 1
+            val cursor = database.groupDao().getGroupSyncCursor(syncKey, walletAddress)
+            val messages: List<GroupControlIndexerResponse> = try {
+                api.getGroupControlByRecipient(walletAddress, cursor = cursor)
+            } catch (e: Exception) {
+                Log.w("GroupRepository", "Catch-up gctl-by-recipient fetch failed", e)
+                return
+            }
+            if (messages.isEmpty()) return
+            advanceGroupSyncCursor(syncKey, walletAddress, messages.lastOrNull()?.cursor)
+            for (msg in messages) {
+                val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
+                handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
+            }
+            if (messages.size < 50) return
         }
     }
 

@@ -440,7 +440,13 @@ fun ChatThreadScreen(
                 name = conversation?.contact?.displayName
                     ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
                 onClick = { navController.navigate("chat_info/$contactId") },
-                modifier = Modifier.align(Alignment.TopCenter),
+                // statusBarsPadding, because the app bar applies its own inset and this card does
+                // not sit inside it - without this the avatar drew up into the status bar and
+                // behind the camera cutout. Every Android device reports its own cutout height
+                // through this inset, so it is right on all of them rather than tuned to one.
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding(),
             )
             }
         },
