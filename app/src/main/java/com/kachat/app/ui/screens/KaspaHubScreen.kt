@@ -104,7 +104,15 @@ fun KaspaHubScreen(
         )
         openSection == Screen.Chats -> ChatsScreen(navController, walletViewModel, chatViewModel = chatViewModel)
         openSection == Screen.Portfolio -> PortfolioScreen(navController = navController)
-        openSection == Screen.ColdStorage -> ColdStorageListScreen(navController = navController, walletViewModel = walletViewModel)
+        // The graph-scoped instance, same as the "cold_storage" route uses - so an account
+        // opened from here reaches the detail and address screens with its addresses loaded.
+        openSection == Screen.ColdStorage -> ColdStorageListScreen(
+            navController = navController,
+            walletViewModel = walletViewModel,
+            viewModel = androidx.hilt.navigation.compose.hiltViewModel(
+                remember(navController) { navController.getBackStackEntry(navController.graph.id) }
+            )
+        )
         openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel)
         openSection == Screen.Broadcasts -> BroadcastListScreen(
             navController = navController,

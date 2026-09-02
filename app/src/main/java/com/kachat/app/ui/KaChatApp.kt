@@ -288,6 +288,26 @@ fun KaChatApp(
     }
 }
 
+/**
+ * The ONE [ColdStorageViewModel] every cold-storage screen shares, scoped to the nav graph.
+ *
+ * They used to hang off `getBackStackEntry("cold_storage")`, which only exists when you entered
+ * through the Storage tab. Reached from the Kaspa Hub - which renders the list inline under
+ * "kaspa_hub" - that route never exists, so each screen got its OWN empty instance: the account
+ * detail could not find the list's addresses, and an address's page had no row for itself, so it
+ * fell back to showing the raw address as its title instead of "Address #N". The graph entry is
+ * always on the back stack, so this is one instance no matter how you arrived.
+ */
+@Composable
+private fun sharedColdStorageViewModel(
+    navController: androidx.navigation.NavHostController
+): com.kachat.app.viewmodels.ColdStorageViewModel =
+    androidx.hilt.navigation.compose.hiltViewModel(
+        androidx.compose.runtime.remember(navController) {
+            navController.getBackStackEntry(navController.graph.id)
+        }
+    )
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainShell(
@@ -907,7 +927,11 @@ fun MainShell(
                 // does, or the "Scan" button sits underneath/behind the floating nav bar instead
                 // of above it.
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                    ColdStorageListScreen(navController = navController, walletViewModel = walletViewModel)
+                    ColdStorageListScreen(
+                        navController = navController,
+                        walletViewModel = walletViewModel,
+                        viewModel = sharedColdStorageViewModel(navController)
+                    )
                 }
             }
 
@@ -915,31 +939,17 @@ fun MainShell(
                 "cold_storage_detail/{accountId}",
                 arguments = listOf(navArgument("accountId") { type = NavType.StringType })
             ) { backStackEntry ->
-                // Shares the "cold_storage" list screen's own ViewModel instance rather than a
-                // fresh one scoped to this destination. A fresh instance's deleteAccount()
-                // updated its own _accounts flow only, leaving the list screen's copy stale until
-                // something else happened to recompose it — deleting an account looked like it
-                // hadn't taken effect until you left and came back.
-                //
-                // The list route is NOT always underneath, though, and getBackStackEntry throws
-                // outright when it is missing: Cold Storage opened from the Kaspa Hub renders the
-                // list inline under "kaspa_hub" without that route ever existing, and tabbing away
-                // from this screen and back restores it on its own. Same fallback (and same
-                // reason) as "cold_storage_tx_history" below.
-                val parentEntry = remember(backStackEntry) {
-                    try {
-                        navController.getBackStackEntry("cold_storage")
-                    } catch (e: IllegalArgumentException) {
-                        null
-                    }
-                }
+                // Shares the one graph-scoped instance - see [sharedColdStorageViewModel]. A
+                // fresh instance per destination meant deleteAccount() updated its own _accounts
+                // flow only, leaving the list stale until something else recomposed it.
+                val sharedViewModel = sharedColdStorageViewModel(navController)
                 // The floating dock stays visible here (see onTabRoute), so reserve room for it
                 // the same way the tab screens do rather than letting it sit over the content.
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                     ColdStorageDetailScreen(
                         accountId = backStackEntry.arguments?.getString("accountId") ?: "",
                         navController = navController,
-                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                        viewModel = sharedViewModel
                     )
                 }
             }
@@ -948,34 +958,22 @@ fun MainShell(
                 "cold_storage_tx_history/{address}",
                 arguments = listOf(navArgument("address") { type = NavType.StringType })
             ) { backStackEntry ->
-                // Shares the SAME instance ColdStorageDetailScreen itself uses — which is the
-                // "cold_storage" list route's ViewModel (see that composable above: it shares
-                // parentEntry = getBackStackEntry("cold_storage"), not its own route's entry).
-                // Targeting "cold_storage_detail/{accountId}" here directly would resolve to that
-                // destination's OWN, never-populated ViewModelStore instead — a different,
-                // still-empty instance — since the detail screen never requests a ViewModel
-                // scoped to its own entry either. Not every caller of this route necessarily has
-                // "cold_storage" on the back stack, though (e.g. the withdraw-flow receipt-history
-                // shortcut) — getBackStackEntry throws in that case, so fall back to a fresh
-                // instance same as PortfolioTransactionsScreen above does for the same reason.
+                // The SAME instance the list and the account detail use - see
+                // [sharedColdStorageViewModel]. It has to be: this screen reads the account's
+                // address rows to find the one it is showing, which is what gives it a label
+                // ("Address #7") instead of falling back to printing the raw address.
                 // (Manage Addresses/Manage Addresses Hidden used to reuse this route too, before
                 // getting their own "spending_address_detail/{index}" route below — its Send
                 // button unconditionally opened Cold Storage's external-QR-signer flow, which
                 // can't work for a spending address whose private key already lives in this wallet.)
-                val parentEntry = remember(backStackEntry) {
-                    try {
-                        navController.getBackStackEntry("cold_storage")
-                    } catch (e: IllegalArgumentException) {
-                        null
-                    }
-                }
+                val sharedViewModel = sharedColdStorageViewModel(navController)
                 // Dock visible here too, and this screen has its own bottom bar (the pager), so
                 // the padding is what keeps the two from stacking on top of each other.
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                     ColdStorageTxHistoryScreen(
                         address = backStackEntry.arguments?.getString("address") ?: "",
                         onBack = { navController.popBackStack() },
-                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                        viewModel = sharedViewModel
                     )
                 }
             }
@@ -990,16 +988,9 @@ fun MainShell(
                 // reconstruct a list the detail screen already has loaded, showing an empty state
                 // the whole time that rescan is in flight. Sharing also means visibility edits
                 // show on the detail list the instant this screen pops.
-                val parentEntry = remember(backStackEntry) {
-                    try {
-                        navController.getBackStackEntry("cold_storage_detail/{accountId}")
-                    } catch (e: IllegalArgumentException) {
-                        null
-                    }
-                }
                 ColdStorageAddressVisibilityScreen(
                     accountId = backStackEntry.arguments?.getString("accountId") ?: "",
-                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel(),
+                    viewModel = sharedColdStorageViewModel(navController),
                     onBack = { navController.popBackStack() }
                 )
             }
