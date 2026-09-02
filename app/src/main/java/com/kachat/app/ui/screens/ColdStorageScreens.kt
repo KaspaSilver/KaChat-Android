@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -948,7 +949,12 @@ fun ColdStorageAddressVisibilityScreen(
             }
         }
     ) { padding ->
+        val listState = rememberLazyListState()
+        // Turning the page keeps the scroll offset otherwise, so page 2 opened wherever page 1
+        // was left - at the bottom, which is the only place the pager can be tapped from.
+        LaunchedEffect(page) { listState.scrollToItem(0) }
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
