@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Hardware
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -1918,7 +1919,7 @@ private fun NetworkHashrateCard(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Bolt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+        Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("Network Hashrate", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -2000,7 +2001,7 @@ fun PortfolioHashrateChartScreen(
         ) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Bolt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Kaspa Network", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 }
@@ -2095,13 +2096,15 @@ private fun MiningEstimateCard(
     // the input because typing 21 and meaning PH/s is a thousandfold error, which is exactly the
     // mistake this screen itself was shipping.
     val units = listOf("GH/s" to 1e-6, "TH/s" to 1e-3, "PH/s" to 1.0)
-    var amountText by remember { mutableStateOf("21") }
+    // Empty, not a sample figure. A prefilled 21 renders a full estimate the moment the card
+    // appears, which reads as YOUR earnings until you notice the number is not yours.
+    var amountText by remember { mutableStateOf("") }
     var unitIndex by remember { mutableStateOf(1) }
 
     // KAS the whole network pays out per day: reward per block times blocks per second.
     val dailyEmission = blockRewardKas?.takeIf { it > 0 }
         ?.let { it * KaspaNetworkStatsService.BLOCKS_PER_SECOND * 86_400 }
-    val amount = amountText.replace(',', '.').toDoubleOrNull()
+    val amount = com.kachat.app.util.DecimalInputFormat.value(amountText)
     val dailyKas = if (dailyEmission != null && networkHashratePHs != null &&
         networkHashratePHs > 0 && amount != null && amount > 0
     ) {
@@ -2122,7 +2125,8 @@ private fun MiningEstimateCard(
 
         OutlinedTextField(
             value = amountText,
-            onValueChange = { amountText = it },
+            // Grouped as you type - "1200000" is a number you have to count digits on.
+            onValueChange = { amountText = com.kachat.app.util.DecimalInputFormat.grouped(it) },
             label = { Text("Your hashrate", color = colors.textSecondary) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
