@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1154,6 +1155,8 @@ private fun GroupMessageBubble(
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
     var showMenu by remember { mutableStateOf(false) }
+    // Who reacted to this message, when asked from the long-press menu.
+    var showReactions by remember { mutableStateOf(false) }
     var showQuickReactionBar by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
     val canRetry = isSent && message.deliveryStatus == "failed"
@@ -1410,6 +1413,15 @@ private fun GroupMessageBubble(
                         uriHandler.openUri(com.kachat.app.models.KaspaExplorer.default.txUrl(message.txId))
                         showMenu = false
                     }
+                    // The pill shows WHICH emoji are on the bubble; it has no room to say how
+                    // many or from whom. In a group that is the interesting question.
+                    if (reactions.isNotEmpty()) {
+                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        PopupMenuRow(Icons.Default.Favorite, "Reactions (${reactions.size})") {
+                            showMenu = false
+                            showReactions = true
+                        }
+                    }
                     if (canRetry) {
                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                         PopupMenuRow(Icons.Default.Refresh, stringResource(R.string.retry_send)) {
@@ -1469,6 +1481,15 @@ private fun GroupMessageBubble(
             groupAvatarButton(address = myAddress, avatarUrl = myAvatarUrl, fallbackText = "You", navController = navController, isOwnMessage = true)
         }
     }
+    }
+
+    if (showReactions) {
+        ChatReactionsSheet(
+            reactions = reactions,
+            isMe = { it == myAddress },
+            nameFor = { resolveMentionName(it) },
+            onDismiss = { showReactions = false },
+        )
     }
 }
 

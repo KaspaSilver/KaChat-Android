@@ -1648,6 +1648,7 @@ fun MessageBubble(
     myAvatarFallback: String = "",
     isPendingRequest: Boolean = false,
     isHandshakeComplete: Boolean = false,
+
     onAccept: () -> Unit = {},
     /** True while the reciprocal handshake is being built and submitted - it is an on-chain send. */
     acceptInFlight: Boolean = false,
@@ -1688,6 +1689,8 @@ fun MessageBubble(
 ) {
     val isSent = message.direction == "sent"
     var showMenu by remember { mutableStateOf(false) }
+    // Who reacted to this message, when asked from the long-press menu.
+    var showReactions by remember { mutableStateOf(false) }
     var showQuickReactionBar by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
     val clipboardManager = LocalClipboardManager.current
@@ -2110,6 +2113,15 @@ fun MessageBubble(
                         uriHandler.openUri(kaspaExplorer.txUrl(message.id))
                         showMenu = false
                     }
+                    // The pill on the bubble shows WHICH emoji are on it; it has no room to say
+                    // how many or from whom. Same option broadcast rooms already carry.
+                    if (reactions.isNotEmpty()) {
+                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        PopupMenuRow(Icons.Default.Favorite, "Reactions (${reactions.size})") {
+                            showMenu = false
+                            showReactions = true
+                        }
+                    }
                     if (imageContent != null) {
                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                         PopupMenuRow(Icons.Default.Download, stringResource(R.string.save_photo)) {
@@ -2240,6 +2252,17 @@ fun MessageBubble(
             ContactAvatar(imageUrl = myAvatarUrl, fallbackText = myAvatarFallback, size = 32.dp)
         }
         }
+    }
+
+    if (showReactions) {
+        // In a 1:1 chat there are only ever two people, so a name is either yours or theirs -
+        // no roster lookup needed.
+        ChatReactionsSheet(
+            reactions = reactions,
+            isMe = { it == myReactorAddress },
+            nameFor = { contactAvatarFallback.ifBlank { it.takeLast(10) } },
+            onDismiss = { showReactions = false },
+        )
     }
 }
 

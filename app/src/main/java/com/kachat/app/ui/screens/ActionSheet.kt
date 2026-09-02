@@ -245,3 +245,59 @@ private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction): String 
     }
     return if (time == null) "$direction $amount KAS" else "$direction $amount KAS on $time"
 }
+
+/**
+ * Who reacted to one message, and with what. Shared by 1:1, group and broadcast bubbles.
+ *
+ * The pill on a bubble shows which emoji are on it and nothing else - not how many of each, and
+ * not from whom. Mirrors iOS's `ReactionsSheet`.
+ */
+@Composable
+fun ChatReactionsSheet(
+    reactions: List<com.kachat.app.models.ReactionEntity>,
+    isMe: (String) -> Boolean,
+    nameFor: (String) -> String,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    // Grouped by emoji, most-reacted first, so "12 people" reads before the individual names.
+    val grouped = remember(reactions) {
+        reactions.groupBy { it.emoji }.entries.sortedByDescending { it.value.size }
+    }
+    ActionSheetContainer(
+        title = "Reactions",
+        subtitle = if (reactions.size == 1) "1 reaction" else "${reactions.size} reactions",
+        onDismiss = onDismiss,
+    ) {
+        grouped.forEach { (emoji, rows) ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.surface)
+                    .padding(14.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(emoji, fontSize = 20.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (rows.size == 1) "1 person" else "${rows.size} people",
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                rows.forEach { row ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (isMe(row.reactorAddress)) "You" else nameFor(row.reactorAddress),
+                        color = colors.textPrimary,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
