@@ -8073,7 +8073,7 @@ fun SettingsScreen(
             }
             }
 
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -11218,53 +11218,56 @@ fun ChatInfoScreen(
             // and notification controls - far enough down the screen to be hard to reach. Still
             // reads the already-populated ChatViewModel.knsProfiles cache the LaunchedEffect
             // above fills, so opening the screen costs no fetch.
-            // Each section is a card that opens a half sheet holding what the section held, in
-            // the order iOS uses. The form had grown long enough that reaching any one part of
-            // it meant scrolling past the rest.
-            InfoSectionCard(
-                title = stringResource(R.string.address),
-                icon = Icons.Default.QrCode,
-            ) { infoSheet = "address" }
-
-            // Straight to the list, no sheet in between: a sheet holding one row that opens a
-            // screen is a step that answers nothing. Same call iOS's KNS Domains sheet makes.
-            InfoSectionCard(
-                title = stringResource(R.string.kns_domains),
-                icon = Icons.Default.AlternateEmail,
+            // One grouped list, the way Settings lists things - seven separately-floating cards
+            // spaced the screen out far enough to need scrolling for a list this short. Each row
+            // opens a half sheet; none of them navigates away.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(LocalAppColors.current.surface)
             ) {
-                // Nothing to open until the lookup has produced something.
-                if (ownedDomains.isNotEmpty()) onNavigateToDomains(contactId)
-            }
-
-            InfoSectionCard(
-                title = stringResource(R.string.aliases),
-                icon = Icons.Default.Tag,
-            ) { infoSheet = "aliases" }
-
-            InfoSectionCard(
-                title = stringResource(R.string.system_contact),
-                icon = Icons.Default.AccountCircle,
-            ) { infoSheet = "systemContact" }
-
-            if (!fromBroadcast) {
                 InfoSectionCard(
-                    title = stringResource(R.string.incoming_notifications),
-                    icon = Icons.Default.NotificationsNone,
-                ) { infoSheet = "notifications" }
+                    title = stringResource(R.string.address),
+                    icon = Icons.Default.QrCode,
+                ) { infoSheet = "address" }
 
                 InfoSectionCard(
-                    title = stringResource(R.string.photos),
-                    icon = Icons.Default.Photo,
-                ) { infoSheet = "photos" }
+                    title = stringResource(R.string.kns_domains),
+                    icon = Icons.Default.AlternateEmail,
+                ) { infoSheet = "domains" }
+
+                InfoSectionCard(
+                    title = stringResource(R.string.aliases),
+                    icon = Icons.Default.Tag,
+                ) { infoSheet = "aliases" }
+
+                InfoSectionCard(
+                    title = stringResource(R.string.system_contact),
+                    icon = Icons.Default.AccountCircle,
+                    showDivider = !fromBroadcast,
+                ) { infoSheet = "systemContact" }
+
+                if (!fromBroadcast) {
+                    InfoSectionCard(
+                        title = stringResource(R.string.incoming_notifications),
+                        icon = Icons.Default.NotificationsNone,
+                    ) { infoSheet = "notifications" }
+
+                    InfoSectionCard(
+                        title = stringResource(R.string.photos),
+                        icon = Icons.Default.Photo,
+                    ) { infoSheet = "photos" }
+
+                    InfoSectionCard(
+                        title = stringResource(R.string.info),
+                        icon = Icons.Default.Info,
+                        showDivider = false,
+                    ) { infoSheet = "info" }
+                }
             }
 
-            if (!fromBroadcast) {
-                InfoSectionCard(
-                    title = stringResource(R.string.info),
-                    icon = Icons.Default.Info,
-                ) { infoSheet = "info" }
-            }
-            
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
@@ -11321,6 +11324,69 @@ fun ChatInfoScreen(
                         infoSheet = null
                         uriHandler.openUri(kaspaExplorer.addressUrl(contactId))
                     }
+                }
+            }
+
+            if (infoSheet == "domains") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.kns_domains),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
+                ) {
+                    // The list itself, not a row that opens it somewhere else. Reads the
+                    // already-populated knsProfiles cache, so opening this costs no fetch.
+                    val primary = knsProfile?.explicitPrimaryDomain
+                    val sorted = ownedDomains.sortedWith(
+                        compareBy({ it != primary }, { it.lowercase() })
+                    )
+                    when {
+                        knsProfile == null -> Text(
+                            "Loading...",
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 13.sp,
+                        )
+                        sorted.isEmpty() -> Text(
+                            stringResource(R.string.no_domains_yet),
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 13.sp,
+                        )
+                        else -> sorted.forEach { domain ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(LocalAppColors.current.surface)
+                                    .clickable {
+                                        clipboardManager.setText(AnnotatedString(domain))
+                                        Toast.makeText(context, "$domain copied", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 13.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    domain,
+                                    color = LocalAppColors.current.textPrimary,
+                                    fontSize = 15.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (domain == primary) {
+                                    Text(
+                                        "PRIMARY",
+                                        color = KaspaTeal,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        "Tap a domain to copy it.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                    )
                 }
             }
 
@@ -11400,13 +11466,26 @@ fun ChatInfoScreen(
                     subtitle = null,
                     onDismiss = { infoSheet = null },
                 ) {
-                        val notificationOverride = com.kachat.app.models.ContactNotificationMode.fromName(conversation?.contact?.notificationOverride)
-                        SettingsNavigationItem(
-                            stringResource(R.string.incoming_notifications),
-                            Icons.Default.NotificationsNone,
-                            notificationOverride?.displayName ?: "Default",
-                            onClick = { onNavigateToNotificationSettings(contactId) }
-                        )
+                    val notificationOverride = com.kachat.app.models.ContactNotificationMode
+                        .fromName(conversation?.contact?.notificationOverride)
+                    SheetChoiceRow(label = "Default", selected = notificationOverride == null) {
+                        chatViewModel.updateContactNotificationOverride(contactId, null)
+                        infoSheet = null
+                    }
+                    com.kachat.app.models.ContactNotificationMode.entries.forEach { mode ->
+                        SheetChoiceRow(
+                            label = mode.displayName,
+                            selected = notificationOverride == mode,
+                        ) {
+                            chatViewModel.updateContactNotificationOverride(contactId, mode)
+                            infoSheet = null
+                        }
+                    }
+                    Text(
+                        "Default follows Settings > Notifications. Off silences this contact.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                    )
                 }
             }
 
@@ -11416,13 +11495,27 @@ fun ChatInfoScreen(
                     subtitle = null,
                     onDismiss = { infoSheet = null },
                 ) {
-                        val photoOverride = com.kachat.app.models.PhotoAutoDisplayMode.fromName(conversation?.contact?.photoAutoDisplayOverride)
-                        SettingsNavigationItem(
-                            stringResource(R.string.photos),
-                            Icons.Default.Photo,
-                            photoOverride.displayName,
-                            onClick = { onNavigateToPhotoSettings(contactId) }
-                        )
+                    // The choice happens HERE. It used to be a row that pushed a whole screen to
+                    // pick one of three values.
+                    val photoOverride = com.kachat.app.models.PhotoAutoDisplayMode
+                        .fromName(conversation?.contact?.photoAutoDisplayOverride)
+                    com.kachat.app.models.PhotoAutoDisplayMode.entries.forEach { mode ->
+                        SheetChoiceRow(
+                            label = mode.displayName,
+                            selected = photoOverride == mode,
+                        ) {
+                            chatViewModel.updateContactPhotoOverride(
+                                contactId,
+                                if (mode == com.kachat.app.models.PhotoAutoDisplayMode.AUTOMATIC) null else mode
+                            )
+                            infoSheet = null
+                        }
+                    }
+                    Text(
+                        "Automatic hides photos from contacts you have not added or messaged yet, until you tap to reveal them.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                    )
                 }
             }
 
@@ -11774,28 +11867,35 @@ fun ContactDomainsScreen(
 private fun InfoSectionCard(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    /** Divider under the row - omitted on the last one in a group. */
+    showDivider: Boolean = true,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(colors.surface)
-            .clickable { onClick() }
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(title, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = colors.textSecondary,
-            modifier = Modifier.size(18.dp),
-        )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(horizontal = 16.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(14.dp))
+            Text(title, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.textSecondary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 50.dp),
+                color = colors.textPrimary.copy(alpha = 0.06f),
+            )
+        }
     }
 }
 
@@ -11860,5 +11960,23 @@ private fun ChatHeaderCard(
                 size = 46.dp,
             )
         }
+    }
+}
+
+/** One selectable value inside a half sheet - the picker rows that used to be a pushed screen. */
+@Composable
+private fun SheetChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.surface)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal)
     }
 }
