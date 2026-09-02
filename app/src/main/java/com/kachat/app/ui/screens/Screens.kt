@@ -10463,6 +10463,12 @@ fun CreateChatScreen(
                     val previewAddress = effectiveAddress
                     LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
                     val preview = knsProfilesForPreview[previewAddress]
+                    // The domain the resolver already found beats waiting on the profile fetch:
+                    // if you typed one, that IS the name, and showing it immediately means the
+                    // card is useful from the moment the address turns valid.
+                    val previewName = preview?.selectedDomain
+                        ?: address.trim().takeIf { looksLikeKnsDomain }
+                    val stillLoading = preview == null
                     Spacer(Modifier.height(10.dp))
                     Row(
                         modifier = Modifier
@@ -10474,14 +10480,14 @@ fun CreateChatScreen(
                     ) {
                         ContactAvatar(
                             imageUrl = preview?.profile?.avatarUrl,
-                            fallbackText = preview?.selectedDomain ?: previewAddress.takeLast(8),
+                            fallbackText = previewName ?: previewAddress.takeLast(8),
                             size = 44.dp,
                         )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                preview?.selectedDomain ?: "No KNS domain",
-                                color = if (preview?.selectedDomain != null) {
+                                previewName ?: if (stillLoading) "Looking up..." else "No KNS domain",
+                                color = if (previewName != null) {
                                     LocalAppColors.current.textPrimary
                                 } else {
                                     LocalAppColors.current.textSecondary
@@ -10498,6 +10504,13 @@ fun CreateChatScreen(
                                 fontSize = 11.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (stillLoading) {
+                            CircularProgressIndicator(
+                                color = KaspaTeal,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }
