@@ -137,12 +137,30 @@ class ColdStorageViewModel @Inject constructor(
     private val _discoveryProgress = MutableStateFlow<ColdStorageAddressDiscovery.DiscoveryProgress?>(null)
     val discoveryProgress: StateFlow<ColdStorageAddressDiscovery.DiscoveryProgress?> = _discoveryProgress.asStateFlow()
 
-    fun refreshAddresses(accountId: String, onResult: (Int) -> Unit = {}) {
+    /**
+     * Whether the CURRENT scan was started by the user tapping Discover, as opposed to the
+     * automatic list refresh that runs on screen entry and pull-to-refresh.
+     *
+     * [isDiscovering] covers all three, which is right for suppressing overlapping work and wrong
+     * for driving UI: binding the Address Actions button to it made the button sit there spinning
+     * every time the screen opened, for a load the user never asked for.
+     */
+    private val _isUserDiscovering = MutableStateFlow(false)
+    val isUserDiscovering: StateFlow<Boolean> = _isUserDiscovering.asStateFlow()
+
+    fun refreshAddresses(
+        accountId: String,
+        userInitiated: Boolean = false,
+        onResult: (Int) -> Unit = {},
+    ) {
         val account = coldStorageManager.getAccounts().find { it.id == accountId } ?: return
         resetAddressesIfAccountChanged(accountId)
         viewModelScope.launch {
             _isDiscovering.value = true
-            _discoveryProgress.value = ColdStorageAddressDiscovery.DiscoveryProgress(0, 0)
+            _isUserDiscovering.value = userInitiated
+            // Progress only matters while the sheet that shows it is open.
+            _discoveryProgress.value =
+                if (userInitiated) ColdStorageAddressDiscovery.DiscoveryProgress(0, 0) else null
             var loaded: List<AddressRow>? = null
             try {
                 val labels = coldStorageManager.getAddressLabels(accountId)
@@ -203,7 +221,7 @@ class ColdStorageViewModel @Inject constructor(
                 val beyond = addressDiscovery.discoverAddresses(
                     rootKey,
                     startIndex = 0,
-                    onProgress = { _discoveryProgress.value = it },
+                    onProgress = { if (userInitiated) _discoveryProgress.value = it },
                 )
                 if (beyond.isNotEmpty()) {
                     // Raise the persisted bound only to cover USED/funded finds — raising it to
@@ -239,6 +257,7 @@ class ColdStorageViewModel @Inject constructor(
                 onResult(0)
             } finally {
                 _isDiscovering.value = false
+                _isUserDiscovering.value = false
                 _discoveryProgress.value = null
             }
 
@@ -491,6 +510,7 @@ class ColdStorageViewModel @Inject constructor(
                 }
             } finally {
                 _isDiscovering.value = false
+                _isUserDiscovering.value = false
                 _discoveryProgress.value = null
             }
         }

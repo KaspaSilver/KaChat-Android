@@ -463,6 +463,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     val addresses by viewModel.addresses.collectAsState()
     val isDiscovering by viewModel.isDiscovering.collectAsState()
     val discoveryProgress by viewModel.discoveryProgress.collectAsState()
+    val isUserDiscovering by viewModel.isUserDiscovering.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -625,12 +626,12 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     // address row on a short list.
                     Button(
                         onClick = { showActionsSheet = true },
-                        enabled = !isDiscovering,
+                        enabled = !isUserDiscovering,
                         colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
                         shape = RoundedCornerShape(28.dp),
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
-                        if (isDiscovering) {
+                        if (isUserDiscovering) {
                             CircularProgressIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
                         } else {
                             Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -826,7 +827,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
 
     if (showActionsSheet) {
         ColdStorageAddressActionsSheet(
-            isDiscovering = isDiscovering,
+            isDiscovering = isUserDiscovering,
             progress = discoveryProgress,
             summary = discoverySummary,
             onGenerate = {
@@ -841,7 +842,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
             },
             onDiscover = {
                 discoverySummary = null
-                viewModel.refreshAddresses(accountId) { count ->
+                viewModel.refreshAddresses(accountId, userInitiated = true) { count ->
                     discoverySummary = if (count > 0) {
                         "Found $count address${if (count == 1) "" else "es"} with a balance or domain."
                     } else {
