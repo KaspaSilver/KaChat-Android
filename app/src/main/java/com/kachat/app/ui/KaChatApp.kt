@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
@@ -84,6 +85,11 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object ColdStorage : Screen("cold_storage", "Storage",      Icons.Default.Security)
     object KaPosts     : Screen("kaposts",      "KaPosts",      Icons.Default.NoteAlt)
     object Broadcasts  : Screen("broadcasts",   "Broadcasts",   Icons.Default.Sensors)
+    // A placeable tab like any other, matching iOS's AppTab.apps - it can sit in the dock or in
+    // the Kaspa Hub, and it can be reordered in either. It used to be a hardcoded tile appended
+    // to the Hub grid with no Screen behind it, which is exactly why Customize Dock could not
+    // see it. Labeled "Websites" in the dock (the bar truncates hard); "Kaspa Websites" in full.
+    object KaspaWebsites : Screen("kaspa_websites", "Websites", Icons.Default.Public)
     // Holds whatever of the above is turned on but not in the dock - see [kaspaHubSections].
     // Route stays "kaspa_hub" once shipped: it is persisted in saved dock arrangements.
     object KaspaHub    : Screen("kaspa_hub",    "Kaspa Hub",    Icons.Default.BubbleChart)
@@ -100,6 +106,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 val Screen.hubTitle: String
     get() = when (this) {
         Screen.Swap -> "ChangeNOW Swap"
+        Screen.KaspaWebsites -> "Kaspa Websites"
         else -> label
     }
 
@@ -116,7 +123,8 @@ val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
 /** Tabs the user can place. Excludes the pinned two. */
 val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
-    Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route
+    Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route,
+    Screen.KaspaWebsites.route
 )
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
@@ -133,7 +141,8 @@ val bottomNavItems = listOf(
     Screen.Profile,
     Screen.Swap,
     Screen.KaPosts,
-    Screen.Broadcasts
+    Screen.Broadcasts,
+    Screen.KaspaWebsites
 )
 
 /** The dock renders at most this many items (matches iOS's AppTab.maxDockItems). */
@@ -148,7 +157,11 @@ const val MAX_DOCK_ITEMS = 5
  * (tab_order/hidden_tabs) are never rewritten with the masked state, so turning Child Mode off
  * restores exactly the arrangement the user had before.
  */
-val CHILD_MODE_HIDDEN_ROUTES = setOf(Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route)
+val CHILD_MODE_HIDDEN_ROUTES = setOf(
+    Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route,
+    // A browser onto the open web - the one tab most obviously not for a child's phone.
+    Screen.KaspaWebsites.route
+)
 
 /**
  * Maps persisted route strings (from AppSettingsRepository.tabOrder) back to [Screen] objects,
@@ -1263,6 +1276,22 @@ fun MainShell(
                 QuickReactionSettingsScreen(
                     onBack = { navController.popBackStack() }
                 )
+            }
+
+            // Reachable as a dock tab now, not only as a Hub section.
+            @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+            composable("kaspa_websites") {
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    KaspaAppsScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpen = { app ->
+                            navController.navigate(
+                                "in_app_browser?url=${java.net.URLEncoder.encode(app.url, "UTF-8")}" +
+                                    "&title=${java.net.URLEncoder.encode(app.name, "UTF-8")}"
+                            )
+                        }
+                    )
+                }
             }
 
             composable(

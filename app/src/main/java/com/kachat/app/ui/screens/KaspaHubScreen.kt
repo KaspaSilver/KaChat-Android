@@ -82,7 +82,6 @@ fun KaspaHubScreen(
     // broadcast room - so backing out of the room landed on the Hub GRID rather than on the
     // Broadcasts list you opened the room from.
     var openSectionRoute by rememberSaveable { mutableStateOf<String?>(null) }
-    var websitesOpen by rememberSaveable { mutableStateOf(false) }
     val openSection = sections.firstOrNull { it.route == openSectionRoute }
 
     // Re-tapping the Kaspa Hub dock item steps back out to the grid - the same button that got you
@@ -90,7 +89,6 @@ fun KaspaHubScreen(
     LaunchedEffect(reselect) {
         if (reselect.second == Screen.KaspaHub.route) {
             openSectionRoute = null
-            websitesOpen = false
         }
     }
     // A section moved into the dock (or hidden) must not stay open here, or it is on screen
@@ -101,8 +99,8 @@ fun KaspaHubScreen(
     }
 
     when {
-        websitesOpen -> KaspaAppsScreen(
-            onBack = { websitesOpen = false },
+        openSection == Screen.KaspaWebsites -> KaspaAppsScreen(
+            onBack = { openSectionRoute = null },
             onOpen = { app ->
                 navController.navigate(
                     "in_app_browser?url=${java.net.URLEncoder.encode(app.url, "UTF-8")}" +
@@ -130,7 +128,6 @@ fun KaspaHubScreen(
         else -> HubGrid(
             sections = sections,
             onOpenSection = { openSectionRoute = it.route },
-            onOpenWebsites = { websitesOpen = true },
             onCustomize = { navController.navigate("settings_menu") },
             colors = colors
         )
@@ -142,7 +139,6 @@ fun KaspaHubScreen(
 private fun HubGrid(
     sections: List<Screen>,
     onOpenSection: (Screen) -> Unit,
-    onOpenWebsites: () -> Unit,
     onCustomize: () -> Unit,
     colors: com.kachat.app.ui.theme.AppColors,
 ) {
@@ -160,8 +156,9 @@ private fun HubGrid(
             )
         }
     ) { padding ->
-        // Three across, matching iOS. Kaspa Websites is appended as a tile with no Screen behind
-        // it, since it has no dock tab of its own on Android.
+        // Three across, matching iOS. Every tile comes from `sections` - Kaspa Websites included,
+        // now that it is a real Screen and can therefore be placed and reordered in Customize
+        // Dock like the rest.
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
@@ -176,14 +173,6 @@ private fun HubGrid(
                     useKaspaLogo = screen.usesKaspaLogo,
                     colors = colors,
                     onClick = { onOpenSection(screen) }
-                )
-            }
-            item(key = "kaspa_websites") {
-                HubTile(
-                    label = "Kaspa Websites",
-                    icon = Icons.Default.Public,
-                    colors = colors,
-                    onClick = onOpenWebsites
                 )
             }
         }
