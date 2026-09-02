@@ -30,6 +30,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -403,6 +404,19 @@ class BroadcastViewModel @Inject constructor(
 
     fun leaveChannel(channelName: String) {
         viewModelScope.launch { broadcastRepository.leaveChannel(channelName) }
+    }
+
+    /** This room's own indexer, or "" when it follows the app-wide broadcast indexer. */
+    fun indexerOverrideFor(channelName: String): Flow<String> =
+        settings.broadcastIndexerOverrides.map { it[channelName.trim().lowercase()].orEmpty() }
+
+    /** The app-wide broadcast indexer, shown as the placeholder a blank override falls back to. */
+    val appWideBroadcastIndexer: StateFlow<String> =
+        settings.broadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+
+    /** Points one room at its own indexer. Blank clears the override. */
+    fun setIndexerOverride(channelName: String, url: String) {
+        viewModelScope.launch { settings.setBroadcastIndexerOverride(channelName, url) }
     }
 
     fun getMessages(channelName: String) = broadcastRepository.getMessages(channelName)

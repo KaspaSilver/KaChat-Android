@@ -36,7 +36,8 @@ class BroadcastRepository @Inject constructor(
     private val database: KaChatDatabase,
     private val walletManager: WalletManager,
     private val walletService: WalletService,
-    private val networkService: NetworkService
+    private val networkService: NetworkService,
+    private val settings: com.kachat.app.repository.AppSettingsRepository,
 ) {
     /** Channels joined by whichever account is currently active — re-emits automatically on account switch. */
     fun getJoinedChannels(): Flow<List<BroadcastChannelEntity>> {
@@ -230,7 +231,11 @@ class BroadcastRepository @Inject constructor(
      *  Returns the number of rows fetched, or -1 when the indexer is unreachable (callers treat
      *  that as "no backfill", nothing user-facing breaks). */
     suspend fun backfillFromIndexer(channelName: String): Int {
-        val api = networkService.broadcastIndexerApi.value ?: return -1
+        // This room's own indexer where it has one, the app-wide client otherwise. A broadcast is
+        // on-chain, so any indexer watching the same network serves the same room.
+        val override = settings.broadcastIndexerOverrides.first()[channelName.trim().lowercase()]
+        val api = (override?.let { networkService.broadcastIndexerApiFor(it) }
+            ?: networkService.broadcastIndexerApi.value) ?: return -1
         return try {
             var fetched = 0
             var before: Long? = null

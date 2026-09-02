@@ -45,6 +45,9 @@ class AppSettingsRepository @Inject constructor(
         val KEY_TRANSLATION_SERVICE_URL = stringPreferencesKey("translation_service_url")
         // KaChat broadcast indexer serving #kaspa/#kachat-bugs history (same domain).
         val KEY_BROADCAST_INDEXER_URL = stringPreferencesKey("broadcast_indexer_url")
+        /** channel -> indexer base URL, for rooms pointed somewhere other than the app-wide one.
+         *  Stored as "channel\u0000url" lines so one preference key holds the whole map. */
+        val KEY_BROADCAST_INDEXER_OVERRIDES = stringPreferencesKey("broadcast_indexer_overrides")
         // Push-registration host (FCM device registration; mirrors iOS's pushIndexerURL). Same
         // domain by default, but configurable so push can point at a different indexer.
         val KEY_PUSH_INDEXER_URL = stringPreferencesKey("push_indexer_url")
@@ -287,6 +290,40 @@ class AppSettingsRepository @Inject constructor(
 
     val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
         it[KEY_BROADCAST_INDEXER_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_BROADCAST_INDEXER_URL
+    }
+
+    /** Per-room indexer overrides. A room absent from the map follows [broadcastIndexerUrl]. */
+    val broadcastIndexerOverrides: Flow<Map<String, String>> = dataStore.data.map { prefs ->
+        prefs[KEY_BROADCAST_INDEXER_OVERRIDES].orEmpty()
+            .split('\n')
+            .mapNotNull { line ->
+                val parts = line.split('\u0000')
+                if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+                    parts[0] to parts[1]
+                } else null
+            }
+            .toMap()
+    }
+
+    /** Points one room at its own indexer. A blank [url] clears the override. */
+    suspend fun setBroadcastIndexerOverride(channel: String, url: String) {
+        val key = channel.trim().lowercase()
+        val trimmed = url.trim()
+        dataStore.edit { prefs ->
+            val current = prefs[KEY_BROADCAST_INDEXER_OVERRIDES].orEmpty()
+                .split('\n')
+                .mapNotNull { line ->
+                    val parts = line.split('\u0000')
+                    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+                        parts[0] to parts[1]
+                    } else null
+                }
+                .toMap()
+                .toMutableMap()
+            if (trimmed.isEmpty()) current.remove(key) else current[key] = trimmed
+            prefs[KEY_BROADCAST_INDEXER_OVERRIDES] =
+                current.entries.joinToString("\n") { "${it.key}\u0000${it.value}" }
+        }
     }
 
     val pushIndexerUrl: Flow<String> = dataStore.data.map {

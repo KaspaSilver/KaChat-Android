@@ -85,6 +85,27 @@ class NetworkService @Inject constructor(
      * this used to throw straight out of a background coroutine with no catch anywhere
      * above it. On invalid input, log and keep whatever API client was already active.
      */
+    /**
+     * A [BroadcastIndexerApi] for one specific base URL, cached per URL.
+     *
+     * A broadcast is on-chain, so any indexer watching the same network serves the same room -
+     * which is why a room can be pointed at its own indexer (Room Info) without changing the
+     * app-wide one every other room uses. Blank falls back to the app-wide client.
+     */
+    private val broadcastIndexerApisByUrl = java.util.concurrent.ConcurrentHashMap<String, BroadcastIndexerApi>()
+
+    private fun createBroadcastIndexerApi(baseUrl: String): BroadcastIndexerApi? =
+        createApi<BroadcastIndexerApi>(baseUrl)
+
+    fun broadcastIndexerApiFor(baseUrl: String): BroadcastIndexerApi? {
+        val trimmed = baseUrl.trim()
+        if (trimmed.isEmpty()) return _broadcastIndexerApi.value
+        broadcastIndexerApisByUrl[trimmed]?.let { return it }
+        val created = createBroadcastIndexerApi(trimmed) ?: return _broadcastIndexerApi.value
+        broadcastIndexerApisByUrl[trimmed] = created
+        return created
+    }
+
     private inline fun <reified T> createApi(baseUrl: String): T? {
         return try {
             val sanitizedUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"

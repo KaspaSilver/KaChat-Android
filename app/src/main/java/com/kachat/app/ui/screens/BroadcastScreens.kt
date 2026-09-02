@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -806,8 +807,6 @@ fun BroadcastChannelScreen(
         }
     }
     val roomDotColorHex by androidx.hilt.navigation.compose.hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
-    var showRoomHiddenUsers by remember { mutableStateOf(false) }
-    val roomHiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
 
     // Opened from a share link for a room the user isn't in: create/join it first so it lands in
     // "Your Channels" instead of vanishing the moment they navigate away. Curated rooms never
@@ -819,17 +818,6 @@ fun BroadcastChannelScreen(
         }
     }
 
-    val shareContext = LocalContext.current
-    val shareRoomLink = {
-        val text = "Join #$channelName on KaChat: ${KaChatLink.broadcastUrl(channelName)}"
-        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(android.content.Intent.EXTRA_TEXT, text)
-        }
-        runCatching { shareContext.startActivity(android.content.Intent.createChooser(send, null)) }
-        Unit
-    }
-
     LaunchedEffect(myAddress) {
         myAddress?.let { broadcastViewModel.ensureSenderProfileFetched(it) }
     }
@@ -839,7 +827,25 @@ fun BroadcastChannelScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    // The title itself is the way in to everything about the room - share,
+                    // hidden users, its indexer, what is in it. It used to be two unlabelled
+                    // toolbar glyphs with nowhere to put anything else.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { navController.navigate("broadcast_room_info/$channelName") }
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Room info",
+                            tint = LocalAppColors.current.textSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 },
                 navigationIcon = {
                     // Left-side clickable connection dot (matches iOS's navigationBarLeading
@@ -858,18 +864,6 @@ fun BroadcastChannelScreen(
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(Color(roomDotColorHex), CircleShape))
                         }
-                    }
-                },
-                actions = {
-                    // Shares this room's invite link (kachat://broadcast/<channel>) through the
-                    // system share sheet - same shape as KaPosts' post share. Opening it joins
-                    // the room if the recipient isn't in it yet, then lands them in it.
-                    IconButton(onClick = shareRoomLink) {
-                        Icon(Icons.Default.Share, contentDescription = "Share room link", tint = LocalAppColors.current.textSecondary)
-                    }
-                    // Per-room hidden users (4.0, matches iOS): manage who's hidden in THIS room.
-                    IconButton(onClick = { showRoomHiddenUsers = true }) {
-                        Icon(Icons.Default.VisibilityOff, contentDescription = "Hidden users", tint = LocalAppColors.current.textSecondary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -1591,48 +1585,6 @@ fun BroadcastChannelScreen(
         }
     }
 
-    if (showRoomHiddenUsers) {
-        AlertDialog(
-            onDismissRequest = { showRoomHiddenUsers = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Hidden in #$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                val rows = roomHiddenSenders.filter { it.channelName.isEmpty() || it.channelName == channelName }
-                if (rows.isEmpty()) {
-                    Text(
-                        "No hidden users in this room. Hide someone from their avatar menu.",
-                        color = LocalAppColors.current.textSecondary
-                    )
-                } else {
-                    Column {
-                        rows.forEach { row ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
-                            ) {
-                                Text(
-                                    contactAliases[row.senderAddress] ?: senderKnsNames[row.senderAddress] ?: row.senderAddress.takeLast(10),
-                                    color = LocalAppColors.current.textPrimary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TextButton(onClick = { broadcastViewModel.unhideSender(row.senderAddress, channelName) }) {
-                                    Text(stringResource(R.string.unhide), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showRoomHiddenUsers = false }) {
-                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
 
     if (showFeeEditor) {
         AlertDialog(

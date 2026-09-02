@@ -1290,6 +1290,16 @@ fun MainShell(
                 }
             }
 
+            composable(
+                "broadcast_room_info/{channelName}",
+                arguments = listOf(navArgument("channelName") { type = NavType.StringType })
+            ) { backStackEntry ->
+                BroadcastRoomInfoScreen(
+                    channelName = backStackEntry.arguments?.getString("channelName") ?: "",
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
             composable("broadcast_channel/{channelName}") { backStackEntry ->
                 val channelName = backStackEntry.arguments?.getString("channelName") ?: return@composable
                 // Same bottom-padding treatment as "broadcasts" — the floating tab bar sits below
