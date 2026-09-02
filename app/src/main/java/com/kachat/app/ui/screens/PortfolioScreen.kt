@@ -556,13 +556,17 @@ private fun PortfolioTransactionsContent(
     if (showAddAddressDialog) {
         AddressEntryDialog(
             onDismiss = { showAddAddressDialog = false },
+            isImporting = isImportingAddress,
+            progressText = importProgressText,
             onConfirm = { address ->
-                showAddAddressDialog = false
+                // The sheet stays up and shows progress in place, rather than closing and
+                // handing off to a second dialog.
                 isImportingAddress = true
                 importProgressText = "Starting…"
                 coroutineScope.launch {
                     val result = viewModel.importAddress(address) { text -> importProgressText = text }
                     isImportingAddress = false
+                    showAddAddressDialog = false
                     val message = result.fold(
                         onSuccess = { imported ->
                             val base = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
@@ -580,22 +584,6 @@ private fun PortfolioTransactionsContent(
             resolveKns = viewModel::resolveKnsDomain
         )
     }
-
-    if (isImportingAddress) {
-        AlertDialog(
-            onDismissRequest = {},
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Add Kaspa Address", color = LocalAppColors.current.textPrimary) },
-            text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(importProgressText, color = LocalAppColors.current.textSecondary)
-                }
-            },
-            confirmButton = {}
-        )
-    }
 }
 
 /** "kaspa:qrabc...wxyz" — enough of each end to recognize the address without wrapping the dialog. */
@@ -606,7 +594,10 @@ private fun shortenKaspaAddress(address: String): String =
 private fun AddressEntryDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
-    resolveKns: suspend (String) -> String?
+    resolveKns: suspend (String) -> String?,
+    /** True while the import this sheet started is running - it stays open and shows progress. */
+    isImporting: Boolean = false,
+    progressText: String = "",
 ) {
     var addressText by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
@@ -665,16 +656,27 @@ private fun AddressEntryDialog(
         return
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(20.dp)) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Add Kaspa Address", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, "Close", tint = LocalAppColors.current.textSecondary)
-                    }
+    ActionSheetContainer(
+        title = "Add Kaspa Address",
+        subtitle = null,
+        // Held open while the import runs - dismissing mid-import would abandon the only
+        // progress readout while the work carried on regardless.
+        onDismiss = { if (!isImporting) onDismiss() },
+    ) {
+            if (isImporting) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = KaspaTeal,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(progressText, color = LocalAppColors.current.textSecondary)
                 }
                 Spacer(Modifier.height(16.dp))
+                return@ActionSheetContainer
+            }
+            Column(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = addressText,
                     onValueChange = { addressText = it },
@@ -732,13 +734,14 @@ private fun AddressEntryDialog(
                 Button(
                     onClick = { onConfirm(effectiveAddress) },
                     enabled = isValid,
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
                     Text("Import", color = if (isValid) Color.Black else Color.Gray, fontWeight = FontWeight.Bold)
                 }
+                Spacer(Modifier.height(8.dp))
             }
-        }
     }
 }
 
