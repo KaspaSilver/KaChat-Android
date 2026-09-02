@@ -937,7 +937,9 @@ fun ChatThreadScreen(
                                     // Slightly smaller than the stock 40dp so the input bubble gets the width.
                                     ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true }, size = 34.dp, iconSize = 18.dp)
                                 }
-                                if (showComposerMenu) {
+                                // Not while the chess step is up: they are two steps of ONE
+                                // sheet, and rendering both would stack two sheets on screen.
+                                if (showComposerMenu && !showChessTimeControlMenu) {
                                     // A sheet, not a popup: each option gets a line saying what
                                     // it does. Matches iOS's composerPlusSheet.
                                     ActionSheetContainer(
@@ -978,7 +980,9 @@ fun ChatThreadScreen(
                                             title = stringResource(R.string.play_chess),
                                             subtitle = "Invite this contact to a game on chain.",
                                         ) {
-                                            showComposerMenu = false
+                                            // Stays in the SAME sheet - dismissing into a popup
+                                            // to answer one follow-up question loses the thread
+                                            // of the action.
                                             showChessTimeControlMenu = true
                                         }
                                         // Not offered to yourself - see the banner guard above.
@@ -998,19 +1002,38 @@ fun ChatThreadScreen(
                                     }
                                 }
                                 if (showChessTimeControlMenu) {
-                                    // Timed options carry the clock icon; the untimed row keeps
-                                    // the chess menu's own icon so "Casual" reads as today's
-                                    // plain game. Minutes/increment pairs match iOS exactly.
-                                    CenteredOptionsMenu(onDismissRequest = { showChessTimeControlMenu = false }, anchor = composerMenuAnchor) {
+                                    // The composer sheet's second step. Timed options carry the
+                                    // clock icon; Casual keeps the chess icon so it reads as
+                                    // today's plain game. Pairs match iOS exactly.
+                                    ActionSheetContainer(
+                                        title = stringResource(R.string.play_chess),
+                                        subtitle = "Timed games count down only while the board is open on your turn.",
+                                        onDismiss = {
+                                            showChessTimeControlMenu = false
+                                            showComposerMenu = false
+                                        },
+                                    ) {
                                         for ((minutes, increment) in listOf(3 to 2, 2 to 1, 1 to 1)) {
-                                            PopupMenuRow(Icons.Default.Timer, "$minutes | $increment") {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Timer,
+                                                title = "$minutes | $increment",
+                                                subtitle = "$minutes minutes each, plus $increment second${if (increment == 1) "" else "s"} a move.",
+                                            ) {
                                                 showChessTimeControlMenu = false
+                                                showComposerMenu = false
                                                 chatViewModel.startChessGame(contactId, tcMinutes = minutes, tcIncSeconds = increment)
                                             }
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         }
-                                        PopupMenuRow(Icons.Default.Apps, "Casual (no timer)") {
+                                        // Omits the tc fields entirely, which is the exact legacy
+                                        // wire shape - casual games with older contacts stay
+                                        // byte-compatible.
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Apps,
+                                            title = "Casual",
+                                            subtitle = "No timer.",
+                                        ) {
                                             showChessTimeControlMenu = false
+                                            showComposerMenu = false
                                             chatViewModel.startChessGame(contactId)
                                         }
                                     }
@@ -10161,6 +10184,8 @@ fun CreateChatScreen(
     val looksLikeKnsDomain = remember(address) { com.kachat.app.services.KnsService.looksLikeDomain(address) }
 
     val knsResolvedAddress by chatViewModel.knsResolvedAddress.collectAsState()
+    // Backs the preview card below - refreshKnsProfile fills it for whatever address resolves.
+    val knsProfilesForPreview by chatViewModel.knsProfiles.collectAsState()
     val isResolvingKns by chatViewModel.isResolvingKns.collectAsState()
     val knsError by chatViewModel.knsError.collectAsState()
     // Existing contacts (via conversations) shown in the group member picker.
@@ -10427,6 +10452,54 @@ fun CreateChatScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+
+                // Who you are about to add, as they will appear once added. A raw address tells
+                // you nothing about whether you typed the right one; a face and a domain do.
+                // Only for an address the app is confident about - a card flickering through
+                // wrong faces while you type would be worse than no card.
+                if (isValidAddress && effectiveAddress != null) {
+                    val previewAddress = effectiveAddress
+                    LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
+                    val preview = knsProfilesForPreview[previewAddress]
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(LocalAppColors.current.surface)
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ContactAvatar(
+                            imageUrl = preview?.profile?.avatarUrl,
+                            fallbackText = preview?.selectedDomain ?: previewAddress.takeLast(8),
+                            size = 44.dp,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                preview?.selectedDomain ?: "No KNS domain",
+                                color = if (preview?.selectedDomain != null) {
+                                    LocalAppColors.current.textPrimary
+                                } else {
+                                    LocalAppColors.current.textSecondary
+                                },
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                previewAddress,
+                                color = LocalAppColors.current.textSecondary,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
