@@ -378,42 +378,10 @@ fun ChatThreadScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    // Avatar and name side by side as one tappable chip into Chat Info, matching
-                    // iOS. Stacked, the avatar plus the name below it is taller than a top app
-                    // bar's title slot, so the avatar drew clipped until the bar re-laid out -
-                    // side by side fits, which lets the avatar be bigger rather than smaller.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(LocalAppColors.current.surface)
-                            .clickable { navController.navigate("chat_info/$contactId") }
-                            .padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp)
-                    ) {
-                        ContactAvatar(
-                            imageUrl = conversation?.contact?.knsAvatarUrl,
-                            deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
-                            fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
-                            size = 30.dp
-                        )
-                        Text(
-                            text = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = LocalAppColors.current.textSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                },
+                // Empty: the header is a large avatar over a name capsule, which is far taller
+                // than a top app bar's title slot gives - putting it here is what drew the
+                // avatar clipped. It renders below the bar instead, see ChatHeaderCard.
+                title = {},
                 navigationIcon = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { navController.popBackStack() }) {
@@ -1188,10 +1156,20 @@ fun ChatThreadScreen(
             }
         }
 
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Below the app bar rather than in it: a large avatar over a name capsule is far taller
+        // than a title slot is given, which is what drew the avatar clipped.
+        ChatHeaderCard(
+            imageUrl = conversation?.contact?.knsAvatarUrl,
+            photoUri = conversation?.contact?.systemContactPhotoUri,
+            fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
+            name = conversation?.contact?.displayName
+                ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+            onClick = { navController.navigate("chat_info/$contactId") },
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
@@ -1377,6 +1355,7 @@ fun ChatThreadScreen(
                         .padding(24.dp)
                 )
             }
+        }
         }
     }
 
@@ -11817,5 +11796,69 @@ private fun InfoSectionCard(
             tint = colors.textSecondary,
             modifier = Modifier.size(18.dp),
         )
+    }
+}
+
+/**
+ * The chat's header: a large avatar sitting over a capsule holding the name, as one tappable
+ * target into Chat Info. Mirrors iOS's `chatTitleChip`.
+ *
+ * Rendered below the app bar, not inside it - at this size it is far taller than a title slot is
+ * given, which is what drew the avatar clipped at the top until the bar re-laid out.
+ */
+@Composable
+private fun ChatHeaderCard(
+    imageUrl: String?,
+    photoUri: String?,
+    fallbackText: String,
+    name: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(top = 4.dp, bottom = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(contentAlignment = Alignment.TopCenter) {
+            // The capsule tucks under the avatar - offset by the overlap, then padded back out
+            // at the top so the name still clears it. Reads as one piece rather than a stack.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                modifier = Modifier
+                    .padding(top = 48.dp)
+                    .clip(CircleShape)
+                    .background(colors.surface)
+                    .padding(start = 16.dp, end = 14.dp, top = 20.dp, bottom = 8.dp),
+            ) {
+                Text(
+                    name,
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            ContactAvatar(
+                imageUrl = imageUrl,
+                deviceContactPhotoUri = photoUri,
+                fallbackText = fallbackText,
+                size = 64.dp,
+            )
+        }
     }
 }
