@@ -1,7 +1,11 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.runtime.mutableFloatStateOf
@@ -211,15 +215,18 @@ private fun SectionHeader(
 private val ROW_HEIGHT = 56.dp
 
 /**
- * A hold-then-drag reorderable list, matching how iOS's Customize Dock reorders.
+ * A drag-to-reorder list, matching how iOS's Customize Dock reorders.
+ *
+ * iOS uses a List in edit mode, so its grab handle sits on the RIGHT and a drag begins the
+ * instant you touch it - no hold. This does the same: the handle is the only drag target, so an
+ * ordinary swipe anywhere else still scrolls the screen, and touching the handle picks the row up
+ * immediately rather than after a half-second the user has to learn about. Haptics on pick-up and
+ * on each swap are what the system list gives you for free there.
  *
  * Deliberately NOT animated. The dragged row is positioned by an offset that cancels how far its
- * own slot has travelled, and on iOS animating the slot change while that offset jumped instantly
- * drew the row a full slot away for the length of the animation. With both instant they cancel
+ * own slot has travelled, and animating the slot change while that offset jumped instantly drew
+ * the row a full slot away for the length of the animation. With both instant they cancel
  * exactly, so the row stays under the finger and the others snap past it.
- *
- * A long press is required first, so an ordinary swipe still scrolls the screen rather than
- * picking a row up by accident.
  */
 @Composable
 private fun ReorderableList(
@@ -232,6 +239,7 @@ private fun ReorderableList(
 ) {
     val density = LocalDensity.current
     val rowHeightPx = with(density) { ROW_HEIGHT.toPx() }
+    val haptics = LocalHapticFeedback.current
 
     var draggingRoute by remember { mutableStateOf<String?>(null) }
     var dragStartIndex by remember { mutableStateOf(0) }
@@ -275,22 +283,23 @@ private fun ReorderableList(
                 // nothing to do with this row. The handler reads the current order from state
                 // when it runs, so it is never working from a stale list.
                 dragModifier = Modifier.pointerInput(screen.route) {
-                    detectDragGesturesAfterLongPress(
+                    detectDragGestures(
                         onDragStart = {
                             val order = preview ?: items
                             dragStartIndex = order.indexOfFirst { it.route == screen.route }
-                            if (dragStartIndex < 0) return@detectDragGesturesAfterLongPress
+                            if (dragStartIndex < 0) return@detectDragGestures
                             preview = order
                             draggingRoute = screen.route
                             dragOffsetY = 0f
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         },
                         onDrag = { change, amount ->
                             change.consume()
-                            if (draggingRoute != screen.route) return@detectDragGesturesAfterLongPress
+                            if (draggingRoute != screen.route) return@detectDragGestures
                             dragOffsetY += amount.y
                             val order = (preview ?: items).toMutableList()
                             val current = order.indexOfFirst { it.route == screen.route }
-                            if (current < 0) return@detectDragGesturesAfterLongPress
+                            if (current < 0) return@detectDragGestures
                             // From the FIXED start index plus whole slots travelled, so the result
                             // depends only on where the finger is - not on the order of updates,
                             // which is what stops a fast drag oscillating.
@@ -299,6 +308,10 @@ private fun ReorderableList(
                             if (target != current) {
                                 order.add(target, order.removeAt(current))
                                 preview = order
+                                // One tick per slot crossed - the same feedback the system list
+                                // gives on iOS, and the thing that makes a reorder feel precise
+                                // rather than approximate.
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             }
                         },
                         onDragEnd = {
@@ -340,19 +353,16 @@ private fun PlacementRow(
             // graphicsLayer, not offset: a translation change here is a DRAW-phase invalidation,
             // where an offset would re-run layout for the whole column on every frame.
             .graphicsLayer { translationY = offsetProvider() }
-            .background(if (isDragging) colors.surface else Color.Transparent)
-            .then(dragModifier)
+            // A held row lifts off the list, the way the system list does it on iOS.
+            .shadow(if (isDragging) 8.dp else 0.dp, RoundedCornerShape(12.dp))
+            .background(
+                if (isDragging) colors.surface else Color.Transparent,
+                RoundedCornerShape(12.dp)
+            )
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // The affordance, matching the handle iOS shows in edit mode.
-        Icon(
-            Icons.Default.DragIndicator,
-            contentDescription = "Reorder ${screen.label}",
-            tint = colors.textSecondary.copy(alpha = 0.6f),
-            modifier = Modifier.size(20.dp)
-        )
         Icon(
             painter = if (screen.usesKaspaLogo) {
                 androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
@@ -383,5 +393,15 @@ private fun PlacementRow(
                 )
             }
         }
+        // Trailing, where iOS's edit-mode handle is - and it is the ONLY drag target, so a swipe
+        // anywhere else on the row still scrolls the list.
+        Icon(
+            Icons.Default.DragIndicator,
+            contentDescription = "Reorder ${screen.label}",
+            tint = colors.textSecondary.copy(alpha = if (isDragging) 1f else 0.6f),
+            modifier = Modifier
+                .size(24.dp)
+                .then(dragModifier)
+        )
     }
 }
