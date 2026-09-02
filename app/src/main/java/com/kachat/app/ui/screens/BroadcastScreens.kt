@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
@@ -1115,6 +1116,8 @@ fun BroadcastChannelScreen(
                         internalLinkMatch != null
                     val messageReactions = reactionsByTxId[message.id] ?: emptyList()
                     var showMenu by remember { mutableStateOf(false) }
+                    // Who reacted to this message, when the reader asks from the long-press menu.
+                    var showReactions by remember { mutableStateOf(false) }
                     var showQuickReactionBar by remember { mutableStateOf(false) }
                     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
                     val clipboardManager = LocalClipboardManager.current
@@ -1402,6 +1405,18 @@ fun BroadcastChannelScreen(
                                             uriHandler.openUri(kaspaExplorer.txUrl(message.id))
                                             showMenu = false
                                         }
+                                        // The pill on the bubble shows WHICH emoji; it has no
+                                        // room to say how many or from whom. This does.
+                                        if (messageReactions.isNotEmpty()) {
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                            PopupMenuRow(
+                                                Icons.Default.Favorite,
+                                                "Reactions (${messageReactions.size})"
+                                            ) {
+                                                showMenu = false
+                                                showReactions = true
+                                            }
+                                        }
                                         if (isMine && message.deliveryStatus == "failed") {
                                             HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                             PopupMenuRow(Icons.Default.Refresh, stringResource(R.string.retry_send)) {
@@ -1410,6 +1425,19 @@ fun BroadcastChannelScreen(
                                             }
                                         }
                                     }
+                                }
+
+                                if (showReactions) {
+                                    BroadcastReactionsSheet(
+                                        reactions = messageReactions,
+                                        nameFor = { addr ->
+                                            contactAliases[addr]
+                                                ?: senderKnsNames[addr]
+                                                ?: addr.takeLast(10)
+                                        },
+                                        isMe = { it == myAddress },
+                                        onDismiss = { showReactions = false },
+                                    )
                                 }
 
                                 // A small corner badge rather than a row below the bubble —
@@ -1670,3 +1698,60 @@ fun BroadcastChannelScreen(
     }
 }
 
+
+/**
+ * Who reacted to one broadcast message, and with what.
+ *
+ * The pill on a bubble shows which emoji are on it and nothing else - not how many of each, and
+ * not from whom. In a room open to anyone, that second question is the interesting one, so a
+ * long press on a message carrying reactions offers this.
+ */
+@Composable
+private fun BroadcastReactionsSheet(
+    reactions: List<com.kachat.app.models.ReactionEntity>,
+    nameFor: (String) -> String,
+    isMe: (String) -> Boolean,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    // Grouped by emoji, most-reacted first, so "12 x fire" reads before the individual names.
+    val grouped = remember(reactions) {
+        reactions.groupBy { it.emoji }.entries.sortedByDescending { it.value.size }
+    }
+    ActionSheetContainer(
+        title = "Reactions",
+        subtitle = if (reactions.size == 1) "1 reaction" else "${reactions.size} reactions",
+        onDismiss = onDismiss,
+    ) {
+        grouped.forEach { (emoji, rows) ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.surface)
+                    .padding(14.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(emoji, fontSize = 20.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (rows.size == 1) "1 person" else "${rows.size} people",
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                rows.forEach { row ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (isMe(row.reactorAddress)) "You" else nameFor(row.reactorAddress),
+                        color = colors.textPrimary,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
