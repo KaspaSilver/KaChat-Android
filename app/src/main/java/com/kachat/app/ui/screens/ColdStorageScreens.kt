@@ -289,7 +289,21 @@ fun ColdStorageListScreen(
     }
 
     kpubQrAccount?.let { account ->
-        KpubQrDialog(account = account, onDismiss = { kpubQrAccount = null })
+        // The app's own full-screen QR overlay, the same one an address uses - white to the
+        // edges, tap anywhere to copy, back arrow to leave. A kpub deserves the same treatment as
+        // an address, and it is the harder of the two to scan (114 characters against ~60), so
+        // the extra screen actually matters here.
+        //
+        // The message says what a kpub is: no private key, cannot spend - which is why showing it
+        // is safe at all - but it derives EVERY address in the account, so whoever scans it can
+        // watch that balance and history forever.
+        QrCodeOverlay(
+            value = account.kpub,
+            onDismiss = { kpubQrAccount = null },
+            message = "Watch-only. This cannot spend, but it reveals every address in this account.",
+            // A kpub is ~114 characters; the two-line default is for an address and would cut it.
+            valueMaxLines = 5
+        )
     }
 
     if (showManualEntry) {
@@ -2477,56 +2491,6 @@ private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction,
     }
 }
 
-/**
- * The kpub of one cold-storage account, as a QR for moving it to another device or a watch-only
- * wallet elsewhere. Mirrors iOS's ColdStorageKpubQRView.
- *
- * Deliberately says what a kpub is. It holds no private key and cannot spend anything, which is
- * why it is safe to display at all - but it derives EVERY address in the account, so whoever scans
- * it can watch the whole balance and history forever. That is a privacy decision the person
- * holding the phone should get to make knowingly, not discover later.
- */
-@Composable
-private fun KpubQrDialog(account: ColdStorageManager.ColdAccount, onDismiss: () -> Unit) {
-    val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.White)
-                .clickable {
-                    clipboardManager.setText(AnnotatedString(account.kpub))
-                    Toast.makeText(context, "kpub copied to clipboard.", Toast.LENGTH_SHORT).show()
-                }
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(account.name, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Image(
-                painter = rememberQrBitmapPainter(account.kpub, size = 240),
-                contentDescription = "kpub QR code",
-                modifier = Modifier.size(240.dp)
-            )
-            Text(
-                account.kpub,
-                color = Color.Black.copy(alpha = 0.7f),
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                "Watch-only. This cannot spend, but it reveals every address in this account.",
-                color = Color.Black.copy(alpha = 0.45f),
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
-            Text("Tap anywhere to copy", color = Color.Black.copy(alpha = 0.4f), fontSize = 12.sp)
-        }
-    }
-}
 
 /**
  * The half sheet behind "Address Actions" on a watch-only account. Mirrors iOS's

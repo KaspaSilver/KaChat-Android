@@ -9965,7 +9965,13 @@ fun QrCodeOverlay(
     onDismiss: () -> Unit,
     message: String? = null,
     borderColor: Color = KaspaTeal,
-    borderWidth: Dp = 2.dp
+    borderWidth: Dp = 2.dp,
+    /**
+     * How many lines the value text may take. Two suits an address; a kpub is roughly twice as
+     * long and would be silently truncated, which is worse than wrapping when someone is
+     * comparing one by eye.
+     */
+    valueMaxLines: Int = 2
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -10021,7 +10027,7 @@ fun QrCodeOverlay(
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
+                maxLines = valueMaxLines,
                 modifier = Modifier
                     .widthIn(max = 280.dp)
                     .padding(horizontal = 16.dp)
