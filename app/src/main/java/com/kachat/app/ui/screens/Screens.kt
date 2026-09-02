@@ -379,24 +379,38 @@ fun ChatThreadScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable {
-                            navController.navigate("chat_info/$contactId")
-                        }
+                    // Avatar and name side by side as one tappable chip into Chat Info, matching
+                    // iOS. Stacked, the avatar plus the name below it is taller than a top app
+                    // bar's title slot, so the avatar drew clipped until the bar re-laid out -
+                    // side by side fits, which lets the avatar be bigger rather than smaller.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(LocalAppColors.current.surface)
+                            .clickable { navController.navigate("chat_info/$contactId") }
+                            .padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp)
                     ) {
                         ContactAvatar(
                             imageUrl = conversation?.contact?.knsAvatarUrl,
                             deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                             fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
-                            size = 36.dp
+                            size = 30.dp
                         )
-                        Spacer(Modifier.height(2.dp))
                         Text(
                             text = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = LocalAppColors.current.textSecondary,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 },
@@ -932,35 +946,57 @@ fun ChatThreadScreen(
                                     ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true }, size = 34.dp, iconSize = 18.dp)
                                 }
                                 if (showComposerMenu) {
-                                    CenteredOptionsMenu(onDismissRequest = { showComposerMenu = false }, anchor = composerMenuAnchor) {
-                                        PopupMenuRow(Icons.Default.Image, stringResource(R.string.send_photo_2)) {
+                                    // A sheet, not a popup: each option gets a line saying what
+                                    // it does. Matches iOS's composerPlusSheet.
+                                    ActionSheetContainer(
+                                        title = "Send",
+                                        subtitle = null,
+                                        onDismiss = { showComposerMenu = false },
+                                    ) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Image,
+                                            title = stringResource(R.string.send_photo_2),
+                                            subtitle = "Pick an image from your library.",
+                                        ) {
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
                                         }
                                         if (nextcloudAccount != null) {
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                            PopupMenuRow(Icons.Default.Cloud, "Send from Nextcloud") {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Cloud,
+                                                title = "Send from Nextcloud",
+                                                subtitle = "Pick a file from your connected server.",
+                                            ) {
                                                 showComposerMenu = false
                                                 showNextcloudPicker = true
                                             }
                                         }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.Default.Mic, stringResource(R.string.send_audio_message)) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Mic,
+                                            title = stringResource(R.string.send_audio_message),
+                                            subtitle = "Record a voice message and send it.",
+                                        ) {
                                             showComposerMenu = false
                                             startVoiceRecordingIfPermitted()
                                         }
                                         // Send Kaspa left this menu: the Kaspa logo inside the
                                         // input bubble is the one entry point to payment mode now.
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.Default.Apps, stringResource(R.string.play_chess)) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Apps,
+                                            title = stringResource(R.string.play_chess),
+                                            subtitle = "Invite this contact to a game on chain.",
+                                        ) {
                                             showComposerMenu = false
                                             showChessTimeControlMenu = true
                                         }
                                         if (conversation?.contact?.handshakeComplete != true &&
                                             !ChatViewModel.hasUnansweredOutgoingHandshake(messages)
                                         ) {
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                            PopupMenuRow(Icons.Default.BackHand, stringResource(R.string.send_handshake)) {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.BackHand,
+                                                title = stringResource(R.string.send_handshake),
+                                                subtitle = "Asks to open an encrypted conversation.",
+                                            ) {
                                                 showComposerMenu = false
                                                 chatViewModel.sendHandshake(contactId)
                                             }

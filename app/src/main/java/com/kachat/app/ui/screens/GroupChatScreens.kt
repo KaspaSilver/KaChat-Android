@@ -674,20 +674,35 @@ fun GroupChatThreadScreen(
                                     ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true })
                                 }
                                 if (showComposerMenu) {
-                                    CenteredOptionsMenu(onDismissRequest = { showComposerMenu = false }, anchor = composerMenuAnchor) {
-                                        PopupMenuRow(Icons.Default.Image, stringResource(R.string.send_photo_2)) {
+                                    // A sheet, not a popup - matches the 1:1 composer and iOS.
+                                    ActionSheetContainer(
+                                        title = "Send",
+                                        subtitle = null,
+                                        onDismiss = { showComposerMenu = false },
+                                    ) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Image,
+                                            title = stringResource(R.string.send_photo_2),
+                                            subtitle = "Pick an image from your library.",
+                                        ) {
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
                                         }
                                         if (nextcloudAccount != null) {
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                            PopupMenuRow(Icons.Default.Cloud, "Send from Nextcloud") {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Cloud,
+                                                title = "Send from Nextcloud",
+                                                subtitle = "Pick a file from your connected server.",
+                                            ) {
                                                 showComposerMenu = false
                                                 showNextcloudPicker = true
                                             }
                                         }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.Default.Mic, stringResource(R.string.send_audio_message)) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Mic,
+                                            title = stringResource(R.string.send_audio_message),
+                                            subtitle = "Record a voice message and send it to the group.",
+                                        ) {
                                             showComposerMenu = false
                                             startVoiceRecordingIfPermitted()
                                         }
