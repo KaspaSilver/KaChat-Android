@@ -1669,13 +1669,28 @@ class ChatViewModel @Inject constructor(
      * the same current epoch and collide). Mirrors iOS's serial add loop. Reports how many were
      * added and how many failed once the whole batch is done.
      */
-    fun addGroupMembers(contacts: List<ContactEntity>, groupId: String, onResult: (added: Int, failed: Int) -> Unit) {
+    /**
+     * Takes addresses rather than contacts so someone who is not in the address book can still be
+     * invited: a group invite is encrypted to a public key decoded from the address itself, so
+     * there is no handshake or prior chat to require. Mints the contact on the way through,
+     * exactly as [createGroupChat] does for a brand-new group.
+     */
+    fun addGroupMembers(addresses: List<String>, groupId: String, onResult: (added: Int, failed: Int) -> Unit) {
         viewModelScope.launch {
             var added = 0
             var failed = 0
-            for (contact in contacts) {
-                try { groupRepository.addMember(contact, groupId); added++ }
-                catch (e: Exception) { failed++ }
+            for (address in addresses) {
+                try {
+                    val contact = chatRepository.getContact(address) ?: ContactEntity(
+                        id = address,
+                        walletAddress = walletManager.getAddress(),
+                        alias = null,
+                        knsName = null,
+                        publicKeyHex = null
+                    ).also { chatRepository.addContact(it) }
+                    groupRepository.addMember(contact, groupId)
+                    added++
+                } catch (e: Exception) { failed++ }
             }
             onResult(added, failed)
         }

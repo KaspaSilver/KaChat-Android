@@ -2211,15 +2211,41 @@ fun GroupChatInfoScreen(
         var addBusy by remember { mutableStateOf(false) }
         var addError by remember { mutableStateOf<String?>(null) }
         var showAddFeeConfirm by remember { mutableStateOf(false) }
-        var addChosen by remember { mutableStateOf<List<com.kachat.app.models.ContactEntity>>(emptyList()) }
+        var addChosen by remember { mutableStateOf<List<String>>(emptyList()) }
         val existingAddresses = remember(members) { members.map { it.address }.toSet() }
         val query = addSearch.trim().lowercase()
+
+        // A group invite is encrypted to a public key decoded from the address itself - there is
+        // no handshake or prior chat to require. Limiting this to saved contacts made it look
+        // like there was; the only thing missing was somewhere to put an address.
+        var addResolvedDomain by remember { mutableStateOf<String?>(null) }
+        var addResolvingDomain by remember { mutableStateOf(false) }
+        LaunchedEffect(addSearch) {
+            addResolvedDomain = null
+            val trimmed = addSearch.trim()
+            if (trimmed.isEmpty() || !com.kachat.app.services.KnsService.looksLikeDomain(trimmed)) {
+                addResolvingDomain = false
+                return@LaunchedEffect
+            }
+            addResolvingDomain = true
+            kotlinx.coroutines.delay(500)
+            addResolvedDomain = chatViewModel.resolveKnsDomain(trimmed)
+            addResolvingDomain = false
+        }
         val candidates = remember(conversations, existingAddresses, query) {
             conversations.map { it.contact }
                 .distinctBy { it.id }
                 .filter { it.id !in existingAddresses }
                 .sortedBy { it.displayName.lowercase() }
                 .filter { query.isEmpty() || it.displayName.lowercase().contains(query) || it.id.lowercase().contains(query) }
+        }
+        // Hidden when the address is already listed as a contact below, so it is never offered twice.
+        val typedAddress = remember(addSearch, addResolvedDomain, existingAddresses, candidates) {
+            val trimmed = addSearch.trim()
+            val candidate = if (com.kachat.app.util.KaspaAddress.isValid(trimmed)) trimmed else addResolvedDomain
+            candidate?.takeIf { addr ->
+                com.kachat.app.util.KaspaAddress.isValid(addr) && addr !in existingAddresses && candidates.none { it.id == addr }
+            }
         }
         AlertDialog(
             onDismissRequest = { if (!addBusy) showAddMembers = false },
@@ -2230,7 +2256,7 @@ fun GroupChatInfoScreen(
                     TextField(
                         value = addSearch,
                         onValueChange = { addSearch = it },
-                        placeholder = { Text("Search contacts", color = Color.DarkGray) },
+                        placeholder = { Text("Search contacts, or paste an address", color = Color.DarkGray) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
@@ -2245,13 +2271,51 @@ fun GroupChatInfoScreen(
                         )
                     )
                     Spacer(Modifier.height(8.dp))
-                    if (conversations.isEmpty()) {
-                        Text("You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to the group.",
+                    if (addResolvingDomain) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Looking up domain...", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (typedAddress != null) {
+                        val typedSelected = typedAddress in addSelected
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    addSelected = if (typedSelected) addSelected - typedAddress else addSelected + typedAddress
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Add this address", color = LocalAppColors.current.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    typedAddress,
+                                    color = LocalAppColors.current.textSecondary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Icon(
+                                if (typedSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = null,
+                                tint = if (typedSelected) KaspaTeal else LocalAppColors.current.textSecondary
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (conversations.isEmpty() && typedAddress == null) {
+                        Text("You have no contacts yet. Paste an address or a .kas domain above to invite someone.",
                             color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                    } else if (candidates.isEmpty()) {
-                        Text(if (query.isEmpty()) "Everyone in your contacts is already in this group." else "No contacts match your search.",
+                    } else if (candidates.isEmpty() && typedAddress == null) {
+                        Text(if (query.isEmpty()) "Everyone in your contacts is already in this group." else "No contacts match your search. Paste an address or a .kas domain to invite someone new.",
                             color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                    } else {
+                    } else if (candidates.isNotEmpty()) {
                         LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
                             items(candidates, key = { it.id }) { contact ->
                                 val selected = contact.id in addSelected
@@ -2299,8 +2363,7 @@ fun GroupChatInfoScreen(
                     enabled = addSelected.isNotEmpty() && !addBusy,
                     onClick = {
                         // Confirm with the estimated fee first — each add rotates the group key.
-                        addChosen = candidates.filter { it.id in addSelected }
-                            .ifEmpty { conversations.map { it.contact }.distinctBy { it.id }.filter { it.id in addSelected } }
+                        addChosen = addSelected.toList()
                         showAddFeeConfirm = true
                     }
                 ) {
