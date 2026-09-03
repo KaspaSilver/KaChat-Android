@@ -98,6 +98,7 @@ import com.kachat.app.models.GroupMember
 import com.kachat.app.models.displayName
 import com.kachat.app.models.avatarFallbackText
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.graphicsLayer
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.repository.GroupMessage
 import com.kachat.app.repository.isSystemMessage
@@ -1198,7 +1199,10 @@ private fun GroupMessageBubble(
                 // MessageBubble in Screens.kt, which reveals both directions at CenterEnd.
                 .align(Alignment.CenterEnd)
                 .padding(end = 12.dp)
-                .alpha((-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f))
+                // graphicsLayer, not alpha(): reading the Animatable inside this block defers it
+                // to the draw phase, so dragging the row animates without recomposing every
+                // visible bubble on every frame. `.offset { }` below defers the same way.
+                .graphicsLayer { alpha = (-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f) }
         )
     Row(
         modifier = Modifier

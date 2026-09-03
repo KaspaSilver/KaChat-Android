@@ -115,6 +115,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.google.zxing.BarcodeFormat
@@ -1873,7 +1874,10 @@ fun MessageBubble(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 12.dp)
-                .alpha((-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f))
+                // graphicsLayer, not alpha(): reading the Animatable inside this block defers it
+                // to the draw phase, so dragging the row animates without recomposing every
+                // visible bubble on every frame. `.offset { }` below defers the same way.
+                .graphicsLayer { alpha = (-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f) }
         )
         Row(
             modifier = Modifier

@@ -15,13 +15,25 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     suspend fun getAllMessagesForWallet(walletAddress: String): List<MessageEntity>
 
-    /** One row per contactId (within this wallet) — whichever message has the most recent blockTimestamp. */
+    /**
+     * One row per contactId (within this wallet) — whichever message has the most recent
+     * blockTimestamp.
+     *
+     * Joins each contact's max timestamp back to its own row. The previous form matched on
+     * `blockTimestamp IN (SELECT MAX(...) GROUP BY contactId)`, which could not use an index and
+     * also returned extra rows whenever two different contacts' newest messages happened to
+     * share a timestamp. The trailing GROUP BY collapses a genuine tie within one contact to a
+     * single row.
+     */
     @Query(
         """
-        SELECT * FROM messages
-        WHERE walletAddress = :walletAddress AND blockTimestamp IN (
-            SELECT MAX(blockTimestamp) FROM messages WHERE walletAddress = :walletAddress GROUP BY contactId
-        )
+        SELECT m.* FROM messages m
+        JOIN (
+            SELECT contactId, MAX(blockTimestamp) AS maxTs FROM messages
+            WHERE walletAddress = :walletAddress GROUP BY contactId
+        ) newest ON m.contactId = newest.contactId AND m.blockTimestamp = newest.maxTs
+        WHERE m.walletAddress = :walletAddress
+        GROUP BY m.contactId
         """
     )
     fun getLatestMessagePerContact(walletAddress: String): Flow<List<MessageEntity>>
