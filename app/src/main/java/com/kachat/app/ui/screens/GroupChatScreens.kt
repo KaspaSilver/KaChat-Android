@@ -451,20 +451,8 @@ fun GroupChatThreadScreen(
                 // itself only carries the back button, the connection dot and select-mode actions.
                 title = {},
                 navigationIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
-                        }
-                        val statusColor = Color(dotColorHex)
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusOverlayState.open() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
-                        }
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
                     }
                 },
                 actions = {
@@ -481,9 +469,23 @@ fun GroupChatThreadScreen(
                         ) {
                             Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = Color(0xFFFF3B30))
                         }
+                    } else {
+                        // No info button: tapping the header opens Group Info, exactly as tapping
+                        // the 1:1 header opens Chat Info - which leaves the trailing slot for the
+                        // connection dot, where 1:1 puts it too. The left of the bar belongs to
+                        // navigation; the dot is status.
+                        val statusColor = Color(dotColorHex)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(LocalAppColors.current.surface, CircleShape)
+                                .clickable { ConnectionStatusOverlayState.open() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
+                        }
+                        Spacer(Modifier.width(4.dp))
                     }
-                    // No info button: tapping the header opens Group Info, exactly as tapping the
-                    // 1:1 header opens Chat Info.
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )

@@ -388,20 +388,8 @@ fun ChatThreadScreen(
                 // only carries the back button, the connection dot and the trailing actions.
                 title = {},
                 navigationIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
-                        }
-                        val statusColor = Color(dotColorHex)
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusOverlayState.open() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
-                        }
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
                     }
                 },
                 actions = {
@@ -418,18 +406,34 @@ fun ChatThreadScreen(
                         ) {
                             Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = Color(0xFFFF3B30))
                         }
-                    } else if (activeChessGame != null) {
+                    } else {
                         // Entry point into select mode is a message's long-press "Select" menu
-                        // item, not a toolbar button - this only shows the chess shortcut now.
+                        // item, not a toolbar button - this carries the chess shortcut and the
+                        // connection dot. The dot sits trailing rather than beside Back: the left
+                        // of the bar belongs to navigation, and the dot is status.
+                        if (activeChessGame != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(LocalAppColors.current.surface, CircleShape)
+                                    .clickable { navController.navigate("chess_game/$contactId/${activeChessGame.gameId}") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Apps, stringResource(R.string.play_chess), tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        val statusColor = Color(dotColorHex)
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { navController.navigate("chess_game/$contactId/${activeChessGame.gameId}") },
+                                .clickable { ConnectionStatusOverlayState.open() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Apps, stringResource(R.string.play_chess), tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
                         }
+                        Spacer(Modifier.width(4.dp))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
