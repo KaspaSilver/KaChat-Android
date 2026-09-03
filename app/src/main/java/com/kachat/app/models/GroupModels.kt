@@ -1,6 +1,7 @@
 package com.kachat.app.models
 
 import androidx.room.Entity
+import androidx.room.Index
 
 /**
  * Group chat metadata - non-secret. Secret key material (group seed/root epoch/blinding key/
@@ -51,7 +52,14 @@ data class GroupMember(
  * on read using the group's Keystore-held root key (see GroupRepository). Same posture as
  * [MessageEntity.encryptedPayload] - compromising this database alone doesn't reveal content.
  */
-@Entity(tableName = "group_messages", primaryKeys = ["txId", "walletAddress"])
+// Same story as `messages`: the group list and every thread read filter on
+// (walletAddress, groupId) and order by blockTimestamp, none of which the (txId, walletAddress)
+// primary key can serve.
+@Entity(
+    tableName = "group_messages",
+    primaryKeys = ["txId", "walletAddress"],
+    indices = [Index(value = ["walletAddress", "groupId", "blockTimestamp"])]
+)
 data class GroupMessageEntity(
     val txId: String,                  // Kaspa transaction ID, or a synthetic "pending_<uuid>" while a send is in flight
     val walletAddress: String,

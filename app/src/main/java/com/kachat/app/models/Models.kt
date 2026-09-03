@@ -1,6 +1,7 @@
 package com.kachat.app.models
 
 import androidx.room.Entity
+import androidx.room.Index
 
 /**
  * Message stored locally in Room.
@@ -15,7 +16,14 @@ import androidx.room.Entity
  * sending between two of their own wallets), each account still needs its own independent
  * row (different direction/plaintext framing) instead of one clobbering the other.
  */
-@Entity(tableName = "messages", primaryKeys = ["id", "walletAddress"])
+// Every hot read filters on (walletAddress, contactId) and orders by blockTimestamp, but the
+// primary key is (id, walletAddress) - so without this index each of those was a full table
+// scan of the whole message history, on the main thread, on every emission.
+@Entity(
+    tableName = "messages",
+    primaryKeys = ["id", "walletAddress"],
+    indices = [Index(value = ["walletAddress", "contactId", "blockTimestamp"])]
+)
 data class MessageEntity(
     val id: String,                         // Kaspa transaction ID
     val contactId: String,                  // Foreign key → ContactEntity.id
@@ -73,7 +81,11 @@ data class MessageEntity(
  * isn't shared cross-platform. [reactionTxId] is the reaction message's own transaction id, kept
  * for reference/debugging (not used for dedup — the primary key already prevents duplicates).
  */
-@Entity(tableName = "reactions", primaryKeys = ["targetTxId", "walletAddress", "reactorAddress"])
+@Entity(
+    tableName = "reactions",
+    primaryKeys = ["targetTxId", "walletAddress", "reactorAddress"],
+    indices = [Index(value = ["walletAddress", "targetTxId"])]
+)
 data class ReactionEntity(
     val targetTxId: String,
     val walletAddress: String,

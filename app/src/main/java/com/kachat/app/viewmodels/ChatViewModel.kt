@@ -1308,11 +1308,11 @@ class ChatViewModel @Inject constructor(
 
     /**
      * Groups with their latest message, for the Group Chats tab's list (mirrors [conversations]'
-     * shape for 1:1 chats). Unlike 1:1 messages (already stored plaintext, so
-     * [com.kachat.app.repository.ChatRepository.getLatestMessages] is a plain DB query), group
-     * messages are stored encrypted and only decrypted on read via [GroupRepository.getMessages]
-     * - so "latest per group" has to decrypt each group's messages and take the max, not a single
-     * aggregate query.
+     * shape for 1:1 chats). Group messages are stored encrypted, so this used to subscribe to
+     * every group's full message flow and decrypt all of it just to find the newest one and
+     * count unread - per group, on every database emission, on the main thread. It now reads
+     * [GroupRepository.getGroupSummary]: the count comes from SQL over the plaintext
+     * `isOutgoing`/`blockTimestamp` columns, and exactly one message is decrypted per group.
      */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val groupConversations: StateFlow<List<GroupConversation>> = groups.flatMapLatest { groupList ->
@@ -1320,11 +1320,8 @@ class ChatViewModel @Inject constructor(
             flowOf(emptyList())
         } else {
             combine(groupList.map { group ->
-                groupRepository.getMessages(group.groupId).map { messages ->
-                    val lastReadAt = group.lastReadAt
-                    val unread = messages.count { !it.isOutgoing && (lastReadAt == null || it.blockTimestamp > lastReadAt) }
-                    val unreadCount = if (lastReadAt == null && !group.isAdmin) maxOf(unread, 1) else unread
-                    GroupConversation(group, messages.maxByOrNull { it.blockTimestamp }, unreadCount)
+                groupRepository.getGroupSummary(group.groupId, group.lastReadAt, group.isAdmin).map { summary ->
+                    GroupConversation(group, summary.latestMessage, summary.unreadCount)
                 }
             }) { conversations -> conversations.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L } }
         }

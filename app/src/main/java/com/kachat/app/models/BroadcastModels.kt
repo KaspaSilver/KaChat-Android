@@ -1,6 +1,7 @@
 package com.kachat.app.models
 
 import androidx.room.Entity
+import androidx.room.Index
 
 /** Per-channel local message retention — how long a broadcast room's cached messages stick around before being pruned. */
 object BroadcastRetention {
@@ -128,7 +129,11 @@ data class BroadcastChannelEntity(
  * address: it's a raw capture of public chain data, the same regardless of which local account is
  * active.
  */
-@Entity(tableName = "broadcast_messages", primaryKeys = ["id"])
+@Entity(
+    tableName = "broadcast_messages",
+    primaryKeys = ["id"],
+    indices = [Index(value = ["channelName", "blockTimestamp"])]
+)
 data class BroadcastMessageEntity(
     val id: String,                 // Kaspa transaction ID, or a synthetic "pending_<uuid>" while a send is in flight
     val channelName: String,

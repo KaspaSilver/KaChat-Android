@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 36,
+    version = 37,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -439,6 +439,28 @@ abstract class KaChatDatabase : RoomDatabase() {
                 if (!columnExists(db, "groups", "photoHex")) {
                     db.execSQL("ALTER TABLE `groups` ADD COLUMN `photoHex` TEXT DEFAULT NULL")
                 }
+            }
+        }
+
+        /**
+         * Indices for the columns every hot read actually filters and sorts on.
+         *
+         * None of these tables had an index beyond its primary key, and no primary key matches
+         * how the app reads: messages are keyed (id, walletAddress) but always read by
+         * (walletAddress, contactId) ordered by blockTimestamp; group messages are keyed
+         * (txId, walletAddress) but always read by (walletAddress, groupId). So every chat-list
+         * emission, every thread open and every ~2s sync poll was scanning the entire message
+         * history end to end.
+         *
+         * Index names must match what Room generates for the `indices` on each @Entity, or the
+         * post-migration schema validation fails.
+         */
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_walletAddress_contactId_blockTimestamp` ON `messages` (`walletAddress`, `contactId`, `blockTimestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reactions_walletAddress_targetTxId` ON `reactions` (`walletAddress`, `targetTxId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_group_messages_walletAddress_groupId_blockTimestamp` ON `group_messages` (`walletAddress`, `groupId`, `blockTimestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_broadcast_messages_channelName_blockTimestamp` ON `broadcast_messages` (`channelName`, `blockTimestamp`)")
             }
         }
     }

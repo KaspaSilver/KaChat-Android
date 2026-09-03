@@ -41,6 +41,22 @@ interface GroupDao {
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     fun getMessages(groupId: String, walletAddress: String): Flow<List<GroupMessageEntity>>
 
+    /**
+     * The newest message in a group, for the Group Chats list's preview line. The list used to
+     * subscribe to a group's ENTIRE message flow and decrypt all of it just to find this one -
+     * per group, on every emission. One row, one decrypt.
+     */
+    @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp DESC LIMIT 1")
+    fun getLatestMessage(groupId: String, walletAddress: String): Flow<GroupMessageEntity?>
+
+    /**
+     * Unread count for a group's badge. `isOutgoing` and `blockTimestamp` are plaintext columns,
+     * so this never needs the group key - counting in SQL replaces decrypting the thread.
+     * A null [lastReadAt] means never opened, where every incoming message counts.
+     */
+    @Query("SELECT COUNT(*) FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress AND isOutgoing = 0 AND (:lastReadAt IS NULL OR blockTimestamp > :lastReadAt)")
+    fun countUnread(groupId: String, walletAddress: String, lastReadAt: Long?): Flow<Int>
+
     /** One-shot variant for backup export (no Flow subscription). */
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     suspend fun getMessagesOnce(groupId: String, walletAddress: String): List<GroupMessageEntity>

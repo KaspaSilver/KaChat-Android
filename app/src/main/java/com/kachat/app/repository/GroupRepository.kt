@@ -40,6 +40,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -308,9 +311,65 @@ class GroupRepository @Inject constructor(
             else database.groupDao().getMessages(groupId, address).map { entities ->
                 val bag = groupSecretStore.loadBag(address, groupId) ?: return@map emptyList()
                 val groupIdBytes = groupId.hexToByteArray()
-                entities.mapNotNull { decryptEntity(it, bag, groupIdBytes) }
+                entities.mapNotNull { decryptCached(it, bag, groupIdBytes) }
+            }
+            // Room delivers on its own executor, but the map above ran wherever the collector
+            // lives - the main thread for a StateFlow in a ViewModel - so a sync that inserted a
+            // message re-decrypted the whole thread on the UI thread and dropped frames.
+            .flowOn(Dispatchers.Default)
+        }
+    }
+
+    /**
+     * Just what the Group Chats list row needs: the newest message and an unread count.
+     *
+     * This exists because the list used to subscribe to [getMessages] per group, which decrypts
+     * every message in every group on every database emission - during a sync, continuously, on
+     * the main thread. The count comes straight from SQL (`isOutgoing`/`blockTimestamp` are
+     * plaintext columns) and only the single preview message is ever decrypted.
+     */
+    data class GroupSummary(val latestMessage: GroupMessage?, val unreadCount: Int)
+
+    fun getGroupSummary(groupId: String, lastReadAt: Long?, isAdmin: Boolean): Flow<GroupSummary> {
+        return walletManager.activeAddressFlow.flatMapLatest { address ->
+            if (address == null) {
+                flowOf(GroupSummary(null, 0))
+            } else {
+                combine(
+                    database.groupDao().getLatestMessage(groupId, address),
+                    database.groupDao().countUnread(groupId, address, lastReadAt),
+                ) { latest, unread ->
+                    val decrypted = latest?.let {
+                        val bag = groupSecretStore.loadBag(address, groupId)
+                        if (bag == null) null else decryptCached(it, bag, groupId.hexToByteArray())
+                    }
+                    // A group never opened and not created by us counts as at least 1, covering
+                    // "added to a new group, no messages yet".
+                    val count = if (lastReadAt == null && !isAdmin) maxOf(unread, 1) else unread
+                    GroupSummary(decrypted, count)
+                }.flowOn(Dispatchers.Default)
             }
         }
+    }
+
+    /**
+     * [decryptEntity] memoised by txId. A thread re-emits in full on every insert, so without
+     * this an open group re-ran ChaCha over its entire history for each arriving message. Rows
+     * are immutable once stored (only `deliveryStatus` changes, which is plaintext), so a hit is
+     * always valid; the cache is bounded and evicts oldest-first.
+     */
+    private val decryptedCache = object : LinkedHashMap<String, GroupMessage>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, GroupMessage>?): Boolean = size > 4000
+    }
+
+    private fun decryptCached(entity: GroupMessageEntity, bag: GroupBag, groupIdBytes: ByteArray): GroupMessage? {
+        synchronized(decryptedCache) { decryptedCache[entity.txId] }?.let { cached ->
+            // deliveryStatus is the one mutable field and is not part of the ciphertext.
+            return if (cached.deliveryStatus == entity.deliveryStatus) cached else cached.copy(deliveryStatus = entity.deliveryStatus)
+        }
+        val decrypted = decryptEntity(entity, bag, groupIdBytes) ?: return null
+        synchronized(decryptedCache) { decryptedCache[entity.txId] = decrypted }
+        return decrypted
     }
 
     fun getReactions(groupId: String): Flow<List<ReactionEntity>> {
