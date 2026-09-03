@@ -156,6 +156,10 @@ class NextcloudService @Inject constructor(
          *  one platform restores cleanly on any other. */
         const val BACKUP_FILE_NAME = "kachat-backup.json"
 
+        /** Bounds for [discoverExistingBackupFolder] - a connect must not become a full crawl. */
+        private const val FOLDER_DISCOVERY_MAX_FOLDERS = 40
+        private const val FOLDER_DISCOVERY_MAX_DEPTH = 3
+
         /** Normalizes user input ("mycloud.duckdns.org", trailing slashes, an accidental
          *  "/index.php" suffix) into a clean base URL, defaulting to https. Null if it doesn't
          *  parse as a URL at all, or if it explicitly asks for http:// — credentials and chat
@@ -399,6 +403,16 @@ class NextcloudService @Inject constructor(
             }
         }
         persistAccount(candidate)
+
+        // Point at the backup this account already has, before anything reads or writes one.
+        // Only when the user has not chosen a folder themselves - an explicit choice outranks
+        // whatever a search turns up.
+        if (candidate.backupFolder == null) {
+            discoverExistingBackupFolder()?.let { found ->
+                Log.i("NextcloudService", "Linked existing backup folder: $found")
+                setBackupFolder(found)
+            }
+        }
     }
 
     fun disconnect() {
@@ -420,6 +434,47 @@ class NextcloudService @Inject constructor(
     fun setStartFolder(path: String?) {
         val current = _account.value ?: return
         persistAccount(current.copy(startFolder = path?.trim()?.takeIf { it.isNotEmpty() }))
+    }
+
+    /**
+     * Finds the KaChat folder this account already has, instead of assuming there isn't one.
+     *
+     * The backup destination defaults to "KaChat" at the files root, so an account whose folder
+     * lives anywhere else - moved, nested under a Documents/Apps folder, made on another device
+     * pointed elsewhere - looked to a fresh connection like an account with no backup at all, and
+     * the app would happily start a second one beside it.
+     *
+     * Prefers a folder that actually holds [BACKUP_FILE_NAME]; a folder merely NAMED KaChat is the
+     * fallback. Breadth-first and bounded - a WebDAV walk of someone's whole drive is not a thing
+     * to do on connect.
+     */
+    suspend fun discoverExistingBackupFolder(): String? {
+        if (_account.value == null) return null
+        val queue = ArrayDeque<String>().apply { add("") }
+        var visited = 0
+        var namedCandidate: String? = null
+
+        while (queue.isNotEmpty() && visited < FOLDER_DISCOVERY_MAX_FOLDERS) {
+            val path = queue.removeFirst()
+            visited++
+            val entries = runCatching { listFolder(path) }.getOrNull() ?: continue
+
+            // A folder holding the backup file IS the answer - stop looking.
+            if (entries.any { !it.isDirectory && it.name == BACKUP_FILE_NAME }) {
+                return path.ifEmpty { null }
+            }
+            for (entry in entries.filter { it.isDirectory }) {
+                if (namedCandidate == null && entry.name.equals(BACKUP_FOLDER_NAME, ignoreCase = true)) {
+                    namedCandidate = entry.path
+                }
+                // Depth cap: a backup folder buried deeper than this is not something the app put
+                // there, and each extra level multiplies the requests.
+                if (entry.path.split("/").filter { it.isNotEmpty() }.size < FOLDER_DISCOVERY_MAX_DEPTH) {
+                    queue.add(entry.path)
+                }
+            }
+        }
+        return namedCandidate
     }
 
     /** Persists the backup destination folder (null/"" = the default "KaChat" folder). */
