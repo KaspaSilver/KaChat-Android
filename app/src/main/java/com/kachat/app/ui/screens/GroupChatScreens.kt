@@ -118,6 +118,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.kachat.app.util.ImagePrep
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
 // Shared, reused across every parseGroupMembers call. Allocating a fresh Gson + TypeToken per call
 // (the old behaviour) was measurable: parseGroupMembers runs inside chat-list item builders and per
@@ -439,24 +441,30 @@ fun GroupChatThreadScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
+            // Same shape as the 1:1 chat header: the card and the bar occupy the SAME row, so the
+            // Box takes the taller child's height and the photo rides level with the back button.
+            // The bar's own title slot has a fixed height and clipped a photo this size, which is
+            // why the group header was stuck with a smaller one than 1:1.
+            Box(modifier = Modifier.fillMaxWidth()) {
             CenterAlignedTopAppBar(
-                title = {
-                    // Photo above the name, like the 1:1 chat header shows the contact's avatar.
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        GroupAvatar(photoHex = group?.photoHex, size = 36.dp)
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            group?.name ?: "Group",
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            maxLines = 1
-                        )
-                    }
-                },
+                // Empty: the header card rides in the SAME row (see the Box above), so the bar
+                // itself only carries the back button, the connection dot and select-mode actions.
+                title = {},
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = LocalAppColors.current.textPrimary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
+                        }
+                        val statusColor = Color(dotColorHex)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(LocalAppColors.current.surface, CircleShape)
+                                .clickable { ConnectionStatusOverlayState.open() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
+                        }
                     }
                 },
                 actions = {
@@ -473,27 +481,23 @@ fun GroupChatThreadScreen(
                         ) {
                             Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = Color(0xFFFF3B30))
                         }
-                    } else {
-                        // Entry point into select mode is a message's long-press "Select" menu
-                        // item, not a toolbar button.
-                        val statusColor = Color(dotColorHex)
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusOverlayState.open() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        IconButton(onClick = { navController.navigate("group_chat_info/$groupId") }) {
-                            Icon(Icons.Default.Info, contentDescription = stringResource(R.string.group_info), tint = LocalAppColors.current.textPrimary)
-                        }
                     }
+                    // No info button: tapping the header opens Group Info, exactly as tapping the
+                    // 1:1 header opens Chat Info.
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
+            GroupChatHeaderCard(
+                photoHex = group?.photoHex,
+                name = group?.name ?: "Group",
+                onClick = { navController.navigate("group_chat_info/$groupId") },
+                // statusBarsPadding, because the app bar applies its own inset and this card does
+                // not sit inside it - without this the photo draws up behind the camera cutout.
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding(),
+            )
+            }
         },
         bottomBar = {
             // Composer dims and goes inert while the zero-balance funding gate is up — see
@@ -2498,5 +2502,62 @@ fun GroupChatInfoScreen(
                 }
             }
         )
+    }
+}
+
+
+/**
+ * Group mirror of the 1:1 chat's `ChatHeaderCard`: the group photo over a capsule that tucks
+ * under it, tapping through to Group Info. Same measurements, so the two headers read the same.
+ */
+@Composable
+private fun GroupChatHeaderCard(
+    photoHex: String?,
+    name: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    // Wraps its content - NOT fillMaxWidth. Filling the width would put a tap target over the
+    // whole bar row, so the back button and the connection dot would open Group Info instead.
+    Column(
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(top = 2.dp, bottom = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(contentAlignment = Alignment.TopCenter) {
+            // The capsule tucks under the photo - offset by the overlap, then padded back out at
+            // the top so the name still clears it. Reads as one piece rather than a stack.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .padding(top = 34.dp)
+                    .clip(CircleShape)
+                    .background(colors.surface)
+                    .padding(start = 12.dp, end = 10.dp, top = 15.dp, bottom = 5.dp),
+            ) {
+                Text(
+                    name,
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            GroupAvatar(photoHex = photoHex, size = 46.dp)
+        }
     }
 }
