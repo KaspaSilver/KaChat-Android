@@ -7792,7 +7792,7 @@ fun SettingsScreen(
                     HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal) {
+                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal, labelColor = Color.Red) {
                         if (biometricSeedPhraseEnabled) {
                             context.authenticateWithDeviceCredential(
                                 title = "Unlock to View Seed Phrase",
@@ -8455,7 +8455,14 @@ fun SettingsNavigationItem(label: String, icon: ImageVector?, value: String = ""
 }
 
 @Composable
-fun SettingsActionItem(label: String, icon: ImageVector, color: Color, onClick: () -> Unit = {}) {
+fun SettingsActionItem(
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    /** Defaults to [color]; set it when the label should read differently from the icon. */
+    labelColor: Color = color,
+    onClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -8465,7 +8472,7 @@ fun SettingsActionItem(label: String, icon: ImageVector, color: Color, onClick: 
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        Text(text = label, color = color, style = MaterialTheme.typography.bodyLarge)
+        Text(text = label, color = labelColor, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
