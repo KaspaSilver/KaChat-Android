@@ -114,7 +114,15 @@ private const val MINIMUM_FUNDING_BALANCE_KAS = 50.0
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> Unit) {
+fun KnsCreateProfileWizardScreen(
+    viewModel: WalletViewModel,
+    /** `wroteSomething` is false when the wizard is closed without having inscribed anything,
+     *  which lets the caller return to whatever it was showing instead of popping past it. */
+    onFinished: (wroteSomething: Boolean) -> Unit,
+) {
+    // Set the moment anything is actually inscribed. Reaching the end always counts, since the
+    // caller treats that as "go refresh"; closing early without a single write does not.
+    var wroteSomething by remember { mutableStateOf(false) }
     var step by remember { mutableStateOf(KnsWizardStep.HAVE_DOMAIN) }
     var domainName by remember { mutableStateOf<String?>(null) }
     var currentBalanceKas by remember { mutableStateOf(0.0) }
@@ -158,7 +166,7 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                 navigationIcon = {
                     // Close only. Step navigation is the Previous/Next bar at the bottom of every
                     // step, where a wizard's navigation belongs.
-                    IconButton(onClick = onFinished) {
+                    IconButton(onClick = { onFinished(wroteSomething) }) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = LocalAppColors.current.textPrimary)
                     }
                 },
@@ -223,6 +231,7 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                                 step = KnsWizardStep.DOMAIN_CONFIRMED
                             },
                             onCreated = { result ->
+                                wroteSomething = true
                                 domainName = result.domain
                                 step = KnsWizardStep.DOMAIN_CONFIRMED
                             },
@@ -258,7 +267,7 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                             subtitle = "Add a banner image to your profile, or skip for now.",
                             isBanner = true,
                             existingImageUrl = knsProfile?.bannerUrl,
-                            onDone = { step = KnsWizardStep.AVATAR }
+                            onDone = { wroteSomething = true; step = KnsWizardStep.AVATAR }
                         )
                     }
                     KnsWizardStep.AVATAR -> {
@@ -268,17 +277,22 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                             subtitle = "Add a profile photo, or skip for now.",
                             isBanner = false,
                             existingImageUrl = knsProfile?.avatarUrl,
-                            onDone = { step = KnsWizardStep.DETAILS }
+                            onDone = { wroteSomething = true; step = KnsWizardStep.DETAILS }
                         )
                     }
                     KnsWizardStep.DETAILS -> {
-                        KnsDetailsStep(viewModel = viewModel, existingProfile = knsProfile, onDone = { step = KnsWizardStep.FINISHED })
+                        KnsDetailsStep(
+                            viewModel = viewModel,
+                            existingProfile = knsProfile,
+                            onDone = { wrote -> if (wrote) wroteSomething = true; step = KnsWizardStep.FINISHED },
+                            onBack = { KnsWizardStep.DETAILS.previous?.let { step = it } },
+                        )
                     }
                     KnsWizardStep.FINISHED -> {
                         KnsSimpleConfirmStep(
                             message = "You have now finished your KNS profile creation!",
                             buttonLabel = "Done",
-                            onContinue = onFinished
+                            onContinue = { onFinished(true) }
                         )
                     }
                 }
@@ -295,7 +309,14 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                 KnsWizardStep.DETAILS -> ({ step = KnsWizardStep.FINISHED })
                 else -> null
             }
-            if (step != KnsWizardStep.FINISHED && step != KnsWizardStep.CHECKING_FUNDS) {
+            val barlessSteps = setOf(
+                KnsWizardStep.HAVE_DOMAIN,      // the two choices ARE the forward action
+                KnsWizardStep.CHECKING_FUNDS,   // transient
+                KnsWizardStep.NEEDS_FUNDING,    // Check Again / I already have a domain
+                KnsWizardStep.DETAILS,          // hosts its own, so Next can write the fields
+                KnsWizardStep.FINISHED,
+            )
+            if (step !in barlessSteps) {
                 KnsWizardBottomBar(
                     onBack = step.previous?.let { previous -> { step = previous } },
                     onNext = forwardAction,
@@ -761,7 +782,13 @@ private fun KnsImageInscribeStep(
 }
 
 @Composable
-private fun KnsDetailsStep(viewModel: WalletViewModel, existingProfile: KnsProfileFields?, onDone: () -> Unit) {
+private fun KnsDetailsStep(
+    viewModel: WalletViewModel,
+    existingProfile: KnsProfileFields?,
+    /** `wrote` is false when Next passed straight through with nothing changed to inscribe. */
+    onDone: (wrote: Boolean) -> Unit,
+    onBack: () -> Unit,
+) {
     var bio by remember { mutableStateOf(existingProfile?.bio.orEmpty()) }
     var website by remember { mutableStateOf(existingProfile?.website.orEmpty()) }
     var x by remember { mutableStateOf(existingProfile?.x.orEmpty()) }
@@ -770,6 +797,7 @@ private fun KnsDetailsStep(viewModel: WalletViewModel, existingProfile: KnsProfi
     var github by remember { mutableStateOf(existingProfile?.github.orEmpty()) }
     var contactEmail by remember { mutableStateOf(existingProfile?.contactEmail.orEmpty()) }
 
+    val assetId by viewModel.profileDomainAssetId.collectAsState()
     val editProfileState by viewModel.editProfileState.collectAsState()
     val isSubmitting = editProfileState.step != WalletViewModel.EditProfileStep.IDLE &&
         editProfileState.step != WalletViewModel.EditProfileStep.SUCCESS &&
@@ -780,7 +808,7 @@ private fun KnsDetailsStep(viewModel: WalletViewModel, existingProfile: KnsProfi
         if (editProfileState.step == WalletViewModel.EditProfileStep.SUCCESS ||
             editProfileState.step == WalletViewModel.EditProfileStep.PARTIAL_FAILURE
         ) {
-            onDone()
+            onDone(editProfileState.fieldResults.isNotEmpty())
         }
     }
     DisposableEffect(Unit) {
@@ -835,9 +863,12 @@ private fun KnsDetailsStep(viewModel: WalletViewModel, existingProfile: KnsProfi
 
         Spacer(Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                viewModel.saveKnsProfile(
+        KnsWizardBottomBar(
+            onBack = if (isSubmitting) null else onBack,
+            onNext = if (isSubmitting) null else ({
+                // No domain to write to means nothing to save - move on rather than sit on a
+                // button that quietly does nothing.
+                if (assetId.isNullOrEmpty()) onDone(false) else viewModel.saveKnsProfile(
                     mapOf(
                         "bio" to bio,
                         "website" to website,
@@ -848,17 +879,8 @@ private fun KnsDetailsStep(viewModel: WalletViewModel, existingProfile: KnsProfi
                         "contactEmail" to contactEmail
                     )
                 )
-            },
-            enabled = !isSubmitting,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (isSubmitting) {
-                CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
-                Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.Bold)
-            }
-        }
+            }),
+        )
     }
 }
 

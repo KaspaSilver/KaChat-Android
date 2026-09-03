@@ -1156,15 +1156,17 @@ fun MainShell(
             composable("create_kns_profile") {
                 KnsCreateProfileWizardScreen(
                     viewModel = walletViewModel,
-                    onFinished = {
+                    onFinished = { wroteSomething ->
                         // Reached either straight from the Profile tab (pop back one step is
-                        // correct) or from Edit KNS Profile's "Setup Guide" row - in the latter
-                        // case, pop back PAST that screen too rather than returning to it: its
-                        // text fields are seeded once from the profile that existed when it
-                        // opened, so returning to it after the wizard just wrote new values could
-                        // show stale fields and let a later Save silently overwrite what the
-                        // wizard just inscribed.
-                        if (navController.previousBackStackEntry?.destination?.route == "edit_kns_profile") {
+                        // correct) or from Edit KNS Profile's "Setup Guide" row. Closing the
+                        // guide without having inscribed anything returns to whichever of those
+                        // it came from. Once it HAS written, pop back PAST the editor rather
+                        // than returning to it: its text fields are seeded once from the profile
+                        // that existed when it opened, so returning would show stale fields and
+                        // let a later Save silently overwrite what the wizard just inscribed.
+                        if (wroteSomething &&
+                            navController.previousBackStackEntry?.destination?.route == "edit_kns_profile"
+                        ) {
                             navController.popBackStack(route = "edit_kns_profile", inclusive = true)
                         } else {
                             navController.popBackStack()
