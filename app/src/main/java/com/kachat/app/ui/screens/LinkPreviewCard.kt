@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -146,7 +147,12 @@ fun LinkPreviewCard(
 
     if (hasFinishedLoading && preview != null) {
         val data = preview!!
-        if (data.nextcloudMedia == "image" || data.nextcloudMedia == "video") {
+        if (data.nextcloudShareRevoked) {
+            // The server says this share is gone. Showing the dead URL would leave the sender's
+            // server address in the transcript for a link nobody can open, which is the opposite
+            // of why they shared through their own cloud - so the row says only that it is gone.
+            RevokedShareTile()
+        } else if (data.nextcloudMedia == "image" || data.nextcloudMedia == "video") {
             // Nextcloud media renders as a bare photo/video bubble (like a sent photo), not a
             // titled link card — the media IS the message. Mirrors iOS's nextcloudMediaBubble.
             NextcloudMediaBubble(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
@@ -158,6 +164,34 @@ fun LinkPreviewCard(
         }
     } else if (hasFinishedLoading && fallbackText != null) {
         LinkPreviewFallbackBubble(text = fallbackText, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+    }
+}
+
+/**
+ * Stand-in for a Nextcloud share the server no longer serves. Deliberately carries no URL, no
+ * host and no tap target - not even a long-press Copy Link. Mirrors iOS's `revokedShareTile`.
+ */
+@Composable
+private fun RevokedShareTile() {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.VisibilityOff,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "This file is no longer shared",
+            color = LocalAppColors.current.textSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
@@ -412,7 +446,6 @@ private fun NextcloudMediaBubble(data: LinkPreviewData, url: String, txId: Strin
     if (showPhotoViewer && data.mediaDownloadUrl != null) {
         NextcloudPhotoViewerDialog(
             downloadUrl = data.mediaDownloadUrl,
-            shareUrl = url,
             onDismiss = { showPhotoViewer = false }
         )
     }

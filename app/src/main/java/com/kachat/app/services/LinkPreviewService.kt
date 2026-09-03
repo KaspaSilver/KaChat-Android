@@ -24,7 +24,14 @@ data class LinkPreviewData(
     /** The share's raw-file `/download` URL (streams via range requests) — the viewer's source. */
     val mediaDownloadUrl: String? = null,
     /** The shared file's Content-Length from the HEAD probe — the attachment card's size caption. */
-    val mediaByteSize: Long? = null
+    val mediaByteSize: Long? = null,
+    /** The Nextcloud server answered that this public share no longer exists (404/410), so the
+     *  sender revoked it or it expired. The card renders a neutral "no longer shared" tile and,
+     *  crucially, stops showing the share URL - a link nobody can open is just the sender's
+     *  server address sitting in the transcript. Only ever set on a definite answer FROM the
+     *  server; a network failure leaves this false and the card simply renders nothing.
+     *  Mirrors iOS's `LinkPreviewData.nextcloudShareRevoked`. */
+    val nextcloudShareRevoked: Boolean = false
 )
 
 /**
@@ -84,6 +91,10 @@ object LinkPreviewService {
 
     /** `https://host/s/TOKEN` (or `/index.php/s/TOKEN`, token 10+ url-safe chars). */
     private val nextcloudSharePathRegex = Regex("""^(/index\.php)?/s/([A-Za-z0-9_-]{10,})/?$""")
+
+    /** What a Nextcloud server answers for a public share that was deleted, expired, or had its
+     *  link removed. */
+    private val SHARE_GONE_STATUSES = setOf(404, 410)
 
     data class NextcloudShareEndpoints(val downloadUrl: String, val previewUrl: String)
 
@@ -209,7 +220,23 @@ object LinkPreviewService {
         return try {
             val request = Request.Builder().url(endpoints.downloadUrl).head().build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
+                if (!response.isSuccessful) {
+                    // A status the SERVER returned saying the share is gone, as opposed to a
+                    // request that never got an answer - only the former justifies hiding the
+                    // link. Anything else (403 password prompt, 5xx, a proxy error) leaves the
+                    // link intact and the card simply does not render.
+                    if (response.code in SHARE_GONE_STATUSES) {
+                        return LinkPreviewData(
+                            url = url,
+                            title = null,
+                            description = null,
+                            imageUrl = null,
+                            siteName = null,
+                            nextcloudShareRevoked = true
+                        )
+                    }
+                    return null
+                }
                 val contentType = (response.header("Content-Type") ?: "").lowercase()
                 // Every valid share gets a kind — "file" is the generic fallback for docs,
                 // archives, and anything else, so a share never renders as a bare link.

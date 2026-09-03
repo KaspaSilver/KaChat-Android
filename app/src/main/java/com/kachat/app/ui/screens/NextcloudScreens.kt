@@ -513,16 +513,15 @@ fun NextcloudFolderSelectDialog(
 /**
  * Full-screen viewer for a tapped Nextcloud photo card — fetches the ORIGINAL file through the
  * public `/download` endpoint (no credentials needed on the recipient side), with pinch-zoom +
- * pan. The top-right button opens the underlying share link in the browser. Videos never come
- * here — they hand off to the system player via ACTION_VIEW instead.
+ * pan. It is not given the share URL at all: sharing through your own cloud is a privacy
+ * choice, and there is no reason the viewer should be able to hand that link to a browser.
+ * Videos never come here — they hand off to the system player via ACTION_VIEW instead.
  */
 @Composable
 fun NextcloudPhotoViewerDialog(
     downloadUrl: String,
-    shareUrl: String,
     onDismiss: () -> Unit
 ) {
-    val uriHandler = LocalUriHandler.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         var scale by remember { mutableStateOf(1f) }
         var offset by remember { mutableStateOf(Offset.Zero) }
@@ -572,10 +571,6 @@ fun NextcloudPhotoViewerDialog(
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                 }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = { uriHandler.openUri(shareUrl) }) {
-                    Icon(Icons.Default.OpenInBrowser, contentDescription = "Open in browser", tint = Color.White)
-                }
             }
         }
     }
@@ -585,7 +580,8 @@ fun NextcloudPhotoViewerDialog(
  * Full-screen in-app viewer for a tapped Nextcloud PDF share — downloads the file to app cache
  * (public `/download` endpoint, no credentials needed), then renders every page as a bitmap in a
  * scrollable column via the platform's own [android.graphics.pdf.PdfRenderer] — no new
- * dependency. The top-right button opens the underlying share link in the browser.
+ * dependency. There is deliberately no way out to the share link: the point of sharing through
+ * your own cloud is that the URL stays between the two of you.
  */
 @Composable
 fun NextcloudPdfViewerDialog(
@@ -679,10 +675,6 @@ fun NextcloudPdfViewerDialog(
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = { uriHandler.openUri(shareUrl) }) {
-                    Icon(Icons.Default.OpenInBrowser, contentDescription = "Open in browser", tint = Color.White)
                 }
             }
         }
