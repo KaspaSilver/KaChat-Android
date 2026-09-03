@@ -153,6 +153,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.util.KaspaAddress
@@ -639,209 +640,210 @@ fun KaPostsScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 4.dp),
                 )
-                // Profile / Notifications / Bookmarks / Muted / Blocked, as the icons themselves
-                // rather than behind a hamburger. Their own row above the feed tabs, left-aligned
-                // where the hamburger used to be: five icons and three tabs do not fit one row on
-                // a phone, and the point of the change is that every destination is one tap,
-                // which a cramped row would undo.
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    KaPostsMenuIcon(Icons.Default.AccountCircle, "Profile") {
-                        showMyProfile = true; viewModel.loadMyProfile()
-                    }
-                    KaPostsMenuIcon(Icons.Default.Notifications, "Notifications") { showNotifications = true }
-                    KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
-                    KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
-                    KaPostsMenuIcon(Icons.Default.Block, "Blocked") { moderationKind = true }
-                    Spacer(Modifier.weight(1f))
-                }
-                FeedTabsRow(
-                    selected = selectedFeed,
-                    onSelect = { viewModel.selectFeed(it) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                HorizontalDivider(color = colors.surfaceVariant)
-
-                // Horizontal paging between the three feeds, synced both ways with the tab row
-                // above (tap animates the page across; swipe moves the underline) - matching iOS's
-                // page-style TabView. Draggable paging is safe here: unlike the chat list, post
-                // cells carry no row-level horizontal gestures, and the thread/profile/menu
-                // overlays are separate Dialog windows that never see this pager's drags.
-                HorizontalPager(
-                    state = feedPagerState,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    key = { KaPostsFeedTabs[it] },
-                ) { page ->
-                    val tab = KaPostsFeedTabs[page]
-                    // Keyed on ONLY the stream this tab renders: Popular's re-sort no longer
-                    // re-runs when just the Following stream ticks, and vice versa.
-                    val tabSource =
-                        if (tab == KaPostsViewModel.FeedTab.FOLLOWING) visibleFollowingPosts else visiblePosts
-                    val pageFeed = remember(tab, tabSource) {
-                        viewModel.feedFor(tab, visiblePosts, visibleFollowingPosts)
-                    }
-                    val feedPaging = pagingStateOf(
-                        viewModel,
-                        if (tab == KaPostsViewModel.FeedTab.FOLLOWING) {
-                            KaPostsViewModel.PAGE_FOLLOWING_FEED
-                        } else {
-                            KaPostsViewModel.PAGE_GLOBAL_FEED
-                        },
-                    )
-                    // Pull-to-refresh replaces the old header refresh button, wired to the same
-                    // page-one reload. Await-then-endRefresh pattern (the pull joins its own
-                    // load's completion; loadFeed has no throwing path out, so the spinner
-                    // always ends) rather than keying off isLoadingFeed, which background
-                    // reloads also drive.
-                    val pullRefreshState = rememberPullToRefreshState()
-                    LaunchedEffect(pullRefreshState.isRefreshing) {
-                        if (pullRefreshState.isRefreshing) {
-                            viewModel.loadFeed(tab)
-                            pullRefreshState.endRefresh()
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            // An idle PullToRefreshContainer "hides" by translating a full
-                            // container-height above its own position without clipping - on this
-                            // screen that band is the tab row, so clip the indicator to this Box:
-                            // invisible at rest, revealed only by a real pull.
-                            .clipToBounds()
-                            .nestedScroll(pullRefreshState.nestedScrollConnection),
+                // The rail runs the full height down the left edge, with the feed beside it, so
+                // the destinations read as a fixed part of the screen rather than as a header row
+                // that scrolls past. Icons rather than a hamburger: every one is a single tap.
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.width(44.dp).fillMaxHeight().padding(top = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                    val pendingNew by viewModel.pendingNewPosts.collectAsState()
-                    val newPostsScope = rememberCoroutineScope()
-                    // Only while this feed is the one on screen: the effect is torn down on a tab
-                    // swipe, so nothing polls for a feed nobody is looking at.
-                    if (tab == selectedFeed) {
-                        LaunchedEffect(tab) {
-                            while (true) {
-                                kotlinx.coroutines.delay(viewModel.newPostsCheckIntervalMs)
-                                viewModel.checkForNewPosts(tab)
-                            }
+                        KaPostsMenuIcon(Icons.Default.AccountCircle, "Profile") {
+                            showMyProfile = true; viewModel.loadMyProfile()
                         }
+                        KaPostsMenuIcon(Icons.Default.Notifications, "Notifications") { showNotifications = true }
+                        KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
+                        KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
+                        KaPostsMenuIcon(Icons.Default.Block, "Blocked") { moderationKind = true }
                     }
-                    if (feedError != null && pageFeed.isEmpty()) {
-                        // Wrapped in a LazyColumn purely so pull-to-refresh works on an error
-                        // tab too (same reason iOS wraps its empty feeds in a ScrollView).
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            item {
-                                Box(modifier = Modifier.fillParentMaxSize()) {
-                                    FeedEmptyState(
-                                        title = "Couldn't load the feed",
-                                        body = feedError ?: "",
-                                        actionLabel = "Retry",
-                                        onAction = { viewModel.refresh() },
-                                    )
-                                }
-                            }
+                    VerticalDivider(color = colors.surfaceVariant)
+                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    FeedTabsRow(
+                        selected = selectedFeed,
+                        onSelect = { viewModel.selectFeed(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    HorizontalDivider(color = colors.surfaceVariant)
+
+                    // Horizontal paging between the three feeds, synced both ways with the tab row
+                    // above (tap animates the page across; swipe moves the underline) - matching iOS's
+                    // page-style TabView. Draggable paging is safe here: unlike the chat list, post
+                    // cells carry no row-level horizontal gestures, and the thread/profile/menu
+                    // overlays are separate Dialog windows that never see this pager's drags.
+                    HorizontalPager(
+                        state = feedPagerState,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        key = { KaPostsFeedTabs[it] },
+                    ) { page ->
+                        val tab = KaPostsFeedTabs[page]
+                        // Keyed on ONLY the stream this tab renders: Popular's re-sort no longer
+                        // re-runs when just the Following stream ticks, and vice versa.
+                        val tabSource =
+                            if (tab == KaPostsViewModel.FeedTab.FOLLOWING) visibleFollowingPosts else visiblePosts
+                        val pageFeed = remember(tab, tabSource) {
+                            viewModel.feedFor(tab, visiblePosts, visibleFollowingPosts)
                         }
-                    } else if (pageFeed.isEmpty() && !isLoading) {
-                        // Same LazyColumn wrapper: an empty feed must still be pullable - the
-                        // common bootstrap case while feeds are sparse.
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            item {
-                                Box(modifier = Modifier.fillParentMaxSize()) {
-                                    FeedEmptyState(
-                                        title = if (tab == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
-                                        body = if (tab == KaPostsViewModel.FeedTab.FOLLOWING)
-                                            "Follow people from their posts and their content shows up here."
-                                        else
-                                            "Be the first to post something on the Kaspa network.",
-                                        actionLabel = null,
-                                        onAction = {},
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // Endless scroll, per tab. Each tab keeps its own cursor in the view
-                        // model, so a swipe away and back resumes exactly where it was.
-                        EndlessScroll(listState = feedListStates[page], key = tab) {
-                            viewModel.loadMoreFeed(tab)
-                        }
-                        NewPostsPill(
-                            count = pendingNew.size,
-                            onClick = {
-                                viewModel.showPendingNewPosts(tab)
-                                newPostsScope.launch { feedListStates[page].animateScrollToItem(0) }
-                            }
+                        val feedPaging = pagingStateOf(
+                            viewModel,
+                            if (tab == KaPostsViewModel.FeedTab.FOLLOWING) {
+                                KaPostsViewModel.PAGE_FOLLOWING_FEED
+                            } else {
+                                KaPostsViewModel.PAGE_GLOBAL_FEED
+                            },
                         )
-                        LazyColumn(
-                            // Hoisted per tab so each feed keeps its own scroll position when you
-                            // swipe away and back (the pager disposes off-screen pages).
-                            state = feedListStates[page],
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            items(pageFeed, key = { it.id }) { post ->
-                                LaunchedEffect(post.posterAddress) {
-                                    viewModel.ensureSenderProfileFetched(post.posterAddress)
-                                }
-                                // Thread-root probe: once per commented post, so "View thread"
-                                // can appear on other people's threads too.
-                                LaunchedEffect(post.remoteId) { viewModel.probeThreadRoot(post) }
-                                KaPostCell(
-                                    post = post,
-                                    viewModel = viewModel,
-                                    onOpenThread = { openThread(post) },
-                                    onRepostTap = { repostHandler(post) },
-                                    onOpenProfile = { viewModel.openPosterProfile(post.posterAddress, post.posterPubkey) },
-                                    onOpenQuoted = { txId -> openShared(txId) },
-                                    onViewEngagement = { engagementTarget = post },
-                                    truncatesLongText = true,
-                                    onTip = { tipTarget = post.posterAddress to viewModel.posterDisplayName(post.posterAddress) },
-                                )
-                                // X-style "View thread" under a thread root - opens the detail,
-                                // where the full continuation renders as a connected section.
-                                // Sliced per row (see collectSelectedAsState): a probe result
-                                // arriving for ONE post recomposes that row alone, not every
-                                // visible row - the previous per-tab collection still put the
-                                // whole maps into every item lambda's captures, so each probe
-                                // hit re-ran the whole viewport mid-scroll.
-                                val isThreadRoot by remember(post.id, post.remoteId) {
-                                    combine(viewModel.localThreadRoots, viewModel.threadRootFlags) { locals, flags ->
-                                        post.id in locals ||
-                                            (post.remoteId != null && flags[post.remoteId] == true)
-                                    }.distinctUntilChanged()
-                                }.collectAsState(initial = viewModel.isThreadRoot(post))
-                                if (isThreadRoot) {
-                                    Text(
-                                        "⤷ View thread",
-                                        color = KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        modifier = Modifier
-                                            .clickable { openThread(post) }
-                                            .padding(start = 68.dp, top = 2.dp, bottom = 8.dp),
-                                    )
-                                }
-                                HorizontalDivider(
-                                    color = colors.surfaceVariant,
-                                    modifier = Modifier.padding(start = 68.dp),
-                                )
+                        // Pull-to-refresh replaces the old header refresh button, wired to the same
+                        // page-one reload. Await-then-endRefresh pattern (the pull joins its own
+                        // load's completion; loadFeed has no throwing path out, so the spinner
+                        // always ends) rather than keying off isLoadingFeed, which background
+                        // reloads also drive.
+                        val pullRefreshState = rememberPullToRefreshState()
+                        LaunchedEffect(pullRefreshState.isRefreshing) {
+                            if (pullRefreshState.isRefreshing) {
+                                viewModel.loadFeed(tab)
+                                pullRefreshState.endRefresh()
                             }
-                            pagingFooter(feedPaging, keySuffix = "feed-$page") {
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                // An idle PullToRefreshContainer "hides" by translating a full
+                                // container-height above its own position without clipping - on this
+                                // screen that band is the tab row, so clip the indicator to this Box:
+                                // invisible at rest, revealed only by a real pull.
+                                .clipToBounds()
+                                .nestedScroll(pullRefreshState.nestedScrollConnection),
+                        ) {
+                        val pendingNew by viewModel.pendingNewPosts.collectAsState()
+                        val newPostsScope = rememberCoroutineScope()
+                        // Only while this feed is the one on screen: the effect is torn down on a tab
+                        // swipe, so nothing polls for a feed nobody is looking at.
+                        if (tab == selectedFeed) {
+                            LaunchedEffect(tab) {
+                                while (true) {
+                                    kotlinx.coroutines.delay(viewModel.newPostsCheckIntervalMs)
+                                    viewModel.checkForNewPosts(tab)
+                                }
+                            }
+                        }
+                        if (feedError != null && pageFeed.isEmpty()) {
+                            // Wrapped in a LazyColumn purely so pull-to-refresh works on an error
+                            // tab too (same reason iOS wraps its empty feeds in a ScrollView).
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                item {
+                                    Box(modifier = Modifier.fillParentMaxSize()) {
+                                        FeedEmptyState(
+                                            title = "Couldn't load the feed",
+                                            body = feedError ?: "",
+                                            actionLabel = "Retry",
+                                            onAction = { viewModel.refresh() },
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (pageFeed.isEmpty() && !isLoading) {
+                            // Same LazyColumn wrapper: an empty feed must still be pullable - the
+                            // common bootstrap case while feeds are sparse.
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                item {
+                                    Box(modifier = Modifier.fillParentMaxSize()) {
+                                        FeedEmptyState(
+                                            title = if (tab == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
+                                            body = if (tab == KaPostsViewModel.FeedTab.FOLLOWING)
+                                                "Follow people from their posts and their content shows up here."
+                                            else
+                                                "Be the first to post something on the Kaspa network.",
+                                            actionLabel = null,
+                                            onAction = {},
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // Endless scroll, per tab. Each tab keeps its own cursor in the view
+                            // model, so a swipe away and back resumes exactly where it was.
+                            EndlessScroll(listState = feedListStates[page], key = tab) {
                                 viewModel.loadMoreFeed(tab)
                             }
+                            NewPostsPill(
+                                count = pendingNew.size,
+                                onClick = {
+                                    viewModel.showPendingNewPosts(tab)
+                                    newPostsScope.launch { feedListStates[page].animateScrollToItem(0) }
+                                }
+                            )
+                            LazyColumn(
+                                // Hoisted per tab so each feed keeps its own scroll position when you
+                                // swipe away and back (the pager disposes off-screen pages).
+                                state = feedListStates[page],
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                items(pageFeed, key = { it.id }) { post ->
+                                    LaunchedEffect(post.posterAddress) {
+                                        viewModel.ensureSenderProfileFetched(post.posterAddress)
+                                    }
+                                    // Thread-root probe: once per commented post, so "View thread"
+                                    // can appear on other people's threads too.
+                                    LaunchedEffect(post.remoteId) { viewModel.probeThreadRoot(post) }
+                                    KaPostCell(
+                                        post = post,
+                                        viewModel = viewModel,
+                                        onOpenThread = { openThread(post) },
+                                        onRepostTap = { repostHandler(post) },
+                                        onOpenProfile = { viewModel.openPosterProfile(post.posterAddress, post.posterPubkey) },
+                                        onOpenQuoted = { txId -> openShared(txId) },
+                                        onViewEngagement = { engagementTarget = post },
+                                        truncatesLongText = true,
+                                        onTip = { tipTarget = post.posterAddress to viewModel.posterDisplayName(post.posterAddress) },
+                                    )
+                                    // X-style "View thread" under a thread root - opens the detail,
+                                    // where the full continuation renders as a connected section.
+                                    // Sliced per row (see collectSelectedAsState): a probe result
+                                    // arriving for ONE post recomposes that row alone, not every
+                                    // visible row - the previous per-tab collection still put the
+                                    // whole maps into every item lambda's captures, so each probe
+                                    // hit re-ran the whole viewport mid-scroll.
+                                    val isThreadRoot by remember(post.id, post.remoteId) {
+                                        combine(viewModel.localThreadRoots, viewModel.threadRootFlags) { locals, flags ->
+                                            post.id in locals ||
+                                                (post.remoteId != null && flags[post.remoteId] == true)
+                                        }.distinctUntilChanged()
+                                    }.collectAsState(initial = viewModel.isThreadRoot(post))
+                                    if (isThreadRoot) {
+                                        Text(
+                                            "⤷ View thread",
+                                            color = KaspaTeal,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            modifier = Modifier
+                                                .clickable { openThread(post) }
+                                                .padding(start = 68.dp, top = 2.dp, bottom = 8.dp),
+                                        )
+                                    }
+                                    HorizontalDivider(
+                                        color = colors.surfaceVariant,
+                                        modifier = Modifier.padding(start = 68.dp),
+                                    )
+                                }
+                                pagingFooter(feedPaging, keySuffix = "feed-$page") {
+                                    viewModel.loadMoreFeed(tab)
+                                }
+                            }
                         }
-                    }
-                    // Hard guarantee on top of the clipToBounds above: the indicator only
-                    // composes while a pull is in progress or a refresh runs, so no layout
-                    // change can ever park the resting circle over the feed.
-                    if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
-                        PullToRefreshContainer(
-                            state = pullRefreshState,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                        )
+                        // Hard guarantee on top of the clipToBounds above: the indicator only
+                        // composes while a pull is in progress or a refresh runs, so no layout
+                        // change can ever park the resting circle over the feed.
+                        if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+                            PullToRefreshContainer(
+                                state = pullRefreshState,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        }
+                        }
                     }
                     }
                 }
             }
 
-            // Left slide-out menu.
             KaPostsToastLayer(
                 viewModel = viewModel,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
