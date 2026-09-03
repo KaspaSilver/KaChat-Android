@@ -111,7 +111,13 @@ object ChessMessage {
 }
 
 /** Game-over-ness and a human-readable status line for a derived board state. */
-enum class ChessGameStatusKind { PENDING_RESPONSE, DECLINED, IN_PROGRESS, CHECKMATE, STALEMATE, RESIGNED }
+enum class ChessGameStatusKind {
+    PENDING_RESPONSE, DECLINED, IN_PROGRESS, CHECKMATE, STALEMATE,
+    /** A dead position - K vs K and friends. A draw, but not a stalemate: see
+     *  [com.kachat.app.util.ChessEngine.isInsufficientMaterial]. */
+    INSUFFICIENT_MATERIAL,
+    RESIGNED,
+}
 
 data class ChessGameStatus(
     val kind: ChessGameStatusKind,
@@ -206,6 +212,7 @@ data class ChessGameSummary(
                 } else if (status.color == viewerColor) "Checkmate - You win!" else "Checkmate - You lost"
             }
             ChessGameStatusKind.STALEMATE -> "Stalemate - draw"
+            ChessGameStatusKind.INSUFFICIENT_MATERIAL -> "Draw - not enough pieces to checkmate"
             ChessGameStatusKind.RESIGNED -> {
                 if (status.timedOut) {
                     if (viewerColor == null) {
@@ -317,6 +324,8 @@ object ChessGameEngine {
             response == null -> ChessGameStatus(ChessGameStatusKind.PENDING_RESPONSE)
             ChessEngine.isCheckmate(board) -> ChessGameStatus(ChessGameStatusKind.CHECKMATE, board.sideToMove.opposite)
             ChessEngine.isStalemate(board) -> ChessGameStatus(ChessGameStatusKind.STALEMATE)
+            // After checkmate/stalemate: mate already ended the game, and mate wins over a draw.
+            ChessEngine.isInsufficientMaterial(board) -> ChessGameStatus(ChessGameStatusKind.INSUFFICIENT_MATERIAL)
             else -> ChessGameStatus(ChessGameStatusKind.IN_PROGRESS)
         }
 

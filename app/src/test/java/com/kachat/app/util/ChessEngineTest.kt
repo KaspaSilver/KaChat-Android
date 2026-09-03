@@ -182,4 +182,94 @@ class ChessEngineTest {
         assertTrue(ChessEngine.isStalemate(board))
         assertFalse(ChessEngine.isCheckmate(board))
     }
+
+    // MARK: - Insufficient material (dead positions)
+
+    /** Builds a board holding only the given pieces, white to move, no castling rights. */
+    private fun position(vararg pieces: Pair<String, ChessPiece>): ChessBoard {
+        val squares: Array<Array<ChessPiece?>> = Array(8) { arrayOfNulls(8) }
+        for ((algebraic, piece) in pieces) {
+            val square = sq(algebraic)
+            squares[square.rank][square.file] = piece
+        }
+        return ChessBoard(
+            squares = squares,
+            sideToMove = ChessColor.WHITE,
+            whiteCanCastleKingside = false,
+            whiteCanCastleQueenside = false,
+            blackCanCastleKingside = false,
+            blackCanCastleQueenside = false,
+            enPassantTarget = null,
+        )
+    }
+
+    private fun white(type: ChessPieceType) = ChessPiece(type, ChessColor.WHITE)
+    private fun black(type: ChessPieceType) = ChessPiece(type, ChessColor.BLACK)
+
+    @Test
+    fun `two lone kings is a draw by insufficient material, not stalemate`() {
+        val board = position("e1" to white(ChessPieceType.KING), "e8" to black(ChessPieceType.KING))
+        assertTrue(ChessEngine.isInsufficientMaterial(board))
+        // The distinction that matters: the king still has legal moves, so the stalemate test
+        // never fires and the game would otherwise never end.
+        assertFalse(ChessEngine.isStalemate(board))
+        assertTrue(ChessEngine.legalMoves(board).isNotEmpty())
+    }
+
+    @Test
+    fun `king and single minor piece against a bare king is a draw`() {
+        val withBishop = position(
+            "e1" to white(ChessPieceType.KING),
+            "c1" to white(ChessPieceType.BISHOP),
+            "e8" to black(ChessPieceType.KING),
+        )
+        val withKnight = position(
+            "e1" to white(ChessPieceType.KING),
+            "b1" to white(ChessPieceType.KNIGHT),
+            "e8" to black(ChessPieceType.KING),
+        )
+        assertTrue(ChessEngine.isInsufficientMaterial(withBishop))
+        assertTrue(ChessEngine.isInsufficientMaterial(withKnight))
+    }
+
+    @Test
+    fun `opposite-coloured bishops are not a dead position`() {
+        // c1 is dark, c8 is light - a mate is still constructible, so this is NOT a draw.
+        val board = position(
+            "e1" to white(ChessPieceType.KING),
+            "c1" to white(ChessPieceType.BISHOP),
+            "e8" to black(ChessPieceType.KING),
+            "c8" to black(ChessPieceType.BISHOP),
+        )
+        assertFalse(ChessEngine.isInsufficientMaterial(board))
+    }
+
+    @Test
+    fun `same-coloured bishops are a dead position`() {
+        // c1 and f8 are both dark squares.
+        val board = position(
+            "e1" to white(ChessPieceType.KING),
+            "c1" to white(ChessPieceType.BISHOP),
+            "e8" to black(ChessPieceType.KING),
+            "f8" to black(ChessPieceType.BISHOP),
+        )
+        assertTrue(ChessEngine.isInsufficientMaterial(board))
+    }
+
+    @Test
+    fun `a pawn or a rook means there is still material to mate with`() {
+        val withPawn = position(
+            "e1" to white(ChessPieceType.KING),
+            "a2" to white(ChessPieceType.PAWN),
+            "e8" to black(ChessPieceType.KING),
+        )
+        val withRook = position(
+            "e1" to white(ChessPieceType.KING),
+            "a1" to white(ChessPieceType.ROOK),
+            "e8" to black(ChessPieceType.KING),
+        )
+        assertFalse(ChessEngine.isInsufficientMaterial(withPawn))
+        assertFalse(ChessEngine.isInsufficientMaterial(withRook))
+        assertFalse(ChessEngine.isInsufficientMaterial(ChessEngine.initialBoard()))
+    }
 }

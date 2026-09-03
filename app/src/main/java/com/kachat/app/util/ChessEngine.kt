@@ -214,6 +214,51 @@ object ChessEngine {
     fun isStalemate(board: ChessBoard): Boolean =
         !isKingInCheck(board.sideToMove, board) && legalMoves(board).isEmpty()
 
+    /**
+     * A dead position: no sequence of legal moves by either side can produce checkmate, so the
+     * game is drawn immediately (FIDE 5.2.2). The four material combinations that qualify:
+     * K vs K, K+B vs K, K+N vs K, and K+B vs K+B with both bishops on same-coloured squares.
+     *
+     * This is NOT stalemate - a lone king almost always HAS legal moves, so the stalemate test
+     * never fires and, without this, two bare kings could be shuffled forever with no way to end
+     * the game short of resigning or the clock running out.
+     */
+    fun isInsufficientMaterial(board: ChessBoard): Boolean {
+        val whiteMinors = mutableListOf<ChessSquare>()
+        val blackMinors = mutableListOf<ChessSquare>()
+
+        for (rank in 0..7) {
+            for (file in 0..7) {
+                val square = ChessSquare(file, rank)
+                val piece = board.piece(square) ?: continue
+                when (piece.type) {
+                    ChessPieceType.KING -> continue
+                    ChessPieceType.BISHOP, ChessPieceType.KNIGHT ->
+                        if (piece.color == ChessColor.WHITE) whiteMinors.add(square) else blackMinors.add(square)
+                    // Any of these can force (or promote into) a mate.
+                    else -> return false
+                }
+            }
+        }
+
+        return when {
+            whiteMinors.isEmpty() && blackMinors.isEmpty() -> true          // K vs K
+            whiteMinors.size + blackMinors.size == 1 -> true                 // K+B vs K, K+N vs K
+            whiteMinors.size == 1 && blackMinors.size == 1 -> {
+                // K+B vs K+B is dead only when both bishops are on the same colour squares - two
+                // knights, or bishops on opposite colours, can still mate with help.
+                val white = whiteMinors.first()
+                val black = blackMinors.first()
+                board.piece(white)?.type == ChessPieceType.BISHOP &&
+                    board.piece(black)?.type == ChessPieceType.BISHOP &&
+                    isLightSquare(white) == isLightSquare(black)
+            }
+            else -> false
+        }
+    }
+
+    private fun isLightSquare(square: ChessSquare): Boolean = (square.file + square.rank) % 2 == 1
+
     private fun findKing(color: ChessColor, board: ChessBoard): ChessSquare? {
         for (rank in 0..7) {
             for (file in 0..7) {
