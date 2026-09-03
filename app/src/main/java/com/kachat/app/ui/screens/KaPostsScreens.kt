@@ -88,6 +88,8 @@ import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbDownOffAlt
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -174,6 +176,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.ui.text.style.TextAlign
 
 /**
  * Cross-screen deep-link handoff: MainActivity (kachat://kapost/<txid>, universal links) and
@@ -460,6 +464,11 @@ fun KaPostsScreen(
     var tipTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var moderationKind by remember { mutableStateOf<Boolean?>(null) } // true = blocked
     var showBookmarks by remember { mutableStateOf(false) }
+    var showDrafts by remember { mutableStateOf(false) }
+    var editingDraft by remember { mutableStateOf<KaPostSavedDraft?>(null) }
+    val draftContext = LocalContext.current
+    val myAddressForDrafts = viewModel.myAddress()
+    var drafts by remember { mutableStateOf(emptyList<KaPostSavedDraft>()) }
     var notFoundNotice by remember { mutableStateOf(false) }
 
     val posterProfile by viewModel.posterProfile.collectAsState()
@@ -652,6 +661,10 @@ fun KaPostsScreen(
                         showMyProfile = true; viewModel.loadMyProfile()
                     }
                     KaPostsMenuIcon(Icons.Default.Notifications, "Notifications") { showNotifications = true }
+                    KaPostsMenuIcon(Icons.Default.EditNote, "Drafts") {
+                        drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty())
+                        showDrafts = true
+                    }
                     KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
                     KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
                     KaPostsMenuIcon(Icons.Default.Block, "Blocked") { moderationKind = true }
@@ -872,7 +885,100 @@ fun KaPostsScreen(
                 showComposer = false
                 viewModel.scheduleThread(segments)
             },
+            onSaveDraft = { draftText, segments ->
+                KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments)
+            },
         )
+    }
+
+    // Reopening a draft: posting it removes it, and re-saving updates it in place.
+    editingDraft?.let { draft ->
+        KaPostComposerDialog(
+            title = "New Post",
+            quoted = null,
+            onDismiss = { editingDraft = null },
+            onSubmit = { text ->
+                KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
+                editingDraft = null
+                viewModel.schedulePost(text)
+            },
+            viewModel = viewModel,
+            onSubmitThread = { segments ->
+                KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
+                editingDraft = null
+                viewModel.scheduleThread(segments)
+            },
+            editingDraftId = draft.id,
+            initialText = draft.text,
+            initialThreadSegments = draft.threadSegments,
+            onSaveDraft = { draftText, segments ->
+                KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), draft.id, draftText, segments)
+            },
+        )
+    }
+
+    if (showDrafts) {
+        KaPostsOverlayScaffold(title = "Drafts", onClose = { showDrafts = false }) {
+            if (drafts.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text("No drafts", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Close the composer with something written and you'll be offered a draft.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 40.dp),
+                    )
+                }
+            } else {
+                LazyColumn {
+                    items(drafts, key = { it.id }) { draft ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showDrafts = false
+                                    editingDraft = draft
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    draft.preview,
+                                    color = LocalAppColors.current.textPrimary,
+                                    fontSize = 14.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    if (draft.segmentCount > 1) "${draft.segmentCount} posts" else "Draft",
+                                    color = LocalAppColors.current.textSecondary,
+                                    fontSize = 11.sp,
+                                )
+                            }
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete draft",
+                                tint = LocalAppColors.current.textSecondary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable {
+                                        KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
+                                        drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty())
+                                    },
+                            )
+                        }
+                        HorizontalDivider(color = LocalAppColors.current.surfaceVariant)
+                    }
+                }
+            }
+        }
     }
 
     quoteTarget?.let { target ->
@@ -1811,12 +1917,21 @@ fun KaPostComposerDialog(
     viewModel: KaPostsViewModel? = null,
     /** Enables X-style thread posting (+ stacks segments; Post All submits the chain). */
     onSubmitThread: ((List<String>) -> Unit)? = null,
+    /** Set when opened from a saved draft, so re-saving updates it rather than piling up copies. */
+    editingDraftId: String? = null,
+    initialText: String = "",
+    initialThreadSegments: List<String> = emptyList(),
+    /** Called with the composer's contents when the user chooses Save Draft on close. */
+    onSaveDraft: ((String, List<String>) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     // TextFieldValue rather than String: the caret offset is what [KeepCaretVisible] below needs
     // to scroll the editor to, and the String overload never exposes it.
-    var text by remember { mutableStateOf(TextFieldValue("")) }
-    var threadSegments by remember { mutableStateOf(listOf<String>()) }
+    var text by remember { mutableStateOf(TextFieldValue(initialText)) }
+    var threadSegments by remember { mutableStateOf(initialThreadSegments) }
+    // Closing with something written used to throw it away silently, which is the whole reason
+    // drafts exist.
+    var showCloseOptions by remember { mutableStateOf(false) }
     val limit = KaPostDraft.POST_CHARACTER_LIMIT
     val totalSegments = threadSegments.size + (if (text.text.isNotBlank()) 1 else 0)
     val canPost = totalSegments > 0 && text.text.length <= limit
@@ -1865,6 +1980,32 @@ fun KaPostComposerDialog(
                 .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
+            if (showCloseOptions) {
+                ActionSheetContainer(
+                    title = "Save this post?",
+                    subtitle = null,
+                    onDismiss = { showCloseOptions = false },
+                ) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Save,
+                        title = "Save Draft",
+                        subtitle = "Keep it in Drafts to finish later.",
+                    ) {
+                        showCloseOptions = false
+                        onSaveDraft?.invoke(text.text, threadSegments)
+                        onDismiss()
+                    }
+                    ActionSheetRow(
+                        icon = Icons.Default.Delete,
+                        title = "Discard",
+                        subtitle = "Throw this away.",
+                        tint = Color(0xFFFF3B30),
+                    ) {
+                        showCloseOptions = false
+                        onDismiss()
+                    }
+                }
+            }
             // Header, matching iOS/desktop's composer card: X in a rounded square, bold title,
             // character meter, teal capsule Post button.
             Row(
@@ -1875,7 +2016,11 @@ fun KaPostComposerDialog(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(colors.surface)
-                        .clickable { onDismiss() }
+                        .clickable {
+                            // Anything written is worth asking about.
+                            val hasContent = (listOf(text.text) + threadSegments).any { it.isNotBlank() }
+                            if (hasContent && onSaveDraft != null) showCloseOptions = true else onDismiss()
+                        }
                         .padding(10.dp),
                 ) {
                     Icon(
