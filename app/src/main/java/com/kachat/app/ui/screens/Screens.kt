@@ -11147,6 +11147,8 @@ fun ChatInfoScreen(
     chatViewModel: ChatViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),
     fromBroadcast: Boolean = false,
+    /** Straight into this person's 1:1 thread - see the "Open Chat" row. */
+    onOpenChat: (String) -> Unit = {},
     onNavigateToPhotoSettings: (String) -> Unit = {},
     onNavigateToNotificationSettings: (String) -> Unit = {},
     onNavigateToDomains: (String) -> Unit = {}
@@ -11309,49 +11311,12 @@ fun ChatInfoScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Contact-name card — only needed as a fallback when there's no KNS profile to show
-            // instead; the "KNS Profile" section below takes over this role (avatar + editable
-            // name) once a profile exists, rather than showing both.
-            if (ownedDomains.isEmpty()) {
-                Surface(
-                    color = LocalAppColors.current.surface,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ContactAvatar(
-                            imageUrl = knsFields?.avatarUrl,
-                            deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
-                            fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
-                            size = 60.dp,
-                            backgroundColor = LocalAppColors.current.surfaceVariant,
-                            fontSize = 20.sp
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        TextField(
-                            value = contactName,
-                            onValueChange = { contactName = it },
-                            placeholder = { Text(stringResource(R.string.contact_name), color = LocalAppColors.current.textSecondary) },
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = LocalAppColors.current.textPrimary,
-                                unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                cursorColor = KaspaTeal,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.fillMaxWidth().offset(x = (-16).dp)
-                        )
-                    }
-                }
-            }
-
-            if (ownedDomains.isNotEmpty()) {
+            // ONE profile card, always - matching iOS. It used to be two mutually exclusive
+            // shapes: a plain avatar+name card when the contact owned no KNS domain, and this
+            // richer one when they did. So a broadcast sender or group member whose domains had
+            // not loaded (or who owns none) got the stripped card with no banner, no bio and no
+            // address - which is why User Info looked like it was missing its info card.
+            run {
                 SettingsSection(title = stringResource(R.string.kns_profile)) {
                     Column {
                         val bannerUrl = knsFields?.bannerUrl?.takeIf { it.isNotBlank() }
@@ -11395,15 +11360,22 @@ fun ChatInfoScreen(
                                         .offset(x = (-16).dp)
                                 )
                                 val bio = knsFields?.bio?.takeIf { it.isNotBlank() }
-                                if (bio != null) {
-                                    Text(
+                                when {
+                                    // No domain means no profile to describe, so the address is
+                                    // the useful caption - same fallback order as iOS.
+                                    ownedDomains.isEmpty() -> Text(
+                                        text = com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                                        color = LocalAppColors.current.textSecondary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                    )
+                                    bio != null -> Text(
                                         text = bio,
                                         color = LocalAppColors.current.textPrimary,
                                         style = MaterialTheme.typography.bodyMedium,
                                         modifier = Modifier.clickable { clipboardManager.setText(AnnotatedString(bio)) }
                                     )
-                                } else {
-                                    Text(
+                                    else -> Text(
                                         text = if (hasMoreInfo) "On-chain profile data available." else "No on-chain profile data yet.",
                                         color = LocalAppColors.current.textSecondary,
                                         style = MaterialTheme.typography.bodySmall
@@ -11484,6 +11456,19 @@ fun ChatInfoScreen(
                     .clip(RoundedCornerShape(14.dp))
                     .background(LocalAppColors.current.surface)
             ) {
+                // Straight into the 1:1 thread. This screen is reached as "User Info" from a
+                // group roster or a broadcast room, where the person may be someone you have
+                // never messaged - and the only route to them was backing out and finding them
+                // on the chat list.
+                InfoSectionCard(
+                    title = "Open Chat",
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                ) {
+                    // A broadcast sender or group member may have no contact row yet.
+                    chatViewModel.ensureContactExists(contactId)
+                    onOpenChat(contactId)
+                }
+
                 InfoSectionCard(
                     title = stringResource(R.string.address),
                     icon = Icons.Default.QrCode,

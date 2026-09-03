@@ -832,6 +832,14 @@ class ChatViewModel @Inject constructor(
      * this is just a bare local row so per-contact fields (name/photo/notification overrides,
      * chosen KNS domain) have somewhere to persist to the first time one of them is edited.
      */
+    /**
+     * Makes sure a contact row exists for [contactId] before opening their thread - a broadcast
+     * sender or a group member viewed through User Info may never have been one.
+     */
+    fun ensureContactExists(contactId: String) {
+        viewModelScope.launch { getOrCreateContact(contactId) }
+    }
+
     private suspend fun getOrCreateContact(contactId: String): ContactEntity {
         return chatRepository.getContact(contactId) ?: ContactEntity(
             id = contactId,

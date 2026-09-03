@@ -1469,6 +1469,12 @@ fun MainShell(
                     contactId = contactId,
                     onBack = { navController.popBackStack() },
                     fromBroadcast = fromBroadcast,
+                    // Replaces this screen rather than stacking on it, so Back from the chat
+                    // returns where User Info was opened from instead of to User Info again.
+                    onOpenChat = { id ->
+                        navController.popBackStack()
+                        navController.navigate("chat/$id")
+                    },
                     onNavigateToPhotoSettings = { id -> navController.navigate("contact_photo_settings/$id") },
                     onNavigateToNotificationSettings = { id -> navController.navigate("contact_notification_settings/$id") },
                     onNavigateToDomains = { id -> navController.navigate("contact_domains/$id") }
