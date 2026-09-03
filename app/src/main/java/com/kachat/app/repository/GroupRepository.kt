@@ -1534,6 +1534,7 @@ class GroupRepository @Inject constructor(
                 groupRootEpoch = bag.groupRootEpoch,
                 blindingKey = bag.blindingKey,
                 currentEpoch = bag.currentEpoch,
+                previousRoots = bag.previousRoots,
                 members = members.map { ChatHistoryArchiveGroupMember(it.address, it.xOnlyPubKeyHex, it.isAdmin) },
                 messages = run {
                     val groupIdBytes = try { entity.groupId.hexToByteArray() } catch (e: Exception) { return@run emptyList() }
@@ -1571,9 +1572,27 @@ class GroupRepository @Inject constructor(
             if (existingBag != null && existingBag.currentEpoch > g.currentEpoch) continue
             val deviceId = existingBag?.deviceId ?: GroupCipher.generateDeviceId().toHexString()
             val msgCounter = if (existingBag?.currentEpoch == g.currentEpoch) existingBag.msgCounter else 0L
+            // MERGE the retired epoch roots; never replace them. [GroupBag.previousRoots] is the
+            // only way a NON-ADMIN decrypts epochs the group has already left (the re-derive
+            // fallback needs groupSeed, which only the admin holds). Rebuilding the bag from the
+            // archive without them silently made every pre-rotation message undecryptable: the
+            // ciphertext was still on the device, the key to read it had been thrown away. That
+            // is how connecting a cloud account could destroy group history a seed import had
+            // just rebuilt.
+            val mergedPreviousRoots = buildMap {
+                existingBag?.previousRoots?.let { putAll(it) }
+                g.previousRoots?.forEach { (epoch, root) -> putIfAbsent(epoch, root) }
+                // Moving to a newer epoch retires the root we currently hold - keep it, or this
+                // restore would lose the very history it is being asked to preserve.
+                if (existingBag != null && existingBag.currentEpoch < g.currentEpoch) {
+                    put(existingBag.currentEpoch, existingBag.groupRootEpoch)
+                }
+            }
             val bag = GroupBag(
-                groupId = g.groupId, groupSeed = g.groupSeed, groupRootEpoch = groupRootEpoch,
-                blindingKey = blindingKey, currentEpoch = g.currentEpoch, deviceId = deviceId, msgCounter = msgCounter
+                groupId = g.groupId, groupSeed = g.groupSeed ?: existingBag?.groupSeed, groupRootEpoch = groupRootEpoch,
+                blindingKey = blindingKey, currentEpoch = g.currentEpoch, deviceId = deviceId, msgCounter = msgCounter,
+                selfInviteEpoch = existingBag?.selfInviteEpoch,
+                previousRoots = mergedPreviousRoots.ifEmpty { null }
             )
             groupSecretStore.saveBag(walletAddress, bag)
             val roster = g.members.map { GroupMember(it.address, it.xOnlyPubKeyHex ?: "", it.isAdmin, null) }

@@ -38,6 +38,11 @@ data class ChatHistoryArchiveGroup(
     val groupRootEpoch: String?,
     val blindingKey: String?,
     val currentEpoch: Long,
+    // Roots for epochs the group has already left, keyed by decimal epoch. Optional so older
+    // archives (and platforms that predate the field) still parse. Without these a NON-ADMIN
+    // member restoring onto a device that holds no bag can decrypt only the current epoch, and
+    // everything older reads as an empty thread. Cross-platform field.
+    val previousRoots: Map<Long, String>? = null,
     val members: List<ChatHistoryArchiveGroupMember>,
     // Decrypted message history so it survives even if the indexer has pruned old messages
     // (older archives omit it). Cross-platform shape shared with desktop/iOS.
