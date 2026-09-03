@@ -1356,6 +1356,25 @@ fun BroadcastChannelScreen(
                                     )
                                 } else {
                                     var textLayoutResult by remember(displayContent) { mutableStateOf<TextLayoutResult?>(null) }
+                                    // Tapping a link here asks first rather than opening straight
+                                    // away: a room's senders are anonymous, so opening one of
+                                    // their links should be a decision, not a stray tap. iOS has
+                                    // always required a deliberate gesture for the same reason.
+                                    var tappedLinkUrl by remember { mutableStateOf<String?>(null) }
+                                    tappedLinkUrl?.let { url ->
+                                        LinkActionsSheet(
+                                            url = url,
+                                            onDismiss = { tappedLinkUrl = null },
+                                            onOpen = {
+                                                val internal = KaChatLink.parse(url)
+                                                if (internal != null) openKaChatLink(internal)
+                                                else uriHandler.openUri(url)
+                                            },
+                                            onCopy = {
+                                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                            },
+                                        )
+                                    }
                                     // Sent bubbles are teal with black text/links for contrast —
                                     // matches 1:1/group chats' treatment of the same case.
                                     val linkColor = if (isMine) Color.Black else KaspaTeal
@@ -1397,11 +1416,7 @@ fun BroadcastChannelScreen(
                                                             val charOffset = layout.getOffsetForPosition(offset)
                                                             annotatedBody.getStringAnnotations("URL", charOffset, charOffset)
                                                                 .firstOrNull()?.let { annotation ->
-                                                                    // In-app KaChat links route
-                                                                    // in-app, never to a browser.
-                                                                    val internal = KaChatLink.parse(annotation.item)
-                                                                    if (internal != null) openKaChatLink(internal)
-                                                                    else uriHandler.openUri(annotation.item)
+                                                                    tappedLinkUrl = annotation.item
                                                                 }
                                                         }
                                                     )

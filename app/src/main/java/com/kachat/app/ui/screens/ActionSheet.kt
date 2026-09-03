@@ -53,6 +53,12 @@ import com.kachat.app.ui.theme.LocalAppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.FormatQuote
 
 /**
  * The frame every "..." menu in the app now uses: a half sheet with a title, a line of context,
@@ -311,5 +317,85 @@ fun ChatReactionsSheet(
                 }
             }
         }
+    }
+}
+
+
+/**
+ * What to do with a link someone sent: the half-sheet form of the old alert dialog.
+ *
+ * A dialog of bare text buttons could show the verb and nothing else, and squeezed the URL into
+ * its title. As a sheet the link itself gets room to be read - which matters, because deciding
+ * whether to open a link IS reading it. Mirrors iOS's `LinkActionsSheet`.
+ */
+@Composable
+fun LinkActionsSheet(
+    url: String,
+    onDismiss: () -> Unit,
+    onOpen: () -> Unit,
+    onCopy: () -> Unit,
+    /** Null where replying makes no sense (a KaPost, a broadcast you cannot reply into). */
+    onReply: (() -> Unit)? = null,
+) {
+    val colors = LocalAppColors.current
+    ActionSheetContainer(title = "Link", subtitle = null, onDismiss = onDismiss) {
+        Text(
+            url,
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+        Spacer(Modifier.height(4.dp))
+        ActionSheetRow(
+            icon = Icons.Default.Public,
+            title = "Open Link",
+            subtitle = "Opens in your browser.",
+        ) { onDismiss(); onOpen() }
+        ActionSheetRow(
+            icon = Icons.Default.ContentCopy,
+            title = "Copy Link",
+            subtitle = "Copies the address to your clipboard.",
+        ) { onDismiss(); onCopy() }
+        if (onReply != null) {
+            ActionSheetRow(
+                icon = Icons.AutoMirrored.Filled.Reply,
+                title = "Reply",
+                subtitle = "Reply to this message instead.",
+            ) { onDismiss(); onReply() }
+        }
+    }
+}
+
+/** Repost as-is, or quote it with your own words. Mirrors iOS's `RepostActionsSheet`. */
+@Composable
+fun RepostActionsSheet(
+    isReposted: Boolean,
+    onDismiss: () -> Unit,
+    onRepost: () -> Unit,
+    onQuote: () -> Unit,
+) {
+    ActionSheetContainer(
+        title = if (isReposted) "Reposted" else "Repost",
+        subtitle = null,
+        onDismiss = onDismiss,
+    ) {
+        ActionSheetRow(
+            icon = if (isReposted) Icons.AutoMirrored.Filled.Undo else Icons.Default.Repeat,
+            title = if (isReposted) "Undo Repost" else "Repost",
+            subtitle = if (isReposted) {
+                "Removes it from your profile."
+            } else {
+                "Shares it to your followers as-is."
+            },
+            tint = if (isReposted) Color(0xFFFF3B30) else KaspaTeal,
+        ) { onDismiss(); onRepost() }
+        ActionSheetRow(
+            icon = Icons.Default.FormatQuote,
+            title = "Quote",
+            subtitle = "Adds your own words above it.",
+        ) { onDismiss(); onQuote() }
     }
 }

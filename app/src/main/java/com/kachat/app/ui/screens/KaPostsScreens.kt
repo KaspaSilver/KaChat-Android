@@ -1335,26 +1335,15 @@ fun KaPostCell(
                         }
                     },
                 )
+                // Half sheet rather than an alert dialog - see LinkActionsSheet.
                 tappedLinkUrl?.let { url ->
-                    AlertDialog(
-                        onDismissRequest = { tappedLinkUrl = null },
-                        containerColor = colors.surface,
-                        title = { Text(url, color = colors.textPrimary, fontSize = 14.sp) },
-                        confirmButton = {
-                            Column(horizontalAlignment = Alignment.End) {
-                                TextButton(onClick = {
-                                    tappedLinkUrl = null
-                                    uriHandler.openUri(url)
-                                }) { Text("Open Link", color = KaspaTeal, fontWeight = FontWeight.Bold) }
-                                TextButton(onClick = {
-                                    tappedLinkUrl = null
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
-                                    Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
-                                }) { Text("Copy Link", color = KaspaTeal, fontWeight = FontWeight.Bold) }
-                                TextButton(onClick = { tappedLinkUrl = null }) {
-                                    Text("Cancel", color = colors.textSecondary)
-                                }
-                            }
+                    LinkActionsSheet(
+                        url = url,
+                        onDismiss = { tappedLinkUrl = null },
+                        onOpen = { uriHandler.openUri(url) },
+                        onCopy = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                            Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
                         },
                     )
                 }
@@ -1563,26 +1552,15 @@ private fun EngagementRow(
                 },
                 onCancel = onCancelCountdown,
             )
-            DropdownMenu(
-                expanded = repostMenuOpen,
-                onDismissRequest = { repostMenuOpen = false },
-                modifier = Modifier.background(colors.surface),
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Repost", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                    leadingIcon = { Icon(Icons.Default.Repeat, null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
-                    onClick = {
-                        repostMenuOpen = false
-                        onRepostConfirm?.invoke()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Quote", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                    leadingIcon = { Icon(Icons.Default.Edit, null, tint = colors.textPrimary, modifier = Modifier.size(18.dp)) },
-                    onClick = {
-                        repostMenuOpen = false
-                        onQuote?.invoke()
-                    },
+            // Half sheet rather than a dropdown, so the two choices get room to say what they
+            // do - "Repost" and "Quote" as bare words are only obvious once you already know
+            // the difference. See RepostActionsSheet.
+            if (repostMenuOpen) {
+                RepostActionsSheet(
+                    isReposted = post.repostedByMe,
+                    onDismiss = { repostMenuOpen = false },
+                    onRepost = { onRepostConfirm?.invoke() },
+                    onQuote = { onQuote?.invoke() },
                 )
             }
         }
