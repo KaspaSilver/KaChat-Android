@@ -11565,12 +11565,6 @@ fun ChatInfoScreen(
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            "Tap the code to copy the address.",
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 11.sp,
-                        )
                     }
                     ActionSheetRow(
                         icon = Icons.Default.Public,
@@ -11638,11 +11632,6 @@ fun ChatInfoScreen(
                             }
                         }
                     }
-                    Text(
-                        "Tap a domain to copy it.",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 11.sp,
-                    )
                 }
             }
 
@@ -11737,11 +11726,6 @@ fun ChatInfoScreen(
                             infoSheet = null
                         }
                     }
-                    Text(
-                        "Default follows Settings > Notifications. Off silences this contact.",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 11.sp,
-                    )
                 }
             }
 
@@ -11767,11 +11751,6 @@ fun ChatInfoScreen(
                             infoSheet = null
                         }
                     }
-                    Text(
-                        "Automatic hides photos from contacts you have not added or messaged yet, until you tap to reveal them.",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 11.sp,
-                    )
                 }
             }
 

@@ -101,6 +101,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.repository.GroupMessage
 import com.kachat.app.repository.isSystemMessage
@@ -1925,161 +1926,62 @@ fun GroupChatInfoScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .clickable { showHiddenUsers = true }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = KaspaTeal)
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.hidden_users), color = KaspaTeal)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .clickable(enabled = groupId !in refreshingGroupIds) { chatViewModel.refreshGroup(groupId) }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Refresh Messages", color = LocalAppColors.current.textPrimary)
-                    Text(
-                        "Rebuilds this group from the chain exactly as importing your seed phrase would, recovering anything an earlier sync passed over or could not decrypt at the time.",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-                if (groupId in refreshingGroupIds) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, color = KaspaTeal, modifier = Modifier.size(18.dp))
-                } else {
-                    Icon(Icons.Default.Refresh, contentDescription = null, tint = KaspaTeal)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Silent Group Chat", color = LocalAppColors.current.textPrimary)
-                    Text(
-                        "Never notifies you about this group, mentioned or not.",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-                Switch(
+            // Grouped like iOS's Form sections: related rows share one rounded container with
+            // dividers, instead of every row being its own floating card. Labels only - the rows
+            // say what they do.
+            GroupInfoSection {
+                GroupInfoRow(Icons.Default.VisibilityOff, stringResource(R.string.hidden_users)) { showHiddenUsers = true }
+                GroupInfoDivider()
+                GroupInfoRow(
+                    icon = Icons.Default.Refresh,
+                    label = "Refresh Messages",
+                    enabled = groupId !in refreshingGroupIds,
+                    onClick = { chatViewModel.refreshGroup(groupId) },
+                    trailing = {
+                        if (groupId in refreshingGroupIds) {
+                            CircularProgressIndicator(strokeWidth = 2.dp, color = KaspaTeal, modifier = Modifier.size(18.dp))
+                        }
+                    },
+                )
+                GroupInfoDivider()
+                GroupInfoSwitchRow(
+                    label = "Silent Group Chat",
                     checked = groupId in groupSilent,
                     onCheckedChange = { chatViewModel.setGroupSilent(groupId, it) },
-                    colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f))
                 )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.only_notify_if_i_m_mentioned), color = LocalAppColors.current.textPrimary)
-                    Text(
-                        stringResource(R.string.other_messages_still_show_up_in),
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-                Switch(
+                GroupInfoDivider()
+                GroupInfoSwitchRow(
+                    label = stringResource(R.string.only_notify_if_i_m_mentioned),
                     checked = groupId in groupMentionsOnly,
+                    // Silent already means "never", so the finer rule underneath it is moot.
                     enabled = groupId !in groupSilent,
                     onCheckedChange = { chatViewModel.setGroupMentionsOnly(groupId, it) },
-                    colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f))
                 )
             }
 
             if (group?.isAdmin == true) {
                 Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(LocalAppColors.current.surface)
-                        .clickable {
-                            renameText = group.name
-                            renameError = null
-                            showRename = true
-                        }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal)
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.rename_group), color = KaspaTeal)
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(LocalAppColors.current.surface)
-                        .clickable { showResendAllConfirm = true }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, tint = KaspaTeal)
-                    Spacer(Modifier.width(12.dp))
-                    Text("Resend invites to all", color = KaspaTeal)
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(LocalAppColors.current.surface)
-                        .clickable { showAddMembers = true }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = KaspaTeal)
-                    Spacer(Modifier.width(12.dp))
-                    Text("Add members", color = KaspaTeal)
+                GroupInfoSection {
+                    GroupInfoRow(Icons.Default.Edit, stringResource(R.string.rename_group)) {
+                        renameText = group.name
+                        renameError = null
+                        showRename = true
+                    }
+                    GroupInfoDivider()
+                    GroupInfoRow(Icons.Default.Refresh, "Resend invites to all") { showResendAllConfirm = true }
+                    GroupInfoDivider()
+                    GroupInfoRow(Icons.Default.PersonAdd, "Add members") { showAddMembers = true }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .clickable { showDeleteConfirmation = true }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF3B30))
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.delete_group), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+            GroupInfoSection {
+                GroupInfoRow(
+                    icon = Icons.Default.Delete,
+                    label = stringResource(R.string.delete_group),
+                    tint = Color(0xFFFF3B30),
+                    bold = true,
+                ) { showDeleteConfirmation = true }
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -2561,5 +2463,85 @@ private fun GroupChatHeaderCard(
             }
             GroupAvatar(photoHex = photoHex, size = 46.dp)
         }
+    }
+}
+
+// MARK: - Group Info rows
+
+/**
+ * One rounded container holding related rows, divided rather than spaced - the shape iOS's Form
+ * sections give Group Info. Replaces the old stack of individually-floating cards.
+ */
+@Composable
+private fun GroupInfoSection(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface),
+        content = content,
+    )
+}
+
+@Composable
+private fun GroupInfoDivider() {
+    HorizontalDivider(
+        color = LocalAppColors.current.background,
+        thickness = 1.dp,
+        modifier = Modifier.padding(start = 48.dp),
+    )
+}
+
+/** A tappable Group Info row: icon, label, optional trailing content. Label only - no subtitle. */
+@Composable
+private fun GroupInfoRow(
+    icon: ImageVector,
+    label: String,
+    tint: Color = KaspaTeal,
+    bold: Boolean = false,
+    enabled: Boolean = true,
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            label,
+            color = tint,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
+        )
+        trailing?.invoke()
+    }
+}
+
+/** A Group Info toggle row. Label only - no subtitle. */
+@Composable
+private fun GroupInfoSwitchRow(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f)),
+        )
     }
 }
