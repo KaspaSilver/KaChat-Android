@@ -86,6 +86,8 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbDownOffAlt
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -422,7 +424,6 @@ fun KaPostsScreen(
     // (KaPostsToastLayer / ConnectionDotButton): every toast tick and node-health color change
     // used to recompose this ENTIRE screen body, feed pager included, mid-scroll.
 
-    var showSideMenu by remember { mutableStateOf(false) }
     var showComposer by remember { mutableStateOf(false) }
     // Zero-balance funding gate — tapping "New post" while the chatting balance is a confirmed
     // 0 KAS opens the shared funding card as a dialog instead of the post composer (replies get
@@ -638,19 +639,29 @@ fun KaPostsScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 4.dp),
                 )
+                // Profile / Notifications / Bookmarks / Muted / Blocked, as the icons themselves
+                // rather than behind a hamburger. Their own row above the feed tabs, left-aligned
+                // where the hamburger used to be: five icons and three tabs do not fit one row on
+                // a phone, and the point of the change is that every destination is one tap,
+                // which a cramped row would undo.
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { showSideMenu = true }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = colors.textPrimary)
+                    KaPostsMenuIcon(Icons.Default.AccountCircle, "Profile") {
+                        showMyProfile = true; viewModel.loadMyProfile()
                     }
-                    FeedTabsRow(
-                        selected = selectedFeed,
-                        onSelect = { viewModel.selectFeed(it) },
-                        modifier = Modifier.weight(1f),
-                    )
+                    KaPostsMenuIcon(Icons.Default.Notifications, "Notifications") { showNotifications = true }
+                    KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
+                    KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
+                    KaPostsMenuIcon(Icons.Default.Block, "Blocked") { moderationKind = true }
+                    Spacer(Modifier.weight(1f))
                 }
+                FeedTabsRow(
+                    selected = selectedFeed,
+                    onSelect = { viewModel.selectFeed(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 HorizontalDivider(color = colors.surfaceVariant)
 
                 // Horizontal paging between the three feeds, synced both ways with the tab row
@@ -831,28 +842,6 @@ fun KaPostsScreen(
             }
 
             // Left slide-out menu.
-            AnimatedVisibility(visible = showSideMenu, enter = fadeIn(), exit = fadeOut()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .clickable { showSideMenu = false },
-                )
-            }
-            AnimatedVisibility(
-                visible = showSideMenu,
-                enter = slideInHorizontally(initialOffsetX = { -it }),
-                exit = slideOutHorizontally(targetOffsetX = { -it }),
-            ) {
-                KaPostsSideMenu(
-                    onProfile = { showSideMenu = false; showMyProfile = true; viewModel.loadMyProfile() },
-                    onNotifications = { showSideMenu = false; showNotifications = true },
-                    onBookmarks = { showSideMenu = false; showBookmarks = true },
-                    onMuted = { showSideMenu = false; moderationKind = false },
-                    onBlocked = { showSideMenu = false; moderationKind = true },
-                )
-            }
-
             KaPostsToastLayer(
                 viewModel = viewModel,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
@@ -1074,34 +1063,6 @@ fun KaPostsScreen(
 
 // MARK: - Side menu
 
-@Composable
-private fun KaPostsSideMenu(
-    onProfile: () -> Unit,
-    onNotifications: () -> Unit,
-    onBookmarks: () -> Unit,
-    onMuted: () -> Unit,
-    onBlocked: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    // iOS parity: a compact rounded card that hugs its options (no full-height drawer, no
-    // empty void below the rows), top-left with a small inset, sliding in from the leading edge.
-    Column(
-        modifier = Modifier
-            .statusBarsPadding()
-            .padding(start = 10.dp, top = 12.dp)
-            .width(IntrinsicSize.Max)
-            .clip(RoundedCornerShape(24.dp))
-            .background(colors.surface)
-            .border(1.dp, colors.surfaceVariant, RoundedCornerShape(24.dp))
-            .padding(vertical = 8.dp),
-    ) {
-        SideMenuRow(Icons.Outlined.Person, "Profile", onProfile)
-        SideMenuRow(Icons.Default.NotificationsNone, "Notifications", onNotifications)
-        SideMenuRow(Icons.Default.BookmarkBorder, "Bookmarks", onBookmarks)
-        SideMenuRow(Icons.Default.VolumeOff, "Muted", onMuted)
-        SideMenuRow(Icons.Default.Block, "Blocked", onBlocked)
-    }
-}
 
 @Composable
 private fun SideMenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
@@ -4265,5 +4226,23 @@ private fun NewPostsPill(count: Int, onClick: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+
+/** One KaPosts destination in the header's icon row - see the row's own comment. */
+@Composable
+private fun KaPostsMenuIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = LocalAppColors.current.textPrimary,
+            modifier = Modifier.size(21.dp),
+        )
     }
 }
