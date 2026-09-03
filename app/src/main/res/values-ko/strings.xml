@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">기기에 가장 부담이 크고 안정성은 떨어짐 - 거주 지역에 따라 다름</string>
     <string name="your_public_messaging_identity">공개 메시징 신원입니다. 메시지 수수료와 KNS 프로필 생성 수수료를 지불하기 위해 소액을 충전하세요 - 여기에 사용할 의도가 있는 돈은 절대 보내지 마세요.</string>
     <string name="where_you_send_and_receive_kaspa">돈으로 사용하려는 Kaspa를 보내고 받는 곳입니다.</string>
-    <string name="just_send_5_10_kas_at_a_time">한 번에 5-10 KAS만 보내세요, 한동안 채팅 수수료를 충당하기에 충분합니다 (KAS당 약 500개의 메시지)</string>
     <string name="choose_your_language">언어를 선택하세요</string>
     <string name="select_the_language_youd_like_to">KaChat에서 사용하고 싶은 언어를 선택하세요.</string>
     <string name="best">최고</string>

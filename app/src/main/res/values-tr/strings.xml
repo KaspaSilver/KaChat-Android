@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">Cihaz icin en yorucu olani, o kadar guvenilir degil - yasadiginiz yere bagli</string>
     <string name="your_public_messaging_identity">Herkese acik mesajlasma kimliginiz. Mesaj ucretlerini ve KNS profil olusturma ucretlerini odemek icin kucuk bir miktarla fonlayin - buraya harcamayi dusundugunuz parayi asla gondermeyin.</string>
     <string name="where_you_send_and_receive_kaspa">Para olarak kullanmayi dusundugunuz Kaspa\'yi gonderdiginiz ve aldiginiz yer.</string>
-    <string name="just_send_5_10_kas_at_a_time">Bir seferde sadece 5-10 KAS gonderin, bu bir sure icin sohbet ucretlerini karsilamaya yeter (KAS basina yaklasik 500 mesaj)</string>
     <string name="choose_your_language">Dilinizi Secin</string>
     <string name="select_the_language_youd_like_to">KaChat\'te kullanmak istediginiz dili secin.</string>
     <string name="best">En iyi</string>

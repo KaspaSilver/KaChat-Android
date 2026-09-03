@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">Mas exigente para el dispositivo, no tan confiable - depende de donde vivas</string>
     <string name="your_public_messaging_identity">Tu identidad publica de mensajeria. Financiala con una pequena cantidad para pagar comisiones de mensajes y comisiones de creacion de perfil KNS - nunca envies aqui dinero que pretendas gastar.</string>
     <string name="where_you_send_and_receive_kaspa">Donde envias y recibes Kaspa que planeas usar como dinero.</string>
-    <string name="just_send_5_10_kas_at_a_time">Envia solo 5-10 KAS a la vez, es suficiente para cubrir comisiones de chat por un tiempo (unos 500 mensajes por KAS)</string>
     <string name="choose_your_language">Elige tu idioma</string>
     <string name="select_the_language_youd_like_to">Selecciona el idioma que te gustaria usar en KaChat.</string>
     <string name="best">Mejor</string>

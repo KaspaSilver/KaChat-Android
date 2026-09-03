@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">Am belastendsten für das Gerät, nicht so zuverlässig - hängt davon ab, wo du lebst</string>
     <string name="your_public_messaging_identity">Deine öffentliche Nachrichtenidentität. Finanziere sie mit einem kleinen Betrag, um Nachrichtengebühren und KNS-Profilerstellungsgebühren zu bezahlen.</string>
     <string name="where_you_send_and_receive_kaspa">Wo du Kaspa sendest und empfängst, das du als Geld verwenden möchtest.</string>
-    <string name="just_send_5_10_kas_at_a_time">Sende jeweils nur 5-10 KAS, das reicht, um Chat-Gebühren eine Weile zu decken (etwa 500 Nachrichten pro KAS)</string>
     <string name="choose_your_language">Wähle deine Sprache</string>
     <string name="select_the_language_youd_like_to">Wähle die Sprache, die du in KaChat verwenden möchtest.</string>
     <string name="best">Am besten</string>

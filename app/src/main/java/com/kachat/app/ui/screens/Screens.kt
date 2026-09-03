@@ -3480,7 +3480,7 @@ fun ProfileScreen(
             QrCodeOverlay(
                 value = address ?: "",
                 onDismiss = { showFundIdentityQr = false },
-                message = "Just send 5-10 KAS at a time, that's plenty to cover chat fees for a while (about 500 messages per KAS)",
+                message = "This address is for chatting and KNS profile creation. Funding it with around 50 Kaspa is enough to create a KNS profile and send messages for a long time.",
                 borderColor = KaspaTeal,
                 borderWidth = 4.dp
             )
@@ -3489,7 +3489,7 @@ fun ProfileScreen(
             QrCodeOverlay(
                 value = spendingAddress ?: "",
                 onDismiss = { showAcceptPaymentQr = false },
-                message = "Only accept Kaspa you intend to use as money to this address.",
+                message = "This address should be used for everything not related to chatting or KNS profile creation.",
                 borderColor = KaspaTeal,
                 borderWidth = 4.dp
             )

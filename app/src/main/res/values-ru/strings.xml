@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">Наиболее нагружает устройство, менее надёжен - зависит от места проживания</string>
     <string name="your_public_messaging_identity">Ваш публичный идентификатор для сообщений. Пополните его небольшой суммой для оплаты комиссий за сообщения и комиссий за создание профиля KNS - никогда не отправляйте сюда деньги, которые планируете тратить.</string>
     <string name="where_you_send_and_receive_kaspa">Куда вы отправляете и получаете Kaspa, которые планируете использовать как деньги.</string>
-    <string name="just_send_5_10_kas_at_a_time">Отправляйте всего 5-10 KAS за раз, этого хватит для оплаты комиссий чата на некоторое время (около 500 сообщений на KAS)</string>
     <string name="choose_your_language">Выберите язык</string>
     <string name="select_the_language_youd_like_to">Выберите язык, который вы хотите использовать в KaChat.</string>
     <string name="best">Лучший</string>

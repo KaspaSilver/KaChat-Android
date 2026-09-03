@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">ডিভাইসের জন্য সবচেয়ে বেশি চাপযুক্ত, ততটা নির্ভরযোগ্য নয় - আপনি কোথায় থাকেন তার উপর নির্ভর করে</string>
     <string name="your_public_messaging_identity">আপনার পাবলিক মেসেজিং পরিচয়। বার্তা ফি এবং KNS প্রোফাইল তৈরির ফি পরিশোধ করতে অল্প পরিমাণ অর্থ দিয়ে এটি ফান্ড করুন - এখানে কখনও এমন অর্থ পাঠাবেন না যা আপনি খরচ করতে চান।</string>
     <string name="where_you_send_and_receive_kaspa">যেখানে আপনি অর্থ হিসেবে ব্যবহার করতে চান এমন Kaspa পাঠান এবং গ্রহণ করেন।</string>
-    <string name="just_send_5_10_kas_at_a_time">একবারে মাত্র ৫-১০ KAS পাঠান, এটি কিছু সময়ের জন্য চ্যাট ফি কভার করার জন্য যথেষ্ট (প্রতি KAS-এ প্রায় ৫০০ বার্তা)</string>
     <string name="choose_your_language">আপনার ভাষা নির্বাচন করুন</string>
     <string name="select_the_language_youd_like_to">KaChat-এ আপনি যে ভাষা ব্যবহার করতে চান তা নির্বাচন করুন।</string>
     <string name="best">সেরা</string>

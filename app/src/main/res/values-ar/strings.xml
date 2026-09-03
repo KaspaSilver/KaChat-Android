@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">الأكثر إرهاقًا للجهاز، وأقل موثوقية - يعتمد على مكان إقامتك</string>
     <string name="your_public_messaging_identity">هويتك العامة للمراسلة. قم بتمويلها بمبلغ صغير لدفع رسوم الرسائل ورسوم إنشاء ملف تعريف KNS - لا ترسل هنا أبدًا أموالًا تنوي إنفاقها.</string>
     <string name="where_you_send_and_receive_kaspa">حيث ترسل وتستقبل Kaspa التي تنوي استخدامها كمال.</string>
-    <string name="just_send_5_10_kas_at_a_time">أرسل فقط 5-10 KAS في كل مرة، فهذا كافٍ لتغطية رسوم الدردشة لفترة (حوالي 500 رسالة لكل KAS)</string>
     <string name="choose_your_language">اختر لغتك</string>
     <string name="select_the_language_youd_like_to">اختر اللغة التي ترغب في استخدامها في KaChat.</string>
     <string name="best">الأفضل</string>

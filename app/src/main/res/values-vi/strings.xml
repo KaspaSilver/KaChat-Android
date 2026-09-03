@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">Ton hao thiet bi nhieu nhat, khong dang tin cay bang - tuy thuoc vao noi ban song</string>
     <string name="your_public_messaging_identity">Danh tinh nhan tin cong khai cua ban. Nap mot khoan nho de tra phi tin nhan va phi tao ho so KNS - khong bao gio gui vao day so tien ban dinh chi tieu.</string>
     <string name="where_you_send_and_receive_kaspa">Noi ban gui va nhan Kaspa ma ban dinh dung nhu tien.</string>
-    <string name="just_send_5_10_kas_at_a_time">Chi gui 5-10 KAS moi lan, du de trang trai phi tro chuyen trong mot thoi gian (khoang 500 tin nhan moi KAS)</string>
     <string name="choose_your_language">Chon ngon ngu cua ban</string>
     <string name="select_the_language_youd_like_to">Chon ngon ngu ban muon su dung trong KaChat.</string>
     <string name="best">Tot nhat</string>

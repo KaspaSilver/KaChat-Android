@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">डिवाइस पर सबसे अधिक बोझ, उतना विश्वसनीय नहीं - यह इस पर निर्भर करता है कि आप कहां रहते हैं</string>
     <string name="your_public_messaging_identity">आपकी सार्वजनिक मैसेजिंग पहचान। संदेश शुल्क और KNS प्रोफ़ाइल निर्माण शुल्क चुकाने के लिए इसमें एक छोटी राशि डालें - यहां कभी भी वह पैसा न भेजें जिसे आप खर्च करना चाहते हैं।</string>
     <string name="where_you_send_and_receive_kaspa">जहां आप वह Kaspa भेजते और प्राप्त करते हैं जिसे आप पैसे के रूप में उपयोग करना चाहते हैं।</string>
-    <string name="just_send_5_10_kas_at_a_time">एक बार में केवल 5-10 KAS भेजें, यह कुछ समय के लिए चैट शुल्क को कवर करने के लिए पर्याप्त है (लगभग 500 संदेश प्रति KAS)</string>
     <string name="choose_your_language">अपनी भाषा चुनें</string>
     <string name="select_the_language_youd_like_to">वह भाषा चुनें जिसे आप KaChat में उपयोग करना चाहते हैं।</string>
     <string name="best">सर्वश्रेष्ठ</string>

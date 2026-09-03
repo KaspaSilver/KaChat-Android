@@ -428,7 +428,6 @@
     <string name="most_taxing_on_the_device_not_as">对设备负担最大，可靠性也较低 - 取决于您所在的地区</string>
     <string name="your_public_messaging_identity">您的公开消息身份。为其充值少量资金以支付消息手续费和 KNS 个人资料创建手续费 - 切勿在此发送您打算花费的资金。</string>
     <string name="where_you_send_and_receive_kaspa">您在此发送和接收打算用作货币的 Kaspa。</string>
-    <string name="just_send_5_10_kas_at_a_time">每次仅发送 5-10 KAS，足以支付一段时间的聊天手续费（每 KAS 约 500 条消息）</string>
     <string name="choose_your_language">选择您的语言</string>
     <string name="select_the_language_youd_like_to">选择您想在 KaChat 中使用的语言。</string>
     <string name="best">最佳</string>
