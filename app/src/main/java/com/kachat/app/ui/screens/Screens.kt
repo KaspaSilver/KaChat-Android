@@ -10211,6 +10211,27 @@ fun CreateChatScreen(
     var isSearchingPickerContacts by remember { mutableStateOf(false) }
     var pickerSearchText by remember { mutableStateOf("") }
 
+    // The name you gave someone always wins, and it is read LIVE from the contacts flow rather
+    // than from the snapshot the picker loader captured - a rename made after this screen loaded
+    // would otherwise never show. Order matches ContactEntity.displayName and iOS's
+    // ContactsManager.displayName: assigned name -> KNS domain -> short address.
+    val assignedNamesByAddress = remember(conversations) {
+        conversations.mapNotNull { convo ->
+            (convo.contact.alias?.takeIf { it.isNotBlank() })?.let { convo.contact.id to it }
+        }.toMap()
+    }
+    val storedDomainsByAddress = remember(conversations) {
+        conversations.mapNotNull { convo ->
+            (convo.contact.knsName?.takeIf { it.isNotBlank() })?.let { convo.contact.id to it }
+        }.toMap()
+    }
+    val resolvePickerName: (String, String?) -> String = { address, liveDomain ->
+        assignedNamesByAddress[address]
+            ?: liveDomain?.takeIf { it.isNotBlank() }
+            ?: storedDomainsByAddress[address]
+            ?: KaspaAddress.shortDisplay(address)
+    }
+
     // Group photo picked at creation time. The group does not exist yet, so the compressed JPEG
     // is held here and pushed once createGroup returns an id.
     var groupPhoto by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -10233,7 +10254,7 @@ fun CreateChatScreen(
         for (convo in conversations) {
             byAddress[convo.contact.id] = GroupMemberCandidate(
                 address = convo.contact.id,
-                name = convo.contact.displayName,
+                name = resolvePickerName(convo.contact.id, knsProfilesForPreview[convo.contact.id]?.selectedDomain),
                 avatarUrl = convo.contact.knsAvatarUrl,
             )
         }
@@ -10242,7 +10263,7 @@ fun CreateChatScreen(
             val profile = knsProfilesForPreview[pick.address]
             byAddress[pick.address] = GroupMemberCandidate(
                 address = pick.address,
-                name = pick.storedName ?: profile?.selectedDomain ?: KaspaAddress.shortDisplay(pick.address),
+                name = resolvePickerName(pick.address, profile?.selectedDomain),
                 avatarUrl = profile?.profile?.avatarUrl,
             )
         }
@@ -10820,9 +10841,11 @@ fun CreateChatScreen(
                         pickerContacts
                     } else {
                         pickerContacts.filter { connection ->
-                            val name = connection.storedName
-                                ?: knsProfilesForPreview[connection.address]?.selectedDomain
-                            (name?.lowercase()?.contains(query) == true) ||
+                            val name = resolvePickerName(
+                                connection.address,
+                                knsProfilesForPreview[connection.address]?.selectedDomain,
+                            )
+                            name.lowercase().contains(query) ||
                                 connection.address.lowercase().contains(query)
                         }
                     }
@@ -10844,9 +10867,7 @@ fun CreateChatScreen(
                                 val profile = knsProfilesForPreview[connection.address]
                                 // Assigned name, else KNS domain, else short address - the same
                                 // rule ContactEntity.displayName applies everywhere else.
-                                val rowName = connection.storedName
-                                    ?: profile?.selectedDomain
-                                    ?: KaspaAddress.shortDisplay(connection.address)
+                                val rowName = resolvePickerName(connection.address, profile?.selectedDomain)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -10856,9 +10877,7 @@ fun CreateChatScreen(
                                 ) {
                                     ContactAvatar(
                                         imageUrl = profile?.profile?.avatarUrl,
-                                        fallbackText = connection.storedName
-                                            ?: profile?.selectedDomain
-                                            ?: connection.address.takeLast(8),
+                                        fallbackText = rowName,
                                         size = 36.dp,
                                     )
                                     Spacer(Modifier.width(12.dp))
