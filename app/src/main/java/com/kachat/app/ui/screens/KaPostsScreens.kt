@@ -177,6 +177,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.ui.text.style.TextAlign
 
 /**
@@ -3189,6 +3190,27 @@ fun KaPostsProfileOverlay(
                 profileBio?.let { bio ->
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(bio, color = colors.textSecondary, fontSize = 14.sp)
+                }
+                if (isMine) {
+                    // Everything above this - avatar, banner, name, bio - comes from your KNS
+                    // profile, so the way to change any of it belongs here rather than only on
+                    // the Profile tab. Same destination that tab's own Edit KNS Profile uses.
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(KaspaTeal.copy(alpha = 0.15f))
+                            .clickable {
+                                onClose()
+                                navController.navigate("edit_kns_profile")
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Edit KNS Profile", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row {
