@@ -991,14 +991,23 @@ fun ChatThreadScreen(
                                             // of the action.
                                             showChessTimeControlMenu = true
                                         }
-                                        // Not offered to yourself - see the banner guard above.
-                                        if (conversation?.contact?.handshakeComplete != true &&
-                                            contactId != myAddress &&
-                                            !ChatViewModel.hasUnansweredOutgoingHandshake(messages)
-                                        ) {
+                                        // Always offered, exactly as iOS does - the only thing
+                                        // that rules it out is a chat with yourself, where there
+                                        // is nobody on the other side to accept it. It used to
+                                        // disappear once a handshake was outstanding or complete,
+                                        // which left no way to send another when the first never
+                                        // arrived; a handshake is an ordinary on-chain send and
+                                        // re-sending one is a normal thing to want.
+                                        if (contactId != myAddress) {
+                                            val handshakeOutstanding =
+                                                ChatViewModel.hasUnansweredOutgoingHandshake(messages)
                                             ActionSheetRow(
                                                 icon = Icons.Default.BackHand,
-                                                title = stringResource(R.string.send_handshake),
+                                                title = if (handshakeOutstanding) {
+                                                    "Handshake sent - send again"
+                                                } else {
+                                                    stringResource(R.string.send_handshake)
+                                                },
                                                 subtitle = "Asks to open an encrypted conversation.",
                                             ) {
                                                 showComposerMenu = false
