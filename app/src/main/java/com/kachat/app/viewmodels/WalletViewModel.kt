@@ -1618,15 +1618,6 @@ class WalletViewModel @Inject constructor(
     val hiddenTabs: StateFlow<Set<String>> = settings.hiddenTabs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
 
-    /** null until DataStore loads - the wizard must not flash while the real value is unknown. */
-    val dockWizardDismissed: StateFlow<Boolean?> = settings.dockWizardDismissed
-        .map { it as Boolean? }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
-
-    fun dismissDockWizard() {
-        viewModelScope.launch { settings.setDockWizardDismissed() }
-    }
-
     fun setTabHidden(route: String, hidden: Boolean) {
         viewModelScope.launch { settings.setTabHidden(route, hidden) }
     }

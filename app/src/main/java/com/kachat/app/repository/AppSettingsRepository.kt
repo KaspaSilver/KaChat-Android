@@ -198,7 +198,6 @@ class AppSettingsRepository @Inject constructor(
         // enabled through Customize Menu. Also scrubs v1's kaposts-hide.
         val KEY_TAB_DEFAULTS_40_V3_APPLIED = booleanPreferencesKey("tab_defaults_40_v3_applied")
         // The 4.0 dock wizard has been dismissed (shown once per install).
-        val KEY_DOCK_WIZARD_DISMISSED = booleanPreferencesKey("dock_wizard_dismissed")
         // Settings > Customization > Dark Mode. True (dark) is the default so existing installs'
         // appearance is unchanged — every screen was designed dark-only until this toggle existed.
         val KEY_DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
@@ -346,7 +345,6 @@ class AppSettingsRepository @Inject constructor(
     val kapostsMuted: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_MUTED] ?: emptySet() }
     val kapostsBlocked: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_BLOCKED] ?: emptySet() }
 
-    val dockWizardDismissed: Flow<Boolean> = dataStore.data.map { it[KEY_DOCK_WIZARD_DISMISSED] ?: false }
 
     // Falls back to DEFAULT_TRUSTED_NODE_ADDRESS only when the key has never been written at
     // all (a fresh install) - once the user explicitly saves "" (clearing it via the Kaspa Node
@@ -712,7 +710,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun clearLegacyKapostsFollowing() = dataStore.edit { it.remove(KEY_KAPOSTS_FOLLOWING) }
     suspend fun setKapostsMuted(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_MUTED] = value }
     suspend fun setKapostsBlocked(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_BLOCKED] = value }
-    suspend fun setDockWizardDismissed() = dataStore.edit { it[KEY_DOCK_WIZARD_DISMISSED] = true }
     suspend fun setTrustedNodeAddress(value: String) = dataStore.edit { it[KEY_TRUSTED_NODE_ADDRESS] = value }
     suspend fun setKnownGoodNodeAddresses(addresses: List<String>) = dataStore.edit {
         it[KEY_KNOWN_GOOD_NODES] = addresses.joinToString(",")

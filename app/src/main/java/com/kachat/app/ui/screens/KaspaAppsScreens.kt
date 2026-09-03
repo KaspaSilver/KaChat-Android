@@ -188,7 +188,6 @@ fun HelpScreen(
     onKnsGuide: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    var showDockGuide by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.material3.Scaffold(
         containerColor = colors.background,
         topBar = {
@@ -218,14 +217,9 @@ fun HelpScreen(
                     HelpRow(androidx.compose.material.icons.Icons.Default.WavingHand, "Welcome Guide", onWelcomeGuide)
                     androidx.compose.material3.HorizontalDivider(color = colors.surfaceVariant)
                     HelpRow(androidx.compose.material.icons.Icons.Default.Badge, "KNS Profile Setup Guide", onKnsGuide)
-                    androidx.compose.material3.HorizontalDivider(color = colors.surfaceVariant)
-                    HelpRow(androidx.compose.material.icons.Icons.Default.Tune, "Dock Guide") { showDockGuide = true }
                 }
             }
         }
-    }
-    if (showDockGuide) {
-        DockWizardDialog(onDismiss = { showDockGuide = false })
     }
 }
 
