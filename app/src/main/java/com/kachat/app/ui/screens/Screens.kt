@@ -116,6 +116,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.FlowRow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.google.zxing.BarcodeFormat
@@ -10209,6 +10210,47 @@ fun CreateChatScreen(
     val isLoadingPickerContacts by chatViewModel.isLoadingPickerContacts.collectAsState()
     var isSearchingPickerContacts by remember { mutableStateOf(false) }
     var pickerSearchText by remember { mutableStateOf("") }
+
+    // Group photo picked at creation time. The group does not exist yet, so the compressed JPEG
+    // is held here and pushed once createGroup returns an id.
+    var groupPhoto by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var groupPhotoHex by remember { mutableStateOf<String?>(null) }
+    val groupPhotoContext = LocalContext.current
+    val groupPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        // Same ~10KB JPEG budget the admin photo flow uses - a group photo rides on chain.
+        val prepared = runCatching {
+            com.kachat.app.util.ImagePrep.prepareForChatMessage(groupPhotoContext, uri, 10_000)
+        }.getOrNull() ?: return@rememberLauncherForActivityResult
+        groupPhotoHex = prepared.bytes.joinToString("") { "%02x".format(it) }
+        groupPhoto = android.graphics.BitmapFactory.decodeByteArray(prepared.bytes, 0, prepared.bytes.size)
+    }
+
+    // Everyone offerable in one tap for a group: existing chats plus both directions of the
+    // KaPosts follow graph - the same set the 1:1 screen offers.
+    val groupMemberCandidates = remember(conversations, pickerContacts, knsProfilesForPreview, memberSearchText) {
+        val byAddress = LinkedHashMap<String, GroupMemberCandidate>()
+        for (convo in conversations) {
+            byAddress[convo.contact.id] = GroupMemberCandidate(
+                address = convo.contact.id,
+                name = convo.contact.displayName,
+                avatarUrl = convo.contact.knsAvatarUrl,
+            )
+        }
+        for (pick in pickerContacts) {
+            if (byAddress.containsKey(pick.address)) continue
+            val profile = knsProfilesForPreview[pick.address]
+            byAddress[pick.address] = GroupMemberCandidate(
+                address = pick.address,
+                name = pick.storedName ?: profile?.selectedDomain ?: KaspaAddress.shortDisplay(pick.address),
+                avatarUrl = profile?.profile?.avatarUrl,
+            )
+        }
+        val query = memberSearchText.trim().lowercase()
+        byAddress.values
+            .filter { query.isEmpty() || it.name.lowercase().contains(query) || it.address.lowercase().contains(query) }
+            .sortedBy { it.name.lowercase() }
+    }
     LaunchedEffect(Unit) { chatViewModel.loadPickerContacts() }
 
     val context = LocalContext.current
@@ -10326,7 +10368,11 @@ fun CreateChatScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showCreateGroupConfirm = false
-                    chatViewModel.createGroupChat(groupName, selectedMemberAddresses.toList()) { groupId -> onGroupCreated(groupId) }
+                    chatViewModel.createGroupChat(
+                        groupName,
+                        selectedMemberAddresses.toList(),
+                        photoHex = groupPhotoHex,
+                    ) { groupId -> onGroupCreated(groupId) }
                 }) { Text(stringResource(R.string.create), color = KaspaTeal, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
@@ -10403,7 +10449,7 @@ fun CreateChatScreen(
                     onGroupNameChange = { groupName = it },
                     searchText = memberSearchText,
                     onSearchTextChange = { memberSearchText = it },
-                    conversations = conversations,
+                    candidates = groupMemberCandidates,
                     selectedAddresses = selectedMemberAddresses,
                     onToggleMember = { address ->
                         selectedMemberAddresses = if (selectedMemberAddresses.contains(address)) {
@@ -10412,6 +10458,8 @@ fun CreateChatScreen(
                             selectedMemberAddresses + address
                         } else selectedMemberAddresses
                     },
+                    photo = groupPhoto,
+                    onPickPhoto = { groupPhotoPicker.launch("image/*") },
                     errorMessage = createGroupError
                 )
 
@@ -10898,35 +10946,108 @@ data class GroupAddressRow(
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun GroupChatCreationFields(
     groupName: String,
     onGroupNameChange: (String) -> Unit,
     searchText: String,
     onSearchTextChange: (String) -> Unit,
-    conversations: List<Conversation>,
+    /** Everyone offerable in one tap: existing chats plus the KaPosts follow graph. */
+    candidates: List<GroupMemberCandidate>,
     selectedAddresses: Set<String>,
     onToggleMember: (String) -> Unit,
+    photo: android.graphics.Bitmap?,
+    onPickPhoto: () -> Unit,
     errorMessage: String?
 ) {
+    val colors = LocalAppColors.current
+
+    // Photo beside the name, on one row - the two things that identify the group, together.
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(colors.surface)
+                .clickable { onPickPhoto() },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (photo != null) {
+                Image(
+                    bitmap = photo.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.PhotoCamera,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Add\nPhoto",
+                        color = colors.textSecondary,
+                        fontSize = 9.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 10.sp,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        TextField(
+            value = groupName,
+            onValueChange = onGroupNameChange,
+            placeholder = { Text(stringResource(R.string.group_name_2), color = Color.DarkGray) },
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp)),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = colors.surface,
+                unfocusedContainerColor = colors.surface,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary,
+                cursorColor = KaspaTeal,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            singleLine = true
+        )
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
     Text(
-        text = stringResource(R.string.group_name),
-        color = LocalAppColors.current.textPrimary,
+        text = "Add by Address",
+        color = colors.textPrimary,
+        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.titleMedium
+    )
+
+    Spacer(modifier = Modifier.height(24.dp))
+    Text(
+        text = if (selectedAddresses.isEmpty()) "Add People" else "Add People (${selectedAddresses.size})",
+        color = colors.textPrimary,
         fontWeight = FontWeight.Bold,
         style = MaterialTheme.typography.titleMedium
     )
     Spacer(modifier = Modifier.height(12.dp))
     TextField(
-        value = groupName,
-        onValueChange = onGroupNameChange,
-        placeholder = { Text(stringResource(R.string.group_name_2), color = Color.DarkGray) },
+        value = searchText,
+        onValueChange = onSearchTextChange,
+        placeholder = { Text("Search name or address", color = Color.DarkGray) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp)),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = LocalAppColors.current.surface,
-            unfocusedContainerColor = LocalAppColors.current.surface,
-            focusedTextColor = LocalAppColors.current.textPrimary,
-            unfocusedTextColor = LocalAppColors.current.textPrimary,
+            focusedContainerColor = colors.surface,
+            unfocusedContainerColor = colors.surface,
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
             cursorColor = KaspaTeal,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent
@@ -10934,187 +11055,67 @@ fun GroupChatCreationFields(
         singleLine = true
     )
 
-    Spacer(modifier = Modifier.height(24.dp))
-
-    // --- Members (N): collapsible list of who has been added so far ---
-    var membersExpanded by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { membersExpanded = !membersExpanded }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = if (selectedAddresses.isEmpty()) stringResource(R.string.members) else "${stringResource(R.string.members)} (${selectedAddresses.size})",
-            color = LocalAppColors.current.textPrimary,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(
-            imageVector = if (membersExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-            contentDescription = null,
-            tint = LocalAppColors.current.textSecondary
-        )
-    }
-    if (membersExpanded) {
-        Spacer(modifier = Modifier.height(8.dp))
-        if (selectedAddresses.isEmpty()) {
-            Text(
-                text = "No members added yet. Open Contacts below to add people.",
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        } else {
-            val contactsById = remember(conversations) { conversations.map { it.contact }.associateBy { it.id } }
-            selectedAddresses.forEach { address ->
-                val contact = contactsById[address]
+    // Selected people ride above the list as removable chips, so a long candidate list never
+    // hides who is already in the group.
+    if (selectedAddresses.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(10.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            candidates.filter { it.address in selectedAddresses }.forEach { candidate ->
                 Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clip(CircleShape)
+                        .background(colors.surface)
+                        .clickable { onToggleMember(candidate.address) }
+                        .padding(start = 6.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
                 ) {
-                    ContactAvatar(
-                        imageUrl = contact?.knsAvatarUrl,
-                        deviceContactPhotoUri = contact?.systemContactPhotoUri,
-                        backupPhotoBase64 = contact?.backupPhotoBase64,
-                        fallbackText = contact?.displayName ?: KaspaAddress.shortDisplay(address),
-                        size = 40.dp
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = contact?.displayName ?: KaspaAddress.shortDisplay(address),
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = KaspaAddress.shortDisplay(address),
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1
-                        )
-                    }
-                    IconButton(onClick = { onToggleMember(address) }) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFFF3B30))
-                    }
+                    ContactAvatar(imageUrl = candidate.avatarUrl, fallbackText = candidate.name, size = 22.dp)
+                    Spacer(Modifier.width(6.dp))
+                    Text(candidate.name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.Close, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
                 }
             }
         }
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // --- Contacts: collapsible search + list of people you have chatted with ---
-    var contactsExpanded by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { contactsExpanded = !contactsExpanded }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Spacer(modifier = Modifier.height(12.dp))
+    if (candidates.isEmpty()) {
         Text(
-            text = "Contacts",
-            color = LocalAppColors.current.textPrimary,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f)
+            text = if (searchText.isBlank()) "Nobody to suggest yet. Add someone by address above." else "No matches.",
+            color = colors.textSecondary,
+            style = MaterialTheme.typography.bodySmall
         )
-        Icon(
-            imageVector = if (contactsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-            contentDescription = null,
-            tint = LocalAppColors.current.textSecondary
-        )
-    }
-    if (contactsExpanded) {
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Search box to filter the existing contacts shown below.
-        TextField(
-            value = searchText,
-            onValueChange = onSearchTextChange,
-            placeholder = { Text("Search contacts", color = Color.DarkGray) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
+    } else {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = LocalAppColors.current.surface,
-                unfocusedContainerColor = LocalAppColors.current.surface,
-                focusedTextColor = LocalAppColors.current.textPrimary,
-                unfocusedTextColor = LocalAppColors.current.textPrimary,
-                cursorColor = KaspaTeal,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        val query = searchText.trim().lowercase()
-        val contacts = remember(conversations, query) {
-            conversations.map { it.contact }
-                .distinctBy { it.id }
-                .sortedBy { it.displayName.lowercase() }
-                .filter { query.isEmpty() || it.displayName.lowercase().contains(query) || it.id.lowercase().contains(query) }
-        }
-
-        if (conversations.isEmpty()) {
-            Text(
-                text = "You have no contacts yet. Start a 1:1 chat with someone first, then you can add them to a group.",
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        } else if (contacts.isEmpty()) {
-            Text(
-                text = "No contacts match your search.",
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        } else {
-            contacts.forEach { contact ->
-                val selected = selectedAddresses.contains(contact.id)
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.surface)
+        ) {
+            candidates.forEach { candidate ->
+                val selected = candidate.address in selectedAddresses
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onToggleMember(contact.id) }
-                        .padding(vertical = 8.dp),
+                        .clickable { onToggleMember(candidate.address) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ContactAvatar(
-                        imageUrl = contact.knsAvatarUrl,
-                        deviceContactPhotoUri = contact.systemContactPhotoUri,
-                        backupPhotoBase64 = contact.backupPhotoBase64,
-                        fallbackText = contact.avatarFallbackText,
-                        size = 40.dp
-                    )
+                    ContactAvatar(imageUrl = candidate.avatarUrl, fallbackText = candidate.name, size = 40.dp)
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
+                        Text(candidate.name, color = colors.textPrimary, fontWeight = FontWeight.Bold, maxLines = 1)
                         Text(
-                            text = contact.displayName,
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = KaspaAddress.shortDisplay(contact.id),
-                            color = LocalAppColors.current.textSecondary,
+                            text = KaspaAddress.shortDisplay(candidate.address),
+                            color = colors.textSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1
                         )
                     }
-                    Icon(
-                        imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        contentDescription = null,
-                        tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary
-                    )
+                    if (selected) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KaspaTeal)
+                    }
                 }
             }
         }
@@ -11129,15 +11130,15 @@ fun GroupChatCreationFields(
         }
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
-    Text(
-        text = "Search and tap contacts to add them to the group. You can add up to $MAX_GROUP_MEMBERS.",
-        color = LocalAppColors.current.textSecondary,
-        style = MaterialTheme.typography.bodySmall
-    )
-
     Spacer(modifier = Modifier.height(32.dp))
 }
+
+/** One offerable group member: an existing chat, or someone from the KaPosts follow graph. */
+data class GroupMemberCandidate(
+    val address: String,
+    val name: String,
+    val avatarUrl: String?,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

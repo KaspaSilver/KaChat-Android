@@ -1406,7 +1406,13 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Any address not already a contact is auto-added, matching [addContact]'s own-or-create behavior. */
-    fun createGroupChat(name: String, addresses: List<String>, onCreated: (String) -> Unit) {
+    fun createGroupChat(
+        name: String,
+        addresses: List<String>,
+        /** Compressed JPEG hex picked during creation - pushed once the group has an id. */
+        photoHex: String? = null,
+        onCreated: (String) -> Unit,
+    ) {
         val trimmedName = name.trim()
         val trimmedAddresses = addresses.map { it.trim() }.filter { it.isNotEmpty() }
         if (trimmedName.isEmpty()) {
@@ -1437,6 +1443,11 @@ class ChatViewModel @Inject constructor(
                     ).also { chatRepository.addContact(it) }
                 }
                 val group = groupRepository.createGroup(trimmedName, contacts)
+                // Best effort: a failed photo send must not undo a group that was created
+                // successfully - the admin can set it again from Group Info.
+                if (!photoHex.isNullOrEmpty()) {
+                    runCatching { groupRepository.setGroupPhoto(group.groupId, photoHex) }
+                }
                 _isCreatingGroup.value = false
                 onCreated(group.groupId)
             } catch (e: Exception) {
