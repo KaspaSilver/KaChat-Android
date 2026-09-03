@@ -3397,11 +3397,12 @@ fun ProfileScreen(
                 }
             }
 
-            // Curated Kaspa sites (4.0): its own page, matching iOS's ProfileAppsView -
-            // Apps sits ABOVE Help, same as iOS.
+            // Your domains are a thing you own, not a setting of the profile that happens to use
+            // one of them - so they sit here rather than two levels down inside Edit KNS Profile,
+            // where nothing on this screen suggested they existed.
             SettingsSection(title = null) {
-                SettingsNavigationItem(stringResource(R.string.apps), Icons.Default.Apps, onClick = {
-                    navController.navigate("kaspa_apps")
+                SettingsNavigationItem("Your Domains", Icons.Default.AlternateEmail, onClick = {
+                    navController.navigate("kns_domains")
                 })
             }
 
@@ -7333,21 +7334,6 @@ fun EditKnsProfileScreen(
                         )
                         Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
                     }
-                }
-            }
-
-            SettingsSection(title = stringResource(R.string.domains)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToDomains() }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.domains), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("${ownedDomainAssets.size}", color = LocalAppColors.current.textSecondary)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
                 }
             }
 
