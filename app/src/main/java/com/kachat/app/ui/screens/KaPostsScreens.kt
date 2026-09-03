@@ -155,6 +155,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.util.KaspaAddress
@@ -3190,9 +3191,9 @@ fun KaPostsProfileOverlay(
             }
             Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
                 Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
-                profileBio?.let { bio ->
+                profileBio?.takeIf { it.isNotBlank() }?.let { bio ->
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(bio, color = colors.textSecondary, fontSize = 14.sp)
+                    ExpandableBioText(bio)
                 }
                 if (isMine) {
                     // Everything above this - avatar, banner, name, bio - comes from your KNS
@@ -4408,5 +4409,64 @@ private fun KaPostsMenuIcon(
             tint = LocalAppColors.current.textPrimary,
             modifier = Modifier.size(26.dp),
         )
+    }
+}
+
+
+/**
+ * A profile bio that always shows up to three lines, with a More button when there is more.
+ *
+ * Truncation is MEASURED rather than guessed from length: the same string wraps to a different
+ * number of lines depending on width and text size, so a character threshold would both hide More
+ * on a long-but-narrow bio and show it on a short one that already fits. Compose reports this
+ * directly through `hasVisualOverflow`. Mirrors iOS's `ExpandableBioText`, which has to measure
+ * two hidden copies to learn the same thing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpandableBioText(bio: String) {
+    val colors = LocalAppColors.current
+    var isTruncated by remember(bio) { mutableStateOf(false) }
+    var showFullBio by remember { mutableStateOf(false) }
+
+    Column {
+        Text(
+            bio,
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { isTruncated = it.hasVisualOverflow },
+        )
+        if (isTruncated) {
+            Text(
+                "More",
+                color = KaspaTeal,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .clickable { showFullBio = true },
+            )
+        }
+    }
+
+    if (showFullBio) {
+        ModalBottomSheet(
+            onDismissRequest = { showFullBio = false },
+            containerColor = colors.background,
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                Text("Bio", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    bio,
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 420.dp),
+                )
+                Spacer(Modifier.height(24.dp))
+            }
+        }
     }
 }
