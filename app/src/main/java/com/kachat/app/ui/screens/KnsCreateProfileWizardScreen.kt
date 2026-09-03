@@ -64,7 +64,6 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.launch
 import com.kachat.app.util.showAddressCopiedToast
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -157,17 +156,10 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
             TopAppBar(
                 title = { Text(stringResource(R.string.create_kns_profile), color = LocalAppColors.current.textPrimary) },
                 navigationIcon = {
-                    // Back where there is somewhere to go, Close at the ends. Every step here is
-                    // reversible, so getting one wrong should cost a tap, not a restart.
-                    val previous = step.previous
-                    if (previous != null) {
-                        IconButton(onClick = { step = previous }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = LocalAppColors.current.textPrimary)
-                        }
-                    } else {
-                        IconButton(onClick = onFinished) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = LocalAppColors.current.textPrimary)
-                        }
+                    // Close only. Step navigation is the Previous/Next bar at the bottom of every
+                    // step, where a wizard's navigation belongs.
+                    IconButton(onClick = onFinished) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = LocalAppColors.current.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)
@@ -175,118 +167,139 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
         },
         containerColor = LocalAppColors.current.background
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            when (step) {
-                KnsWizardStep.HAVE_DOMAIN -> {
-                    KnsHaveDomainStep(
-                        onYes = {
-                            step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
-                            scope.launch { scanForDomains() }
-                        },
-                        onNo = { scope.launch { checkFunding() } },
-                    )
-                }
-                KnsWizardStep.PICK_DOMAIN -> {
-                    KnsPickDomainStep(
-                        domains = foundDomains,
-                        onPick = { domain ->
-                            domainName = domain.asset
-                            step = KnsWizardStep.DOMAIN_CONFIRMED
-                        },
-                    )
-                }
-                KnsWizardStep.CHECKING_FUNDS -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(color = KaspaTeal)
-                        Spacer(Modifier.height(12.dp))
-                        Text(stringResource(R.string.checking_your_chatting_address_balance), color = LocalAppColors.current.textSecondary)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (step) {
+                    KnsWizardStep.HAVE_DOMAIN -> {
+                        KnsHaveDomainStep(
+                            onYes = {
+                                step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
+                                scope.launch { scanForDomains() }
+                            },
+                            onNo = { scope.launch { checkFunding() } },
+                        )
+                    }
+                    KnsWizardStep.PICK_DOMAIN -> {
+                        KnsPickDomainStep(
+                            domains = foundDomains,
+                            onPick = { domain ->
+                                domainName = domain.asset
+                                step = KnsWizardStep.DOMAIN_CONFIRMED
+                            },
+                        )
+                    }
+                    KnsWizardStep.CHECKING_FUNDS -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(color = KaspaTeal)
+                            Spacer(Modifier.height(12.dp))
+                            Text(stringResource(R.string.checking_your_chatting_address_balance), color = LocalAppColors.current.textSecondary)
+                        }
+                    }
+                    KnsWizardStep.NEEDS_FUNDING -> {
+                        KnsFundingGateStep(
+                            balanceKas = currentBalanceKas,
+                            chattingAddress = chattingAddress,
+                            existingDomain = activeProfileDomainName,
+                            onCheckAgain = { scope.launch { checkFunding() } },
+                            // Joins the Yes branch rather than the creation screen: someone with a
+                            // domain elsewhere needs the transfer flow, not a purchase they cannot
+                            // afford - which is the very screen they are looking at.
+                            onAlreadyHaveDomain = {
+                                step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
+                                scope.launch { scanForDomains() }
+                            }
+                        )
+                    }
+                    KnsWizardStep.DOMAIN -> {
+                        KnsDomainCreationStep(
+                            viewModel = viewModel,
+                            existingDomain = activeProfileDomainName,
+                            onSkipped = { domain ->
+                                domainName = domain
+                                step = KnsWizardStep.DOMAIN_CONFIRMED
+                            },
+                            onCreated = { result ->
+                                domainName = result.domain
+                                step = KnsWizardStep.DOMAIN_CONFIRMED
+                            },
+                            // Someone can answer No and only then remember they own one, so this
+                            // joins the Yes branch rather than being a dead end.
+                            onTransferExisting = {
+                                step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
+                                scope.launch { scanForDomains() }
+                            }
+                        )
+                    }
+                    KnsWizardStep.TRANSFER_EXISTING_DOMAIN -> {
+                        KnsTransferExistingDomainStep(
+                            chattingAddress = chattingAddress,
+                            foundDomainCount = foundDomains.size,
+                            isScanning = isScanningDomains,
+                            onRefresh = { scope.launch { scanForDomains() } }
+                        )
+                    }
+                    KnsWizardStep.DOMAIN_CONFIRMED -> {
+                        // No button of its own - the bar below carries Next, so there is one place
+                        // to go forward rather than two.
+                        KnsSimpleConfirmStep(
+                            message = "You are now known as ${domainName.orEmpty()}",
+                            buttonLabel = null,
+                            onContinue = {}
+                        )
+                    }
+                    KnsWizardStep.BANNER -> {
+                        KnsImageInscribeStep(
+                            viewModel = viewModel,
+                            title = "Let's set up a profile banner",
+                            subtitle = "Add a banner image to your profile, or skip for now.",
+                            isBanner = true,
+                            existingImageUrl = knsProfile?.bannerUrl,
+                            onDone = { step = KnsWizardStep.AVATAR }
+                        )
+                    }
+                    KnsWizardStep.AVATAR -> {
+                        KnsImageInscribeStep(
+                            viewModel = viewModel,
+                            title = "Let's inscribe your avatar photo",
+                            subtitle = "Add a profile photo, or skip for now.",
+                            isBanner = false,
+                            existingImageUrl = knsProfile?.avatarUrl,
+                            onDone = { step = KnsWizardStep.DETAILS }
+                        )
+                    }
+                    KnsWizardStep.DETAILS -> {
+                        KnsDetailsStep(viewModel = viewModel, existingProfile = knsProfile, onDone = { step = KnsWizardStep.FINISHED })
+                    }
+                    KnsWizardStep.FINISHED -> {
+                        KnsSimpleConfirmStep(
+                            message = "You have now finished your KNS profile creation!",
+                            buttonLabel = "Done",
+                            onContinue = onFinished
+                        )
                     }
                 }
-                KnsWizardStep.NEEDS_FUNDING -> {
-                    KnsFundingGateStep(
-                        balanceKas = currentBalanceKas,
-                        chattingAddress = chattingAddress,
-                        existingDomain = activeProfileDomainName,
-                        onCheckAgain = { scope.launch { checkFunding() } },
-                        // Joins the Yes branch rather than the creation screen: someone with a
-                        // domain elsewhere needs the transfer flow, not a purchase they cannot
-                        // afford - which is the very screen they are looking at.
-                        onAlreadyHaveDomain = {
-                            step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
-                            scope.launch { scanForDomains() }
-                        }
-                    )
-                }
-                KnsWizardStep.DOMAIN -> {
-                    KnsDomainCreationStep(
-                        viewModel = viewModel,
-                        existingDomain = activeProfileDomainName,
-                        onSkipped = { domain ->
-                            domainName = domain
-                            step = KnsWizardStep.DOMAIN_CONFIRMED
-                        },
-                        onCreated = { result ->
-                            domainName = result.domain
-                            step = KnsWizardStep.DOMAIN_CONFIRMED
-                        },
-                        // Someone can answer No and only then remember they own one, so this
-                        // joins the Yes branch rather than being a dead end.
-                        onTransferExisting = {
-                            step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
-                            scope.launch { scanForDomains() }
-                        }
-                    )
-                }
-                KnsWizardStep.TRANSFER_EXISTING_DOMAIN -> {
-                    KnsTransferExistingDomainStep(
-                        chattingAddress = chattingAddress,
-                        foundDomainCount = foundDomains.size,
-                        isScanning = isScanningDomains,
-                        onRefresh = { scope.launch { scanForDomains() } },
-                        onNext = { step = KnsWizardStep.PICK_DOMAIN }
-                    )
-                }
-                KnsWizardStep.DOMAIN_CONFIRMED -> {
-                    KnsSimpleConfirmStep(
-                        message = "You are now known as ${domainName.orEmpty()}",
-                        buttonLabel = "Continue",
-                        onContinue = { step = KnsWizardStep.BANNER }
-                    )
-                }
-                KnsWizardStep.BANNER -> {
-                    KnsImageInscribeStep(
-                        viewModel = viewModel,
-                        title = "Let's set up a profile banner",
-                        subtitle = "Add a banner image to your profile, or skip for now.",
-                        isBanner = true,
-                        existingImageUrl = knsProfile?.bannerUrl,
-                        onDone = { step = KnsWizardStep.AVATAR }
-                    )
-                }
-                KnsWizardStep.AVATAR -> {
-                    KnsImageInscribeStep(
-                        viewModel = viewModel,
-                        title = "Let's inscribe your avatar photo",
-                        subtitle = "Add a profile photo, or skip for now.",
-                        isBanner = false,
-                        existingImageUrl = knsProfile?.avatarUrl,
-                        onDone = { step = KnsWizardStep.DETAILS }
-                    )
-                }
-                KnsWizardStep.DETAILS -> {
-                    KnsDetailsStep(viewModel = viewModel, existingProfile = knsProfile, onDone = { step = KnsWizardStep.FINISHED })
-                }
-                KnsWizardStep.FINISHED -> {
-                    KnsSimpleConfirmStep(
-                        message = "You have now finished your KNS profile creation!",
-                        buttonLabel = "Done",
-                        onContinue = onFinished
-                    )
-                }
+            }
+
+            // One bar, one place, on every step. `forwardAction` is null where the step advances
+            // by choosing something rather than by a Next - the button renders disabled there so
+            // it never moves between steps.
+            val forwardAction: (() -> Unit)? = when (step) {
+                KnsWizardStep.TRANSFER_EXISTING_DOMAIN -> ({ step = KnsWizardStep.PICK_DOMAIN })
+                KnsWizardStep.DOMAIN_CONFIRMED -> ({ step = KnsWizardStep.BANNER })
+                KnsWizardStep.BANNER -> ({ step = KnsWizardStep.AVATAR })
+                KnsWizardStep.AVATAR -> ({ step = KnsWizardStep.DETAILS })
+                KnsWizardStep.DETAILS -> ({ step = KnsWizardStep.FINISHED })
+                else -> null
+            }
+            if (step != KnsWizardStep.FINISHED && step != KnsWizardStep.CHECKING_FUNDS) {
+                KnsWizardBottomBar(
+                    onBack = step.previous?.let { previous -> { step = previous } },
+                    onNext = forwardAction,
+                )
             }
         }
     }
@@ -395,7 +408,6 @@ private fun KnsTransferExistingDomainStep(
     foundDomainCount: Int,
     isScanning: Boolean,
     onRefresh: () -> Unit,
-    onNext: () -> Unit,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -467,14 +479,6 @@ private fun KnsTransferExistingDomainStep(
                 style = MaterialTheme.typography.bodySmall,
                 color = LocalAppColors.current.textSecondary,
             )
-        }
-        Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.next), color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 
@@ -753,10 +757,6 @@ private fun KnsImageInscribeStep(
                 Text(stringResource(R.string.inscribe), color = Color.Black, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDone, enabled = !isSubmitting) {
-            Text(stringResource(R.string.skip), color = LocalAppColors.current.textSecondary)
-        }
     }
 }
 
@@ -859,10 +859,6 @@ private fun KnsDetailsStep(viewModel: WalletViewModel, existingProfile: KnsProfi
                 Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDone, enabled = !isSubmitting) {
-            Text(stringResource(R.string.skip), color = LocalAppColors.current.textSecondary)
-        }
     }
 }
 
@@ -924,7 +920,7 @@ private fun KnsDetailField(
 }
 
 @Composable
-private fun KnsSimpleConfirmStep(message: String, buttonLabel: String, onContinue: () -> Unit) {
+private fun KnsSimpleConfirmStep(message: String, buttonLabel: String?, onContinue: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -939,13 +935,15 @@ private fun KnsSimpleConfirmStep(message: String, buttonLabel: String, onContinu
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(32.dp))
-        Button(
-            onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(buttonLabel, color = Color.Black, fontWeight = FontWeight.Bold)
+        if (buttonLabel != null) {
+            Spacer(Modifier.height(32.dp))
+            Button(
+                onClick = onContinue,
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(buttonLabel, color = Color.Black, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -1069,6 +1067,46 @@ private fun KnsPickDomainStep(
                     }
                 }
             }
+        }
+    }
+}
+
+
+/**
+ * The wizard's fixed two-button footer: Previous left, Next right, same place on every step so it
+ * can be tapped through without chasing buttons. Matches the KaChat setup guide's bar.
+ *
+ * A disabled Previous renders dimmed rather than vanishing, so Next never moves between steps.
+ */
+@Composable
+fun KnsWizardBottomBar(
+    onBack: (() -> Unit)?,
+    onNext: (() -> Unit)?,
+    nextLabel: String = "Next",
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Button(
+            onClick = { onBack?.invoke() },
+            enabled = onBack != null,
+            modifier = Modifier.weight(1f),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LocalAppColors.current.surface,
+                contentColor = LocalAppColors.current.textPrimary,
+            ),
+        ) {
+            Text("Previous", fontWeight = FontWeight.Bold)
+        }
+        Button(
+            onClick = { onNext?.invoke() },
+            enabled = onNext != null,
+            modifier = Modifier.weight(1f),
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+        ) {
+            Text(nextLabel, fontWeight = FontWeight.Bold)
         }
     }
 }
