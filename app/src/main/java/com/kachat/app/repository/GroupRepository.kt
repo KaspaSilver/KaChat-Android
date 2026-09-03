@@ -1151,7 +1151,26 @@ class GroupRepository @Inject constructor(
         // re-import against the recovery invite.
         if (groupSecretStore.isTombstoned(walletAddress, payload.groupId)) return
         val existingBag = groupSecretStore.loadBag(walletAddress, payload.groupId)
-        if (existingBag != null && existingBag.currentEpoch > payload.epoch) return
+        if (existingBag != null && existingBag.currentEpoch > payload.epoch) {
+            // A root for an OLDER epoch is not an attack to drop on the floor - it is history
+            // this device may no longer hold. Archiving it is strictly additive (currentEpoch and
+            // the current root are untouched, so there is no downgrade), and it is what makes
+            // re-walking the control stream actually repair a thread: without it a refresh
+            // re-downloads pre-rotation ciphertext it still has no key for, which is why
+            // refreshing appeared to do nothing.
+            if (payload.groupRootEpoch.isNotBlank() &&
+                existingBag.previousRoots?.get(payload.epoch) != payload.groupRootEpoch
+            ) {
+                groupSecretStore.saveBag(
+                    walletAddress,
+                    existingBag.copy(
+                        previousRoots = existingBag.previousRoots.orEmpty() +
+                            (payload.epoch to payload.groupRootEpoch)
+                    )
+                )
+            }
+            return
+        }
         val isFirstTimeJoin = existingBag == null
 
         // device_id is persistent per device - preserve it across epoch-rotation updates to an
@@ -1329,26 +1348,59 @@ class GroupRepository @Inject constructor(
      * current epoch's root have to be in hand before messages are decrypted, or they are rejected
      * and the fresh cursor advances past them all over again.
      */
-    suspend fun forceRefreshGroup(groupId: String) {
+    suspend fun forceRefreshGroup(
+        groupId: String,
+        onProgress: (GroupRefreshPhase) -> Unit = {},
+    ): Int {
         val walletAddress = walletManager.getAddress()
-        val api = networkService.indexerApi.value ?: return
-        database.groupDao().deleteGroupSyncCursorsWithPrefix(walletAddress, "gcomm|$groupId|")
+        val api = networkService.indexerApi.value ?: return 0
+        val group = database.groupDao().getGroup(groupId, walletAddress) ?: return 0
+        val messagesBefore = database.groupDao().getMessagesOnce(groupId, walletAddress).size
 
-        val group = database.groupDao().getGroup(groupId, walletAddress) ?: return
+        // Drop every cursor this repair depends on - and the CONTROL streams matter more than
+        // the message ones. Dropping only "gcomm" re-downloaded pre-rotation ciphertext while
+        // the control cursors stayed put, so the epoch roots needed to read it were never
+        // re-acquired: the refresh did real work and changed nothing you could see.
+        val controlKeys = buildList {
+            add("gctl-recipient|${walletAddress.lowercase()}")
+            if (group.adminAddress.isNotBlank()) add("gctl|${group.adminAddress.lowercase()}")
+        }
+        database.groupDao().deleteGroupSyncCursorsWithPrefix(walletAddress, "gcomm|$groupId|")
+        for (key in controlKeys) database.groupDao().deleteGroupSyncCursorsWithPrefix(walletAddress, key)
+        // Clear the one-shot deep-backfill marks too, or each walk stops at the first page
+        // instead of going back through the whole stream.
+        deepBackfilledGroupKeys.removeAll { it.startsWith("gcomm|$groupId|") || it in controlKeys }
+
+        onProgress(GroupRefreshPhase.Invites)
         runCatching { syncGroupControlByRecipient(api, walletAddress) }
+        onProgress(GroupRefreshPhase.Control)
         if (group.adminAddress.isNotBlank()) {
             runCatching { syncGroupControlBySender(api, walletAddress, group.adminAddress) }
         }
 
         // Re-read: control catch-up may have changed the roster or the epoch.
-        val refreshed = database.groupDao().getGroup(groupId, walletAddress) ?: return
-        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: return
+        val refreshed = database.groupDao().getGroup(groupId, walletAddress) ?: return 0
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: return 0
         val blindingKey = bag.blindingKey.hexToByteArray()
-        for (member in gson.fromJson(refreshed.membersJson, Array<GroupMember>::class.java).orEmpty()) {
-            val memberPub = runCatching { member.xOnlyPubKeyHex.hexToByteArray() }.getOrNull() ?: continue
-            val blinded = GroupCipher.deriveBlindedGroupId(blindingKey, memberPub).toHexString()
-            runCatching { syncGroupMessages(api, walletAddress, groupId, blinded) }
+        val members = gson.fromJson(refreshed.membersJson, Array<GroupMember>::class.java).orEmpty()
+        members.forEachIndexed { index, member ->
+            onProgress(GroupRefreshPhase.Messages(index, members.size))
+            val memberPub = runCatching { member.xOnlyPubKeyHex.hexToByteArray() }.getOrNull()
+            if (memberPub != null) {
+                val blinded = GroupCipher.deriveBlindedGroupId(blindingKey, memberPub).toHexString()
+                runCatching { syncGroupMessages(api, walletAddress, groupId, blinded) }
+            }
         }
+        onProgress(GroupRefreshPhase.Rebuilding)
+        return database.groupDao().getMessagesOnce(groupId, walletAddress).size - messagesBefore
+    }
+
+    /** What [forceRefreshGroup] is doing right now, for its progress sheet. */
+    sealed interface GroupRefreshPhase {
+        data object Invites : GroupRefreshPhase
+        data object Control : GroupRefreshPhase
+        data class Messages(val done: Int, val total: Int) : GroupRefreshPhase
+        data object Rebuilding : GroupRefreshPhase
     }
 
     /**

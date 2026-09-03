@@ -99,6 +99,8 @@ import com.kachat.app.models.displayName
 import com.kachat.app.models.avatarFallbackText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.repository.GroupMessage
 import com.kachat.app.repository.isSystemMessage
@@ -1625,6 +1627,7 @@ fun GroupChatInfoScreen(
     val groupMentionsOnly by chatViewModel.groupMentionsOnly.collectAsState()
     val groupSilent by chatViewModel.groupSilent.collectAsState()
     val refreshingGroupIds by chatViewModel.refreshingGroupIds.collectAsState()
+    val groupRefreshState by chatViewModel.groupRefreshState.collectAsState()
     val members = remember(group?.membersJson) {
         group?.let(::parseGroupMembers) ?: emptyList()
     }
@@ -1632,6 +1635,62 @@ fun GroupChatInfoScreen(
     LaunchedEffect(group?.groupId) {
         val addresses = group?.let(::parseGroupMembers)?.map { it.address } ?: return@LaunchedEffect
         chatViewModel.refreshKnsProfilesForGroupMembers(addresses)
+    }
+
+    // Blocking progress for "Refresh Messages". The repair walks the invite stream, then every
+    // epoch key, then each member's message stream from the very beginning - real work that took
+    // real time behind a spinner too small to mean anything, which is why the button read as
+    // doing nothing even when it worked.
+    val refreshState = groupRefreshState?.takeIf { it.groupId == groupId }
+    if (refreshState != null) {
+        val state = refreshState
+        Dialog(
+            onDismissRequest = { if (state.recovered != null) chatViewModel.clearGroupRefreshState() },
+            properties = DialogProperties(dismissOnBackPress = state.recovered != null, dismissOnClickOutside = false)
+        ) {
+            Column(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(LocalAppColors.current.surface)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val recovered = state.recovered
+                if (recovered != null) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(36.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("Refresh complete", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (recovered > 0) {
+                            "Recovered $recovered message${if (recovered == 1) "" else "s"} this device had not been able to read."
+                        } else {
+                            "This group was already fully up to date."
+                        },
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(onClick = { chatViewModel.clearGroupRefreshState() }) {
+                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+                    Spacer(Modifier.height(14.dp))
+                    Text("Rebuilding this group", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(state.label, color = LocalAppColors.current.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Re-reading the whole group from the chain, the same way importing your seed phrase does. Leaving now would stop it partway.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
     }
 
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -1868,7 +1927,7 @@ fun GroupChatInfoScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Refresh Messages", color = LocalAppColors.current.textPrimary)
                     Text(
-                        "Re-fetches this group from the start, recovering anything an earlier sync passed over.",
+                        "Rebuilds this group from the chain exactly as importing your seed phrase would, recovering anything an earlier sync passed over or could not decrypt at the time.",
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 12.sp
                     )

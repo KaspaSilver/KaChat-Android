@@ -1448,15 +1448,44 @@ class ChatViewModel @Inject constructor(
     private val _refreshingGroupIds = MutableStateFlow<Set<String>>(emptySet())
     val refreshingGroupIds: StateFlow<Set<String>> = _refreshingGroupIds.asStateFlow()
 
+    /**
+     * Live state for [refreshGroup]'s progress sheet: which group, what it is doing, and - once
+     * finished - how many messages the rebuild recovered. Null while idle.
+     */
+    data class GroupRefreshState(
+        val groupId: String,
+        val phase: com.kachat.app.repository.GroupRepository.GroupRefreshPhase?,
+        val recovered: Int? = null,
+    ) {
+        val label: String
+            get() = when (val p = phase) {
+                is com.kachat.app.repository.GroupRepository.GroupRefreshPhase.Invites -> "Re-reading your group invites"
+                is com.kachat.app.repository.GroupRepository.GroupRefreshPhase.Control -> "Re-reading roster and epoch keys"
+                is com.kachat.app.repository.GroupRepository.GroupRefreshPhase.Messages -> "Re-fetching messages (${p.done} of ${p.total} members)"
+                is com.kachat.app.repository.GroupRepository.GroupRefreshPhase.Rebuilding -> "Decrypting history"
+                null -> "Starting"
+            }
+    }
+
+    private val _groupRefreshState = MutableStateFlow<GroupRefreshState?>(null)
+    val groupRefreshState: StateFlow<GroupRefreshState?> = _groupRefreshState.asStateFlow()
+
+    fun clearGroupRefreshState() { _groupRefreshState.value = null }
+
     /** Re-fetches one group from the start - see GroupRepository.forceRefreshGroup. */
     fun refreshGroup(groupId: String) {
         if (groupId in _refreshingGroupIds.value) return
         viewModelScope.launch {
             _refreshingGroupIds.value = _refreshingGroupIds.value + groupId
+            _groupRefreshState.value = GroupRefreshState(groupId, null)
             try {
-                groupRepository.forceRefreshGroup(groupId)
+                val recovered = groupRepository.forceRefreshGroup(groupId) { phase ->
+                    _groupRefreshState.value = GroupRefreshState(groupId, phase)
+                }
+                _groupRefreshState.value = GroupRefreshState(groupId, null, recovered = maxOf(0, recovered))
             } catch (e: Exception) {
                 Log.w("ChatViewModel", "Group refresh failed", e)
+                _groupRefreshState.value = GroupRefreshState(groupId, null, recovered = 0)
             } finally {
                 _refreshingGroupIds.value = _refreshingGroupIds.value - groupId
             }
