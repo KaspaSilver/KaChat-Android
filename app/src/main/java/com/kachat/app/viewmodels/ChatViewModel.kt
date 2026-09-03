@@ -1146,36 +1146,49 @@ class ChatViewModel @Inject constructor(
      * @param knsName The domain name to display, if this contact was added via KNS.
      */
     // -------------------------------------------------------------------------
-    // KaPosts connections (create-chat shortcuts)
+    // Contacts picker (create-chat shortcuts)
     // -------------------------------------------------------------------------
 
-    /** One person from the KaPosts follow graph, offered as a one-tap chat target. */
-    data class KaPostsConnection(
+    /**
+     * One person you can start a chat with: someone already in your address book, or someone
+     * from your KaPosts follow graph, or both.
+     */
+    data class PickerContact(
         val address: String,
+        /** The contact's stored name, following [com.kachat.app.models.displayName]'s first two
+         *  tiers - null when nothing is stored and the row falls back to their KNS profile. */
+        val storedName: String?,
         val youFollow: Boolean,
         val followsYou: Boolean
     )
 
-    private val _kaPostsConnections = MutableStateFlow<List<KaPostsConnection>>(emptyList())
-    val kaPostsConnections: StateFlow<List<KaPostsConnection>> = _kaPostsConnections.asStateFlow()
+    private val _pickerContacts = MutableStateFlow<List<PickerContact>>(emptyList())
+    val pickerContacts: StateFlow<List<PickerContact>> = _pickerContacts.asStateFlow()
 
     /** Starts true so create-chat renders the section on first frame; the loader clears it. */
-    private val _isLoadingKaPostsConnections = MutableStateFlow(true)
-    val isLoadingKaPostsConnections: StateFlow<Boolean> = _isLoadingKaPostsConnections.asStateFlow()
+    private val _isLoadingPickerContacts = MutableStateFlow(true)
+    val isLoadingPickerContacts: StateFlow<Boolean> = _isLoadingPickerContacts.asStateFlow()
 
-    private var kaPostsConnectionsLoaded = false
+    private var pickerContactsLoaded = false
 
     /**
-     * Both follow lists for our own K identity, merged with the locally-stored follows the
-     * indexer may not have caught up on. Only our own address is dropped - a contact row is no
-     * evidence of an actual chat here, since opening someone's KaPosts profile, a broadcast
-     * sender and a payment counterparty all create one.
+     * Everyone you could plausibly want to message: your address book first, so the list is
+     * useful on the first frame, then both follow lists for our own K identity merged in (along
+     * with the locally-stored follows the indexer may not have caught up on). A chat you had
+     * months ago is buried far down the chat list, so it belongs here next to the people you
+     * follow. Only our own address is dropped.
      */
-    fun loadKaPostsConnections() {
-        if (kaPostsConnectionsLoaded) return
-        kaPostsConnectionsLoaded = true
+    fun loadPickerContacts() {
+        if (pickerContactsLoaded) return
+        pickerContactsLoaded = true
         viewModelScope.launch {
             val myAddress = walletManager.getAddress()
+            val storedNames = chatRepository.getContacts().first()
+                .filter { it.id != myAddress }
+                .associate { it.id to (it.alias ?: it.knsName) }
+            publishPickerContacts(storedNames, storedNames.keys, emptySet(), emptySet())
+            _isLoadingPickerContacts.value = false
+
             val youFollow = (settings.kapostsFollowing(myAddress).first()).toMutableSet()
             val followsYou = mutableSetOf<String>()
 
@@ -1198,17 +1211,18 @@ class ChatViewModel @Inject constructor(
                 }
             }
 
-            val addresses = (youFollow + followsYou) - setOf(myAddress)
-            _kaPostsConnections.value = addresses
-                .map { KaPostsConnection(it, it in youFollow, it in followsYou) }
-                .sortedBy { it.address.lowercase() }
-            _isLoadingKaPostsConnections.value = false
+            publishPickerContacts(
+                storedNames,
+                (storedNames.keys + youFollow + followsYou) - setOf(myAddress),
+                youFollow,
+                followsYou,
+            )
 
             // Names and avatars for the rows, into the same profile map the preview card reads.
             // Deliberately sequential and in this coroutine: `refreshKnsProfile` launches one
             // coroutine per call, and a follow graph in the hundreds would fire that many KNS
             // round trips at once. The list renders immediately and names fill in behind it.
-            for (connection in _kaPostsConnections.value) {
+            for (connection in _pickerContacts.value) {
                 if (_knsProfiles.value.containsKey(connection.address)) continue
                 val assets = runCatching { knsService.getOwnedDomainsCached(connection.address) }
                     .getOrNull().orEmpty()
@@ -1228,6 +1242,24 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun publishPickerContacts(
+        storedNames: Map<String, String?>,
+        addresses: Set<String>,
+        youFollow: Set<String>,
+        followsYou: Set<String>,
+    ) {
+        _pickerContacts.value = addresses
+            .map {
+                PickerContact(
+                    address = it,
+                    storedName = storedNames[it],
+                    youFollow = it in youFollow,
+                    followsYou = it in followsYou,
+                )
+            }
+            .sortedBy { (it.storedName ?: it.address).lowercase() }
     }
 
     fun addContact(address: String, name: String?, knsName: String? = null) {

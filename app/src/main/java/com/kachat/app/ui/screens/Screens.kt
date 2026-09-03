@@ -10190,11 +10190,11 @@ fun CreateChatScreen(
     // Existing contacts (via conversations) shown in the group member picker.
     val conversations by chatViewModel.conversations.collectAsState()
     // KaPosts follow graph, offered as one-tap chat targets under the Address field.
-    val kaPostsConnections by chatViewModel.kaPostsConnections.collectAsState()
-    val isLoadingKaPostsConnections by chatViewModel.isLoadingKaPostsConnections.collectAsState()
-    var isSearchingKaPostsConnections by remember { mutableStateOf(false) }
-    var kaPostsSearchText by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) { chatViewModel.loadKaPostsConnections() }
+    val pickerContacts by chatViewModel.pickerContacts.collectAsState()
+    val isLoadingPickerContacts by chatViewModel.isLoadingPickerContacts.collectAsState()
+    var isSearchingPickerContacts by remember { mutableStateOf(false) }
+    var pickerSearchText by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) { chatViewModel.loadPickerContacts() }
 
     val context = LocalContext.current
     // Reads the picked contact's data via the /entities sub-path of the URI the system picker
@@ -10670,9 +10670,10 @@ fun CreateChatScreen(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            // Everyone in your KaPosts follow graph, both directions. Hidden while empty so the
-            // screen stays a plain address form for anyone who does not use KaPosts.
-            if (isLoadingKaPostsConnections || kaPostsConnections.isNotEmpty()) {
+            // Your existing chats plus both directions of your KaPosts follow graph. A chat you
+            // had months ago is buried far down the chat list, so it belongs here next to the
+            // people you follow. Hidden while empty so the screen stays a plain address form.
+            if (isLoadingPickerContacts || pickerContacts.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Row(
@@ -10680,23 +10681,23 @@ fun CreateChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "From KaPosts",
+                        text = "Contacts",
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(Modifier.weight(1f))
-                    if (kaPostsConnections.isNotEmpty()) {
+                    if (pickerContacts.isNotEmpty()) {
                         IconButton(
                             onClick = {
-                                isSearchingKaPostsConnections = !isSearchingKaPostsConnections
-                                if (!isSearchingKaPostsConnections) kaPostsSearchText = ""
+                                isSearchingPickerContacts = !isSearchingPickerContacts
+                                if (!isSearchingPickerContacts) pickerSearchText = ""
                             },
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                if (isSearchingKaPostsConnections) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = if (isSearchingKaPostsConnections) "Close search" else "Search connections",
+                                if (isSearchingPickerContacts) Icons.Default.Close else Icons.Default.Search,
+                                contentDescription = if (isSearchingPickerContacts) "Close search" else "Search contacts",
                                 tint = LocalAppColors.current.textSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -10706,7 +10707,7 @@ fun CreateChatScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (kaPostsConnections.isEmpty()) {
+                if (pickerContacts.isEmpty()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(
                             color = KaspaTeal,
@@ -10715,17 +10716,17 @@ fun CreateChatScreen(
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Loading connections...",
+                            "Loading contacts...",
                             color = LocalAppColors.current.textSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 } else {
-                    if (isSearchingKaPostsConnections) {
+                    if (isSearchingPickerContacts) {
                         TextField(
-                            value = kaPostsSearchText,
-                            onValueChange = { kaPostsSearchText = it },
-                            placeholder = { Text("Search connections", color = Color.DarkGray) },
+                            value = pickerSearchText,
+                            onValueChange = { pickerSearchText = it },
+                            placeholder = { Text("Search contacts", color = Color.DarkGray) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Search,
@@ -10751,18 +10752,19 @@ fun CreateChatScreen(
                         Spacer(Modifier.height(8.dp))
                     }
 
-                    val query = kaPostsSearchText.trim().lowercase()
-                    val shownConnections = if (!isSearchingKaPostsConnections || query.isEmpty()) {
-                        kaPostsConnections
+                    val query = pickerSearchText.trim().lowercase()
+                    val shownContacts = if (!isSearchingPickerContacts || query.isEmpty()) {
+                        pickerContacts
                     } else {
-                        kaPostsConnections.filter { connection ->
-                            val name = knsProfilesForPreview[connection.address]?.selectedDomain
+                        pickerContacts.filter { connection ->
+                            val name = connection.storedName
+                                ?: knsProfilesForPreview[connection.address]?.selectedDomain
                             (name?.lowercase()?.contains(query) == true) ||
                                 connection.address.lowercase().contains(query)
                         }
                     }
 
-                    if (shownConnections.isEmpty()) {
+                    if (shownContacts.isEmpty()) {
                         Text(
                             "No matches",
                             color = LocalAppColors.current.textSecondary,
@@ -10775,9 +10777,12 @@ fun CreateChatScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(LocalAppColors.current.surface)
                         ) {
-                            shownConnections.forEach { connection ->
+                            shownContacts.forEach { connection ->
                                 val profile = knsProfilesForPreview[connection.address]
-                                val rowName = profile?.selectedDomain
+                                // Assigned name, else KNS domain, else short address - the same
+                                // rule ContactEntity.displayName applies everywhere else.
+                                val rowName = connection.storedName
+                                    ?: profile?.selectedDomain
                                     ?: KaspaAddress.shortDisplay(connection.address)
                                 Row(
                                     modifier = Modifier
@@ -10788,7 +10793,8 @@ fun CreateChatScreen(
                                 ) {
                                     ContactAvatar(
                                         imageUrl = profile?.profile?.avatarUrl,
-                                        fallbackText = profile?.selectedDomain
+                                        fallbackText = connection.storedName
+                                            ?: profile?.selectedDomain
                                             ?: connection.address.takeLast(8),
                                         size = 36.dp,
                                     )
@@ -10802,11 +10808,16 @@ fun CreateChatScreen(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )
+                                        // The follow relationship when there is one, since that
+                                        // is the thing you would not otherwise know; the address
+                                        // for someone you simply have a chat with, where the name
+                                        // above it is already the useful part.
                                         Text(
                                             when {
                                                 connection.youFollow && connection.followsYou -> "You follow each other"
                                                 connection.youFollow -> "You follow them"
-                                                else -> "Follows you"
+                                                connection.followsYou -> "Follows you"
+                                                else -> KaspaAddress.shortDisplay(connection.address)
                                             },
                                             color = LocalAppColors.current.textSecondary,
                                             fontSize = 11.sp,
