@@ -1167,8 +1167,9 @@ class ChatViewModel @Inject constructor(
 
     /**
      * Both follow lists for our own K identity, merged with the locally-stored follows the
-     * indexer may not have caught up on. People already in the address book are dropped: they
-     * already have a row on the chat list, so offering them here would only be noise.
+     * indexer may not have caught up on. Only our own address is dropped - a contact row is no
+     * evidence of an actual chat here, since opening someone's KaPosts profile, a broadcast
+     * sender and a payment counterparty all create one.
      */
     fun loadKaPostsConnections() {
         if (kaPostsConnectionsLoaded) return
@@ -1181,11 +1182,11 @@ class ChatViewModel @Inject constructor(
             for (wantFollowers in listOf(false, true)) {
                 val pubkey = runCatching { kaPostsService.requesterPubkey() }.getOrNull() ?: break
                 var cursor: String? = null
-                var pagesLeft = 5 // 250 accounts per direction, far beyond any real follow list
+                var pagesLeft = 5 // 500 accounts per direction, far beyond any real follow list
                 while (pagesLeft > 0) {
                     pagesLeft--
                     val page = runCatching {
-                        kaPostsService.fetchFollowListPage(pubkey, wantFollowers, 50, cursor)
+                        kaPostsService.fetchFollowListPage(pubkey, wantFollowers, 100, cursor)
                     }.getOrNull() ?: break
                     for (user in page.items) {
                         val addr = com.kachat.app.services.KaPostsService
@@ -1197,16 +1198,35 @@ class ChatViewModel @Inject constructor(
                 }
             }
 
-            val known = chatRepository.getContacts().first().map { it.id }.toSet()
-            val addresses = (youFollow + followsYou) - known - setOf(myAddress)
+            val addresses = (youFollow + followsYou) - setOf(myAddress)
             _kaPostsConnections.value = addresses
                 .map { KaPostsConnection(it, it in youFollow, it in followsYou) }
                 .sortedBy { it.address.lowercase() }
             _isLoadingKaPostsConnections.value = false
 
-            // Names and avatars for the rows: same profile cache the chat list reads. Bounded -
-            // each one is a couple of KNS round trips, and the list is a picker, not a feed.
-            _kaPostsConnections.value.take(40).forEach { refreshKnsProfile(it.address) }
+            // Names and avatars for the rows, into the same profile map the preview card reads.
+            // Deliberately sequential and in this coroutine: `refreshKnsProfile` launches one
+            // coroutine per call, and a follow graph in the hundreds would fire that many KNS
+            // round trips at once. The list renders immediately and names fill in behind it.
+            for (connection in _kaPostsConnections.value) {
+                if (_knsProfiles.value.containsKey(connection.address)) continue
+                val assets = runCatching { knsService.getOwnedDomainsCached(connection.address) }
+                    .getOrNull().orEmpty()
+                val names = assets.mapNotNull { it.asset }
+                if (names.isEmpty()) {
+                    _knsProfiles.update { it + (connection.address to KnsProfileUiState()) }
+                    continue
+                }
+                val explicitPrimary = runCatching {
+                    knsService.getExplicitPrimaryDomain(connection.address)
+                }.getOrNull()
+                val active = KnsService.pickActiveDomain(names, null, explicitPrimary ?: names.first())
+                val assetId = assets.firstOrNull { it.asset == active }?.assetId
+                val profile = assetId?.let { runCatching { knsService.getProfile(it) }.getOrNull() }
+                _knsProfiles.update {
+                    it + (connection.address to KnsProfileUiState(names, active, profile, explicitPrimary))
+                }
+            }
         }
     }
 

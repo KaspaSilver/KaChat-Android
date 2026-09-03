@@ -10378,7 +10378,7 @@ fun CreateChatScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 24.dp)
-                .let { if (isGroupMode) it.verticalScroll(rememberScrollState()) else it }
+                .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
