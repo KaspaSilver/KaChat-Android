@@ -1201,6 +1201,7 @@ private fun groupMessagePreviewText(
     VoiceMessage.parseAnyFileOrNull(body)?.let {
         return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
     }
+    com.kachat.app.util.NextcloudShareSniff.previewLabel(body)?.let { return it }
     return GroupMentionCodec.decodeForDisplay(body, members, resolve)
 }
 
@@ -1222,6 +1223,7 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
     VoiceMessage.parseAnyFileOrNull(body)?.let {
         return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
     }
+    com.kachat.app.util.NextcloudShareSniff.previewLabel(body)?.let { return it }
     return body
 }
 
