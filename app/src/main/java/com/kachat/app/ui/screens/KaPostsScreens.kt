@@ -4237,12 +4237,12 @@ private fun KaPostsMenuIcon(
     contentDescription: String,
     onClick: () -> Unit,
 ) {
-    IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
+    IconButton(onClick = onClick, modifier = Modifier.size(46.dp)) {
         Icon(
             icon,
             contentDescription = contentDescription,
             tint = LocalAppColors.current.textPrimary,
-            modifier = Modifier.size(21.dp),
+            modifier = Modifier.size(26.dp),
         )
     }
 }
