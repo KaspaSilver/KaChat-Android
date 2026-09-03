@@ -2092,25 +2092,41 @@ fun KaPostComposerDialog(
                         },
                     )
                 }
-                if (threadingEnabled && text.text.isNotBlank()) {
-                    Box(
+            }
+            // Below the field, not floating inside it. As an overlay it covered the bottom-right
+            // of the text area, so a post long enough to reach that corner ran underneath it -
+            // the one place in the composer where your own words could be hidden.
+            if (threadingEnabled && text.text.isNotBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(10.dp)
-                            .size(34.dp)
                             .clip(RoundedCornerShape(50))
                             .background(KaspaTeal.copy(alpha = 0.15f))
                             .clickable {
                                 threadSegments = threadSegments + text.text.trim()
                                 text = TextFieldValue("")
-                            },
-                        contentAlignment = Alignment.Center,
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("＋", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            tint = KaspaTeal,
+                            modifier = Modifier.size(17.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Add to thread", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             quoted?.let {
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     QuotedEmbedCard(
