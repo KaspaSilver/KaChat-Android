@@ -64,8 +64,41 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.launch
 import com.kachat.app.util.showAddressCopiedToast
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.Refresh
 
-private enum class KnsWizardStep { CHECKING_FUNDS, NEEDS_FUNDING, DOMAIN, TRANSFER_EXISTING_DOMAIN, DOMAIN_CONFIRMED, BANNER, AVATAR, DETAILS, FINISHED }
+private enum class KnsWizardStep {
+    /** The fork the whole wizard hangs off - see [KnsHaveDomainStep]. */
+    HAVE_DOMAIN,
+    CHECKING_FUNDS,
+    NEEDS_FUNDING,
+    DOMAIN,
+    TRANSFER_EXISTING_DOMAIN,
+    /** Which of the domains now on this address to build the profile around. */
+    PICK_DOMAIN,
+    DOMAIN_CONFIRMED,
+    BANNER,
+    AVATAR,
+    DETAILS,
+    FINISHED;
+
+    /** Where Back goes. Null means this step has no previous - the first screen, and the end. */
+    val previous: KnsWizardStep?
+        get() = when (this) {
+            HAVE_DOMAIN, CHECKING_FUNDS, FINISHED -> null
+            NEEDS_FUNDING, DOMAIN, TRANSFER_EXISTING_DOMAIN -> HAVE_DOMAIN
+            PICK_DOMAIN -> TRANSFER_EXISTING_DOMAIN
+            DOMAIN_CONFIRMED -> PICK_DOMAIN
+            BANNER -> DOMAIN_CONFIRMED
+            AVATAR -> BANNER
+            DETAILS -> AVATAR
+        }
+}
 
 /** Fixed UX gate, not derived from live KNS fee tiers - deliberately generous relative to a
  *  domain's actual commit+reveal cost so the flow doesn't fail partway through from insufficient
@@ -83,9 +116,12 @@ private const val MINIMUM_FUNDING_BALANCE_KAS = 50.0
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> Unit) {
-    var step by remember { mutableStateOf(KnsWizardStep.CHECKING_FUNDS) }
+    var step by remember { mutableStateOf(KnsWizardStep.HAVE_DOMAIN) }
     var domainName by remember { mutableStateOf<String?>(null) }
     var currentBalanceKas by remember { mutableStateOf(0.0) }
+    // Domains found on the chatting address, refreshed by the transfer screen's Refresh button.
+    var foundDomains by remember { mutableStateOf(emptyList<com.kachat.app.services.KnsAsset>()) }
+    var isScanningDomains by remember { mutableStateOf(false) }
 
     val chattingAddress by viewModel.address.collectAsState()
     val activeProfileDomainName by viewModel.activeProfileDomainName.collectAsState()
@@ -100,15 +136,38 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
         step = if (kas >= MINIMUM_FUNDING_BALANCE_KAS) KnsWizardStep.DOMAIN else KnsWizardStep.NEEDS_FUNDING
     }
 
-    LaunchedEffect(Unit) { checkFunding() }
+    // Re-reads the domains sitting on the chatting address, bypassing the cache: the whole
+    // point of the Refresh button is to see a transfer that just landed.
+    suspend fun scanForDomains() {
+        isScanningDomains = true
+        try {
+            viewModel.refreshOwnedDomainsAndAwait()
+            foundDomains = viewModel.ownedDomainAssets.value
+        } finally {
+            isScanningDomains = false
+        }
+    }
+
+    // No funding check on open: only the "I need one" branch needs funds, so that check moved
+    // into it. Someone bringing a domain they already own was being gated on a balance that
+    // transferring one never touches.
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.create_kns_profile), color = LocalAppColors.current.textPrimary) },
                 navigationIcon = {
-                    IconButton(onClick = onFinished) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = LocalAppColors.current.textPrimary)
+                    // Back where there is somewhere to go, Close at the ends. Every step here is
+                    // reversible, so getting one wrong should cost a tap, not a restart.
+                    val previous = step.previous
+                    if (previous != null) {
+                        IconButton(onClick = { step = previous }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = LocalAppColors.current.textPrimary)
+                        }
+                    } else {
+                        IconButton(onClick = onFinished) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = LocalAppColors.current.textPrimary)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)
@@ -118,6 +177,24 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (step) {
+                KnsWizardStep.HAVE_DOMAIN -> {
+                    KnsHaveDomainStep(
+                        onYes = {
+                            step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
+                            scope.launch { scanForDomains() }
+                        },
+                        onNo = { scope.launch { checkFunding() } },
+                    )
+                }
+                KnsWizardStep.PICK_DOMAIN -> {
+                    KnsPickDomainStep(
+                        domains = foundDomains,
+                        onPick = { domain ->
+                            domainName = domain.asset
+                            step = KnsWizardStep.DOMAIN_CONFIRMED
+                        },
+                    )
+                }
                 KnsWizardStep.CHECKING_FUNDS -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -135,7 +212,13 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                         chattingAddress = chattingAddress,
                         existingDomain = activeProfileDomainName,
                         onCheckAgain = { scope.launch { checkFunding() } },
-                        onAlreadyHaveDomain = { step = KnsWizardStep.DOMAIN }
+                        // Joins the Yes branch rather than the creation screen: someone with a
+                        // domain elsewhere needs the transfer flow, not a purchase they cannot
+                        // afford - which is the very screen they are looking at.
+                        onAlreadyHaveDomain = {
+                            step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
+                            scope.launch { scanForDomains() }
+                        }
                     )
                 }
                 KnsWizardStep.DOMAIN -> {
@@ -150,13 +233,21 @@ fun KnsCreateProfileWizardScreen(viewModel: WalletViewModel, onFinished: () -> U
                             domainName = result.domain
                             step = KnsWizardStep.DOMAIN_CONFIRMED
                         },
-                        onTransferExisting = { step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN }
+                        // Someone can answer No and only then remember they own one, so this
+                        // joins the Yes branch rather than being a dead end.
+                        onTransferExisting = {
+                            step = KnsWizardStep.TRANSFER_EXISTING_DOMAIN
+                            scope.launch { scanForDomains() }
+                        }
                     )
                 }
                 KnsWizardStep.TRANSFER_EXISTING_DOMAIN -> {
                     KnsTransferExistingDomainStep(
                         chattingAddress = chattingAddress,
-                        onNext = { step = KnsWizardStep.BANNER }
+                        foundDomainCount = foundDomains.size,
+                        isScanning = isScanningDomains,
+                        onRefresh = { scope.launch { scanForDomains() } },
+                        onNext = { step = KnsWizardStep.PICK_DOMAIN }
                     )
                 }
                 KnsWizardStep.DOMAIN_CONFIRMED -> {
@@ -299,8 +390,13 @@ private fun KnsFundingGateStep(
  *  than ending it - the domain being handled off-app doesn't mean the rest of the profile isn't
  *  still worth setting up. */
 @Composable
-private fun KnsTransferExistingDomainStep(chattingAddress: String?, onNext: () -> Unit) {
-    var showQr by remember { mutableStateOf(false) }
+private fun KnsTransferExistingDomainStep(
+    chattingAddress: String?,
+    foundDomainCount: Int,
+    isScanning: Boolean,
+    onRefresh: () -> Unit,
+    onNext: () -> Unit,
+) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
@@ -309,10 +405,8 @@ private fun KnsTransferExistingDomainStep(chattingAddress: String?, onNext: () -
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
-        Spacer(Modifier.height(20.dp))
         Text(
-            stringResource(R.string.transfer_your_domain),
+            "Send your domain here",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = LocalAppColors.current.textPrimary,
@@ -326,7 +420,19 @@ private fun KnsTransferExistingDomainStep(chattingAddress: String?, onNext: () -
             textAlign = TextAlign.Center
         )
         if (chattingAddress != null) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(18.dp))
+            // The QR is the point of this screen, so it is here at a size you can scan from
+            // another device rather than behind a "Show QR Code" button.
+            Image(
+                painter = rememberQrBitmapPainter(chattingAddress),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(220.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White)
+                    .padding(12.dp),
+            )
+            Spacer(Modifier.height(14.dp))
             Text(stringResource(R.string.chatting_address_2), style = MaterialTheme.typography.bodySmall, color = LocalAppColors.current.textSecondary)
             Text(
                 chattingAddress,
@@ -340,14 +446,29 @@ private fun KnsTransferExistingDomainStep(chattingAddress: String?, onNext: () -
                     }
                     .padding(horizontal = 16.dp)
             )
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { showQr = true }) {
-                Icon(Icons.Default.QrCode, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.height(10.dp))
+            // A transfer lands whenever it lands - this is how you find out without leaving the
+            // wizard and coming back.
+            TextButton(onClick = onRefresh, enabled = !isScanning) {
+                if (isScanning) {
+                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                }
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.show_qr_code), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                Text(if (isScanning) "Checking..." else "Refresh", color = KaspaTeal, fontWeight = FontWeight.Bold)
             }
+            Text(
+                if (foundDomainCount == 0) {
+                    "No domains on this address yet."
+                } else {
+                    "$foundDomainCount domain${if (foundDomainCount == 1) "" else "s"} found on this address."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalAppColors.current.textSecondary,
+            )
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
         Button(
             onClick = onNext,
             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
@@ -357,15 +478,7 @@ private fun KnsTransferExistingDomainStep(chattingAddress: String?, onNext: () -
         }
     }
 
-    if (showQr && chattingAddress != null) {
-        QrCodeOverlay(
-            value = chattingAddress,
-            onDismiss = { showQr = false },
-            message = stringResource(R.string.transfer_your_domain_to_this_address),
-            borderColor = KaspaTeal,
-            borderWidth = 4.dp
-        )
-    }
+
 }
 
 /** Mirrors `KnsDomainsScreen`'s inscribe `AlertDialog` availability-check/fee/submit logic
@@ -842,5 +955,120 @@ private fun formatKasWizard(value: Double): String {
         value.toLong().toString()
     } else {
         "%.4f".format(java.util.Locale.US, value)
+    }
+}
+
+
+/**
+ * The wizard's fork. Two buttons, no default: guessing wrong here sends someone down a funding
+ * gate they do not need, or a purchase flow for a domain they already own.
+ */
+@Composable
+private fun KnsHaveDomainStep(onYes: () -> Unit, onNo: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.weight(1f))
+        Text(
+            "Do you already have a domain?",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "A KNS domain is your name on Kaspa. If you own one already, you can bring it here instead of buying another.",
+            color = colors.textSecondary,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.weight(1f))
+        Button(
+            onClick = onYes,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+        ) {
+            Text("Yes, I have one", fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = onNo,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = KaspaTeal.copy(alpha = 0.15f),
+                contentColor = KaspaTeal,
+            ),
+        ) {
+            Text("No, I need one", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/**
+ * Which domain to build the profile around. Only useful with domains in hand; the Refresh on the
+ * previous screen is what puts them there.
+ */
+@Composable
+private fun KnsPickDomainStep(
+    domains: List<com.kachat.app.services.KnsAsset>,
+    onPick: (com.kachat.app.services.KnsAsset) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        Text(
+            "Which domain should this profile use?",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(20.dp))
+        if (domains.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("No domains on this address yet", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Go back and use Refresh once the transfer lands.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(domains, key = { it.assetId ?: it.asset.orEmpty() }) { domain ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(colors.surface)
+                            .clickable { onPick(domain) }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            domain.asset.orEmpty(),
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
