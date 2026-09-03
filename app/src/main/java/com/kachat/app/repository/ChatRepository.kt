@@ -11,6 +11,7 @@ import com.kachat.app.models.MessageSyncCursorEntity
 import com.kachat.app.models.PhotoAutoDisplayMode
 import com.kachat.app.models.ReactionEntity
 import com.kachat.app.models.UnreadCount
+import com.kachat.app.models.displayName
 import com.kachat.app.services.ContextualMessageIndexerResponse
 import com.kachat.app.services.HandshakeIndexerResponse
 import com.kachat.app.services.KasiaIndexerApi
@@ -1164,7 +1165,7 @@ class ChatRepository @Inject constructor(
         if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
             notificationHelper.show(
                 contactId = contact.id,
-                title = contact.alias ?: contact.id.takeLast(8),
+                title = contact.displayName,
                 text = notificationText,
                 notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride),
                 dedupeTxId = message.txId

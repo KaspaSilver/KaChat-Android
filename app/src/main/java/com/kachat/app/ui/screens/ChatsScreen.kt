@@ -741,7 +741,7 @@ fun ChatsScreen(
 
                 contactToDelete?.let { contactId ->
                     val label = filteredConversations.find { it.contact.id == contactId }
-                        ?.contact?.let { it.alias ?: com.kachat.app.util.KaspaAddress.shortDisplay(it.id) } ?: "this chat"
+                        ?.contact?.displayName ?: "this chat"
                     AlertDialog(
                         onDismissRequest = { contactToDelete = null },
                         containerColor = LocalAppColors.current.surface,

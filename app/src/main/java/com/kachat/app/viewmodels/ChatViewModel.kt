@@ -13,6 +13,7 @@ import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.Conversation
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.ReactionEntity
+import com.kachat.app.models.displayName
 import com.kachat.app.repository.GroupConversation
 import com.kachat.app.services.ChatHistoryExportImportService
 import com.kachat.app.services.GoogleDriveBackupService
@@ -61,7 +62,8 @@ class ChatViewModel @Inject constructor(
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
     private val paymentPoolService: com.kachat.app.services.PaymentPoolService,
-    private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier
+    private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
+    private val kaPostsService: com.kachat.app.services.KaPostsService
 ) : ViewModel() {
 
     /** Own-address balance-change events (see AddressActivityNotifier.utxoActivityEvents) — the
@@ -1143,6 +1145,71 @@ class ChatViewModel @Inject constructor(
      * [onCreateChatAddressChanged]) and pass the result here.
      * @param knsName The domain name to display, if this contact was added via KNS.
      */
+    // -------------------------------------------------------------------------
+    // KaPosts connections (create-chat shortcuts)
+    // -------------------------------------------------------------------------
+
+    /** One person from the KaPosts follow graph, offered as a one-tap chat target. */
+    data class KaPostsConnection(
+        val address: String,
+        val youFollow: Boolean,
+        val followsYou: Boolean
+    )
+
+    private val _kaPostsConnections = MutableStateFlow<List<KaPostsConnection>>(emptyList())
+    val kaPostsConnections: StateFlow<List<KaPostsConnection>> = _kaPostsConnections.asStateFlow()
+
+    /** Starts true so create-chat renders the section on first frame; the loader clears it. */
+    private val _isLoadingKaPostsConnections = MutableStateFlow(true)
+    val isLoadingKaPostsConnections: StateFlow<Boolean> = _isLoadingKaPostsConnections.asStateFlow()
+
+    private var kaPostsConnectionsLoaded = false
+
+    /**
+     * Both follow lists for our own K identity, merged with the locally-stored follows the
+     * indexer may not have caught up on. People already in the address book are dropped: they
+     * already have a row on the chat list, so offering them here would only be noise.
+     */
+    fun loadKaPostsConnections() {
+        if (kaPostsConnectionsLoaded) return
+        kaPostsConnectionsLoaded = true
+        viewModelScope.launch {
+            val myAddress = walletManager.getAddress()
+            val youFollow = (settings.kapostsFollowing(myAddress).first()).toMutableSet()
+            val followsYou = mutableSetOf<String>()
+
+            for (wantFollowers in listOf(false, true)) {
+                val pubkey = runCatching { kaPostsService.requesterPubkey() }.getOrNull() ?: break
+                var cursor: String? = null
+                var pagesLeft = 5 // 250 accounts per direction, far beyond any real follow list
+                while (pagesLeft > 0) {
+                    pagesLeft--
+                    val page = runCatching {
+                        kaPostsService.fetchFollowListPage(pubkey, wantFollowers, 50, cursor)
+                    }.getOrNull() ?: break
+                    for (user in page.items) {
+                        val addr = com.kachat.app.services.KaPostsService
+                            .kaspaAddressFromPubkey(user.userPublicKey) ?: continue
+                        if (wantFollowers) followsYou.add(addr) else youFollow.add(addr)
+                    }
+                    if (!page.hasMore || page.cursor == null) break
+                    cursor = page.cursor
+                }
+            }
+
+            val known = chatRepository.getContacts().first().map { it.id }.toSet()
+            val addresses = (youFollow + followsYou) - known - setOf(myAddress)
+            _kaPostsConnections.value = addresses
+                .map { KaPostsConnection(it, it in youFollow, it in followsYou) }
+                .sortedBy { it.address.lowercase() }
+            _isLoadingKaPostsConnections.value = false
+
+            // Names and avatars for the rows: same profile cache the chat list reads. Bounded -
+            // each one is a couple of KNS round trips, and the list is a picker, not a feed.
+            _kaPostsConnections.value.take(40).forEach { refreshKnsProfile(it.address) }
+        }
+    }
+
     fun addContact(address: String, name: String?, knsName: String? = null) {
         viewModelScope.launch {
             val existing = chatRepository.getContact(address)
@@ -1164,14 +1231,15 @@ class ChatViewModel @Inject constructor(
                 chatRepository.addContact(newContact)
             }
 
-            // Added by raw address, no domain typed and no explicit name given — try to
-            // auto-detect their primary KNS domain and use it as the display name,
-            // matching iOS ContactsManager's auto-fill-alias-from-primary-domain behavior.
-            if (knsName == null && name.isNullOrBlank()) {
+            // Added by raw address with no domain typed: record their primary KNS domain so
+            // `ContactEntity.displayName` can show it. It is deliberately NOT copied into
+            // `alias` — a contact is named only when the user names one, and a domain baked
+            // into the alias would go stale the moment the domain moved.
+            if (knsName == null) {
                 val primary = knsService.reverseResolve(address)
                 if (primary != null) {
                     chatRepository.getContact(address)?.let { current ->
-                        chatRepository.addContact(current.copy(alias = primary, knsName = primary))
+                        chatRepository.addContact(current.copy(knsName = primary))
                     }
                 }
             }
@@ -1627,9 +1695,10 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Auto-updates each contact's display name to their primary KNS domain, if they
-     * have one — matches iOS's fetchKNSDomainsForAllContacts, run whenever the chat
-     * list appears. Never overwrites a real custom nickname the user typed in, never
+     * Records each contact's primary KNS domain, if they have one — matches iOS's
+     * fetchKNSDomainsForAllContacts, run whenever the chat list appears. It writes only
+     * `knsName`; `ContactEntity.displayName` reads it, so nothing here NAMES a contact.
+     * Never overwrites a real custom nickname the user typed in, never
      * overwrites a contact linked to a system (phone) contact, and never overwrites a
      * domain the user explicitly picked in Chat Info (tracked via `knsName` — once set,
      * that choice is pinned until the user changes it themselves, even if the contact's
@@ -1641,8 +1710,8 @@ class ChatViewModel @Inject constructor(
             for (contact in contacts) {
                 if (!canAutoUpdateAliasToDomain(contact.alias, contact.systemContactId, contact.knsName)) continue
                 val primary = knsService.reverseResolve(contact.id) ?: continue
-                if (primary != contact.alias) {
-                    chatRepository.addContact(contact.copy(alias = primary, knsName = primary))
+                if (primary != contact.knsName) {
+                    chatRepository.addContact(contact.copy(knsName = primary))
                 }
             }
         }
@@ -1765,7 +1834,7 @@ class ChatViewModel @Inject constructor(
             if (settings.autoCreateSystemContactsEnabled.first() && systemContactsSyncService.hasWritePermission()) {
                 for (contact in unlinked) {
                     if (contact.id in matches) continue // just linked above
-                    val alias = contact.alias ?: contact.id.takeLast(8)
+                    val alias = contact.displayName
                     val lookupKey = withContext(Dispatchers.IO) { systemContactsSyncService.createShadowContact(contact.id, alias) } ?: continue
                     chatRepository.linkSystemContact(contact.id, lookupKey, alias, source = "autoCreated")
                 }

@@ -10163,7 +10163,6 @@ fun CreateChatScreen(
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
     var address by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
 
     // Group chat mode. The create button is tab-aware (Chats vs Group Chats), so the screen
@@ -10190,6 +10189,10 @@ fun CreateChatScreen(
     val knsError by chatViewModel.knsError.collectAsState()
     // Existing contacts (via conversations) shown in the group member picker.
     val conversations by chatViewModel.conversations.collectAsState()
+    // KaPosts follow graph, offered as one-tap chat targets under the Address field.
+    val kaPostsConnections by chatViewModel.kaPostsConnections.collectAsState()
+    val isLoadingKaPostsConnections by chatViewModel.isLoadingKaPostsConnections.collectAsState()
+    LaunchedEffect(Unit) { chatViewModel.loadKaPostsConnections() }
 
     val context = LocalContext.current
     // Reads the picked contact's data via the /entities sub-path of the URI the system picker
@@ -10245,7 +10248,6 @@ fun CreateChatScreen(
             }
         } else if (foundAddress != null) {
             address = foundAddress!!
-            if (name.isBlank()) name = displayName ?: ""
             importErrorMessage = null
         } else {
             importErrorMessage = "No Kaspa address found in ${displayName ?: "that contact"}"
@@ -10349,9 +10351,12 @@ fun CreateChatScreen(
                         TextButton(
                             onClick = {
                                 val resolvedAddress = effectiveAddress ?: return@TextButton
+                                // No name is captured: `ContactEntity.displayName` shows their
+                                // KNS domain (then the short address) until the user renames
+                                // them in Chat Info.
                                 chatViewModel.addContact(
                                     address = resolvedAddress,
-                                    name = name,
+                                    name = null,
                                     knsName = if (looksLikeKnsDomain) com.kachat.app.services.KnsService.normalizeDomain(address) else null
                                 )
                                 onChatCreated(resolvedAddress)
@@ -10663,35 +10668,100 @@ fun CreateChatScreen(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            // Everyone in your KaPosts follow graph, both directions. Hidden while empty so the
+            // screen stays a plain address form for anyone who does not use KaPosts.
+            if (isLoadingKaPostsConnections || kaPostsConnections.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(32.dp))
 
-            Text(
-                text = stringResource(R.string.name_optional),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
+                Text(
+                    text = "From KaPosts",
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-            TextField(
-                value = name,
-                onValueChange = { name = it },
-                placeholder = { Text(stringResource(R.string.contact_name_2), color = Color.DarkGray) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(25.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = LocalAppColors.current.surface,
-                    unfocusedContainerColor = LocalAppColors.current.surface,
-                    focusedTextColor = LocalAppColors.current.textPrimary,
-                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                    cursorColor = KaspaTeal,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                singleLine = true
-            )
+                Text(
+                    text = "People you follow, or who follow you. Tap one to fill in their address.",
+                    color = LocalAppColors.current.textSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (kaPostsConnections.isEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            color = KaspaTeal,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Loading connections...",
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(LocalAppColors.current.surface)
+                    ) {
+                        kaPostsConnections.forEach { connection ->
+                            val profile = knsProfilesForPreview[connection.address]
+                            val rowName = profile?.selectedDomain
+                                ?: KaspaAddress.shortDisplay(connection.address)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { address = connection.address }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ContactAvatar(
+                                    imageUrl = profile?.profile?.avatarUrl,
+                                    fallbackText = profile?.selectedDomain
+                                        ?: connection.address.takeLast(8),
+                                    size = 36.dp,
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        rowName,
+                                        color = LocalAppColors.current.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        when {
+                                            connection.youFollow && connection.followsYou -> "You follow each other"
+                                            connection.youFollow -> "You follow them"
+                                            else -> "Follows you"
+                                        },
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                    )
+                                }
+                                if (address == connection.address) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = KaspaTeal,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -11032,15 +11102,6 @@ fun ChatInfoScreen(
     // Synchronize local state with database when it loads
     LaunchedEffect(conversation?.contact?.alias) {
         contactName = conversation?.contact?.alias ?: ""
-    }
-
-    // No custom nickname saved yet — once the contact's primary KNS domain resolves, prefill the
-    // field with it (still fully editable) rather than leaving it blank. Guarded on contactName
-    // still being blank at the moment this fires so it never clobbers something already typed.
-    LaunchedEffect(knsProfile?.selectedDomain) {
-        if (conversation?.contact?.alias == null && contactName.isBlank()) {
-            knsProfile?.selectedDomain?.let { contactName = it }
-        }
     }
 
     LaunchedEffect(contactId) {

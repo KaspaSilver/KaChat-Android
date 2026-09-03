@@ -95,6 +95,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.kachat.app.models.GroupMember
+import com.kachat.app.models.displayName
+import com.kachat.app.models.avatarFallbackText
 import androidx.compose.ui.text.style.TextAlign
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.repository.GroupMessage
@@ -2222,8 +2224,8 @@ fun GroupChatInfoScreen(
             conversations.map { it.contact }
                 .distinctBy { it.id }
                 .filter { it.id !in existingAddresses }
-                .sortedBy { (it.alias ?: it.id).lowercase() }
-                .filter { query.isEmpty() || (it.alias ?: "").lowercase().contains(query) || it.id.lowercase().contains(query) }
+                .sortedBy { it.displayName.lowercase() }
+                .filter { query.isEmpty() || it.displayName.lowercase().contains(query) || it.id.lowercase().contains(query) }
         }
         AlertDialog(
             onDismissRequest = { if (!addBusy) showAddMembers = false },
@@ -2272,12 +2274,12 @@ fun GroupChatInfoScreen(
                                         imageUrl = contact.knsAvatarUrl,
                                         deviceContactPhotoUri = contact.systemContactPhotoUri,
                                         backupPhotoBase64 = contact.backupPhotoBase64,
-                                        fallbackText = contact.alias ?: contact.id.takeLast(8),
+                                        fallbackText = contact.avatarFallbackText,
                                         size = 36.dp
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(contact.alias ?: contact.id.takeLast(10), color = LocalAppColors.current.textPrimary, maxLines = 1)
+                                        Text(contact.displayName, color = LocalAppColors.current.textPrimary, maxLines = 1)
                                         Text(contact.id.takeLast(16), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                                     }
                                     Icon(
