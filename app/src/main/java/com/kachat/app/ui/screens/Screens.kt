@@ -10192,6 +10192,8 @@ fun CreateChatScreen(
     // KaPosts follow graph, offered as one-tap chat targets under the Address field.
     val kaPostsConnections by chatViewModel.kaPostsConnections.collectAsState()
     val isLoadingKaPostsConnections by chatViewModel.isLoadingKaPostsConnections.collectAsState()
+    var isSearchingKaPostsConnections by remember { mutableStateOf(false) }
+    var kaPostsSearchText by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { chatViewModel.loadKaPostsConnections() }
 
     val context = LocalContext.current
@@ -10673,20 +10675,34 @@ fun CreateChatScreen(
             if (isLoadingKaPostsConnections || kaPostsConnections.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Text(
-                    text = "From KaPosts",
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "People you follow, or who follow you. Tap one to fill in their address.",
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "From KaPosts",
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(Modifier.weight(1f))
+                    if (kaPostsConnections.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                isSearchingKaPostsConnections = !isSearchingKaPostsConnections
+                                if (!isSearchingKaPostsConnections) kaPostsSearchText = ""
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                if (isSearchingKaPostsConnections) Icons.Default.Close else Icons.Default.Search,
+                                contentDescription = if (isSearchingKaPostsConnections) "Close search" else "Search connections",
+                                tint = LocalAppColors.current.textSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -10705,57 +10721,106 @@ fun CreateChatScreen(
                         )
                     }
                 } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LocalAppColors.current.surface)
-                    ) {
-                        kaPostsConnections.forEach { connection ->
-                            val profile = knsProfilesForPreview[connection.address]
-                            val rowName = profile?.selectedDomain
-                                ?: KaspaAddress.shortDisplay(connection.address)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { address = connection.address }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                ContactAvatar(
-                                    imageUrl = profile?.profile?.avatarUrl,
-                                    fallbackText = profile?.selectedDomain
-                                        ?: connection.address.takeLast(8),
-                                    size = 36.dp,
+                    if (isSearchingKaPostsConnections) {
+                        TextField(
+                            value = kaPostsSearchText,
+                            onValueChange = { kaPostsSearchText = it },
+                            placeholder = { Text("Search connections", color = Color.DarkGray) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = LocalAppColors.current.textSecondary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        rowName,
-                                        color = LocalAppColors.current.textPrimary,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(25.dp)),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = LocalAppColors.current.surface,
+                                unfocusedContainerColor = LocalAppColors.current.surface,
+                                focusedTextColor = LocalAppColors.current.textPrimary,
+                                unfocusedTextColor = LocalAppColors.current.textPrimary,
+                                cursorColor = KaspaTeal,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            singleLine = true
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    val query = kaPostsSearchText.trim().lowercase()
+                    val shownConnections = if (!isSearchingKaPostsConnections || query.isEmpty()) {
+                        kaPostsConnections
+                    } else {
+                        kaPostsConnections.filter { connection ->
+                            val name = knsProfilesForPreview[connection.address]?.selectedDomain
+                            (name?.lowercase()?.contains(query) == true) ||
+                                connection.address.lowercase().contains(query)
+                        }
+                    }
+
+                    if (shownConnections.isEmpty()) {
+                        Text(
+                            "No matches",
+                            color = LocalAppColors.current.textSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(LocalAppColors.current.surface)
+                        ) {
+                            shownConnections.forEach { connection ->
+                                val profile = knsProfilesForPreview[connection.address]
+                                val rowName = profile?.selectedDomain
+                                    ?: KaspaAddress.shortDisplay(connection.address)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { address = connection.address }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    ContactAvatar(
+                                        imageUrl = profile?.profile?.avatarUrl,
+                                        fallbackText = profile?.selectedDomain
+                                            ?: connection.address.takeLast(8),
+                                        size = 36.dp,
                                     )
-                                    Text(
-                                        when {
-                                            connection.youFollow && connection.followsYou -> "You follow each other"
-                                            connection.youFollow -> "You follow them"
-                                            else -> "Follows you"
-                                        },
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontSize = 11.sp,
-                                        maxLines = 1,
-                                    )
-                                }
-                                if (address == connection.address) {
-                                    Icon(
-                                        Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = KaspaTeal,
-                                        modifier = Modifier.size(20.dp),
-                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            rowName,
+                                            color = LocalAppColors.current.textPrimary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        Text(
+                                            when {
+                                                connection.youFollow && connection.followsYou -> "You follow each other"
+                                                connection.youFollow -> "You follow them"
+                                                else -> "Follows you"
+                                            },
+                                            color = LocalAppColors.current.textSecondary,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                    if (address == connection.address) {
+                                        Icon(
+                                            Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
