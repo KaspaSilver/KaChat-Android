@@ -2162,7 +2162,6 @@ fun KaPostComposerDialog(
             // KeepCaretVisible below re-runs on viewport changes as well as caret changes.
             val editorScroll = rememberScrollState()
             var editorLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
-            var editorViewportPx by remember { mutableIntStateOf(0) }
             val editorDensity = LocalDensity.current
             KeepCaretVisible(
                 scroll = editorScroll,
@@ -2173,23 +2172,23 @@ fun KaPostComposerDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Quoting shows the post being quoted directly beneath the editor, so the
-                    // editor takes a modest fixed height instead of the whole screen (iOS uses a
-                    // 120pt floor for exactly this). With weight(1f) here the editor ate every
-                    // remaining pixel and pushed the quoted post off the bottom edge, so you
-                    // could not see what you were replying to.
+                    // A modest box at the top that grows with what you write, matching iOS's
+                    // 120pt floor - NOT the whole screen. weight(1f) here made the editor eat
+                    // every remaining pixel: an empty composer was one enormous empty box, and
+                    // when quoting it pushed the quoted post off the bottom edge so you could
+                    // not see what you were replying to. Capped so a long post scrolls inside
+                    // the box rather than walking the toolbar off the screen.
                     .then(
                         if (quoted != null) Modifier.height(160.dp)
-                        else Modifier.weight(1f)
+                        else Modifier.heightIn(min = 120.dp, max = 300.dp)
                     )
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                    .onSizeChanged { editorViewportPx = it.height },
+                    .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .verticalScroll(editorScroll),
                 ) {
                     BasicTextField(
@@ -2200,9 +2199,13 @@ fun KaPostComposerDialog(
                         cursorBrush = SolidColor(KaspaTeal),
                         modifier = Modifier
                             .fillMaxWidth()
-                            // Short drafts still fill the whole card, so a tap anywhere inside the
-                            // border lands in the field exactly as it did when it was fillMaxSize().
-                            .heightIn(min = with(editorDensity) { editorViewportPx.toDp() })
+                            // Short drafts still fill the whole card, so a tap anywhere inside
+                            // the border lands in the field. A CONSTANT, deliberately, not the
+                            // box's measured height: the box now sizes to its content, so
+                            // feeding its height back in as the content's minimum would ratchet
+                            // it up a frame at a time until it hit the cap. 120dp box minus its
+                            // 12dp padding top and bottom.
+                            .heightIn(min = 96.dp)
                             .padding(12.dp),
                         decorationBox = { inner ->
                             if (text.text.isEmpty()) {
