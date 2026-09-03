@@ -6911,14 +6911,46 @@ fun QuickReactionBar(
     onReply: () -> Unit,
     emojis: List<String> = QUICK_REACTION_EMOJIS
 ) {
+    val pickerContext = LocalContext.current
+    var showFullPicker by remember { mutableStateOf(false) }
+
+    if (showFullPicker) {
+        EmojiReactionPickerSheet(
+            onDismiss = { showFullPicker = false; onDismissRequest() },
+            onPick = { onReact(it) },
+        )
+        return
+    }
+
     CenteredOptionsMenu(onDismissRequest = onDismissRequest, anchor = anchor) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Leads the row: the six quick emoji cover the common cases, and this is the way
+                // to any of the others without going to Settings to change which six they are.
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        .clickable { showFullPicker = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "More reactions",
+                        tint = LocalAppColors.current.textSecondary,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
                 emojis.forEach { emoji ->
                     Text(
                         emoji,
                         fontSize = 26.sp,
                         modifier = Modifier.clickable {
+                            EmojiRecents.record(pickerContext, emoji)
                             onReact(emoji)
                             onDismissRequest()
                         }
