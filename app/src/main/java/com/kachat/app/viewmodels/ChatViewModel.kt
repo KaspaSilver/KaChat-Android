@@ -1456,6 +1456,7 @@ class ChatViewModel @Inject constructor(
         val groupId: String,
         val phase: com.kachat.app.repository.GroupRepository.GroupRefreshPhase?,
         val recovered: Int? = null,
+        val rejections: com.kachat.app.repository.GroupRepository.GroupRefreshRejections? = null,
     ) {
         val label: String
             get() = when (val p = phase) {
@@ -1482,7 +1483,10 @@ class ChatViewModel @Inject constructor(
                 val recovered = groupRepository.forceRefreshGroup(groupId) { phase ->
                     _groupRefreshState.value = GroupRefreshState(groupId, phase)
                 }
-                _groupRefreshState.value = GroupRefreshState(groupId, null, recovered = maxOf(0, recovered))
+                _groupRefreshState.value = GroupRefreshState(
+                    groupId, null, recovered = maxOf(0, recovered),
+                    rejections = groupRepository.lastRefreshRejections,
+                )
             } catch (e: Exception) {
                 Log.w("ChatViewModel", "Group refresh failed", e)
                 _groupRefreshState.value = GroupRefreshState(groupId, null, recovered = 0)

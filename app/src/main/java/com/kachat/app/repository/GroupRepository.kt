@@ -916,6 +916,7 @@ class GroupRepository @Inject constructor(
             val senderAddress = KaspaAddress.encode(hrp, 0x00, parsed.senderPubKey)
             val roster = membersOf(group)
             if (roster.none { it.address == senderAddress }) {
+                refreshRejections?.let { it.senderNotInRoster++ }
                 Log.w("GroupRepository", "Rejected gcomm for group ${group.groupId.take(12)}: sender $senderAddress not in roster ${roster.map { it.address }}")
                 return
             }
@@ -933,11 +934,13 @@ class GroupRepository @Inject constructor(
 
             val root = groupRootEpochFor(parsed.epoch, bag, groupIdBytes)
             if (root == null) {
+                refreshRejections?.let { it.noRootForEpoch++ }
                 Log.w("GroupRepository", "Rejected gcomm for group ${group.groupId.take(12)}: no root for epoch ${parsed.epoch} (local currentEpoch=${bag.currentEpoch})")
                 return
             }
             val plaintext = GroupCipher.decryptMessage(parsed.ciphertext, root, groupIdBytes, parsed.epoch, parsed.senderId, parsed.msgId)
             if (plaintext == null) {
+                refreshRejections?.let { it.decryptFailed++ }
                 Log.w("GroupRepository", "Rejected gcomm for group ${group.groupId.take(12)}: decrypt failed from $senderAddress")
                 return
             }
@@ -1168,6 +1171,8 @@ class GroupRepository @Inject constructor(
                             (payload.epoch to payload.groupRootEpoch)
                     )
                 )
+                refreshRejections?.let { it.epochRootsArchived++ }
+                Log.i("GroupRepository", "Archived epoch ${payload.epoch} root for a group whose bag is newer")
             }
             return
         }
@@ -1356,6 +1361,8 @@ class GroupRepository @Inject constructor(
         val api = networkService.indexerApi.value ?: return 0
         val group = database.groupDao().getGroup(groupId, walletAddress) ?: return 0
         val messagesBefore = database.groupDao().getMessagesOnce(groupId, walletAddress).size
+        val rejections = GroupRefreshRejections()
+        refreshRejections = rejections
 
         // Drop every cursor this repair depends on - and the CONTROL streams matter more than
         // the message ones. Dropping only "gcomm" re-downloaded pre-rotation ciphertext while
@@ -1392,8 +1399,37 @@ class GroupRepository @Inject constructor(
             }
         }
         onProgress(GroupRefreshPhase.Rebuilding)
-        return database.groupDao().getMessagesOnce(groupId, walletAddress).size - messagesBefore
+        val recovered = database.groupDao().getMessagesOnce(groupId, walletAddress).size - messagesBefore
+        refreshRejections = null
+        Log.i(
+            "GroupRepository",
+            "Refresh of ${groupId.take(12)} finished: recovered $recovered, archived ${rejections.epochRootsArchived} epoch roots, " +
+                "rejected ${rejections.noRootForEpoch} (no root) / ${rejections.senderNotInRoster} (sender not in roster) / ${rejections.decryptFailed} (decrypt failed)"
+        )
+        lastRefreshRejections = rejections
+        return recovered
     }
+
+    /**
+     * Why the last repair could not keep a message. Live only while [forceRefreshGroup] runs, so
+     * a refresh that recovers nothing can say WHICH wall it hit instead of just "0".
+     */
+    data class GroupRefreshRejections(
+        var noRootForEpoch: Int = 0,
+        var senderNotInRoster: Int = 0,
+        var decryptFailed: Int = 0,
+        var epochRootsArchived: Int = 0,
+    ) {
+        val isEmpty: Boolean get() = noRootForEpoch == 0 && senderNotInRoster == 0 && decryptFailed == 0
+    }
+
+    @Volatile
+    private var refreshRejections: GroupRefreshRejections? = null
+
+    /** The counts from the most recent [forceRefreshGroup], for its completion sheet. */
+    @Volatile
+    var lastRefreshRejections: GroupRefreshRejections? = null
+        private set
 
     /** What [forceRefreshGroup] is doing right now, for its progress sheet. */
     sealed interface GroupRefreshPhase {

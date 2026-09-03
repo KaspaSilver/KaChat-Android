@@ -1665,12 +1665,32 @@ fun GroupChatInfoScreen(
                         if (recovered > 0) {
                             "Recovered $recovered message${if (recovered == 1) "" else "s"} this device had not been able to read."
                         } else {
-                            "This group was already fully up to date."
+                            "No new messages were recovered."
                         },
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center
                     )
+                    // Says WHICH wall the repair hit, so "nothing recovered" is diagnosable
+                    // rather than just disappointing.
+                    val rejects = state.rejections
+                    if (rejects != null && !rejects.isEmpty) {
+                        Spacer(Modifier.height(8.dp))
+                        Column(horizontalAlignment = Alignment.Start) {
+                            if (rejects.noRootForEpoch > 0) {
+                                Text("${rejects.noRootForEpoch} from an epoch this device holds no key for", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                            }
+                            if (rejects.senderNotInRoster > 0) {
+                                Text("${rejects.senderNotInRoster} from someone no longer in the group", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                            }
+                            if (rejects.decryptFailed > 0) {
+                                Text("${rejects.decryptFailed} that failed to decrypt", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                            }
+                            if (rejects.epochRootsArchived > 0) {
+                                Text("Recovered ${rejects.epochRootsArchived} older epoch key(s)", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(16.dp))
                     TextButton(onClick = { chatViewModel.clearGroupRefreshState() }) {
                         Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
