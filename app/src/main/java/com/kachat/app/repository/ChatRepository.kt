@@ -77,7 +77,8 @@ class ChatRepository @Inject constructor(
     private val nextcloudSyncServiceLazy: dagger.Lazy<com.kachat.app.services.NextcloudSyncService>,
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
-    private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>
+    private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>,
+    private val onboardingGate: com.kachat.app.services.OnboardingGate
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -123,6 +124,10 @@ class ChatRepository @Inject constructor(
                 // network errors, but one uncaught throw anywhere in it (a DataStore read, a
                 // Room call outside the per-item guards) would kill this coroutine and
                 // silently stop all live chat refresh until the process is restarted.
+                // Nothing syncs while the setup wizard is on screen - an import's from-genesis
+                // sync of every contact made typing through it crawl. Suspends here (no polling)
+                // until the wizard releases the gate.
+                onboardingGate.awaitOpen()
                 sawIndexerErrorThisCycle = false
                 try {
                     syncMessages(fromPollLoop = true)
@@ -734,6 +739,9 @@ class ChatRepository @Inject constructor(
      * unthrottled behavior.
      */
     suspend fun syncMessages(fromPollLoop: Boolean = false) {
+        // Every other caller (pull-to-refresh, the sync worker, push handling) is held too - the
+        // wizard is exclusive. The post-wizard initial sync releases the gate before running.
+        if (onboardingGate.isHeld) return
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
         // Before the indexer gate on purpose: healing stuck send-placeholders needs no network.
         repairStuckProvisionalMessages(myAddress)

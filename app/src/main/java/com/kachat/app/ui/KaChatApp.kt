@@ -62,6 +62,10 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.viewmodels.ChatViewModel
 import kotlin.math.roundToInt
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.filled.CheckCircle
 
 /**
  * Top-level navigation destinations.
@@ -372,6 +376,59 @@ fun MainShell(
     val dockRoutes by walletViewModel.dockTabs.collectAsState()
     val localTabOrder = resolveDock(dockRoutes, hiddenTabs, childModeEnabled)
     val currentTopRoute = currentDestination?.route
+
+    // Blocking progress for the account's first full sync, which the setup wizard deferred.
+    // Escapable on purpose: a sync can stall on a slow indexer, and a dialog with no way out
+    // would be worse than an incomplete chat list.
+    val initialSyncPhase by chatViewModel.initialSyncPhase.collectAsState()
+    if (initialSyncPhase != null) {
+        val finished = initialSyncPhase == ChatViewModel.InitialSyncPhase.Finished
+        var canSkip by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { kotlinx.coroutines.delay(20_000); canSkip = true }
+        Dialog(
+            onDismissRequest = { if (finished) chatViewModel.clearInitialSyncPhase() },
+            properties = DialogProperties(dismissOnBackPress = finished, dismissOnClickOutside = false)
+        ) {
+            Column(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(LocalAppColors.current.surface)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (finished) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(36.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("You're all set", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Your chats and history are up to date.", color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(onClick = { chatViewModel.clearInitialSyncPhase() }) {
+                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+                    Spacer(Modifier.height(14.dp))
+                    Text("Setting up your account", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(initialSyncPhase?.label ?: "Starting", color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Downloading everything this account has on chain. It only takes this long once.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    if (canSkip) {
+                        Spacer(Modifier.height(10.dp))
+                        TextButton(onClick = { chatViewModel.clearInitialSyncPhase() }) {
+                            Text("Continue anyway", color = KaspaTeal)
+                        }
+                    }
+                }
+            }
+        }
+    }
     // Child Mode just turned on (or the app landed on a now-hidden screen): snap home to Chats.
     // Covers the three hidden tab routes plus Broadcasts' pushed room screen.
     LaunchedEffect(childModeEnabled, currentTopRoute) {
@@ -559,6 +616,14 @@ fun MainShell(
     // the whole onboarding run from the top (still unskippable).
     val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
     val onboardingWizardPendingMarker by walletViewModel.onboardingWizardPending.collectAsState()
+    // A hold with no wizard behind it would strand the account unsynced forever. Once the guide
+    // is neither pending nor on screen, lift it.
+    LaunchedEffect(pendingWelcomeGuide, currentTopRoute) {
+        if (!pendingWelcomeGuide && currentTopRoute?.startsWith("welcome_guide") != true) {
+            chatViewModel.releaseOnboardingHoldIfIdle()
+        }
+    }
+
     LaunchedEffect(userTypePendingMarker, onboardingWizardPendingMarker, pendingWelcomeGuide, currentTopRoute) {
         if (pendingWelcomeGuide || welcomeGuidePresentedThisSession) return@LaunchedEffect
         if (currentTopRoute == null || currentTopRoute.startsWith("welcome_guide")) return@LaunchedEffect
@@ -1150,6 +1215,10 @@ fun MainShell(
                         // The import run is over — a later Help replay of this same guide must not
                         // offer "Change Chatting Address" again (see WelcomeGuideFundingStep).
                         walletViewModel.clearJustImportedWallet()
+                        // Everything the account owns starts syncing now, behind a dialog: a
+                        // half-populated chat list invites taps on chats whose history has not
+                        // landed yet.
+                        chatViewModel.runInitialSyncAfterOnboarding()
                         navController.popBackStack()
                     }
                 )

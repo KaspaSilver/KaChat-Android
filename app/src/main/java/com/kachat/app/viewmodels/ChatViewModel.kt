@@ -63,8 +63,59 @@ class ChatViewModel @Inject constructor(
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
     private val paymentPoolService: com.kachat.app.services.PaymentPoolService,
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
-    private val kaPostsService: com.kachat.app.services.KaPostsService
+    private val kaPostsService: com.kachat.app.services.KaPostsService,
+    private val onboardingGate: com.kachat.app.services.OnboardingGate
 ) : ViewModel() {
+
+    // ---------------------------------------------------------------------
+    // Onboarding sync hold
+    // ---------------------------------------------------------------------
+
+    /** Which phase the post-wizard initial sync is in, for its progress sheet. Null when idle. */
+    enum class InitialSyncPhase(val label: String) {
+        Messages("Downloading message history"),
+        Groups("Syncing your group chats"),
+        Balance("Checking your balance"),
+        Finished("Finished"),
+    }
+
+    private val _initialSyncPhase = MutableStateFlow<InitialSyncPhase?>(null)
+    val initialSyncPhase: StateFlow<InitialSyncPhase?> = _initialSyncPhase.asStateFlow()
+
+    val onboardingSyncHeld: StateFlow<Boolean> get() = onboardingGate.held
+
+    fun holdSyncForOnboarding() = onboardingGate.hold()
+
+    /**
+     * Lifts the wizard's hold and runs the account's first full sync, publishing a phase as it
+     * goes. Everything was deferred until now, so this is where all of that work happens - and a
+     * half-populated chat list invites taps on chats whose history has not arrived.
+     */
+    fun runInitialSyncAfterOnboarding() {
+        if (!onboardingGate.isHeld) return
+        onboardingGate.release()
+        viewModelScope.launch {
+            try {
+                _initialSyncPhase.value = InitialSyncPhase.Messages
+                chatRepository.syncMessages()
+                _initialSyncPhase.value = InitialSyncPhase.Groups
+                groupRepository.syncGroups()
+                _initialSyncPhase.value = InitialSyncPhase.Balance
+                walletService.refreshBalance()
+            } catch (e: Exception) {
+                Log.w("ChatViewModel", "Initial sync after onboarding failed", e)
+            } finally {
+                _initialSyncPhase.value = InitialSyncPhase.Finished
+            }
+        }
+    }
+
+    fun clearInitialSyncPhase() { _initialSyncPhase.value = null }
+
+    /** Lifts a hold with no wizard behind it, so the account can never be stranded unsynced. */
+    fun releaseOnboardingHoldIfIdle() {
+        if (onboardingGate.isHeld) onboardingGate.release()
+    }
 
     /** Own-address balance-change events (see AddressActivityNotifier.utxoActivityEvents) — the
      *  payment composer's Available pill refreshes off these when the current spending address

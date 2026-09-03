@@ -51,7 +51,8 @@ class WalletViewModel @Inject constructor(
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
     private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
-    private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager
+    private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
+    private val onboardingGate: com.kachat.app.services.OnboardingGate
 ) : ViewModel() {
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
@@ -104,6 +105,10 @@ class WalletViewModel @Inject constructor(
 
     fun markPendingWelcomeGuide() {
         _pendingWelcomeGuide.value = true
+        // Nothing syncs while the wizard is on screen: an import's from-genesis sync of every
+        // contact is what made typing through setup crawl. Released by the guide's Finish, or by
+        // KaChatApp if no guide ends up being shown.
+        onboardingGate.hold()
     }
 
     fun consumePendingWelcomeGuide() {
