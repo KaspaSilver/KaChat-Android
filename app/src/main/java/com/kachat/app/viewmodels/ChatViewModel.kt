@@ -39,6 +39,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
+import com.kachat.app.repository.isExpiredSystemMessage
+import kotlinx.coroutines.flow.flow
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
@@ -1457,10 +1459,32 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Ticks once a minute so expiring system lines drop out of an open thread on their own,
+     * rather than on the next unrelated emission.
+     */
+    private val systemLineClock = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+
     fun getGroupMessages(groupId: String) = groupRepository.getMessages(groupId)
         .combine(groupHiddenMembers) { messages, hidden ->
             messages.filter { it.senderAddress == null || "$groupId|${it.senderAddress}" !in hidden }
         }
+        .combine(systemLineClock) { messages, now ->
+            // Membership/rename/photo lines are news only while they are recent.
+            messages.filterNot { it.isExpiredSystemMessage(now) }
+        }
+
+    /** Drops expired system lines from the database for one group - called when it is opened. */
+    fun pruneExpiredGroupSystemMessages(groupId: String) {
+        viewModelScope.launch {
+            runCatching { groupRepository.pruneExpiredSystemMessages(groupId) }
+        }
+    }
 
     // The group message currently being replied to (long-press menu on its bubble to set this),
     // shown as a banner above the compose field — cleared automatically once the reply sends.

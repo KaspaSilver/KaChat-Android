@@ -355,6 +355,9 @@ fun GroupChatThreadScreen(
     LaunchedEffect(Unit) {
         chatViewModel.refreshUtxos()
         chatViewModel.markGroupRead(groupId)
+        // Expired membership lines are already filtered out of the thread; this clears them from
+        // the database too, so they never accumulate.
+        chatViewModel.pruneExpiredGroupSystemMessages(groupId)
     }
     DisposableEffect(groupId) {
         chatViewModel.setActiveGroup(groupId)

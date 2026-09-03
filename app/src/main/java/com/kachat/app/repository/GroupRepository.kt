@@ -65,6 +65,20 @@ const val GROUP_SYSTEM_SENDER = "system"
 
 fun GroupMessage.isSystemMessage(): Boolean = senderAddress == GROUP_SYSTEM_SENDER
 
+/**
+ * How long a membership/rename/photo line stays in the thread.
+ *
+ * These lines report a change, and a change is only news while it is recent. Left forever they
+ * pile up between the actual conversation - a group that adds and removes a few people ends up
+ * with more bookkeeping than messages. They are dropped from the thread after this, and pruned
+ * from the database so they do not accumulate there either.
+ */
+const val GROUP_SYSTEM_MESSAGE_LIFETIME_MS = 10 * 60 * 1000L
+
+/** True when this line has outlived [GROUP_SYSTEM_MESSAGE_LIFETIME_MS] and should not be shown. */
+fun GroupMessage.isExpiredSystemMessage(now: Long = System.currentTimeMillis()): Boolean =
+    isSystemMessage() && now - blockTimestamp > GROUP_SYSTEM_MESSAGE_LIFETIME_MS
+
 /** In-memory model for the Group Chats tab's list - mirrors [com.kachat.app.models.Conversation]'s shape for 1:1 chats. */
 data class GroupConversation(
     val group: GroupEntity,
@@ -302,6 +316,24 @@ class GroupRepository @Inject constructor(
         for (m in oldMembers) if (m.address !in newAddrs) {
             insertGroupSystemMessage(groupId, walletAddress, "${groupMemberLabel(m.address, walletAddress, m.displayName)} was removed from the group chat", t++)
         }
+    }
+
+    /** Deletes expired system lines for one group, so they do not accumulate in the database. */
+    suspend fun pruneExpiredSystemMessages(groupId: String) {
+        val walletAddress = walletManager.getAddress()
+        if (walletAddress.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val cutoff = now - GROUP_SYSTEM_MESSAGE_LIFETIME_MS
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: return
+        val groupIdBytes = runCatching { groupId.hexToByteArray() }.getOrNull() ?: return
+        database.groupDao().getMessagesOnce(groupId, walletAddress)
+            .filter { it.blockTimestamp < cutoff }
+            .forEach { entity ->
+                val decoded = decryptCached(entity, bag, groupIdBytes) ?: return@forEach
+                if (decoded.isSystemMessage()) {
+                    database.groupDao().deleteMessage(entity.txId, walletAddress)
+                }
+            }
     }
 
     /** Decrypted messages for a group, oldest first - decryption happens here, on read, from stored ciphertext. */
