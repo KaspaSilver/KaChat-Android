@@ -10481,159 +10481,147 @@ fun CreateChatScreen(
                     },
                     photo = groupPhoto,
                     onPickPhoto = { groupPhotoPicker.launch("image/*") },
+                    addByAddress = {
+                    // Add someone who is not in your contacts, by raw address or KNS domain. Reuses
+                    // the screen-level `address` state, its KNS resolution, and the scanner/import.
+                    TextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp)),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LocalAppColors.current.surface,
+                            unfocusedContainerColor = LocalAppColors.current.surface,
+                            focusedTextColor = LocalAppColors.current.textPrimary,
+                            unfocusedTextColor = LocalAppColors.current.textPrimary,
+                            cursorColor = KaspaTeal,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        singleLine = true
+                    )
+                    if (looksLikeKnsDomain && isResolvingKns) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (looksLikeKnsDomain && knsError != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (isValidAddress) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (looksLikeKnsDomain) "Resolved to ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
+                                color = Color(0xFF4CD964),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Who you are about to add, as they will appear once added. A raw address tells
+                    // you nothing about whether you typed the right one; a face and a domain do.
+                    // Only for an address the app is confident about - a card flickering through
+                    // wrong faces while you type would be worse than no card.
+                    if (isValidAddress && effectiveAddress != null) {
+                        val previewAddress = effectiveAddress
+                        LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
+                        val preview = knsProfilesForPreview[previewAddress]
+                        // The domain the resolver already found beats waiting on the profile fetch:
+                        // if you typed one, that IS the name, and showing it immediately means the
+                        // card is useful from the moment the address turns valid.
+                        val previewName = preview?.selectedDomain
+                            ?: address.trim().takeIf { looksLikeKnsDomain }
+                        val stillLoading = preview == null
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(LocalAppColors.current.surface)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ContactAvatar(
+                                imageUrl = preview?.profile?.avatarUrl,
+                                fallbackText = previewName ?: previewAddress.takeLast(8),
+                                size = 44.dp,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    previewName ?: if (stillLoading) "Looking up..." else "No KNS domain",
+                                    color = if (previewName != null) {
+                                        LocalAppColors.current.textPrimary
+                                    } else {
+                                        LocalAppColors.current.textSecondary
+                                    },
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    previewAddress,
+                                    color = LocalAppColors.current.textSecondary,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (stillLoading) {
+                                CircularProgressIndicator(
+                                    color = KaspaTeal,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
+                            pickContactForImportLauncher.launch(null)
+                        }
+                        CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
+                            clipboardManager.getText()?.text?.let { address = it.trim() }
+                        }
+                        CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            val resolved = effectiveAddress
+                            if (resolved != null && isValidAddress && selectedMemberAddresses.size < MAX_GROUP_MEMBERS) {
+                                selectedMemberAddresses = selectedMemberAddresses + resolved
+                                address = ""
+                            }
+                        },
+                        enabled = isValidAddress,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
+                    ) {
+                        Text("Add to Group", fontWeight = FontWeight.Bold)
+                    }
+                    },
                     errorMessage = createGroupError
                 )
 
-                // Add someone who is not in your contacts, by raw address or KNS domain. Reuses
-                // the screen-level `address` state, its KNS resolution, and the scanner/import.
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Add by Address",
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Add anyone by Kaspa address or KNS domain, even if they are not in your contacts.",
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                TextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp)),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = LocalAppColors.current.surface,
-                        unfocusedContainerColor = LocalAppColors.current.surface,
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        cursorColor = KaspaTeal,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    singleLine = true
-                )
-                if (looksLikeKnsDomain && isResolvingKns) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else if (looksLikeKnsDomain && knsError != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else if (isValidAddress) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = if (looksLikeKnsDomain) "Resolved to ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
-                            color = Color(0xFF4CD964),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // Who you are about to add, as they will appear once added. A raw address tells
-                // you nothing about whether you typed the right one; a face and a domain do.
-                // Only for an address the app is confident about - a card flickering through
-                // wrong faces while you type would be worse than no card.
-                if (isValidAddress && effectiveAddress != null) {
-                    val previewAddress = effectiveAddress
-                    LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
-                    val preview = knsProfilesForPreview[previewAddress]
-                    // The domain the resolver already found beats waiting on the profile fetch:
-                    // if you typed one, that IS the name, and showing it immediately means the
-                    // card is useful from the moment the address turns valid.
-                    val previewName = preview?.selectedDomain
-                        ?: address.trim().takeIf { looksLikeKnsDomain }
-                    val stillLoading = preview == null
-                    Spacer(Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ContactAvatar(
-                            imageUrl = preview?.profile?.avatarUrl,
-                            fallbackText = previewName ?: previewAddress.takeLast(8),
-                            size = 44.dp,
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                previewName ?: if (stillLoading) "Looking up..." else "No KNS domain",
-                                color = if (previewName != null) {
-                                    LocalAppColors.current.textPrimary
-                                } else {
-                                    LocalAppColors.current.textSecondary
-                                },
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                previewAddress,
-                                color = LocalAppColors.current.textSecondary,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        if (stillLoading) {
-                            CircularProgressIndicator(
-                                color = KaspaTeal,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
-                        pickContactForImportLauncher.launch(null)
-                    }
-                    CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
-                        clipboardManager.getText()?.text?.let { address = it.trim() }
-                    }
-                    CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        val resolved = effectiveAddress
-                        if (resolved != null && isValidAddress && selectedMemberAddresses.size < MAX_GROUP_MEMBERS) {
-                            selectedMemberAddresses = selectedMemberAddresses + resolved
-                            address = ""
-                        }
-                    },
-                    enabled = isValidAddress,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
-                ) {
-                    Text("Add to Group", fontWeight = FontWeight.Bold)
-                }
                 Spacer(modifier = Modifier.height(32.dp))
                 return@Column
             }
@@ -10977,6 +10965,10 @@ fun GroupChatCreationFields(
     onToggleMember: (String) -> Unit,
     photo: android.graphics.Bitmap?,
     onPickPhoto: () -> Unit,
+    /** The address entry, rendered under its own heading BETWEEN the name row and the people
+     *  list. It lives at the call site because it reuses that screen's KNS resolution, scanner
+     *  and clipboard state - but it belongs here in the layout, not tacked on at the end. */
+    addByAddress: @Composable () -> Unit,
     errorMessage: String?
 ) {
     val colors = LocalAppColors.current
@@ -11045,6 +11037,8 @@ fun GroupChatCreationFields(
         fontWeight = FontWeight.Bold,
         style = MaterialTheme.typography.titleMedium
     )
+    Spacer(modifier = Modifier.height(12.dp))
+    addByAddress()
 
     Spacer(modifier = Modifier.height(24.dp))
     Text(
