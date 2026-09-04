@@ -42,6 +42,7 @@ import com.kachat.app.models.WalletSourceFamily
 import com.kachat.app.services.WalletManager
 import com.kachat.app.ui.theme.KaspaSubtext
 import com.kachat.app.ui.theme.KaspaTeal
+import com.kachat.app.ui.theme.DarkAppColors
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.authenticateWithDeviceCredential
 import com.kachat.app.viewmodels.WalletViewModel
@@ -186,8 +187,12 @@ fun WelcomeScreen(
     onNavigateToImport: () -> Unit,
     onOpenAppSettings: () -> Unit = {}
 ) {
+    // The background is dark in both themes, so the colors drawn on top of it have to be the
+    // dark set too - otherwise textPrimary renders near-black on near-black in light mode.
+    // Scoped to this screen.
+    CompositionLocalProvider(LocalAppColors provides DarkAppColors) {
     Surface(
-        color = LocalAppColors.current.background,
+        color = KaChatSignInBackground,
         modifier = Modifier.fillMaxSize()
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -356,6 +361,7 @@ fun WelcomeScreen(
         }
     }
 }
+}
 
 @Composable
 fun SavedAccountCard(
@@ -375,7 +381,7 @@ fun SavedAccountCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
+            .background(KaChatSignInCard)
             .clickable {
                 if (requireBiometricLogin) {
                     context.authenticateWithDeviceCredential(
@@ -1419,3 +1425,13 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
         }
     }
 }
+
+/**
+ * The brand's near-black with a green cast, taken from the KaChat banner rather than the app's
+ * usual true black. Scoped to the sign-in screen, and the same in both themes on purpose - it is
+ * the one place the product introduces itself.
+ */
+internal val KaChatSignInBackground = Color(0xFF0E1614)
+
+/** One step up from [KaChatSignInBackground], same cast, for the saved-account rows. */
+internal val KaChatSignInCard = Color(0xFF1A2624)
