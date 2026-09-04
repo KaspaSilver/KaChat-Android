@@ -4208,12 +4208,10 @@ fun ManageAddressesScreen(
     onNavigateToVisibility: () -> Unit = {},
     onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null
 ) {
-    val identityAddress by viewModel.address.collectAsState()
     val addresses by viewModel.manageAddresses.collectAsState()
     val loading by viewModel.manageAddressesLoading.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    var showIdentityWarning by remember { mutableStateOf(false) }
     var activateIndex by remember { mutableStateOf<Int?>(null) }
     var qrAddress by remember { mutableStateOf<String?>(null) }
     var renamingEntry by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
@@ -4507,27 +4505,6 @@ fun ManageAddressesScreen(
                     )
                 }
             }
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(LocalAppColors.current.surface)
-                        .clickable { showIdentityWarning = true }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.chatting_address), color = LocalAppColors.current.textSecondary, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = identityAddress ?: "Loading...",
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-
             // The Hidden (n) sub-screen survives only for Swap's address picker — the normal
             // screen manages visibility through the checklist button instead (iOS parity).
             if (hiddenAddresses.isNotEmpty() && onAddressPicked != null) {
@@ -4619,25 +4596,6 @@ fun ManageAddressesScreen(
         }
         }
         }
-    }
-
-    if (showIdentityWarning) {
-        AlertDialog(
-            onDismissRequest = { showIdentityWarning = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.chatting_address), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    stringResource(R.string.never_send_kaspa_you_intend_to),
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showIdentityWarning = false }) {
-                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            }
-        )
     }
 
     activateIndex?.let { index ->
