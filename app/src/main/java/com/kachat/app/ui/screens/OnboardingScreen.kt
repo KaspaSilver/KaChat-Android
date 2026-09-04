@@ -262,16 +262,27 @@ fun WelcomeScreen(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                     
-                    // Saved account cards
-                    accounts.forEach { account ->
-                        SavedAccountCard(
-                            account = account,
-                            requireBiometricLogin = biometricAccountLoginEnabled,
-                            onLogin = { viewModel.login(account.address) },
-                            onRename = { newName -> viewModel.renameAccount(account.address, newName) },
-                            onDelete = { viewModel.deleteWallet(account.address) }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                    // Five at a time, then this scrolls inside itself. A dozen saved accounts
+                    // used to just make the page taller, pushing Create and Import off the
+                    // bottom of the screen. heightIn(max) rather than a fixed height so three
+                    // accounts still take three rows' worth of space, not five.
+                    val visibleRows = minOf(accounts.size, 5)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = (visibleRows * 84).dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        accounts.forEach { account ->
+                            SavedAccountCard(
+                                account = account,
+                                requireBiometricLogin = biometricAccountLoginEnabled,
+                                onLogin = { viewModel.login(account.address) },
+                                onRename = { newName -> viewModel.renameAccount(account.address, newName) },
+                                onDelete = { viewModel.deleteWallet(account.address) }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
                 }
             }
@@ -396,33 +407,41 @@ fun SavedAccountCard(
             )
         }
 
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit_account),
-                    tint = KaspaTeal,
-                    modifier = Modifier.size(20.dp)
-                )
+        IconButton(onClick = { showMenu = true }) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = stringResource(R.string.edit_account),
+                tint = KaspaTeal,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+
+    // Half sheet rather than a dropdown, like every other chooser in the app - and Delete gets a
+    // line saying what it takes with it, which a menu of bare verbs cannot.
+    if (showMenu) {
+        ActionSheetContainer(
+            title = account.name,
+            subtitle = account.address,
+            onDismiss = { showMenu = false },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.Edit,
+                title = stringResource(R.string.rename),
+                subtitle = "Gives this account a name of your own.",
+            ) {
+                showMenu = false
+                nameInput = account.name
+                showRenameDialog = true
             }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.rename)) },
-                    leadingIcon = { Icon(Icons.Default.Edit, null) },
-                    onClick = {
-                        showMenu = false
-                        nameInput = account.name
-                        showRenameDialog = true
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.delete)) },
-                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
-                    onClick = {
-                        showMenu = false
-                        showDeleteConfirm = true
-                    }
-                )
+            ActionSheetRow(
+                icon = Icons.Default.Delete,
+                title = stringResource(R.string.delete),
+                subtitle = "Removes this account and its local data from this device.",
+                tint = Color(0xFFFF3B30),
+            ) {
+                showMenu = false
+                showDeleteConfirm = true
             }
         }
     }
@@ -466,29 +485,13 @@ fun SavedAccountCard(
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.delete_account), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    "This removes \"${account.name}\" from this device. Without its saved seed phrase, any remaining balance is unrecoverable.",
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm = false
-                    onDelete()
-                }) {
-                    Text(stringResource(R.string.delete), color = Color.Red, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
+        ConfirmActionSheet(
+            title = stringResource(R.string.delete_account),
+            confirmTitle = stringResource(R.string.delete),
+            confirmSubtitle = "Removes \"${account.name}\" from this device. Without its seed phrase written down, any remaining balance is unrecoverable.",
+            confirmIcon = Icons.Default.Delete,
+            onConfirm = onDelete,
+            onDismiss = { showDeleteConfirm = false },
         )
     }
 }
