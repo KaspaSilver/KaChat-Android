@@ -35,6 +35,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
@@ -1344,6 +1346,12 @@ fun PortfolioValueChartScreen(
     val priceRangeDays by viewModel.priceRangeDays.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+    // Today's change, not all-time P&L - the same figure the portfolio cards show, computed off
+    // the stable seven-day history rather than the visible range, so switching to 1Y does not
+    // change what "today" means.
+    val activePortfolioId by viewModel.activePortfolioId.collectAsState()
+    val cardSummaries by viewModel.cardSummaries.collectAsState()
+    val todayCard = activePortfolioId?.let { cardSummaries[it] }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -1382,12 +1390,39 @@ fun PortfolioValueChartScreen(
                 scrubbed?.let {
                     Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
                 }
-                Text(
-                    formatFiatAmount(scrubbed?.second ?: summary.currentValue, currencyCode),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp
-                )
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        formatFiatAmount(scrubbed?.second ?: summary.currentValue, currencyCode),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp
+                    )
+                    // Hidden while scrubbing: the big number is then a past value, and a change
+                    // figure for today beside it would read as that day's move.
+                    val changeAmount = todayCard?.todayChangeAmount
+                    val changePercent = todayCard?.todayChangePercent
+                    if (scrubbed == null && changeAmount != null && changePercent != null) {
+                        val isUp = changeAmount >= 0
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        ) {
+                            Icon(
+                                if (isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                contentDescription = null,
+                                tint = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                "${formatFiatAmount(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
+                                color = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                        }
+                    }
+                }
             }
 
             if (valueHistory.size >= 2) {
