@@ -3023,24 +3023,56 @@ fun ProfileScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp)
             ) {
-                // Row one is the status row - connection dot, balance, settings - the way every
-                // other main page opens and the way iOS orders its Profile toolbar. The title
-                // and its bell come underneath, not above.
-                TopStatusBar(
-                    balance = balance,
-                    onStatusClick = { ConnectionStatusOverlayState.open() },
-                    dotColorHex = dotColorHex,
-                    showAddButton = false,
-                    showSettingsButton = true,
-                    onSettingsClick = { navController.navigate("settings") }
-                )
-                // Bold title + the global notification bell beside it (KaPosts activity, group
-                // @mentions, live broadcasts) - mirrors iOS's Profile toolbar bell.
+                // The global notification centre: KaPosts activity, group @mentions, live
+                // broadcasts. Declared before the bar it now lives in.
                 val notifCenterVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
                 val notifEntries by notifCenterVm.store.entries.collectAsState()
                 val notifLastSeen by notifCenterVm.store.lastSeenAt.collectAsState()
                 var showNotifCenter by remember { mutableStateOf(false) }
                 val notifUnread = notifEntries.count { it.timestampMs > notifLastSeen }
+                // Row one is the status row - connection dot, balance, bell - the way every
+                // other main page opens and the way iOS orders its Profile toolbar. The title
+                // and the settings button come underneath, not above.
+                TopStatusBar(
+                    balance = balance,
+                    onStatusClick = { ConnectionStatusOverlayState.open() },
+                    dotColorHex = dotColorHex,
+                    showAddButton = false,
+                    trailingContent = {
+                        IconButton(
+                            onClick = {
+                                notifCenterVm.store.reloadIfNeeded()
+                                showNotifCenter = true
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(LocalAppColors.current.surface, CircleShape)
+                        ) {
+                            Box {
+                                Icon(
+                                    Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = KaspaTeal,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                if (notifUnread > 0) {
+                                    // A plain red DOT (no count) - "there is something unread"
+                                    // is the signal.
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(8.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(Color(0xFFE0245E)),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+                // Bold title + Settings beside it, deliberately larger than a bar icon:
+                // everything on this screen is reached through it, and it was previously the
+                // smallest thing in the bar.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(bottom = 6.dp),
@@ -3052,31 +3084,18 @@ fun ProfileScreen(
                         fontSize = 26.sp,
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Box(
+                    IconButton(
+                        onClick = { navController.navigate("settings") },
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .clickable {
-                                notifCenterVm.store.reloadIfNeeded()
-                                showNotifCenter = true
-                            }
-                            .padding(6.dp),
+                            .size(44.dp)
+                            .background(LocalAppColors.current.surface, CircleShape)
                     ) {
                         Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            tint = LocalAppColors.current.textPrimary,
-                            modifier = Modifier.size(22.dp),
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                            tint = KaspaTeal,
+                            modifier = Modifier.size(26.dp),
                         )
-                        if (notifUnread > 0) {
-                            // A plain red DOT (no count) - "there is something unread" is the signal.
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(8.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFE0245E)),
-                            )
-                        }
                     }
                 }
                 if (showNotifCenter) {
@@ -8691,10 +8710,9 @@ fun TopStatusBar(
     onEditClick: () -> Unit = {},
     selectAllLabel: String? = null,
     onSelectAllClick: () -> Unit = {},
-    // Profile-only (matches iOS's gear button in ProfileView's toolbar) — Settings isn't a
-    // bottom-tab destination, this is its only entry point.
-    showSettingsButton: Boolean = false,
-    onSettingsClick: () -> Unit = {}
+    // Rendered at the trailing end when there is no Add button - a slot rather than a fixed
+    // button so a page can decide what belongs there (Profile puts its notification bell here).
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val statusColor = Color(dotColorHex)
 
@@ -8753,20 +8771,8 @@ fun TopStatusBar(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                } else if (showSettingsButton) {
-                    IconButton(
-                        onClick = onSettingsClick,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(LocalAppColors.current.surface, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = KaspaTeal,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                } else if (trailingContent != null) {
+                    trailingContent()
                 } else if (!showEditButton) {
                     // Keeps the balance text centered between the two ends, same as when the button is shown.
                     Spacer(modifier = Modifier.size(40.dp))
