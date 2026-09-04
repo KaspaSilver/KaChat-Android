@@ -1,6 +1,12 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,10 +28,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 
 /**
@@ -73,6 +83,24 @@ private val EmojiSections: List<Pair<String, List<String>>> = listOf(
     "Animals & Nature" to listOf("🐶","🐱","🦊","🐻","🐼","🐨","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🦄","🐝","🦋","🌸","🌻","🌈","🌊","🌙","☀️")
 )
 
+/**
+ * An emoji's Unicode name, lowercased ("fire", "heavy black heart", "grinning face"), so search
+ * can match what an emoji IS rather than the character itself - typing "fire" only finds it if
+ * something looks up a name. Taken from the first codepoint, which is the emoji proper; any
+ * variation selector after it carries no name worth searching.
+ *
+ * Cached: the whole grid is filtered on every keystroke.
+ */
+private val emojiNameCache = mutableMapOf<String, String>()
+
+private fun emojiName(emoji: String): String = emojiNameCache.getOrPut(emoji) {
+    try {
+        Character.getName(emoji.codePointAt(0))?.lowercase().orEmpty()
+    } catch (e: Exception) {
+        ""
+    }
+}
+
 /** The full emoji list behind the quick bar's "+", as a half sheet with a Recents section. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +112,7 @@ fun EmojiReactionPickerSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var recents by remember { mutableStateOf(EmojiRecents.load(context)) }
+    var query by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -98,15 +127,51 @@ fun EmojiReactionPickerSheet(
                 fontSize = 16.sp,
                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
             )
+            TextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                placeholder = { Text("Search emoji", color = colors.textSecondary) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(12.dp)),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = colors.surface,
+                    unfocusedContainerColor = colors.surface,
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = colors.textPrimary,
+                    cursorColor = KaspaTeal,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                ),
+            )
             LazyVerticalGrid(
                 columns = GridCells.Fixed(8),
                 modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                val trimmed = query.trim().lowercase()
                 val sections = buildList {
-                    if (recents.isNotEmpty()) add("Recents" to recents)
-                    addAll(EmojiSections)
+                    if (trimmed.isEmpty()) {
+                        if (recents.isNotEmpty()) add("Recents" to recents)
+                        addAll(EmojiSections)
+                    } else {
+                        EmojiSections.forEach { (title, emojis) ->
+                            val matches = emojis.filter { it.contains(trimmed) || emojiName(it).contains(trimmed) }
+                            if (matches.isNotEmpty()) add(title to matches)
+                        }
+                    }
+                }
+                if (sections.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            "No emoji match that.",
+                            color = colors.textSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        )
+                    }
                 }
                 sections.forEach { (title, emojis) ->
                     item(span = { GridItemSpan(maxLineSpan) }) {
