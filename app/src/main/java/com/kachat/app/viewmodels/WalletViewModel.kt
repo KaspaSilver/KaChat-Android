@@ -682,17 +682,24 @@ class WalletViewModel @Inject constructor(
             _discoveringAddresses.value = true
             _spendingDiscoveryProgress.value = SpendingAddressDiscovery.DiscoveryProgress(0, 0)
             try {
-                val (lastMatchIndex, matchCount) = spendingAddressDiscovery.discoverFunded { progress ->
+                val matched = spendingAddressDiscovery.discoverFunded { progress ->
                     _spendingDiscoveryProgress.value = progress
                 }
+                val walletAddress = walletManager.getAddress()
                 // The stored bound has to cover the highest MATCH so those rows can be derived
                 // and shown. It only ever grows: an address that held funds last month and is
                 // empty now should not vanish from the list.
-                if (lastMatchIndex >= 0) {
-                    walletManager.ensureMaxSpendingAddressIndexAtLeast(walletManager.getAddress(), lastMatchIndex)
+                matched.maxOrNull()?.let {
+                    walletManager.ensureMaxSpendingAddressIndexAtLeast(walletAddress, it)
                 }
+                // Anything the scan matched gets un-hidden. A previously-hidden address that now
+                // holds a balance or a domain would otherwise be found and then dropped straight
+                // back out of the list, which reads as the scan not finding it at all - and
+                // hiding is a tidying choice about empty addresses, not a decision that should
+                // outrank a balance.
+                matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
                 loadManageAddresses()
-                onResult(matchCount)
+                onResult(matched.size)
             } finally {
                 _discoveringAddresses.value = false
                 _spendingDiscoveryProgress.value = null

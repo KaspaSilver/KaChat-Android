@@ -74,22 +74,21 @@ class SpendingAddressDiscovery @Inject constructor(
      * And the gap is 20, not 5. Five was too shallow for a wallet whose funded addresses are not
      * contiguous: a six-address gap ended the scan early and everything past it was never seen.
      *
-     * Returns the highest matching index (-1 when nothing matched) and how many matched.
+     * Returns every matching index, in ascending order.
      * Sequential on purpose - see [ColdStorageAddressDiscovery.discoverAddresses] for why
      * batching these lookups made scans slower and more brittle, not faster.
      */
     suspend fun discoverFunded(
         gapLimit: Int = 20,
         onProgress: ((DiscoveryProgress) -> Unit)? = null,
-    ): Pair<Int, Int> {
-        val api = networkService.kaspaRestApi.value ?: return -1 to 0
-        var lastMatchIndex = -1
-        var matchCount = 0
+    ): List<Int> {
+        val api = networkService.kaspaRestApi.value ?: return emptyList()
+        val matched = mutableListOf<Int>()
         var consecutiveMisses = 0
         var index = 0
 
         while (consecutiveMisses < gapLimit) {
-            onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matchCount))
+            onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matched.size))
             val address = try {
                 walletManager.deriveSpendingAddress(index)
             } catch (e: Exception) {
@@ -109,8 +108,7 @@ class SpendingAddressDiscovery @Inject constructor(
             val matches = (balanceConfirmed && balance > 0) ||
                 knsService.getOwnedDomains(address).isNotEmpty()
             if (matches) {
-                lastMatchIndex = index
-                matchCount++
+                matched.add(index)
                 consecutiveMisses = 0
             } else {
                 consecutiveMisses++
@@ -118,6 +116,6 @@ class SpendingAddressDiscovery @Inject constructor(
             index++
         }
 
-        return lastMatchIndex to matchCount
+        return matched
     }
 }
