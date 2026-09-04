@@ -7924,6 +7924,12 @@ fun SettingsScreen(
                 SettingsNavigationItem(stringResource(R.string.currency), Icons.Default.AttachMoney, currencyCode.uppercase(), onClick = {
                     navController.navigate("currency_settings")
                 })
+                SettingsDivider()
+                // Moved here from Chats: it decides whether a number is drawn on the composer,
+                // which is a display preference, not a chat behaviour.
+                SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
+                    settingsViewModel.setShowFeeEstimate(enabled)
+                }
             }
             }
 
@@ -7969,10 +7975,6 @@ fun SettingsScreen(
 
             if (sectionKey == "chats") {
             SettingsSection(title = stringResource(R.string.chats)) {
-                SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
-                    settingsViewModel.setShowFeeEstimate(enabled)
-                }
-                SettingsDivider()
                 SettingsNavigationItem(
                     stringResource(R.string.photo_quality),
                     Icons.Default.Photo,
@@ -8148,64 +8150,53 @@ fun SettingsScreen(
                     SettingsFooter(googleBackupOpState.message ?: "Done")
                 }
 
+                // Half sheets, like every other chooser in the app - and a destructive action is
+                // exactly where the consequence deserves a line of its own beside it, which a
+                // dialog of bare verbs under a grey message cannot give it.
                 if (showResyncScopeDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showResyncScopeDialog = false },
-                        containerColor = LocalAppColors.current.surface,
-                        title = { Text("Wipe and Re-sync Incoming Messages", color = LocalAppColors.current.textPrimary) },
-                        text = {
-                            Text(
-                                "This removes incoming messages from this device, then re-syncs them from the blockchain. Your account info and sent messages are preserved. Re-sync every chat, or only chats you select.",
-                                color = LocalAppColors.current.textSecondary
-                            )
-                        },
-                        confirmButton = {
-                            Column(horizontalAlignment = Alignment.End) {
-                                TextButton(onClick = {
-                                    showResyncScopeDialog = false
-                                    chatViewModel.wipeAndResyncIncomingMessages(null)
-                                }) {
-                                    Text("All Chats", color = Color.Red, fontWeight = FontWeight.Bold)
-                                }
-                                TextButton(onClick = {
-                                    showResyncScopeDialog = false
-                                    showResyncChatPicker = true
-                                }) {
-                                    Text("Select Chats", color = KaspaTeal)
-                                }
-                                TextButton(onClick = { showResyncScopeDialog = false }) {
-                                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                                }
-                            }
+                    // Three outcomes rather than a yes/no, so this builds its own rows instead of
+                    // reusing ConfirmActionSheet.
+                    ActionSheetContainer(
+                        title = "Wipe and Re-sync Incoming Messages",
+                        subtitle = null,
+                        onDismiss = { showResyncScopeDialog = false },
+                    ) {
+                        ActionSheetRow(
+                            icon = Icons.Default.Cached,
+                            title = "All Chats",
+                            subtitle = "Removes every incoming message from this device, then re-syncs them from the blockchain. Sent messages and account info are kept.",
+                            tint = Color(0xFFFF3B30),
+                        ) {
+                            showResyncScopeDialog = false
+                            chatViewModel.wipeAndResyncIncomingMessages(null)
                         }
-                    )
+                        ActionSheetRow(
+                            icon = Icons.Default.Checklist,
+                            title = "Select Chats",
+                            subtitle = "Pick which chats to wipe and re-sync. Everything else is left alone.",
+                        ) {
+                            showResyncScopeDialog = false
+                            showResyncChatPicker = true
+                        }
+                        ActionSheetRow(
+                            icon = Icons.Default.Close,
+                            title = stringResource(R.string.cancel),
+                            subtitle = "Leave your messages as they are.",
+                        ) { showResyncScopeDialog = false }
+                    }
                 }
 
                 if (showDriveWipeConfirm) {
-                    AlertDialog(
-                        onDismissRequest = { showDriveWipeConfirm = false },
-                        containerColor = LocalAppColors.current.surface,
-                        title = { Text("Wipe Google Drive Backup?", color = LocalAppColors.current.textPrimary) },
-                        text = {
-                            Text(
-                                "This deletes this wallet's chat history backup file from your Google Drive. Your account and the messages on this device stay as they are. Only the Drive copy is deleted, and other wallets' backups are not affected.",
-                                color = LocalAppColors.current.textSecondary
-                            )
+                    ConfirmActionSheet(
+                        title = "Wipe Google Drive Backup?",
+                        confirmTitle = "Wipe Backup",
+                        confirmSubtitle = "Deletes this wallet's chat history backup from Google Drive. Your account and the messages on this device stay as they are, and other wallets' backups are untouched.",
+                        confirmIcon = Icons.Default.CloudOff,
+                        onConfirm = {
+                            driveWipeRequested = true
+                            chatViewModel.deleteDriveBackup()
                         },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showDriveWipeConfirm = false
-                                driveWipeRequested = true
-                                chatViewModel.deleteDriveBackup()
-                            }) {
-                                Text("Wipe Backup", color = Color.Red, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showDriveWipeConfirm = false }) {
-                                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                            }
-                        }
+                        onDismiss = { showDriveWipeConfirm = false },
                     )
                 }
             }
