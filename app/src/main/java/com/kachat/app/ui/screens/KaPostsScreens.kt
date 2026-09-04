@@ -3089,27 +3089,12 @@ fun KaPostsProfileOverlay(
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = Posts, 1 = Replies
     val name = posterDisplayNameState(viewModel, address)
-    // Swipeable Posts/Replies tabs - the same two-way pager<->tab-row sync the feed tabs use
-    // (see the feedPagerState comments in KaPostsScreen): a swipe selects the tab once the page
-    // settles, a tab tap animates the pager across, and each direction no-ops once the other has
-    // caught up so they can't ping-pong. One LazyListState per tab, hoisted here so each list
-    // keeps its scroll offset across swipes (the pager disposes off-screen pages).
-    val profilePagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
-    val postsListState = rememberLazyListState()
-    val repliesListState = rememberLazyListState()
-    val profileListStates = remember(postsListState, repliesListState) {
-        listOf(postsListState, repliesListState)
-    }
-    LaunchedEffect(profilePagerState) {
-        snapshotFlow { profilePagerState.settledPage }.collect { page ->
-            if (page != selectedTab) selectedTab = page
-        }
-    }
-    LaunchedEffect(selectedTab) {
-        if (selectedTab != profilePagerState.currentPage) {
-            profilePagerState.animateScrollToPage(selectedTab)
-        }
-    }
+    // One list for the whole page, header included, rather than a pager holding two. The banner,
+    // bio and tab row are the list's first item, so they scroll up out of the way while reading
+    // instead of holding most of a phone screen for a name already read. The cost is the
+    // horizontal Posts/Replies swipe: a pager needs its pages to own their scrolling, which is
+    // exactly what puts the header outside them.
+    val profileListState = rememberLazyListState()
     // Posts and Replies are separate paging surfaces (separate endpoints, separate cursors), so
     // each pager page carries its own load-more trigger and footer.
     val profilePubkey = remember(isMine, pubkey, posterProfile?.pubkey) { viewModel.profilePubkey(isMine) }
@@ -3126,225 +3111,213 @@ fun KaPostsProfileOverlay(
         ForceFullScreenDialogWindow()
         Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
             KaPostsOverlayStatusBar(modifier = Modifier.statusBarsPadding())
-            // Fixed chrome: banner, avatar row, header, and the tab row stay pinned while only
-            // the content below slides between Posts and Replies (matching iOS's profile tabs).
-            // Divergence from iOS worth knowing: iOS puts the whole profile in one ScrollView,
-            // so its banner scrolls away with the posts; here the chrome is static so the pager
-            // underneath can own the horizontal swipe.
-            Box {
-                val bannerUrl = profileBannerUrl
-                if (bannerUrl != null) {
-                    SubcomposeAsyncImage(
-                        model = bannerUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().height(140.dp),
-                        loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                        error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                    )
-                } else {
-                    Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
-                }
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.35f)),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                }
+            val repliesPage = selectedTab == 1
+            val pageItems = if (repliesPage) repliesList else myPostsList
+            val pagePaging = pagingStateOf(
+                viewModel,
+                profilePubkey?.let { KaPostsViewModel.pageProfile(it, isMine, repliesPage) } ?: "profile:none",
+            )
+            EndlessScroll(listState = profileListState, key = selectedTab to profilePubkey) {
+                viewModel.loadMoreProfile(isMine, replies = repliesPage)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.Bottom,
+            LazyColumn(
+                state = profileListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
             ) {
-                Box(modifier = Modifier.offset(y = (-38).dp)) {
-                    Box(
-                        modifier = Modifier
-                            .size(82.dp)
-                            .clip(CircleShape)
-                            .background(colors.background),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ContactAvatar(
-                            imageUrl = profileAvatarUrl,
-                            fallbackText = name,
-                            size = 76.dp,
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                if (!isMine) {
-                    val isFollowing = address in following
-                    TextButton(onClick = { viewModel.toggleFollow(address, pubkey) }) {
-                        Text(
-                            if (isFollowing) "Following" else "Follow",
-                            color = if (isFollowing) colors.textSecondary else KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    TextButton(onClick = {
-                        viewModel.ensureContactExists(address) { contactId ->
-                            onClose()
-                            navController.navigate("chat/$contactId")
-                        }
-                    }) {
-                        Text("Chat", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
-                Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
-                profileBio?.takeIf { it.isNotBlank() }?.let { bio ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    ExpandableBioText(bio)
-                }
-                if (isMine) {
-                    // Everything above this - avatar, banner, name, bio - comes from your KNS
-                    // profile, so the way to change any of it belongs here rather than only on
-                    // the Profile tab. Same destination that tab's own Edit KNS Profile uses.
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(KaspaTeal.copy(alpha = 0.15f))
-                            .clickable {
-                                onClose()
-                                navController.navigate("edit_kns_profile")
+                item(key = "profile-header") {
+                    Column {
+                        Box {
+                            val bannerUrl = profileBannerUrl
+                            if (bannerUrl != null) {
+                                SubcomposeAsyncImage(
+                                    model = bannerUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxWidth().height(140.dp),
+                                    loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
+                                    error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
+                                )
+                            } else {
+                                Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
                             }
-                            .padding(horizontal = 12.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Default.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Edit KNS Profile", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    val followingCount = if (isMine) following.size else posterProfile?.followingCount ?: 0
-                    val followersCount = if (isMine) (myFollowersCount ?: 0) else posterProfile?.followersCount ?: 0
-                    Row(
-                        modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(false) },
-                    ) {
-                        Text("$followingCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Following", color = colors.textSecondary, fontSize = 14.sp)
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Row(
-                        modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(true) },
-                    ) {
-                        Text("$followersCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Followers", color = colors.textSecondary, fontSize = 14.sp)
-                    }
-                }
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("Posts", "Replies").forEachIndexed { index, label ->
-                    val isSelected = index == selectedTab
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTab = index }
-                            .padding(vertical = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            label,
-                            color = if (isSelected) colors.textPrimary else colors.textSecondary,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 15.sp,
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(48.dp)
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(if (isSelected) KaspaTeal else Color.Transparent),
-                        )
-                    }
-                }
-            }
-            HorizontalDivider(color = colors.surfaceVariant)
-            // The same HorizontalPager the feed tabs use, holding ONLY the per-tab post list
-            // under the fixed chrome. Draggable paging is safe here for the same reason as the
-            // feed: post cells carry no row-level horizontal gestures, and the menus a cell
-            // opens are separate Dialog windows that never see this pager's drags. Vertical
-            // scrolling nests inside the pager the same way the feed's lists do.
-            HorizontalPager(
-                state = profilePagerState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                key = { it },
-            ) { page ->
-                val repliesPage = page == 1
-                val pageItems = if (repliesPage) repliesList else myPostsList
-                val pagePaging = pagingStateOf(
-                    viewModel,
-                    profilePubkey?.let { KaPostsViewModel.pageProfile(it, isMine, repliesPage) } ?: "profile:none",
-                )
-                EndlessScroll(listState = profileListStates[page], key = page to profilePubkey) {
-                    viewModel.loadMoreProfile(isMine, replies = repliesPage)
-                }
-                LazyColumn(
-                    state = profileListStates[page],
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = WindowInsets.navigationBars.asPaddingValues(),
-                ) {
-                    val items = pageItems
-                    if (items.isEmpty()) {
-                        item(key = "empty") {
-                            val loading = if (isMine) isLoadingMyProfile else posterProfile?.isLoading == true
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                            IconButton(
+                                onClick = onClose,
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.35f)),
                             ) {
-                                if (loading) {
-                                    CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
-                                } else {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            Box(modifier = Modifier.offset(y = (-38).dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(82.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.background),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    ContactAvatar(
+                                        imageUrl = profileAvatarUrl,
+                                        fallbackText = name,
+                                        size = 76.dp,
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            if (!isMine) {
+                                val isFollowing = address in following
+                                TextButton(onClick = { viewModel.toggleFollow(address, pubkey) }) {
                                     Text(
-                                        if (repliesPage) "No replies yet" else "No posts yet",
-                                        color = colors.textPrimary,
+                                        if (isFollowing) "Following" else "Follow",
+                                        color = if (isFollowing) colors.textSecondary else KaspaTeal,
                                         fontWeight = FontWeight.Bold,
                                     )
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
+                                TextButton(onClick = {
+                                    viewModel.ensureContactExists(address) { contactId ->
+                                        onClose()
+                                        navController.navigate("chat/$contactId")
+                                    }
+                                }) {
+                                    Text("Chat", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
+                            Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+                            profileBio?.takeIf { it.isNotBlank() }?.let { bio ->
+                                Spacer(modifier = Modifier.height(4.dp))
+                                ExpandableBioText(bio)
+                            }
+                            if (isMine) {
+                                // Everything above this - avatar, banner, name, bio - comes from your KNS
+                                // profile, so the way to change any of it belongs here rather than only on
+                                // the Profile tab. Same destination that tab's own Edit KNS Profile uses.
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50))
+                                        .background(KaspaTeal.copy(alpha = 0.15f))
+                                        .clickable {
+                                            onClose()
+                                            navController.navigate("edit_kns_profile")
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(Icons.Default.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Edit KNS Profile", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row {
+                                val followingCount = if (isMine) following.size else posterProfile?.followingCount ?: 0
+                                val followersCount = if (isMine) (myFollowersCount ?: 0) else posterProfile?.followersCount ?: 0
+                                Row(
+                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(false) },
+                                ) {
+                                    Text("$followingCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Following", color = colors.textSecondary, fontSize = 14.sp)
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Row(
+                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(true) },
+                                ) {
+                                    Text("$followersCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Followers", color = colors.textSecondary, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            listOf("Posts", "Replies").forEachIndexed { index, label ->
+                                val isSelected = index == selectedTab
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { selectedTab = index }
+                                        .padding(vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
                                     Text(
-                                        if (repliesPage) "Replies will show up here." else "Posts will show up here.",
-                                        color = colors.textSecondary,
-                                        fontSize = 13.sp,
+                                        label,
+                                        color = if (isSelected) colors.textPrimary else colors.textSecondary,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 15.sp,
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .width(48.dp)
+                                            .height(3.dp)
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(if (isSelected) KaspaTeal else Color.Transparent),
                                     )
                                 }
                             }
                         }
-                    } else {
-                        items(items, key = { "profile-${it.id}" }) { post ->
-                            LaunchedEffect(post.posterAddress) {
-                                viewModel.ensureSenderProfileFetched(post.posterAddress)
+                        HorizontalDivider(color = colors.surfaceVariant)
+                    }
+                }
+                val items = pageItems
+                if (items.isEmpty()) {
+                    item(key = "empty") {
+                        val loading = if (isMine) isLoadingMyProfile else posterProfile?.isLoading == true
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            if (loading) {
+                                CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
+                            } else {
+                                Text(
+                                    if (repliesPage) "No replies yet" else "No posts yet",
+                                    color = colors.textPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    if (repliesPage) "Replies will show up here." else "Posts will show up here.",
+                                    color = colors.textSecondary,
+                                    fontSize = 13.sp,
+                                )
                             }
-                            KaPostCell(
-                                post = post,
-                                viewModel = viewModel,
-                                onOpenThread = { onOpenThread(post) },
-                                onRepostTap = { onRepostTap(post) },
-                                onOpenQuoted = onOpenQuoted,
-                                onViewEngagement = { onViewEngagement(post) },
-                                // The fallback navigates the NAV HOST, which this profile Dialog
-                                // window covers - close the profile first or the chat screen
-                                // only becomes visible after the user closes it themselves.
-                                onTip = onTip?.let { open -> { open(post) } }
-                                    ?: { onClose(); navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
-                            )
-                            HorizontalDivider(
-                                color = colors.surfaceVariant,
-                                modifier = Modifier.padding(start = 68.dp),
-                            )
                         }
-                        pagingFooter(pagePaging, keySuffix = "profile-$page") {
-                            viewModel.loadMoreProfile(isMine, replies = repliesPage)
+                    }
+                } else {
+                    items(items, key = { "profile-${it.id}" }) { post ->
+                        LaunchedEffect(post.posterAddress) {
+                            viewModel.ensureSenderProfileFetched(post.posterAddress)
                         }
+                        KaPostCell(
+                            post = post,
+                            viewModel = viewModel,
+                            onOpenThread = { onOpenThread(post) },
+                            onRepostTap = { onRepostTap(post) },
+                            onOpenQuoted = onOpenQuoted,
+                            onViewEngagement = { onViewEngagement(post) },
+                            // The fallback navigates the NAV HOST, which this profile Dialog
+                            // window covers - close the profile first or the chat screen
+                            // only becomes visible after the user closes it themselves.
+                            onTip = onTip?.let { open -> { open(post) } }
+                                ?: { onClose(); navController.navigate("chat/${post.posterAddress}?paymentMode=true") },
+                        )
+                        HorizontalDivider(
+                            color = colors.surfaceVariant,
+                            modifier = Modifier.padding(start = 68.dp),
+                        )
+                    }
+                    pagingFooter(pagePaging, keySuffix = "profile-$selectedTab") {
+                        viewModel.loadMoreProfile(isMine, replies = repliesPage)
                     }
                 }
             }
