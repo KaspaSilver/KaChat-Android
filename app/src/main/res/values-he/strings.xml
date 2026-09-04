@@ -148,7 +148,6 @@
     <string name="leave_delete">עזוב ומחק</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">עזיבת השידור הזה מוחקת לצמיתות כל הודעה שנשמרה במטמון עבורו במכשיר זה. לא ניתן לבטל זאת; הצטרפות מחדש מאוחר יותר מתחילה ללא היסטוריה.</string>
     <string name="let_s_add_more_details_about">בואו נוסיף עוד פרטים עליך</string>
-    <string name="let_s_fund_your_chatting_address">בואו נממן את כתובת הצ\'אט שלך כדי שתוכל להתחיל לשוחח עם אנשים. 5-10 קספה מספיקים. (1 KAS שווה בערך ל-~500 הודעות)</string>
     <string name="link_from_contacts">קשר מאנשי קשר</string>
     <string name="linked">מקושר</string>
     <string name="log_out">התנתק</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">חיפוש אוטומטי אחר צמתים</string>
     <string name="most_taxing_on_the_device_not_as">הכי מכביד על המכשיר, פחות אמין - תלוי היכן אתה גר</string>
     <string name="your_public_messaging_identity">זהות ההודעות הציבורית שלך. מַמֵּן אותה בסכום קטן כדי לשלם עמלות הודעה ועמלות יצירת פרופיל KNS - לעולם אל תשלח לכאן כסף שבכוונתך להוציא.</string>
-    <string name="where_you_send_and_receive_kaspa">היכן שאתה שולח ומקבל Kaspa שבכוונתך להשתמש בו ככסף.</string>
     <string name="choose_your_language">בחר את שפתך</string>
     <string name="select_the_language_youd_like_to">בחר את השפה שבה תרצה להשתמש ב-KaChat.</string>
     <string name="best">הכי טוב</string>

@@ -148,7 +148,6 @@
     <string name="leave_delete">छोड़ें और हटाएं</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">इस ब्रॉडकास्ट को छोड़ने से इस डिवाइस पर इसके लिए कैश किया गया हर संदेश स्थायी रूप से हट जाता है। इसे पूर्ववत नहीं किया जा सकता; बाद में फिर से शामिल होना बिना इतिहास के शुरू होता है।</string>
     <string name="let_s_add_more_details_about">आइए आपके बारे में और विवरण जोड़ें</string>
-    <string name="let_s_fund_your_chatting_address">आइए लोगों के साथ चैट शुरू करने के लिए आपके चैट पते को फंड करें। 5-10 कास्पा पर्याप्त है। (1 KAS लगभग ~500 संदेशों के बराबर है)</string>
     <string name="link_from_contacts">संपर्कों से लिंक करें</string>
     <string name="linked">लिंक किया गया</string>
     <string name="log_out">लॉग आउट</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">नोड्स की स्वतः खोज करें</string>
     <string name="most_taxing_on_the_device_not_as">डिवाइस पर सबसे अधिक बोझ, उतना विश्वसनीय नहीं - यह इस पर निर्भर करता है कि आप कहां रहते हैं</string>
     <string name="your_public_messaging_identity">आपकी सार्वजनिक मैसेजिंग पहचान। संदेश शुल्क और KNS प्रोफ़ाइल निर्माण शुल्क चुकाने के लिए इसमें एक छोटी राशि डालें - यहां कभी भी वह पैसा न भेजें जिसे आप खर्च करना चाहते हैं।</string>
-    <string name="where_you_send_and_receive_kaspa">जहां आप वह Kaspa भेजते और प्राप्त करते हैं जिसे आप पैसे के रूप में उपयोग करना चाहते हैं।</string>
     <string name="choose_your_language">अपनी भाषा चुनें</string>
     <string name="select_the_language_youd_like_to">वह भाषा चुनें जिसे आप KaChat में उपयोग करना चाहते हैं।</string>
     <string name="best">सर्वश्रेष्ठ</string>

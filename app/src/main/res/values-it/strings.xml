@@ -148,7 +148,6 @@
     <string name="leave_delete">Esci ed elimina</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Uscire da questo broadcast elimina definitivamente ogni messaggio memorizzato nella cache per esso su questo dispositivo. Non puo essere annullato; riunirsi in seguito ricomincia senza cronologia.</string>
     <string name="let_s_add_more_details_about">Aggiungiamo altri dettagli su di te</string>
-    <string name="let_s_fund_your_chatting_address">Finanziamo il tuo indirizzo di chat cosi puoi iniziare a chattare con le persone. Bastano 5-10 Kaspa. (1 KAS equivale a circa ~500 messaggi)</string>
     <string name="link_from_contacts">Collega dai contatti</string>
     <string name="linked">Collegato</string>
     <string name="log_out">Esci</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">Cerca nodi automaticamente</string>
     <string name="most_taxing_on_the_device_not_as">Piu gravoso per il dispositivo, meno affidabile - dipende da dove vivi</string>
     <string name="your_public_messaging_identity">La tua identita pubblica di messaggistica. Finanziala con un piccolo importo per pagare le commissioni dei messaggi e le commissioni di creazione del profilo KNS - non inviare qui denaro che intendi spendere.</string>
-    <string name="where_you_send_and_receive_kaspa">Dove invii e ricevi Kaspa che intendi usare come denaro.</string>
     <string name="choose_your_language">Scegli la tua lingua</string>
     <string name="select_the_language_youd_like_to">Seleziona la lingua che vorresti usare in KaChat.</string>
     <string name="best">Migliore</string>

@@ -104,7 +104,6 @@
     <string name="leave">Keluar</string>
     <string name="leave_delete">Keluar &amp; Hapus</string>
     <string name="let_s_add_more_details_about">Mari tambahkan lebih banyak detail tentang Anda</string>
-    <string name="let_s_fund_your_chatting_address">Mari isi saldo alamat obrolan Anda agar dapat mulai mengobrol. 5-10 Kaspa sudah cukup. (1 KAS setara ~500 pesan)</string>
     <string name="link_from_contacts">Tautkan dari Kontak</string>
     <string name="linked">Ditautkan</string>
     <string name="log_out">Keluar</string>
@@ -284,7 +283,6 @@
     <string name="auto_search_for_nodes">Cari Node Otomatis</string>
     <string name="most_taxing_on_the_device_not_as">Paling membebani perangkat, kurang andal - bergantung pada lokasi Anda</string>
     <string name="your_public_messaging_identity">Identitas pesan publik Anda. Danai sedikit untuk biaya pesan dan pembuatan profil KNS - jangan simpan dana belanja di sini.</string>
-    <string name="where_you_send_and_receive_kaspa">Tempat Anda mengirim dan menerima Kaspa yang ingin Anda gunakan sebagai mata uang.</string>
     <string name="choose_your_language">Pilih Bahasa Anda</string>
     <string name="select_the_language_youd_like_to">Pilih bahasa yang ingin digunakan di KaChat.</string>
     <string name="best">Terbaik</string>

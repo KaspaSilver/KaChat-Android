@@ -14,7 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
@@ -201,7 +201,7 @@ fun WelcomeGuideScreen(
                     onNext = { step = WelcomeGuideStep.FEES }
                 )
                 WelcomeGuideStep.FEES -> WelcomeGuideStepScaffold(
-                    icon = Icons.Default.Bolt,
+                    icon = Icons.Default.Public,
                     title = stringResource(R.string.how_kachat_uses_kaspa),
                     body = stringResource(R.string.kachat_lets_you_send_and_receive),
                     buttonLabel = stringResource(R.string.next),

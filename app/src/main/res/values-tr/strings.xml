@@ -148,7 +148,6 @@
     <string name="leave_delete">Ayril ve Sil</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Bu yayindan ayrilmak, bu cihazda onun icin onbellege alinmis her mesaji kalici olarak siler. Bu geri alinamaz; daha sonra tekrar katilmak gecmis olmadan baslar.</string>
     <string name="let_s_add_more_details_about">Hakkinizda daha fazla detay ekleyelim</string>
-    <string name="let_s_fund_your_chatting_address">Insanlarla sohbet etmeye baslayabilmen icin sohbet adresini fonlayalim. 5-10 Kaspa yeterlidir. (1 KAS yaklasik ~500 mesaja denk gelir)</string>
     <string name="link_from_contacts">Kişilerden Bağla</string>
     <string name="linked">Bağlı</string>
     <string name="log_out">Çıkış Yap</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">Node\'lari Otomatik Ara</string>
     <string name="most_taxing_on_the_device_not_as">Cihaz icin en yorucu olani, o kadar guvenilir degil - yasadiginiz yere bagli</string>
     <string name="your_public_messaging_identity">Herkese acik mesajlasma kimliginiz. Mesaj ucretlerini ve KNS profil olusturma ucretlerini odemek icin kucuk bir miktarla fonlayin - buraya harcamayi dusundugunuz parayi asla gondermeyin.</string>
-    <string name="where_you_send_and_receive_kaspa">Para olarak kullanmayi dusundugunuz Kaspa\'yi gonderdiginiz ve aldiginiz yer.</string>
     <string name="choose_your_language">Dilinizi Secin</string>
     <string name="select_the_language_youd_like_to">KaChat\'te kullanmak istediginiz dili secin.</string>
     <string name="best">En iyi</string>

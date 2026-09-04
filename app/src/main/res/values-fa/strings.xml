@@ -170,7 +170,6 @@
     <string name="leave_delete">ترک کردن و حذف</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">ترک این پخش تمام پیام‌های ذخیره‌شده در حافظه پنهان آن روی این دستگاه را برای همیشه حذف می‌کند. این قابل بازگشت نیست؛ پیوستن دوباره بعداً بدون سابقه شروع می‌شود.</string>
     <string name="let_s_add_more_details_about">بیایید جزئیات بیشتری درباره شما اضافه کنیم</string>
-    <string name="let_s_fund_your_chatting_address">بیایید آدرس گفتگوی شما را شارژ کنیم تا بتوانید با افراد گفتگو را شروع کنید. 5-10 کاسپا کافی است. (1 KAS تقریباً معادل ~500 پیام است)</string>
     <string name="link_from_contacts">پیوند از مخاطبین</string>
     <string name="linked">پیوند شده</string>
     <string name="log_out">خروج</string>
@@ -465,7 +464,6 @@
     <string name="auto_search_for_nodes">جستجوی خودکار برای گره‌ها</string>
     <string name="most_taxing_on_the_device_not_as">سنگین‌ترین برای دستگاه، قابل اعتمادتر نیست - بستگی به محل زندگی شما دارد</string>
     <string name="your_public_messaging_identity">هویت پیام‌رسانی عمومی شما. آن را با مبلغ کمی شارژ کنید تا کارمزد پیام‌ها و کارمزد ایجاد پروفایل KNS پرداخت شود - هرگز پولی که قصد خرج کردنش را دارید به اینجا ارسال نکنید.</string>
-    <string name="where_you_send_and_receive_kaspa">جایی که Kaspa‌ای که قصد دارید به عنوان پول استفاده کنید را ارسال و دریافت می‌کنید.</string>
     <string name="choose_your_language">زبان خود را انتخاب کنید</string>
     <string name="select_the_language_youd_like_to">زبانی که می‌خواهید در KaChat استفاده کنید را انتخاب کنید.</string>
     <string name="best">بهترین</string>

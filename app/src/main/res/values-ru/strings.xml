@@ -148,7 +148,6 @@
     <string name="leave_delete">Покинуть и удалить</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Покидая эту трансляцию, вы навсегда удаляете все сообщения, кэшированные для неё на этом устройстве. Это нельзя отменить; повторное присоединение позже начнётся без истории.</string>
     <string name="let_s_add_more_details_about">Добавим больше информации о вас</string>
-    <string name="let_s_fund_your_chatting_address">Пополним ваш адрес для чата, чтобы вы могли начать общаться с людьми. Достаточно 5-10 Kaspa. (1 KAS - это примерно ~500 сообщений)</string>
     <string name="link_from_contacts">Привязать из контактов</string>
     <string name="linked">Привязан</string>
     <string name="log_out">Выйти</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">Автопоиск узлов</string>
     <string name="most_taxing_on_the_device_not_as">Наиболее нагружает устройство, менее надёжен - зависит от места проживания</string>
     <string name="your_public_messaging_identity">Ваш публичный идентификатор для сообщений. Пополните его небольшой суммой для оплаты комиссий за сообщения и комиссий за создание профиля KNS - никогда не отправляйте сюда деньги, которые планируете тратить.</string>
-    <string name="where_you_send_and_receive_kaspa">Куда вы отправляете и получаете Kaspa, которые планируете использовать как деньги.</string>
     <string name="choose_your_language">Выберите язык</string>
     <string name="select_the_language_youd_like_to">Выберите язык, который вы хотите использовать в KaChat.</string>
     <string name="best">Лучший</string>

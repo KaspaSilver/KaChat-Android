@@ -148,7 +148,6 @@
     <string name="leave_delete">退出して削除</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">このブロードキャストを退出すると、このデバイスにキャッシュされているすべてのメッセージが完全に削除されます。これは元に戻せません。後で再参加すると履歴なしで開始されます。</string>
     <string name="let_s_add_more_details_about">あなたについての詳細をもっと追加しましょう</string>
-    <string name="let_s_fund_your_chatting_address">人々とチャットを始められるように、まずチャットアドレスに資金を入れましょう。5〜10 Kaspaで十分です。(1 KASは約500メッセージに相当します)</string>
     <string name="link_from_contacts">連絡先からリンク</string>
     <string name="linked">リンク済み</string>
     <string name="log_out">ログアウト</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">ノードを自動検索</string>
     <string name="most_taxing_on_the_device_not_as">デバイスへの負荷が最も大きく、信頼性もそれほど高くありません - お住まいの地域によって異なります</string>
     <string name="your_public_messaging_identity">あなたの公開メッセージングアイデンティティです。メッセージ手数料とKNSプロフィール作成手数料を支払うために少額を入金してください - 使う予定のあるお金を絶対にここに送らないでください。</string>
-    <string name="where_you_send_and_receive_kaspa">お金として使う予定のKaspaを送受信する場所です。</string>
     <string name="choose_your_language">言語を選択してください</string>
     <string name="select_the_language_youd_like_to">KaChatで使用したい言語を選択してください。</string>
     <string name="best">最適</string>

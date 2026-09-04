@@ -148,7 +148,6 @@
     <string name="leave_delete">Rời khỏi và xóa</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Rời khỏi phát sóng này sẽ xóa vĩnh viễn mọi tin nhắn được lưu trong bộ nhớ đệm cho nó trên thiết bị này. Không thể hoàn tác; tham gia lại sau này sẽ bắt đầu mà không có lịch sử.</string>
     <string name="let_s_add_more_details_about">Hãy thêm chi tiết hơn về bạn</string>
-    <string name="let_s_fund_your_chatting_address">Hãy nạp tiền cho địa chỉ trò chuyện của bạn để bạn có thể bắt đầu trò chuyện với mọi người. 5-10 Kaspa là đủ. (1 KAS tương đương khoảng ~500 tin nhắn)</string>
     <string name="link_from_contacts">Liên kết từ danh bạ</string>
     <string name="linked">Đã liên kết</string>
     <string name="log_out">Đăng xuất</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">Tu dong tim kiem node</string>
     <string name="most_taxing_on_the_device_not_as">Ton hao thiet bi nhieu nhat, khong dang tin cay bang - tuy thuoc vao noi ban song</string>
     <string name="your_public_messaging_identity">Danh tinh nhan tin cong khai cua ban. Nap mot khoan nho de tra phi tin nhan va phi tao ho so KNS - khong bao gio gui vao day so tien ban dinh chi tieu.</string>
-    <string name="where_you_send_and_receive_kaspa">Noi ban gui va nhan Kaspa ma ban dinh dung nhu tien.</string>
     <string name="choose_your_language">Chon ngon ngu cua ban</string>
     <string name="select_the_language_youd_like_to">Chon ngon ngu ban muon su dung trong KaChat.</string>
     <string name="best">Tot nhat</string>

@@ -242,7 +242,7 @@
     <string name="leave_delete">Leave &amp; Delete</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this broadcast permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
     <string name="let_s_add_more_details_about">Let\'s add more details about yourself</string>
-    <string name="let_s_fund_your_chatting_address">Let\'s fund your chatting address so that you can start chatting with people. 5-10 Kaspa is enough. (1 KAS is about ~500 messages)</string>
+    <string name="let_s_fund_your_chatting_address">50 Kaspa is recommended to get started to be able to create a KNS profile and chat for a while. 5 Kaspa is enough for about 1500 messages</string>
     <string name="link_from_contacts">Link from Contacts</string>
     <string name="linked">Linked</string>
     <string name="local_storage_used">Local storage used</string>
@@ -549,7 +549,7 @@
     <string name="auto_search_for_nodes">Auto Search for Nodes</string>
     <string name="most_taxing_on_the_device_not_as">Most taxing on the device, not as reliable - depends on where you live</string>
     <string name="your_public_messaging_identity">Your public messaging identity. Fund it with a small amount to pay message fees and KNS profile creation fees - never send money here that you intend to spend.</string>
-    <string name="where_you_send_and_receive_kaspa">Where you send and receive Kaspa you intend to use as money.</string>
+    <string name="where_you_send_and_receive_kaspa">Where you send and receive Kaspa you intend to use for everything else.</string>
     <string name="just_send_5_10_kas_at_a_time">This address is for chatting and KNS profile creation. Funding it with around 50 Kaspa is enough to create a KNS profile and send messages for a long time.</string>
     <string name="choose_your_language">Choose Your Language</string>
     <string name="select_the_language_youd_like_to">Select the language you\'d like to use in KaChat.</string>

@@ -148,7 +148,6 @@
     <string name="leave_delete">Verlassen &amp; löschen</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Das Verlassen dieses Broadcasts löscht dauerhaft jede dafür auf diesem Gerät zwischengespeicherte Nachricht. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="let_s_add_more_details_about">Lass uns mehr Details über dich hinzufügen</string>
-    <string name="let_s_fund_your_chatting_address">Lass uns deine Chat-Adresse finanzieren, damit du mit Leuten chatten kannst. 5-10 Kaspa reichen aus. (1 KAS entspricht etwa ~500 Nachrichten)</string>
     <string name="link_from_contacts">Aus Kontakten verknüpfen</string>
     <string name="linked">Verknüpft</string>
     <string name="log_out">Abmelden</string>
@@ -426,7 +425,6 @@
     <string name="auto_search_for_nodes">Automatisch nach Nodes suchen</string>
     <string name="most_taxing_on_the_device_not_as">Am belastendsten für das Gerät, nicht so zuverlässig - hängt davon ab, wo du lebst</string>
     <string name="your_public_messaging_identity">Deine öffentliche Nachrichtenidentität. Finanziere sie mit einem kleinen Betrag, um Nachrichtengebühren und KNS-Profilerstellungsgebühren zu bezahlen.</string>
-    <string name="where_you_send_and_receive_kaspa">Wo du Kaspa sendest und empfängst, das du als Geld verwenden möchtest.</string>
     <string name="choose_your_language">Wähle deine Sprache</string>
     <string name="select_the_language_youd_like_to">Wähle die Sprache, die du in KaChat verwenden möchtest.</string>
     <string name="best">Am besten</string>
