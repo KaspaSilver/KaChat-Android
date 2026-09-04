@@ -1265,6 +1265,14 @@ fun MainShell(
                 MenuVisibilityScreen(navController = navController)
             }
 
+            composable("cache_settings") {
+                val cacheManager: com.kachat.app.services.CacheManager = hiltViewModel<com.kachat.app.viewmodels.CacheViewModel>().cacheManager
+                CacheSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    cacheManager = cacheManager,
+                )
+            }
+
             composable("child_mode_settings") {
                 ChildModeSettingsScreen(
                     onBack = { navController.popBackStack() }

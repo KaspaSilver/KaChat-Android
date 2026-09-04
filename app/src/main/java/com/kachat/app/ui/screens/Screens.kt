@@ -8071,6 +8071,16 @@ fun SettingsScreen(
                 )
             }
 
+            // Kept apart from the rest of Storage on purpose: message retention and cloud sync
+            // decide what happens to things you would miss, and this decides what happens to
+            // things you would not.
+            SettingsSection(title = null) {
+                SettingsNavigationItem("Cache", Icons.Default.DeleteSweep, onClick = {
+                    navController.navigate("cache_settings")
+                })
+            }
+            SettingsFooter("Images and files the app can always download again. Clearing them frees space and loses nothing.")
+
             SettingsSection(title = stringResource(R.string.cloud_storage)) {
                 SettingsNavigationItem(stringResource(R.string.google_drive), Icons.Default.CloudQueue, onClick = {
                     navController.navigate("storage_google_drive")
