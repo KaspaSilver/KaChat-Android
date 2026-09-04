@@ -319,9 +319,17 @@ class KaPostsViewModel @Inject constructor(
         // people like is - including comments, which the cell already shows but the old ordering
         // ignored entirely. Ties break by recency so the many equal-scoring posts deep in the
         // window keep a stable order instead of the sort's whim.
-        FeedTab.POPULAR -> globalVisible.sortedWith(
-            compareByDescending<KaPostDraft> { popularityScore(it) }.thenByDescending { it.timestamp }
-        )
+        //
+        // Scored once per post rather than once per comparison: the ranking window is 300 posts
+        // deep, so a comparator that recomputes the score would call it a couple of thousand
+        // times, and a tab tap composes this page mid-animation.
+        FeedTab.POPULAR -> globalVisible
+            .map { it to popularityScore(it) }
+            .sortedWith(
+                compareByDescending<Pair<KaPostDraft, Int>> { it.second }
+                    .thenByDescending { it.first.timestamp }
+            )
+            .map { it.first }
     }
 
     /** The selected tab's feed - kept for callers that only care about what's on screen. */

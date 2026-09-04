@@ -365,6 +365,13 @@ private fun LazyListScope.pagingFooter(
 // iOS twin had the identical bug). These helpers subscribe a composable to ONE derived slice,
 // so a cell recomposes only when ITS value actually changes.
 
+/** The three translation flags a cell reads, as one value so it can be one collector. */
+private data class KaPostTranslationSlice(
+    val state: com.kachat.app.services.PostTranslationService.TranslationState?,
+    val showingOriginal: Boolean,
+    val canTranslate: Boolean,
+)
+
 /** Compose state for one derived [selector] slice of [this]. [keys] must cover the selector's captures. */
 @Composable
 private fun <T, R> StateFlow<T>.collectSelectedAsState(vararg keys: Any?, selector: (T) -> R): State<R> {
@@ -1316,9 +1323,38 @@ fun KaPostCell(
     // reader translating one post never re-renders the viewport. Language identification is async,
     // so the cell asks once and the affordance appears when the answer arrives.
     val translationKey = remember(post.remoteId, post.id) { viewModel.translationKey(post) }
-    val translationState by viewModel.translations.collectSelectedAsState(translationKey) { it[translationKey] }
-    val showingOriginal by viewModel.showingOriginal.collectSelectedAsState(translationKey) { translationKey in it }
-    val canTranslate by viewModel.translatable.collectSelectedAsState(translationKey) { translationKey in it }
+    // One collector for the three translation slices rather than three.
+    //
+    // collectSelectedAsState builds a map+distinctUntilChanged flow and collects it, so every
+    // call is a coroutine per cell. A fling recycles rows constantly, and at eight-ish collectors
+    // a row that is a lot of launches and cancellations per second - which is felt as the list
+    // not keeping up rather than as any one thing being slow. Combined into a single flow, the
+    // per-row precision is unchanged: distinctUntilChanged on the triple still only emits when
+    // THIS post's translation state moves.
+    val translationSlice by remember(
+        viewModel.translations, viewModel.showingOriginal, viewModel.translatable, translationKey
+    ) {
+        combine(
+            viewModel.translations,
+            viewModel.showingOriginal,
+            viewModel.translatable,
+        ) { translations, originals, translatable ->
+            KaPostTranslationSlice(
+                state = translations[translationKey],
+                showingOriginal = translationKey in originals,
+                canTranslate = translationKey in translatable,
+            )
+        }.distinctUntilChanged()
+    }.collectAsState(
+        initial = KaPostTranslationSlice(
+            state = viewModel.translations.value[translationKey],
+            showingOriginal = translationKey in viewModel.showingOriginal.value,
+            canTranslate = translationKey in viewModel.translatable.value,
+        )
+    )
+    val translationState = translationSlice.state
+    val showingOriginal = translationSlice.showingOriginal
+    val canTranslate = translationSlice.canTranslate
     LaunchedEffect(translationKey) { viewModel.considerTranslation(post) }
     val bodyText = viewModel.displayText(post, translationState, showingOriginal)
 
