@@ -669,19 +669,33 @@ class WalletViewModel @Inject constructor(
      * before the Manage Addresses screen ever generated it locally). [onResult] receives how
      * many used addresses the scan found in total (0 if none).
      */
+    /** Live scan position, so Manage Addresses' actions sheet can count up during a discovery
+     *  rather than sit on a spinner - same readout Cold Storage's sheet gives. */
+    private val _spendingDiscoveryProgress = MutableStateFlow<SpendingAddressDiscovery.DiscoveryProgress?>(null)
+    val spendingDiscoveryProgress: StateFlow<SpendingAddressDiscovery.DiscoveryProgress?> = _spendingDiscoveryProgress.asStateFlow()
+
+    /** [onResult] receives how many addresses HOLD something (a balance or a KNS domain), not a
+     *  recovered index - see [SpendingAddressDiscovery.discoverFunded]. */
     fun discoverSpendingAddresses(onResult: (Int) -> Unit) {
         if (_discoveringAddresses.value) return
         viewModelScope.launch {
             _discoveringAddresses.value = true
+            _spendingDiscoveryProgress.value = SpendingAddressDiscovery.DiscoveryProgress(0, 0)
             try {
-                val discoveredCount = spendingAddressDiscovery.discoverIndex()
-                if (discoveredCount > 0) {
-                    walletManager.ensureMaxSpendingAddressIndexAtLeast(walletManager.getAddress(), discoveredCount - 1)
+                val (lastMatchIndex, matchCount) = spendingAddressDiscovery.discoverFunded { progress ->
+                    _spendingDiscoveryProgress.value = progress
+                }
+                // The stored bound has to cover the highest MATCH so those rows can be derived
+                // and shown. It only ever grows: an address that held funds last month and is
+                // empty now should not vanish from the list.
+                if (lastMatchIndex >= 0) {
+                    walletManager.ensureMaxSpendingAddressIndexAtLeast(walletManager.getAddress(), lastMatchIndex)
                 }
                 loadManageAddresses()
-                onResult(discoveredCount)
+                onResult(matchCount)
             } finally {
                 _discoveringAddresses.value = false
+                _spendingDiscoveryProgress.value = null
             }
         }
     }

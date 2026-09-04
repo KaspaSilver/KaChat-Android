@@ -4205,8 +4205,10 @@ fun ManageAddressesScreen(
     var renamingEntry by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
     var renameInput by remember { mutableStateOf("") }
     var showActionsMenu by remember { mutableStateOf(false) }
-    var actionsMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     var showConsolidateConfirm by remember { mutableStateOf(false) }
+    val isDiscoveringAddresses by viewModel.discoveringAddresses.collectAsState()
+    val discoveryProgress by viewModel.spendingDiscoveryProgress.collectAsState()
+    var discoverySummary by remember { mutableStateOf<String?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
     val consolidateState by viewModel.consolidateState.collectAsState()
 
@@ -4294,90 +4296,46 @@ fun ManageAddressesScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
                     }
                 },
-                actions = {
-                    // Bulk visibility manager (iOS parity): compact checkmark list of EVERY
-                    // address, so dozens can be toggled off the main list in one sitting.
-                    if (onAddressPicked == null) {
-                        IconButton(onClick = onNavigateToVisibility) {
-                            Icon(Icons.Default.Checklist, "Manage address visibility", tint = KaspaTeal)
-                        }
-                    }
-                },
+                // Address Visibility used to be an unlabelled checklist glyph here. It is one
+                // of this account's address actions, so it lives with the others in the Address
+                // Actions sheet, where it has room to say what it does.
+                actions = {},
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         },
-        floatingActionButtonPosition = FabPosition.Center,
-        floatingActionButton = {
-            // Hidden while the QR overlay is up — its Dialog window doesn't fully cover the
-            // screen, so the FAB would otherwise still show through around the QR card. Also
-            // hidden entirely on the Chat Privacy tab: that tab is purely a viewer, so
-            // Generate/Discover/Consolidate disappear there (iOS parity).
-            if (qrAddress == null && !showingChatPrivacyTab) {
-            FloatingActionButton(
-                onClick = { showActionsMenu = true },
-                containerColor = KaspaTeal,
-                contentColor = Color.Black,
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier
-                    .height(56.dp)
-                    .onGloballyPositioned { coords -> actionsMenuAnchor = coords.positionInWindow() }
-            ) {
-                val addressActionsContentDescription = stringResource(R.string.address_actions_2)
-                Text(
-                    stringResource(R.string.address_actions),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .semantics { contentDescription = addressActionsContentDescription }
-                )
-            }
-            }
-            // A regular DropdownMenu anchors to (and can get pushed off to one side of) this
-            // now screen-centered FAB rather than the screen itself — see CenteredOptionsMenu's
-            // doc comment for why this uses a real Dialog instead. Anchored to the FAB's top edge
-            // (no height offset) so the card grows upward and sits just above the button, matching
-            // the composer "+" menu's same near-bottom-of-screen anchoring. centerHorizontally
-            // overrides the usual left/right-edge hugging (which assumes the anchor sits near a
-            // screen edge) since this FAB is itself screen-centered.
-            if (showActionsMenu) {
-                CenteredOptionsMenu(
-                    onDismissRequest = { showActionsMenu = false },
-                    anchor = actionsMenuAnchor,
-                    centerHorizontally = true
-                ) {
-                    PopupMenuRow(Icons.Default.AddCircleOutline, stringResource(R.string.generate_new_spending_address)) {
-                        showActionsMenu = false
-                        viewModel.generateNewSpendingAddress { index ->
-                            Toast.makeText(
-                                context,
-                                if (index != null) "Spending address #$index is ready."
-                                else "Could not check addresses. Try again when connected.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.Default.Search, stringResource(R.string.discover_addresses)) {
-                        showActionsMenu = false
-                        viewModel.discoverSpendingAddresses { count ->
-                            Toast.makeText(
-                                context,
-                                if (count > 0) "Found $count used address${if (count == 1) "" else "es"}" else "No additional used addresses found",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.AutoMirrored.Filled.CallMerge, stringResource(R.string.send_all_kaspa_to_primary_spend)) {
-                        showActionsMenu = false
-                        showConsolidateConfirm = true
-                    }
-                }
-            }
-        }
     ) { padding ->
+        // Half sheet, opened by the button under Total Balance rather than a FAB - see the
+        // header item below, and ManageAddressesActionsSheet for the discovery readout.
+        if (showActionsMenu) {
+            ManageAddressesActionsSheet(
+                isDiscovering = isDiscoveringAddresses,
+                progress = discoveryProgress,
+                summary = discoverySummary,
+                onGenerate = {
+                    showActionsMenu = false
+                    viewModel.generateNewSpendingAddress { index ->
+                        Toast.makeText(
+                            context,
+                            if (index != null) "Spending address #$index is ready."
+                            else "Could not check addresses. Try again when connected.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onDiscover = {
+                    discoverySummary = null
+                    viewModel.discoverSpendingAddresses { count ->
+                        // The count is addresses that hold a balance or a KNS domain - say so,
+                        // rather than "used", which is what the old number implied and was not.
+                        discoverySummary = if (count == 0) "No addresses with a balance or domain found."
+                        else "Found $count address${if (count == 1) "" else "es"} with a balance or domain."
+                    }
+                },
+                onVisibility = { showActionsMenu = false; onNavigateToVisibility() },
+                onConsolidate = { showActionsMenu = false; showConsolidateConfirm = true },
+                onDismiss = { showActionsMenu = false; discoverySummary = null },
+            )
+        }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
         // Top-of-screen tab switch, same TabRow treatment as the address-details screen's
         // History/UTXOs/KNS Domains tabs. "Addresses" is the normal spending-address list;
@@ -4482,6 +4440,45 @@ fun ManageAddressesScreen(
                     }
                 }
             } else {
+            // Total, then the actions button directly under it rather than a FAB floating over
+            // the list: the actions are about this account, so they belong with it, and the FAB
+            // covered the last address row on a short list. Same shape as Cold Storage.
+            // Deliberately excludes the chatting address - that one funds message and inscription
+            // fees and is kept separate on purpose, so folding it in would make the number mean
+            // nothing in particular.
+            if (onAddressPicked == null) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(LocalAppColors.current.surface)
+                            .padding(20.dp)
+                    ) {
+                        Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        Text(
+                            "%.8f KAS".format(java.util.Locale.US, visibleAddresses.sumOf { it.balanceSompi } / 100_000_000.0),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = { showActionsMenu = true },
+                            enabled = !isDiscoveringAddresses && consolidateState.status != WalletViewModel.ConsolidateStatus.RUNNING,
+                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            if (isDiscoveringAddresses) {
+                                CircularProgressIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
+                            } else {
+                                Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
             if (onAddressPicked != null) {
                 item {
                     Text(
@@ -4562,8 +4559,7 @@ fun ManageAddressesScreen(
             }
 
             item {
-                // Leaves room so the last address row isn't hidden behind the FAB.
-                Spacer(Modifier.height(64.dp))
+                Spacer(Modifier.height(24.dp))
             }
             }
         }
@@ -6733,39 +6729,80 @@ private fun ManageAddressRow(
         }
     }
 
+    // Half sheet rather than a popup menu (Cold Storage parity): the rows have room to say what
+    // each one does, which a menu of bare verbs cannot.
     if (showMenu) {
-        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.Edit, stringResource(R.string.rename_address)) {
-                showMenu = false
-                onRenameClick()
-            }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-            PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
-                showMenu = false
-                onCopyClick()
-            }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-            PopupMenuRow(Icons.Default.QrCode, stringResource(R.string.show_qr_code)) {
-                showMenu = false
-                onQrClick()
-            }
+        ManageAddressActionsSheet(
+            title = entry.label?.takeIf { it.isNotBlank() } ?: "Address ${entry.index}",
+            subtitle = entry.address,
+            onDismiss = { showMenu = false },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.Edit,
+                title = stringResource(R.string.rename_address),
+                subtitle = "Gives this address a label of your own.",
+            ) { showMenu = false; onRenameClick() }
+            ActionSheetRow(
+                icon = Icons.Default.ContentCopy,
+                title = stringResource(R.string.copy_address),
+                subtitle = "Puts the full address on the clipboard.",
+            ) { showMenu = false; onCopyClick() }
+            ActionSheetRow(
+                icon = Icons.Default.QrCode,
+                title = stringResource(R.string.show_qr_code),
+                subtitle = "Full screen, for scanning with another device.",
+            ) { showMenu = false; onQrClick() }
             if (!entry.isCurrent) {
-                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                PopupMenuRow(Icons.Default.Star, stringResource(R.string.set_as_primary_address)) {
-                    showMenu = false
-                    onActivateClick()
-                }
+                ActionSheetRow(
+                    icon = Icons.Default.Star,
+                    title = stringResource(R.string.set_as_primary_address),
+                    subtitle = "New payments send from here by default.",
+                ) { showMenu = false; onActivateClick() }
             }
-            // Hide straight from the row (iOS parity) — never offered for the primary address or
-            // for a chat-privacy reservation (offered to a contact, locked visible); the funded
-            // guard lives in the caller so it can toast the reason.
+            // Hide straight from the row - never offered for the primary address or for a
+            // chat-privacy reservation (offered to a contact, locked visible); the funded guard
+            // lives in the caller so it can toast the reason.
             if (onHideClick != null && !entry.isCurrent && !showsPrivacyTag) {
-                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                PopupMenuRow(Icons.Default.VisibilityOff, "Hide Address") {
-                    showMenu = false
-                    onHideClick()
-                }
+                ActionSheetRow(
+                    icon = Icons.Default.VisibilityOff,
+                    title = "Hide Address",
+                    subtitle = "Removes it from this list. Re-enable it in Address Visibility.",
+                ) { showMenu = false; onHideClick() }
             }
+        }
+    }
+}
+
+/** Shared shell for Manage Addresses' per-row half sheets - name and address on top, then rows. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ManageAddressActionsSheet(
+    title: String,
+    subtitle: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(
+                subtitle,
+                color = colors.textSecondary,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            content()
         }
     }
 }
@@ -6842,17 +6879,24 @@ private fun ChatPrivacyAddressRow(
         }
     }
 
+    // Half sheet, same as the Addresses tab's rows - a pool row is read-only, so it gets only
+    // the two actions that apply.
     if (showMenu) {
-        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
-                showMenu = false
-                onCopyClick()
-            }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-            PopupMenuRow(Icons.Default.QrCode, stringResource(R.string.show_qr_code)) {
-                showMenu = false
-                onQrClick()
-            }
+        ManageAddressActionsSheet(
+            title = entry.label?.takeIf { it.isNotBlank() } ?: "Address ${entry.index}",
+            subtitle = entry.address,
+            onDismiss = { showMenu = false },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.ContentCopy,
+                title = stringResource(R.string.copy_address),
+                subtitle = "Puts the full address on the clipboard.",
+            ) { showMenu = false; onCopyClick() }
+            ActionSheetRow(
+                icon = Icons.Default.QrCode,
+                title = stringResource(R.string.show_qr_code),
+                subtitle = "Full screen, for scanning with another device.",
+            ) { showMenu = false; onQrClick() }
         }
     }
 }
@@ -12205,5 +12249,101 @@ private fun SheetChoiceRow(label: String, selected: Boolean, onClick: () -> Unit
     ) {
         Text(label, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
         if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal)
+    }
+}
+
+/**
+ * The half sheet behind "Address Actions" on Manage Addresses. Mirrors Cold Storage's
+ * [ColdStorageAddressActionsSheet], including Address Visibility living here rather than as a
+ * toolbar glyph.
+ *
+ * Discovery reports its position as it walks, and that lands HERE rather than dismissing: a scan
+ * is one balance lookup per address until the gap limit is reached, so it runs for a while, and a
+ * closed sheet with a toast at the end said nothing about whether anything was happening.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ManageAddressesActionsSheet(
+    isDiscovering: Boolean,
+    progress: com.kachat.app.services.SpendingAddressDiscovery.DiscoveryProgress?,
+    summary: String?,
+    onGenerate: () -> Unit,
+    onDiscover: () -> Unit,
+    onVisibility: () -> Unit,
+    onConsolidate: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
+        // either way - so the sheet holds until it is done.
+        onDismissRequest = { if (!isDiscovering) onDismiss() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(R.string.address_actions),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+            )
+
+            if (isDiscovering) {
+                Spacer(Modifier.height(8.dp))
+                CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+                Text(
+                    "Checking address #${progress?.checkingIndex ?: 0}",
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                )
+                Text(
+                    if ((progress?.foundCount ?: 0) == 0) "No addresses with a balance or domain yet"
+                    else "${progress?.foundCount} found so far",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+                Text(
+                    "Scanning stops after 20 unused addresses in a row.",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+            } else {
+                ActionSheetRow(
+                    icon = Icons.Default.AddCircleOutline,
+                    title = stringResource(R.string.generate_new_spending_address),
+                    subtitle = "Reveals the next unused address in this wallet.",
+                    onClick = onGenerate,
+                )
+                ActionSheetRow(
+                    icon = Icons.Default.Search,
+                    title = stringResource(R.string.discover_addresses),
+                    subtitle = "Finds addresses holding a balance or a KNS domain.",
+                    onClick = onDiscover,
+                )
+                ActionSheetRow(
+                    icon = Icons.Default.Checklist,
+                    title = "Address Visibility",
+                    subtitle = "Check off every address you want on the list, in one sitting.",
+                    onClick = onVisibility,
+                )
+                ActionSheetRow(
+                    icon = Icons.AutoMirrored.Filled.CallMerge,
+                    title = stringResource(R.string.send_all_kaspa_to_primary_spend),
+                    subtitle = "Sweeps every other address into your primary spending address.",
+                    onClick = onConsolidate,
+                )
+                if (summary != null) {
+                    Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
     }
 }

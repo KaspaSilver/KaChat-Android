@@ -16,7 +16,8 @@ import javax.inject.Singleton
 @Singleton
 class SpendingAddressDiscovery @Inject constructor(
     private val networkService: NetworkService,
-    private val walletManager: WalletManager
+    private val walletManager: WalletManager,
+    private val knsService: KnsService,
 ) {
     /**
      * Returns the recovered index — one past the last address with any transaction history —
@@ -54,5 +55,69 @@ class SpendingAddressDiscovery @Inject constructor(
         }
 
         return lastUsedIndex + 1
+    }
+
+    /** Where a scan currently is, so the UI can count up instead of showing an unmoving spinner
+     *  for the time a gap-limit walk takes. Mirrors [ColdStorageAddressDiscovery.DiscoveryProgress]. */
+    data class DiscoveryProgress(val checkingIndex: Int, val foundCount: Int)
+
+    /**
+     * The user-triggered "Discover Addresses" scan, matching Cold Storage's exactly
+     * ([ColdStorageAddressDiscovery.discoverAddresses]) rather than [discoverIndex]'s import-time
+     * recovery. Two differences that matter:
+     *
+     * An address is worth surfacing when it HOLDS SOMETHING - a balance, or a KNS domain - not
+     * when it has transaction history. History still decides a row's "Used" badge (address reuse
+     * is a privacy problem), but every address ever touched and emptied is not what the list is
+     * for.
+     *
+     * And the gap is 20, not 5. Five was too shallow for a wallet whose funded addresses are not
+     * contiguous: a six-address gap ended the scan early and everything past it was never seen.
+     *
+     * Returns the highest matching index (-1 when nothing matched) and how many matched.
+     * Sequential on purpose - see [ColdStorageAddressDiscovery.discoverAddresses] for why
+     * batching these lookups made scans slower and more brittle, not faster.
+     */
+    suspend fun discoverFunded(
+        gapLimit: Int = 20,
+        onProgress: ((DiscoveryProgress) -> Unit)? = null,
+    ): Pair<Int, Int> {
+        val api = networkService.kaspaRestApi.value ?: return -1 to 0
+        var lastMatchIndex = -1
+        var matchCount = 0
+        var consecutiveMisses = 0
+        var index = 0
+
+        while (consecutiveMisses < gapLimit) {
+            onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matchCount))
+            val address = try {
+                walletManager.deriveSpendingAddress(index)
+            } catch (e: Exception) {
+                break
+            }
+            // A balance only counts when it was actually READ: a throttled request is not
+            // evidence of an empty address, and treating it as one drops real addresses.
+            var balanceConfirmed = true
+            val balance = try {
+                api.getBalance(address).balance
+            } catch (e: Exception) {
+                Log.w("SpendingAddressDiscovery", "Balance lookup failed for index $index", e)
+                balanceConfirmed = false
+                0L
+            }
+            // Balance first - it is already in hand, and short-circuits the KNS lookup.
+            val matches = (balanceConfirmed && balance > 0) ||
+                knsService.getOwnedDomains(address).isNotEmpty()
+            if (matches) {
+                lastMatchIndex = index
+                matchCount++
+                consecutiveMisses = 0
+            } else {
+                consecutiveMisses++
+            }
+            index++
+        }
+
+        return lastMatchIndex to matchCount
     }
 }
