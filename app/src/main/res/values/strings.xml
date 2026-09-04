@@ -226,6 +226,8 @@
     <string name="join_or_create_a_channel">Join or Create a Channel</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Your Domains</string>
+    <!-- Someone ELSE'"'"'s domains, in Chat Info and the contact domains screen. "Your" is wrong there. -->
+    <string name="contact_kns_domains">KNS Domains</string>
     <string name="kns_profile_pictures">KNS Profile Pictures</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat Logo</string>

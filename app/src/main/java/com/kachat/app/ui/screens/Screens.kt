@@ -77,6 +77,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -7951,7 +7952,7 @@ fun SettingsScreen(
                     // the reset gesture - stays reachable.
                     SettingsNavigationItem("Gift", Icons.Default.CardGiftcard, onClick = { navController.navigate("settings_section/gift") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal, labelColor = Color.Red) {
+                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, Color.Red, labelColor = Color.Red) {
                         if (biometricSeedPhraseEnabled) {
                             context.authenticateWithDeviceCredential(
                                 title = "Unlock to View Seed Phrase",
@@ -11530,24 +11531,43 @@ fun ChatInfoScreen(
                             )
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                TextField(
-                                    value = contactName,
-                                    onValueChange = { contactName = it },
-                                    placeholder = { Text(knsProfile?.selectedDomain ?: "Contact Name", color = LocalAppColors.current.textSecondary) },
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent,
-                                        focusedTextColor = LocalAppColors.current.textPrimary,
-                                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                        cursorColor = KaspaTeal,
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent
-                                    ),
-                                    textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .offset(x = (-16).dp)
-                                )
+                                // A borderless field styled like a heading reads as a label, not
+                                // something you can change - the pencil is what says otherwise.
+                                // It focuses the field too, so it works as the affordance it
+                                // looks like rather than being decoration next to the real target.
+                                val nameFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    TextField(
+                                        value = contactName,
+                                        onValueChange = { contactName = it },
+                                        placeholder = { Text(knsProfile?.selectedDomain ?: "Contact Name", color = LocalAppColors.current.textSecondary) },
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent,
+                                            focusedTextColor = LocalAppColors.current.textPrimary,
+                                            unfocusedTextColor = LocalAppColors.current.textPrimary,
+                                            cursorColor = KaspaTeal,
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent
+                                        ),
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .offset(x = (-16).dp)
+                                            .focusRequester(nameFocus)
+                                    )
+                                    IconButton(
+                                        onClick = { runCatching { nameFocus.requestFocus() } },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Edit name",
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
                                 val bio = knsFields?.bio?.takeIf { it.isNotBlank() }
                                 when {
                                     // No domain means no profile to describe, so the address is
@@ -11664,7 +11684,7 @@ fun ChatInfoScreen(
                 ) { infoSheet = "address" }
 
                 InfoSectionCard(
-                    title = stringResource(R.string.kns_domains),
+                    title = stringResource(R.string.contact_kns_domains),
                     icon = Icons.Default.AlternateEmail,
                 ) { infoSheet = "domains" }
 
@@ -11753,7 +11773,7 @@ fun ChatInfoScreen(
 
             if (infoSheet == "domains") {
                 ActionSheetContainer(
-                    title = stringResource(R.string.kns_domains),
+                    title = stringResource(R.string.contact_kns_domains),
                     subtitle = null,
                     onDismiss = { infoSheet = null },
                 ) {
@@ -12171,7 +12191,7 @@ fun ContactDomainsScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        stringResource(R.string.kns_domains),
+                        stringResource(R.string.contact_kns_domains),
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                     )
@@ -12197,7 +12217,7 @@ fun ContactDomainsScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-        SettingsSection(title = stringResource(R.string.kns_domains)) {
+        SettingsSection(title = stringResource(R.string.contact_kns_domains)) {
             when {
                 knsProfile == null -> Text(
                     "Loading domains...",
