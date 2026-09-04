@@ -1358,11 +1358,16 @@ private fun PassphraseEntryStep(
             ) {
                 Text("Your chatting address", color = colors.textSecondary, fontSize = 12.sp)
                 Spacer(Modifier.height(4.dp))
+                // Every character, wrapped over as many lines as it takes. This is the one place
+                // the address has to be readable in full: truncating it would hide exactly the
+                // part that changes when the passphrase does, which is why it is on screen.
                 Text(
                     shownAddress ?: "Checking...",
                     color = if (shownAddress == null) colors.textSecondary else colors.textPrimary,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                     fontSize = 12.sp,
+                    softWrap = true,
+                    overflow = TextOverflow.Visible,
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
