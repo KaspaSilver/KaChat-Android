@@ -8748,7 +8748,12 @@ fun SecuritySettingsItems(
         SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
             privacySettingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
         }
-        SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one. This setting belongs to this account alone - your other accounts keep their own.")
+        // Same wording as the setup wizard's own On/Off rows - see CHATS_PRIVACY_ON_DESCRIPTION.
+        SettingsFooter(
+            "On: $CHATS_PRIVACY_ON_DESCRIPTION\n\n" +
+                "Off: $CHATS_PRIVACY_OFF_DESCRIPTION\n\n" +
+                "This setting belongs to this account alone - your other accounts keep their own."
+        )
     }
 }
 

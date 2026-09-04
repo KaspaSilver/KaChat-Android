@@ -334,7 +334,7 @@ private fun WelcomeGuidePaymentPrivacyStep(
             selected = choice,
             title = "On",
             badge = stringResource(R.string.recommended),
-            subtitle = "Payments in your chats travel between fresh private addresses. When you pay a contact who also has privacy on, the money goes to a fresh address only the two of you know about, and payments you receive arrive on fresh addresses of your own the same way. Nobody watching the network can tie chat payments to you or your contacts.",
+            subtitle = CHATS_PRIVACY_ON_DESCRIPTION,
             onClick = {
                 choice = true
                 walletViewModel.setChatsPaymentPrivacyFromWizard(true)
@@ -345,7 +345,7 @@ private fun WelcomeGuidePaymentPrivacyStep(
             selected = !choice,
             title = "Off",
             badge = null,
-            subtitle = "Payments you send and receive are tied to your chatting address only, where anyone can see the full payment history.",
+            subtitle = CHATS_PRIVACY_OFF_DESCRIPTION,
             onClick = {
                 choice = false
                 walletViewModel.setChatsPaymentPrivacyFromWizard(false)
@@ -1028,3 +1028,15 @@ private fun AddressMockRow(title: String, address: String, caption: String) {
         Text(caption, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
     }
 }
+
+/**
+ * The Chat Payment Privacy setting, described once.
+ *
+ * Shared with Settings > Security's toggle footer: they are the same setting, so a change to one
+ * must not leave the other saying something different.
+ */
+const val CHATS_PRIVACY_ON_DESCRIPTION =
+    "Anytime you receive Kaspa KaChat will do its best make sure the Kaspa goes to a fresh address not tied to your chatting identity. Sending Kaspa KaChat will always make sure it comes out of your primary spend address which is never associated with your chatting identity."
+
+const val CHATS_PRIVACY_OFF_DESCRIPTION =
+    "All Kaspa will flow in and out of your chatting address"
