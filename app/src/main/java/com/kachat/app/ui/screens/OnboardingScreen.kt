@@ -890,6 +890,9 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
 fun BackupMnemonicScreen(mnemonic: String, onComplete: () -> Unit) {
     val words = remember { mnemonic.split(" ") }
     var hasConfirmedBackup by remember { mutableStateOf(false) }
+    // Hidden until tapped, matching iOS. The words appear the moment this screen opens otherwise,
+    // which is the one moment the user has no say in who is looking at the phone.
+    var showSeedPhrase by remember { mutableStateOf(false) }
 
     // Blocks screenshots and screen recording of the freshly-generated seed phrase for as long
     // as this screen is on-screen - see SeedPhraseScreen's identical guard in Screens.kt.
@@ -963,34 +966,59 @@ fun BackupMnemonicScreen(mnemonic: String, onComplete: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Words Grid
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                maxItemsInEachRow = 3
-            ) {
-                words.forEachIndexed { index, word ->
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${index + 1}",
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 12.sp,
-                            modifier = Modifier.width(20.dp)
-                        )
-                        Text(
-                            text = word,
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+            // Words Grid, behind a tap
+            if (showSeedPhrase) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    maxItemsInEachRow = 3
+                ) {
+                    words.forEachIndexed { index, word ->
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(LocalAppColors.current.surface)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(20.dp)
+                            )
+                            Text(
+                                text = word,
+                                color = LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LocalAppColors.current.surface)
+                        .clickable { showSeedPhrase = true }
+                        .padding(vertical = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        tint = LocalAppColors.current.textSecondary,
+                        modifier = Modifier.size(34.dp),
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Tap to reveal seed phrase",
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
 
