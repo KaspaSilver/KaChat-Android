@@ -8572,17 +8572,41 @@ fun SecuritySettingsItems(
     val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
     val biometricAccountLoginEnabled by walletViewModel.biometricAccountLoginEnabled.collectAsState()
     val biometricSpendingKeyEnabled by walletViewModel.biometricSpendingKeyEnabled.collectAsState()
-    SettingsSwitchItem(stringResource(R.string.biometrics_for_seed_phrase), biometricSeedPhraseEnabled) { enabled ->
-        walletViewModel.setBiometricSeedPhraseEnabled(enabled)
+    val securityContext = LocalContext.current
+    // A biometric lock that can be switched off without passing the lock is not a lock - anyone
+    // holding an unlocked phone could have turned all three off and then read the seed phrase.
+    // So the switch itself is gated, in BOTH directions: turning one on is a claim about who is
+    // holding the device too. The setting is only written after auth succeeds, so a cancelled
+    // prompt leaves the switch exactly where it was rather than flipping and flipping back.
+    fun gated(reason: String, apply: (Boolean) -> Unit): (Boolean) -> Unit = { enabled ->
+        securityContext.authenticateWithDeviceCredential(
+            title = reason,
+            onSuccess = { apply(enabled) },
+        )
     }
+    SettingsSwitchItem(
+        stringResource(R.string.biometrics_for_seed_phrase),
+        biometricSeedPhraseEnabled,
+        onCheckedChange = gated("Unlock to change the seed phrase lock") {
+            walletViewModel.setBiometricSeedPhraseEnabled(it)
+        },
+    )
     SettingsDivider()
-    SettingsSwitchItem(stringResource(R.string.biometrics_for_account_login), biometricAccountLoginEnabled) { enabled ->
-        walletViewModel.setBiometricAccountLoginEnabled(enabled)
-    }
+    SettingsSwitchItem(
+        stringResource(R.string.biometrics_for_account_login),
+        biometricAccountLoginEnabled,
+        onCheckedChange = gated("Unlock to change the account login lock") {
+            walletViewModel.setBiometricAccountLoginEnabled(it)
+        },
+    )
     SettingsDivider()
-    SettingsSwitchItem(stringResource(R.string.biometrics_for_address_private_keys), biometricSpendingKeyEnabled) { enabled ->
-        walletViewModel.setBiometricSpendingKeyEnabled(enabled)
-    }
+    SettingsSwitchItem(
+        stringResource(R.string.biometrics_for_address_private_keys),
+        biometricSpendingKeyEnabled,
+        onCheckedChange = gated("Unlock to change the private key lock") {
+            walletViewModel.setBiometricSpendingKeyEnabled(it)
+        },
+    )
     SettingsDivider()
     // Child Mode (matches iOS Settings > Security > Child Mode). NEVER biometric-gated - the
     // whole point is that the device owner (the child) can pass fingerprint/face unlock but
