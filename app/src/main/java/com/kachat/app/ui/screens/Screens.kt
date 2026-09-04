@@ -4483,12 +4483,7 @@ fun ManageAddressesScreen(
                     items(chatPrivacyAddresses, key = { it.index }) { entry ->
                         ChatPrivacyAddressRow(
                             entry = entry,
-                            onCopyClick = {
-                                clipboardManager.setText(AnnotatedString(entry.address))
-                                showAddressCopiedToast(context, entry.address)
-                            },
-                            onQrClick = { qrAddress = entry.address },
-                            onMoveOut = { moveOutTarget = entry },
+                            onOpenActions = { moveOutTarget = entry },
                         )
                     }
                 }
@@ -4639,6 +4634,11 @@ fun ManageAddressesScreen(
         ChatPrivacyAddressActionsSheet(
             entry = entry,
             onMoveOut = { viewModel.releaseChatPrivacyAddress(entry.address) },
+            onCopy = {
+                clipboardManager.setText(AnnotatedString(entry.address))
+                showAddressCopiedToast(context, entry.address)
+            },
+            onShowQr = { qrAddress = entry.address },
             onDismiss = { moveOutTarget = null },
         )
     }
@@ -6919,21 +6919,17 @@ private fun ManageAddressActionsSheet(
 @Composable
 private fun ChatPrivacyAddressRow(
     entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
-    onCopyClick: () -> Unit,
-    onQrClick: () -> Unit,
-    /** Take this address out of the pool by hand - see [ChatPrivacyAddressActionsSheet]. */
-    onMoveOut: () -> Unit = {},
+    /** Opens the row's sheet, which holds every action this address has. */
+    onOpenActions: () -> Unit,
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
-    var showMenu by remember { mutableStateOf(false) }
-    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(LocalAppColors.current.surface)
-            .clickable { onMoveOut() }
+            .clickable { onOpenActions() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -6985,37 +6981,14 @@ private fun ChatPrivacyAddressRow(
                 }
             }
         }
-        IconButton(
-            onClick = { showMenu = true },
-            modifier = Modifier
-                .size(44.dp)
-                .onGloballyPositioned { coords ->
-                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                }
-        ) {
-            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
-        }
-    }
-
-    // Half sheet, same as the Addresses tab's rows - a pool row is read-only, so it gets only
-    // the two actions that apply.
-    if (showMenu) {
-        ManageAddressActionsSheet(
-            title = entry.label?.takeIf { it.isNotBlank() } ?: "Address ${entry.index}",
-            subtitle = entry.address,
-            onDismiss = { showMenu = false },
-        ) {
-            ActionSheetRow(
-                icon = Icons.Default.ContentCopy,
-                title = stringResource(R.string.copy_address),
-                subtitle = "Puts the full address on the clipboard.",
-            ) { showMenu = false; onCopyClick() }
-            ActionSheetRow(
-                icon = Icons.Default.QrCode,
-                title = stringResource(R.string.show_qr_code),
-                subtitle = "Full screen, for scanning with another device.",
-            ) { showMenu = false; onQrClick() }
-        }
+        // No ellipsis: the whole row opens one sheet holding everything this address can do
+        // (see ChatPrivacyAddressActionsSheet). A second, smaller target for a subset of the
+        // same actions was a way to miss half of them.
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary,
+        )
     }
 }
 
@@ -12534,6 +12507,8 @@ private fun ManageAddressesActionsSheet(
 fun ChatPrivacyAddressActionsSheet(
     entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
     onMoveOut: () -> Unit,
+    onCopy: () -> Unit,
+    onShowQr: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val funded = entry.balanceSompi > 0
@@ -12554,6 +12529,16 @@ fun ChatPrivacyAddressActionsSheet(
                 "Stops offering this address to your contact and moves it to your normal spending list."
             },
         ) { onDismiss(); onMoveOut() }
+        ActionSheetRow(
+            icon = Icons.Default.ContentCopy,
+            title = "Copy Address",
+            subtitle = "Puts the full address on the clipboard.",
+        ) { onDismiss(); onCopy() }
+        ActionSheetRow(
+            icon = Icons.Default.QrCode,
+            title = "Show QR Code",
+            subtitle = "Full screen, for scanning with another device.",
+        ) { onDismiss(); onShowQr() }
         ActionSheetRow(
             icon = Icons.Default.Close,
             title = "Cancel",
