@@ -3431,7 +3431,17 @@ fun ProfileScreen(
             }
 
             SettingsSection(title = stringResource(R.string.about)) {
-                SettingsInfoItem(stringResource(R.string.created), "Apr 22, 2026 at 8:33 AM")
+                // Was a hardcoded literal. This is when the account was actually created or
+                // imported on this device (see WalletManager.accountAddedAt); an account that
+                // predates the stamp shows nothing rather than a made-up date.
+                val addedAtMillis = remember(address) { address?.let { viewModel.accountAddedAt(it) } }
+                SettingsInfoItem(
+                    stringResource(R.string.created),
+                    addedAtMillis?.let {
+                        java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", java.util.Locale.getDefault())
+                            .format(java.util.Date(it))
+                    } ?: "--"
+                )
                 SettingsDivider()
                 SettingsInfoItem(stringResource(R.string.version), com.kachat.app.BuildConfig.VERSION_NAME)
                 SettingsDivider()

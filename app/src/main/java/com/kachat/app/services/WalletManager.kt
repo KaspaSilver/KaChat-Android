@@ -102,6 +102,25 @@ class WalletManager @Inject constructor(
 
     private val gson = Gson()
 
+    /**
+     * When an account was first added to this device, in epoch millis, stamped once and never
+     * moved. Keyed by address in the same encrypted prefs rather than added to [Account]: the
+     * value has to survive the account record being rewritten (an import of a seed already here
+     * replaces its Account wholesale), which is exactly where a field on the record would be
+     * lost. Absent means the account predates this being recorded.
+     */
+    private fun addedAtKey(address: String) = "account_added_at_$address"
+
+    /** Stamps [address]'s added-on date if it has none yet. Idempotent. */
+    private fun stampAccountAddedAt(address: String) {
+        if (sharedPrefs.contains(addedAtKey(address))) return
+        sharedPrefs.edit().putLong(addedAtKey(address), System.currentTimeMillis()).apply()
+    }
+
+    /** Epoch millis this account was added, or null for one that predates the stamp. */
+    fun accountAddedAt(address: String): Long? =
+        sharedPrefs.getLong(addedAtKey(address), 0L).takeIf { it > 0L }
+
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -296,6 +315,7 @@ class WalletManager @Inject constructor(
         val accounts = getAccounts().toMutableList()
         accounts.add(Account(name, address, mnemonic.joinToString(" "), passphrase = passphrase))
         saveAccounts(accounts)
+        stampAccountAddedAt(address)
         setActiveAccount(address)
     }
 
@@ -374,6 +394,9 @@ class WalletManager @Inject constructor(
             )
         )
         saveAccounts(accounts)
+        // Only if this address has never been seen here - re-importing a seed already on the
+        // device is not the account arriving again.
+        stampAccountAddedAt(address)
         setActiveAccount(address)
     }
 

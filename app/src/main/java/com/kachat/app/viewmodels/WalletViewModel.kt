@@ -1173,6 +1173,10 @@ class WalletViewModel @Inject constructor(
      *  way Create Chat's own address field already does. */
     suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
 
+    /** Epoch millis this account was first added to this device, or null for one added before
+     *  that started being recorded. See [WalletManager.accountAddedAt]. */
+    fun accountAddedAt(address: String): Long? = walletManager.accountAddedAt(address)
+
     // -------------------------------------------------------------------------
     // KNS domain inscription — real on-chain commit/reveal, see WalletService.inscribeDomain
     // -------------------------------------------------------------------------
