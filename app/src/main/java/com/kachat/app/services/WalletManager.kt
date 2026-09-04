@@ -534,6 +534,25 @@ class WalletManager @Inject constructor(
      * Identity (chatting) address for one seed at one index within one source family — the single
      * place a chatting address is ever derived from.
      */
+    /**
+     * The chatting address a seed would produce with [passphrase], without committing anything.
+     *
+     * Exists for the passphrase step, where seeing address #0 change as you type is the only
+     * direct evidence that a passphrase opens a DIFFERENT account rather than protecting the same
+     * one - which is the single thing people get wrong about passphrases. Null when the words are
+     * not a usable mnemonic.
+     */
+    fun previewIdentityAddress(
+        mnemonic: List<String>,
+        passphrase: String,
+        family: WalletSourceFamily = WalletSourceFamily.KASPA_STANDARD,
+        index: Int = 0,
+    ): String? = try {
+        deriveIdentityAddress(mnemonic, passphrase, family, index)
+    } catch (e: Exception) {
+        null
+    }
+
     private fun deriveIdentityAddress(
         mnemonic: List<String>,
         passphrase: String,

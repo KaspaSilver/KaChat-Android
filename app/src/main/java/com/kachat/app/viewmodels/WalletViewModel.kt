@@ -1035,6 +1035,12 @@ class WalletViewModel @Inject constructor(
         return true
     }
 
+    /** The chatting address the pending seed would produce with [passphrase] - drives the live
+     *  preview on the passphrase entry screen. See [WalletManager.previewIdentityAddress]. */
+    fun previewChattingAddress(passphrase: String): String? =
+        if (pendingMnemonicWords.isEmpty()) null
+        else walletManager.previewIdentityAddress(pendingMnemonicWords, passphrase, pendingSourceFamily)
+
     /** Imports the prepared wallet with the chosen passphrase ("" = none), then logs in. */
     fun commitImport(passphrase: String) {
         if (_importWalletState.value.status == ImportWalletStatus.IMPORTING) return

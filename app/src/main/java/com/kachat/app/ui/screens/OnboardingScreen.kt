@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -113,6 +114,7 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
             PassphraseSetupScreen(
                 mode = PassphraseMode.CREATE,
                 onBack = { navController.popBackStack() },
+                previewAddress = { viewModel.previewChattingAddress(it) },
                 // commitCreatedWallet() derives + saves with the passphrase, arms the guide, and
                 // logs in (which swaps onboarding for the main shell).
                 onProceed = { passphrase -> viewModel.commitCreatedWallet(passphrase) }
@@ -128,6 +130,7 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 },
                 onDismissError = { viewModel.resetImportWalletState() },
                 onBack = { navController.popBackStack() },
+                previewAddress = { viewModel.previewChattingAddress(it) },
                 // commitImport() imports with the passphrase, arms the guide, and logs in on success.
                 onProceed = { passphrase -> viewModel.commitImport(passphrase) }
             )
@@ -1054,180 +1057,64 @@ fun PassphraseSetupScreen(
     errorMessage: String? = null,
     onDismissError: () -> Unit = {},
     onBack: () -> Unit,
+    /** Address #0 for a candidate passphrase, for the live preview on the entry step. Null when
+     *  the caller has no words to derive from. */
+    previewAddress: (String) -> String? = { null },
     onProceed: (String) -> Unit
 ) {
+    var step by remember { mutableStateOf(PassphraseStep.QUESTION) }
     var passphrase by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var reveal by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+    val colors = LocalAppColors.current
 
-    fun submit(usePassphrase: Boolean) {
+    fun submitFromEntry() {
         if (isBusy) return
-        if (!usePassphrase) {
-            onProceed("")
-            return
-        }
         when {
             passphrase.isBlank() ->
-                localError = "Enter a passphrase, or tap Skip to continue without one."
+                localError = "Enter a passphrase, or go back and choose No."
             mode == PassphraseMode.CREATE && passphrase != confirm ->
-                localError = "The passphrases don't match. Please re-enter them."
+                localError = "The passphrases do not match. Please re-enter them."
             else -> onProceed(passphrase)
         }
     }
 
-    Surface(color = LocalAppColors.current.background, modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-        ) {
-            IconButton(
-                onClick = onBack,
-                enabled = !isBusy,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(LocalAppColors.current.surface, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                    tint = LocalAppColors.current.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+    // Back always lands one step nearer the question, and only leaves the flow from the question
+    // itself - reading the explainer must return to the choice, never skip past it.
+    BackHandler(enabled = step != PassphraseStep.QUESTION) {
+        passphrase = ""
+        confirm = ""
+        step = PassphraseStep.QUESTION
+    }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Add a Passphrase",
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                color = LocalAppColors.current.textPrimary
+    Surface(color = colors.background, modifier = Modifier.fillMaxSize()) {
+        when (step) {
+            PassphraseStep.QUESTION -> PassphraseQuestionStep(
+                mode = mode,
+                isBusy = isBusy,
+                onYes = { step = PassphraseStep.ENTRY },
+                onNo = { if (!isBusy) onProceed("") },
+                onExplain = { step = PassphraseStep.EXPLAINER },
+                onBack = onBack,
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Explainer
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(16.dp)
-            ) {
-                Text("Optional Passphrase", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "A passphrase is an optional extra secret only you know. It's combined with your seed phrase to unlock a completely separate, hidden account.",
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Benefits
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF12241C))
-                    .padding(16.dp)
-            ) {
-                Text("Why add one?", color = Color(0xFF4CD964), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(6.dp))
-                PassphraseBullet("Even if someone finds your written seed phrase, they can't reach this account without the passphrase.", LocalAppColors.current.textSecondary)
-                PassphraseBullet("It creates a hidden account, separate from the standard one your seed phrase alone unlocks.", LocalAppColors.current.textSecondary)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text("Passphrase", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            PassphraseInputField(value = passphrase, onValueChange = { passphrase = it }, reveal = reveal, onToggleReveal = { reveal = !reveal }, placeholder = "Enter passphrase")
-
-            if (mode == PassphraseMode.CREATE) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Confirm Passphrase", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                PassphraseInputField(value = confirm, onValueChange = { confirm = it }, reveal = reveal, onToggleReveal = { reveal = !reveal }, placeholder = "Re-enter passphrase")
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Enter the exact passphrase you used when this account was created.",
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Risks
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF2C1E1E))
-                    .padding(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFF39C12), modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Important — read this", color = Color(0xFFF39C12), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                PassphraseBullet("If you forget your passphrase, this account is permanently lost. Your seed phrase alone will NOT recover it.", Color(0xFFF39C12))
-                PassphraseBullet("There is no way to reset or recover a passphrase. Store it as carefully as your seed phrase.", Color(0xFFF39C12))
-                if (mode == PassphraseMode.IMPORT) {
-                    PassphraseBullet("A different passphrase silently opens a different, empty account — it won't show an error.", Color(0xFFF39C12))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = { submit(usePassphrase = true) },
-                enabled = !isBusy,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surface),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                if (isBusy) {
-                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(
-                        text = if (mode == PassphraseMode.CREATE) "Continue with Passphrase" else "Import with Passphrase",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = { submit(usePassphrase = false) },
-                enabled = !isBusy,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surface),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "Skip — no passphrase",
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            PassphraseStep.ENTRY -> PassphraseEntryStep(
+                mode = mode,
+                isBusy = isBusy,
+                passphrase = passphrase,
+                onPassphraseChange = { passphrase = it },
+                confirm = confirm,
+                onConfirmChange = { confirm = it },
+                reveal = reveal,
+                onToggleReveal = { reveal = !reveal },
+                previewAddress = previewAddress,
+                onSubmit = { submitFromEntry() },
+                onBack = { passphrase = ""; confirm = ""; step = PassphraseStep.QUESTION },
+            )
+            PassphraseStep.EXPLAINER -> PassphraseExplainerStep(
+                mode = mode,
+                onBack = { step = PassphraseStep.QUESTION },
+            )
         }
     }
 
@@ -1235,9 +1122,9 @@ fun PassphraseSetupScreen(
     if (shownError != null) {
         AlertDialog(
             onDismissRequest = { localError = null; onDismissError() },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.error), color = LocalAppColors.current.textPrimary) },
-            text = { Text(shownError, color = LocalAppColors.current.textSecondary) },
+            containerColor = colors.surface,
+            title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text(shownError, color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = { localError = null; onDismissError() }) {
                     Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
@@ -1247,11 +1134,305 @@ fun PassphraseSetupScreen(
     }
 }
 
+private enum class PassphraseStep { QUESTION, ENTRY, EXPLAINER }
+
+/** The question, alone on its own screen, with a way to go and read about it first. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PassphraseBullet(text: String, color: Color) {
-    Row(modifier = Modifier.padding(top = 4.dp)) {
-        Text("•  ", color = color, style = MaterialTheme.typography.bodyMedium)
-        Text(text, color = color, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+private fun PassphraseQuestionStep(
+    mode: PassphraseMode,
+    isBusy: Boolean,
+    onYes: () -> Unit,
+    onNo: () -> Unit,
+    onExplain: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = !isBusy) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.weight(1f))
+            Icon(
+                Icons.Default.Lock,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier.size(56.dp),
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                if (mode == PassphraseMode.CREATE) "Do you want to add a passphrase to your account?"
+                else "Did you create this seed with a passphrase?",
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                if (mode == PassphraseMode.CREATE)
+                    "Most people do not need one. You can always create another account with a passphrase later."
+                else
+                    "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose.",
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.weight(1f))
+
+            Button(
+                onClick = onYes,
+                enabled = !isBusy,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                shape = RoundedCornerShape(14.dp),
+            ) { Text("Yes", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = onNo,
+                enabled = !isBusy,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = KaspaTeal.copy(alpha = 0.15f),
+                    contentColor = KaspaTeal,
+                ),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                if (isBusy) {
+                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                } else {
+                    Text("No", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            TextButton(onClick = onExplain, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+                Text("What is a passphrase?", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/**
+ * The field, with the chatting address it produces underneath.
+ *
+ * That live address is the whole point of this screen: a passphrase does not protect one account,
+ * it opens a different one. Watching #0 change with every character is what makes that concrete,
+ * and on import it is how someone confirms they typed the right thing before committing to an
+ * account that would otherwise just look empty.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PassphraseEntryStep(
+    mode: PassphraseMode,
+    isBusy: Boolean,
+    passphrase: String,
+    onPassphraseChange: (String) -> Unit,
+    confirm: String,
+    onConfirmChange: (String) -> Unit,
+    reveal: Boolean,
+    onToggleReveal: () -> Unit,
+    previewAddress: (String) -> String?,
+    onSubmit: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    // Debounced: the derivation is PBKDF2 over 2048 rounds, quick but not free, and running it on
+    // every keystroke would be felt.
+    var shownAddress by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(passphrase) {
+        kotlinx.coroutines.delay(250)
+        shownAddress = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { previewAddress(passphrase) }
+    }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = !isBusy) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+        ) {
+            Text(
+                if (mode == PassphraseMode.CREATE) "Choose your passphrase" else "Enter your passphrase",
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (mode == PassphraseMode.CREATE)
+                    "Write it down somewhere safe. Without it this account cannot be recovered, even with your seed phrase."
+                else
+                    "It has to be exactly what you used before, including capital letters and spaces.",
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(20.dp))
+
+            PassphraseInputField(
+                value = passphrase,
+                onValueChange = onPassphraseChange,
+                reveal = reveal,
+                onToggleReveal = onToggleReveal,
+                placeholder = "Passphrase",
+            )
+
+            if (mode == PassphraseMode.CREATE) {
+                Spacer(Modifier.height(12.dp))
+                PassphraseInputField(
+                    value = confirm,
+                    onValueChange = onConfirmChange,
+                    reveal = reveal,
+                    onToggleReveal = onToggleReveal,
+                    placeholder = "Re-enter passphrase",
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.surface)
+                    .padding(14.dp),
+            ) {
+                Text("Your chatting address", color = colors.textSecondary, fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    shownAddress ?: "Checking...",
+                    color = if (shownAddress == null) colors.textSecondary else colors.textPrimary,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontSize = 12.sp,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (passphrase.isEmpty())
+                        "This is the account your seed phrase opens on its own."
+                    else
+                        "A different passphrase gives a different address, and a different account.",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = onSubmit,
+                enabled = passphrase.isNotBlank() && !isBusy,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                if (isBusy) {
+                    CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                } else {
+                    Text(
+                        if (mode == PassphraseMode.CREATE) "Continue" else "Import",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Plain-language explainer. Back only, so reading about it always returns to the choice. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
+    val colors = LocalAppColors.current
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("What is a passphrase?", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            PassphraseExplainerSection(
+                "The short version",
+                "A passphrase is an extra word or sentence you add on top of your seed phrase. It is optional, and most people do not use one."
+            )
+            PassphraseExplainerSection(
+                "It does not lock your account",
+                "This is the part people get wrong. A passphrase does not put a password on your account. It opens a completely different account. Your seed phrase with no passphrase opens one account. The same seed phrase with the word \"apple\" opens another one. With \"banana\", another one again. Every passphrase is its own separate account, with its own address and its own balance."
+            )
+            PassphraseExplainerSection(
+                "Why anyone bothers",
+                "If someone finds your written seed phrase, they get the account it opens on its own. They do not get the one behind your passphrase, because they do not know there is one, and they could not guess it anyway."
+            )
+            PassphraseExplainerSection(
+                "The catch",
+                "There is no reset and no recovery. If you forget your passphrase, the account it opened is gone for good. Your seed phrase alone will not bring it back, and nobody can help you. Treat it exactly like the seed phrase itself: written down, somewhere safe, before you rely on it."
+            )
+            PassphraseExplainerSection(
+                "One more thing to know",
+                "If you type the wrong passphrase, nothing will tell you. You will simply land in a different account, and it will look empty. That is not a bug and your money is not lost, it just means you are in the wrong account."
+            )
+            PassphraseExplainerSection(
+                "So do you need one?",
+                if (mode == PassphraseMode.CREATE)
+                    "If you are not sure, choose No. Your account is still protected by your seed phrase, and you can always create another account with a passphrase later."
+                else
+                    "If you never set one up, choose No. A passphrase is something you would have typed in on purpose, so if this is the first you are hearing of it, you do not have one."
+            )
+        }
+    }
+}
+
+@Composable
+private fun PassphraseExplainerSection(title: String, body: String) {
+    val colors = LocalAppColors.current
+    Column {
+        Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Spacer(Modifier.height(6.dp))
+        Text(body, color = colors.textSecondary, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
