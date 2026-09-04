@@ -46,6 +46,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -335,6 +336,12 @@ private fun HubGrid(
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
 
+    // Live, for the same reason as latestHub below: a tap that ran the callback captured when the
+    // tile was first composed worked from a stale arrangement, so a second tap undid the first and
+    // put something else back - which looks like the tap swapping two items rather than moving one.
+    val latestOnTap by rememberUpdatedState(onTap)
+    val latestOnReorder by rememberUpdatedState(onReorder)
+
     var draggingRoute by remember { mutableStateOf<String?>(null) }
     var dragStartIndex by remember { mutableIntStateOf(0) }
     var dragX by remember { mutableFloatStateOf(0f) }
@@ -346,10 +353,19 @@ private fun HubGrid(
         val tileSize = (maxWidth - GRID_SPACING * 2) / 3
         val stridePx = with(density) { (tileSize + GRID_SPACING).toPx() }
 
+        // Read through rememberUpdatedState, because the gesture below is keyed on the route
+        // alone and so is NOT restarted when the list changes. Capturing these directly left it
+        // working from whatever the grid looked like when the tile was first composed: a tile that
+        // had since moved picked up the wrong slot, which is a hold that grabs the wrong thing and
+        // a release that lands somewhere unasked for.
+        val latestHub by rememberUpdatedState(hub)
+        val latestStride by rememberUpdatedState(stridePx)
+
         fun targetFor(): Int {
-            val columns = (dragX / stridePx).roundToInt()
-            val rows = (dragY / stridePx).roundToInt()
-            return (dragStartIndex + columns + rows * 3).coerceIn(0, hub.lastIndex)
+            val columns = (dragX / latestStride).roundToInt()
+            val rows = (dragY / latestStride).roundToInt()
+            return (dragStartIndex + columns + rows * 3)
+                .coerceIn(0, latestHub.lastIndex.coerceAtLeast(0))
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(GRID_SPACING)) {
@@ -358,6 +374,7 @@ private fun HubGrid(
                     rowItems.forEachIndexed { columnIndex, screen ->
                         val index = rowIndex * 3 + columnIndex
                         key(screen.route) {
+                            val latestIndex by rememberUpdatedState(index)
                             val isDragging = draggingRoute == screen.route
                             // Where this tile slides to while some OTHER tile is being dragged
                             // over its slot. Animated, because that slide is the whole point;
@@ -387,7 +404,6 @@ private fun HubGrid(
                                 // costs one redraw of one tile.
                                 offsetX = { if (isDragging) dragX else slideX },
                                 offsetY = { if (isDragging) dragY else slideY },
-                                onTap = { onTap(screen) },
                                 modifier = Modifier
                                     .weight(1f)
                                     // Keyed on the route alone: `hub` is rebuilt on every
@@ -395,13 +411,13 @@ private fun HubGrid(
                                     // the detector for reasons unrelated to this tile.
                                     .pointerInput(screen.route) {
                                         detectTapOrHoldDrag(
-                                            onTap = { onTap(screen) },
+                                            onTap = { latestOnTap(screen) },
                                             onDragStart = {
-                                                dragStartIndex = index
+                                                dragStartIndex = latestIndex
                                                 draggingRoute = screen.route
                                                 dragX = 0f
                                                 dragY = 0f
-                                                targetIndex = index
+                                                targetIndex = latestIndex
                                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                             },
                                             onDrag = { amount ->
@@ -417,9 +433,9 @@ private fun HubGrid(
                                                 settle()
                                                 val target = targetFor()
                                                 if (target != dragStartIndex) {
-                                                    val order = hub.toMutableList()
+                                                    val order = latestHub.toMutableList()
                                                     order.add(target, order.removeAt(dragStartIndex))
-                                                    onReorder(order)
+                                                    latestOnReorder(order)
                                                 }
                                                 draggingRoute = null
                                                 targetIndex = -1
@@ -449,7 +465,6 @@ private fun HubTile(
     isDragging: Boolean,
     offsetX: () -> Float,
     offsetY: () -> Float,
-    onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -535,6 +550,10 @@ private fun DockPreview(
 ) {
     val haptics = LocalHapticFeedback.current
 
+    // Live - see the same note in HubGrid.
+    val latestOnTap by rememberUpdatedState(onTap)
+    val latestOnReorder by rememberUpdatedState(onReorder)
+
     var draggingRoute by remember { mutableStateOf<String?>(null) }
     var dragStartIndex by remember { mutableIntStateOf(0) }
     var dragX by remember { mutableFloatStateOf(0f) }
@@ -570,9 +589,13 @@ private fun DockPreview(
 
             // coerceAtLeast guards the empty-dock case, which the pinned tabs make impossible in
             // practice but which would be a crash rather than a no-op if it ever were not.
+            // Read through rememberUpdatedState - see the same note in HubGrid.
+            val latestDock by rememberUpdatedState(dock)
+            val latestSlot by rememberUpdatedState(slotPx)
+
             fun targetFor(): Int =
-                (dragStartIndex + (dragX / slotPx).roundToInt())
-                    .coerceIn(0, dock.lastIndex.coerceAtLeast(0))
+                (dragStartIndex + (dragX / latestSlot).roundToInt())
+                    .coerceIn(0, latestDock.lastIndex.coerceAtLeast(0))
 
             Row(
                 modifier = Modifier
@@ -590,6 +613,7 @@ private fun DockPreview(
             ) {
                 dock.forEachIndexed { index, screen ->
                     key(screen.route) {
+                        val latestIndex by rememberUpdatedState(index)
                         val pinned = screen.route in PINNED_DOCK_ROUTES
                         val isDragging = draggingRoute == screen.route
                         val moved = if (draggingRoute != null && !isDragging) {
@@ -608,7 +632,6 @@ private fun DockPreview(
                             pinned = pinned,
                             isDragging = isDragging,
                             offsetX = { if (isDragging) dragX else slideX },
-                            onTap = { onTap(screen) },
                             // Pinned tabs drag like the rest: what they cannot do is LEAVE the
                             // dock, and a reorder never moves anything out of it. Where Kaspa Hub
                             // and Profile sit among the five is still the user's, and the dimming
@@ -617,12 +640,12 @@ private fun DockPreview(
                                 .weight(1f)
                                 .pointerInput(screen.route) {
                                     detectTapOrHoldDrag(
-                                        onTap = { onTap(screen) },
+                                        onTap = { latestOnTap(screen) },
                                         onDragStart = {
-                                            dragStartIndex = index
+                                            dragStartIndex = latestIndex
                                             draggingRoute = screen.route
                                             dragX = 0f
-                                            targetIndex = index
+                                            targetIndex = latestIndex
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         },
                                         onDrag = { amount ->
@@ -637,9 +660,9 @@ private fun DockPreview(
                                             settle()
                                             val target = targetFor()
                                             if (target != dragStartIndex) {
-                                                val order = dock.toMutableList()
+                                                val order = latestDock.toMutableList()
                                                 order.add(target, order.removeAt(dragStartIndex))
-                                                onReorder(order)
+                                                latestOnReorder(order)
                                             }
                                             draggingRoute = null
                                             targetIndex = -1
@@ -680,7 +703,6 @@ private fun DockItem(
     pinned: Boolean,
     isDragging: Boolean,
     offsetX: () -> Float,
-    onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
