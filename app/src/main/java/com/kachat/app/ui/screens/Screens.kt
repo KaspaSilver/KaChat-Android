@@ -8604,10 +8604,12 @@ fun SettingsFooter(text: String) {
 }
 
 /**
- * The Security section's rows — every one app-wide (biometric toggles + Child Mode), so the same
+ * The Security section's rows. The biometric toggles and Child Mode are app-wide, so the same
  * items render both in the in-account Settings > Security page and in the accounts screen's App
- * Settings sheet (see AppSettingsScreen.kt), one source of truth. Caller supplies the enclosing
- * [SettingsSection] and the navigation to the Child Mode screen (each host has its own NavHost).
+ * Settings sheet (see AppSettingsScreen.kt), one source of truth. Chats Payment Privacy is the
+ * exception - it belongs to one account - so it appears only when an account is signed in.
+ * Caller supplies the enclosing [SettingsSection] and the navigation to the Child Mode screen
+ * (each host has its own NavHost).
  */
 @Composable
 fun SecuritySettingsItems(
@@ -8664,15 +8666,20 @@ fun SecuritySettingsItems(
         if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
         onClick = onNavigateToChildMode
     )
-    SettingsDivider()
-    // Per-account fresh-address payment pool toggle - moved here from the Chats page
-    // (all 3 platforms keep it under Security now).
-    val privacySettingsViewModel: SettingsViewModel = hiltViewModel()
-    val chatsPaymentPrivacyEnabled by privacySettingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
-    SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
-        privacySettingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
+    // Per-account fresh-address payment pool toggle. Hidden with no account signed in, which is
+    // the case on the accounts screen's App Settings: every other row here is app-wide, this one
+    // is not, so without an account there is nothing for it to be the setting OF. It was
+    // rendering the default there and writing to whichever account happened to be active next.
+    val activeAccountAddress by walletViewModel.address.collectAsState()
+    if (!activeAccountAddress.isNullOrEmpty()) {
+        SettingsDivider()
+        val privacySettingsViewModel: SettingsViewModel = hiltViewModel()
+        val chatsPaymentPrivacyEnabled by privacySettingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
+        SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
+            privacySettingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
+        }
+        SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one. This setting belongs to this account alone - your other accounts keep their own.")
     }
-    SettingsFooter("On: you receive payments on fresh private addresses shared with each contact, and payments you send are funded from your private spending addresses. Off: you receive on your public chatting address and send from it. Either way, payments you send arrive on a fresh address whenever the recipient shares one.")
 }
 
 /**
