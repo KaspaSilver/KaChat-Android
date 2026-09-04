@@ -3070,34 +3070,13 @@ fun ProfileScreen(
                         }
                     },
                 )
-                // Bold title + Settings beside it, deliberately larger than a bar icon:
-                // everything on this screen is reached through it, and it was previously the
-                // smallest thing in the bar.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Text(
+                    stringResource(R.string.profile),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 26.sp,
                     modifier = Modifier.padding(bottom = 6.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.profile),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    IconButton(
-                        onClick = { navController.navigate("settings") },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(LocalAppColors.current.surface, CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = KaspaTeal,
-                            modifier = Modifier.size(26.dp),
-                        )
-                    }
-                }
+                )
                 if (showNotifCenter) {
                     AlertDialog(
                         onDismissRequest = {
@@ -3425,13 +3404,22 @@ fun ProfileScreen(
                 })
             }
 
+            // Settings as a card in the list rather than a glyph in the chrome - it belongs with
+            // the other destinations you tap into from here, and it is the entry point to
+            // everything the app can be configured to do.
+            SettingsSection(title = null) {
+                SettingsNavigationItem(stringResource(R.string.settings), Icons.Default.Settings, onClick = {
+                    navController.navigate("settings")
+                })
+            }
+
             SettingsSection(title = null) {
                 SettingsNavigationItem(stringResource(R.string.help), Icons.AutoMirrored.Filled.HelpOutline, onClick = {
                     navController.navigate("help")
                 })
             }
 
-            GiftClaimProfileSection(walletAddress = address)
+            GiftClaimProfileSection(walletAddress = address, hideWhenSettled = true)
 
             // Bottom-most section on Profile - merges what used to be a separate "Info" section
             // (just "Created") with Settings' old "About" section (Version/Website/Support
@@ -7805,6 +7793,11 @@ fun SettingsScreen(
                     HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
+                    // Its own section, always here: Profile only offers the gift while there is
+                    // something to claim, so once claimed this is the one place its state - and
+                    // the reset gesture - stays reachable.
+                    SettingsNavigationItem("Gift", Icons.Default.CardGiftcard, onClick = { navController.navigate("settings_section/gift") })
+                    HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, KaspaTeal, labelColor = Color.Red) {
                         if (biometricSeedPhraseEnabled) {
                             context.authenticateWithDeviceCredential(
@@ -7821,6 +7814,12 @@ fun SettingsScreen(
                     }
                     }
                 }
+            }
+
+            if (sectionKey == "gift") {
+            // The same row Profile shows, minus the hide-once-settled rule - this page is where
+            // the gift lives permanently, whatever its state.
+            GiftClaimProfileSection(walletAddress = walletViewModel.address.collectAsState().value)
             }
 
             if (sectionKey == "customization") {

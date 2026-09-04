@@ -117,13 +117,21 @@ fun GiftClaimWizardButton(walletAddress: String?, modifier: Modifier = Modifier)
  * including the hidden 10-tap reset gesture when the gift is already claimed.
  */
 @Composable
-fun GiftClaimProfileSection(walletAddress: String?) {
+fun GiftClaimProfileSection(
+    walletAddress: String?,
+    /** Profile passes true: once the gift is settled either way there is nothing left to offer,
+     *  and a permanent "Gift already claimed" line answers a question nobody is still asking.
+     *  Settings passes false, so the state - and the reset gesture - stays reachable forever. */
+    hideWhenSettled: Boolean = false,
+) {
     val vm: GiftViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
     LaunchedEffect(Unit) { vm.checkEligibility() }
     var resetTaps by remember { mutableIntStateOf(0) }
     LaunchedEffect(state) { if (state !is GiftClaimState.AlreadyClaimed) resetTaps = 0 }
     val claimable = state is GiftClaimState.Eligible
+    val settled = state is GiftClaimState.Claimed || state is GiftClaimState.AlreadyClaimed
+    if (hideWhenSettled && settled) return
 
     SettingsSection(title = null) {
         Row(
