@@ -37,6 +37,14 @@ class KaspaNetworkStatsService @Inject constructor(
     private val _blockRewardKas = MutableStateFlow<Double?>(null)
     val blockRewardKas: StateFlow<Double?> = _blockRewardKas
 
+    /** What the reward steps down to at the next chromatic halving, and when (epoch seconds).
+     *  Read from the API rather than derived: the step is a clean 1/2^(1/12), but the DAA score
+     *  it lands on is not something a client can date accurately on its own. */
+    private val _nextBlockRewardKas = MutableStateFlow<Double?>(null)
+    val nextBlockRewardKas: StateFlow<Double?> = _nextBlockRewardKas
+    private val _nextHalvingTimestamp = MutableStateFlow<Long?>(null)
+    val nextHalvingTimestamp: StateFlow<Long?> = _nextHalvingTimestamp
+
     private var lastFetchedAt = 0L
     private var inFlight = false
 
@@ -76,6 +84,14 @@ class KaspaNetworkStatsService @Inject constructor(
             } catch (e: Exception) {
                 // The chart is still useful without it; the estimate just says it is unavailable.
                 Log.w("Hashrate", "Block reward fetch failed: ${e.message}")
+            }
+            try {
+                val halving = api.getHalving()
+                if (halving.nextHalvingAmount > 0) _nextBlockRewardKas.value = halving.nextHalvingAmount
+                if (halving.nextHalvingTimestamp > 0) _nextHalvingTimestamp.value = halving.nextHalvingTimestamp
+            } catch (e: Exception) {
+                // The rest of the screen stands without it; those two rows just stay empty.
+                Log.w("Hashrate", "Halving fetch failed: ${e.message}")
             }
         } catch (e: Exception) {
             // A chart nobody asked for is not worth an error banner; the card simply stays empty.

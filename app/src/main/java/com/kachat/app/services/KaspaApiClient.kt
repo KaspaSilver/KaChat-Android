@@ -66,6 +66,11 @@ data class BlockRewardResponse(
     val blockreward: Double
 )
 
+data class HalvingResponse(
+    val nextHalvingTimestamp: Long,
+    val nextHalvingAmount: Double
+)
+
 data class Outpoint(
     val transactionId: String,
     val index: Int
@@ -147,6 +152,11 @@ interface KaspaRestApi {
     /** Current block reward in KAS - it steps down monthly, so it is read, not hardcoded. */
     @GET("info/blockreward")
     suspend fun getBlockReward(): BlockRewardResponse
+
+    /** The next reward step-down and when it lands. Kaspa's emission steps every month, so this
+     *  is the next monthly reduction, not a four-year event - usually weeks away. */
+    @GET("info/halving")
+    suspend fun getHalving(): HalvingResponse
 
     @GET("addresses/{address}/full-transactions")
     suspend fun getTransactions(

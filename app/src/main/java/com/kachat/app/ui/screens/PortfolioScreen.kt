@@ -2044,6 +2044,8 @@ fun PortfolioHashrateChartScreen(
     val history by viewModel.hashrateHistory.collectAsState()
     val current by viewModel.currentHashrate.collectAsState()
     val blockReward by viewModel.blockRewardKas.collectAsState()
+    val nextBlockReward by viewModel.nextBlockRewardKas.collectAsState()
+    val nextHalvingTimestamp by viewModel.nextHalvingTimestamp.collectAsState()
     val price by viewModel.currentPriceUsd.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
@@ -2130,6 +2132,29 @@ fun PortfolioHashrateChartScreen(
                             .padding(vertical = 8.dp)
                     )
                 }
+            }
+
+            // What a block pays now, and what it pays after the next step down. Kaspa's emission
+            // steps every month rather than halving every four years, so "next" is usually weeks
+            // away - which is what makes it worth showing beside the current figure.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.surface)
+                    .padding(vertical = 4.dp)
+            ) {
+                BlockRewardRow("Block Reward", blockReward?.let { "${formatKasAmountGrouped(it)} KAS" } ?: "-")
+                HorizontalDivider(color = colors.divider)
+                BlockRewardRow("Next Block Reward", nextBlockReward?.let { "${formatKasAmountGrouped(it)} KAS" } ?: "-")
+                HorizontalDivider(color = colors.divider)
+                BlockRewardRow(
+                    "Next Reward Date",
+                    nextHalvingTimestamp?.let {
+                        java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+                            .format(java.util.Date(it * 1000L))
+                    } ?: "-"
+                )
             }
 
             MiningEstimateCard(
@@ -2287,5 +2312,18 @@ private fun MiningPayoutRow(title: String, kas: Double, price: Double?, currency
                 )
             }
         }
+    }
+}
+
+/** One label/value line in the hashrate screen's block-reward card. */
+@Composable
+private fun BlockRewardRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+        Text(value, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
     }
 }

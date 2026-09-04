@@ -68,6 +68,8 @@ class PortfolioViewModel @Inject constructor(
     val hashrateHistory = networkStats.hashrateHistory
     val currentHashrate = networkStats.currentHashrate
     val blockRewardKas = networkStats.blockRewardKas
+    val nextBlockRewardKas = networkStats.nextBlockRewardKas
+    val nextHalvingTimestamp = networkStats.nextHalvingTimestamp
 
     fun refreshHashrate(force: Boolean = false) {
         viewModelScope.launch { networkStats.refreshIfNeeded(force) }
