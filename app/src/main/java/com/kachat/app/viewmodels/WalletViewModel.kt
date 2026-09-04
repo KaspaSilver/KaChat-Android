@@ -698,12 +698,42 @@ class WalletViewModel @Inject constructor(
                 // hiding is a tidying choice about empty addresses, not a decision that should
                 // outrank a balance.
                 matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
+                releaseFundedReservations(walletAddress)
                 loadManageAddresses()
                 onResult(matched.size)
             } finally {
                 _discoveringAddresses.value = false
                 _spendingDiscoveryProgress.value = null
             }
+        }
+    }
+
+    /**
+     * Retires any Chats Payment Privacy reservation that has actually been paid into.
+     *
+     * A reservation normally leaves the active set the moment funding is detected - but that
+     * detection is a live signal: a payment_notice from the contact, or the UTXO watch seeing the
+     * deposit while this app is running. Neither reaches a device that was not there when it
+     * happened, which is exactly what a second device running the same seed is. That device goes
+     * on believing the address is an unfunded offer: it stays on the Chat Privacy tab, stays
+     * locked out of the main list, and its balance sits somewhere the user cannot see.
+     *
+     * So a scan asks the chain directly, for every active reservation, whatever index it sits at
+     * - the gap-limit walk can stop before reaching one. Money on an address ends its life as an
+     * offer regardless of what any device was told.
+     */
+    private suspend fun releaseFundedReservations(walletAddress: String) {
+        val reserved = paymentPoolStore.activeOfferedReservationAddresses(walletAddress)
+        if (reserved.isEmpty()) return
+        val funded = spendingAddressDiscovery.fundedAmong(reserved)
+        for (address in funded) {
+            paymentPoolStore.markReservationFundedByAddress(address, walletAddress)
+        }
+        // A funded address belongs on the main list, so it must not stay hidden either.
+        if (funded.isNotEmpty()) {
+            _manageAddressesRaw.value
+                .filter { it.address in funded }
+                .forEach { walletManager.setSpendingAddressHidden(walletAddress, it.index, false) }
         }
     }
 

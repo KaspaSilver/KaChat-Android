@@ -118,4 +118,28 @@ class SpendingAddressDiscovery @Inject constructor(
 
         return matched
     }
+
+    /**
+     * Which of [addresses] actually hold a balance right now. Used to retire Chats Payment
+     * Privacy reservations that have been paid into - see
+     * [com.kachat.app.viewmodels.WalletViewModel.discoverSpendingAddresses].
+     *
+     * A failed lookup is NOT treated as empty: an unconfirmed balance is not evidence of an
+     * unfunded address, and acting on it would release a reservation that is still live.
+     */
+    suspend fun fundedAmong(addresses: Collection<String>): Set<String> {
+        if (addresses.isEmpty()) return emptySet()
+        val api = networkService.kaspaRestApi.value ?: return emptySet()
+        val funded = mutableSetOf<String>()
+        for (address in addresses) {
+            val balance = try {
+                api.getBalance(address).balance
+            } catch (e: Exception) {
+                Log.w("SpendingAddressDiscovery", "Reservation balance lookup failed for $address", e)
+                continue
+            }
+            if (balance > 0) funded.add(address)
+        }
+        return funded
+    }
 }
