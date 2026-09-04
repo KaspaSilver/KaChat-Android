@@ -490,9 +490,13 @@ private fun DockPreview(
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val density = LocalDensity.current
-            // Every slot is one weight(1f) of the bar's inner width, so a slot's width is
-            // arithmetic rather than a measurement of each item.
-            val slotPx = with(density) { ((maxWidth - 16.dp) / MAX_DOCK_ITEMS).toPx() }
+            // Divided by the number of items ACTUALLY in the dock, not by the cap. Every item is
+            // one weight(1f) of the bar, so a three-tab dock has three third-width slots - sizing
+            // them at a fifth each made the target index run away from the finger, which is what
+            // made a reorder impossible to land where it was aimed.
+            val slotPx = with(density) {
+                ((maxWidth - 16.dp) / dock.size.coerceAtLeast(1)).toPx()
+            }
 
             // coerceAtLeast guards the empty-dock case, which the pinned tabs make impossible in
             // practice but which would be a crash rather than a no-op if it ever were not.
@@ -506,7 +510,13 @@ private fun DockPreview(
                     .fillMaxWidth()
                     .background(colors.surface, RoundedCornerShape(40.dp))
                     .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                // No placeholder slots for the unused capacity. The real dock divides its whole
+                // width between however many tabs it has, so a three-tab dock is three WIDER items
+                // and not three items with a gap on the right - and a preview showing the gap
+                // would be showing an arrangement the user is never going to see. The count above
+                // the bar is what says how much room is left.
+                horizontalArrangement = Arrangement.SpaceAround
             ) {
                 dock.forEachIndexed { index, screen ->
                     key(screen.route) {
@@ -571,9 +581,6 @@ private fun DockPreview(
                                 }
                         )
                     }
-                }
-                repeat(MAX_DOCK_ITEMS - dock.size) {
-                    EmptyDockSlot(colors, Modifier.weight(1f))
                 }
             }
         }
@@ -647,14 +654,4 @@ private fun DockItem(
             )
         }
     }
-}
-
-@Composable
-private fun EmptyDockSlot(colors: AppColors, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .padding(horizontal = 4.dp)
-            .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
-    )
 }
