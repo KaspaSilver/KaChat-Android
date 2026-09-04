@@ -1209,16 +1209,18 @@ private fun PassphraseQuestionStep(
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                if (mode == PassphraseMode.CREATE)
-                    "Most people do not need one. You can always create another account with a passphrase later."
-                else
+            // Import keeps a line of steer, because someone who has never heard of a passphrase
+            // still has to answer a question about their own past. Create needs none: the choice
+            // is theirs to make, and "What is a passphrase?" is right there if they want it.
+            if (mode == PassphraseMode.IMPORT) {
+                Spacer(Modifier.height(12.dp))
+                Text(
                     "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose.",
-                color = colors.textSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-            )
+                    color = colors.textSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                )
+            }
             Spacer(Modifier.weight(1f))
 
             Button(
