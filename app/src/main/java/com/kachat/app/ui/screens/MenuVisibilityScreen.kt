@@ -3,6 +3,8 @@ package com.kachat.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -226,6 +228,23 @@ fun MenuVisibilityScreen(
 private val GRID_SPACING = 14.dp
 
 /**
+ * Clears [onDown] on every new touch-down.
+ *
+ * A tile carries both a click and a long-press drag, and Compose's `clickable` still reports a
+ * click when the finger comes up after a long press - so holding a dock item to reorder it also
+ * fired the tap, which moved it into Kaspa Hub. The drag's start now marks the tap as spent, and
+ * this clears that mark at the START of the next touch, so a drag whose release never reaches
+ * `clickable` cannot swallow a real tap afterwards. Ordering inside a single down event does not
+ * matter: the mark is set on the long-press timeout, hundreds of milliseconds later.
+ */
+private fun Modifier.clearsOnPress(onDown: () -> Unit): Modifier = this.pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        onDown()
+    }
+}
+
+/**
  * The Hub as it is drawn for real: the same three-across grid of square tiles as [KaspaHubScreen].
  *
  * Not a LazyVerticalGrid, and the order does NOT change under the finger. Reordering mid-drag
@@ -249,6 +268,8 @@ private fun HubGrid(
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
     var targetIndex by remember { mutableIntStateOf(-1) }
+    /** The tile whose pending click was spent on a drag. See [clearsOnPress]. */
+    var tapSpentOn by remember { mutableStateOf<String?>(null) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val tileSize = (maxWidth - GRID_SPACING * 2) / 3
@@ -278,9 +299,16 @@ private fun HubGrid(
                                 // costs one redraw of one tile.
                                 offsetX = { if (isDragging) dragX else 0f },
                                 offsetY = { if (isDragging) dragY else 0f },
-                                onTap = { onTap(screen) },
+                                onTap = {
+                                    if (tapSpentOn == screen.route) {
+                                        tapSpentOn = null
+                                    } else {
+                                        onTap(screen)
+                                    }
+                                },
                                 modifier = Modifier
                                     .weight(1f)
+                                    .clearsOnPress { tapSpentOn = null }
                                     // Keyed on the route alone: `hub` is rebuilt on every
                                     // recomposition of the screen, so including it would restart
                                     // the detector for reasons unrelated to this tile.
@@ -292,6 +320,8 @@ private fun HubGrid(
                                                 dragX = 0f
                                                 dragY = 0f
                                                 targetIndex = index
+                                                // This touch is a drag now, whatever it does next.
+                                                tapSpentOn = screen.route
                                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                             },
                                             onDrag = { change, amount ->
@@ -438,6 +468,8 @@ private fun DockPreview(
     var dragStartIndex by remember { mutableIntStateOf(0) }
     var dragX by remember { mutableFloatStateOf(0f) }
     var targetIndex by remember { mutableIntStateOf(-1) }
+    /** The item whose pending click was spent on a drag. See [clearsOnPress]. */
+    var tapSpentOn by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -487,52 +519,56 @@ private fun DockPreview(
                             isDragging = isDragging,
                             isDropTarget = !isDragging && targetIndex == index,
                             offsetX = { if (isDragging) dragX else 0f },
-                            onTap = { onTap(screen) },
+                            onTap = {
+                                if (tapSpentOn == screen.route) {
+                                    tapSpentOn = null
+                                } else {
+                                    onTap(screen)
+                                }
+                            },
+                            // Pinned tabs drag like the rest: what they cannot do is LEAVE the
+                            // dock, and a reorder never moves anything out of it. Where Kaspa Hub
+                            // and Profile sit among the five is still the user's, and the dimming
+                            // plus the refused tap is what says so.
                             modifier = Modifier
                                 .weight(1f)
-                                .then(
-                                    // Pinned tabs render but do not lift. Reordering them would be
-                                    // harmless, but a tab that refuses a tap and accepts a drag is
-                                    // a worse story than one that simply sits still.
-                                    if (pinned) {
-                                        Modifier
-                                    } else {
-                                        Modifier.pointerInput(screen.route) {
-                                            detectDragGesturesAfterLongPress(
-                                                onDragStart = {
-                                                    dragStartIndex = index
-                                                    draggingRoute = screen.route
-                                                    dragX = 0f
-                                                    targetIndex = index
-                                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                },
-                                                onDrag = { change, amount ->
-                                                    change.consume()
-                                                    dragX += amount.x
-                                                    val next = targetFor()
-                                                    if (next != targetIndex) {
-                                                        targetIndex = next
-                                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    }
-                                                },
-                                                onDragEnd = {
-                                                    val target = targetFor()
-                                                    if (target != dragStartIndex) {
-                                                        val order = dock.toMutableList()
-                                                        order.add(target, order.removeAt(dragStartIndex))
-                                                        onReorder(order)
-                                                    }
-                                                    draggingRoute = null
-                                                    targetIndex = -1
-                                                },
-                                                onDragCancel = {
-                                                    draggingRoute = null
-                                                    targetIndex = -1
-                                                }
-                                            )
+                                .clearsOnPress { tapSpentOn = null }
+                                .pointerInput(screen.route) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            dragStartIndex = index
+                                            draggingRoute = screen.route
+                                            dragX = 0f
+                                            targetIndex = index
+                                            // This touch is a drag now, whatever it does next.
+                                            tapSpentOn = screen.route
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                        onDrag = { change, amount ->
+                                            change.consume()
+                                            dragX += amount.x
+                                            val next = targetFor()
+                                            if (next != targetIndex) {
+                                                targetIndex = next
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            val target = targetFor()
+                                            if (target != dragStartIndex) {
+                                                val order = dock.toMutableList()
+                                                order.add(target, order.removeAt(dragStartIndex))
+                                                onReorder(order)
+                                            }
+                                            draggingRoute = null
+                                            targetIndex = -1
+                                        },
+                                        onDragCancel = {
+                                            draggingRoute = null
+                                            targetIndex = -1
                                         }
-                                    }
-                                )
+                                    )
+                                }
                         )
                     }
                 }
@@ -584,7 +620,8 @@ private fun DockItem(
                 }
             )
             // Pinned tabs are dimmed rather than hidden: they hold their real dock position, and
-            // the dimming is what says "this one is not yours to move" before you tap it.
+            // the dimming is what says "this one is not yours to move OUT" before you tap it.
+            // Dragging them to a different slot is still fine.
             .alpha(if (pinned) 0.55f else 1f)
             .clickable { onTap() },
         contentAlignment = Alignment.Center
