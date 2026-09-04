@@ -476,8 +476,9 @@ fun KaPostsScreen(
     val posterProfile by viewModel.posterProfile.collectAsState()
     val deepLinkTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
 
-    // Swipeable feed tabs. One LazyListState per tab, hoisted here rather than remembered inside
-    // the pager page, so each feed keeps its scroll offset across swipes.
+    // Tab-driven feed pager (no drag - see the HorizontalPager below). One LazyListState per
+    // tab, hoisted here rather than remembered inside the pager page, so each feed keeps its
+    // scroll offset across switches.
     val feedPagerState = rememberPagerState(
         initialPage = KaPostsFeedTabs.indexOf(selectedFeed).coerceAtLeast(0),
         pageCount = { KaPostsFeedTabs.size },
@@ -679,14 +680,16 @@ fun KaPostsScreen(
                 )
                 HorizontalDivider(color = colors.surfaceVariant)
 
-                // Horizontal paging between the three feeds, synced both ways with the tab row
-                // above (tap animates the page across; swipe moves the underline) - matching iOS's
-                // page-style TabView. Draggable paging is safe here: unlike the chat list, post
-                // cells carry no row-level horizontal gestures, and the thread/profile/menu
-                // overlays are separate Dialog windows that never see this pager's drags.
+                // The tab row is the only way between feeds - a tab tap still animates the page
+                // across, but the pager takes no drags of its own. A swipe that silently changes
+                // which feed you are reading is easy to trigger by accident while scrolling, and
+                // there is nothing on screen afterwards to explain why the posts changed. The
+                // pager stays (rather than a plain when-on-tab) so each feed keeps its own scroll
+                // position and the switch is still animated.
                 HorizontalPager(
                     state = feedPagerState,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
+                    userScrollEnabled = false,
                     key = { KaPostsFeedTabs[it] },
                 ) { page ->
                     val tab = KaPostsFeedTabs[page]
