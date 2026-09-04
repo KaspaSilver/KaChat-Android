@@ -201,6 +201,34 @@ class PaymentPoolStore @Inject constructor(
         if (changed) save(s, walletAddress)
     }
 
+    /**
+     * User-initiated: take this address out of Chats Payment Privacy for good.
+     *
+     * Distinct from [markReservationFundedByAddress], which records that a payment arrived. This
+     * says nothing about payments - it is someone looking at the Chat Privacy tab and deciding an
+     * address should be an ordinary spending address again, usually because it is holding a
+     * balance the automatic detection never noticed.
+     *
+     * Clears [ReservedAddress.offered] so it leaves the live pool ([activeOfferedReservationAddresses]
+     * and [isIndexOfferedForPrivacy] both filter on it), and marks it reclaimed so a privacy
+     * re-enable never offers it back to its original contact.
+     */
+    @Synchronized
+    fun releaseReservation(address: String, walletAddress: String): Boolean {
+        val s = state(walletAddress)
+        var released = false
+        for ((contact, entries) in s.myReservations) {
+            val i = entries.indexOfFirst { it.address == address }
+            if (i < 0) continue
+            entries[i] = entries[i].copy(offered = false, reclaimed = true)
+            s.myReservations[contact] = entries
+            released = true
+            break
+        }
+        if (released) save(s, walletAddress)
+        return released
+    }
+
     @Synchronized
     fun markReservationsOffered(addresses: List<String>, contactAddress: String, walletAddress: String) {
         if (addresses.isEmpty()) return

@@ -4247,6 +4247,8 @@ fun ManageAddressesScreen(
     var renameInput by remember { mutableStateOf("") }
     var showActionsMenu by remember { mutableStateOf(false) }
     var showConsolidateConfirm by remember { mutableStateOf(false) }
+    /// The chat-privacy address whose "move out of the pool" sheet is open.
+    var moveOutTarget by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
     val isDiscoveringAddresses by viewModel.discoveringAddresses.collectAsState()
     val discoveryProgress by viewModel.spendingDiscoveryProgress.collectAsState()
     var discoverySummary by remember { mutableStateOf<String?>(null) }
@@ -4476,7 +4478,8 @@ fun ManageAddressesScreen(
                                 clipboardManager.setText(AnnotatedString(entry.address))
                                 showAddressCopiedToast(context, entry.address)
                             },
-                            onQrClick = { qrAddress = entry.address }
+                            onQrClick = { qrAddress = entry.address },
+                            onMoveOut = { moveOutTarget = entry },
                         )
                     }
                 }
@@ -4621,6 +4624,14 @@ fun ManageAddressesScreen(
         }
         }
         }
+    }
+
+    moveOutTarget?.let { entry ->
+        ChatPrivacyAddressActionsSheet(
+            entry = entry,
+            onMoveOut = { viewModel.releaseChatPrivacyAddress(entry.address) },
+            onDismiss = { moveOutTarget = null },
+        )
     }
 
     activateIndex?.let { index ->
@@ -6900,7 +6911,9 @@ private fun ManageAddressActionsSheet(
 private fun ChatPrivacyAddressRow(
     entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
     onCopyClick: () -> Unit,
-    onQrClick: () -> Unit
+    onQrClick: () -> Unit,
+    /** Take this address out of the pool by hand - see [ChatPrivacyAddressActionsSheet]. */
+    onMoveOut: () -> Unit = {},
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
     var showMenu by remember { mutableStateOf(false) }
@@ -6911,6 +6924,7 @@ private fun ChatPrivacyAddressRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(LocalAppColors.current.surface)
+            .clickable { onMoveOut() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -6940,12 +6954,26 @@ private fun ChatPrivacyAddressRow(
             )
             if (entry.balanceSompi > 0) {
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "%.8f KAS".format(java.util.Locale.US, kas),
-                    color = LocalAppColors.current.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "%.8f KAS".format(java.util.Locale.US, kas),
+                        color = KaspaTeal,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    // Money on a pool address is worth noticing: it means the offer has been
+                    // paid into and the address is not really "fresh and waiting" any more.
+                    Text(
+                        "Funded",
+                        color = KaspaTeal,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .background(KaspaTeal.copy(alpha = 0.15f), RoundedCornerShape(50))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
             }
         }
         IconButton(
@@ -12458,5 +12486,45 @@ private fun ManageAddressesActionsSheet(
                 }
             }
         }
+    }
+}
+
+/**
+ * Tapping a Chat Privacy address: what it is, and the one thing the user can do about it.
+ *
+ * The pool normally manages these rows by itself - an offer is revoked, superseded, or marked
+ * funded when a payment_notice arrives. None of that reaches a device that was not running when
+ * the payment landed, so an address can sit here holding a balance with nothing to nudge it out.
+ * This is the manual override for exactly that case.
+ */
+@Composable
+fun ChatPrivacyAddressActionsSheet(
+    entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
+    onMoveOut: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val funded = entry.balanceSompi > 0
+    ActionSheetContainer(
+        title = "Address ${entry.index}",
+        subtitle = entry.address,
+        detail = if (funded) {
+            "Holding ${"%.8f".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0)} KAS"
+        } else null,
+        onDismiss = onDismiss,
+    ) {
+        ActionSheetRow(
+            icon = Icons.Default.LockOpen,
+            title = "Move out of Chat Payment Privacy",
+            subtitle = if (funded) {
+                "It has been paid into, so it is no longer a fresh address. Moves it to your normal spending list where you can send from it."
+            } else {
+                "Stops offering this address to your contact and moves it to your normal spending list."
+            },
+        ) { onDismiss(); onMoveOut() }
+        ActionSheetRow(
+            icon = Icons.Default.Close,
+            title = "Cancel",
+            subtitle = "Leave it in the pool.",
+        ) { onDismiss() }
     }
 }

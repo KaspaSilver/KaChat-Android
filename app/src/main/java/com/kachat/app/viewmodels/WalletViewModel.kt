@@ -704,8 +704,14 @@ class WalletViewModel @Inject constructor(
                 // hiding is a tidying choice about empty addresses, not a decision that should
                 // outrank a balance.
                 matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
+                // Load first, THEN reconcile: the list fetch already reads every address's
+                // balance in one go, so the reservation check can use those instead of making
+                // its own per-address REST calls - which is both faster and the reason this
+                // used to come back empty-handed, since those extra calls are exactly what the
+                // public API throttles. loadManageAddressesAndAwait rather than the fire-and-
+                // forget variant, or the rows would not be there yet to read.
+                loadManageAddressesAndAwait()
                 releaseFundedReservations(walletAddress)
-                loadManageAddresses()
                 onResult(matched.size)
             } finally {
                 _discoveringAddresses.value = false
@@ -731,16 +737,24 @@ class WalletViewModel @Inject constructor(
     private suspend fun releaseFundedReservations(walletAddress: String) {
         val reserved = paymentPoolStore.activeOfferedReservationAddresses(walletAddress)
         if (reserved.isEmpty()) return
-        val funded = spendingAddressDiscovery.fundedAmong(reserved)
+
+        // Balances already in hand from the list load, which fetched them in bulk. Only
+        // addresses the list does not cover - a reservation past the revealed index bound - need
+        // asking about individually.
+        val rows = _manageAddressesRaw.value.filter { it.address in reserved }
+        val fundedFromRows = rows.filter { it.balanceSompi > 0 }.map { it.address }.toSet()
+        val unknown = reserved - rows.map { it.address }.toSet()
+        val funded = fundedFromRows + spendingAddressDiscovery.fundedAmong(unknown)
+        if (funded.isEmpty()) return
+
         for (address in funded) {
             paymentPoolStore.markReservationFundedByAddress(address, walletAddress)
         }
         // A funded address belongs on the main list, so it must not stay hidden either.
-        if (funded.isNotEmpty()) {
-            _manageAddressesRaw.value
-                .filter { it.address in funded }
-                .forEach { walletManager.setSpendingAddressHidden(walletAddress, it.index, false) }
-        }
+        rows.filter { it.address in funded }
+            .forEach { walletManager.setSpendingAddressHidden(walletAddress, it.index, false) }
+        // Re-read so the Chat Privacy tab and the main list both reflect the release.
+        loadManageAddresses()
     }
 
     enum class ConsolidateStatus { IDLE, RUNNING, SUCCESS, FAILED }
@@ -1046,6 +1060,21 @@ class WalletViewModel @Inject constructor(
     fun previewChattingAddress(passphrase: String): String? =
         if (pendingMnemonicWords.isEmpty()) null
         else walletManager.previewIdentityAddress(pendingMnemonicWords, passphrase, pendingSourceFamily)
+
+    /** User-initiated: take a Chats Payment Privacy address out of the pool and back into the
+     *  normal spending list. See [PaymentPoolStore.releaseReservation] for why this exists
+     *  alongside the automatic funded-detection. */
+    fun releaseChatPrivacyAddress(address: String) {
+        viewModelScope.launch {
+            val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { return@launch }
+            if (!paymentPoolStore.releaseReservation(address, walletAddress)) return@launch
+            // It was locked visible while it was an offer; nothing holds it hidden now.
+            _manageAddressesRaw.value.firstOrNull { it.address == address }?.let {
+                walletManager.setSpendingAddressHidden(walletAddress, it.index, false)
+            }
+            loadManageAddresses()
+        }
+    }
 
     /** Imports the prepared wallet with the chosen passphrase ("" = none), then logs in. */
     fun commitImport(passphrase: String) {
