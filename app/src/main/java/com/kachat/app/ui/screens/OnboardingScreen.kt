@@ -215,37 +215,45 @@ fun WelcomeScreen(
             // Top spacer to help center the middle content
             Spacer(modifier = Modifier.weight(1f))
 
-            // App logo
-            Image(
-                painter = painterResource(id = R.drawable.ic_kachat_logo),
-                contentDescription = stringResource(R.string.kachat_logo),
-                modifier = Modifier.size(160.dp)
-            )
+            val hasWallet by viewModel.hasWallet.collectAsState()
+            val accounts by viewModel.accounts.collectAsState()
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Wordmark with the app mark beside it - the launcher icon itself, so the two never
+            // drift apart. Replaces the 160dp logo above the title: on a device with accounts
+            // saved, that block was most of why the list below had nowhere to go.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.kachat),
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 36.sp
+                    ),
+                    color = LocalAppColors.current.textPrimary
+                )
+                Image(
+                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    contentDescription = stringResource(R.string.kachat_logo),
+                    modifier = Modifier.size(40.dp).clip(RoundedCornerShape(9.dp))
+                )
+            }
 
-            Text(
-                text = stringResource(R.string.kachat),
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 36.sp
-                ),
-                color = LocalAppColors.current.textPrimary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = stringResource(R.string.secure_messaging_on_kaspa_blockdag),
-                style = MaterialTheme.typography.bodyLarge,
-                color = KaspaSubtext,
-                textAlign = TextAlign.Center
-            )
+            // A welcome for a first run only - on a returning device it is more of the space the
+            // accounts list needs.
+            if (!hasWallet) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.secure_messaging_on_kaspa_blockdag),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = KaspaSubtext,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            val hasWallet by viewModel.hasWallet.collectAsState()
-            val accounts by viewModel.accounts.collectAsState()
             val biometricAccountLoginEnabled by viewModel.biometricAccountLoginEnabled.collectAsState()
 
             if (hasWallet) {
@@ -262,11 +270,12 @@ fun WelcomeScreen(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                     
-                    // Five at a time, then this scrolls inside itself. A dozen saved accounts
-                    // used to just make the page taller, pushing Create and Import off the
-                    // bottom of the screen. heightIn(max) rather than a fixed height so three
-                    // accounts still take three rows' worth of space, not five.
-                    val visibleRows = minOf(accounts.size, 5)
+                    // Four at a time, then this scrolls inside itself - the fifth account is
+                    // where scrolling starts. A dozen saved accounts used to just make the page
+                    // taller, pushing Create and Import off the bottom of the screen.
+                    // heightIn(max) rather than a fixed height so three accounts still take
+                    // three rows' worth of space, not four.
+                    val visibleRows = minOf(accounts.size, 4)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
