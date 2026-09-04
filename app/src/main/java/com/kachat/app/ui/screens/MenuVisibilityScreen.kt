@@ -1,11 +1,15 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -51,7 +56,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -75,6 +84,7 @@ import com.kachat.app.ui.theme.AppColors
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /**
@@ -228,30 +238,92 @@ fun MenuVisibilityScreen(
 private val GRID_SPACING = 14.dp
 
 /**
- * Clears [onDown] on every new touch-down.
+ * Tap and hold-to-drag from ONE gesture, so they can never both fire and never miss each other.
  *
- * A tile carries both a click and a long-press drag, and Compose's `clickable` still reports a
- * click when the finger comes up after a long press - so holding a dock item to reorder it also
- * fired the tap, which moved it into Kaspa Hub. The drag's start now marks the tap as spent, and
- * this clears that mark at the START of the next touch, so a drag whose release never reaches
- * `clickable` cannot swallow a real tap afterwards. Ordering inside a single down event does not
- * matter: the mark is set on the long-press timeout, hundreds of milliseconds later.
+ * A `clickable` next to a `detectDragGesturesAfterLongPress` is two detectors racing over the same
+ * touch: `clickable` still reports a click when the finger comes up after a long press (which sent
+ * the item you were reordering into Kaspa Hub), and the pick-up could be lost to whichever
+ * detector claimed the pointer first (which is a hold that selects nothing). Deciding it here
+ * removes the race: one touch is a tap OR a drag, settled by whether it survives the long-press
+ * timeout, and the pointer that went down is the one the drag follows.
  */
-private fun Modifier.clearsOnPress(onDown: () -> Unit): Modifier = this.pointerInput(Unit) {
+private suspend fun PointerInputScope.detectTapOrHoldDrag(
+    onTap: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
     awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false)
-        onDown()
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val heldLongEnough = try {
+            // Up before the timeout is a tap; null is the gesture being taken over by something
+            // else, which is how a scroll of the page still wins over a press on a tile.
+            withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                waitForUpOrCancellation()
+            }?.let { up ->
+                up.consume()
+                onTap()
+            }
+            false
+        } catch (_: PointerEventTimeoutCancellationException) {
+            true
+        }
+        if (!heldLongEnough) return@awaitEachGesture
+
+        onDragStart()
+        val completed = drag(down.id) { change ->
+            onDrag(change.positionChange())
+            change.consume()
+        }
+        if (completed) onDragEnd() else onDragCancel()
     }
+}
+
+/**
+ * Where a tile sits while a drag is in progress: everything between the gap the held tile left and
+ * the slot it is hovering over shifts one place to close it. Returns [index] unchanged for tiles
+ * the drag does not pass over.
+ */
+private fun displacedIndex(index: Int, from: Int, to: Int): Int = when {
+    to > from && index > from && index <= to -> index - 1
+    to < from && index >= to && index < from -> index + 1
+    else -> index
+}
+
+/** Slides a tile aside; the held tile tracks the finger instead and is never animated. */
+private val SLIDE_SPEC = spring<Float>(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+
+/**
+ * Remembers whether the layout is mid-settle, and a spec that does not animate while it is.
+ *
+ * On release two things change: the list is rewritten in the new order, and every slide target
+ * drops back to zero. Both leave a tile exactly where it already is, but a spring would animate
+ * the second one - so a tile that had slid one place left would slide back RIGHT across its own
+ * new slot. Snapping through the changeover keeps it where the finger left it. The window covers
+ * the extra frame the reordered list takes to arrive from the view model.
+ */
+@Composable
+private fun rememberSettling(): Pair<() -> Unit, AnimationSpec<Float>> {
+    var settling by remember { mutableStateOf(false) }
+    LaunchedEffect(settling) {
+        if (settling) {
+            delay(100)
+            settling = false
+        }
+    }
+    return Pair({ settling = true }, if (settling) snap() else SLIDE_SPEC)
 }
 
 /**
  * The Hub as it is drawn for real: the same three-across grid of square tiles as [KaspaHubScreen].
  *
- * Not a LazyVerticalGrid, and the order does NOT change under the finger. Reordering mid-drag
- * would move a tile from one row of the grid to another, and a composable that changes parent
- * loses the gesture that is dragging it - the drag would die halfway through. So the held tile
- * lifts and follows the finger while everything else stays put, the slot it would land in is
- * outlined, and the move happens on release.
+ * Not a LazyVerticalGrid, and the underlying list does NOT change under the finger. Reordering it
+ * mid-drag would move a tile from one row of the grid to another, and a composable that changes
+ * parent loses the gesture that is dragging it, so the drag would die halfway through. What moves
+ * instead is where each tile is DRAWN: the held tile tracks the finger, and every tile between
+ * the gap it left and the slot it is over slides one place to close it. The arrangement under
+ * your finger is the arrangement you get, and the list is rewritten once, on release.
  */
 @Composable
 private fun HubGrid(
@@ -268,8 +340,7 @@ private fun HubGrid(
     var dragX by remember { mutableFloatStateOf(0f) }
     var dragY by remember { mutableFloatStateOf(0f) }
     var targetIndex by remember { mutableIntStateOf(-1) }
-    /** The tile whose pending click was spent on a drag. See [clearsOnPress]. */
-    var tapSpentOn by remember { mutableStateOf<String?>(null) }
+    val (settle, slideSpec) = rememberSettling()
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val tileSize = (maxWidth - GRID_SPACING * 2) / 3
@@ -288,44 +359,52 @@ private fun HubGrid(
                         val index = rowIndex * 3 + columnIndex
                         key(screen.route) {
                             val isDragging = draggingRoute == screen.route
+                            // Where this tile slides to while some OTHER tile is being dragged
+                            // over its slot. Animated, because that slide is the whole point;
+                            // the held tile is excluded because it has to track the finger.
+                            val moved = if (draggingRoute != null && !isDragging) {
+                                displacedIndex(index, dragStartIndex, targetIndex)
+                            } else {
+                                index
+                            }
+                            val slideX by animateFloatAsState(
+                                targetValue = (moved % 3 - index % 3) * stridePx,
+                                animationSpec = slideSpec,
+                                label = "hubSlideX"
+                            )
+                            val slideY by animateFloatAsState(
+                                targetValue = (moved / 3 - index / 3) * stridePx,
+                                animationSpec = slideSpec,
+                                label = "hubSlideY"
+                            )
                             HubTile(
                                 screen = screen,
                                 colors = colors,
                                 isDragging = isDragging,
-                                isDropTarget = !isDragging && targetIndex == index,
                                 // Lambdas, read in the draw phase. Reading the offsets during
                                 // composition would recompose the whole grid on every pixel of
                                 // finger movement; from inside graphicsLayer a moving finger
                                 // costs one redraw of one tile.
-                                offsetX = { if (isDragging) dragX else 0f },
-                                offsetY = { if (isDragging) dragY else 0f },
-                                onTap = {
-                                    if (tapSpentOn == screen.route) {
-                                        tapSpentOn = null
-                                    } else {
-                                        onTap(screen)
-                                    }
-                                },
+                                offsetX = { if (isDragging) dragX else slideX },
+                                offsetY = { if (isDragging) dragY else slideY },
+                                onTap = { onTap(screen) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clearsOnPress { tapSpentOn = null }
                                     // Keyed on the route alone: `hub` is rebuilt on every
                                     // recomposition of the screen, so including it would restart
                                     // the detector for reasons unrelated to this tile.
                                     .pointerInput(screen.route) {
-                                        detectDragGesturesAfterLongPress(
+                                        detectTapOrHoldDrag(
+                                            onTap = { onTap(screen) },
                                             onDragStart = {
                                                 dragStartIndex = index
                                                 draggingRoute = screen.route
                                                 dragX = 0f
                                                 dragY = 0f
                                                 targetIndex = index
-                                                // This touch is a drag now, whatever it does next.
-                                                tapSpentOn = screen.route
                                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                             },
-                                            onDrag = { change, amount ->
-                                                change.consume()
+                                            onDrag = { amount ->
                                                 dragX += amount.x
                                                 dragY += amount.y
                                                 val next = targetFor()
@@ -335,6 +414,7 @@ private fun HubGrid(
                                                 }
                                             },
                                             onDragEnd = {
+                                                settle()
                                                 val target = targetFor()
                                                 if (target != dragStartIndex) {
                                                     val order = hub.toMutableList()
@@ -367,7 +447,6 @@ private fun HubTile(
     screen: Screen,
     colors: AppColors,
     isDragging: Boolean,
-    isDropTarget: Boolean,
     offsetX: () -> Float,
     offsetY: () -> Float,
     onTap: () -> Unit,
@@ -384,14 +463,6 @@ private fun HubTile(
             .shadow(if (isDragging) 8.dp else 0.dp, RoundedCornerShape(18.dp))
             .clip(RoundedCornerShape(18.dp))
             .background(colors.surface)
-            .then(
-                if (isDropTarget) {
-                    Modifier.border(2.dp, KaspaTeal, RoundedCornerShape(18.dp))
-                } else {
-                    Modifier
-                }
-            )
-            .clickable { onTap() }
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -468,8 +539,7 @@ private fun DockPreview(
     var dragStartIndex by remember { mutableIntStateOf(0) }
     var dragX by remember { mutableFloatStateOf(0f) }
     var targetIndex by remember { mutableIntStateOf(-1) }
-    /** The item whose pending click was spent on a drag. See [clearsOnPress]. */
-    var tapSpentOn by remember { mutableStateOf<String?>(null) }
+    val (settle, slideSpec) = rememberSettling()
 
     Column(
         modifier = Modifier
@@ -522,40 +592,40 @@ private fun DockPreview(
                     key(screen.route) {
                         val pinned = screen.route in PINNED_DOCK_ROUTES
                         val isDragging = draggingRoute == screen.route
+                        val moved = if (draggingRoute != null && !isDragging) {
+                            displacedIndex(index, dragStartIndex, targetIndex)
+                        } else {
+                            index
+                        }
+                        val slideX by animateFloatAsState(
+                            targetValue = (moved - index) * slotPx,
+                            animationSpec = slideSpec,
+                            label = "dockSlide"
+                        )
                         DockItem(
                             screen = screen,
                             colors = colors,
                             pinned = pinned,
                             isDragging = isDragging,
-                            isDropTarget = !isDragging && targetIndex == index,
-                            offsetX = { if (isDragging) dragX else 0f },
-                            onTap = {
-                                if (tapSpentOn == screen.route) {
-                                    tapSpentOn = null
-                                } else {
-                                    onTap(screen)
-                                }
-                            },
+                            offsetX = { if (isDragging) dragX else slideX },
+                            onTap = { onTap(screen) },
                             // Pinned tabs drag like the rest: what they cannot do is LEAVE the
                             // dock, and a reorder never moves anything out of it. Where Kaspa Hub
                             // and Profile sit among the five is still the user's, and the dimming
                             // plus the refused tap is what says so.
                             modifier = Modifier
                                 .weight(1f)
-                                .clearsOnPress { tapSpentOn = null }
                                 .pointerInput(screen.route) {
-                                    detectDragGesturesAfterLongPress(
+                                    detectTapOrHoldDrag(
+                                        onTap = { onTap(screen) },
                                         onDragStart = {
                                             dragStartIndex = index
                                             draggingRoute = screen.route
                                             dragX = 0f
                                             targetIndex = index
-                                            // This touch is a drag now, whatever it does next.
-                                            tapSpentOn = screen.route
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         },
-                                        onDrag = { change, amount ->
-                                            change.consume()
+                                        onDrag = { amount ->
                                             dragX += amount.x
                                             val next = targetFor()
                                             if (next != targetIndex) {
@@ -564,6 +634,7 @@ private fun DockPreview(
                                             }
                                         },
                                         onDragEnd = {
+                                            settle()
                                             val target = targetFor()
                                             if (target != dragStartIndex) {
                                                 val order = dock.toMutableList()
@@ -608,7 +679,6 @@ private fun DockItem(
     colors: AppColors,
     pinned: Boolean,
     isDragging: Boolean,
-    isDropTarget: Boolean,
     offsetX: () -> Float,
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
@@ -619,18 +689,10 @@ private fun DockItem(
             .zIndex(if (isDragging) 1f else 0f)
             .graphicsLayer { translationX = offsetX() }
             .clip(RoundedCornerShape(32.dp))
-            .then(
-                if (isDropTarget) {
-                    Modifier.border(2.dp, KaspaTeal, RoundedCornerShape(32.dp))
-                } else {
-                    Modifier
-                }
-            )
             // Pinned tabs are dimmed rather than hidden: they hold their real dock position, and
             // the dimming is what says "this one is not yours to move OUT" before you tap it.
             // Dragging them to a different slot is still fine.
-            .alpha(if (pinned) 0.55f else 1f)
-            .clickable { onTap() },
+            .alpha(if (pinned) 0.55f else 1f),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
