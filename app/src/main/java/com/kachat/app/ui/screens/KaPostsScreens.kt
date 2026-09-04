@@ -2529,6 +2529,7 @@ fun KaPostThreadOverlay(
                 .fillMaxSize()
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
+            KaPostsOverlayStatusBar()
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3120,6 +3121,7 @@ fun KaPostsProfileOverlay(
         // navigation-bar inset on the list's bottom instead of padding the whole Column.
         ForceFullScreenDialogWindow()
         Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
+            KaPostsOverlayStatusBar(modifier = Modifier.statusBarsPadding())
             // Fixed chrome: banner, avatar row, header, and the tab row stay pinned while only
             // the content below slides between Posts and Replies (matching iOS's profile tabs).
             // Divergence from iOS worth knowing: iOS puts the whole profile in one ScrollView,
@@ -3142,7 +3144,6 @@ fun KaPostsProfileOverlay(
                 IconButton(
                     onClick = onClose,
                     modifier = Modifier
-                        .statusBarsPadding()
                         .padding(4.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.35f)),
@@ -4222,6 +4223,28 @@ fun KaPostsBookmarksOverlay(
 }
 
 /** Shared full-screen overlay chrome: back arrow + bold title over the app background. */
+/**
+ * The feed's own header indicators - clickable connection dot leading, chatting balance centred -
+ * repeated on every overlay that covers the feed. Reading a thread or a profile is still "being in
+ * KaPosts", and both answer questions that come up mid-read: whether a like that is not landing is
+ * the network's fault, and whether there is enough KAS to reply at all. The overlays are separate
+ * Dialog windows, so nothing behind them shows through.
+ */
+@Composable
+internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        ConnectionDotButton(
+            onClick = { ConnectionStatusOverlayState.open() },
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
+        BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))
+    }
+}
+
 @Composable
 private fun KaPostsOverlayScaffold(
     title: String,
@@ -4240,6 +4263,7 @@ private fun KaPostsOverlayScaffold(
                 .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
+            KaPostsOverlayStatusBar()
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
