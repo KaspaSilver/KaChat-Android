@@ -14,19 +14,15 @@
     <string name="added">额外</string>
     <string name="address">地址</string>
     <string name="address_actions">地址操作</string>
-    <string name="address_actions_2">地址操作</string>
-    <string name="address_copied">地址已复制</string>
     <string name="addresses">地址</string>
     <string name="adjust_network_fee">调整网络手续费</string>
     <string name="admin">管理员</string>
     <string name="all_discovered_nodes_sorted_by_state">所有已发现的节点按状态和延迟排序。节点按 host:port 去重。</string>
-    <string name="always_shown">始终显示</string>
     <string name="amount_kas">金额 (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">任何加入相同频道名称的人都可以在那里查看和发布消息。没有所有者或邀请。</string>
     <string name="anyone_with_your_seed_phrase_can">任何拥有您的助记词的人都可以访问您的账户。切勿与任何人分享。请确保只将其写下来。切勿截图或将其存储在您的设备上。</string>
     <string name="back">返回</string>
     <string name="before_you_swap">兑换前须知</string>
-    <string name="broadcast_settings">广播设置</string>
     <string name="broadcasting">正在广播...</string>
     <string name="broadcasts">广播</string>
     <string name="build_unsigned_transaction">构建未签名交易</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">选择横幅</string>
     <string name="choose_coin">选择币种</string>
     <string name="choose_photo">选择照片</string>
-    <string name="choose_which_tabs_appear_in_your">选择底部菜单中显示的标签页。</string>
     <string name="clear_search">清除搜索</string>
     <string name="close">关闭</string>
     <string name="cold_storage">冷存储</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">仅连接到此节点</string>
     <string name="connection_settings">连接设置</string>
     <string name="connection_status">连接状态</string>
-    <string name="contact_name">联系人姓名</string>
     <string name="contact_has_requested_permission_to_communicate">联系人已请求通信权限</string>
-    <string name="contact_name_2">联系人姓名</string>
     <string name="contacts">联系人</string>
     <string name="controls_how_much_photos_are_compressed">控制发送前照片的压缩程度。质量越高看起来越清晰,但费用更高、发送时间更长;质量越低发送更快更便宜,但看起来更压缩。这只影响您发送的照片,不影响您接收的照片。</string>
     <string name="copy">复制</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">删除交易</string>
     <string name="deposit_address">存款地址</string>
     <string name="domain_name">域名</string>
-    <string name="domains">域名</string>
     <string name="done">完成</string>
     <string name="each_transaction_temporarily_uses_2_kas">每笔交易临时使用约 2 KAS;约 1 KAS 会立即作为找零返回,因此只有少量网络手续费是真实成本。</string>
     <string name="edit_kns_profile">编辑 KNS 个人资料</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">授予权限</string>
     <string name="group_chats">群聊</string>
     <string name="group_info">群组信息</string>
-    <string name="group_name">群组名称</string>
     <string name="group_name_2">群组名称</string>
     <string name="hidden_addresses">隐藏的地址</string>
-    <string name="hidden_broadcast_room_users">隐藏的广播室用户</string>
     <string name="hidden_users">隐藏的用户</string>
     <string name="holdings">持仓</string>
     <string name="how_long_messages_in_this_broadcast">此广播中的消息在此设备上缓存的时长,最多 3 天。</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">加入或创建频道</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS 域名</string>
-    <string name="kns_profile_pictures">KNS 头像</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat 徽标</string>
     <string name="kachat_can_t_show_notifications_until">在您允许此应用的通知之前,KaChat 无法显示通知。</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">设为活动地址</string>
     <string name="manage_addresses">管理地址</string>
     <string name="max">最大</string>
-    <string name="members">成员</string>
     <string name="menu">菜单</string>
     <string name="message">信息</string>
     <string name="message_retention_settings">消息保留设置</string>
     <string name="more_info">更多信息</string>
     <string name="name">名称</string>
-    <string name="name_optional">名称（可选）</string>
     <string name="name_this_address">为此地址命名</string>
-    <string name="never_send_kaspa_you_intend_to">切勿将您打算花费的 Kaspa 发送到此地址。</string>
     <string name="next">下一步</string>
     <string name="no_conversations_yet">暂无会话</string>
     <string name="no_group_chats_yet">暂无群聊</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">尚无冷存储账户。扫描从您的 KasSigner 设备导出的 kpub 以监控其余额并从中发送。</string>
     <string name="no_domains_yet">还没有域名。</string>
     <string name="no_hidden_addresses">没有隐藏的地址。</string>
-    <string name="no_hidden_users">没有隐藏的用户</string>
     <string name="no_hidden_users_in_this_group">此群组中没有隐藏的用户。</string>
     <string name="no_messages_yet">暂无消息</string>
     <string name="no_saved_addresses">没有已保存的地址</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">打开设置</string>
     <string name="original_message_not_available">原始消息不可用</string>
     <string name="other_nodes">其他节点</string>
-    <string name="other_messages_still_show_up_in">其他消息仍会显示在聊天中,只是不会有通知。</string>
     <string name="paste_from_clipboard">从剪贴板粘贴</string>
     <string name="paste_kpub">粘贴 kpub</string>
     <string name="paste_the_kpub_exported_from_your">粘贴从您的 KasSigner 设备导出的 kpub。它不包含任何私钥材料。</string>
@@ -260,7 +244,6 @@
     <string name="show_more">显示更多</string>
     <string name="show_photo">显示照片</string>
     <string name="show_qr_code">显示二维码</string>
-    <string name="shows_senders_kns_avatars_in_rooms">在房间中显示发送者的 KNS 头像,并在消息出现时自动查找。关闭则为所有人显示简单的首字母,且从不获取头像。</string>
     <string name="skip">跳过</string>
     <string name="some_changes_failed_to_save">部分更改未能保存:</string>
     <string name="spending_kaspa_on_kachat_will_come">从现在起,在 KaChat 上花费 Kaspa 将仅来自此地址。您当前消费地址上仍然存在的任何 Kaspa 都将自动发送到这个新地址。</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">这只会将其从 KaChat 的监视列表中移除。对 KasSigner 设备或其持有的任何资金没有任何影响。</string>
     <string name="this_permanently_deletes_every_message_with">这将永久删除此设备上与他们的每条消息。此操作无法撤销;再次给他们发消息将开始一段全新的对话。</string>
     <string name="this_removes_the_group_and_its">这将从此设备中移除该群组及其消息。此操作无法撤销,其他成员不会收到通知。</string>
-    <string name="this_signs_out_of_your_account">退出账户，但保留此设备上的本地钱包和消息数据。</string>
     <string name="to">至</string>
     <string name="total_balance">总余额</string>
     <string name="total_invested">总投资</string>
@@ -292,7 +274,6 @@
     <string name="unlink">取消关联</string>
     <string name="unread">未读</string>
     <string name="use_default">使用默认值</string>
-    <string name="users_you_hide_from_a_broadcast">您从广播室隐藏的用户(通过其头像菜单)会显示在这里,并且永远不会出现在任何房间中或被缓存。</string>
     <string name="valid_address">有效地址</string>
     <string name="view_on_changenow">在 ChangeNOW 上查看</string>
     <string name="waiting_for_camera">正在等待相机...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">选择您希望以哪种货币显示价格。</string>
     <string name="i_have_written_down_my_seed_phrase">我已经写下我的助记词并妥善保存</string>
     <string name="i_already_have_a_domain_somewhere">我已经在其他地方拥有域名</string>
-    <string name="transfer_your_domain">转移您的域名</string>
     <string name="transfer_your_domain_to_this_address">将您的域名转移到此地址，以便将您的身份与 KaChat 关联。</string>
 </resources>

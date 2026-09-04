@@ -14,19 +14,15 @@
     <string name="added">추가됨</string>
     <string name="address">주소</string>
     <string name="address_actions">주소 작업</string>
-    <string name="address_actions_2">주소 작업</string>
-    <string name="address_copied">주소가 복사됨</string>
     <string name="addresses">주소</string>
     <string name="adjust_network_fee">네트워크 수수료 조정</string>
     <string name="admin">관리자</string>
     <string name="all_discovered_nodes_sorted_by_state">검색된 모든 노드를 상태와 지연 시간으로 정렬합니다. 노드는 host:port로 중복 제거됩니다.</string>
-    <string name="always_shown">항상 표시됨</string>
     <string name="amount_kas">금액 (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">동일한 채널 이름에 참여한 사람은 누구나 메시지를 보고 게시할 수 있습니다. 소유자나 초대가 없습니다.</string>
     <string name="anyone_with_your_seed_phrase_can">시드 문구를 가진 사람은 누구나 당신의 계정에 접근할 수 있습니다. 절대 누구와도 공유하지 마세요. 반드시 종이에 적어두기만 하세요. 절대 스크린샷을 찍거나 기기에 저장하지 마세요.</string>
     <string name="back">뒤로</string>
     <string name="before_you_swap">스왑하기 전</string>
-    <string name="broadcast_settings">방송 설정</string>
     <string name="broadcasting">방송 중...</string>
     <string name="broadcasts">방송</string>
     <string name="build_unsigned_transaction">서명되지 않은 거래 생성</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">배너 선택</string>
     <string name="choose_coin">코인 선택</string>
     <string name="choose_photo">사진 선택</string>
-    <string name="choose_which_tabs_appear_in_your">하단 메뉴에 표시할 탭을 선택하세요.</string>
     <string name="clear_search">검색 지우기</string>
     <string name="close">닫기</string>
     <string name="cold_storage">콜드 스토리지</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">이 노드에만 연결됨</string>
     <string name="connection_settings">연결 설정</string>
     <string name="connection_status">연결 상태</string>
-    <string name="contact_name">연락처 이름</string>
     <string name="contact_has_requested_permission_to_communicate">연락처가 통신 권한을 요청했습니다</string>
-    <string name="contact_name_2">연락처 이름</string>
     <string name="contacts">연락처</string>
     <string name="controls_how_much_photos_are_compressed">전송 전 사진이 얼마나 압축되는지 제어합니다. 품질이 높을수록 더 선명해 보이지만 수수료가 더 많이 들고 전송 시간이 길어집니다; 품질이 낮을수록 더 빠르고 저렴하게 전송되지만 더 압축되어 보입니다. 이는 보내는 사진에만 영향을 미치며 받는 사진에는 영향을 주지 않습니다.</string>
     <string name="copy">복사</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">거래 삭제</string>
     <string name="deposit_address">입금 주소</string>
     <string name="domain_name">도메인 이름</string>
-    <string name="domains">도메인</string>
     <string name="done">완료</string>
     <string name="each_transaction_temporarily_uses_2_kas">각 거래는 일시적으로 ~2 KAS를 사용합니다; ~1 KAS는 즉시 잔돈으로 돌아오므로 실제 비용은 작은 네트워크 수수료뿐입니다.</string>
     <string name="edit_kns_profile">KNS 프로필 편집</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">권한 부여</string>
     <string name="group_chats">그룹 채팅</string>
     <string name="group_info">그룹 정보</string>
-    <string name="group_name">그룹 이름</string>
     <string name="group_name_2">그룹 이름</string>
     <string name="hidden_addresses">숨겨진 주소</string>
-    <string name="hidden_broadcast_room_users">숨겨진 방송방 사용자</string>
     <string name="hidden_users">숨겨진 사용자</string>
     <string name="holdings">보유 자산</string>
     <string name="how_long_messages_in_this_broadcast">이 방송의 메시지가 이 기기에 얼마나 오래 캐시되는지, 최대 3일까지.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">채널 참여 또는 만들기</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS 도메인</string>
-    <string name="kns_profile_pictures">KNS 프로필 사진</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat 로고</string>
     <string name="kachat_can_t_show_notifications_until">이 앱에 대한 알림을 허용할 때까지 KaChat은 알림을 표시할 수 없습니다.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">활성 주소로 설정</string>
     <string name="manage_addresses">주소 관리</string>
     <string name="max">최대</string>
-    <string name="members">멤버</string>
     <string name="menu">메뉴</string>
     <string name="message">메시지</string>
     <string name="message_retention_settings">메시지 보관 설정</string>
     <string name="more_info">더 많은 정보</string>
     <string name="name">이름</string>
-    <string name="name_optional">이름 (선택사항)</string>
     <string name="name_this_address">이 주소 이름 지정</string>
-    <string name="never_send_kaspa_you_intend_to">지출하려는 Kaspa를 이 주소로 절대 보내지 마세요.</string>
     <string name="next">다음</string>
     <string name="no_conversations_yet">아직 대화가 없습니다</string>
     <string name="no_group_chats_yet">아직 그룹 채팅 없음</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">아직 콜드 스토리지 계정이 없습니다. 잔액을 관찰하고 그곳에서 보내려면 KasSigner 기기에서 내보낸 kpub를 스캔하세요.</string>
     <string name="no_domains_yet">아직 도메인이 없습니다.</string>
     <string name="no_hidden_addresses">숨겨진 주소가 없습니다.</string>
-    <string name="no_hidden_users">숨겨진 사용자 없음</string>
     <string name="no_hidden_users_in_this_group">이 그룹에 숨겨진 사용자가 없습니다.</string>
     <string name="no_messages_yet">아직 메시지가 없습니다</string>
     <string name="no_saved_addresses">저장된 주소 없음</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">설정 열기</string>
     <string name="original_message_not_available">원본 메시지를 사용할 수 없음</string>
     <string name="other_nodes">기타 노드</string>
-    <string name="other_messages_still_show_up_in">다른 메시지는 알림 없이 채팅에 계속 표시됩니다.</string>
     <string name="paste_from_clipboard">클립보드에서 붙여넣기</string>
     <string name="paste_kpub">kpub 붙여넣기</string>
     <string name="paste_the_kpub_exported_from_your">KasSigner 기기에서 내보낸 kpub를 붙여넣으세요. 개인 키 자료는 포함되어 있지 않습니다.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">더 보기</string>
     <string name="show_photo">사진 표시</string>
     <string name="show_qr_code">QR 코드 표시</string>
-    <string name="shows_senders_kns_avatars_in_rooms">방에 있는 발신자의 KNS 아바타를 표시하고 메시지가 나타날 때 자동으로 조회합니다. 끄기는 모두에게 단순한 이니셜을 표시하고 아바타를 절대 가져오지 않습니다.</string>
     <string name="skip">건너뛰기</string>
     <string name="some_changes_failed_to_save">일부 변경 사항을 저장하지 못했습니다:</string>
     <string name="spending_kaspa_on_kachat_will_come">이제부터 KaChat에서 Kaspa 지출은 이 주소에서만 이루어집니다. 현재 지출 주소에 남아 있는 Kaspa는 자동으로 이 새 주소로 전송됩니다.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">이는 KaChat의 감시 목록에서만 제거합니다. KasSigner 기기나 보유한 자금에는 영향을 미치지 않습니다.</string>
     <string name="this_permanently_deletes_every_message_with">이는 이 기기에서 그들과의 모든 메시지를 영구적으로 삭제합니다. 되돌릴 수 없습니다; 다시 메시지를 보내면 완전히 새로운 대화가 시작됩니다.</string>
     <string name="this_removes_the_group_and_its">이는 이 기기에서 그룹과 메시지를 제거합니다. 되돌릴 수 없으며 다른 멤버에게 알림이 가지 않습니다.</string>
-    <string name="this_signs_out_of_your_account">계정에서 로그아웃하지만, 이 기기의 로컬 지갑과 메시지 데이터는 유지됩니다.</string>
     <string name="to">받는 주소</string>
     <string name="total_balance">총 잔액</string>
     <string name="total_invested">총 투자액</string>
@@ -292,7 +274,6 @@
     <string name="unlink">연결 해제</string>
     <string name="unread">안읽음</string>
     <string name="use_default">기본값 사용</string>
-    <string name="users_you_hide_from_a_broadcast">방송 룸에서 숨긴 사용자(아바타 메뉴를 통해)는 여기에 표시되며 어떤 방에서도 나타나거나 캐시되지 않습니다.</string>
     <string name="valid_address">유효한 주소</string>
     <string name="view_on_changenow">ChangeNOW에서 보기</string>
     <string name="waiting_for_camera">카메라 대기 중...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">가격을 표시할 통화를 선택하세요.</string>
     <string name="i_have_written_down_my_seed_phrase">시드 문구를 기록하고 안전하게 보관했습니다</string>
     <string name="i_already_have_a_domain_somewhere">이미 다른 곳에 도메인이 있어요</string>
-    <string name="transfer_your_domain">도메인 이전하기</string>
     <string name="transfer_your_domain_to_this_address">신원을 KaChat에 연결하려면 도메인을 이 주소로 이전하세요.</string>
 </resources>

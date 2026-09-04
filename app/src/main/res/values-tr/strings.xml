@@ -14,19 +14,15 @@
     <string name="added">Eklendi</string>
     <string name="address">Adres</string>
     <string name="address_actions">Adres Islemleri</string>
-    <string name="address_actions_2">Adres Islemleri</string>
-    <string name="address_copied">Adres kopyalandi</string>
     <string name="addresses">Adresler</string>
     <string name="adjust_network_fee">Ag Ucretini Ayarla</string>
     <string name="admin">Yonetici</string>
     <string name="all_discovered_nodes_sorted_by_state">Keşfedilen tüm düğümler duruma ve gecikmeye göre sıralanır. Düğümler host:port\'a göre tekilleştirilir.</string>
-    <string name="always_shown">Her zaman gosterilir</string>
     <string name="amount_kas">Tutar (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">Ayni kanal adina katilan herkes orada mesajlari gorebilir ve gonderebilir. Sahibi veya davetiyesi yoktur.</string>
     <string name="anyone_with_your_seed_phrase_can">Kurtarma ifadenize sahip olan herkes hesabiniza erisebilir. Asla kimseyle paylasmayin. Yalnizca yazili olarak not aldiginizdan emin olun. Asla ekran goruntusu almayin veya cihazinizda saklamayin.</string>
     <string name="back">Geri</string>
     <string name="before_you_swap">Takas Yapmadan Once</string>
-    <string name="broadcast_settings">Yayin Ayarlari</string>
     <string name="broadcasting">Yayinlaniyor...</string>
     <string name="broadcasts">Yayinlar</string>
     <string name="build_unsigned_transaction">Imzasiz Islem Olustur</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">Banner\'ı seçin</string>
     <string name="choose_coin">Coin Sec</string>
     <string name="choose_photo">Fotograf Sec</string>
-    <string name="choose_which_tabs_appear_in_your">Alt menunuzde hangi sekmelerin gorunecegini secin.</string>
     <string name="clear_search">Aramayi temizle</string>
     <string name="close">Kapat</string>
     <string name="cold_storage">Soguk Depolama</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">Yalnizca bu duguma bagli</string>
     <string name="connection_settings">Bağlantı Ayarları</string>
     <string name="connection_status">Bağlantı Durumu</string>
-    <string name="contact_name">Kisi Adi</string>
     <string name="contact_has_requested_permission_to_communicate">Kişi iletişim izni istedi</string>
-    <string name="contact_name_2">Kisi adi</string>
     <string name="contacts">Kişiler</string>
     <string name="controls_how_much_photos_are_compressed">Fotograflarin gonderilmeden once ne kadar sikistirilacagini kontrol eder. Daha yuksek kalite daha net gorunur ancak daha yuksek ucret gerektirir ve gonderimi uzun surer; daha dusuk kalite daha hizli ve ucuz gonderilir ama daha sikistirilmis gorunur. Bu yalnizca gonderdiginiz fotograflari etkiler, aldiklarinizi degil.</string>
     <string name="copy">Kopyala</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">Islemi Sil</string>
     <string name="deposit_address">Yatirma Adresi</string>
     <string name="domain_name">Alan adi</string>
-    <string name="domains">Alan Adlari</string>
     <string name="done">Tamam</string>
     <string name="each_transaction_temporarily_uses_2_kas">Her islem gecici olarak ~2 KAS kullanir; ~1 KAS hemen para ustu olarak geri doner, bu yuzden gercek maliyet yalnizca kucuk ag ucretidir.</string>
     <string name="edit_kns_profile">KNS Profilini Düzenle</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">Izin ver</string>
     <string name="group_chats">Grup Sohbetleri</string>
     <string name="group_info">Grup Bilgisi</string>
-    <string name="group_name">Grup Adi</string>
     <string name="group_name_2">Grup adi</string>
     <string name="hidden_addresses">Gizli Adresler</string>
-    <string name="hidden_broadcast_room_users">Gizli Yayin Odasi Kullanicilari</string>
     <string name="hidden_users">Gizli Kullanicilar</string>
     <string name="holdings">Varliklar</string>
     <string name="how_long_messages_in_this_broadcast">Bu yayindaki mesajlarin bu cihazda ne kadar sure onbellekte kaldigi, en fazla 3 gun.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">Kanala Katil veya Olustur</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS Alan Adları</string>
-    <string name="kns_profile_pictures">KNS Profil Fotograflari</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat Logosu</string>
     <string name="kachat_can_t_show_notifications_until">Bu uygulama icin izin vermedikce KaChat bildirim gosteremez.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">Aktif Adres Yap</string>
     <string name="manage_addresses">Adresleri Yonet</string>
     <string name="max">Maks</string>
-    <string name="members">Uyeler</string>
     <string name="menu">Menu</string>
     <string name="message">Mesaj</string>
     <string name="message_retention_settings">Mesaj saklama ayarlari</string>
     <string name="more_info">Daha Fazla Bilgi</string>
     <string name="name">Ad</string>
-    <string name="name_optional">Ad (İsteğe Bağlı)</string>
     <string name="name_this_address">Bu Adresi Adlandir</string>
-    <string name="never_send_kaspa_you_intend_to">Harcamayi dusundugunuz Kaspa\'yi asla bu adrese gondermeyin.</string>
     <string name="next">Ileri</string>
     <string name="no_conversations_yet">Henüz konuşma yok</string>
     <string name="no_group_chats_yet">Henuz Grup Sohbeti Yok</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">Henuz soguk depolama hesabi yok. Bakiyesini izlemek ve ondan gondermek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin.</string>
     <string name="no_domains_yet">Henüz alan adı yok.</string>
     <string name="no_hidden_addresses">Gizli adres yok.</string>
-    <string name="no_hidden_users">Gizli kullanici yok</string>
     <string name="no_hidden_users_in_this_group">Bu grupta gizli kullanici yok.</string>
     <string name="no_messages_yet">Henüz mesaj yok</string>
     <string name="no_saved_addresses">Kayitli adres yok</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">Ayarları Aç</string>
     <string name="original_message_not_available">Orijinal mesaj kullanilamiyor</string>
     <string name="other_nodes">Diğer Düğümler</string>
-    <string name="other_messages_still_show_up_in">Diger mesajlar sohbette gorunmeye devam eder, sadece bildirim olmadan.</string>
     <string name="paste_from_clipboard">Panodan Yapıştır</string>
     <string name="paste_kpub">kpub Yapistir</string>
     <string name="paste_the_kpub_exported_from_your">KasSigner cihazinizdan disa aktarilan kpub\'i yapistirin. Bu, ozel anahtar materyali icermez.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">Daha Fazla Goster</string>
     <string name="show_photo">Fotografi Goster</string>
     <string name="show_qr_code">QR Kodu Goster</string>
-    <string name="shows_senders_kns_avatars_in_rooms">Odalardaki gonderenlerin KNS avatarlarini gosterir ve mesajlar goruldukce otomatik olarak arar. Kapali, herkes icin sade baş harfleri gosterir ve asla avatar getirmez.</string>
     <string name="skip">Atla</string>
     <string name="some_changes_failed_to_save">Bazi degisiklikler kaydedilemedi:</string>
     <string name="spending_kaspa_on_kachat_will_come">KaChat\'te Kaspa harcamak artik yalnizca bu adresten yapilacak. Mevcut harcama adresinizde kalan Kaspa otomatik olarak bu yeniye gonderilecek.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">Bu, yalnizca KaChat\'in izleme listesinden kaldirir. KasSigner cihazi veya tuttugu fonlar uzerinde hicbir etkisi yoktur.</string>
     <string name="this_permanently_deletes_every_message_with">Bu, bu cihazda onlarla olan her mesaji kalici olarak siler. Bu geri alinamaz; onlara tekrar mesaj yazmak tamamen yeni bir konusma baslatir.</string>
     <string name="this_removes_the_group_and_its">Bu, grubu ve mesajlarini bu cihazdan kaldirir. Bu geri alinamaz ve diger uyelere bildirim gitmez.</string>
-    <string name="this_signs_out_of_your_account">Bu, hesabınızdan çıkış yapar, ancak yerel cüzdan ve mesaj verilerini bu cihazda tutar.</string>
     <string name="to">Alici</string>
     <string name="total_balance">Toplam Bakiye</string>
     <string name="total_invested">Toplam Yatirim</string>
@@ -292,7 +274,6 @@
     <string name="unlink">Bağlantıyı Kaldır</string>
     <string name="unread">Okunmadi</string>
     <string name="use_default">Varsayilani Kullan</string>
-    <string name="users_you_hide_from_a_broadcast">Bir yayin odasindan gizlediginiz kullanicilar (avatar menuleri araciligiyla) burada gorunur ve hicbir odada gorunmez veya onbellege alinmaz.</string>
     <string name="valid_address">Gecerli adres</string>
     <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
     <string name="waiting_for_camera">Kamera bekleniyor...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">Fiyatlarin hangi para biriminde gosterilmesini istediginizi secin.</string>
     <string name="i_have_written_down_my_seed_phrase">Kurtarma kelimelerimi yazdim ve guvenli bir sekilde sakladim</string>
     <string name="i_already_have_a_domain_somewhere">Baska bir yerde zaten bir alan adim var</string>
-    <string name="transfer_your_domain">Alan Adinizi Transfer Edin</string>
     <string name="transfer_your_domain_to_this_address">Kimliginizin KaChat\'e baglanmasi icin alan adinizi bu adrese transfer edin.</string>
 </resources>

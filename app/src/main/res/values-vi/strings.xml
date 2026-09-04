@@ -14,19 +14,15 @@
     <string name="added">Đã thêm</string>
     <string name="address">Địa chỉ</string>
     <string name="address_actions">Thao tác địa chỉ</string>
-    <string name="address_actions_2">Thao tác địa chỉ</string>
-    <string name="address_copied">Đã sao chép địa chỉ</string>
     <string name="addresses">Địa chỉ</string>
     <string name="adjust_network_fee">Điều chỉnh phí mạng</string>
     <string name="admin">Quản trị viên</string>
     <string name="all_discovered_nodes_sorted_by_state">Tất cả các nút đã phát hiện, sắp xếp theo trạng thái và độ trễ. Các nút được loại trùng theo host:port.</string>
-    <string name="always_shown">Luôn được hiển thị</string>
     <string name="amount_kas">Số tiền (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">Bất kỳ ai tham gia cùng tên kênh đều có thể xem và đăng tin nhắn ở đó. Không có chủ sở hữu hay lời mời.</string>
     <string name="anyone_with_your_seed_phrase_can">Bất kỳ ai có cụm từ khôi phục của bạn đều có thể truy cập tài khoản của bạn. Không bao giờ chia sẻ nó với bất kỳ ai. Đảm bảo bạn chỉ ghi nó ra giấy. Không bao giờ chụp ảnh màn hình hoặc lưu trữ nó trên thiết bị của bạn.</string>
     <string name="back">Quay lại</string>
     <string name="before_you_swap">Trước khi hoán đổi</string>
-    <string name="broadcast_settings">Cài đặt phát sóng</string>
     <string name="broadcasting">Đang phát sóng...</string>
     <string name="broadcasts">Phát sóng</string>
     <string name="build_unsigned_transaction">Tạo giao dịch chưa ký</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">Chọn biểu ngữ</string>
     <string name="choose_coin">Chon dong tien</string>
     <string name="choose_photo">Chọn ảnh</string>
-    <string name="choose_which_tabs_appear_in_your">Chọn các tab hiển thị trong menu dưới cùng của bạn.</string>
     <string name="clear_search">Xóa tìm kiếm</string>
     <string name="close">Đóng</string>
     <string name="cold_storage">Lưu trữ lạnh</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">Chỉ kết nối với nút này</string>
     <string name="connection_settings">Cài đặt kết nối</string>
     <string name="connection_status">Trạng thái kết nối</string>
-    <string name="contact_name">Tên liên hệ</string>
     <string name="contact_has_requested_permission_to_communicate">Liên hệ đã yêu cầu quyền liên lạc</string>
-    <string name="contact_name_2">Tên liên hệ</string>
     <string name="contacts">Danh bạ</string>
     <string name="controls_how_much_photos_are_compressed">Kiểm soát mức độ nén ảnh trước khi gửi. Chất lượng cao hơn trông rõ hơn nhưng tốn phí cao hơn và gửi lâu hơn; chất lượng thấp hơn gửi nhanh và rẻ hơn nhưng trông nén hơn. Điều này chỉ ảnh hưởng đến ảnh bạn gửi, không phải ảnh bạn nhận.</string>
     <string name="copy">Sao chép</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">Xóa giao dịch</string>
     <string name="deposit_address">Địa chỉ nạp tiền</string>
     <string name="domain_name">Tên miền</string>
-    <string name="domains">Tên miền</string>
     <string name="done">Xong</string>
     <string name="each_transaction_temporarily_uses_2_kas">Mỗi giao dịch tạm thời sử dụng ~2 KAS; ~1 KAS quay lại ngay lập tức dưới dạng tiền thối, vì vậy chỉ có phí mạng nhỏ mới là chi phí thực sự.</string>
     <string name="edit_kns_profile">Chỉnh sửa hồ sơ KNS</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">Cấp quyền</string>
     <string name="group_chats">Trò chuyện nhóm</string>
     <string name="group_info">Thông tin nhóm</string>
-    <string name="group_name">Tên nhóm</string>
     <string name="group_name_2">Tên nhóm</string>
     <string name="hidden_addresses">Địa chỉ đã ẩn</string>
-    <string name="hidden_broadcast_room_users">Người dùng phòng phát sóng đã ẩn</string>
     <string name="hidden_users">Người dùng đã ẩn</string>
     <string name="holdings">Tài sản nắm giữ</string>
     <string name="how_long_messages_in_this_broadcast">Tin nhắn trong phát sóng này lưu trong bộ nhớ đệm trên thiết bị này bao lâu, tối đa 3 ngày.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">Tham gia hoặc tạo kênh</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Tên miền KNS</string>
-    <string name="kns_profile_pictures">Ảnh hồ sơ KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">Logo KaChat</string>
     <string name="kachat_can_t_show_notifications_until">KaChat không thể hiển thị thông báo cho đến khi bạn cho phép chúng cho ứng dụng này.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">Đặt làm địa chỉ hoạt động</string>
     <string name="manage_addresses">Quản lý địa chỉ</string>
     <string name="max">Tối đa</string>
-    <string name="members">Thành viên</string>
     <string name="menu">Menu</string>
     <string name="message">Tin nhắn</string>
     <string name="message_retention_settings">Cài đặt lưu giữ tin nhắn</string>
     <string name="more_info">Thêm thông tin</string>
     <string name="name">Tên</string>
-    <string name="name_optional">Tên (Tùy chọn)</string>
     <string name="name_this_address">Đặt tên cho địa chỉ này</string>
-    <string name="never_send_kaspa_you_intend_to">Không bao giờ gửi Kaspa mà bạn định chi tiêu đến địa chỉ này.</string>
     <string name="next">Tiếp theo</string>
     <string name="no_conversations_yet">Chưa có cuộc trò chuyện nào</string>
     <string name="no_group_chats_yet">Chưa có trò chuyện nhóm nào</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">Chưa có tài khoản lưu trữ lạnh nào. Quét kpub được xuất từ thiết bị KasSigner của bạn để theo dõi số dư và gửi từ đó.</string>
     <string name="no_domains_yet">Chưa có tên miền nào.</string>
     <string name="no_hidden_addresses">Không có địa chỉ ẩn.</string>
-    <string name="no_hidden_users">Không có người dùng ẩn</string>
     <string name="no_hidden_users_in_this_group">Không có người dùng ẩn trong nhóm này.</string>
     <string name="no_messages_yet">Chưa có tin nhắn</string>
     <string name="no_saved_addresses">Không có địa chỉ đã lưu</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">Mở Cài đặt</string>
     <string name="original_message_not_available">Tin nhắn gốc không có sẵn</string>
     <string name="other_nodes">Nút khác</string>
-    <string name="other_messages_still_show_up_in">Các tin nhắn khác vẫn hiển thị trong trò chuyện, chỉ không có thông báo.</string>
     <string name="paste_from_clipboard">Dán từ bộ nhớ tạm</string>
     <string name="paste_kpub">Dán kpub</string>
     <string name="paste_the_kpub_exported_from_your">Dán kpub được xuất từ thiết bị KasSigner của bạn. Điều này không chứa dữ liệu khóa riêng tư.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">Hiện thêm</string>
     <string name="show_photo">Hiện ảnh</string>
     <string name="show_qr_code">Hiện mã QR</string>
-    <string name="shows_senders_kns_avatars_in_rooms">Hiển thị hình đại diện KNS của người gửi trong các phòng và tự động tra cứu khi tin nhắn xuất hiện. Tắt sẽ hiển thị chữ cái đầu đơn giản cho tất cả mọi người và không bao giờ lấy hình đại diện.</string>
     <string name="skip">Bỏ qua</string>
     <string name="some_changes_failed_to_save">Một số thay đổi không thể lưu:</string>
     <string name="spending_kaspa_on_kachat_will_come">Việc chi tiêu Kaspa trên KaChat từ giờ chỉ đến từ địa chỉ này. Bất kỳ Kaspa nào vẫn còn trên địa chỉ chi tiêu hiện tại của bạn sẽ được tự động gửi đến địa chỉ mới này.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">Điều này chỉ xóa nó khỏi danh sách theo dõi của KaChat. Nó không ảnh hưởng đến thiết bị KasSigner hoặc bất kỳ khoản tiền nào nó nắm giữ.</string>
     <string name="this_permanently_deletes_every_message_with">Điều này xóa vĩnh viễn mọi tin nhắn với họ trên thiết bị này. Không thể hoàn tác; nhắn tin lại cho họ sẽ bắt đầu một cuộc trò chuyện hoàn toàn mới.</string>
     <string name="this_removes_the_group_and_its">Điều này xóa nhóm và tin nhắn của nhóm khỏi thiết bị này. Điều này không thể hoàn tác, và các thành viên khác sẽ không được thông báo.</string>
-    <string name="this_signs_out_of_your_account">Thao tác này đăng xuất khỏi tài khoản, nhưng giữ lại dữ liệu ví và tin nhắn trên thiết bị này.</string>
     <string name="to">Đến</string>
     <string name="total_balance">Tổng số dư</string>
     <string name="total_invested">Tổng đầu tư</string>
@@ -292,7 +274,6 @@
     <string name="unlink">Hủy liên kết</string>
     <string name="unread">Chua doc</string>
     <string name="use_default">Dùng mặc định</string>
-    <string name="users_you_hide_from_a_broadcast">Người dùng bạn ẩn khỏi phòng phát sóng (qua menu ảnh đại diện của họ) xuất hiện ở đây, và không bao giờ xuất hiện hoặc được lưu trong bộ nhớ đệm ở bất kỳ phòng nào.</string>
     <string name="valid_address">Địa chỉ hợp lệ</string>
     <string name="view_on_changenow">Xem trên ChangeNOW</string>
     <string name="waiting_for_camera">Đang chờ máy ảnh...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">Chon loai tien te ban muon hien thi gia.</string>
     <string name="i_have_written_down_my_seed_phrase">Toi da ghi lai cum tu khoi phuc va cat giu no an toan</string>
     <string name="i_already_have_a_domain_somewhere">Toi da co ten mien o noi khac</string>
-    <string name="transfer_your_domain">Chuyen ten mien cua ban</string>
     <string name="transfer_your_domain_to_this_address">Chuyen ten mien cua ban den dia chi nay de danh tinh cua ban duoc ket noi voi KaChat.</string>
 </resources>

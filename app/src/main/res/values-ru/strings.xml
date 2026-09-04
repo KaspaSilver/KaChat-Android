@@ -14,19 +14,15 @@
     <string name="added">Добавлен</string>
     <string name="address">Адрес</string>
     <string name="address_actions">Действия с адресом</string>
-    <string name="address_actions_2">Действия с адресом</string>
-    <string name="address_copied">Адрес скопирован</string>
     <string name="addresses">Адреса</string>
     <string name="adjust_network_fee">Настроить комиссию сети</string>
     <string name="admin">Администратор</string>
     <string name="all_discovered_nodes_sorted_by_state">Все обнаруженные узлы, отсортированные по состоянию и задержке. Узлы дедуплицируются по host:port.</string>
-    <string name="always_shown">Всегда показан</string>
     <string name="amount_kas">Сумма (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">Любой, кто присоединится к каналу с этим именем, может видеть и публиковать сообщения там. Владельца или приглашения нет.</string>
     <string name="anyone_with_your_seed_phrase_can">Любой, у кого есть ваша сид-фраза, может получить доступ к вашему аккаунту. Никогда никому её не передавайте. Обязательно только запишите её. Никогда не делайте скриншот и не храните её на устройстве.</string>
     <string name="back">Назад</string>
     <string name="before_you_swap">Перед обменом</string>
-    <string name="broadcast_settings">Настройки трансляции</string>
     <string name="broadcasting">Трансляция...</string>
     <string name="broadcasts">Трансляции</string>
     <string name="build_unsigned_transaction">Создать неподписанную транзакцию</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">Выбрать баннер</string>
     <string name="choose_coin">Выберите монету</string>
     <string name="choose_photo">Выбрать фото</string>
-    <string name="choose_which_tabs_appear_in_your">Выберите, какие вкладки отображаются в нижнем меню.</string>
     <string name="clear_search">Очистить поиск</string>
     <string name="close">Закрыть</string>
     <string name="cold_storage">Холодное хранилище</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">Подключено только к этому узлу</string>
     <string name="connection_settings">Настройки подключения</string>
     <string name="connection_status">Состояние подключения</string>
-    <string name="contact_name">Имя контакта</string>
     <string name="contact_has_requested_permission_to_communicate">Контакт запросил разрешение на общение</string>
-    <string name="contact_name_2">Имя контакта</string>
     <string name="contacts">Контакты</string>
     <string name="controls_how_much_photos_are_compressed">Определяет степень сжатия фото перед отправкой. Более высокое качество выглядит четче, но стоит больше комиссии и дольше отправляется; более низкое качество отправляется быстрее и дешевле, но выглядит более сжатым. Это влияет только на фото, которые вы отправляете, а не на те, что получаете.</string>
     <string name="copy">Копировать</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">Удалить транзакцию</string>
     <string name="deposit_address">Адрес депозита</string>
     <string name="domain_name">Имя домена</string>
-    <string name="domains">Домены</string>
     <string name="done">Готово</string>
     <string name="each_transaction_temporarily_uses_2_kas">Каждая транзакция временно использует ~2 KAS; ~1 KAS возвращается сразу как сдача, поэтому реальными затратами является только небольшая комиссия сети.</string>
     <string name="edit_kns_profile">Редактировать профиль KNS</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">Предоставить разрешение</string>
     <string name="group_chats">Групповые чаты</string>
     <string name="group_info">Информация о группе</string>
-    <string name="group_name">Название группы</string>
     <string name="group_name_2">Название группы</string>
     <string name="hidden_addresses">Скрытые адреса</string>
-    <string name="hidden_broadcast_room_users">Скрытые пользователи комнаты трансляции</string>
     <string name="hidden_users">Скрытые пользователи</string>
     <string name="holdings">Активы</string>
     <string name="how_long_messages_in_this_broadcast">Как долго сообщения в этой трансляции хранятся в кэше на этом устройстве, максимум 3 дня.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">Присоединиться к каналу или создать его</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS домены</string>
-    <string name="kns_profile_pictures">Изображения профиля KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">Логотип KaChat</string>
     <string name="kachat_can_t_show_notifications_until">KaChat не может показывать уведомления, пока вы не разрешите их для этого приложения.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">Сделать активным адресом</string>
     <string name="manage_addresses">Управление адресами</string>
     <string name="max">Макс</string>
-    <string name="members">Участники</string>
     <string name="menu">Меню</string>
     <string name="message">Сообщение</string>
     <string name="message_retention_settings">Настройки хранения сообщений</string>
     <string name="more_info">Подробнее</string>
     <string name="name">Имя</string>
-    <string name="name_optional">Имя (необязательно)</string>
     <string name="name_this_address">Назвать этот адрес</string>
-    <string name="never_send_kaspa_you_intend_to">Никогда не отправляйте на этот адрес Kaspa, которую планируете потратить.</string>
     <string name="next">Далее</string>
     <string name="no_conversations_yet">Пока нет чатов</string>
     <string name="no_group_chats_yet">Пока нет групповых чатов</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">Пока нет аккаунтов холодного хранилища. Отсканируйте kpub, экспортированный с вашего устройства KasSigner, чтобы отслеживать его баланс и отправлять с него.</string>
     <string name="no_domains_yet">Доменов пока нет.</string>
     <string name="no_hidden_addresses">Нет скрытых адресов.</string>
-    <string name="no_hidden_users">Нет скрытых пользователей</string>
     <string name="no_hidden_users_in_this_group">В этой группе нет скрытых пользователей.</string>
     <string name="no_messages_yet">Пока нет сообщений</string>
     <string name="no_saved_addresses">Нет сохраненных адресов</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">Открыть настройки</string>
     <string name="original_message_not_available">Исходное сообщение недоступно</string>
     <string name="other_nodes">Другие узлы</string>
-    <string name="other_messages_still_show_up_in">Остальные сообщения по-прежнему появляются в чате, просто без уведомления.</string>
     <string name="paste_from_clipboard">Вставить из буфера обмена</string>
     <string name="paste_kpub">Вставить kpub</string>
     <string name="paste_the_kpub_exported_from_your">Вставьте kpub, экспортированный с вашего устройства KasSigner. Он не содержит материала приватного ключа.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">Показать больше</string>
     <string name="show_photo">Показать фото</string>
     <string name="show_qr_code">Показать QR-код</string>
-    <string name="shows_senders_kns_avatars_in_rooms">Показывает аватары KNS отправителей в комнатах и автоматически ищет их по мере появления сообщений. Выкл показывает всем простые инициалы и никогда не загружает аватары.</string>
     <string name="skip">Пропустить</string>
     <string name="some_changes_failed_to_save">Некоторые изменения не удалось сохранить:</string>
     <string name="spending_kaspa_on_kachat_will_come">Трата Kaspa в KaChat теперь будет происходить только с этого адреса. Любая Kaspa, всё ещё находящаяся на вашем текущем адресе для трат, будет автоматически отправлена на этот новый.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">Это только удаляет его из списка отслеживания KaChat. Это не влияет на устройство KasSigner или средства на нем.</string>
     <string name="this_permanently_deletes_every_message_with">Это навсегда удаляет каждое сообщение с ними на этом устройстве. Это нельзя отменить; повторная переписка с ними начнёт совершенно новый разговор.</string>
     <string name="this_removes_the_group_and_its">Это удаляет группу и ее сообщения с этого устройства. Это нельзя отменить, и другие участники не будут уведомлены.</string>
-    <string name="this_signs_out_of_your_account">Это выйдет из вашего аккаунта, но сохранит данные кошелька и сообщений на этом устройстве.</string>
     <string name="to">Кому</string>
     <string name="total_balance">Общий баланс</string>
     <string name="total_invested">Всего инвестировано</string>
@@ -292,7 +274,6 @@
     <string name="unlink">Отвязать</string>
     <string name="unread">Непрочитано</string>
     <string name="use_default">Использовать по умолчанию</string>
-    <string name="users_you_hide_from_a_broadcast">Пользователи, которых вы скрываете из комнаты трансляции (через их меню аватара), появляются здесь и никогда не отображаются и не кэшируются ни в одной комнате.</string>
     <string name="valid_address">Действительный адрес</string>
     <string name="view_on_changenow">Посмотреть на ChangeNOW</string>
     <string name="waiting_for_camera">Ожидание камеры...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">Выберите валюту, в которой хотите видеть цены.</string>
     <string name="i_have_written_down_my_seed_phrase">Я записал свою секретную фразу и надежно её сохранил</string>
     <string name="i_already_have_a_domain_somewhere">У меня уже есть домен в другом месте</string>
-    <string name="transfer_your_domain">Перенесите свой домен</string>
     <string name="transfer_your_domain_to_this_address">Перенесите свой домен на этот адрес, чтобы ваша личность была связана с KaChat.</string>
 </resources>

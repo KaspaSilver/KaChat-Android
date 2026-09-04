@@ -14,19 +14,15 @@
     <string name="added">Agregado</string>
     <string name="address">Direccion</string>
     <string name="address_actions">Acciones de direccion</string>
-    <string name="address_actions_2">Acciones de direccion</string>
-    <string name="address_copied">Direccion copiada</string>
     <string name="addresses">Direcciones</string>
     <string name="adjust_network_fee">Ajustar comision de red</string>
     <string name="admin">Administrador</string>
     <string name="all_discovered_nodes_sorted_by_state">Todos los nodos descubiertos ordenados por estado y latencia. Los nodos se deduplican por host:port.</string>
-    <string name="always_shown">Siempre visible</string>
     <string name="amount_kas">Monto (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">Cualquiera que se una al mismo nombre de canal puede ver y publicar mensajes ahi. No hay propietario ni invitacion.</string>
     <string name="anyone_with_your_seed_phrase_can">Cualquier persona con tu seed phrase puede acceder a tu cuenta. Nunca la compartas con nadie. Asegurate de solo anotarla. Nunca tomes una captura de pantalla ni la guardes en tu dispositivo.</string>
     <string name="back">Atras</string>
     <string name="before_you_swap">Antes de intercambiar</string>
-    <string name="broadcast_settings">Configuracion de difusion</string>
     <string name="broadcasting">Transmitiendo...</string>
     <string name="broadcasts">Difusiones</string>
     <string name="build_unsigned_transaction">Construir transaccion sin firmar</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">Elija banner</string>
     <string name="choose_coin">Elegir moneda</string>
     <string name="choose_photo">Elegir foto</string>
-    <string name="choose_which_tabs_appear_in_your">Elige que pestanas aparecen en tu menu inferior.</string>
     <string name="clear_search">Borrar busqueda</string>
     <string name="close">Cerrar</string>
     <string name="cold_storage">Almacenamiento en frio</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">Conectado solo a este nodo</string>
     <string name="connection_settings">Configuracion de conexion</string>
     <string name="connection_status">Estado de conexion</string>
-    <string name="contact_name">Nombre de contacto</string>
     <string name="contact_has_requested_permission_to_communicate">El contacto ha solicitado permiso para comunicarse</string>
-    <string name="contact_name_2">Nombre de contacto</string>
     <string name="contacts">Contactos</string>
     <string name="controls_how_much_photos_are_compressed">Controla cuanto se comprimen las fotos antes de enviarlas. Mayor calidad se ve mas nitida pero cuesta una comision mayor y tarda mas en enviarse; menor calidad se envia mas rapido y barato pero se ve mas comprimida. Esto solo afecta las fotos que envias, no las que recibes.</string>
     <string name="copy">Copiar</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">Eliminar transaccion</string>
     <string name="deposit_address">Direccion de deposito</string>
     <string name="domain_name">Nombre de dominio</string>
-    <string name="domains">Dominios</string>
     <string name="done">Hecho</string>
     <string name="each_transaction_temporarily_uses_2_kas">Cada transaccion usa temporalmente ~2 KAS; ~1 KAS regresa de inmediato como cambio, asi que solo la pequena comision de red es un costo real.</string>
     <string name="edit_kns_profile">Editar perfil KNS</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">Otorgar permiso</string>
     <string name="group_chats">Chats grupales</string>
     <string name="group_info">Informacion del grupo</string>
-    <string name="group_name">Nombre del grupo</string>
     <string name="group_name_2">Nombre del grupo</string>
     <string name="hidden_addresses">Direcciones ocultas</string>
-    <string name="hidden_broadcast_room_users">Usuarios ocultos de la sala de difusion</string>
     <string name="hidden_users">Usuarios ocultos</string>
     <string name="holdings">Tenencias</string>
     <string name="how_long_messages_in_this_broadcast">Cuanto tiempo permanecen en cache los mensajes de esta difusion en este dispositivo, hasta un maximo de 3 dias.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">Unirse o crear un canal</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Dominios KNS</string>
-    <string name="kns_profile_pictures">Fotos de perfil KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">Logo de KaChat</string>
     <string name="kachat_can_t_show_notifications_until">KaChat no puede mostrar notificaciones hasta que las permitas para esta app.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">Hacer direccion activa</string>
     <string name="manage_addresses">Administrar direcciones</string>
     <string name="max">Max</string>
-    <string name="members">Miembros</string>
     <string name="menu">Menu</string>
     <string name="message">Mensaje</string>
     <string name="message_retention_settings">Configuracion de retencion de mensajes</string>
     <string name="more_info">Mas informacion</string>
     <string name="name">Nombre</string>
-    <string name="name_optional">Nombre (Opcional)</string>
     <string name="name_this_address">Nombrar esta direccion</string>
-    <string name="never_send_kaspa_you_intend_to">Nunca envies Kaspa que planeas gastar a esta direccion.</string>
     <string name="next">Siguiente</string>
     <string name="no_conversations_yet">Aún no hay conversaciones</string>
     <string name="no_group_chats_yet">Aun no hay chats grupales</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">Aun no hay cuentas de almacenamiento en frio. Escanea una kpub exportada desde tu dispositivo KasSigner para vigilar su saldo y enviar desde ella.</string>
     <string name="no_domains_yet">Aún no hay dominios.</string>
     <string name="no_hidden_addresses">No hay direcciones ocultas.</string>
-    <string name="no_hidden_users">Sin usuarios ocultos</string>
     <string name="no_hidden_users_in_this_group">No hay usuarios ocultos en este grupo.</string>
     <string name="no_messages_yet">Aun no hay mensajes</string>
     <string name="no_saved_addresses">Sin direcciones guardadas</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">Abrir ajustes</string>
     <string name="original_message_not_available">Mensaje original no disponible</string>
     <string name="other_nodes">Otros nodos</string>
-    <string name="other_messages_still_show_up_in">Otros mensajes siguen apareciendo en el chat, solo que en silencio.</string>
     <string name="paste_from_clipboard">Pegar desde portapapeles</string>
     <string name="paste_kpub">Pegar kpub</string>
     <string name="paste_the_kpub_exported_from_your">Pega la kpub exportada desde tu dispositivo KasSigner. Esto no contiene material de clave privada.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">Mostrar mas</string>
     <string name="show_photo">Mostrar foto</string>
     <string name="show_qr_code">Mostrar codigo QR</string>
-    <string name="shows_senders_kns_avatars_in_rooms">Muestra los avatares KNS de los remitentes en las salas y los busca automaticamente al aparecer los mensajes. Desactivado muestra iniciales simples para todos y nunca obtiene avatares.</string>
     <string name="skip">Omitir</string>
     <string name="some_changes_failed_to_save">Algunos cambios no se pudieron guardar:</string>
     <string name="spending_kaspa_on_kachat_will_come">Gastar Kaspa en KaChat saldra solo de esta direccion a partir de ahora. Cualquier Kaspa que aun este en tu direccion de gasto actual se enviara automaticamente a esta nueva.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">Esto solo lo elimina de la lista de vigilancia de KaChat. No tiene ningun efecto en el dispositivo KasSigner ni en los fondos que contiene.</string>
     <string name="this_permanently_deletes_every_message_with">Esto elimina permanentemente cada mensaje con ellos en este dispositivo. Esto no se puede deshacer; volver a escribirles inicia una conversacion completamente nueva.</string>
     <string name="this_removes_the_group_and_its">Esto elimina el grupo y sus mensajes de este dispositivo. Esto no se puede deshacer, y los demas miembros no seran notificados.</string>
-    <string name="this_signs_out_of_your_account">Esto cierra sesion en tu cuenta, pero mantiene los datos de billetera y mensajes en este dispositivo.</string>
     <string name="to">Para</string>
     <string name="total_balance">Saldo total</string>
     <string name="total_invested">Total invertido</string>
@@ -292,7 +274,6 @@
     <string name="unlink">Desvincular</string>
     <string name="unread">No leido</string>
     <string name="use_default">Usar predeterminado</string>
-    <string name="users_you_hide_from_a_broadcast">Los usuarios que ocultas de una sala de difusion (a traves de su menu de avatar) aparecen aqui, y nunca aparecen ni se almacenan en cache en ninguna sala.</string>
     <string name="valid_address">Direccion valida</string>
     <string name="view_on_changenow">Ver en ChangeNOW</string>
     <string name="waiting_for_camera">Esperando la camara...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">Selecciona la moneda en la que te gustaria ver los precios.</string>
     <string name="i_have_written_down_my_seed_phrase">He anotado mi frase semilla y la he guardado de forma segura</string>
     <string name="i_already_have_a_domain_somewhere">Ya tengo un dominio en otro lugar</string>
-    <string name="transfer_your_domain">Transfiere tu dominio</string>
     <string name="transfer_your_domain_to_this_address">Transfiere tu dominio a esta direccion para que tu identidad quede conectada a KaChat.</string>
 </resources>

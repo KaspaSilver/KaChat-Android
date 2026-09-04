@@ -12,14 +12,11 @@
     <string name="added">Ditambahkan</string>
     <string name="address">Alamat</string>
     <string name="address_actions">Tindakan Alamat</string>
-    <string name="address_actions_2">Tindakan Alamat</string>
     <string name="adjust_network_fee">Sesuaikan Biaya Jaringan</string>
     <string name="admin">Admin</string>
     <string name="all_discovered_nodes_sorted_by_state">Semua node yang ditemukan diurutkan berdasarkan status dan latensi. Node dide-duplikasi menurut host:port.</string>
-    <string name="always_shown">Selalu ditampilkan</string>
     <string name="balance">Saldo</string>
     <string name="before_you_swap">Sebelum Melakukan Swap</string>
-    <string name="broadcast_settings">Pengaturan Siaran</string>
     <string name="broadcasting">Menyiarkan...</string>
     <string name="broadcasts">Siaran</string>
     <string name="cancel">Batal</string>
@@ -36,7 +33,6 @@
     <string name="choose_avatar">Pilih Avatar</string>
     <string name="choose_banner">Pilih Banner</string>
     <string name="choose_photo">Pilih Foto</string>
-    <string name="choose_which_tabs_appear_in_your">Pilih tab mana yang muncul di menu bawah Anda.</string>
     <string name="close">Tutup</string>
     <string name="cold_storage">Penyimpanan Dingin (Cold Storage)</string>
     <string name="confirm">Konfirmasi</string>
@@ -61,7 +57,6 @@
     <string name="delete_account">Hapus Akun</string>
     <string name="delete_group">Hapus Grup</string>
     <string name="delete_transaction">Hapus Transaksi</string>
-    <string name="domains">Domain</string>
     <string name="done">Selesai</string>
     <string name="edit_kns_profile">Edit Profil KNS</string>
     <string name="enter_a_kaspa_address_kaspa_or">Masukkan alamat Kaspa (kaspa:...) atau nama domain KNS (mis. alice.kas)</string>
@@ -74,10 +69,8 @@
     <string name="fund_your_chatting_address">Isi Saldo Alamat Obrolan Anda</string>
     <string name="generate_account">Buat Akun</string>
     <string name="group_info">Info Grup</string>
-    <string name="group_name">Nama Grup</string>
     <string name="group_name_2">Nama Grup</string>
     <string name="hidden_addresses">Alamat Tersembunyi</string>
-    <string name="hidden_broadcast_room_users">Pengguna Ruang Siaran Tersembunyi</string>
     <string name="hidden_users">Pengguna Tersembunyi</string>
     <string name="i_agree">Saya Setuju</string>
     <string name="if_the_network_is_busy_a">Jika jaringan sedang sibuk, biaya lebih tinggi dapat membantu transaksi Anda terkonfirmasi lebih cepat.</string>
@@ -95,7 +88,6 @@
     <string name="join_or_create_a_channel">Gabung atau Buat Saluran</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Domain KNS</string>
-    <string name="kns_profile_pictures">Foto Profil KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_needs_to_connect_to_a">KaChat perlu terhubung ke sebuah node. Bagaimana Anda ingin terhubung?</string>
     <string name="kaspa_address_or_kns_domain">Alamat Kaspa atau Domain KNS</string>
@@ -109,11 +101,9 @@
     <string name="log_out">Keluar</string>
     <string name="manage_addresses">Kelola Alamat</string>
     <string name="max">Maks</string>
-    <string name="members">Anggota</string>
     <string name="message">Pesan</string>
     <string name="more_info">Info Lainnya</string>
     <string name="name">Nama</string>
-    <string name="name_optional">Nama (Opsional)</string>
     <string name="network_fee">Biaya Jaringan</string>
     <string name="next">Berikutnya</string>
     <string name="no_conversations_yet">Belum Ada Percakapan</string>
@@ -178,7 +168,6 @@
     <string name="show_more">Tampilkan Lebih Banyak</string>
     <string name="show_photo">Tampilkan Foto</string>
     <string name="show_qr_code">Tampilkan Kode QR</string>
-    <string name="shows_senders_kns_avatars_in_rooms">Menampilkan avatar KNS pengirim di ruang obrolan dan mencarinya secara otomatis saat pesan muncul. Mati akan menampilkan inisial polos dan tidak pernah memuat avatar.</string>
     <string name="skip">Lewati</string>
     <string name="start_a_new_chat_by_adding">Mulai obrolan baru dengan menambahkan kontak</string>
     <string name="status">Status</string>
@@ -188,7 +177,6 @@
     <string name="this_could_take_a_few_minutes">Ini dapat memakan waktu beberapa menit saat konfirmasi di on-chain.</string>
     <string name="this_only_removes_it_from_kachat">Ini hanya menghapusnya dari daftar pantau KaChat. Tidak berpengaruh pada perangkat KasSigner atau dana yang dimilikinya.</string>
     <string name="this_removes_the_group_and_its">Ini menghapus grup dan pesannya dari perangkat ini. Ini tidak dapat dibatalkan, dan anggota lain tidak akan diberi tahu.</string>
-    <string name="this_signs_out_of_your_account">Ini mengeluarkan akun Anda, namun tetap menyimpan data dompet dan pesan lokal di perangkat ini.</string>
     <string name="total_balance">Total Saldo</string>
     <string name="total_p_l">Total Laba/Rugi (P&amp;L)</string>
     <string name="transaction_history">Riwayat Transaksi</string>
@@ -293,7 +281,6 @@
     <string name="select_the_currency_youd_like_prices">Pilih mata uang yang ingin ditampilkan.</string>
     <string name="i_have_written_down_my_seed_phrase">Saya telah mencatat frasa pemulihan saya dan menyimpannya dengan aman</string>
     <string name="i_already_have_a_domain_somewhere">Saya sudah memiliki domain di tempat lain</string>
-    <string name="transfer_your_domain">Transfer Domain Anda</string>
     <string name="transfer_your_domain_to_this_address">Transfer domain Anda ke alamat ini agar identitas Anda terhubung ke KaChat.</string>
     <string name="default_label">Default</string>
     <string name="continue_label">Lanjutkan</string>

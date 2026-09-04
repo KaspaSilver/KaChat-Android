@@ -14,19 +14,15 @@
     <string name="added">जोड़ा</string>
     <string name="address">पता</string>
     <string name="address_actions">पता कार्रवाइयां</string>
-    <string name="address_actions_2">पता कार्रवाइयां</string>
-    <string name="address_copied">पता कॉपी हुआ</string>
     <string name="addresses">पते</string>
     <string name="adjust_network_fee">नेटवर्क शुल्क समायोजित करें</string>
     <string name="admin">एडमिन</string>
     <string name="all_discovered_nodes_sorted_by_state">सभी खोजे गए नोड स्थिति और विलंबता के अनुसार क्रमबद्ध। नोड host:port द्वारा डिडुप्लिकेट किए गए हैं।</string>
-    <string name="always_shown">हमेशा दिखाया जाता है</string>
     <string name="amount_kas">राशि (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">जो कोई भी उसी चैनल नाम से जुड़ता है वह वहां संदेश देख और पोस्ट कर सकता है। कोई मालिक या आमंत्रण नहीं है।</string>
     <string name="anyone_with_your_seed_phrase_can">जिसके पास भी आपकी सीड फ्रेज़ है वह आपके खाते तक पहुंच सकता है। इसे कभी किसी के साथ साझा न करें। सुनिश्चित करें कि आप इसे केवल लिख लें। कभी स्क्रीनशॉट न लें और इसे अपने डिवाइस पर संग्रहीत न करें।</string>
     <string name="back">वापस</string>
     <string name="before_you_swap">स्वैप करने से पहले</string>
-    <string name="broadcast_settings">ब्रॉडकास्ट सेटिंग्स</string>
     <string name="broadcasting">प्रसारित हो रहा है...</string>
     <string name="broadcasts">ब्रॉडकास्ट</string>
     <string name="build_unsigned_transaction">अहस्ताक्षरित लेन-देन बनाएं</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">बैनर चुनें</string>
     <string name="choose_coin">सिक्का चुनें</string>
     <string name="choose_photo">फ़ोटो चुनें</string>
-    <string name="choose_which_tabs_appear_in_your">चुनें कि आपके निचले मेनू में कौन से टैब दिखाई देते हैं।</string>
     <string name="clear_search">खोज साफ़ करें</string>
     <string name="close">बंद करें</string>
     <string name="cold_storage">कोल्ड स्टोरेज</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">केवल इस नोड से जुड़ा हुआ</string>
     <string name="connection_settings">कनेक्शन सेटिंग्स</string>
     <string name="connection_status">कनेक्शन स्थिति</string>
-    <string name="contact_name">संपर्क नाम</string>
     <string name="contact_has_requested_permission_to_communicate">संपर्क ने संवाद करने की अनुमति मांगी है</string>
-    <string name="contact_name_2">संपर्क नाम</string>
     <string name="contacts">संपर्क</string>
     <string name="controls_how_much_photos_are_compressed">भेजने से पहले फ़ोटो कितनी संपीड़ित होती हैं इसे नियंत्रित करता है। उच्च गुणवत्ता अधिक स्पष्ट दिखती है लेकिन अधिक शुल्क लगती है और भेजने में अधिक समय लगता है; कम गुणवत्ता तेज़ और सस्ती भेजी जाती है लेकिन अधिक संपीड़ित दिखती है। यह केवल उन फ़ोटो को प्रभावित करता है जो आप भेजते हैं, जो आप प्राप्त करते हैं उन्हें नहीं।</string>
     <string name="copy">कॉपी करें</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">लेन-देन हटाएं</string>
     <string name="deposit_address">जमा पता</string>
     <string name="domain_name">डोमेन नाम</string>
-    <string name="domains">डोमेन</string>
     <string name="done">हो गया</string>
     <string name="each_transaction_temporarily_uses_2_kas">प्रत्येक लेन-देन अस्थायी रूप से ~2 KAS का उपयोग करता है; ~1 KAS तुरंत शेष राशि के रूप में वापस आता है, इसलिए केवल छोटा नेटवर्क शुल्क ही वास्तविक लागत है।</string>
     <string name="edit_kns_profile">KNS प्रोफ़ाइल संपादित करें</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">अनुमति दें</string>
     <string name="group_chats">समूह चैट</string>
     <string name="group_info">समूह जानकारी</string>
-    <string name="group_name">समूह का नाम</string>
     <string name="group_name_2">समूह का नाम</string>
     <string name="hidden_addresses">छिपे हुए पते</string>
-    <string name="hidden_broadcast_room_users">छिपे हुए ब्रॉडकास्ट रूम उपयोगकर्ता</string>
     <string name="hidden_users">छिपे हुए उपयोगकर्ता</string>
     <string name="holdings">होल्डिंग्स</string>
     <string name="how_long_messages_in_this_broadcast">इस ब्रॉडकास्ट के संदेश इस डिवाइस पर कितने समय तक कैश में रहते हैं, अधिकतम 3 दिन तक।</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">चैनल में शामिल हों या बनाएं</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS डोमेन</string>
-    <string name="kns_profile_pictures">KNS प्रोफ़ाइल चित्र</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat लोगो</string>
     <string name="kachat_can_t_show_notifications_until">जब तक आप इस ऐप के लिए सूचनाओं की अनुमति नहीं देते, KaChat सूचनाएं नहीं दिखा सकता।</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">सक्रिय पता बनाएं</string>
     <string name="manage_addresses">पते प्रबंधित करें</string>
     <string name="max">अधिकतम</string>
-    <string name="members">सदस्य</string>
     <string name="menu">मेनू</string>
     <string name="message">संदेश</string>
     <string name="message_retention_settings">संदेश रिटेंशन सेटिंग्स</string>
     <string name="more_info">अधिक जानकारी</string>
     <string name="name">नाम</string>
-    <string name="name_optional">नाम (वैकल्पिक)</string>
     <string name="name_this_address">इस पते को नाम दें</string>
-    <string name="never_send_kaspa_you_intend_to">इस पते पर वह कास्पा कभी न भेजें जिसे आप खर्च करना चाहते हैं।</string>
     <string name="next">अगला</string>
     <string name="no_conversations_yet">अभी कोई बातचीत नहीं</string>
     <string name="no_group_chats_yet">अभी तक कोई समूह चैट नहीं</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">अभी तक कोई कोल्ड स्टोरेज खाता नहीं है। इसके बैलेंस पर नज़र रखने और उससे भेजने के लिए अपने KasSigner डिवाइस से निर्यात किया गया kpub स्कैन करें।</string>
     <string name="no_domains_yet">अभी तक कोई डोमेन नहीं.</string>
     <string name="no_hidden_addresses">कोई छिपा हुआ पता नहीं।</string>
-    <string name="no_hidden_users">कोई छिपा हुआ उपयोगकर्ता नहीं</string>
     <string name="no_hidden_users_in_this_group">इस समूह में कोई छिपा हुआ उपयोगकर्ता नहीं है।</string>
     <string name="no_messages_yet">अभी कोई संदेश नहीं</string>
     <string name="no_saved_addresses">कोई सहेजा गया पता नहीं</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">सेटिंग्स खोलें</string>
     <string name="original_message_not_available">मूल संदेश उपलब्ध नहीं है</string>
     <string name="other_nodes">अन्य नोड</string>
-    <string name="other_messages_still_show_up_in">अन्य संदेश चैट में दिखाई देते रहते हैं, बस चुपचाप।</string>
     <string name="paste_from_clipboard">क्लिपबोर्ड से पेस्ट करें</string>
     <string name="paste_kpub">kpub पेस्ट करें</string>
     <string name="paste_the_kpub_exported_from_your">अपने KasSigner डिवाइस से निर्यात किया गया kpub पेस्ट करें। इसमें कोई निजी कुंजी सामग्री नहीं है।</string>
@@ -260,7 +244,6 @@
     <string name="show_more">अधिक दिखाएं</string>
     <string name="show_photo">फ़ोटो दिखाएं</string>
     <string name="show_qr_code">QR कोड दिखाएं</string>
-    <string name="shows_senders_kns_avatars_in_rooms">कमरों में भेजने वालों के KNS अवतार दिखाता है और संदेश दिखाई देने पर स्वचालित रूप से उन्हें खोजता है। बंद सभी के लिए सादे आद्याक्षर दिखाता है और कभी भी अवतार प्राप्त नहीं करता।</string>
     <string name="skip">छोड़ें</string>
     <string name="some_changes_failed_to_save">कुछ बदलाव सहेजे नहीं जा सके:</string>
     <string name="spending_kaspa_on_kachat_will_come">KaChat पर कास्पा खर्च करना अब केवल इसी पते से होगा। आपके वर्तमान खर्च पते पर अभी भी बचा कोई भी कास्पा स्वचालित रूप से इस नए पते पर भेज दिया जाएगा।</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">यह इसे केवल KaChat की वॉच सूची से हटाता है। इसका KasSigner डिवाइस या उसके पास मौजूद किसी भी फंड पर कोई प्रभाव नहीं पड़ता।</string>
     <string name="this_permanently_deletes_every_message_with">यह इस डिवाइस पर उनके साथ हर संदेश को स्थायी रूप से हटा देता है। इसे पूर्ववत नहीं किया जा सकता; उन्हें फिर से संदेश भेजना एक बिल्कुल नई बातचीत शुरू करता है।</string>
     <string name="this_removes_the_group_and_its">यह समूह और उसके संदेशों को इस डिवाइस से हटा देता है। इसे पूर्ववत नहीं किया जा सकता, और अन्य सदस्यों को सूचित नहीं किया जाएगा।</string>
-    <string name="this_signs_out_of_your_account">यह आपके खाते से साइन आउट करता है, लेकिन इस डिवाइस पर स्थानीय वॉलेट और संदेश डेटा रखता है।</string>
     <string name="to">प्रति</string>
     <string name="total_balance">कुल बैलेंस</string>
     <string name="total_invested">कुल निवेश</string>
@@ -292,7 +274,6 @@
     <string name="unlink">अनलिंक करें</string>
     <string name="unread">अपठित</string>
     <string name="use_default">डिफ़ॉल्ट उपयोग करें</string>
-    <string name="users_you_hide_from_a_broadcast">जिन उपयोगकर्ताओं को आप ब्रॉडकास्ट रूम से छिपाते हैं (उनके अवतार मेनू के माध्यम से) वे यहां दिखाई देते हैं, और किसी भी रूम में कभी दिखाई नहीं देते या कैश नहीं होते।</string>
     <string name="valid_address">मान्य पता</string>
     <string name="view_on_changenow">ChangeNOW पर देखें</string>
     <string name="waiting_for_camera">कैमरे की प्रतीक्षा हो रही है...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">वह मुद्रा चुनें जिसमें आप कीमतें देखना चाहते हैं।</string>
     <string name="i_have_written_down_my_seed_phrase">मैंने अपना सीड फ्रेज लिख लिया है और इसे सुरक्षित रूप से रख लिया है</string>
     <string name="i_already_have_a_domain_somewhere">मेरे पास पहले से ही कहीं और एक डोमेन है</string>
-    <string name="transfer_your_domain">अपना डोमेन ट्रांसफर करें</string>
     <string name="transfer_your_domain_to_this_address">अपनी पहचान को KaChat से जोड़ने के लिए अपना डोमेन इस पते पर ट्रांसफर करें।</string>
 </resources>

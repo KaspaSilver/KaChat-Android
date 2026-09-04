@@ -14,19 +14,15 @@
     <string name="added">تمت الإضافة</string>
     <string name="address">العنوان</string>
     <string name="address_actions">إجراءات العنوان</string>
-    <string name="address_actions_2">إجراءات العنوان</string>
-    <string name="address_copied">تم نسخ العنوان</string>
     <string name="addresses">العناوين</string>
     <string name="adjust_network_fee">ضبط رسوم الشبكة</string>
     <string name="admin">مسؤول</string>
     <string name="all_discovered_nodes_sorted_by_state">جميع العقد المكتشفة مرتبة حسب الحالة وزمن الاستجابة. يتم إزالة العقد المكررة حسب host:port.</string>
-    <string name="always_shown">معروض دائمًا</string>
     <string name="amount_kas">المبلغ (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">يمكن لأي شخص ينضم إلى نفس اسم القناة رؤية الرسائل ونشرها هناك. لا يوجد مالك أو دعوة.</string>
     <string name="anyone_with_your_seed_phrase_can">يمكن لأي شخص لديه عبارة الاسترداد الخاصة بك الوصول إلى حسابك. لا تشاركها أبدًا مع أي شخص. تأكد من كتابتها فقط. لا تلتقط لقطة شاشة أبدًا ولا تخزنها على جهازك.</string>
     <string name="back">رجوع</string>
     <string name="before_you_swap">قبل المبادلة</string>
-    <string name="broadcast_settings">إعدادات البث</string>
     <string name="broadcasting">جارٍ البث...</string>
     <string name="broadcasts">البث</string>
     <string name="build_unsigned_transaction">إنشاء معاملة غير موقعة</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">اختر لافتة</string>
     <string name="choose_coin">اختر العملة</string>
     <string name="choose_photo">اختيار صورة</string>
-    <string name="choose_which_tabs_appear_in_your">اختر التبويبات التي تظهر في القائمة السفلية.</string>
     <string name="clear_search">مسح البحث</string>
     <string name="close">إغلاق</string>
     <string name="cold_storage">التخزين البارد</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">متصل بهذه العقدة فقط</string>
     <string name="connection_settings">إعدادات الاتصال</string>
     <string name="connection_status">حالة الاتصال</string>
-    <string name="contact_name">اسم جهة الاتصال</string>
     <string name="contact_has_requested_permission_to_communicate">طلبت جهة الاتصال إذن التواصل</string>
-    <string name="contact_name_2">اسم جهة الاتصال</string>
     <string name="contacts">جهات الاتصال</string>
     <string name="controls_how_much_photos_are_compressed">يتحكم في مقدار ضغط الصور قبل إرسالها. الجودة الأعلى تبدو أوضح لكنها تكلف رسومًا أعلى وتستغرق وقتًا أطول للإرسال؛ الجودة الأقل ترسل بشكل أسرع وأرخص لكنها تبدو أكثر ضغطًا. هذا يؤثر فقط على الصور التي ترسلها، وليس التي تستقبلها.</string>
     <string name="copy">نسخ</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">حذف المعاملة</string>
     <string name="deposit_address">عنوان الإيداع</string>
     <string name="domain_name">اسم النطاق</string>
-    <string name="domains">النطاقات</string>
     <string name="done">تم</string>
     <string name="each_transaction_temporarily_uses_2_kas">تستخدم كل معاملة مؤقتًا ~2 KAS؛ يعود ~1 KAS فورًا كباقٍ، لذا فإن رسوم الشبكة الصغيرة فقط هي التكلفة الحقيقية.</string>
     <string name="edit_kns_profile">تحرير الملف الشخصي KNS</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">منح الإذن</string>
     <string name="group_chats">دردشات جماعية</string>
     <string name="group_info">معلومات المجموعة</string>
-    <string name="group_name">اسم المجموعة</string>
     <string name="group_name_2">اسم المجموعة</string>
     <string name="hidden_addresses">العناوين المخفية</string>
-    <string name="hidden_broadcast_room_users">مستخدمو غرفة البث المخفيون</string>
     <string name="hidden_users">المستخدمون المخفيون</string>
     <string name="holdings">الممتلكات</string>
     <string name="how_long_messages_in_this_broadcast">مدة بقاء الرسائل في هذا البث مخزنة مؤقتًا على هذا الجهاز، بحد أقصى 3 أيام.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">الانضمام إلى قناة أو إنشاؤها</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">نطاقات KNS</string>
-    <string name="kns_profile_pictures">صور ملفات KNS الشخصية</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">شعار KaChat</string>
     <string name="kachat_can_t_show_notifications_until">لا يمكن لـ KaChat عرض الإشعارات حتى تسمح بها لهذا التطبيق.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">جعله العنوان النشط</string>
     <string name="manage_addresses">إدارة العناوين</string>
     <string name="max">الحد الأقصى</string>
-    <string name="members">الأعضاء</string>
     <string name="menu">القائمة</string>
     <string name="message">رسالة</string>
     <string name="message_retention_settings">إعدادات الاحتفاظ بالرسائل</string>
     <string name="more_info">مزيد من المعلومات</string>
     <string name="name">الاسم</string>
-    <string name="name_optional">الاسم (اختياري)</string>
     <string name="name_this_address">تسمية هذا العنوان</string>
-    <string name="never_send_kaspa_you_intend_to">لا ترسل أبدًا إلى هذا العنوان كاسبا تنوي إنفاقها.</string>
     <string name="next">التالي</string>
     <string name="no_conversations_yet">مفيش محادثات لسه</string>
     <string name="no_group_chats_yet">لا توجد دردشات جماعية بعد</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">لا توجد حسابات تخزين بارد بعد. امسح ضوئيًا kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده والإرسال منه.</string>
     <string name="no_domains_yet">لا توجد مجالات حتى الآن.</string>
     <string name="no_hidden_addresses">لا توجد عناوين مخفية.</string>
-    <string name="no_hidden_users">لا يوجد مستخدمون مخفيون</string>
     <string name="no_hidden_users_in_this_group">لا يوجد مستخدمون مخفيون في هذه المجموعة.</string>
     <string name="no_messages_yet">لا توجد رسائل بعد</string>
     <string name="no_saved_addresses">لا توجد عناوين محفوظة</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">فتح الإعدادات</string>
     <string name="original_message_not_available">الرسالة الأصلية غير متوفرة</string>
     <string name="other_nodes">عقد أخرى</string>
-    <string name="other_messages_still_show_up_in">الرسائل الأخرى لا تزال تظهر في الدردشة، بصمت فقط.</string>
     <string name="paste_from_clipboard">لصق من الحافظة</string>
     <string name="paste_kpub">لصق kpub</string>
     <string name="paste_the_kpub_exported_from_your">الصق الـ kpub المُصدَّر من جهاز KasSigner الخاص بك. لا يحتوي هذا على مواد المفتاح الخاص.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">عرض المزيد</string>
     <string name="show_photo">عرض الصورة</string>
     <string name="show_qr_code">عرض رمز QR</string>
-    <string name="shows_senders_kns_avatars_in_rooms">يعرض صور الملفات الشخصية KNS للمرسلين في الغرف ويبحث عنها تلقائيًا عند ظهور الرسائل. عند الإيقاف، يعرض الأحرف الأولى البسيطة للجميع ولا يجلب الصور الرمزية أبدًا.</string>
     <string name="skip">تخطي</string>
     <string name="some_changes_failed_to_save">فشل حفظ بعض التغييرات:</string>
     <string name="spending_kaspa_on_kachat_will_come">سيتم إنفاق كاسبا في KaChat من هذا العنوان فقط من الآن فصاعدًا. أي كاسبا لا تزال في عنوان الإنفاق الحالي سيتم إرسالها تلقائيًا إلى هذا العنوان الجديد.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">هذا يزيله فقط من قائمة مراقبة KaChat. لا تأثير له على جهاز KasSigner أو أي أموال يحتفظ بها.</string>
     <string name="this_permanently_deletes_every_message_with">هذا يحذف نهائيًا كل رسالة معهم على هذا الجهاز. لا يمكن التراجع عن هذا؛ مراسلتهم مرة أخرى تبدأ محادثة جديدة تمامًا.</string>
     <string name="this_removes_the_group_and_its">هذا يزيل المجموعة ورسائلها من هذا الجهاز. لا يمكن التراجع عن هذا، ولن يتم إخطار الأعضاء الآخرين.</string>
-    <string name="this_signs_out_of_your_account">يؤدي هذا إلى تسجيل الخروج من حسابك، لكنه يحتفظ ببيانات المحفظة والرسائل المحلية على هذا الجهاز.</string>
     <string name="to">إلى</string>
     <string name="total_balance">الرصيد الإجمالي</string>
     <string name="total_invested">إجمالي المستثمر</string>
@@ -292,7 +274,6 @@
     <string name="unlink">إلغاء الربط</string>
     <string name="unread">غير مقروء</string>
     <string name="use_default">استخدام الافتراضي</string>
-    <string name="users_you_hide_from_a_broadcast">المستخدمون الذين تخفيهم من غرفة بث (عبر قائمة الصورة الرمزية الخاصة بهم) يظهرون هنا، ولا يظهرون أبدًا أو يُخزنون مؤقتًا في أي غرفة.</string>
     <string name="valid_address">عنوان صالح</string>
     <string name="view_on_changenow">عرض على ChangeNOW</string>
     <string name="waiting_for_camera">في انتظار الكاميرا...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">اختر العملة التي تريد عرض الأسعار بها.</string>
     <string name="i_have_written_down_my_seed_phrase">لقد كتبت عبارتي الاسترجاعية وحفظتها في مكان آمن</string>
     <string name="i_already_have_a_domain_somewhere">لدي بالفعل نطاق في مكان آخر</string>
-    <string name="transfer_your_domain">انقل نطاقك</string>
     <string name="transfer_your_domain_to_this_address">انقل نطاقك إلى هذا العنوان حتى تتصل هويتك بـ KaChat.</string>
 </resources>

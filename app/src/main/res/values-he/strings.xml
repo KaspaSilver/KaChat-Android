@@ -14,19 +14,15 @@
     <string name="added">נוסף</string>
     <string name="address">כתובת</string>
     <string name="address_actions">פעולות כתובת</string>
-    <string name="address_actions_2">פעולות כתובת</string>
-    <string name="address_copied">הכתובת הועתקה</string>
     <string name="addresses">כתובות</string>
     <string name="adjust_network_fee">התאם עמלת רשת</string>
     <string name="admin">מנהל</string>
     <string name="all_discovered_nodes_sorted_by_state">כל הצמתים שנמצאו ממוינים לפי מצב וזמן תגובה. צמתים כפולים מסוננים לפי host:port.</string>
-    <string name="always_shown">מוצג תמיד</string>
     <string name="amount_kas">סכום (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">כל מי שמצטרף לאותו שם ערוץ יכול לראות ולפרסם הודעות שם. אין בעלים או הזמנה.</string>
     <string name="anyone_with_your_seed_phrase_can">כל מי שיש לו את ביטוי השחזור שלך יכול לגשת לחשבון שלך. לעולם אל תשתף אותו עם אף אחד. הקפד לרשום אותו בלבד. לעולם אל תצלם מסך ואל תאחסן אותו במכשיר שלך.</string>
     <string name="back">חזרה</string>
     <string name="before_you_swap">לפני ההמרה</string>
-    <string name="broadcast_settings">הגדרות שידור</string>
     <string name="broadcasting">משדר...</string>
     <string name="broadcasts">שידורים</string>
     <string name="build_unsigned_transaction">בנה עסקה לא חתומה</string>
@@ -51,7 +47,6 @@
     <string name="choose_banner">בחר באנר</string>
     <string name="choose_coin">בחר מטבע</string>
     <string name="choose_photo">בחר תמונה</string>
-    <string name="choose_which_tabs_appear_in_your">בחר אילו לשוניות מופיעות בתפריט התחתון שלך.</string>
     <string name="clear_search">נקה חיפוש</string>
     <string name="close">סגור</string>
     <string name="cold_storage">אחסון קר</string>
@@ -60,9 +55,7 @@
     <string name="connected_only_to_this_node">מחובר רק לצומת זה</string>
     <string name="connection_settings">הגדרות חיבור</string>
     <string name="connection_status">מצב חיבור</string>
-    <string name="contact_name">שם איש הקשר</string>
     <string name="contact_has_requested_permission_to_communicate">איש הקשר ביקש הרשאה לתקשורת</string>
-    <string name="contact_name_2">שם איש קשר</string>
     <string name="contacts">אנשי קשר</string>
     <string name="controls_how_much_photos_are_compressed">שולט בכמה התמונות נדחסות לפני השליחה. איכות גבוהה יותר נראית ברורה יותר אך עולה עמלה גבוהה יותר ולוקחת יותר זמן לשליחה; איכות נמוכה יותר נשלחת מהר יותר וזול יותר אך נראית דחוסה יותר. זה משפיע רק על תמונות שאתה שולח, לא על אלה שאתה מקבל.</string>
     <string name="copy">העתק</string>
@@ -88,7 +81,6 @@
     <string name="delete_transaction">מחק עסקה</string>
     <string name="deposit_address">כתובת הפקדה</string>
     <string name="domain_name">שם דומיין</string>
-    <string name="domains">דומיינים</string>
     <string name="done">סיום</string>
     <string name="each_transaction_temporarily_uses_2_kas">כל עסקה משתמשת באופן זמני ב-~2 KAS; ~1 KAS חוזר מיד כעודף, כך שרק עמלת הרשת הקטנה היא עלות אמיתית.</string>
     <string name="edit_kns_profile">ערוך פרופיל KNS</string>
@@ -110,10 +102,8 @@
     <string name="grant_permission_2">הענק הרשאה</string>
     <string name="group_chats">צ\'אטים קבוצתיים</string>
     <string name="group_info">מידע על הקבוצה</string>
-    <string name="group_name">שם הקבוצה</string>
     <string name="group_name_2">שם הקבוצה</string>
     <string name="hidden_addresses">כתובות מוסתרות</string>
-    <string name="hidden_broadcast_room_users">משתמשים מוסתרים בחדר השידור</string>
     <string name="hidden_users">משתמשים מוסתרים</string>
     <string name="holdings">אחזקות</string>
     <string name="how_long_messages_in_this_broadcast">כמה זמן הודעות בשידור זה נשארות במטמון במכשיר זה, עד למקסימום 3 ימים.</string>
@@ -134,7 +124,6 @@
     <string name="join_or_create_a_channel">הצטרף או צור ערוץ</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">דומיינים KNS</string>
-    <string name="kns_profile_pictures">תמונות פרופיל KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">לוגו KaChat</string>
     <string name="kachat_can_t_show_notifications_until">KaChat לא יכול להציג התראות עד שתאפשר אותן עבור אפליקציה זו.</string>
@@ -155,15 +144,12 @@
     <string name="make_active_address">הפוך לכתובת פעילה</string>
     <string name="manage_addresses">נהל כתובות</string>
     <string name="max">מקסימום</string>
-    <string name="members">חברים</string>
     <string name="menu">תפריט</string>
     <string name="message">הוֹדָעָה</string>
     <string name="message_retention_settings">הגדרות שמירת הודעות</string>
     <string name="more_info">מידע נוסף</string>
     <string name="name">שם</string>
-    <string name="name_optional">שם (אופציונלי)</string>
     <string name="name_this_address">תן שם לכתובת זו</string>
-    <string name="never_send_kaspa_you_intend_to">לעולם אל תשלח קספה שבכוונתך להוציא לכתובת זו.</string>
     <string name="next">הבא</string>
     <string name="no_conversations_yet">עדיין אין שיחות</string>
     <string name="no_group_chats_yet">אין עדיין צ\'אטים קבוצתיים</string>
@@ -172,7 +158,6 @@
     <string name="no_cold_storage_accounts_yet_scan">אין עדיין חשבונות אחסון קר. סרוק kpub שיוצא מהמכשיר KasSigner שלך כדי לעקוב אחר היתרה שלו ולשלוח ממנו.</string>
     <string name="no_domains_yet">עדיין אין דומיינים.</string>
     <string name="no_hidden_addresses">אין כתובות מוסתרות.</string>
-    <string name="no_hidden_users">אין משתמשים מוסתרים</string>
     <string name="no_hidden_users_in_this_group">אין משתמשים מוסתרים בקבוצה זו.</string>
     <string name="no_messages_yet">אין הודעות עדיין</string>
     <string name="no_saved_addresses">אין כתובות שמורות</string>
@@ -189,7 +174,6 @@
     <string name="open_settings">פתח הגדרות</string>
     <string name="original_message_not_available">ההודעה המקורית אינה זמינה</string>
     <string name="other_nodes">צמתים אחרים</string>
-    <string name="other_messages_still_show_up_in">הודעות אחרות עדיין מופיעות בצ\'אט, רק בשקט.</string>
     <string name="paste_from_clipboard">הדבק מהלוח</string>
     <string name="paste_kpub">הדבק kpub</string>
     <string name="paste_the_kpub_exported_from_your">הדבק את ה-kpub שיוצא מהמכשיר KasSigner שלך. זה לא מכיל חומר מפתח פרטי.</string>
@@ -260,7 +244,6 @@
     <string name="show_more">הצג עוד</string>
     <string name="show_photo">הצג תמונה</string>
     <string name="show_qr_code">הצג קוד QR</string>
-    <string name="shows_senders_kns_avatars_in_rooms">מציג אווטארים של KNS עבור שולחים בחדרים ומחפש אותם אוטומטית ככל שהודעות מופיעות. כבוי מציג ראשי תיבות פשוטים לכולם ולעולם לא מביא אווטארים.</string>
     <string name="skip">דלג</string>
     <string name="some_changes_failed_to_save">חלק מהשינויים לא נשמרו:</string>
     <string name="spending_kaspa_on_kachat_will_come">הוצאת קספה ב-KaChat תגיע רק מכתובת זו מעכשיו. כל קספה שנותרה בכתובת ההוצאה הנוכחית שלך תישלח אוטומטית לכתובת החדשה הזו.</string>
@@ -279,7 +262,6 @@
     <string name="this_only_removes_it_from_kachat">זה רק מסיר אותו מרשימת המעקב של KaChat. אין לכך השפעה על מכשיר KasSigner או על כל כספים שהוא מחזיק.</string>
     <string name="this_permanently_deletes_every_message_with">זה מוחק לצמיתות כל הודעה איתם במכשיר זה. לא ניתן לבטל זאת; כתיבה אליהם שוב מתחילה שיחה חדשה לגמרי.</string>
     <string name="this_removes_the_group_and_its">זה מסיר את הקבוצה והודעותיה ממכשיר זה. לא ניתן לבטל זאת, וחברים אחרים לא יקבלו התראה.</string>
-    <string name="this_signs_out_of_your_account">פעולה זו מתנתקת מחשבונך, אך שומרת את נתוני הארנק וההודעות המקומיים במכשיר זה.</string>
     <string name="to">אל</string>
     <string name="total_balance">יתרה כוללת</string>
     <string name="total_invested">סה\"כ הושקע</string>
@@ -292,7 +274,6 @@
     <string name="unlink">בטל קישור</string>
     <string name="unread">לא נקרא</string>
     <string name="use_default">השתמש בברירת המחדל</string>
-    <string name="users_you_hide_from_a_broadcast">משתמשים שאתה מסתיר מחדר שידור (דרך תפריט האווטאר שלהם) מופיעים כאן, ולעולם לא מופיעים או נשמרים במטמון בשום חדר.</string>
     <string name="valid_address">כתובת תקפה</string>
     <string name="view_on_changenow">צפה ב-ChangeNOW</string>
     <string name="waiting_for_camera">ממתין למצלמה...</string>
@@ -436,6 +417,5 @@
     <string name="select_the_currency_youd_like_prices">בחר את המטבע שבו תרצה שהמחירים יוצגו.</string>
     <string name="i_have_written_down_my_seed_phrase">רשמתי את משפט השחזור שלי ושמרתי אותו במקום בטוח</string>
     <string name="i_already_have_a_domain_somewhere">כבר יש לי דומיין במקום אחר</string>
-    <string name="transfer_your_domain">העבר את הדומיין שלך</string>
     <string name="transfer_your_domain_to_this_address">העבר את הדומיין שלך לכתובת זו כדי שהזהות שלך תתחבר ל-KaChat.</string>
 </resources>

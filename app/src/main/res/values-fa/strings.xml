@@ -27,20 +27,16 @@
     <string name="added">اضافه شد</string>
     <string name="address">آدرس</string>
     <string name="address_actions">عملیات آدرس</string>
-    <string name="address_actions_2">عملیات آدرس</string>
-    <string name="address_copied">آدرس کپی شد</string>
     <string name="addresses">آدرس‌ها</string>
     <string name="adjust_network_fee">تنظیم کارمزد شبکه</string>
     <string name="admin">مدیر</string>
     <string name="all_discovered_nodes_sorted_by_state">همه گره‌های کشف‌شده بر اساس وضعیت و تاخیر مرتب شده‌اند. گره‌های تکراری بر اساس host:port حذف می‌شوند.</string>
-    <string name="always_shown">همیشه نمایش داده می‌شود</string>
     <string name="amount_kas">مبلغ (KAS)</string>
     <string name="anyone_who_joins_the_same_channel">هر کسی که به همان نام کانال بپیوندد می‌تواند پیام‌ها را آنجا ببیند و ارسال کند. مالک یا دعوتی وجود ندارد.</string>
     <string name="anyone_with_your_seed_phrase_can">هر کسی که عبارت بازیابی شما را داشته باشد می‌تواند به حساب شما دسترسی پیدا کند. هرگز آن را با کسی به اشتراک نگذارید. مطمئن شوید که فقط آن را یادداشت می‌کنید. هرگز از آن اسکرین‌شات نگیرید یا آن را در دستگاه خود ذخیره نکنید.</string>
     <string name="back">بازگشت</string>
     <string name="balance">موجودی</string>
     <string name="before_you_swap">قبل از تبدیل</string>
-    <string name="broadcast_settings">تنظیمات پخش</string>
     <string name="broadcasting">در حال پخش...</string>
     <string name="broadcasts">پخش‌ها</string>
     <string name="build_unsigned_transaction">ایجاد تراکنش امضانشده</string>
@@ -69,7 +65,6 @@
     <string name="choose_banner">بنر را انتخاب کنید</string>
     <string name="choose_coin">انتخاب سکه</string>
     <string name="choose_photo">انتخاب عکس</string>
-    <string name="choose_which_tabs_appear_in_your">انتخاب کنید کدام تب‌ها در منوی پایینی شما نمایش داده شوند.</string>
     <string name="clear_search">پاک کردن جستجو</string>
     <string name="close">بستن</string>
     <string name="cold_storage">ذخیره سرد</string>
@@ -80,9 +75,7 @@
     <string name="connected_only_to_this_node">فقط به این گره متصل است</string>
     <string name="connection_settings">تنظیمات اتصال</string>
     <string name="connection_status">وضعیت اتصال</string>
-    <string name="contact_name">نام مخاطب</string>
     <string name="contact_has_requested_permission_to_communicate">مخاطب درخواست اجازه ارتباط داده است</string>
-    <string name="contact_name_2">نام مخاطب</string>
     <string name="contacts">مخاطبین</string>
     <string name="controls_how_much_photos_are_compressed">میزان فشرده‌سازی عکس‌ها قبل از ارسال را کنترل می‌کند. کیفیت بالاتر واضح‌تر به نظر می‌رسد اما کارمزد بیشتری دارد و ارسال آن طولانی‌تر است؛ کیفیت پایین‌تر سریع‌تر و ارزان‌تر ارسال می‌شود اما فشرده‌تر به نظر می‌رسد. این فقط بر عکس‌هایی که ارسال می‌کنید تأثیر می‌گذارد، نه آن‌هایی که دریافت می‌کنید.</string>
     <string name="copy">کپی</string>
@@ -108,7 +101,6 @@
     <string name="delete_transaction">حذف تراکنش</string>
     <string name="deposit_address">آدرس واریز</string>
     <string name="domain_name">نام دامنه</string>
-    <string name="domains">دامنه‌ها</string>
     <string name="done">انجام شد</string>
     <string name="each_transaction_temporarily_uses_2_kas">هر تراکنش به‌طور موقت از ~2 KAS استفاده می‌کند؛ ~1 KAS بلافاصله به‌عنوان باقیمانده برمی‌گردد، بنابراین فقط کارمزد کوچک شبکه هزینه واقعی است.</string>
     <string name="edit_kns_profile">ویرایش نمایه KNS</string>
@@ -131,10 +123,8 @@
     <string name="grant_permission_2">اعطای مجوز</string>
     <string name="group_chats">گفتگوهای گروهی</string>
     <string name="group_info">اطلاعات گروه</string>
-    <string name="group_name">نام گروه</string>
     <string name="group_name_2">نام گروه</string>
     <string name="hidden_addresses">آدرس‌های پنهان</string>
-    <string name="hidden_broadcast_room_users">کاربران پنهان اتاق پخش</string>
     <string name="hidden_users">کاربران پنهان</string>
     <string name="holdings">دارایی‌ها</string>
     <string name="how_long_messages_in_this_broadcast">مدت زمانی که پیام‌های این پخش در این دستگاه در حافظه پنهان می‌مانند، حداکثر تا 3 روز.</string>
@@ -156,7 +146,6 @@
     <string name="join_or_create_a_channel">پیوستن به کانال یا ایجاد آن</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">دامنه‌های KNS</string>
-    <string name="kns_profile_pictures">تصاویر نمایه KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">لوگوی KaChat</string>
     <string name="kachat_can_t_show_notifications_until">KaChat تا زمانی که اعلان‌ها را برای این برنامه مجاز نکنید نمی‌تواند اعلان‌ها را نمایش دهد.</string>
@@ -177,16 +166,13 @@
     <string name="make_active_address">تبدیل به آدرس فعال</string>
     <string name="manage_addresses">مدیریت آدرس‌ها</string>
     <string name="max">حداکثر</string>
-    <string name="members">اعضا</string>
     <string name="menu">منو</string>
     <string name="message">پیام</string>
     <string name="message_retention_settings">تنظیمات نگهداری پیام</string>
     <string name="more_info">اطلاعات بیشتر</string>
     <string name="name">نام</string>
-    <string name="name_optional">نام (اختیاری)</string>
     <string name="name_this_address">نام‌گذاری این آدرس</string>
     <string name="network_fee">کارمزد شبکه</string>
-    <string name="never_send_kaspa_you_intend_to">هرگز کاسپایی را که قصد خرج کردن آن را دارید به این آدرس ارسال نکنید.</string>
     <string name="next">بعدی</string>
     <string name="no_conversations_yet">هنوز گفتگویی وجود ندارد</string>
     <string name="no_group_chats_yet">هنوز هیچ گفتگوی گروهی وجود ندارد</string>
@@ -201,7 +187,6 @@
     <string name="primary">اصلی</string>
     <string name="something_went_wrong">مشکلی پیش آمد</string>
     <string name="no_hidden_addresses">هیچ آدرس پنهانی وجود ندارد.</string>
-    <string name="no_hidden_users">هیچ کاربر پنهانی وجود ندارد</string>
     <string name="no_hidden_users_in_this_group">هیچ کاربر پنهانی در این گروه وجود ندارد.</string>
     <string name="no_messages_yet">هنوز پیامی وجود ندارد</string>
     <string name="no_saved_addresses">هیچ آدرس ذخیره‌شده‌ای وجود ندارد</string>
@@ -219,7 +204,6 @@
     <string name="open_settings">باز کردن تنظیمات</string>
     <string name="original_message_not_available">پیام اصلی در دسترس نیست</string>
     <string name="other_nodes">گره‌های دیگر</string>
-    <string name="other_messages_still_show_up_in">پیام‌های دیگر همچنان در گفتگو نمایش داده می‌شوند، فقط بی‌صدا.</string>
     <string name="paste_from_clipboard">جای‌گذاری از حافظه</string>
     <string name="paste_kpub">چسباندن kpub</string>
     <string name="paste_the_kpub_exported_from_your">kpub صادرشده از دستگاه KasSigner خود را بچسبانید. این شامل هیچ ماده کلید خصوصی نمی‌شود.</string>
@@ -295,7 +279,6 @@
     <string name="show_more">نمایش بیشتر</string>
     <string name="show_photo">نمایش عکس</string>
     <string name="show_qr_code">نمایش کد QR</string>
-    <string name="shows_senders_kns_avatars_in_rooms">آواتارهای KNS فرستندگان را در اتاق‌ها نمایش می‌دهد و با ظاهر شدن پیام‌ها به‌طور خودکار آن‌ها را جستجو می‌کند. خاموش، حروف اول ساده را برای همه نمایش می‌دهد و هرگز آواتار دریافت نمی‌کند.</string>
     <string name="skip">رد شدن</string>
     <string name="some_changes_failed_to_save">برخی تغییرات ذخیره نشدند:</string>
     <string name="spending_kaspa_on_kachat_will_come">از این پس خرج کردن کاسپا در KaChat فقط از این آدرس انجام می‌شود. هر کاسپایی که هنوز در آدرس خرج کردن فعلی شما باشد به‌طور خودکار به این آدرس جدید ارسال خواهد شد.</string>
@@ -314,7 +297,6 @@
     <string name="this_only_removes_it_from_kachat">این فقط آن را از فهرست نظارت KaChat حذف می‌کند. هیچ تأثیری بر دستگاه KasSigner یا وجوهی که نگه می‌دارد ندارد.</string>
     <string name="this_permanently_deletes_every_message_with">این هر پیام با آن‌ها را در این دستگاه برای همیشه حذف می‌کند. این قابل بازگشت نیست؛ پیام دادن دوباره به آن‌ها یک گفتگوی کاملاً جدید شروع می‌کند.</string>
     <string name="this_removes_the_group_and_its">این گروه و پیام‌های آن را از این دستگاه حذف می‌کند. این قابل بازگشت نیست و سایر اعضا مطلع نخواهند شد.</string>
-    <string name="this_signs_out_of_your_account">این کار از حسابتان خارج می‌شود، اما داده‌های محلی کیف پول و پیام‌ها را در این دستگاه نگه می‌دارد.</string>
     <string name="to">به</string>
     <string name="total_balance">موجودی کل</string>
     <string name="total_invested">مجموع سرمایه‌گذاری‌شده</string>
@@ -328,7 +310,6 @@
     <string name="unread">خوانده‌نشده</string>
     <string name="use_automatic_selection">استفاده از انتخاب خودکار</string>
     <string name="use_default">استفاده از پیش‌فرض</string>
-    <string name="users_you_hide_from_a_broadcast">کاربرانی که از یک اتاق پخش پنهان می‌کنید (از طریق منوی آواتار آن‌ها) اینجا نمایش داده می‌شوند و هرگز در هیچ اتاقی ظاهر یا ذخیره نمی‌شوند.</string>
     <string name="utxo">UTXO</string>
     <string name="utxos">UTXOها</string>
     <string name="valid_address">آدرس معتبر</string>
@@ -475,6 +456,5 @@
     <string name="select_the_currency_youd_like_prices">واحد پولی که می‌خواهید قیمت‌ها به آن نمایش داده شوند را انتخاب کنید.</string>
     <string name="i_have_written_down_my_seed_phrase">عبارت بازیابی خود را نوشته‌ام و آن را به‌طور امن نگهداری کرده‌ام</string>
     <string name="i_already_have_a_domain_somewhere">من قبلاً یک دامنه در جای دیگری دارم</string>
-    <string name="transfer_your_domain">دامنه خود را منتقل کنید</string>
     <string name="transfer_your_domain_to_this_address">دامنه خود را به این آدرس منتقل کنید تا هویت شما به KaChat متصل شود.</string>
 </resources>
