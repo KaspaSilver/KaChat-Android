@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12단어</string>
-    <string name="n_24_words_recommended">24단어 (권장)</string>
     <string name="a_kns_inscription_s_commit_transaction">KNS 인스크립션의 커밋 거래가 완료되었지만 리빌이 완료되지 않았습니다. 지금 다시 시도하여 완료하세요. 완료할 때까지 자금은 안전하게 묶여 있습니다.</string>
     <string name="accept">수락</string>
     <string name="account_name">계정 이름</string>

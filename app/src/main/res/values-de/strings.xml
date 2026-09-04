@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 Wörter</string>
-    <string name="n_24_words_recommended">24 Wörter (empfohlen)</string>
     <string name="a_kns_inscription_s_commit_transaction">Die Bestätigungstransaktion einer KNS-Inschrift wurde durchgeführt, aber die Enthüllung wurde nie abgeschlossen. Versuche es jetzt erneut, um sie abzuschließen; die Gelder sind sicher gebunden, bis du das tust.</string>
     <string name="accept">Akzeptieren</string>
     <string name="account_name">Kontoname</string>

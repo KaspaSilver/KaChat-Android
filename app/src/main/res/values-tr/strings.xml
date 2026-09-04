@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 kelime</string>
-    <string name="n_24_words_recommended">24 kelime (önerilen)</string>
     <string name="a_kns_inscription_s_commit_transaction">Bir KNS yazitinin taahhut islemi gerceklesti, ancak acilma hicbir zaman tamamlanmadi. Tamamlamak icin simdi tekrar deneyin; bunu yapana kadar fonlar guvenle baglidir.</string>
     <string name="accept">Kabul Et</string>
     <string name="account_name">Hesap Adı</string>

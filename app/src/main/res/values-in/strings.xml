@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">KaChat</string>
     <string name="n_12_words">12 kata</string>
-    <string name="n_24_words_recommended">24 kata (disarankan)</string>
     <string name="accept">Terima</string>
     <string name="account_name">Nama Akun</string>
     <string name="active_nodes">Node Aktif</string>

@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 শব্দ</string>
-    <string name="n_24_words_recommended">24 শব্দ (প্রস্তাবিত)</string>
     <string name="a_kns_inscription_s_commit_transaction">একটি KNS ইনস্ক্রিপশনের কমিট লেনদেন সম্পন্ন হয়েছে, কিন্তু রিভিল কখনো সম্পূর্ণ হয়নি। এটি সম্পূর্ণ করতে এখন আবার চেষ্টা করুন; আপনি না করা পর্যন্ত তহবিল নিরাপদে আটকে আছে।</string>
     <string name="accept">গ্রহণ করুন</string>
     <string name="account_name">অ্যাকাউন্টের নাম</string>

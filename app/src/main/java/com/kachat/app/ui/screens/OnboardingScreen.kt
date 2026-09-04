@@ -611,9 +611,11 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // 12 first, and no "(recommended)" on 24: both lengths are secure, and calling
+                // one the right answer makes the other look like a mistake.
                 SegmentedButton(
-                    selected = wordCount == 24,
-                    onClick = { wordCount = 24 },
+                    selected = wordCount == 12,
+                    onClick = { wordCount = 12 },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     colors = SegmentedButtonDefaults.colors(
                         activeContainerColor = LocalAppColors.current.surfaceVariant,
@@ -622,11 +624,11 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                         inactiveContentColor = LocalAppColors.current.textSecondary
                     )
                 ) {
-                    Text(stringResource(R.string.n_24_words_recommended), fontSize = 12.sp)
+                    Text(stringResource(R.string.n_12_words), fontSize = 12.sp)
                 }
                 SegmentedButton(
-                    selected = wordCount == 12,
-                    onClick = { wordCount = 12 },
+                    selected = wordCount == 24,
+                    onClick = { wordCount = 24 },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     colors = SegmentedButtonDefaults.colors(
                         activeContainerColor = LocalAppColors.current.surfaceVariant,
@@ -635,7 +637,7 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                         inactiveContentColor = LocalAppColors.current.textSecondary
                     )
                 ) {
-                    Text(stringResource(R.string.n_12_words), fontSize = 12.sp)
+                    Text(stringResource(R.string.n_24_words), fontSize = 12.sp)
                 }
             }
 
@@ -792,9 +794,12 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
 
             // Word-count selector
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                // 12 first, matching the create screen. No "(recommended)" either: on import
+                // the length is whatever your existing seed already is, so there is nothing to
+                // recommend.
                 SegmentedButton(
-                    selected = wordCount == 24,
-                    onClick = { wordCount = 24 },
+                    selected = wordCount == 12,
+                    onClick = { wordCount = 12; if (activeSlot >= 12) activeSlot = 11 },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     colors = SegmentedButtonDefaults.colors(
                         activeContainerColor = LocalAppColors.current.surfaceVariant,
@@ -802,10 +807,10 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                         inactiveContainerColor = LocalAppColors.current.surface,
                         inactiveContentColor = LocalAppColors.current.textSecondary
                     )
-                ) { Text(stringResource(R.string.n_24_words_recommended), fontSize = 12.sp) }
+                ) { Text(stringResource(R.string.n_12_words), fontSize = 12.sp) }
                 SegmentedButton(
-                    selected = wordCount == 12,
-                    onClick = { wordCount = 12; if (activeSlot >= 12) activeSlot = 11 },
+                    selected = wordCount == 24,
+                    onClick = { wordCount = 24 },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     colors = SegmentedButtonDefaults.colors(
                         activeContainerColor = LocalAppColors.current.surfaceVariant,
@@ -813,7 +818,7 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                         inactiveContainerColor = LocalAppColors.current.surface,
                         inactiveContentColor = LocalAppColors.current.textSecondary
                     )
-                ) { Text(stringResource(R.string.n_12_words), fontSize = 12.sp) }
+                ) { Text(stringResource(R.string.n_24_words), fontSize = 12.sp) }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

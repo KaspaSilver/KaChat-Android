@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 מילים</string>
-    <string name="n_24_words_recommended">24 מילים (מומלץ)</string>
     <string name="a_kns_inscription_s_commit_transaction">עסקת ההתחייבות של רישום KNS עברה, אך החשיפה מעולם לא הושלמה. נסה שוב עכשיו כדי להשלים אותה; הכספים בטוחים עד שתעשה זאת.</string>
     <string name="accept">קבל</string>
     <string name="account_name">שם חשבון</string>

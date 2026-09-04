@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12語</string>
-    <string name="n_24_words_recommended">24語（推奨）</string>
     <string name="a_kns_inscription_s_commit_transaction">KNSインスクリプションのコミット取引は完了しましたが、リビールは完了しませんでした。今すぐ再試行して完了してください。完了するまで資金は安全に確保されています。</string>
     <string name="accept">承認</string>
     <string name="account_name">アカウント名</string>

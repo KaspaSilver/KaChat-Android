@@ -12,7 +12,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">۱۲ کلمه</string>
-    <string name="n_24_words_recommended">۲۴ کلمه (پیشنهادی)</string>
     <string name="a_kns_inscription_s_commit_transaction">تراکنش تعهد یک کتیبه KNS انجام شد، اما رونمایی هرگز کامل نشد. اکنون دوباره امتحان کنید تا آن را کامل کنید؛ وجوه تا زمانی که این کار را انجام دهید ایمن هستند.</string>
     <string name="accept">پذیرش</string>
     <string name="account_actions">عملیات حساب</string>

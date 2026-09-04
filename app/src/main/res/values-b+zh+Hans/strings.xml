@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12个词</string>
-    <string name="n_24_words_recommended">24个词（推荐）</string>
     <string name="a_kns_inscription_s_commit_transaction">KNS 铭文的提交交易已完成,但揭示从未完成。现在重试以完成它;在您这样做之前,资金是安全锁定的。</string>
     <string name="accept">接受</string>
     <string name="account_name">账户名称</string>

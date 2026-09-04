@@ -17,7 +17,7 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 words</string>
-    <string name="n_24_words_recommended">24 words (recommended)</string>
+    <string name="n_24_words">24 words</string>
     <string name="a_kns_inscription_s_commit_transaction">A KNS inscription\'s commit transaction went through, but the reveal never finished. Retry now to complete it; the funds are safely tied up until you do.</string>
     <string name="accept">Accept</string>
     <string name="account_actions">Account Actions</string>

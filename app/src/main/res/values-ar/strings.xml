@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">١٢ كلمة</string>
-    <string name="n_24_words_recommended">٢٤ كلمة (موصى بها)</string>
     <string name="a_kns_inscription_s_commit_transaction">تمت معاملة الالتزام لنقش KNS، لكن الكشف لم يكتمل أبدًا. أعد المحاولة الآن لإكماله؛ الأموال آمنة ومقيدة حتى تفعل ذلك.</string>
     <string name="accept">قبول</string>
     <string name="account_name">اسم الحساب</string>

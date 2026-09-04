@@ -3,7 +3,6 @@
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 palavras</string>
-    <string name="n_24_words_recommended">24 palavras (recomendado)</string>
     <string name="a_kns_inscription_s_commit_transaction">A transacao de confirmacao de uma inscricao KNS foi concluida, mas a revelacao nunca terminou. Tente novamente agora para concluir; os fundos ficam seguros ate voce fazer isso.</string>
     <string name="accept">Aceitar</string>
     <string name="account_name">Nome da conta</string>
