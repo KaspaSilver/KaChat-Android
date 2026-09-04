@@ -225,14 +225,44 @@ class ColdStorageAddressDiscovery @Inject constructor(
      * whatever output pays change back to [address] itself, mirroring the same sent-vs-received
      * inference [com.kachat.app.repository.ChatRepository]'s payment sync already relies on.
      */
-    suspend fun getTransactionHistory(address: String, limit: Int = 50): List<AddressTransaction> {
-        val api = networkService.kaspaRestApi.value ?: return emptyList()
-        val transactions = try {
-            api.getTransactions(address, limit = limit)
-        } catch (e: Exception) {
-            Log.w("ColdStorageAddressDiscovery", "Failed to fetch transaction history for $address", e)
-            return emptyList()
+    /**
+     * Whether a history fetch actually finished, alongside what it got.
+     *
+     * [complete] false means the request failed after its retries - the list is not the address's
+     * real history. Callers rendering a list need this: without it a rate-limited or timed-out
+     * request is indistinguishable from an address with no transactions, and "No transactions
+     * yet." is a confident lie about someone's money.
+     */
+    data class HistoryResult(
+        val transactions: List<AddressTransaction>,
+        val complete: Boolean,
+    )
+
+    /** Retry on a growing pause before giving up. api.kaspa.org is a shared public endpoint that
+     *  rate-limits, and a single 429 used to return "no transactions". */
+    private val historyRetryDelaysMs = listOf(0L, 600L, 2_000L, 5_000L)
+
+    suspend fun getTransactionHistory(address: String, limit: Int = 50): List<AddressTransaction> =
+        getTransactionHistoryResult(address, limit).transactions
+
+    suspend fun getTransactionHistoryResult(address: String, limit: Int = 50): HistoryResult {
+        val api = networkService.kaspaRestApi.value ?: return HistoryResult(emptyList(), complete = false)
+        var transactions: List<TransactionResponse>? = null
+        for ((attempt, delay) in historyRetryDelaysMs.withIndex()) {
+            if (delay > 0) kotlinx.coroutines.delay(delay)
+            try {
+                transactions = api.getTransactions(address, limit = limit)
+                break
+            } catch (e: Exception) {
+                Log.w("ColdStorageAddressDiscovery", "History attempt ${attempt + 1} failed for $address", e)
+            }
         }
+        val fetched = transactions
+            ?: return HistoryResult(emptyList(), complete = false)
+        return HistoryResult(mapHistory(address, fetched), complete = true)
+    }
+
+    private fun mapHistory(address: String, transactions: List<TransactionResponse>): List<AddressTransaction> {
         return transactions.map { tx ->
             val sent = tx.inputs.any { it.previousOutpointAddress == address }
             val amount = if (sent) {

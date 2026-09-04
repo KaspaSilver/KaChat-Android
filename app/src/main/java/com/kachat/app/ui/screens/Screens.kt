@@ -5662,6 +5662,7 @@ fun SpendingAddressTxHistoryScreen(
 
     val txHistory by viewModel.spendingAddressTxHistory.collectAsState()
     val isLoadingTxHistory by viewModel.loadingSpendingAddressTxHistory.collectAsState()
+    val txHistoryFailed by viewModel.spendingAddressTxHistoryFailed.collectAsState()
     val utxos by viewModel.spendingAddressUtxos.collectAsState()
     val isLoadingUtxos by viewModel.loadingSpendingAddressUtxos.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
@@ -5860,6 +5861,25 @@ fun SpendingAddressTxHistoryScreen(
                     isLoadingTxHistory && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                    // A failed fetch is not an empty history. Saying "No transactions yet."
+                    // here was a confident answer about someone's money the app had not got.
+                    txHistory.isEmpty() && txHistoryFailed -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text(
+                                "Could not load transactions.",
+                                color = LocalAppColors.current.textSecondary,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            TextButton(onClick = { viewModel.loadSpendingAddressTxHistory(address) }) {
+                                Text("Try Again", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                     txHistory.isEmpty() -> {
@@ -6073,6 +6093,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
 
     val txHistory by viewModel.spendingAddressTxHistory.collectAsState()
     val isLoadingTxHistory by viewModel.loadingSpendingAddressTxHistory.collectAsState()
+    val txHistoryFailed by viewModel.spendingAddressTxHistoryFailed.collectAsState()
     val utxos by viewModel.spendingAddressUtxos.collectAsState()
     val isLoadingUtxos by viewModel.loadingSpendingAddressUtxos.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
@@ -6239,6 +6260,25 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                     isLoadingTxHistory && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = KaspaTeal)
+                        }
+                    }
+                    // A failed fetch is not an empty history. Saying "No transactions yet."
+                    // here was a confident answer about someone's money the app had not got.
+                    txHistory.isEmpty() && txHistoryFailed -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text(
+                                "Could not load transactions.",
+                                color = LocalAppColors.current.textSecondary,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            TextButton(onClick = { viewModel.loadSpendingAddressTxHistory(address!!) }) {
+                                Text("Try Again", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                     txHistory.isEmpty() -> {

@@ -632,6 +632,10 @@ class WalletViewModel @Inject constructor(
 
     private val _spendingAddressTxHistory = MutableStateFlow<List<ColdStorageAddressDiscovery.AddressTransaction>>(emptyList())
     val spendingAddressTxHistory: StateFlow<List<ColdStorageAddressDiscovery.AddressTransaction>> = _spendingAddressTxHistory.asStateFlow()
+    /** The last history fetch gave up. Kept separate from an empty list because the two mean
+     *  opposite things and used to render identically. */
+    private val _spendingAddressTxHistoryFailed = MutableStateFlow(false)
+    val spendingAddressTxHistoryFailed: StateFlow<Boolean> = _spendingAddressTxHistoryFailed.asStateFlow()
     private val _loadingSpendingAddressTxHistory = MutableStateFlow(false)
     val loadingSpendingAddressTxHistory: StateFlow<Boolean> = _loadingSpendingAddressTxHistory.asStateFlow()
 
@@ -646,7 +650,9 @@ class WalletViewModel @Inject constructor(
     fun loadSpendingAddressTxHistory(address: String) {
         viewModelScope.launch {
             _loadingSpendingAddressTxHistory.value = true
-            _spendingAddressTxHistory.value = coldStorageAddressDiscovery.getTransactionHistory(address, limit = 50)
+            val result = coldStorageAddressDiscovery.getTransactionHistoryResult(address, limit = 50)
+            _spendingAddressTxHistory.value = result.transactions
+            _spendingAddressTxHistoryFailed.value = !result.complete
             _loadingSpendingAddressTxHistory.value = false
         }
     }
