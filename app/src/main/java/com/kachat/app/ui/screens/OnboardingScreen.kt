@@ -234,7 +234,11 @@ fun WelcomeScreen(
                     color = LocalAppColors.current.textPrimary
                 )
                 Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    // A PNG copy of the launcher artwork, NOT R.mipmap.ic_launcher: on API 26+
+                    // that id resolves to the adaptive-icon XML, which painterResource cannot
+                    // load - it throws "Only VectorDrawables and rasterized asset types are
+                    // supported" and takes the whole welcome screen down with it.
+                    painter = painterResource(id = R.drawable.kachat_app_mark),
                     contentDescription = stringResource(R.string.kachat_logo),
                     modifier = Modifier.size(40.dp).clip(RoundedCornerShape(9.dp))
                 )
