@@ -2727,7 +2727,11 @@ class ChatViewModel @Inject constructor(
                 onResult?.invoke(true, null)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending payment", e)
-                chatRepository.updateMessageStatus(pendingId, "failed")
+                // Remove the optimistic row rather than leaving it as a failed one (iOS parity):
+                // a payment that never reached the network did not happen, and a permanent
+                // "failed" entry in the history for a send the user was simply short the balance
+                // for is a record of nothing. The caller surfaces the reason instead.
+                chatRepository.deleteMessage(pendingId)
                 onResult?.invoke(false, e.message)
             }
         }

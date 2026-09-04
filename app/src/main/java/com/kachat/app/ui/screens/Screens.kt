@@ -225,6 +225,9 @@ fun ChatThreadScreen(
     // Addresses from the Available pill and back — iOS keeps payment mode alive by presenting
     // that screen as a sheet; on Android the nav round-trip must not silently drop the mode.
     var paymentMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(startInPaymentMode) }
+    /// Why a payment could not be sent. Shown as a dialog, because a failed payment leaves no row
+    /// in the thread to carry the reason.
+    var paymentError by remember { mutableStateOf<String?>(null) }
     val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
     val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val identityFullBalance by walletViewModel.fullBalance.collectAsState()
@@ -670,7 +673,12 @@ fun ChatThreadScreen(
                         Button(
                             onClick = {
                                 if (paymentAmount.isNotEmpty()) {
-                                    chatViewModel.sendPayment(contactId, paymentAmount)
+                                    chatViewModel.sendPayment(contactId, paymentAmount) { ok, message ->
+                                        // A payment that never reached the network leaves no
+                                        // trace in the thread, so the reason has to be said here
+                                        // (iOS parity - it alerts and inserts nothing).
+                                        if (!ok) paymentError = message ?: "The payment could not be sent."
+                                    }
                                     chatViewModel.setPaymentAmount("")
                                     paymentMode = false
                                 }
@@ -1164,13 +1172,33 @@ fun ChatThreadScreen(
         // the bottom - opening the keyboard while scrolled up reading history must not yank
         // the viewport down.
         val imeVisible = WindowInsets.isImeVisible
+        // Whether the reader was at the bottom when the keyboard STARTED coming up. Decided once
+        // and held for the whole animation: mid-animation the last row is already behind the
+        // keyboard, so re-asking the question would answer "no" and abandon the pin.
+        var pinToBottomForIme by remember { mutableStateOf(false) }
         LaunchedEffect(imeVisible, messageText.isEmpty()) {
-            if (messages.isNotEmpty()) {
-                val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-                if (lastVisible >= messages.lastIndex - 1) {
-                    scrollState.animateScrollToItem(messages.size - 1)
-                }
+            if (!imeVisible || messages.isEmpty()) {
+                pinToBottomForIme = false
+                return@LaunchedEffect
             }
+            val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            pinToBottomForIme = lastVisible >= messages.lastIndex - 1
+            if (pinToBottomForIme) scrollState.scrollToItem(messages.lastIndex)
+        }
+        // The IME inset animates over a few hundred milliseconds and the list shrinks with it, so
+        // one scroll at the start is undone by the rest of the animation - the thread ends up
+        // behind the keyboard having never "scrolled". This follows the inset the whole way down.
+        val imeDensity = LocalDensity.current
+        // Hoisted: WindowInsets.ime is a @Composable getter and cannot be read inside snapshotFlow.
+        val imeInsets = WindowInsets.ime
+        val liveMessageCount by rememberUpdatedState(messages.size)
+        LaunchedEffect(Unit) {
+            snapshotFlow { imeInsets.getBottom(imeDensity) }
+                .collect {
+                    if (pinToBottomForIme && liveMessageCount > 0) {
+                        scrollState.scrollToItem(liveMessageCount - 1)
+                    }
+                }
         }
 
         // Not scrollState.canScrollForward — that flips true for a frame or two whenever
@@ -1501,6 +1529,22 @@ fun ChatThreadScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteMessagesConfirmation = false }) {
                     Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+
+    // A payment that never reached the network leaves no row in the thread, so this is the only
+    // place the reason gets said (iOS parity - it alerts and inserts nothing).
+    paymentError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { paymentError = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Payment Failed", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text(message, color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = { paymentError = null }) {
+                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -2338,6 +2382,7 @@ fun MessageBubble(
             onDismiss = { showReactions = false },
         )
     }
+
 }
 
 /**
