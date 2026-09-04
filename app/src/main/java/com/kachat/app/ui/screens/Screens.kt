@@ -4012,6 +4012,14 @@ fun KnsDomainSendScreen(
         WalletViewModel.KnsInscribeUiStatus.SUCCESS,
         WalletViewModel.KnsInscribeUiStatus.FAILED
     )
+
+    // Progress in its own sheet rather than a spinner inside the Send button: a transfer is a
+    // commit, a wait, then a reveal, and a button that just spins through all of it is
+    // indistinguishable from being stuck. Not dismissible - leaving mid-transfer would hide a
+    // running on-chain operation.
+    if (inFlight) {
+        DomainTransferProgressSheet(domainName = domainName, status = transferState.status)
+    }
     val canSend = !inFlight && recipientPreview?.resolvedAddress != null
 
     fun trimmedKas(sompi: Long): String {
@@ -12551,5 +12559,65 @@ fun ChatPrivacyAddressActionsSheet(
             title = "Cancel",
             subtitle = "Leave it in the pool.",
         ) { onDismiss() }
+    }
+}
+
+/**
+ * What a domain transfer is doing right now.
+ *
+ * The steps come from [WalletViewModel.KnsInscribeUiStatus], which the transfer already reports;
+ * this only gives them a place to be seen. The fractions are approximate on purpose: the waits
+ * are network-dependent, and a bar that moves in known steps beats a spinner that says nothing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DomainTransferProgressSheet(
+    domainName: String,
+    status: WalletViewModel.KnsInscribeUiStatus,
+) {
+    val colors = LocalAppColors.current
+    val (label, fraction) = when (status) {
+        WalletViewModel.KnsInscribeUiStatus.CHECKING_AVAILABILITY -> "Preparing transfer" to 0.1f
+        WalletViewModel.KnsInscribeUiStatus.FETCHING_FEE -> "Working out the fee" to 0.2f
+        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_COMMIT -> "Submitting commit transaction" to 0.4f
+        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL -> "Submitting reveal transaction" to 0.75f
+        WalletViewModel.KnsInscribeUiStatus.VERIFYING -> "Confirming the new owner" to 0.95f
+        else -> "Working" to 0.1f
+    }
+
+    ModalBottomSheet(
+        // Held open for the duration: the work keeps running either way, and a dismissed sheet
+        // would leave an on-chain transfer with nothing reporting on it.
+        onDismissRequest = {},
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background,
+        dragHandle = null,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp, top = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                "Sending $domainName",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                textAlign = TextAlign.Center,
+            )
+            LinearProgressIndicator(
+                progress = { fraction },
+                color = KaspaTeal,
+                trackColor = colors.surfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(
+                "A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
