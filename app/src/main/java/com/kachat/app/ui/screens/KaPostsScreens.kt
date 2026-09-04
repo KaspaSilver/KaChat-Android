@@ -2008,6 +2008,10 @@ fun KaPostComposerDialog(
                     }
                 }
             }
+            // Same dot/balance row every other KaPosts overlay carries, above the X. A post
+            // costs KAS, so this is the one screen where the balance is not just reassurance,
+            // and the composer covers the feed that would otherwise be showing both.
+            KaPostsOverlayStatusBar()
             // Header, matching iOS/desktop's composer card: X in a rounded square, bold title,
             // character meter, teal capsule Post button.
             Row(
