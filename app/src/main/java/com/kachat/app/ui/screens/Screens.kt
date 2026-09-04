@@ -3504,30 +3504,16 @@ fun ProfileScreen(
         }
     }
 
+    // Half sheet rather than a dialog, matching every other chooser in the app - and it gives
+    // the consequence a row of its own beside the action, which a dialog of bare verbs cannot.
     if (showLogoutConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showLogoutConfirmation = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.log_out), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    stringResource(R.string.this_signs_out_of_your_account),
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLogoutConfirmation = false
-                    viewModel.logout()
-                }) {
-                    Text(stringResource(R.string.log_out), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutConfirmation = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
+        ConfirmActionSheet(
+            title = stringResource(R.string.log_out),
+            confirmTitle = stringResource(R.string.log_out),
+            confirmSubtitle = "Signs out of this account. Wallet and message data stay on this device.",
+            confirmIcon = Icons.AutoMirrored.Filled.Logout,
+            onConfirm = { viewModel.logout() },
+            onDismiss = { showLogoutConfirmation = false },
         )
     }
 }

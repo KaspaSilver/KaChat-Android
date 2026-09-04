@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -397,5 +398,41 @@ fun RepostActionsSheet(
             title = "Quote",
             subtitle = "Adds your own words above it.",
         ) { onDismiss(); onQuote() }
+    }
+}
+
+/**
+ * A yes/no confirmation, in a half sheet.
+ *
+ * The app's confirmations were AlertDialogs - a stack of bare verbs with the reason squeezed into
+ * a small line above them. As a sheet the consequence gets a full row of its own next to the
+ * action it belongs to, which is what someone about to log out or delete something is actually
+ * reading for.
+ */
+@Composable
+fun ConfirmActionSheet(
+    title: String,
+    confirmTitle: String,
+    /** What actually happens if they go ahead - the row's second line. */
+    confirmSubtitle: String,
+    confirmIcon: ImageVector,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    isDestructive: Boolean = true,
+) {
+    ActionSheetContainer(title = title, subtitle = null, onDismiss = onDismiss) {
+        ActionSheetRow(
+            icon = confirmIcon,
+            title = confirmTitle,
+            subtitle = confirmSubtitle,
+            tint = if (isDestructive) Color(0xFFFF3B30) else KaspaTeal,
+            onClick = { onDismiss(); onConfirm() },
+        )
+        ActionSheetRow(
+            icon = Icons.Default.Close,
+            title = "Cancel",
+            subtitle = "Leave everything as it is.",
+            onClick = onDismiss,
+        )
     }
 }
