@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import java.util.UUID
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,8 +38,14 @@ class PortfolioManager @Inject constructor(
     private val database: KaChatDatabase,
     private val walletManager: WalletManager
 ) {
+    /** Serializes the seed-if-empty check with its insert - see [ensureDefaultPortfolio]. */
+    private val defaultSeedMutex = Mutex()
+
     companion object {
         const val MAX_PORTFOLIOS = 5
+        /** The name a seeded first portfolio carries, and the only name the duplicate cleanup
+         *  in [ensureDefaultPortfolio] will touch. */
+        private const val DEFAULT_PORTFOLIO_NAME = "Portfolio 1"
         private const val SECURE_PREFS_NAME = "portfolio_manager_secure_prefs"
         private const val ACTIVE_PORTFOLIO_KEY_PREFIX = "active_portfolio_"
     }
@@ -94,19 +102,46 @@ class PortfolioManager @Inject constructor(
             }
         }.distinctUntilChanged()
 
-    /** Seeds "Portfolio 1" for [walletAddress] if it has no portfolios yet. Safe to call repeatedly — a no-op once one exists. Called inline from [getPortfolios] on every (re)subscription rather than requiring callers to remember to invoke it themselves. */
-    private suspend fun ensureDefaultPortfolio(walletAddress: String) {
-        if (database.portfolioDefinitionDao().count(walletAddress) == 0) {
-            database.portfolioDefinitionDao().insert(
+    /**
+     * Seeds "Portfolio 1" for [walletAddress] if it has no portfolios yet, and cleans up the
+     * duplicates an earlier build could leave behind.
+     *
+     * Called inline from [getPortfolios] on every subscription, so callers cannot forget it - but
+     * that means it runs once per collector, and count-then-insert is check-then-act. The
+     * portfolio screen, its picker header and the view model all subscribe at once on a fresh
+     * account, all three saw a count of zero before any insert landed, and a new account opened
+     * with three identical "Portfolio 1" cards. The mutex makes the check and the insert one
+     * step, so only the first caller through creates anything.
+     *
+     * The cleanup is deliberately narrow: it only removes extra portfolios that still carry the
+     * seeded name AND hold no transactions, keeping the earliest. A portfolio someone renamed or
+     * put a single row into is theirs, whatever created it.
+     */
+    private suspend fun ensureDefaultPortfolio(walletAddress: String) = defaultSeedMutex.withLock {
+        val dao = database.portfolioDefinitionDao()
+        val existing = dao.getPortfoliosOnce(walletAddress)
+        if (existing.isEmpty()) {
+            dao.insert(
                 PortfolioEntity(
                     id = UUID.randomUUID().toString(),
                     walletAddress = walletAddress,
-                    name = "Portfolio 1",
+                    name = DEFAULT_PORTFOLIO_NAME,
                     sortOrder = 0,
                     createdAtMillis = System.currentTimeMillis()
                 )
             )
+            return@withLock
         }
+        val seeded = existing.filter { it.name == DEFAULT_PORTFOLIO_NAME }
+        if (seeded.size < 2) return@withLock
+        val keep = seeded.minByOrNull { it.createdAtMillis } ?: return@withLock
+        for (duplicate in seeded) {
+            if (duplicate.id == keep.id) continue
+            if (database.portfolioDao().countForPortfolio(duplicate.id) == 0) {
+                dao.delete(duplicate.id)
+            }
+        }
+        normalizeSortOrder(walletAddress)
     }
 
     suspend fun addPortfolio(name: String): PortfolioEntity? {

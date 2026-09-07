@@ -374,55 +374,77 @@ fun ColdStorageListScreen(
     if (pendingKpub != null) {
         val kpub = pendingKpub!!
         val isInvalid = importState.status == ColdStorageViewModel.ImportStatus.INVALID_KPUB
-        AlertDialog(
+        val colors = LocalAppColors.current
+        // A half sheet rather than a dialog box, matching every other menu on this screen. This
+        // was the one step in a sheet-shaped flow that still popped a dialog.
+        ModalBottomSheet(
             onDismissRequest = { pendingKpub = null; viewModel.resetImportState() },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.import_cold_storage_account), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.import_cold_storage_account),
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                )
+                Text(
+                    "Give this account a name so you can recognize it.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    "kpub: ${kpub.take(24)}\u2026",
+                    color = colors.textSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = { nameInput = it },
+                    label = { Text(stringResource(R.string.name)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedBorderColor = KaspaTeal,
+                        unfocusedBorderColor = colors.textSecondary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (isInvalid) {
                     Text(
-                        "kpub: ${kpub.take(24)}…",
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
+                        importState.errorMessage ?: "Not a valid kpub",
+                        color = Color(0xFFFF3B30),
+                        style = MaterialTheme.typography.bodySmall,
                     )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = nameInput,
-                        onValueChange = { nameInput = it },
-                        label = { Text(stringResource(R.string.name)) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (isInvalid) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            importState.errorMessage ?: "Not a valid kpub",
-                            color = Color(0xFFFF3B30),
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        onClick = { pendingKpub = null; viewModel.resetImportState() },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.cancel), color = colors.textSecondary)
+                    }
+                    Button(
+                        enabled = nameInput.isNotBlank(),
+                        onClick = { viewModel.importKpub(kpub, nameInput) },
+                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.import_action), color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = nameInput.isNotBlank(),
-                    onClick = { viewModel.importKpub(kpub, nameInput) }
-                ) {
-                    Text(stringResource(R.string.import_action), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingKpub = null; viewModel.resetImportState() }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
             }
-        )
+        }
     }
 
 }

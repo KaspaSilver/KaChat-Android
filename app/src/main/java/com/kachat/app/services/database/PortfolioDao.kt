@@ -23,6 +23,9 @@ interface PortfolioDao {
     suspend fun delete(id: String)
 
     /** Used when a portfolio itself is deleted — removes its whole ledger. */
+    @Query("SELECT COUNT(*) FROM portfolio_transactions WHERE portfolioId = :portfolioId")
+    suspend fun countForPortfolio(portfolioId: String): Int
+
     @Query("DELETE FROM portfolio_transactions WHERE portfolioId = :portfolioId")
     suspend fun deleteAllForPortfolio(portfolioId: String)
 
