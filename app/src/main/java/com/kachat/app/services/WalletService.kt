@@ -774,6 +774,9 @@ class WalletService @Inject constructor(
         onStep(KnsInscribeStep.VERIFYING)
         val verified = verifyProfileField(trimmedAssetId, fieldKey, trimmedValue)
         refreshBalance()
+        // We just changed this profile, so the cached copy of it is wrong by our own doing -
+        // drop it rather than let the owner see their old avatar or bio read back at them.
+        knsService.invalidateCache(myAddress)
 
         return ProfileUpdateResult(fieldKey = fieldKey, commitTxId = commit.commitTxId, revealTxId = revealTxId, verified = verified)
     }
@@ -863,7 +866,11 @@ class WalletService @Inject constructor(
 
     /** Marks an owned domain as primary — off-chain, free, no transaction. */
     suspend fun setPrimaryDomain(assetId: String) {
-        knsService.setPrimaryDomain(assetId.trim(), walletManager.getPrivateKeyBytes())
+        knsService.setPrimaryDomain(
+            assetId.trim(),
+            walletManager.getPrivateKeyBytes(),
+            ownerAddress = try { walletManager.getAddress() } catch (e: Exception) { null },
+        )
     }
 
     /** Polls the profile endpoint until the new field value is indexed, up to 90s — a UX confirmation step only. */

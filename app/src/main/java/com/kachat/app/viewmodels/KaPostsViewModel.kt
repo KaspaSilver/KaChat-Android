@@ -51,6 +51,8 @@ class KaPostsViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     private val translationService: PostTranslationService,
     private val unseenStore: com.kachat.app.services.KaPostsUnseenStore,
+    /** What KNS said about an address last time the app ran - see [KnsProfileCacheStore]. */
+    private val knsProfileCache: com.kachat.app.services.KnsProfileCacheStore,
 ) : ViewModel() {
 
     /** How many KaPosts notifications have arrived since the bell was last opened. */
@@ -601,8 +603,26 @@ class KaPostsViewModel @Inject constructor(
      */
     private val senderProbeLimit = kotlinx.coroutines.sync.Semaphore(4)
 
+    /**
+     * Seeds the in-memory maps from disk, so a cold start opens with the names and avatars it
+     * already knew instead of a feed of shortened addresses that fills in as requests land.
+     */
+    private fun seedSenderCachesFromDisk() {
+        val cached = knsProfileCache.snapshot()
+        if (cached.isEmpty()) return
+        _senderKnsNames.value = cached.mapValues { it.value.knsName }.cappedForSenders()
+        _senderProfiles.value = cached.mapValues { it.value.avatarUrl }.cappedForSenders()
+        _senderBanners.value = cached.mapValues { it.value.bannerUrl }.cappedForSenders()
+        _senderBios.value = cached.mapValues { it.value.bio }.cappedForSenders()
+    }
+
     fun ensureSenderProfileFetched(address: String) {
-        if (address.isEmpty() || _senderProfiles.value.containsKey(address)) return
+        if (address.isEmpty()) return
+        // A cached answer recent enough to still be true - the whole point of the disk cache.
+        // Checked BEFORE the in-memory map so a seeded entry that has since gone stale is still
+        // re-probed rather than being treated as settled for the life of the process.
+        if (knsProfileCache.isFresh(address)) return
+        if (_senderProfiles.value.containsKey(address) && knsProfileCache.entry(address) == null) return
         // Same unbounded-growth guard as cappedForSenders - a reset just re-allows a probe.
         if (probedSenderProfiles.size > 4000) probedSenderProfiles.clear()
         if (!probedSenderProfiles.add(address)) return
@@ -610,7 +630,13 @@ class KaPostsViewModel @Inject constructor(
             senderProbeLimit.withPermit {
             try {
                 val ownedAssets = knsService.getOwnedDomains(address)
-                if (ownedAssets.isEmpty()) return@launch
+                if (ownedAssets.isEmpty()) {
+                    // "This address has no KNS" is a real answer, and re-asking for it on every
+                    // launch was the most common wasted call of the lot. Cached, with a shorter
+                    // life than a positive one since a domain can be inscribed at any time.
+                    knsProfileCache.put(address, null, null, null, null)
+                    return@withPermit
+                }
                 val ownedNames = ownedAssets.mapNotNull { it.asset }
                 val primary = knsService.reverseResolve(address)
                 val activeName = KnsService.pickActiveDomain(ownedNames, null, primary)
@@ -630,6 +656,15 @@ class KaPostsViewModel @Inject constructor(
                     }
                     if (_senderProfiles.value[address] != null && _senderBanners.value[address] != null) break
                 }
+                // One write per probe, not per field: four writes for one answer would be four
+                // serialisations of the whole map.
+                knsProfileCache.put(
+                    address = address,
+                    knsName = _senderKnsNames.value[address],
+                    avatarUrl = _senderProfiles.value[address],
+                    bannerUrl = _senderBanners.value[address],
+                    bio = _senderBios.value[address],
+                )
             } catch (e: Exception) {
                 Log.w(TAG, "Could not fetch KNS profile for $address", e)
             }
@@ -805,6 +840,9 @@ class KaPostsViewModel @Inject constructor(
     }
 
     init {
+        // Before anything else: open with what KNS told us last time this app ran, rather than
+        // a feed of shortened addresses that fills in as requests land.
+        seedSenderCachesFromDisk()
         viewModelScope.launch {
             // Strictly per-account follow state, part 2: on an account switch, re-arm the
             // one-shot chain sync so the NEW account's on-chain follow graph is imported into

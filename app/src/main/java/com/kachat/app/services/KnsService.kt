@@ -16,7 +16,9 @@ import javax.inject.Singleton
 
 @Singleton
 class KnsService @Inject constructor(
-    private val networkService: NetworkService
+    private val networkService: NetworkService,
+    /** Survives the process, so a cold start does not re-ask KNS what it already knew. */
+    private val profileCache: KnsProfileCacheStore,
 ) {
     /**
      * NetworkService.knsApi starts out null and only becomes non-null once the
@@ -47,8 +49,24 @@ class KnsService @Inject constructor(
      * back to the first verified domain they own, matching iOS KNSService's exact rule:
      * `finalPrimary = primaryDomain ?? allDomains.first?.fullName`.
      */
-    suspend fun reverseResolve(address: String): String? {
-        return getExplicitPrimaryDomain(address) ?: getOwnedDomains(address).firstOrNull()?.asset
+    /**
+     * Cached on disk, because this is the single most-repeated KNS call in the app: the chat
+     * list sweeps it over every contact, group screens sweep it over every member, and each miss
+     * costs up to two requests. A domain changes rarely, so an answer from the last run of the
+     * app is almost always still the answer.
+     *
+     * [forceRefresh] is for the paths that just CHANGED something and must not read their own
+     * stale answer back - setting a primary domain, or editing a KNS profile.
+     */
+    suspend fun reverseResolve(address: String, forceRefresh: Boolean = false): String? {
+        if (!forceRefresh) {
+            profileCache.cachedReverse(address)?.let { return it.domain }
+        }
+        val resolved = getExplicitPrimaryDomain(address) ?: getOwnedDomains(address).firstOrNull()?.asset
+        // "Owns nothing" is cached too, with a shorter life - it is the most common answer and
+        // the most wasteful one to keep re-asking for.
+        profileCache.putReverse(address, resolved)
+        return resolved
     }
 
     /** The address's explicitly-set primary domain, or null if none has ever been set — unlike [reverseResolve], this does NOT fall back to "first owned domain". */
@@ -178,13 +196,20 @@ class KnsService @Inject constructor(
      * `submitSetPrimaryDomainWithSignatureFallback` (`ContactsView.swift:1157-1191`), including
      * reusing the exact same 3-mode signing fallback as image upload.
      */
-    suspend fun setPrimaryDomain(domainId: String, walletPrivateKey: ByteArray) {
+    suspend fun setPrimaryDomain(domainId: String, walletPrivateKey: ByteArray, ownerAddress: String? = null) {
         val signMessage = """{"domainId":"$domainId","timestamp":${System.currentTimeMillis()}}"""
         withSigningFallback(signMessage, walletPrivateKey) { signature ->
             val response = api().setPrimaryDomain(KnsSetPrimaryNameRequest(signMessage = signMessage, signature = signature))
             if (!response.success) throw IllegalStateException(response.error ?: response.message ?: "Failed to set primary domain")
         }
+        // The cached answer for this address is now wrong by our own doing - drop it so the next
+        // lookup goes to the network rather than handing back what we just replaced.
+        ownerAddress?.let { profileCache.invalidate(it) }
     }
+
+    /** Drops every cached KNS answer for [address]. For callers that have just changed a domain
+     *  or a profile and must not read their own stale answer back. */
+    fun invalidateCache(address: String) = profileCache.invalidate(address)
 
     /**
      * Signs [signMessage] with each [KaspaMessageSigner.SigningMode] in turn and calls [attempt]
