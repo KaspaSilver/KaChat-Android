@@ -2989,6 +2989,15 @@ fun ProfileScreen(
     // Its own state (not shared with any other QR overlay) so its bigger green border can't
     // accidentally affect an unrelated overlay reusing the same flag.
     var showAcceptPaymentQr by remember { mutableStateOf(false) }
+    // The address the Receive QR should draw: one that has never been used. Resolved when the
+    // overlay opens rather than held ready, so the used-ness check is current at that moment.
+    var receiveQrAddress by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(showAcceptPaymentQr) {
+        if (showAcceptPaymentQr) {
+            receiveQrAddress = null
+            viewModel.resolveFreshReceiveAddress { address -> receiveQrAddress = address }
+        }
+    }
     var showWithdrawDialog by remember { mutableStateOf(false) }
     var showSpendingWithdrawDialog by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
@@ -3552,13 +3561,30 @@ fun ProfileScreen(
             )
         }
         if (showAcceptPaymentQr) {
-            QrCodeOverlay(
-                value = spendingAddress ?: "",
-                onDismiss = { showAcceptPaymentQr = false },
-                message = "This address should be used for everything not related to chatting or KNS profile creation.",
-                borderColor = KaspaTeal,
-                borderWidth = 4.dp
-            )
+            val resolved = receiveQrAddress
+            if (resolved == null) {
+                // Nothing to draw yet - showing the old address for a frame and swapping it is
+                // worse than a moment of "preparing", since a QR is scanned the instant it appears.
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f))
+                        .clickable { showAcceptPaymentQr = false },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Preparing a fresh address", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+            } else {
+                QrCodeOverlay(
+                    value = resolved,
+                    onDismiss = { showAcceptPaymentQr = false },
+                    message = "A fresh address, never used before. This address should be used for everything not related to chatting or KNS profile creation.",
+                    borderColor = KaspaTeal,
+                    borderWidth = 4.dp
+                )
+            }
         }
         }
     }

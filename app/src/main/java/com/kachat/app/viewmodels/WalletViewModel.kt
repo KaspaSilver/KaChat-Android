@@ -392,6 +392,54 @@ class WalletViewModel @Inject constructor(
     }
 
     /**
+     * The address to show on the Receive QR: one that has never been used.
+     *
+     * Reusing an address across payments links them to each other and to you, so the QR should
+     * never hand out one that has already appeared on chain. It does NOT mint a new address per
+     * tap: an address that has never been used is still fresh the second time you open the
+     * sheet, and minting one per tap would balloon the address list and lengthen every future
+     * gap-limit scan for no privacy gained.
+     *
+     * So: keep the current primary while it is unused, and advance the primary to a fresh slot
+     * once it has been paid into. Advancing the PRIMARY rather than just showing some other
+     * address keeps one coherent "your address" - the balance under Spending goes on meaning the
+     * address the QR just showed, and a send still rotates it the same way it always did.
+     *
+     * [onResult] receives the address to draw, or null when nothing can be derived. A live check
+     * that FAILS keeps the current address rather than rotating on a guess: rotating whenever the
+     * network hiccups is how an address list fills with empty slots.
+     *
+     * Matches iOS's WalletManager.freshReceiveAddress.
+     */
+    fun resolveFreshReceiveAddress(onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            val current = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
+            if (current == null) {
+                onResult(null)
+                return@launch
+            }
+            val entries = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
+            val currentEntry = entries.firstOrNull { it.address == current }
+            // Unknown (list failed, or the row was not live-checked) counts as "leave it alone".
+            val confirmedUsed = currentEntry != null && currentEntry.liveChecked &&
+                (currentEntry.everUsed || currentEntry.balanceSompi > 0L)
+            if (!confirmedUsed) {
+                onResult(current)
+                return@launch
+            }
+            generateNewSpendingAddress { index ->
+                if (index == null) {
+                    onResult(current)
+                    return@generateNewSpendingAddress
+                }
+                setActiveSpendingAddress(index)
+                val next = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
+                onResult(next ?: current)
+            }
+        }
+    }
+
+    /**
      * iOS parity (lowestUnusedSpendingAddress): Generate recycles the LOWEST truly-unused
      * index — skipping the primary, anything holding a balance or with on-chain history, and
      * ACTIVELY offered payment-pool reservations (promised to a contact right now; reverted
