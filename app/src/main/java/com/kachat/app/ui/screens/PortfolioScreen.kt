@@ -1373,42 +1373,50 @@ fun PortfolioPriceChartScreen(
                 scrubbed?.let {
                     Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
                 }
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = when {
-                            scrubbed != null -> formatUsdPrice(scrubbed!!.second, currencyCode)
-                            currentPriceUsd != null -> formatUsdPrice(currentPriceUsd!!, currencyCode)
-                            else -> "—"
-                        },
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp
-                    )
-                    // Read off the series the chart is drawing, so the number and the line can
-                    // never disagree - and so it answers whichever range button is selected
-                    // rather than repeating the 24h figure under every one of them.
-                    val rangeChange = PortfolioViewModel.computeRangeChange(priceHistory)
-                    if (scrubbed == null && rangeChange != null) {
-                        Spacer(Modifier.width(8.dp))
-                        val positive = rangeChange.first >= 0
-                        val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-                            Icon(
-                                if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
-                                contentDescription = null,
-                                tint = color,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(2.dp))
-                            Text(
-                                "${formatFiatAmount(kotlin.math.abs(rangeChange.first), currencyCode)} " +
-                                    "(${String.format(Locale.US, "%.2f", kotlin.math.abs(rangeChange.second))}%) " +
-                                    rangeLabelFor(priceRangeDays),
-                                color = color,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                        }
+                // The change sits UNDER the price rather than beside it. A long price and a
+                // long change figure on one line had no room left at larger text sizes or in a
+                // currency with a wordy symbol, and something had to shrink or clip. Stacked,
+                // neither constrains the other whatever they say.
+                Text(
+                    text = when {
+                        scrubbed != null -> formatUsdPrice(scrubbed!!.second, currencyCode)
+                        currentPriceUsd != null -> formatUsdPrice(currentPriceUsd!!, currencyCode)
+                        else -> "—"
+                    },
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp
+                )
+                // Read off the series the chart is drawing, so the number and the line can never
+                // disagree - and so it answers whichever range button is selected rather than
+                // repeating the 24h figure under every one of them. Percent only: the move in
+                // currency is the price above minus itself a moment ago, which the chart already
+                // draws, and a per-KAS amount at four decimal places says very little.
+                val rangeChange = PortfolioViewModel.computeRangeChange(priceHistory)
+                if (scrubbed == null && rangeChange != null) {
+                    val positive = rangeChange.first >= 0
+                    val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                            contentDescription = null,
+                            tint = color,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            "${String.format(Locale.US, "%.2f", kotlin.math.abs(rangeChange.second))}%",
+                            color = color,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            rangeLabelFor(priceRangeDays),
+                            color = LocalAppColors.current.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
@@ -1486,40 +1494,48 @@ fun PortfolioValueChartScreen(
                 scrubbed?.let {
                     Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
                 }
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        formatFiatAmount(scrubbed?.second ?: summary.currentValue, currencyCode),
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp
-                    )
-                    // The move across the SELECTED range, so pressing 1W answers "how did this do
-                    // this week" rather than repeating the 24h figure under every button. Hidden
-                    // while scrubbing: the big number is then a past value, and a range figure
-                    // beside it would read as that point's own move.
-                    val rangeChange = PortfolioViewModel.computeRangeChange(valueHistory)
-                    val changeAmount = rangeChange?.first
-                    val changePercent = rangeChange?.second
-                    if (scrubbed == null && changeAmount != null && changePercent != null) {
-                        val isUp = changeAmount >= 0
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        ) {
-                            Icon(
-                                if (isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                                contentDescription = null,
-                                tint = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                "${formatFiatAmount(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
-                                color = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                            )
-                        }
+                // The change sits UNDER the value rather than beside it - see the note on the
+                // price header. A six-figure portfolio and its change had nowhere to go on one
+                // line.
+                Text(
+                    formatFiatAmount(scrubbed?.second ?: summary.currentValue, currencyCode),
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp
+                )
+                // The move across the SELECTED range, so pressing 1W answers "how did this do
+                // this week" rather than repeating the 24h figure under every button. Hidden
+                // while scrubbing: the big number is then a past value, and a range figure under
+                // it would read as that point's own move.
+                val rangeChange = PortfolioViewModel.computeRangeChange(valueHistory)
+                val changeAmount = rangeChange?.first
+                val changePercent = rangeChange?.second
+                if (scrubbed == null && changeAmount != null && changePercent != null) {
+                    val isUp = changeAmount >= 0
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Icon(
+                            if (isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                            contentDescription = null,
+                            tint = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            "${formatFiatAmount(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
+                            color = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                        // Which range that move covers - iOS shows it, and without it the figure
+                        // reads as a fixed 24h number under every button.
+                        Text(
+                            rangeLabelFor(priceRangeDays),
+                            color = LocalAppColors.current.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                        )
                     }
                 }
             }
