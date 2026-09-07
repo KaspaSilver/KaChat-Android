@@ -123,14 +123,18 @@ class WalletService @Inject constructor(
             Log.e("WalletService", "Error refreshing spending balance", e)
         }
 
-        // The whole set in ONE round trip - a per-address loop would be dozens of requests on a
-        // wallet that has been used for a while. Left at its previous value on failure.
+        // The whole set through fetchBalancesBatched: one round trip where the REST host
+        // implements the batch endpoint, and a chunked per-address sweep where it does not.
+        // Calling api.getBalances directly meant a host without that endpoint threw, the total
+        // stayed null, and the Total line simply never appeared.
         try {
             val all = walletManager.allSpendingAddresses()
             if (all.isEmpty()) return
-            val balances = api.getBalances(BalancesRequest(all))
+            val balances = fetchBalancesBatched(all)
             if ((try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }) != address) return
-            _spendingTotalBalance.value = balances.sumOf { it.balance }
+            // An address the sweep could not reach comes back absent, which reads as zero. That
+            // is a floor, not a wrong number, and it is still better than no line at all.
+            if (balances.isNotEmpty()) _spendingTotalBalance.value = balances.values.sum()
         } catch (e: Exception) {
             Log.w("WalletService", "Error refreshing total spending balance", e)
         }

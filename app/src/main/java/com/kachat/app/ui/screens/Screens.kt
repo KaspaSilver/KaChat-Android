@@ -3421,8 +3421,11 @@ fun ProfileScreen(
                 title = "Spending",
                 address = spendingAddress,
                 balanceText = spendingBalance,
-                // Only worth a line when it says something the balance above does not.
-                totalText = spendingTotalBalance?.takeIf { it != "Total: ${spendingBalance}" },
+                // Always shown, not only when it differs from the balance above. On a wallet
+                // whose funds all sit on the current address the two ARE the same number, and
+                // hiding the line then is exactly when its absence is most confusing - it reads
+                // as the feature being missing rather than as "nothing else to add".
+                totalText = spendingTotalBalance,
                 onCopy = {
                     spendingAddress?.let {
                         addressCardClipboardManager.setText(AnnotatedString(it))
