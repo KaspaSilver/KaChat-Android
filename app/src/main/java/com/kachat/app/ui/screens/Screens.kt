@@ -3580,7 +3580,7 @@ fun ProfileScreen(
                 QrCodeOverlay(
                     value = resolved,
                     onDismiss = { showAcceptPaymentQr = false },
-                    message = "A fresh address, never used before. This address should be used for everything not related to chatting or KNS profile creation.",
+                    message = "A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting or KNS profile creation.",
                     borderColor = KaspaTeal,
                     borderWidth = 4.dp
                 )

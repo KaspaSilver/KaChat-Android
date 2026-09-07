@@ -214,6 +214,19 @@ class WalletManager @Inject constructor(
         sharedPrefs.edit().putString(PREF_HIDDEN_SPENDING_ADDRESSES, gson.toJson(hidden)).apply()
     }
 
+    /**
+     * Which index the Receive QR is currently handing out for [walletAddress], or null when it
+     * has not chosen one yet. Persisted per wallet, and entirely separate from the primary:
+     * receiving and spending are different jobs, and the QR must not change which address a
+     * payment comes out of.
+     */
+    fun getReceiveAddressIndex(walletAddress: String): Int? =
+        sharedPrefs.getInt("receive_index_$walletAddress", -1).takeIf { it >= 0 }
+
+    fun setReceiveAddressIndex(walletAddress: String, index: Int) {
+        sharedPrefs.edit().putInt("receive_index_$walletAddress", index).apply()
+    }
+
     /** Indices hidden under [walletAddress] — never deletes the address itself, just what Manage Addresses filters out. */
     fun getHiddenSpendingIndices(walletAddress: String): Set<Int> =
         getAllHiddenSpendingAddresses().filter { it.walletAddress == walletAddress }.map { it.index }.toSet()

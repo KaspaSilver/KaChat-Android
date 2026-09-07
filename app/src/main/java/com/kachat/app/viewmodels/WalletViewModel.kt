@@ -394,47 +394,75 @@ class WalletViewModel @Inject constructor(
     /**
      * The address to show on the Receive QR: one that has never been used.
      *
-     * Reusing an address across payments links them to each other and to you, so the QR should
-     * never hand out one that has already appeared on chain. It does NOT mint a new address per
-     * tap: an address that has never been used is still fresh the second time you open the
-     * sheet, and minting one per tap would balloon the address list and lengthen every future
-     * gap-limit scan for no privacy gained.
+     * Reusing an address across payments links them to each other and to you, so the QR must
+     * never hand out one that has already appeared on chain. Three rules, in order:
      *
-     * So: keep the current primary while it is unused, and advance the primary to a fresh slot
-     * once it has been paid into. Advancing the PRIMARY rather than just showing some other
-     * address keeps one coherent "your address" - the balance under Spending goes on meaning the
-     * address the QR just showed, and a send still rotates it the same way it always did.
+     * 1. The address it handed out last time, while that is still unused. It does NOT mint a new
+     *    address per tap - an unused address is still unused the second time you open it, and
+     *    minting one per tap would balloon the address list and lengthen every future gap-limit
+     *    scan for no privacy gained.
+     * 2. Otherwise the primary, while THAT is unused - a fresh wallet should not reveal a second
+     *    slot before the first one has seen anything.
+     * 3. Otherwise a newly revealed slot, remembered as the receive pointer for next time.
+     *
+     * The primary is never changed. Receiving and spending are separate jobs: which address a
+     * payment comes out of is not the QR's business, and moving it would make the balance under
+     * Spending mean something different from one tap to the next. Funds arriving here are covered
+     * by the Total line on the same screen and by Manage Addresses.
      *
      * [onResult] receives the address to draw, or null when nothing can be derived. A live check
-     * that FAILS keeps the current address rather than rotating on a guess: rotating whenever the
+     * that FAILS keeps the current answer rather than rotating on a guess: rotating whenever the
      * network hiccups is how an address list fills with empty slots.
      *
      * Matches iOS's WalletManager.freshReceiveAddress.
      */
     fun resolveFreshReceiveAddress(onResult: (String?) -> Unit) {
         viewModelScope.launch {
+            val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { null }
             val current = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
-            if (current == null) {
+            if (walletAddress == null || current == null) {
                 onResult(null)
                 return@launch
             }
             val entries = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
-            val currentEntry = entries.firstOrNull { it.address == current }
-            // Unknown (list failed, or the row was not live-checked) counts as "leave it alone".
-            val confirmedUsed = currentEntry != null && currentEntry.liveChecked &&
-                (currentEntry.everUsed || currentEntry.balanceSompi > 0L)
-            if (!confirmedUsed) {
+            // Unknown (list failed, or the row was not live-checked) counts as "not used" here,
+            // so a network wobble never rotates the pointer.
+            fun confirmedUsed(address: String): Boolean {
+                val entry = entries.firstOrNull { it.address == address } ?: return false
+                return entry.liveChecked && (entry.everUsed || entry.balanceSompi > 0L)
+            }
+
+            // Rule 1: the pointer from last time, if it is still untouched.
+            val storedIndex = walletManager.getReceiveAddressIndex(walletAddress)
+            if (storedIndex != null) {
+                val stored = try { walletManager.deriveSpendingAddress(storedIndex) } catch (e: Exception) { null }
+                if (stored != null && !confirmedUsed(stored)) {
+                    onResult(stored)
+                    return@launch
+                }
+            }
+            // Rule 2: the primary, while it has seen nothing.
+            if (!confirmedUsed(current)) {
+                walletManager.getActiveAccount()?.spendingAddressIndex?.let {
+                    walletManager.setReceiveAddressIndex(walletAddress, it)
+                }
                 onResult(current)
                 return@launch
             }
+            // Rule 3: a slot that has never been revealed, funded or offered. Revealed but NOT
+            // made primary.
             generateNewSpendingAddress { index ->
                 if (index == null) {
                     onResult(current)
                     return@generateNewSpendingAddress
                 }
-                setActiveSpendingAddress(index)
-                val next = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
-                onResult(next ?: current)
+                val fresh = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
+                if (fresh == null) {
+                    onResult(current)
+                    return@generateNewSpendingAddress
+                }
+                walletManager.setReceiveAddressIndex(walletAddress, index)
+                onResult(fresh)
             }
         }
     }
