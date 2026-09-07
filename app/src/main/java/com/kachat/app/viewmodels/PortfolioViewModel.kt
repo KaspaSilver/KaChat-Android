@@ -116,6 +116,14 @@ class PortfolioViewModel @Inject constructor(
     private val _priceChange24h = MutableStateFlow<Double?>(null)
     val priceChange24h: StateFlow<Double?> = _priceChange24h.asStateFlow()
 
+    /** Market cap and market-cap rank, shown under the price chart's converter. Left at the last
+     *  good value on a failure - a rank that blinks out because one request timed out is worse
+     *  than a slightly stale one. */
+    private val _marketCap = MutableStateFlow<Double?>(null)
+    val marketCap: StateFlow<Double?> = _marketCap.asStateFlow()
+    private val _marketCapRank = MutableStateFlow<Int?>(null)
+    val marketCapRank: StateFlow<Int?> = _marketCapRank.asStateFlow()
+
     /** Backs PortfolioScreen's pull-to-refresh indicator - true while a refreshPrice() call's price + history fetches are both still in flight. */
     private val _isRefreshingPortfolio = MutableStateFlow(false)
     val isRefreshingPortfolio: StateFlow<Boolean> = _isRefreshingPortfolio.asStateFlow()
@@ -242,6 +250,12 @@ class PortfolioViewModel @Inject constructor(
                 retryBackoffMillis = INITIAL_RETRY_BACKOFF_MILLIS
             } else {
                 scheduleRetry()
+            }
+        }
+        viewModelScope.launch {
+            repository.getMarketStats(currencyCode)?.let { (cap, rank) ->
+                _marketCap.value = cap
+                _marketCapRank.value = rank
             }
         }
         if (force) {
@@ -555,6 +569,20 @@ class PortfolioViewModel @Inject constructor(
          * after) 24h before it. `null` when no sample exists that far back yet (e.g. a portfolio
          * created today), so callers can show a neutral/no-data state instead of a wrong number.
          */
+        /**
+         * First-to-last change across a series, which for a range-scoped history IS that range's
+         * move. Used by both full-chart headers so the figure beside the big number always
+         * answers the range button the user just pressed, rather than always answering "24h".
+         */
+        internal fun computeRangeChange(series: List<Pair<Long, Double>>): Pair<Double, Double>? {
+            if (series.size < 2) return null
+            val first = series.first().second
+            val last = series.last().second
+            val amount = last - first
+            val percent = if (first == 0.0) 0.0 else (amount / first) * 100.0
+            return amount to percent
+        }
+
         internal fun computeTodayChange(valueHistory: List<Pair<Long, Double>>): Pair<Double, Double>? {
             val latest = valueHistory.lastOrNull() ?: return null
             val dayAgoMillis = latest.first - 86_400_000L

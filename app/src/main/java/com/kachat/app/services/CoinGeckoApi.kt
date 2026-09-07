@@ -38,6 +38,18 @@ data class HistoryMarketData(
     @SerializedName("current_price") val currentPrice: Map<String, Double>?
 )
 
+/**
+ * `/api/v3/coins/markets?vs_currency=usd&ids=kaspa` row — market cap and market-cap rank.
+ *
+ * CoinMarketCap's own API needs a key, and its rank agrees with CoinGecko's in all but the
+ * occasional off-by-one around ties, so this is the figure people recognise without shipping a
+ * second provider and a secret to reach it.
+ */
+data class CoinGeckoMarketRow(
+    @SerializedName("market_cap") val marketCap: Double?,
+    @SerializedName("market_cap_rank") val marketCapRank: Int?
+)
+
 // -------------------------------------------------------------------------
 // Retrofit interface
 // -------------------------------------------------------------------------
@@ -50,6 +62,12 @@ interface CoinGeckoApi {
         @Query("vs_currencies") vsCurrencies: String = "usd",
         @Query("include_24hr_change") include24hrChange: Boolean = true
     ): SimplePriceResponse
+
+    @GET("api/v3/coins/markets")
+    suspend fun getMarkets(
+        @Query("vs_currency") vsCurrency: String = "usd",
+        @Query("ids") ids: String = "kaspa"
+    ): List<CoinGeckoMarketRow>
 
     @GET("api/v3/coins/kaspa/market_chart")
     suspend fun getMarketChart(

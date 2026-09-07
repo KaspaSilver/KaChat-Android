@@ -242,6 +242,8 @@ fun PortfolioScreen(
                         currentPriceUsd = currentPriceUsd,
                         priceChange24h = priceChange24h,
                         summary = summary,
+                        valueChange24hPercent = activePortfolioId
+                            ?.let { cardSummaries[it]?.todayChangePercent },
                         currencyCode = currencyCode,
                         onOpenPrice = { navController.navigate("portfolio_price_chart") },
                         onOpenValue = { navController.navigate("portfolio_value_chart") }
@@ -1002,6 +1004,8 @@ private fun PortfolioLauncherSquares(
     currentPriceUsd: Double?,
     priceChange24h: Double?,
     summary: PortfolioSummary,
+    /** Last 24 hours for the active portfolio; null until there is a sample that old. */
+    valueChange24hPercent: Double?,
     currencyCode: String,
     onOpenPrice: () -> Unit,
     onOpenValue: () -> Unit
@@ -1024,7 +1028,11 @@ private fun PortfolioLauncherSquares(
             modifier = Modifier.weight(1f).clickable { onOpenValue() },
             title = "Value",
             value = formatFiatAmount(summary.currentValue, currencyCode),
-            changePercent = summary.totalPLPercent,
+            // The last 24 hours, not all-time P&L. A number that only ever grows over the life of
+            // the portfolio says nothing about today, and it sat beside the Kaspa square's 24h
+            // figure reading as though the two were comparable.
+            changePercent = valueChange24hPercent,
+            emptyChangeLabel = "24h change not available yet",
             headerIcon = {
                 Icon(
                     Icons.Default.TrendingUp,
@@ -1043,7 +1051,10 @@ private fun LauncherSquare(
     title: String,
     value: String,
     changePercent: Double?,
-    headerIcon: @Composable () -> Unit
+    headerIcon: @Composable () -> Unit,
+    /** Shown in place of the badge when there is no change to report. A fresh portfolio has no
+     *  24h move, and 0.00% would be a claim rather than an absence. */
+    emptyChangeLabel: String? = null,
 ) {
     Column(
         modifier = modifier
@@ -1077,6 +1088,14 @@ private fun LauncherSquare(
             fontSize = 20.sp,
             maxLines = 1
         )
+        if (changePercent == null && emptyChangeLabel != null) {
+            Text(
+                emptyChangeLabel,
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 10.sp,
+                maxLines = 1
+            )
+        }
         if (changePercent != null) {
             val positive = changePercent >= 0
             val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
@@ -1195,6 +1214,75 @@ private fun PortfolioBigChart(
     }
 }
 
+/** How to name the selected range in a label beside the change figure. */
+private fun rangeLabelFor(days: Int): String = when (days) {
+    1 -> "24h"
+    7 -> "1W"
+    30 -> "1M"
+    90 -> "3M"
+    365 -> "1Y"
+    else -> "${days}d"
+}
+
+/**
+ * Large money in the form people actually quote it: $2.4B, not $2,412,880,314.00. A market cap
+ * written out in full is a wall of digits that has to be counted to be understood.
+ */
+private fun formatCompactFiat(value: Double, currencyCode: String): String {
+    val magnitude = kotlin.math.abs(value)
+    val (scaled, suffix) = when {
+        magnitude >= 1_000_000_000_000.0 -> magnitude / 1_000_000_000_000.0 to "T"
+        magnitude >= 1_000_000_000.0 -> magnitude / 1_000_000_000.0 to "B"
+        magnitude >= 1_000_000.0 -> magnitude / 1_000_000.0 to "M"
+        magnitude >= 1_000.0 -> magnitude / 1_000.0 to "K"
+        else -> magnitude to ""
+    }
+    val decimals = if (scaled < 10) 2 else if (scaled < 100) 1 else 0
+    val sign = if (value < 0) "-" else ""
+    return sign + currencySymbolFor(currencyCode) + String.format(Locale.US, "%.${decimals}f", scaled) + suffix
+}
+
+/**
+ * Where Kaspa sits against every other coin, and what the whole supply is worth at the price
+ * above. Both come from the same keyless CoinGecko client the chart already uses; CoinMarketCap's
+ * own API needs a key, and the two ranks agree.
+ */
+@Composable
+private fun MarketStatsCard(marketCap: Double?, rank: Int?, currencyCode: String) {
+    if (marketCap == null && rank == null) return
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .padding(14.dp)
+    ) {
+        if (rank != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Rank", color = colors.textSecondary, fontSize = 13.sp)
+                Text("#$rank", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        }
+        if (rank != null && marketCap != null) {
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = colors.divider)
+            Spacer(Modifier.height(10.dp))
+        }
+        if (marketCap != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Market Cap", color = colors.textSecondary, fontSize = 13.sp)
+                Text(
+                    formatCompactFiat(marketCap, currencyCode),
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit) {
     val ranges = listOf(1 to "1D", 7 to "1W", 30 to "1M", 90 to "3M", 365 to "1Y")
@@ -1227,9 +1315,10 @@ fun PortfolioPriceChartScreen(
     viewModel: PortfolioViewModel = hiltViewModel()
 ) {
     val currentPriceUsd by viewModel.currentPriceUsd.collectAsState()
-    val priceChange24h by viewModel.priceChange24h.collectAsState()
     val priceHistory by viewModel.priceHistory.collectAsState()
     val priceRangeDays by viewModel.priceRangeDays.collectAsState()
+    val marketCap by viewModel.marketCap.collectAsState()
+    val marketCapRank by viewModel.marketCapRank.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
 
@@ -1295,9 +1384,13 @@ fun PortfolioPriceChartScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 32.sp
                     )
-                    if (scrubbed == null && priceChange24h != null) {
+                    // Read off the series the chart is drawing, so the number and the line can
+                    // never disagree - and so it answers whichever range button is selected
+                    // rather than repeating the 24h figure under every one of them.
+                    val rangeChange = PortfolioViewModel.computeRangeChange(priceHistory)
+                    if (scrubbed == null && rangeChange != null) {
                         Spacer(Modifier.width(8.dp))
-                        val positive = priceChange24h!! >= 0
+                        val positive = rangeChange.first >= 0
                         val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                             Icon(
@@ -1308,7 +1401,9 @@ fun PortfolioPriceChartScreen(
                             )
                             Spacer(Modifier.width(2.dp))
                             Text(
-                                "${String.format(Locale.US, "%.2f", kotlin.math.abs(priceChange24h!!))}% (24h)",
+                                "${formatFiatAmount(kotlin.math.abs(rangeChange.first), currencyCode)} " +
+                                    "(${String.format(Locale.US, "%.2f", kotlin.math.abs(rangeChange.second))}%) " +
+                                    rangeLabelFor(priceRangeDays),
                                 color = color,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
@@ -1329,6 +1424,7 @@ fun PortfolioPriceChartScreen(
             PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
 
             KasConverterCard(price = currentPriceUsd, currencyCode = currencyCode)
+            MarketStatsCard(marketCap = marketCap, rank = marketCapRank, currencyCode = currencyCode)
         }
             PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
@@ -1397,10 +1493,13 @@ fun PortfolioValueChartScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 32.sp
                     )
-                    // Hidden while scrubbing: the big number is then a past value, and a change
-                    // figure for today beside it would read as that day's move.
-                    val changeAmount = todayCard?.todayChangeAmount
-                    val changePercent = todayCard?.todayChangePercent
+                    // The move across the SELECTED range, so pressing 1W answers "how did this do
+                    // this week" rather than repeating the 24h figure under every button. Hidden
+                    // while scrubbing: the big number is then a past value, and a range figure
+                    // beside it would read as that point's own move.
+                    val rangeChange = PortfolioViewModel.computeRangeChange(valueHistory)
+                    val changeAmount = rangeChange?.first
+                    val changePercent = rangeChange?.second
                     if (scrubbed == null && changeAmount != null && changePercent != null) {
                         val isUp = changeAmount >= 0
                         Row(

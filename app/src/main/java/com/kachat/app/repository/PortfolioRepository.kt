@@ -178,6 +178,17 @@ class PortfolioRepository @Inject constructor(
      * [readPersistedPrice]'s cache so the UI can paint the last-known price instantly on the
      * next open even when every fetch in a session is throttled.
      */
+    /**
+     * Market cap and market-cap rank for KAS. Null on any failure - the caller keeps its last
+     * good values rather than blanking a rank because one request timed out.
+     */
+    suspend fun getMarketStats(currency: String = "usd"): Pair<Double, Int?>? = try {
+        val row = coinGeckoApi.getMarkets(vsCurrency = currency).firstOrNull()
+        row?.marketCap?.let { it to row.marketCapRank }
+    } catch (e: Exception) {
+        null
+    }
+
     suspend fun getCurrentPriceUsd(currency: String = "usd"): PriceWithChange? {
         repeat(2) { attempt ->
             try {
