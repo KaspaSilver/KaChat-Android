@@ -3,6 +3,7 @@ package com.kachat.app.viewmodels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.sync.withPermit
 import com.kachat.app.models.KaPostDraft
 import com.kachat.app.models.findPostByRemoteIdIn
 import com.kachat.app.models.findPostIn
@@ -588,12 +589,25 @@ class KaPostsViewModel @Inject constructor(
      */
     private val probedSenderProfiles = mutableSetOf<String>()
 
+    /**
+     * Caps how many identity probes run at once.
+     *
+     * Each probe is a KNS owned-domains call, a reverse resolve, and a profile fetch per owned
+     * asset - so a handful of addresses is already a dozen requests. Every caller launched its
+     * own coroutine with nothing holding them back: opening the composer fired one per contact
+     * simultaneously (prefetchMentionCandidates), and a fast scroll fires one per row on top of
+     * that. Four at a time keeps the KNS host from being hit with a burst, and costs nothing on
+     * the small numbers that are the normal case. iOS bounds the same work at three.
+     */
+    private val senderProbeLimit = kotlinx.coroutines.sync.Semaphore(4)
+
     fun ensureSenderProfileFetched(address: String) {
         if (address.isEmpty() || _senderProfiles.value.containsKey(address)) return
         // Same unbounded-growth guard as cappedForSenders - a reset just re-allows a probe.
         if (probedSenderProfiles.size > 4000) probedSenderProfiles.clear()
         if (!probedSenderProfiles.add(address)) return
         viewModelScope.launch {
+            senderProbeLimit.withPermit {
             try {
                 val ownedAssets = knsService.getOwnedDomains(address)
                 if (ownedAssets.isEmpty()) return@launch
@@ -618,6 +632,7 @@ class KaPostsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Could not fetch KNS profile for $address", e)
+            }
             }
         }
     }
