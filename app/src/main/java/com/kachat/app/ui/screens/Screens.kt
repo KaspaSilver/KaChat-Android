@@ -2982,6 +2982,7 @@ fun ProfileScreen(
 
     val spendingAddress by viewModel.spendingAddress.collectAsState()
     val spendingBalance by viewModel.spendingBalance.collectAsState()
+    val spendingTotalBalance by viewModel.spendingTotalBalance.collectAsState()
     val manageAddresses by viewModel.manageAddresses.collectAsState()
     val primarySpendingEntry = manageAddresses.firstOrNull { it.isCurrent }
     var showFundIdentityQr by remember { mutableStateOf(false) }
@@ -3411,6 +3412,8 @@ fun ProfileScreen(
                 title = "Spending",
                 address = spendingAddress,
                 balanceText = spendingBalance,
+                // Only worth a line when it says something the balance above does not.
+                totalText = spendingTotalBalance?.takeIf { it != "Total: ${spendingBalance}" },
                 onCopy = {
                     spendingAddress?.let {
                         addressCardClipboardManager.setText(AnnotatedString(it))
@@ -8483,6 +8486,9 @@ private fun ProfileAddressActionCard(
     title: String,
     address: String?,
     balanceText: String?,
+    /** Optional second line under the balance. Used by the Spending row for the whole-account
+     *  total; the Chatting row has one address, so there is no total to distinguish. */
+    totalText: String? = null,
     onCopy: () -> Unit,
     onSend: () -> Unit,
     onManage: () -> Unit
@@ -8531,6 +8537,14 @@ private fun ProfileAddressActionCard(
                     fontSize = 13.sp,
                     maxLines = 1
                 )
+                if (!totalText.isNullOrBlank()) {
+                    Text(
+                        totalText,
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                        maxLines = 1
+                    )
+                }
             }
         }
         ProfileAddressCardAction(Icons.AutoMirrored.Filled.Send, "Send", onSend)

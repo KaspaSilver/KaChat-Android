@@ -147,6 +147,13 @@ class WalletViewModel @Inject constructor(
 
     val spendingBalanceSompi: StateFlow<Long> = walletService.spendingBalance
 
+    /** Every revealed spending address together, formatted, or null when unknown. Shown under the
+     *  Profile row's balance: that row says what the address you are about to spend FROM holds,
+     *  which after a few payments is a long way from what the account has. */
+    val spendingTotalBalance: StateFlow<String?> = walletService.spendingTotalBalance.map { sompi ->
+        sompi?.let { "Total: %.8f KAS".format(java.util.Locale.US, it.toDouble() / 100_000_000.0) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
     /** Re-derives the current spending address and refreshes its balance — safe to call anytime the Profile screen appears, since the underlying index only ever changes via a successful send. */
     fun refreshSpendingAddress() {
         _spendingAddress.value = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }

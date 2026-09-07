@@ -57,6 +57,12 @@ class WalletService @Inject constructor(
     private val _spendingBalance = MutableStateFlow(0L)
     val spendingBalance: StateFlow<Long> = _spendingBalance.asStateFlow()
 
+    /** Every revealed spending address together, not just the current one. Null until a fetch
+     *  succeeds, and left alone on a failure, so the caller can omit the line rather than claim
+     *  a total of zero. */
+    private val _spendingTotalBalance = MutableStateFlow<Long?>(null)
+    val spendingTotalBalance: StateFlow<Long?> = _spendingTotalBalance.asStateFlow()
+
     /** Amount sent with a handshake transaction: 0.2 KAS (matches iOS `handshakeAmount`). */
     private val HANDSHAKE_AMOUNT_SOMPI = 20_000_000L
 
@@ -115,6 +121,18 @@ class WalletService @Inject constructor(
             _spendingBalance.value = response.balance
         } catch (e: Exception) {
             Log.e("WalletService", "Error refreshing spending balance", e)
+        }
+
+        // The whole set in ONE round trip - a per-address loop would be dozens of requests on a
+        // wallet that has been used for a while. Left at its previous value on failure.
+        try {
+            val all = walletManager.allSpendingAddresses()
+            if (all.isEmpty()) return
+            val balances = api.getBalances(BalancesRequest(all))
+            if ((try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }) != address) return
+            _spendingTotalBalance.value = balances.sumOf { it.balance }
+        } catch (e: Exception) {
+            Log.w("WalletService", "Error refreshing total spending balance", e)
         }
     }
 
