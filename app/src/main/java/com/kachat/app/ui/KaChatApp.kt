@@ -649,10 +649,17 @@ fun MainShell(
                 // active account changes so a switch never leaves the previous account's unread
                 // dot (and entries) showing until something else happens to poke it.
                 val dockNotifAddress by walletViewModel.address.collectAsState()
-                LaunchedEffect(dockNotifAddress) { dockNotifVm.store.reloadIfNeeded() }
+                LaunchedEffect(dockNotifAddress) {
+                    dockNotifVm.store.reloadIfNeeded()
+                    dockNotifVm.kaPostsUnseen.reloadIfNeeded()
+                }
                 val dockNotifEntries by dockNotifVm.store.entries.collectAsState()
                 val dockNotifLastSeen by dockNotifVm.store.lastSeenAt.collectAsState()
                 val dockNotifUnread = dockNotifEntries.count { it.timestampMs > dockNotifLastSeen }
+                // KaPosts owns its own count, so its dock tab carries its own dot. Whether
+                // KaPosts is in the dock at all is the user's arrangement; when it is not, the
+                // count still waits on its bell inside KaPosts.
+                val dockKaPostsUnseen by dockNotifVm.kaPostsUnseen.unseenCount.collectAsState()
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -749,7 +756,9 @@ fun MainShell(
                                                 tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
                                                 modifier = Modifier.size(24.dp)
                                             )
-                                            if (screen == Screen.Profile && dockNotifUnread > 0) {
+                                            val hasDot = (screen == Screen.Profile && dockNotifUnread > 0) ||
+                                                (screen == Screen.KaPosts && dockKaPostsUnseen > 0)
+                                            if (hasDot) {
                                                 Box(
                                                     modifier = Modifier
                                                         .align(Alignment.TopEnd)

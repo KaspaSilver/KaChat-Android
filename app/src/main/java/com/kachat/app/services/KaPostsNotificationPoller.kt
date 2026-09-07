@@ -42,6 +42,8 @@ class KaPostsNotificationPoller @Inject constructor(
     // Global notification center (bell on the Profile screen): every fresh KaPosts action is
     // listed there, independent of the per-kind OS-banner gates below.
     private val notificationCenter: GlobalNotificationCenterStore,
+    // KaPosts activity is counted here, not listed in the global center - see recordArrivals.
+    private val unseenStore: KaPostsUnseenStore,
     // Actor naming (iOS parity): your saved contact name wins, then their KNS domain,
     // then the shortened address — never a bare address when a better name exists.
     private val chatRepository: com.kachat.app.repository.ChatRepository,
@@ -113,32 +115,17 @@ class KaPostsNotificationPoller @Inject constructor(
         }
         val freshAll = notifications.filter { it.timestamp > lastSeen }
         dataStore.edit { it[key] = maxOf(newest, lastSeen) }
-        // The global notification center lists EVERY fresh action (mentions included),
-        // regardless of the per-kind banner gates or remote-push mode below.
-        for (n in freshAll.sortedBy { it.timestamp }) {
-            val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue
-            if (actor == address) continue
-            val text = KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
-            notificationCenter.record(
-                id = "kaposts-${n.id}",
-                source = "kaposts",
-                title = "${actorDisplayName(actor)} ${actionText(n.contentType, n.voteType, text)}",
-                body = text.take(90),
-                timestampMs = n.timestamp,
-                // Same per-kind target rule as the banner + in-app overlay. A reply targets
-                // its PARENT post (contentId = the post replied to): opening the reply's own
-                // txid as a thread root showed the comment with no parent above it.
-                targetId = when (n.contentType) {
-                    "reply" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
-                    "quote" -> if (text.isEmpty()) n.contentId else n.id
-                    "follow" -> null
-                    // A mention's acting content IS the post/comment mentioning you — fall back
-                    // to the notification's own txid when contentId is empty, else no target.
-                    "mention" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
-                    else -> n.contentId
-                },
-            )
+        // Counted, not listed. The KaPosts notifications screen already serves these rows from
+        // the indexer with richer formatting, so keeping a second copy in the global center
+        // reported the same like or reply twice and let one busy feed dominate the profile
+        // bell's count. What the indexer cannot tell us is how many the user has not looked at,
+        // which is what this feeds. Counts EVERY fresh action, regardless of the per-kind banner
+        // gates or remote-push mode below - the bell is a record of activity, not of pings.
+        val arrivals = freshAll.count { n ->
+            val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey)
+            actor != null && actor != address
         }
+        unseenStore.recordArrivals(arrivals)
         // Per-kind toggle filter (Likes/Reposts/Follows/Dislikes/Comments) applied at the
         // source, BEFORE the burst cap, so a disabled kind neither notifies nor consumes a
         // slot. The watermark above already advanced over filtered items.

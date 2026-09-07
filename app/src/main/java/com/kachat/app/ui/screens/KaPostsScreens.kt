@@ -466,6 +466,10 @@ fun KaPostsScreen(
     }
     var showMyProfile by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
+    val kaPostsUnseen by viewModel.unseenNotifications.collectAsState()
+    // Opening the list IS seeing them - cleared on open rather than on close so the badge does
+    // not sit there while you read.
+    LaunchedEffect(showNotifications) { if (showNotifications) viewModel.markNotificationsSeen() }
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
     // The profile whose follow list is open: null = my own list, non-null = another user's.
     var followListPubkey by remember { mutableStateOf<String?>(null) }
@@ -670,7 +674,12 @@ fun KaPostsScreen(
                     KaPostsMenuIcon(Icons.Default.AccountCircle, "Profile") {
                         showMyProfile = true; viewModel.loadMyProfile()
                     }
-                    KaPostsMenuIcon(Icons.Default.Notifications, "Notifications") { showNotifications = true }
+                    KaPostsMenuIcon(
+                        Icons.Default.Notifications,
+                        "Notifications",
+                        onClick = { showNotifications = true },
+                        badgeCount = kaPostsUnseen,
+                    )
                     KaPostsMenuIcon(Icons.Default.EditNote, "Drafts") {
                         drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty())
                         showDrafts = true
@@ -4440,15 +4449,41 @@ private fun NewPostsPill(count: Int, onClick: () -> Unit) {
 private fun KaPostsMenuIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
+    /** Unseen count for this destination, drawn as a badge. Zero draws nothing. Declared before
+     *  [onClick] so a trailing lambda still binds to the click, as every other call site here
+     *  writes it. */
+    badgeCount: Int = 0,
     onClick: () -> Unit,
 ) {
     IconButton(onClick = onClick, modifier = Modifier.size(46.dp)) {
-        Icon(
-            icon,
-            contentDescription = contentDescription,
-            tint = LocalAppColors.current.textPrimary,
-            modifier = Modifier.size(26.dp),
-        )
+        Box {
+            Icon(
+                icon,
+                contentDescription = if (badgeCount > 0) {
+                    "$contentDescription, $badgeCount unseen"
+                } else {
+                    contentDescription
+                },
+                tint = LocalAppColors.current.textPrimary,
+                modifier = Modifier.size(26.dp),
+            )
+            // A count rather than a plain dot: in here you are one tap from the list, so how many
+            // are waiting is worth knowing before you decide to look.
+            if (badgeCount > 0) {
+                Text(
+                    if (badgeCount > 99) "99+" else badgeCount.toString(),
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 8.dp, y = (-4).dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFE0245E))
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                )
+            }
+        }
     }
 }
 

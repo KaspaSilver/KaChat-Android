@@ -73,10 +73,15 @@ class GlobalNotificationCenterStore @Inject constructor(
         val wallet = walletAddressOrNull() ?: return
         if (loadedWallet == wallet) return
         loadedWallet = wallet
-        _entries.value = try {
+        val loaded = try {
             gson.fromJson(prefs.getString(entriesKey(wallet), null) ?: "[]", listType) ?: emptyList()
-        } catch (_: Exception) { emptyList() }
+        } catch (_: Exception) { emptyList<Entry>() }
+        // Drops KaPosts rows an earlier build persisted. They live in KaPosts' own bell now, and
+        // leaving them would keep the profile bell double-counting until they aged out.
+        val kept = loaded.filter { it.source != "kaposts" }
+        _entries.value = kept
         _lastSeenAt.value = prefs.getLong(seenKey(wallet), 0L)
+        if (kept.size != loaded.size) persist()
     }
 
     private fun persist() {
@@ -86,6 +91,10 @@ class GlobalNotificationCenterStore @Inject constructor(
 
     @Synchronized
     fun record(id: String, source: String, title: String, body: String, timestampMs: Long, targetId: String?) {
+        // KaPosts activity is counted by KaPostsUnseenStore and listed by the KaPosts
+        // notifications screen. Refused here rather than merely left uncalled, so a future caller
+        // cannot quietly reintroduce the double-reporting.
+        if (source == "kaposts") return
         reloadIfNeeded()
         if (loadedWallet == null) return
         if (id.isEmpty() || _entries.value.any { it.id == id }) return

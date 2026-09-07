@@ -49,7 +49,16 @@ class KaPostsViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val settings: AppSettingsRepository,
     private val translationService: PostTranslationService,
+    private val unseenStore: com.kachat.app.services.KaPostsUnseenStore,
 ) : ViewModel() {
+
+    /** How many KaPosts notifications have arrived since the bell was last opened. */
+    val unseenNotifications: kotlinx.coroutines.flow.StateFlow<Int> = unseenStore.unseenCount
+
+    /** The user has opened the notifications list; nothing is unseen any more. */
+    fun markNotificationsSeen() {
+        unseenStore.markAllSeen()
+    }
 
     companion object {
         private const val TAG = "KaPostsViewModel"
