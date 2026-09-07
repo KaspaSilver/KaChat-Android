@@ -252,17 +252,16 @@ fun WelcomeScreen(
                 )
             }
 
-            // A welcome for a first run only - on a returning device it is more of the space the
-            // accounts list needs.
-            if (!hasWallet) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.secure_messaging_on_kaspa_blockdag),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = KaspaSubtext,
-                    textAlign = TextAlign.Center
-                )
-            }
+            // Shown whether or not there are accounts saved: it is what the screen is, and
+            // hiding it on a returning device left the wordmark sitting on its own with nothing
+            // saying what it belongs to.
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.secure_messaging_on_kaspa_blockdag),
+                style = MaterialTheme.typography.bodyLarge,
+                color = KaspaSubtext,
+                textAlign = TextAlign.Center
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
