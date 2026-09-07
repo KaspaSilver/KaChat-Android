@@ -1895,8 +1895,20 @@ class ChatViewModel @Inject constructor(
      * that choice is pinned until the user changes it themselves, even if the contact's
      * on-chain primary is or becomes something else).
      */
-    fun refreshKnsNamesForAllContacts() {
+    fun refreshKnsNamesForAllContacts(force: Boolean = false) {
+        // Debounced, and the stamp is PERSISTED. Every contact costs two uncached KNS calls
+        // (getPrimaryName, then assets-by-owner), and this runs whenever the chat list appears -
+        // so without a guard, opening the app walked the whole address book again every single
+        // time, including on a cold start seconds after the names were read from the database
+        // where they already live. An in-memory guard would still have re-walked on every
+        // launch, which is exactly the case worth stopping.
+        val prefs = appContext.getSharedPreferences("kns_sweep", Context.MODE_PRIVATE)
+        val last = prefs.getLong(KNS_NAME_SWEEP_KEY, 0L)
+        val now = System.currentTimeMillis()
+        if (!force && now - last < KNS_NAME_SWEEP_INTERVAL_MS) return
+        if (!knsNameSweepRunning.compareAndSet(false, true)) return
         viewModelScope.launch {
+            try {
             val contacts = chatRepository.getContacts().first()
             for (contact in contacts) {
                 if (!canAutoUpdateAliasToDomain(contact.alias, contact.systemContactId, contact.knsName)) continue
@@ -1904,6 +1916,10 @@ class ChatViewModel @Inject constructor(
                 if (primary != contact.knsName) {
                     chatRepository.addContact(contact.copy(knsName = primary))
                 }
+            }
+            prefs.edit().putLong(KNS_NAME_SWEEP_KEY, System.currentTimeMillis()).apply()
+            } finally {
+                knsNameSweepRunning.set(false)
             }
         }
     }
@@ -2758,7 +2774,14 @@ class ChatViewModel @Inject constructor(
         return chatRepository.getReactionsForContact(contactId)
     }
 
+    /** One sweep at a time - see [refreshKnsNamesForAllContacts]. */
+    private val knsNameSweepRunning = java.util.concurrent.atomic.AtomicBoolean(false)
+
     companion object {
+        private const val KNS_NAME_SWEEP_KEY = "last_kns_name_sweep_ms"
+        /** A contact's primary domain changes rarely, and the name already lives in the
+         *  database, so the sweep is a refresh rather than something the UI waits on. */
+        private const val KNS_NAME_SWEEP_INTERVAL_MS = 6L * 60 * 60 * 1000
         /** KNS domain shown as "Donate" in Settings -> About — see [startDonationChat]. */
         const val DONATION_KNS_DOMAIN = "kachat.kas"
 
