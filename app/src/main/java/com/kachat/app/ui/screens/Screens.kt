@@ -2989,12 +2989,15 @@ fun ProfileScreen(
     // Its own state (not shared with any other QR overlay) so its bigger green border can't
     // accidentally affect an unrelated overlay reusing the same flag.
     var showAcceptPaymentQr by remember { mutableStateOf(false) }
-    // The address the Receive QR should draw: one that has never been used. Resolved when the
-    // overlay opens rather than held ready, so the used-ness check is current at that moment.
+    // The address the Receive QR should draw: one that has never been used. Warmed when this
+    // screen appears and re-confirmed when the overlay opens - see both effects below.
     var receiveQrAddress by remember { mutableStateOf<String?>(null) }
+    // Re-confirmed on open, but NOT cleared first: the warm-up above has almost always settled
+    // it already, so the overlay draws immediately and this only swaps the value if the warmed
+    // answer went stale in between. A QR must not change under a pointed camera for any lesser
+    // reason, and blanking it first would guarantee a spinner every time.
     LaunchedEffect(showAcceptPaymentQr) {
         if (showAcceptPaymentQr) {
-            receiveQrAddress = null
             viewModel.resolveFreshReceiveAddress { address -> receiveQrAddress = address }
         }
     }
@@ -3018,6 +3021,20 @@ fun ProfileScreen(
         viewModel.refreshOwnedDomains()
         viewModel.refreshSpendingAddress()
         viewModel.loadManageAddresses()
+        // Decide the Receive QR's address NOW, not when the button is tapped. The freshness
+        // check is a network round trip, so doing it on tap put a spinner between pressing
+        // Receive Kaspa and seeing a code.
+        viewModel.resolveFreshReceiveAddress { address -> receiveQrAddress = address }
+    }
+
+    // Funds landing used to show up here only on the next open or a pull-to-refresh - the screen
+    // that shows your balance was the one screen not listening for it. Same always-on event the
+    // chat composer's Available pill already uses.
+    LaunchedEffect(Unit) {
+        chatViewModel.ownAddressUtxoActivityEvents.collect {
+            viewModel.refreshBalance()
+            viewModel.refreshSpendingAddress()
+        }
     }
 
     val pullRefreshState = rememberPullToRefreshState()
