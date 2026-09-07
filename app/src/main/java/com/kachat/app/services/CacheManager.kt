@@ -20,6 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class CacheManager @Inject constructor(
     @ApplicationContext private val context: Context,
+    /** Not a directory - see [Category.KNS_PROFILES]. */
+    private val knsProfileCache: KnsProfileCacheStore,
 ) {
     enum class Category(val title: String, val detail: String) {
         IMAGES(
@@ -29,6 +31,10 @@ class CacheManager @Inject constructor(
         LINK_PREVIEWS(
             "Link Previews",
             "Thumbnails fetched for shared links. Rebuilt the next time a link is shown."
+        ),
+        KNS_PROFILES(
+            "KNS Profiles",
+            "Domains, avatars and bios KNS has told us about. Clearing this makes names and pictures load again from scratch."
         ),
         TEMPORARY_FILES(
             "Temporary Files",
@@ -40,6 +46,8 @@ class CacheManager @Inject constructor(
     private fun directories(category: Category): List<File> = when (category) {
         Category.IMAGES -> listOfNotNull(context.imageLoader.diskCache?.directory?.toFile())
         Category.LINK_PREVIEWS -> listOf(File(context.cacheDir, "nextcloud_previews"))
+        // Lives in SharedPreferences, not a folder - sized and cleared through the store itself.
+        Category.KNS_PROFILES -> emptyList()
         Category.TEMPORARY_FILES -> listOf(
             File(context.cacheDir, "shared_images"),
             File(context.cacheDir, "camera_captures"),
@@ -62,6 +70,9 @@ class CacheManager @Inject constructor(
         if (category == Category.TEMPORARY_FILES) {
             total += looseTempFiles().sumOf { it.length() }
         }
+        if (category == Category.KNS_PROFILES) {
+            total += knsProfileCache.approximateSizeBytes()
+        }
         total
     }
 
@@ -78,6 +89,9 @@ class CacheManager @Inject constructor(
             // The in-memory half has to go too, or the screen keeps showing what was just
             // deleted from disk until the app is restarted.
             context.imageLoader.memoryCache?.clear()
+        }
+        if (category == Category.KNS_PROFILES) {
+            knsProfileCache.clear()
         }
     }
 
