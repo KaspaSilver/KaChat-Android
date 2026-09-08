@@ -1521,19 +1521,28 @@ class GroupRepository @Inject constructor(
                 return
             }
             cursor = messages.lastOrNull()?.cursor
-            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             for (msg in messages) {
                 val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
                 val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
                 handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
             }
-            // A short page is the last page. Marked only on a real end, so an interrupted run
-            // retries from the beginning rather than leaving a hole behind.
+            // Cursor AFTER the page is ingested, never before. Written first, an interruption
+            // between the write and the ingest left the cursor sitting past messages that were
+            // never stored, and ordinary sync only ever walks forward, so that page was gone for
+            // good.
+            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
+            // A short page is the last page. A FAILED fetch returns without marking, so a run
+            // the indexer cut short retries from the beginning rather than leaving a hole behind.
             if (messages.size < 50) {
                 deepBackfilledGroupKeys.add(syncKey)
                 return
             }
         }
+        // Page budget spent mid-stream. The walk from the start up to `cursor` was contiguous,
+        // so resuming from it next run loses nothing - and marking the key is the only thing that
+        // makes that resume happen. Without this, a stream longer than 2000 items restarted from
+        // nothing every run and could never reach its own newest end.
+        deepBackfilledGroupKeys.add(syncKey)
     }
 
     /**
@@ -1562,16 +1571,25 @@ class GroupRepository @Inject constructor(
                 return
             }
             cursor = messages.lastOrNull()?.cursor
-            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             for (msg in messages) {
                 val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
                 handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
             }
+            // Cursor AFTER the page is ingested, never before. Written first, an interruption
+            // between the write and the ingest left the cursor sitting past messages that were
+            // never stored, and ordinary sync only ever walks forward, so that page was gone for
+            // good.
+            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             if (messages.size < 50) {
                 deepBackfilledGroupKeys.add(syncKey)
                 return
             }
         }
+        // Page budget spent mid-stream. The walk from the start up to `cursor` was contiguous,
+        // so resuming from it next run loses nothing - and marking the key is the only thing that
+        // makes that resume happen. Without this, a stream longer than 2000 items restarted from
+        // nothing every run and could never reach its own newest end.
+        deepBackfilledGroupKeys.add(syncKey)
     }
 
     /**
@@ -1598,16 +1616,25 @@ class GroupRepository @Inject constructor(
                 return
             }
             cursor = messages.lastOrNull()?.cursor
-            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             for (msg in messages) {
                 val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
                 handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
             }
+            // Cursor AFTER the page is ingested, never before. Written first, an interruption
+            // between the write and the ingest left the cursor sitting past messages that were
+            // never stored, and ordinary sync only ever walks forward, so that page was gone for
+            // good.
+            advanceGroupSyncCursor(syncKey, walletAddress, cursor)
             if (messages.size < 50) {
                 deepBackfilledGroupKeys.add(syncKey)
                 return
             }
         }
+        // Page budget spent mid-stream. The walk from the start up to `cursor` was contiguous,
+        // so resuming from it next run loses nothing - and marking the key is the only thing that
+        // makes that resume happen. Without this, a stream longer than 2000 items restarted from
+        // nothing every run and could never reach its own newest end.
+        deepBackfilledGroupKeys.add(syncKey)
     }
 
     /**
