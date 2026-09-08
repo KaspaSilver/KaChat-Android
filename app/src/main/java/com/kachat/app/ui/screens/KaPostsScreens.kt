@@ -3014,7 +3014,16 @@ private fun ThreadReplyComposer(
  * where the indent starts over.
  */
 private const val THREAD_INDENT_STEP_DP = 16
-private const val THREAD_INDENT_MAX_LEVELS = 4
+/**
+ * ONE step, then flat.
+ *
+ * A reply to the post you are reading is indented once, so it reads as a reply. Expanding ITS
+ * replies does not push further right - past the first step the indent says nothing you cannot
+ * already see from the connector line, and it costs column width that the text needs. X flattens
+ * for the same reason; depth beyond this is handled by opening the comment as its own thread,
+ * where the indent starts over.
+ */
+private const val THREAD_INDENT_MAX_LEVELS = 1
 
 /**
  * One comment with X-style inline expansion: "View N replies" loads and indents its children
