@@ -756,15 +756,35 @@ fun MainShell(
                                                 tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
                                                 modifier = Modifier.size(24.dp)
                                             )
-                                            val hasDot = (screen == Screen.Profile && dockNotifUnread > 0) ||
-                                                (screen == Screen.KaPosts && dockKaPostsUnseen > 0)
-                                            if (hasDot) {
-                                                Box(
+                                            // How many are waiting, not just that some are. A
+                                            // bare dot said "something happened"; the number is
+                                            // the difference between deciding to look now and
+                                            // deciding to look later, and the dock is where that
+                                            // decision gets made.
+                                            val badgeCount = when (screen) {
+                                                Screen.Profile -> dockNotifUnread
+                                                Screen.KaPosts -> dockKaPostsUnseen
+                                                else -> 0
+                                            }
+                                            if (badgeCount > 0) {
+                                                Text(
+                                                    // Capped in the LABEL, not in the stored
+                                                    // count: the real number survives a long
+                                                    // absence and only its rendering shortens.
+                                                    text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                                                    color = Color.White,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
                                                     modifier = Modifier
                                                         .align(Alignment.TopEnd)
-                                                        .size(8.dp)
+                                                        // Offset out over the icon's corner so a
+                                                        // two- or three-character badge grows
+                                                        // outward instead of shoving the icon.
+                                                        .offset(x = 7.dp, y = (-5).dp)
                                                         .clip(RoundedCornerShape(50))
-                                                        .background(Color(0xFFE0245E)),
+                                                        .background(Color(0xFFE0245E))
+                                                        .padding(horizontal = 4.dp, vertical = 1.dp),
                                                 )
                                             }
                                         }
