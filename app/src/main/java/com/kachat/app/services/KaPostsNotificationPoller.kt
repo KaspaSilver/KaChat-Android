@@ -119,11 +119,19 @@ class KaPostsNotificationPoller @Inject constructor(
         // the indexer with richer formatting, so keeping a second copy in the global center
         // reported the same like or reply twice and let one busy feed dominate the profile
         // bell's count. What the indexer cannot tell us is how many the user has not looked at,
-        // which is what this feeds. Counts EVERY fresh action, regardless of the per-kind banner
-        // gates or remote-push mode below - the bell is a record of activity, not of pings.
-        val arrivals = freshAll.count { n ->
+        // which is what this feeds.
+        //
+        // Gated by the same per-kind switches as the banner. An earlier revision counted every
+        // fresh action regardless, treating the bell as a record of activity and the switches as
+        // being only about interruption - but the setting reads "do not tell me about this", and
+        // switching Likes off only to find a hundred of them waiting on the badge is the switch
+        // not working.
+        var arrivals = 0
+        for (n in freshAll) {
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey)
-            actor != null && actor != address
+            if (actor == null || actor == address) continue
+            if (!settingsRepository.shouldNotifyKaPostsAction(n.contentType, n.voteType)) continue
+            arrivals++
         }
         unseenStore.recordArrivals(arrivals)
         // Per-kind toggle filter (Likes/Reposts/Follows/Dislikes/Comments) applied at the

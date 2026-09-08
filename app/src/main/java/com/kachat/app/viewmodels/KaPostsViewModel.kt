@@ -1939,10 +1939,50 @@ class KaPostsViewModel @Inject constructor(
      * which is the notification stream's own filter-shrinkage - the fetch loop keeps paging until
      * enough rows survive it.
      */
+    /**
+     * Which KaPosts activity the user wants to hear about, as a snapshot readable without
+     * suspending - [mapNotification] runs inside a mapping lambda and cannot await DataStore.
+     */
+    private data class KaPostsNotifyPrefs(
+        val likes: Boolean = true,
+        val dislikes: Boolean = true,
+        val comments: Boolean = true,
+        val reposts: Boolean = true,
+        val follows: Boolean = true,
+        val mentions: Boolean = true,
+    ) {
+        /** Mirrors AppSettingsRepository.shouldNotifyKaPostsAction exactly. */
+        fun allows(contentType: String?, voteType: String?): Boolean = when (contentType) {
+            "vote" -> if (voteType == "downvote") dislikes else likes
+            "reply" -> comments
+            "quote" -> reposts
+            "follow" -> follows
+            "mention" -> mentions
+            else -> true
+        }
+    }
+
+    private val notifyPrefs: kotlinx.coroutines.flow.StateFlow<KaPostsNotifyPrefs> =
+        combine(
+            settings.kaPostsNotifyLikes,
+            settings.kaPostsNotifyDislikes,
+            settings.kaPostsNotifyComments,
+            settings.kaPostsNotifyReposts,
+            settings.kaPostsNotifyFollows,
+        ) { likes, dislikes, comments, reposts, follows ->
+            KaPostsNotifyPrefs(likes, dislikes, comments, reposts, follows)
+        }.combine(settings.kaPostsNotifyMentions) { prefs, mentions ->
+            prefs.copy(mentions = mentions)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, KaPostsNotifyPrefs())
+
     private fun mapNotification(n: com.kachat.app.services.KNotification): NotificationItem? {
         val my = myAddress()
         val address = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: return null
         if (address == my || isHidden(address)) return null
+        // A kind switched off in Settings does not belong in this list either. The switch reads
+        // "do not tell me about this", and a list full of the thing you muted is the switch not
+        // working.
+        if (!notifyPrefs.value.allows(n.contentType, n.voteType)) return null
         val text = com.kachat.app.util.KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
         val kind: NotificationItem.Kind
         val target: String?

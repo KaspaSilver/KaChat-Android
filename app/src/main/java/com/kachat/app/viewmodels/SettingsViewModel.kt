@@ -75,6 +75,8 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val kaPostsNotifyComments = settings.kaPostsNotifyComments
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val kaPostsNotifyMentions = settings.kaPostsNotifyMentions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     fun setAddressActivityNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setAddressActivityNotificationsEnabled(value) }
     fun setKaPostsNotifyLikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyLikes(value) }
@@ -82,6 +84,7 @@ class SettingsViewModel @Inject constructor(
     fun setKaPostsNotifyFollows(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyFollows(value) }
     fun setKaPostsNotifyDislikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyDislikes(value) }
     fun setKaPostsNotifyComments(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyComments(value) }
+    fun setKaPostsNotifyMentions(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyMentions(value) }
 
     // ------------------------------------------------------------------
     // Chats Payment Privacy (per-account) — fresh-address payment pools.

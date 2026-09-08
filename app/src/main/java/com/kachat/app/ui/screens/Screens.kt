@@ -9400,6 +9400,7 @@ fun KaPostsNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsVie
     val follows by viewModel.kaPostsNotifyFollows.collectAsState()
     val dislikes by viewModel.kaPostsNotifyDislikes.collectAsState()
     val comments by viewModel.kaPostsNotifyComments.collectAsState()
+    val mentions by viewModel.kaPostsNotifyMentions.collectAsState()
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
@@ -9433,7 +9434,9 @@ fun KaPostsNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsVie
                 SettingsSwitchItem("Dislikes", dislikes) { viewModel.setKaPostsNotifyDislikes(it) }
                 SettingsDivider()
                 SettingsSwitchItem("Comments", comments) { viewModel.setKaPostsNotifyComments(it) }
-                SettingsFooter("Choose which KaPosts activity sends a notification. Quotes of your posts count as reposts.")
+                SettingsDivider()
+                SettingsSwitchItem("Mentions", mentions) { viewModel.setKaPostsNotifyMentions(it) }
+                SettingsFooter("Choose which KaPosts activity reaches you. Anything switched off sends no notification and does not appear in the KaPosts bell. Quotes of your posts count as reposts.")
             }
         }
     }

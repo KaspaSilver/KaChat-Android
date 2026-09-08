@@ -140,6 +140,7 @@ class AppSettingsRepository @Inject constructor(
         val KEY_KAPOSTS_NOTIFY_FOLLOWS = booleanPreferencesKey("kaposts_notify_follows")
         val KEY_KAPOSTS_NOTIFY_DISLIKES = booleanPreferencesKey("kaposts_notify_dislikes")
         val KEY_KAPOSTS_NOTIFY_COMMENTS = booleanPreferencesKey("kaposts_notify_comments")
+        val KEY_KAPOSTS_NOTIFY_MENTIONS = booleanPreferencesKey("kaposts_notify_mentions")
 
         // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
         val KEY_SYNC_SYSTEM_CONTACTS = booleanPreferencesKey("sync_system_contacts")
@@ -477,6 +478,9 @@ class AppSettingsRepository @Inject constructor(
     val kaPostsNotifyFollows: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_FOLLOWS] ?: true }
     val kaPostsNotifyDislikes: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_DISLIKES] ?: true }
     val kaPostsNotifyComments: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_COMMENTS] ?: true }
+    /** Defaults ON, and an install with no such key reads ON - a switch appearing for the first
+     *  time must not silently mute anything. */
+    val kaPostsNotifyMentions: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_MENTIONS] ?: true }
 
     /**
      * Whether a KaPosts notification event should post, per the K API's contentType/voteType
@@ -493,6 +497,10 @@ class AppSettingsRepository @Inject constructor(
             "reply" -> prefs[KEY_KAPOSTS_NOTIFY_COMMENTS] ?: true
             "quote" -> prefs[KEY_KAPOSTS_NOTIFY_REPOSTS] ?: true
             "follow" -> prefs[KEY_KAPOSTS_NOTIFY_FOLLOWS] ?: true
+            // Being named used to be unswitchable, on the theory that a mention is always about
+            // you. It is - but a busy account can be mentioned constantly, and "always about you"
+            // is a reason to offer the choice, not to make it for them.
+            "mention" -> prefs[KEY_KAPOSTS_NOTIFY_MENTIONS] ?: true
             else -> true
         }
     }
@@ -867,6 +875,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKaPostsNotifyFollows(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_FOLLOWS] = value }
     suspend fun setKaPostsNotifyDislikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_DISLIKES] = value }
     suspend fun setKaPostsNotifyComments(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_COMMENTS] = value }
+    suspend fun setKaPostsNotifyMentions(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_MENTIONS] = value }
     suspend fun setGoogleBackupEnabled(value: Boolean) = dataStore.edit { it[KEY_GOOGLE_BACKUP_ENABLED] = value }
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
     suspend fun setAutoCreateSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_AUTOCREATE_SYSTEM_CONTACTS] = value }
