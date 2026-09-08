@@ -3002,6 +3002,21 @@ private fun ThreadReplyComposer(
 }
 
 /**
+ * How far a reply may be pushed in, and by how much per level.
+ *
+ * The indent used to be `20 + depth * 24` with no ceiling. Four or five levels down that leaves a
+ * column too narrow to hold a word: text wrapped mid-word ("ambassad / or.") and the next reply
+ * was pushed off the right edge, which is what "you can't really see them" looks like. Every
+ * threaded feed caps this for the same reason.
+ *
+ * Only the OFFSET stops growing - `depth` itself keeps counting, so reply targeting and the
+ * connector line are unaffected, and tapping a comment still opens it as its own thread root
+ * where the indent starts over.
+ */
+private const val THREAD_INDENT_STEP_DP = 16
+private const val THREAD_INDENT_MAX_LEVELS = 4
+
+/**
  * One comment with X-style inline expansion: "View N replies" loads and indents its children
  * (connector line at the leading edge), recursively. The comment bubble replies to THIS comment
  * (the composer retargets); tapping the comment body pushes it as a new thread root for full depth.
@@ -3025,7 +3040,8 @@ private fun ThreadCommentNode(
     val expanded = comment.id in expandedIds
     val childCount = maxOf(comment.remoteReplyCount, comment.comments.count { it.posterAddress !in hidden })
 
-    Column(modifier = Modifier.padding(start = (20 + depth * 24).dp)) {
+    val indentLevels = minOf(depth, THREAD_INDENT_MAX_LEVELS)
+    Column(modifier = Modifier.padding(start = (20 + indentLevels * THREAD_INDENT_STEP_DP).dp)) {
         KaPostCell(
             post = comment,
             viewModel = viewModel,
