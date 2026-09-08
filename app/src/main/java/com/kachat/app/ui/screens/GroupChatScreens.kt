@@ -120,6 +120,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.kachat.app.util.ImagePrep
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
 // Shared, reused across every parseGroupMembers call. Allocating a fresh Gson + TypeToken per call
@@ -326,6 +328,7 @@ fun GroupChatThreadScreen(
     }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     var highlightedMessageId by remember { mutableStateOf<String?>(null) }
     val jumpToReply: (String) -> Unit = { targetId ->
         val index = messages.indexOfFirst { it.txId == targetId }
@@ -449,7 +452,22 @@ fun GroupChatThreadScreen(
             // Box takes the taller child's height and the photo rides level with the back button.
             // The bar's own title slot has a fixed height and clipped a photo this size, which is
             // why the group header was stuck with a smaller one than 1:1.
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Tapping the header row beside the name jumps to the very first message in
+                    // the group. On the PARENT, so the header card (Group Info), the back button
+                    // and the connection dot all keep their own taps - a child that handles the
+                    // press consumes it and never reaches here. No ripple: this is the bar's
+                    // empty space, not a button drawn on it.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        coroutineScope.launch { listState.scrollToItem(0) }
+                    }
+            ) {
             CenterAlignedTopAppBar(
                 // Empty: the header card rides in the SAME row (see the Box above), so the bar
                 // itself only carries the back button, the connection dot and select-mode actions.

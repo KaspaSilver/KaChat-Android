@@ -13,6 +13,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -725,6 +728,7 @@ fun BroadcastChannelScreen(
     val uriHandler = LocalUriHandler.current
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     var highlightedMessageId by remember { mutableStateOf<String?>(null) }
     val jumpToReply: (String) -> Unit = { targetId ->
         val index = messages.indexOfFirst { it.id == targetId }
@@ -848,6 +852,22 @@ fun BroadcastChannelScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Tapping the header row beside the name jumps to the very first message in
+                    // the room. On the PARENT, so the room name (Room Info), the back button and
+                    // the connection dot all keep their own taps - a child that handles the press
+                    // consumes it and never reaches here. No ripple: this is the bar's empty
+                    // space, not a button drawn on it.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        coroutineScope.launch { listState.scrollToItem(0) }
+                    }
+            ) {
             CenterAlignedTopAppBar(
                 title = {
                     // The title itself is the way in to everything about the room - share,
@@ -891,6 +911,7 @@ fun BroadcastChannelScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
+            }
         },
         bottomBar = {
             // Composer dims and goes inert while the zero-balance funding gate is up — see

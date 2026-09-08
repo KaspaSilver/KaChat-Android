@@ -34,6 +34,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -379,6 +381,13 @@ fun ChatThreadScreen(
         com.kachat.app.util.ChessGameEngine.activeGame(sourceMessages, address, contactId)
     }
 
+    // Hoisted out of the content lambda for the same reason `activeChessGame` above is: `topBar`
+    // is a sibling Composable lambda, and its "tap the header to go to the first message" needs
+    // this list.
+    val scrollState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+
     Scaffold(
         modifier = Modifier.imePadding(),
         containerColor = LocalAppColors.current.background,
@@ -387,7 +396,22 @@ fun ChatThreadScreen(
             // height, so the back button and the connection dot sit at the top of it and the
             // avatar rides level with them. The bar's own title slot has a fixed height and
             // would clip an avatar this size, which is what it was doing before.
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Tapping the header row beside the name jumps to the very first message in
+                    // the conversation. On the PARENT, so the avatar card (Chat Info), the back
+                    // button and the connection dot all keep their own taps - a child that
+                    // handles the press consumes it and never reaches here. No ripple: this is
+                    // the bar's empty space, not a button drawn on it.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        coroutineScope.launch { scrollState.scrollToItem(0) }
+                    }
+            ) {
             CenterAlignedTopAppBar(
                 // Empty: the header rides in the SAME row (see the Box above), so the bar itself
                 // only carries the back button, the connection dot and the trailing actions.
@@ -1099,8 +1123,6 @@ fun ChatThreadScreen(
             }
         }
     ) { padding ->
-        val scrollState = rememberLazyListState()
-        val coroutineScope = rememberCoroutineScope()
         var highlightedMessageId by remember { mutableStateOf<String?>(null) }
         val jumpToReply: (String) -> Unit = { targetId ->
             val index = messages.indexOfFirst { it.id == targetId }
