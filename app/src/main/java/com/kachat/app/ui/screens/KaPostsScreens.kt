@@ -79,6 +79,13 @@ import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.outlined.BarChart
@@ -466,6 +473,7 @@ fun KaPostsScreen(
     }
     var showMyProfile by remember { mutableStateOf(false) }
     var showNotifications by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
     val kaPostsUnseen by viewModel.unseenNotifications.collectAsState()
     // Opening the list IS seeing them - cleared on open rather than on close so the badge does
     // not sit there while you read.
@@ -674,6 +682,7 @@ fun KaPostsScreen(
                     KaPostsMenuIcon(Icons.Default.AccountCircle, "Profile") {
                         showMyProfile = true; viewModel.loadMyProfile()
                     }
+                    KaPostsMenuIcon(Icons.Default.Search, "Search") { showSearch = true }
                     KaPostsMenuIcon(
                         Icons.Default.Notifications,
                         "Notifications",
@@ -1132,6 +1141,23 @@ fun KaPostsScreen(
             address = tipAddress,
             displayName = tipName,
             onDismiss = { tipTarget = null },
+        )
+    }
+
+    if (showSearch) {
+        KaPostsSearchOverlay(
+            viewModel = viewModel,
+            onClose = { showSearch = false },
+            onOpenPost = { txId ->
+                showSearch = false
+                // The same route a shared link takes: a search result can be older than the
+                // loaded feed, and openShared is what knows how to go and find one.
+                openShared(txId)
+            },
+            onOpenProfile = { address ->
+                showSearch = false
+                viewModel.openPosterProfile(address, null)
+            },
         )
     }
 
@@ -3374,6 +3400,177 @@ fun KaPostsProfileOverlay(
 }
 
 // MARK: - Notifications overlay
+
+/**
+ * Search across KaPosts: posts by their text, and the people who wrote them.
+ *
+ * The depth line under the results is not decoration. This search is client-side (the K indexer
+ * has no search endpoint), so it can only see as far back as it has paged - saying how far, and
+ * offering to go further, is the difference between "no results" and "no results yet".
+ */
+@Composable
+fun KaPostsSearchOverlay(
+    viewModel: KaPostsViewModel,
+    onClose: () -> Unit,
+    onOpenPost: (String) -> Unit,
+    onOpenProfile: (String) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    var query by remember { mutableStateOf("") }
+    var showPeople by remember { mutableStateOf(false) }
+    val postResults by viewModel.searchPostResults.collectAsState()
+    val peopleResults by viewModel.searchPeopleResults.collectAsState()
+    val scannedCount by viewModel.searchScannedCount.collectAsState()
+    val hasMore by viewModel.searchHasMore.collectAsState()
+    val isSearching by viewModel.isSearching.collectAsState()
+
+    LaunchedEffect(query) { viewModel.setSearchQuery(query) }
+    // One page up front so the first search has something to answer with.
+    LaunchedEffect(Unit) { if (scannedCount == 0) viewModel.searchLoadMore() }
+
+    KaPostsOverlayScaffold(title = "Search", onClose = onClose) {
+        Column(Modifier.fillMaxSize()) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                placeholder = { Text("Posts and people", color = colors.textSecondary) },
+                leadingIcon = { Icon(Icons.Default.Search, null, tint = colors.textSecondary) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedBorderColor = KaspaTeal,
+                    unfocusedBorderColor = colors.textSecondary,
+                ),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            TabRow(
+                selectedTabIndex = if (showPeople) 1 else 0,
+                containerColor = colors.background,
+                contentColor = KaspaTeal,
+            ) {
+                Tab(selected = !showPeople, onClick = { showPeople = false }) {
+                    Text("Posts", color = if (!showPeople) KaspaTeal else colors.textSecondary, modifier = Modifier.padding(12.dp))
+                }
+                Tab(selected = showPeople, onClick = { showPeople = true }) {
+                    Text("People", color = if (showPeople) KaspaTeal else colors.textSecondary, modifier = Modifier.padding(12.dp))
+                }
+            }
+
+            if (query.isBlank()) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(Icons.Default.Search, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text("Search KaPosts", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Find posts by what they say, and people by their name. Only people who have posted appear.",
+                        color = colors.textSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                return@KaPostsOverlayScaffold
+            }
+
+            LazyColumn(Modifier.fillMaxSize()) {
+                if (showPeople) {
+                    items(peopleResults, key = { it.address }) { person ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenProfile(person.address); onClose() }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    viewModel.posterDisplayName(person.address),
+                                    color = colors.textPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                )
+                                Text(
+                                    if (person.postCount == 1) "1 post found" else "${person.postCount} posts found",
+                                    color = colors.textSecondary,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                            Icon(Icons.Default.KeyboardArrowRight, null, tint = colors.textSecondary)
+                        }
+                        HorizontalDivider(color = colors.divider)
+                    }
+                } else {
+                    items(postResults, key = { it.id }) { post ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { post.remoteId?.let { onOpenPost(it) }; onClose() }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                        ) {
+                            Text(
+                                viewModel.posterDisplayName(post.posterAddress),
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                            Text(
+                                post.text,
+                                color = colors.textSecondary,
+                                fontSize = 13.sp,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        HorizontalDivider(color = colors.divider)
+                    }
+                }
+
+                item {
+                    val empty = if (showPeople) peopleResults.isEmpty() else postResults.isEmpty()
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (empty && !isSearching) {
+                            Text("Nothing found yet", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        Text(
+                            if (hasMore) "Searched the most recent $scannedCount posts."
+                            else "Searched every post available.",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        if (hasMore) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel.searchLoadMore() },
+                                enabled = !isSearching,
+                                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                            ) {
+                                if (isSearching) {
+                                    CircularProgressIndicator(
+                                        color = Color.Black,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                } else {
+                                    Text("Search older posts", color = Color.Black, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun KaPostsNotificationsOverlay(

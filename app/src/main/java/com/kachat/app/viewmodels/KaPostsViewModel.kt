@@ -679,6 +679,96 @@ class KaPostsViewModel @Inject constructor(
     }
 
     /** Contact alias > KNS domain > shortened address. */
+    // ------------------------------------------------------------------
+    // Search
+    //
+    // CLIENT-SIDE, because the K indexer has no search endpoint - every route it has is a feed
+    // or a lookup by id (see KAPOSTS_INDEXER.md). So this pages the global feed and filters what
+    // comes back, which has one honest consequence the UI states rather than hides: it searches
+    // as far back as it has paged, not the whole chain.
+    //
+    // People are derived from the AUTHORS of the posts it scans, which is what makes "only
+    // people who have posted at least once" true by construction rather than by a filter that
+    // could be wrong: an address is only ever offered because a post of theirs was read.
+    // ------------------------------------------------------------------
+
+    /** One person in the People results, with how many of their scanned posts matched. */
+    data class SearchPerson(val address: String, val postCount: Int)
+
+    private val _searchScanned = MutableStateFlow<List<KaPostDraft>>(emptyList())
+    /** How many posts the search has read so far - shown so "nothing found" is honest. */
+    val searchScannedCount: StateFlow<Int> =
+        _searchScanned.map { it.size }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    private var searchCursor: String? = null
+    private val _searchHasMore = MutableStateFlow(true)
+    val searchHasMore: StateFlow<Boolean> = _searchHasMore.asStateFlow()
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    fun setSearchQuery(value: String) { _searchQuery.value = value }
+
+    /** Posts matching the query, by their text OR their author's name - so searching a person
+     *  finds their posts without having to switch tabs to find them first. */
+    val searchPostResults: StateFlow<List<KaPostDraft>> =
+        combine(_searchScanned, _searchQuery, combine(muted, blocked) { m, b -> m + b }) { scanned, query, hidden ->
+            val needle = query.trim().lowercase()
+            if (needle.isEmpty()) return@combine emptyList()
+            scanned.filter { post ->
+                post.posterAddress !in hidden &&
+                    (post.text.lowercase().contains(needle) ||
+                        posterDisplayName(post.posterAddress).lowercase().contains(needle))
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Authors of scanned posts whose name or address matches, busiest on this term first. */
+    val searchPeopleResults: StateFlow<List<SearchPerson>> =
+        combine(_searchScanned, _searchQuery, combine(muted, blocked) { m, b -> m + b }) { scanned, query, hidden ->
+            val needle = query.trim().lowercase()
+            if (needle.isEmpty()) return@combine emptyList()
+            scanned.asSequence()
+                .filter { it.posterAddress.isNotEmpty() && it.posterAddress !in hidden }
+                .groupingBy { it.posterAddress }
+                .eachCount()
+                .filter { (address, _) ->
+                    posterDisplayName(address).lowercase().contains(needle) ||
+                        address.lowercase().contains(needle)
+                }
+                .map { (address, count) -> SearchPerson(address, count) }
+                .sortedWith(compareByDescending<SearchPerson> { it.postCount }
+                    .thenBy { posterDisplayName(it.address) })
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Reads another stretch of the global feed into the searchable set. */
+    fun searchLoadMore() {
+        if (_isSearching.value || !_searchHasMore.value) return
+        _isSearching.value = true
+        viewModelScope.launch {
+            try {
+                val result = accumulate(
+                    startCursor = searchCursor,
+                    target = TARGET_NEW_ROWS,
+                    seenIds = _searchScanned.value.mapNotNull { it.remoteId }.toSet(),
+                    idOf = KPost::id,
+                    map = { mapRemotePost(it) },
+                    isVisible = { true },
+                    fetch = { before -> kaPostsService.fetchGlobalFeedPage(PAGE_LIMIT, before) },
+                )
+                _searchScanned.value = _searchScanned.value + result.items
+                searchCursor = result.cursor
+                _searchHasMore.value = result.hasMore
+                // Warm the names so People rows are not a wall of shortened addresses. Bounded
+                // by the probe semaphore, and skipped for anything already cached on disk.
+                for (address in result.items.map { it.posterAddress }.distinct()) {
+                    ensureSenderProfileFetched(address)
+                }
+            } finally {
+                _isSearching.value = false
+            }
+        }
+    }
+
     fun posterDisplayName(address: String): String {
         if (address.isEmpty()) return "Unknown"
         contactAliases.value[address]?.takeIf { it.isNotBlank() }?.let { return strippingKasSuffix(it) }
