@@ -7882,6 +7882,36 @@ fun SettingsScreen(
     val currencyCode by walletViewModel.currency.collectAsState()
     val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
     val notificationsEnabled by settingsViewModel.notificationsEnabled.collectAsState()
+    // The switch is only true when Android agrees: a stored "on" with the OS permission revoked
+    // would show as enabled while nothing could ever arrive.
+    val notificationSettingsContext = LocalContext.current
+    var notificationPermissionGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    notificationSettingsContext,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationPermissionGranted = granted
+        // Only flip the setting on when Android actually agreed - otherwise the switch would
+        // sit on with nothing behind it.
+        if (granted) settingsViewModel.setNotificationsEnabled(true)
+    }
+    val requestNotificationPermission: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            notificationSettingsContext.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, notificationSettingsContext.packageName)
+            )
+        }
+    }
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val chatPhotoQualityPreset by chatViewModel.chatPhotoQualityPreset.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
@@ -8056,6 +8086,32 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "notifications") {
+            // The master switch, at the top of the section it governs. It used to live inside
+            // Chats, which read as a chats-only setting - it is not: push carries wallet
+            // activity, group mentions, broadcasts and KaPosts too, so it belongs above the
+            // per-feature pages rather than inside one of them.
+            SettingsSection(title = stringResource(R.string.push_notifications)) {
+                SettingsSwitchItem(
+                    stringResource(R.string.push_notifications),
+                    notificationsEnabled && notificationPermissionGranted,
+                ) { enabled ->
+                    if (enabled && !notificationPermissionGranted) {
+                        requestNotificationPermission()
+                    } else {
+                        settingsViewModel.setNotificationsEnabled(enabled)
+                    }
+                }
+                SettingsFooter(
+                    if (notificationsEnabled && notificationPermissionGranted) {
+                        "Everything you have switched on below can reach you, even when the app is closed. Turning this off silences all of it."
+                    } else if (!notificationPermissionGranted) {
+                        "Android has notifications switched off for KaChat. Turning this on will ask for permission."
+                    } else {
+                        "Turn this on to receive anything you have switched on below, even when the app is closed."
+                    }
+                )
+            }
+
             // Notifications hub (matches iOS's NotificationsHubPage): three subpages.
             SettingsSection(title = stringResource(R.string.notifications)) {
                 SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = {
@@ -9284,18 +9340,10 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                 }
             }
 
-            SettingsSection(title = stringResource(R.string.push_notifications)) {
-                SettingsSwitchItem(stringResource(R.string.notifications), notificationsEnabled && permissionGranted) {
-                    viewModel.setNotificationsEnabled(it)
-                }
-                SettingsFooter(
-                    if (notificationsEnabled && permissionGranted)
-                        "Messages, broadcasts, and KaPosts notifications are delivered by the KaChat push service, including while the app is closed. Group notifications are checked in the background about every 15 minutes."
-                    else
-                        "Notifications are disabled."
-                )
-            }
-
+            // The master switch moved UP to Settings > Notifications, above the per-feature
+            // pages: push carries wallet activity, group mentions, broadcasts and KaPosts too,
+            // so a copy of it sitting inside Chats read as a chats-only setting and gave the
+            // same switch two homes.
             if (notificationsEnabled && permissionGranted) {
                 SettingsSection(title = stringResource(R.string.sound_vibration)) {
                     SettingsSwitchItem(stringResource(R.string.play_sound), soundEnabled) {
