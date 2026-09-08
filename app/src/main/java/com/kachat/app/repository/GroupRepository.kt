@@ -627,6 +627,20 @@ class GroupRepository @Inject constructor(
 
     private suspend fun rotateEpoch(groupId: String, reason: String, mutateRoster: (MutableList<GroupMember>) -> Unit) {
         val walletAddress = walletManager.getAddress()
+        // Catch up on our OWN control stream before reading the roster.
+        //
+        // The same account can be admin on two devices. Each holds its own copy of the roster,
+        // and a rotation rebuilds the roster from that copy - so a device that had not yet seen
+        // the other's change would send out a roster without it, and everyone would treat that
+        // as a removal. Reported exactly that way: a member added on one phone vanished when the
+        // other phone added someone else.
+        //
+        // The self-addressed root each rotation sends is what carries the change between our own
+        // devices; this is the read side of it. Best effort - offline, we proceed on what we
+        // have, which is no worse than before.
+        runCatching {
+            networkService.indexerApi.value?.let { syncGroupControlByRecipient(it, walletAddress) }
+        }
         val entity = database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
         if (!entity.isAdmin) throw IllegalStateException("Only the group admin can change membership.")
         val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing admin group secrets.")
@@ -655,6 +669,12 @@ class GroupRepository @Inject constructor(
         // iMessage-style membership lines for the admin who made the change (other members get
         // theirs when they receive the rotated root — see completeJoin).
         emitMembershipSystemMessages(groupId, walletAddress, previousRoster, roster, System.currentTimeMillis())
+
+        // FIRST, before any member delivery: the self-addressed root is how this account's other
+        // devices learn what just changed. It used to be sent only by the catch-up backfill,
+        // which meant the other phone stayed on a stale roster until its next sync - long enough
+        // for it to make its own change and overwrite this one.
+        try { sendSelfRootControlMessage(updatedEntity, roster, newBag, privateKey) } catch (e: Exception) {}
 
         for (member in roster) {
             if (member.address == walletAddress) continue

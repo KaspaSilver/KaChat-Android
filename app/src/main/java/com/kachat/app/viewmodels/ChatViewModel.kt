@@ -1675,10 +1675,26 @@ class ChatViewModel @Inject constructor(
      * there is no handshake or prior chat to require. Mints the contact on the way through,
      * exactly as [createGroupChat] does for a brand-new group.
      */
-    fun addGroupMembers(addresses: List<String>, groupId: String, onResult: (added: Int, failed: Int) -> Unit) {
+    fun addGroupMembers(
+        addresses: List<String>,
+        groupId: String,
+        /**
+         * Fires as each member lands, so the UI can say which one it is on.
+         *
+         * Every added member rotates the epoch and sends two control transactions to EVERY
+         * member, so adding three people to a group of twelve is around eighty transactions,
+         * serialised, each waiting for the previous one's change to settle. That is minutes of
+         * real work behind what used to be a dialog with no progress and no way out - reported
+         * as the screen being stuck, and force-quitting mid-distribution is exactly how a group
+         * ends up with some members holding the new root and some the old.
+         */
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+        onResult: (added: Int, failed: Int) -> Unit,
+    ) {
         viewModelScope.launch {
             var added = 0
             var failed = 0
+            onProgress(0, addresses.size)
             for (address in addresses) {
                 try {
                     val contact = chatRepository.getContact(address) ?: ContactEntity(
@@ -1691,6 +1707,7 @@ class ChatViewModel @Inject constructor(
                     groupRepository.addMember(contact, groupId)
                     added++
                 } catch (e: Exception) { failed++ }
+                onProgress(added + failed, addresses.size)
             }
             onResult(added, failed)
         }

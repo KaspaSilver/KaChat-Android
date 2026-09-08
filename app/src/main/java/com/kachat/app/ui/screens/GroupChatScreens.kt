@@ -2209,6 +2209,11 @@ fun GroupChatInfoScreen(
         var addSearch by remember { mutableStateOf("") }
         var addSelected by remember { mutableStateOf(setOf<String>()) }
         var addBusy by remember { mutableStateOf(false) }
+        // "Adding 2 of 3" rather than a frozen dialog - see addGroupMembers for why this can
+        // legitimately take minutes. Two ints, not a Pair: destructuring one inside a composable
+        // lambda collides with Compose's own component1/component2.
+        var addDone by remember { mutableStateOf(0) }
+        var addTotal by remember { mutableStateOf(0) }
         var addError by remember { mutableStateOf<String?>(null) }
         var showAddFeeConfirm by remember { mutableStateOf(false) }
         var addChosen by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -2250,7 +2255,34 @@ fun GroupChatInfoScreen(
         AlertDialog(
             onDismissRequest = { if (!addBusy) showAddMembers = false },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Add members", color = LocalAppColors.current.textPrimary) },
+            title = {
+                Column {
+                    Text("Add members", color = LocalAppColors.current.textPrimary)
+                    if (addBusy) {
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                color = KaspaTeal,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (addTotal > 1) "Adding ${(addDone + 1).coerceAtMost(addTotal)} of $addTotal"
+                                else "Adding member",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 12.sp,
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Each member re-keys the group on chain, so this can take a minute. Leave the app open.",
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            },
             text = {
                 Column {
                     TextField(
@@ -2391,7 +2423,13 @@ fun GroupChatInfoScreen(
                         showAddFeeConfirm = false
                         addBusy = true
                         addError = null
-                        chatViewModel.addGroupMembers(addChosen, groupId) { added, failed ->
+                        addDone = 0
+                        addTotal = addChosen.size
+                        chatViewModel.addGroupMembers(
+                            addChosen,
+                            groupId,
+                            onProgress = { done, total -> addDone = done; addTotal = total },
+                        ) { added, failed ->
                             addBusy = false
                             if (failed == 0) showAddMembers = false
                             else addError = "$failed member(s) could not be added ($added added). Please try again."
