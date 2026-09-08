@@ -533,10 +533,22 @@ class KaPostsViewModel @Inject constructor(
         val draftText: String? = null,
         /** The post a quote was aimed at, so Undo reopens the quote composer still on it. */
         val quoteTargetId: String? = null,
+        /**
+         * Every segment of a thread, in order, so Undo rebuilds the whole chain and not just
+         * its first post. The composer submits `threadSegments + [current text]`, so restoring
+         * splits it back that way.
+         */
+        val draftSegments: List<String>? = null,
     )
 
     /** A draft handed back by Undo, for whichever composer is about to reopen. */
-    data class RestoredDraft(val text: String, val quoteTargetId: String?, val isComment: Boolean)
+    data class RestoredDraft(
+        val text: String,
+        val quoteTargetId: String?,
+        val isComment: Boolean,
+        /** Segments to stack ABOVE [text] in the composer; empty for a single post. */
+        val threadSegments: List<String> = emptyList(),
+    )
 
     private val _restoredDraft = MutableStateFlow<RestoredDraft?>(null)
     val restoredDraft: StateFlow<RestoredDraft?> = _restoredDraft.asStateFlow()
@@ -1204,10 +1216,14 @@ class KaPostsViewModel @Inject constructor(
         // chance to lose it. Carried on the toast rather than read off the optimistic card,
         // which was removed in the same breath.
         toast.draftText?.takeIf { it.isNotEmpty() }?.let { text ->
+            // Split a thread back the way the composer holds it: every segment but the last is
+            // a stacked segment, the last is what was in the editor when Post All was pressed.
+            val segments = toast.draftSegments.orEmpty()
             _restoredDraft.value = RestoredDraft(
                 text = text,
                 quoteTargetId = toast.quoteTargetId,
                 isComment = toast.key.startsWith("comment:"),
+                threadSegments = if (segments.size > 1) segments.dropLast(1) else emptyList(),
             )
         }
     }
@@ -1347,8 +1363,22 @@ class KaPostsViewModel @Inject constructor(
         )
         _localPosts.value = listOf(newPost) + _localPosts.value
         _localThreadRoots.value = _localThreadRoots.value + newPost.id
-        threadRemainders[newPost.id] = ThreadRemainder(first, segments.drop(1), null)
-        continueThread(newPost.id)
+        // A thread used to submit the instant it was composed - the one compose action with no
+        // undo window at all, and the one where a mistake costs the most to fix, since every
+        // segment is its own transaction. Same 5s hold as a single post now.
+        //
+        // threadRemainders is written INSIDE the scheduled block on purpose: it is the resume
+        // ledger, and an undone thread must leave nothing behind for a later retry to pick up.
+        val key = "post:${newPost.id}"
+        _undoToast.value = UndoToast(
+            key, newPost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting thread",
+            draftText = segments.last(), draftSegments = segments,
+        )
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            threadRemainders[newPost.id] = ThreadRemainder(first, segments.drop(1), null)
+            continueThread(newPost.id)
+        }
     }
 
     private fun continueThread(localId: String) {

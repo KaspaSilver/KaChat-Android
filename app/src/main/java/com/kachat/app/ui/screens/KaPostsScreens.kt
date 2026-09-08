@@ -448,6 +448,8 @@ fun KaPostsScreen(
     var showComposer by remember { mutableStateOf(false) }
     /// Text handed back by Undo, for the composer that is about to reopen.
     var restoredComposerText by remember { mutableStateOf("") }
+    /// Thread segments handed back by Undo, stacked above the restored text.
+    var restoredComposerSegments by remember { mutableStateOf(emptyList<String>()) }
     // Zero-balance funding gate — tapping "New post" while the chatting balance is a confirmed
     // 0 KAS opens the shared funding card as a dialog instead of the post composer (replies get
     // the same treatment inside KaPostThreadOverlay). See GiftClaimUi.kt.
@@ -471,6 +473,7 @@ fun KaPostsScreen(
         val draft = restoredDraft ?: return@LaunchedEffect
         if (draft.isComment) return@LaunchedEffect
         restoredComposerText = draft.text
+        restoredComposerSegments = draft.threadSegments
         val target = draft.quoteTargetId?.let { viewModel.findPost(it) }
         if (target != null) quoteTarget = target else showComposer = true
         viewModel.clearRestoredDraft()
@@ -920,15 +923,23 @@ fun KaPostsScreen(
             title = "New Post",
             quoted = null,
             initialText = restoredComposerText,
-            onDismiss = { showComposer = false; restoredComposerText = "" },
+            initialThreadSegments = restoredComposerSegments,
+            onDismiss = {
+                showComposer = false
+                restoredComposerText = ""
+                restoredComposerSegments = emptyList()
+            },
             onSubmit = { text ->
                 showComposer = false
                 restoredComposerText = ""
+                restoredComposerSegments = emptyList()
                 viewModel.schedulePost(text)
             },
             viewModel = viewModel,
             onSubmitThread = { segments ->
                 showComposer = false
+                restoredComposerText = ""
+                restoredComposerSegments = emptyList()
                 viewModel.scheduleThread(segments)
             },
             onSaveDraft = { draftText, segments ->
@@ -1040,6 +1051,7 @@ fun KaPostsScreen(
                 restoredComposerText = ""
                 viewModel.scheduleQuote(target, text)
             },
+            // A quote is never a thread, so no segments to carry here.
             viewModel = viewModel,
         )
     }
