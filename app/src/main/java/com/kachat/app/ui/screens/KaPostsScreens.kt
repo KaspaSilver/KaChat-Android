@@ -80,6 +80,7 @@ import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.filled.Search
@@ -1058,6 +1059,16 @@ fun KaPostsScreen(
         KaPostThreadOverlay(
             postId = topId,
             viewModel = viewModel,
+            // The stack below the top IS the ancestor chain: you reached this post by tapping
+            // down through them, so no lookup can be wrong about it. PARTIAL by nature - a
+            // thread opened from a notification or a shared link starts mid-chain with nothing
+            // beneath it, and the parentRemoteId link inside covers that first step. A
+            // get-post?id= endpoint is what would make the rest exact (see KAPOSTS_INDEXER.md).
+            ancestors = threadStack.dropLast(1).mapNotNull { viewModel.findPost(it) },
+            onJumpToAncestor = { ancestor ->
+                val index = threadStack.indexOf(ancestor.id)
+                if (index >= 0) threadStack = threadStack.take(index + 1)
+            },
             onClose = { closeTopThread() },
             onOpenNested = { nested -> openThread(nested) },
             onOpenProfile = { address, pubkey -> viewModel.openPosterProfile(address, pubkey) },
@@ -2476,6 +2487,9 @@ fun KaPostCharacterMeter(count: Int) {
 @Composable
 fun KaPostThreadOverlay(
     postId: String,
+    /** The chain above this post, oldest first - see the call site. */
+    ancestors: List<KaPostDraft> = emptyList(),
+    onJumpToAncestor: (KaPostDraft) -> Unit = {},
     viewModel: KaPostsViewModel,
     onClose: () -> Unit,
     onOpenNested: (KaPostDraft) -> Unit,
@@ -2619,18 +2633,56 @@ fun KaPostThreadOverlay(
             }
             HorizontalDivider(color = colors.surfaceVariant)
             LazyColumn(state = threadListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
-                item(key = "root-context") {
-                    // "Replying to X" - this post is itself a reply; tap opens the parent.
-                    post.parentRemoteId?.let { parentId ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onOpenShared(parentId) }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            Text("Replying to a post - view it", color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                // The chain above this post, oldest first, each rung tappable to jump straight
+                // to that level - X stacks these over the focal post. Replaces a single
+                // "Replying to a post" link that showed one step with no idea whose it was.
+                items(ancestors, key = { "ancestor-${it.id}" }) { ancestor ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onJumpToAncestor(ancestor) }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                viewModel.posterDisplayName(ancestor.posterAddress),
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                            )
+                            Text(
+                                ancestor.text,
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
-                        HorizontalDivider(color = colors.surfaceVariant)
+                        Icon(
+                            Icons.Default.KeyboardArrowUp,
+                            null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                    HorizontalDivider(color = colors.surfaceVariant)
+                }
+                item(key = "root-context") {
+                    // The step ABOVE whatever the chain could reach: this post is a reply to
+                    // something we have not loaded, so the txid is all there is to offer.
+                    if (ancestors.isEmpty()) {
+                        post.parentRemoteId?.let { parentId ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onOpenShared(parentId) }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            ) {
+                                Text("Replying to a post - view it", color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            HorizontalDivider(color = colors.surfaceVariant)
+                        }
                     }
                 }
                 item(key = post.id) {
