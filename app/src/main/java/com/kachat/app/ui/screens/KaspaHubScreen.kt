@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.kachat.app.ui.Screen
 import com.kachat.app.ui.hubTitle
@@ -75,6 +78,23 @@ fun KaspaHubScreen(
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val childMode by walletViewModel.childModeEnabled.collectAsState()
     val reselect by walletViewModel.tabReselectSignal.collectAsState()
+
+    // The same counts the dock shows, from the same stores. A tab's placement is the user's
+    // arrangement, so moving KaPosts out of the dock and into here must not silently drop its
+    // badge. Broadcasts shows its share of the notification feed; that deliberately overlaps
+    // Profile's total, since the bell IS the whole feed and a tab badge is that tab's part.
+    val badgeVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
+    val notifEntries by badgeVm.store.entries.collectAsState()
+    val notifLastSeen by badgeVm.store.lastSeenAt.collectAsState()
+    val kaPostsUnseen by badgeVm.kaPostsUnseen.unseenCount.collectAsState()
+    fun badgeCount(screen: Screen): Int = when (screen) {
+        Screen.Profile -> notifEntries.count { it.timestampMs > notifLastSeen }
+        Screen.KaPosts -> kaPostsUnseen
+        Screen.Broadcasts -> notifEntries.count {
+            it.source == "broadcast" && it.timestampMs > notifLastSeen
+        }
+        else -> 0
+    }
 
     val sections = kaspaHubSections(dockRoutes, hubRoutes, hiddenTabs, childMode)
     // rememberSaveable, keyed by ROUTE (Screen is not Saveable): plain `remember` is discarded
@@ -129,7 +149,8 @@ fun KaspaHubScreen(
             sections = sections,
             onOpenSection = { openSectionRoute = it.route },
             onCustomize = { navController.navigate("settings_menu") },
-            colors = colors
+            colors = colors,
+            badgeCount = { badgeCount(it) },
         )
     }
 }
@@ -141,6 +162,8 @@ private fun HubGrid(
     onOpenSection: (Screen) -> Unit,
     onCustomize: () -> Unit,
     colors: com.kachat.app.ui.theme.AppColors,
+    /** Unseen items per destination - resolved by the caller, which owns the stores. */
+    badgeCount: (Screen) -> Int = { 0 },
 ) {
     Scaffold(
         containerColor = colors.background,
@@ -172,6 +195,7 @@ private fun HubGrid(
                     icon = screen.icon,
                     useKaspaLogo = screen.usesKaspaLogo,
                     colors = colors,
+                    badgeCount = badgeCount(screen),
                     onClick = { onOpenSection(screen) }
                 )
             }
@@ -194,6 +218,8 @@ private fun HubTile(
     onClick: () -> Unit,
     /** Draw the bundled Kaspa mark instead of [icon]. */
     useKaspaLogo: Boolean = false,
+    /** Unseen items this destination is holding. Zero draws nothing. */
+    badgeCount: Int = 0,
 ) {
     Box(
         modifier = Modifier
@@ -230,6 +256,30 @@ private fun HubTile(
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall
             )
+        }
+        if (badgeCount > 0) {
+            // A Box with a minimum SQUARE size, not a padded Text: padding alone makes a
+            // one-digit badge wider than it is tall, which reads as an oval. defaultMinSize
+            // floors both to 20dp, so one digit is a circle and only a longer label stretches
+            // it into a pill.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFE0245E))
+                    .padding(horizontal = 5.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (badgeCount > 99) "99+" else badgeCount.toString(),
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

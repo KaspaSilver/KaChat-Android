@@ -767,25 +767,37 @@ fun MainShell(
                                                 else -> 0
                                             }
                                             if (badgeCount > 0) {
-                                                Text(
-                                                    // Capped in the LABEL, not in the stored
-                                                    // count: the real number survives a long
-                                                    // absence and only its rendering shortens.
-                                                    text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                                                    color = Color.White,
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
+                                                // A BOX with a minimum square size, not a Text
+                                                // with padding. Padding alone gave a one-digit
+                                                // badge its text's width plus 8dp against its
+                                                // height plus 2dp - wider than it was tall, which
+                                                // is the oval. defaultMinSize floors both to the
+                                                // same 16dp, so one digit is a circle and only a
+                                                // longer label stretches it into a pill.
+                                                Box(
                                                     modifier = Modifier
                                                         .align(Alignment.TopEnd)
                                                         // Offset out over the icon's corner so a
                                                         // two- or three-character badge grows
                                                         // outward instead of shoving the icon.
-                                                        .offset(x = 7.dp, y = (-5).dp)
+                                                        .offset(x = 8.dp, y = (-6).dp)
+                                                        .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
                                                         .clip(RoundedCornerShape(50))
                                                         .background(Color(0xFFE0245E))
-                                                        .padding(horizontal = 4.dp, vertical = 1.dp),
-                                                )
+                                                        .padding(horizontal = 4.dp),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    Text(
+                                                        // Capped in the LABEL, not in the stored
+                                                        // count: the real number survives a long
+                                                        // absence and only its rendering shortens.
+                                                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                                                        color = Color.White,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                    )
+                                                }
                                             }
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
