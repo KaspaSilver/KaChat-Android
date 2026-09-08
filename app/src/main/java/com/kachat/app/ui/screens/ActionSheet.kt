@@ -1,6 +1,8 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
@@ -82,11 +84,23 @@ fun ActionSheetContainer(
     val colors = LocalAppColors.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        // Opens EXPANDED, not half-height. Partial expansion caps the opening height at about
+        // half the screen, so a sheet with more than a few options opened already cut off - the
+        // 1:1 composer's + menu hid Send Handshake below the fold, and an option you cannot see
+        // is an option that does not exist. Expanded still wraps its content, so a short sheet
+        // looks exactly as it did.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = colors.background,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                // For the rare sheet taller than the screen itself - expanded tops out at full
+                // height, and without this the overflow would be unreachable rather than merely
+                // below the fold.
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
