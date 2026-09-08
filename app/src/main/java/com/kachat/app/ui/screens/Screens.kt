@@ -6205,6 +6205,9 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     var showWithdraw by remember { mutableStateOf(false) }
     var showCompoundFlow by remember { mutableStateOf(false) }
     var showPrivateKey by remember { mutableStateOf(false) }
+    // The "Address Actions" sheet, and the public-key screen it can open.
+    var showAddressActions by remember { mutableStateOf(false) }
+    var showPublicKey by remember { mutableStateOf(false) }
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
@@ -6261,23 +6264,9 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
                     }
                 },
-                actions = {
-                    IconButton(onClick = {
-                        if (biometricSeedPhraseEnabled) {
-                            context.authenticateWithDeviceCredential(
-                                title = "Unlock to View Private Key",
-                                onSuccess = { showPrivateKey = true }
-                            )
-                        } else {
-                            showPrivateKey = true
-                        }
-                    }) {
-                        Icon(Icons.Default.IosShare, stringResource(R.string.export), tint = KaspaTeal)
-                    }
-                    IconButton(onClick = { address?.let { uriHandler.openUri(kaspaExplorer.addressUrl(it)) } }) {
-                        Icon(Icons.Default.Public, stringResource(R.string.view_in_explorer), tint = KaspaTeal)
-                    }
-                },
+                // Export and Explorer used to be two unlabelled glyphs here. A pair of icons has
+                // room for no words at all, so neither said what it did, and there was nowhere to
+                // put a third thing - they live in the Address Actions sheet below now.
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         },
@@ -6345,6 +6334,18 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                     onClick = { selectedTab = 1 },
                     text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
                 )
+            }
+            Button(
+                onClick = { showAddressActions = true },
+                enabled = !address.isNullOrEmpty(),
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .height(48.dp)
+            ) {
+                Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             when (selectedTab) {
                 0 -> when {
@@ -6468,6 +6469,35 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
         )
     }
 
+    if (showAddressActions) {
+        IdentityAddressActionsSheet(
+            onPrivateKey = {
+                showAddressActions = false
+                if (biometricSeedPhraseEnabled) {
+                    context.authenticateWithDeviceCredential(
+                        title = "Unlock to View Private Key",
+                        onSuccess = { showPrivateKey = true }
+                    )
+                } else {
+                    showPrivateKey = true
+                }
+            },
+            onPublicKey = {
+                showAddressActions = false
+                showPublicKey = true
+            },
+            onExplorer = {
+                showAddressActions = false
+                address?.let { uriHandler.openUri(kaspaExplorer.addressUrl(it)) }
+            },
+            onDismiss = { showAddressActions = false },
+        )
+    }
+
+    if (showPublicKey) {
+        IdentityAddressPublicKeyOverlay(address = address.orEmpty(), onDismiss = { showPublicKey = false })
+    }
+
     if (showPrivateKey) {
         SpendingAddressPrivateKeyOverlay(privateKeyHex = viewModel.getPrivateKeyHex(), onDismiss = { showPrivateKey = false })
     }
@@ -6538,6 +6568,158 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     }
     addedPortfolioName?.let { name ->
         PortfolioAddedSnackbar(name) { addedPortfolioName = null }
+    }
+}
+
+/**
+ * The half sheet behind "Address Actions" on the Chatting Address screen. Same three-row shape as
+ * Manage Addresses' and Cold Storage's sheets of the same name, so all three read as one object.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun IdentityAddressActionsSheet(
+    onPrivateKey: () -> Unit,
+    onPublicKey: () -> Unit,
+    onExplorer: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        // Expanded, not half-height: a partially-expanded sheet cuts the last row off.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(R.string.address_actions),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+            )
+            ActionSheetRow(
+                icon = Icons.Default.Key,
+                title = "View Private Key",
+                subtitle = "The key that spends this address. Never share it.",
+                onClick = onPrivateKey,
+            )
+            ActionSheetRow(
+                icon = Icons.Default.Numbers,
+                title = "View Public Key",
+                subtitle = "The public half of this address, for anyone who asks for it.",
+                onClick = onPublicKey,
+            )
+            ActionSheetRow(
+                icon = Icons.Default.Public,
+                title = "View in Explorer",
+                subtitle = "Opens this address on your chosen block explorer.",
+                onClick = onExplorer,
+            )
+        }
+    }
+}
+
+/**
+ * The chatting address's public key, from the Address Actions sheet.
+ *
+ * Nothing is derived or unlocked to show this: a Kaspa P2PK address IS its public key in bech32,
+ * so this decodes the address the screen already has. No FLAG_SECURE, no reveal gate and no
+ * clipboard expiry either - unlike the private key alongside it, this is a value you hand out on
+ * purpose. Mirrors iOS's `ChattingAddressPublicKeyView`.
+ */
+@Composable
+private fun IdentityAddressPublicKeyOverlay(address: String, onDismiss: () -> Unit) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    // null only for an address shape that carries no key (script-hash), which the wallet's own
+    // chatting address never is.
+    val publicKeyHex = remember(address) {
+        runCatching {
+            com.kachat.app.util.KaspaAddress.decode(address).second.joinToString("") { "%02x".format(it) }
+        }.getOrNull()
+    }
+
+    BackHandler(onBack = onDismiss)
+
+    Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                }
+                Text(
+                    "Public Key",
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(KaspaTeal.copy(alpha = 0.1f))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.VerifiedUser, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Safe to share", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+                Text(
+                    "This is the public half of your chatting address. It identifies you and cannot spend anything.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            if (publicKeyHex != null) {
+                Text(
+                    publicKeyHex,
+                    color = colors.textPrimary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surface)
+                        .padding(16.dp),
+                )
+                Spacer(Modifier.height(16.dp))
+                TextButton(onClick = {
+                    clipboard.setText(AnnotatedString(publicKeyHex))
+                    Toast.makeText(context, "Public key copied", Toast.LENGTH_SHORT).show()
+                }) {
+                    Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Copy Public Key", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Text(
+                    "This address does not carry a public key.",
+                    color = colors.textSecondary,
+                    fontSize = 14.sp,
+                )
+            }
+        }
     }
 }
 
