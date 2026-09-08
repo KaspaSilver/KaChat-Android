@@ -1,9 +1,14 @@
 package com.kachat.app.services
 
 import android.util.Log
+import androidx.appcompat.app.AppCompatDelegate
 import com.google.mlkit.nl.languageid.LanguageIdentification
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -46,7 +51,29 @@ class PostTranslationService @Inject constructor(
         data object Translating : TranslationState
         /** [sourceName] is the localized language name for the "Translated from X" line. */
         data class Translated(val text: String, val sourceName: String) : TranslationState
+        /**
+         * Retryable: a dropped connection, a timeout, a server that was briefly down. The link
+         * stays live and says so.
+         */
         data object Failed : TranslationState
+        /**
+         * Terminal for this post and this reader: the pair is not served, the post is too long,
+         * the text was already in the reader's language. Retrying cannot change the answer, so the
+         * affordance says what happened instead of inviting a pointless second tap.
+         */
+        data class Unavailable(val reason: String) : TranslationState
+    }
+
+    /** Raised for anything the server told us. [terminal] marks the answers a retry cannot change. */
+    class TranslationException(
+        message: String,
+        val code: String? = null,
+        val terminal: Boolean = false,
+    ) : Exception(message) {
+        /** What the reader is told under the post. */
+        val readerMessage: String
+            get() = if (code == "UNSUPPORTED_PAIR") "Not available in your language"
+            else message ?: "Translation unavailable"
     }
 
     private val languageIdentifier by lazy { LanguageIdentification.getClient() }
@@ -57,8 +84,24 @@ class PostTranslationService @Inject constructor(
         .callTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
-    /** The reader's language, as the bare subtag the server expects ("en", not "en-GB"). */
-    private fun targetLanguage(): String? = Locale.getDefault().language.takeIf { it.isNotBlank() }
+    /**
+     * The locale the reader actually reads KaChat in: Settings > Language when it has been set,
+     * and the device's own locale only for "System".
+     *
+     * Deliberately not `Locale.getDefault()` alone. The in-app override is applied through
+     * `AppCompatDelegate.setApplicationLocales`, which reliably re-resolves resources but is not
+     * guaranteed to move the process-wide JVM default that a `@Singleton` with no Activity context
+     * would read here. Getting this wrong is what left a reader who picked Vietnamese on an
+     * English phone with no Translate link on English posts at all (source == target, so nothing
+     * was offered) and Vietnamese posts translated INTO English.
+     */
+    private fun readerLocale(): Locale =
+        AppCompatDelegate.getApplicationLocales()[0] ?: Locale.getDefault()
+
+    /** The reader's language, as the bare subtag the server expects ("en", not "en-GB"). Public
+     *  because callers cache per-post "worth offering?" answers and have to throw them away when
+     *  the reader changes language. */
+    fun targetLanguage(): String? = readerLocale().language.takeIf { it.isNotBlank() }
 
     /**
      * The post's language, or null when it cannot be identified confidently.
@@ -83,16 +126,24 @@ class PostTranslationService @Inject constructor(
         return tag.substringBefore('-').takeIf { it.isNotBlank() }
     }
 
-    /** True when this post is worth offering a Translate link for. */
-    suspend fun canOfferTranslation(text: String): Boolean {
+    /**
+     * True when this post is worth offering a Translate link for: identifiable, not already in the
+     * reader's language, and a pair the configured service can actually serve.
+     *
+     * [detectedSource] lets a caller that has already identified the language pass it in rather
+     * than paying for a second ML Kit round trip on the same text.
+     */
+    suspend fun canOfferTranslation(text: String, detectedSource: String? = null): Boolean {
         val target = targetLanguage() ?: return false
-        val source = detectLanguage(text) ?: return false
-        return source != target
+        val source = detectedSource ?: detectLanguage(text) ?: return false
+        if (source == target) return false
+        val supported = supportedLanguages() ?: return true
+        return source in supported.source && target in supported.target
     }
 
-    /** Localized name of a language tag, for "Translated from X". */
+    /** Localized name of a language tag, for "Translated from X", in the reader's own language. */
     fun displayName(languageTag: String): String =
-        Locale.forLanguageTag(languageTag).getDisplayLanguage(Locale.getDefault())
+        Locale.forLanguageTag(languageTag).getDisplayLanguage(readerLocale())
             .ifBlank { languageTag }
 
     /** The translated text plus the source language the SERVER detected, which beats our guess. */
@@ -105,10 +156,11 @@ class PostTranslationService @Inject constructor(
      * already translated into this language comes back without a translation engine running at
      * all; a post with no txid (a local session post) is translated but not cached.
      *
-     * Throws on any failure; the caller turns that into [TranslationState.Failed].
+     * Throws on any failure; the caller turns that into [TranslationState.Failed], or
+     * [TranslationState.Unavailable] for a [TranslationException] marked terminal.
      */
-    suspend fun translate(text: String, postId: String?): Result {
-        val target = targetLanguage() ?: error("No language for the current locale")
+    suspend fun translate(text: String, postId: String?): Result = withContext(Dispatchers.IO) {
+        val target = targetLanguage() ?: throw TranslationException("No language for the current locale")
         val base = settings.translationServiceUrl.first().trimEnd('/')
 
         val post = JSONObject().put("text", text)
@@ -126,20 +178,80 @@ class PostTranslationService @Inject constructor(
         client.newCall(request).execute().use { response ->
             val payload = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
-                val message = runCatching { JSONObject(payload).optString("error") }.getOrNull()
-                error(message?.takeIf { it.isNotBlank() } ?: "HTTP ${response.code}")
+                val json = runCatching { JSONObject(payload) }.getOrNull()
+                val message = json?.optString("error")?.takeIf { it.isNotBlank() }
+                val code = json?.optString("code")?.takeIf { it.isNotBlank() }
+                throw TranslationException(message ?: "HTTP ${response.code}", code, code in TERMINAL_CODES)
             }
             val entry = JSONObject(payload).optJSONArray("translations")?.optJSONObject(0)
-                ?: error("Unexpected response from the translation service")
-            entry.optString("error").takeIf { it.isNotBlank() }?.let { error(it) }
+                ?: throw TranslationException("Unexpected response from the translation service")
+            entry.optString("error").takeIf { it.isNotBlank() }?.let { message ->
+                val code = entry.optString("code").takeIf { it.isNotBlank() }
+                throw TranslationException(message, code, code in TERMINAL_CODES)
+            }
             // The server returns the text unchanged when it decides the post was already in the
             // reader's language - our detection is a guess and is sometimes wrong. Showing the
-            // same text back under a "Translated from" line would look broken.
-            if (entry.optBoolean("untranslated", false)) error("Already in your language")
+            // same text back under a "Translated from" line would look broken, and inviting a
+            // retry is worse: the second tap gets the same answer.
+            if (entry.optBoolean("untranslated", false)) {
+                throw TranslationException("Already in your language", "UNTRANSLATED", terminal = true)
+            }
             val translated = entry.optString("text").takeIf { it.isNotBlank() }
-                ?: error("Unexpected response from the translation service")
-            return Result(translated, entry.optString("source").takeIf { it.isNotBlank() })
+                ?: throw TranslationException("Unexpected response from the translation service")
+            Result(translated, entry.optString("source").takeIf { it.isNotBlank() })
         }
+    }
+
+    // MARK: - Supported languages
+
+    private data class SupportedLanguages(val source: Set<String>, val target: Set<String>)
+
+    /** Base URL to what it answered. The inner value is null for a deployment that does not
+     *  implement the endpoint, cached so we ask that question once and not once per post. */
+    @Volatile
+    private var supportedCache: Pair<String, SupportedLanguages?>? = null
+    private val supportedMutex = Mutex()
+
+    /**
+     * What the configured service can actually translate (`GET /translate/languages`), so a reader
+     * whose language the deployment does not serve is never offered a link that can only fail.
+     *
+     * Null means "we do not know", either because the endpoint is absent or the request failed.
+     * Both fall back to offering the link anyway, which is what `TRANSLATION_SERVICE.md`
+     * specifies.
+     */
+    private suspend fun supportedLanguages(): SupportedLanguages? {
+        val base = settings.translationServiceUrl.first().trimEnd('/')
+        supportedCache?.let { if (it.first == base) return it.second }
+        return supportedMutex.withLock {
+            supportedCache?.let { if (it.first == base) return@withLock it.second }
+            val fetched = fetchSupportedLanguages(base)
+            supportedCache = base to fetched
+            fetched
+        }
+    }
+
+    private suspend fun fetchSupportedLanguages(base: String): SupportedLanguages? =
+        withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder().url("$base/translate/languages").get().build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext null
+                    val json = JSONObject(response.body?.string().orEmpty())
+                    val source = json.optJSONArray("source").toLowerSet()
+                    val target = json.optJSONArray("target").toLowerSet()
+                    if (source.isEmpty() || target.isEmpty()) null
+                    else SupportedLanguages(source, target)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Supported-language list unavailable", e)
+                null
+            }
+        }
+
+    private fun JSONArray?.toLowerSet(): Set<String> {
+        if (this == null) return emptySet()
+        return (0 until length()).mapNotNull { optString(it).takeIf { s -> s.isNotBlank() }?.lowercase() }.toSet()
     }
 
     private fun strippedForDetection(text: String): String =
@@ -149,7 +261,17 @@ class PostTranslationService @Inject constructor(
         private const val TAG = "KaChatTranslate"
         private const val UNDETERMINED = "und"
         private const val MIN_LETTERS = 12
-        private const val TIMEOUT_SECONDS = 20L
+        /**
+         * Generous, because the FIRST request for a language pair can make the server load that
+         * pair's model. Everyone after that is answered from its cache in well under a second, so
+         * the only reader who ever waits this long is the one who asked first. A 20s cap here
+         * turned that one reader's request into a failure banner.
+         */
+        private const val TIMEOUT_SECONDS = 45L
+        /** Server answers a second tap cannot change. */
+        private val TERMINAL_CODES = setOf(
+            "UNSUPPORTED_PAIR", "TEXT_TOO_LONG", "INVALID_POST_ID", "MISSING_PARAMETER",
+        )
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val URL_REGEX = Regex("""https?://\S+""")
         private val MENTION_REGEX = Regex("""@[A-Za-z0-9._-]+""")

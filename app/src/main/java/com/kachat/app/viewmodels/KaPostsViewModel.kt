@@ -445,15 +445,28 @@ class KaPostsViewModel @Inject constructor(
 
     private val considered = mutableSetOf<String>()
 
+    /** The reader language every entry in [considered] and [_translatable] was decided under.
+     *  Settings > Language recreates the Activity but not this ViewModel, so without this a reader
+     *  who switches language keeps the previous language's offers for the rest of the session. */
+    private var consideredLanguage: String? = null
+
     fun translationKey(post: KaPostDraft): String = post.remoteId ?: post.id
 
     /** Identifies the post's language once, and records it if it is worth offering to translate. */
     fun considerTranslation(post: KaPostDraft) {
+        val language = translationService.targetLanguage()
+        if (language != consideredLanguage) {
+            consideredLanguage = language
+            considered.clear()
+            _translatable.value = emptyMap()
+        }
         val key = translationKey(post)
         if (!considered.add(key)) return
         viewModelScope.launch {
             val source = translationService.detectLanguage(post.text) ?: return@launch
-            if (!translationService.canOfferTranslation(post.text)) return@launch
+            // Pass the source we already have: canOfferTranslation would otherwise identify the
+            // same text a second time.
+            if (!translationService.canOfferTranslation(post.text, source)) return@launch
             _translatable.value = _translatable.value + (key to source)
         }
     }
@@ -474,6 +487,11 @@ class KaPostsViewModel @Inject constructor(
                     // whether to offer the link at all.
                     sourceName = translationService.displayName(result.sourceLanguage ?: source),
                 )
+            } catch (e: PostTranslationService.TranslationException) {
+                Log.w(TAG, "Translation failed", e)
+                // A terminal answer is stated, not offered as a retry: tapping again gets it back.
+                if (e.terminal) PostTranslationService.TranslationState.Unavailable(e.readerMessage)
+                else PostTranslationService.TranslationState.Failed
             } catch (e: Exception) {
                 Log.w(TAG, "Translation failed", e)
                 PostTranslationService.TranslationState.Failed

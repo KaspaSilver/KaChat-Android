@@ -4029,10 +4029,20 @@ private fun TranslateAffordance(
                 )
             }
         }
-        // Almost always a language pack that could not be fetched - tapping again once there is a
+        // A dropped connection or a server that was briefly away - tapping again once there is a
         // connection is the fix, so this stays a live link rather than dead text.
         PostTranslationService.TranslationState.Failed ->
             TranslateLink("Translation unavailable - try again", onTranslate)
+        // Nothing a second tap can change - the pair is not served, the post is too long, the post
+        // was already in the reader's language. Say so instead of inviting a retry.
+        is PostTranslationService.TranslationState.Unavailable -> {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                state.reason,
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+            )
+        }
     }
 }
 
