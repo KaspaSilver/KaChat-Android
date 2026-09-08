@@ -446,6 +446,8 @@ fun KaPostsScreen(
     // used to recompose this ENTIRE screen body, feed pager included, mid-scroll.
 
     var showComposer by remember { mutableStateOf(false) }
+    /// Text handed back by Undo, for the composer that is about to reopen.
+    var restoredComposerText by remember { mutableStateOf("") }
     // Zero-balance funding gate — tapping "New post" while the chatting balance is a confirmed
     // 0 KAS opens the shared funding card as a dialog instead of the post composer (replies get
     // the same treatment inside KaPostThreadOverlay). See GiftClaimUi.kt.
@@ -462,6 +464,17 @@ fun KaPostsScreen(
     var profileReturns by remember { mutableStateOf(mapOf<Int, KaPostsProfileReturn>()) }
     var repostTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var quoteTarget by remember { mutableStateOf<KaPostDraft?>(null) }
+    // A post or quote handed back by Undo reopens its composer with the words still in it.
+    // Comments are handled inside the thread overlay, where the reply bar already is.
+    val restoredDraft by viewModel.restoredDraft.collectAsState()
+    LaunchedEffect(restoredDraft) {
+        val draft = restoredDraft ?: return@LaunchedEffect
+        if (draft.isComment) return@LaunchedEffect
+        restoredComposerText = draft.text
+        val target = draft.quoteTargetId?.let { viewModel.findPost(it) }
+        if (target != null) quoteTarget = target else showComposer = true
+        viewModel.clearRestoredDraft()
+    }
     var engagementTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     // The X-style repost menu's Quote choice can be raised from ANY cell (feed, thread,
     // profile, bookmarks) - the VM relays it here where the quote composer lives.
@@ -906,9 +919,11 @@ fun KaPostsScreen(
         KaPostComposerDialog(
             title = "New Post",
             quoted = null,
-            onDismiss = { showComposer = false },
+            initialText = restoredComposerText,
+            onDismiss = { showComposer = false; restoredComposerText = "" },
             onSubmit = { text ->
                 showComposer = false
+                restoredComposerText = ""
                 viewModel.schedulePost(text)
             },
             viewModel = viewModel,
@@ -1018,9 +1033,11 @@ fun KaPostsScreen(
             quoted = target,
             quotedDisplayName = viewModel.posterDisplayName(target.posterAddress),
             quotedAvatarUrl = viewModel.senderProfiles.value[target.posterAddress],
-            onDismiss = { quoteTarget = null },
+            initialText = restoredComposerText,
+            onDismiss = { quoteTarget = null; restoredComposerText = "" },
             onSubmit = { text ->
                 quoteTarget = null
+                restoredComposerText = ""
                 viewModel.scheduleQuote(target, text)
             },
             viewModel = viewModel,
@@ -2873,6 +2890,16 @@ private fun ThreadReplyComposer(
     // TextFieldValue rather than String: the formatting bar below needs to know what is
     // highlighted, and the String overload never exposes it.
     var reply by remember(postId) { mutableStateOf(TextFieldValue("")) }
+    // Undo on a comment hands the words back here: the reply bar is still on screen, so there
+    // is nothing to reopen - the text just returns to where it was written, caret at the end.
+    val restoredDraft by viewModel.restoredDraft.collectAsState()
+    LaunchedEffect(restoredDraft) {
+        val draft = restoredDraft
+        if (draft != null && draft.isComment) {
+            reply = TextFieldValue(draft.text, selection = TextRange(draft.text.length))
+            viewModel.clearRestoredDraft()
+        }
+    }
     val replyText = reply.text
     // The formatting bar only appears while the field has focus - this composer is pinned in the
     // thread whether or not the keyboard is up, and a permanent row of eight icons over the

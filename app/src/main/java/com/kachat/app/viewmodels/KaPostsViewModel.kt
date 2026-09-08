@@ -518,7 +518,31 @@ class KaPostsViewModel @Inject constructor(
     val actionToast: StateFlow<ActionToast?> = _actionToast.asStateFlow()
 
     /** 5-second undo window for a just-composed post/quote. */
-    data class UndoToast(val key: String, val postId: String, val deadlineMs: Long, val label: String)
+    data class UndoToast(
+        val key: String,
+        val postId: String,
+        val deadlineMs: Long,
+        val label: String,
+        /**
+         * What was typed, so Undo can hand it back rather than throw it away.
+         *
+         * The five seconds exist for the moment you spot a typo as the toast appears. Undoing
+         * and losing the text means retyping it, which is a worse outcome than the mistake.
+         * Null for the reactions (like / dislike / repost) - nothing was composed.
+         */
+        val draftText: String? = null,
+        /** The post a quote was aimed at, so Undo reopens the quote composer still on it. */
+        val quoteTargetId: String? = null,
+    )
+
+    /** A draft handed back by Undo, for whichever composer is about to reopen. */
+    data class RestoredDraft(val text: String, val quoteTargetId: String?, val isComment: Boolean)
+
+    private val _restoredDraft = MutableStateFlow<RestoredDraft?>(null)
+    val restoredDraft: StateFlow<RestoredDraft?> = _restoredDraft.asStateFlow()
+
+    /** Consumed by the UI once it has reopened the composer with it. */
+    fun clearRestoredDraft() { _restoredDraft.value = null }
 
     private val _undoToast = MutableStateFlow<UndoToast?>(null)
     val undoToast: StateFlow<UndoToast?> = _undoToast.asStateFlow()
@@ -1153,7 +1177,7 @@ class KaPostsViewModel @Inject constructor(
         )
         _localPosts.value = listOf(newPost) + _localPosts.value
         val key = "post:${newPost.id}"
-        _undoToast.value = UndoToast(key, newPost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting")
+        _undoToast.value = UndoToast(key, newPost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting", draftText = text)
         scheduleUndoable(key) {
             clearUndoToast(key)
             submitScheduledPost(newPost.id, text)
@@ -1176,6 +1200,16 @@ class KaPostsViewModel @Inject constructor(
             toast.key.startsWith("comment:") -> removeReplyEverywhere(toast.postId)
         }
         _undoToast.value = null
+        // Hand the words back so the five seconds are a chance to fix something rather than a
+        // chance to lose it. Carried on the toast rather than read off the optimistic card,
+        // which was removed in the same breath.
+        toast.draftText?.takeIf { it.isNotEmpty() }?.let { text ->
+            _restoredDraft.value = RestoredDraft(
+                text = text,
+                quoteTargetId = toast.quoteTargetId,
+                isComment = toast.key.startsWith("comment:"),
+            )
+        }
     }
 
     /** Strips an optimistic comment out of every post tree that holds it —
@@ -1537,7 +1571,7 @@ class KaPostsViewModel @Inject constructor(
         // immediately, the on-chain submit fires when the countdown ends, and Undo removes
         // the comment before anything hits the network.
         val key = "comment:${comment.id}"
-        _undoToast.value = UndoToast(key, comment.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting comment")
+        _undoToast.value = UndoToast(key, comment.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting comment", draftText = text)
         scheduleUndoable(key) {
             clearUndoToast(key)
             try {
@@ -1683,7 +1717,7 @@ class KaPostsViewModel @Inject constructor(
         )
         _localPosts.value = listOf(quotePost) + _localPosts.value
         val key = "post:${quotePost.id}"
-        _undoToast.value = UndoToast(key, quotePost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting quote")
+        _undoToast.value = UndoToast(key, quotePost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting quote", draftText = text, quoteTargetId = target.id)
         scheduleUndoable(key) {
             clearUndoToast(key)
             performRepost(target, text, quotePost.id)
