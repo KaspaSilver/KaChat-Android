@@ -141,9 +141,19 @@ object AppModule {
 
     @Provides
     @Singleton
+    /**
+     * The gift server. Hardcoded rather than a Settings entry, unlike the indexer/KNS/explorer
+     * endpoints: a claim is attested against THIS server's challenge, so pointing it elsewhere
+     * cannot work, it can only be used to aim an attestation somewhere it does not belong.
+     *
+     * iOS sets the same host in `GiftService.baseURL`. Keep the two in step - they drifted apart
+     * once (iOS moved to api.kachat.app, this was left on kachatgift.duckdns.org, which had
+     * stopped serving the endpoints and whose certificate no longer verified) and nothing caught
+     * it, because each platform only ever reads its own copy.
+     */
     fun provideGiftApi(okHttpClient: OkHttpClient): com.kachat.app.services.GiftApi {
         return Retrofit.Builder()
-            .baseUrl("https://kachatgift.duckdns.org/")
+            .baseUrl("https://gift.kachat.duckdns.org/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
