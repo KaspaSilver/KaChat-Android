@@ -96,8 +96,17 @@ class GiftManager @Inject constructor(
     val state: StateFlow<GiftClaimState> = _state.asStateFlow()
 
     /** Local UX cache only (NOT a security boundary - the server's Play Integrity check is the
-     *  real one-per-device enforcement, exactly as iOS relies on server-side DeviceCheck). */
+     *  real one-per-device enforcement, exactly as iOS relies on server-side DeviceCheck).
+     *
+     *  Only ever moves out of Checking or Eligible, matching iOS. It is called from a
+     *  `LaunchedEffect` on two different gift screens, and it used to overwrite whatever state it
+     *  found - including CLAIMING. Re-entering the screen mid-claim therefore flipped the state
+     *  back to Eligible, which is precisely the guard [claimGift] relies on to be single-flight,
+     *  so a second tap could start a second concurrent claim: two attestations, two server
+     *  calls. */
     fun checkEligibility() {
+        val current = _state.value
+        if (current != GiftClaimState.Checking && current != GiftClaimState.Eligible) return
         _state.value = if (prefs.getBoolean(CLAIMED_KEY, false)) {
             GiftClaimState.AlreadyClaimed
         } else {
@@ -107,6 +116,21 @@ class GiftManager @Inject constructor(
 
     suspend fun claimGift(walletAddress: String) {
         if (_state.value != GiftClaimState.Eligible) return
+
+        // Attempt cooldown, persisted. The in-memory state machine alone bounds nothing across a
+        // relaunch: a failed attempt leaves Unavailable, but force-quitting resets that to
+        // Eligible, so the gift server could be hit as fast as the app can be restarted - and
+        // every attempt costs it a real Play Integrity verification. Persisting the timestamp is
+        // what makes the limit survive that.
+        val sinceLast = System.currentTimeMillis() - prefs.getLong(LAST_ATTEMPT_KEY, 0L)
+        if (sinceLast in 0 until CLAIM_COOLDOWN_MS) {
+            val waitSeconds = ((CLAIM_COOLDOWN_MS - sinceLast) / 1000) + 1
+            Log.i(TAG, "Gift claim refused locally: ${waitSeconds}s of cooldown left")
+            _state.value = GiftClaimState.Unavailable("Just tried that. Give it ${waitSeconds}s.")
+            return
+        }
+        prefs.edit().putLong(LAST_ATTEMPT_KEY, System.currentTimeMillis()).apply()
+
         _state.value = GiftClaimState.Claiming
         try {
             Log.i(TAG, "Gift claim starting (installer=${installerPackageName()}, cloudProject=$CLOUD_PROJECT_NUMBER)")
@@ -293,6 +317,9 @@ class GiftManager @Inject constructor(
         private const val TAG = "GiftManager"
         private const val PREFS_NAME = "gift_prefs"
         private const val CLAIMED_KEY = "kachat_gift_claimed"
+        private const val LAST_ATTEMPT_KEY = "kachat_gift_last_attempt_at"
+        /** Minimum gap between claim attempts, across relaunches. */
+        private const val CLAIM_COOLDOWN_MS = 60_000L
 
         /**
          * This app's Google Cloud project number. The gift server must verify Play Integrity tokens
