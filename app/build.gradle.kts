@@ -91,7 +91,9 @@ android {
         // NOT reset when versionName changes. 32 was the last value this repo built (the 4.0
         // bundle); 33 may also have been uploaded from elsewhere. Codes are free to skip, so
         // 4.1 starts at 35 to clear both rather than risk a rejected upload for one integer.
-        versionCode = 35
+        // 36 is 4.1's second build: same versionName, a lot more code behind it, and a device
+        // will not treat a rebuild as an update unless this moves.
+        versionCode = 36
         versionName = "4.1"
 
         buildConfigField(
