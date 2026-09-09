@@ -562,6 +562,11 @@ class WalletViewModel @Inject constructor(
     fun spendingAddressAt(index: Int): String? =
         try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
 
+    /** Addresses for a whole range, paying the BIP-39 seed derivation once rather than once per
+     *  index - see [WalletManager.deriveSpendingAddresses]. Call it off the main thread. */
+    fun spendingAddressesAt(indices: Iterable<Int>): Map<Int, String> =
+        try { walletManager.deriveSpendingAddresses(indices) } catch (e: Exception) { emptyMap() }
+
     /**
      * iOS parity (WalletManager.revealSpendingAddress): raises the revealed bound to [index],
      * keeping the intermediate indices hidden so revealing a far-out address doesn't flood the
@@ -804,8 +809,20 @@ class WalletViewModel @Inject constructor(
                 // The stored bound has to cover the highest MATCH so those rows can be derived
                 // and shown. It only ever grows: an address that held funds last month and is
                 // empty now should not vanish from the list.
-                matched.maxOrNull()?.let {
-                    walletManager.ensureMaxSpendingAddressIndexAtLeast(walletAddress, it)
+                matched.maxOrNull()?.let { highest ->
+                    val account = walletManager.getActiveAccount()
+                    val previousMax = account?.let {
+                        maxOf(it.spendingAddressIndex, it.maxSpendingAddressIndex)
+                    } ?: -1
+                    // Hide the empty indices the new bound sweeps in, exactly as
+                    // revealSpendingAddress does. The scan now reaches a thousand addresses deep,
+                    // so a match at index 291 would otherwise raise the bound and flood Manage
+                    // Addresses with 290 empty rows - and make its next load fetch a balance for
+                    // every one of them.
+                    for (i in (previousMax + 1) until highest) {
+                        if (i !in matched) walletManager.setSpendingAddressHidden(walletAddress, i, true)
+                    }
+                    walletManager.ensureMaxSpendingAddressIndexAtLeast(walletAddress, highest)
                 }
                 // Anything the scan matched gets un-hidden. A previously-hidden address that now
                 // holds a balance or a domain would otherwise be found and then dropped straight

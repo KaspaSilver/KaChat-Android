@@ -737,6 +737,36 @@ class WalletManager @Inject constructor(
         return (0..maxIndex).map { derived.getValue(it) }
     }
 
+    /**
+     * Addresses for an arbitrary set of indices, derived with ONE seed computation.
+     *
+     * [deriveSpendingAddress] is the single-lookup form and redoes the BIP-39 seed derivation
+     * every call - PBKDF2, 2048 rounds of HMAC-SHA512, deliberately slow. That is fine once and
+     * ruinous fifty times: Address Visibility derived a whole page of rows that way from inside
+     * composition, on the main thread, which is what made the screen unresponsive enough that a
+     * row could not be tapped. Discovery had the same shape.
+     *
+     * Cache-first, like [allSpendingAddresses], so a range that has already been derived costs
+     * nothing at all. Unlike that one this takes any indices, not just 0..revealed bound.
+     */
+    fun deriveSpendingAddresses(indices: Iterable<Int>): Map<Int, String> {
+        val wanted = indices.filter { it >= 0 }.distinct()
+        if (wanted.isEmpty()) return emptyMap()
+        val account = getActiveAccount() ?: return emptyMap()
+        val cached = getAllCachedSpendingAddresses()
+            .filter { it.walletAddress == account.address }
+            .associate { it.index to it.address }
+        val missing = wanted.filter { !cached.containsKey(it) }
+        if (missing.isEmpty()) return wanted.associateWith { cached.getValue(it) }
+
+        val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyMap() }
+        val derived = missing.associateWith { index ->
+            addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }
+        cacheSpendingAddresses(account.address, derived)
+        return wanted.associateWith { cached[it] ?: derived.getValue(it) }
+    }
+
     // --- "Ever used" cache: monotonic (a used address can never become unused), so positive
     // answers persist forever and skip the network history probe — mirrors iOS. Address-keyed:
     // used-ness is intrinsic to the address, not the wallet.

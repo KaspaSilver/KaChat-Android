@@ -4978,11 +4978,41 @@ fun AddressVisibilityScreen(
     // checkbox (they cannot be unchecked - tapping explains why) and the "Chat privacy address"
     // tag. They still stay OFF the main Addresses list (the Chat Privacy tab owns them there);
     // this checklist is the complete per-index map, so hiding rows here read as gaps.
-    val pageEntries = remember(byIndex, page) {
+    // Addresses for rows the loaded list does not cover, derived OFF the main thread and once
+    // per page.
+    //
+    // This used to call `spendingAddressAt(index)` for each of the 50 rows from inside a
+    // `remember` during composition. Every one of those redoes the BIP-39 seed derivation -
+    // PBKDF2, 2048 rounds of HMAC-SHA512, deliberately slow - so a page flip did that fifty times
+    // on the main thread before it could draw. That is what made this screen unresponsive enough
+    // that a row could not be tapped. `deriveSpendingAddresses` pays the seed cost once for the
+    // whole range, and it happens in a coroutine on the default dispatcher.
+    var derivedAddresses by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    LaunchedEffect(page, listMax) {
+        val needed = (start..end).filter { it > listMax }
+        if (needed.isEmpty()) {
+            derivedAddresses = emptyMap()
+            return@LaunchedEffect
+        }
+        derivedAddresses = withContext(Dispatchers.Default) {
+            viewModel.spendingAddressesAt(needed)
+        }
+    }
+    // One sweep per page for the Used badges on derived rows, paced so a page flip is a trickle
+    // rather than fifty simultaneous history probes. Cache-first: an address already known used
+    // never asks the network again (used-ness is monotonic).
+    LaunchedEffect(page, derivedAddresses) {
+        for ((index, address) in derivedAddresses) {
+            if (address.isEmpty() || index in usedCache) continue
+            usedCache[index] = viewModel.hasSpendingAddressBeenUsed(address)
+            delay(60)
+        }
+    }
+    val pageEntries = remember(byIndex, page, derivedAddresses) {
         (start..end).map { index ->
             byIndex[index] ?: com.kachat.app.services.WalletService.SpendingAddressEntry(
                 index = index,
-                address = viewModel.spendingAddressAt(index) ?: "",
+                address = derivedAddresses[index].orEmpty(),
                 balanceSompi = 0L,
                 everUsed = false,
                 isCurrent = false,
@@ -5054,12 +5084,9 @@ fun AddressVisibilityScreen(
                 // Reserved rows always render checked: an actively offered chat-privacy address
                 // is locked visible whatever a (stale) hidden flag or a mid-load race says.
                 val visible = reserved || (entry.index <= listMax && !entry.hidden)
-                // Used-state for derived rows the list loader has never seen.
-                if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
-                    LaunchedEffect(entry.index) {
-                        usedCache[entry.index] = viewModel.hasSpendingAddressBeenUsed(entry.address)
-                    }
-                }
+                // Used-state comes from the page's own sweep below, not a per-row effect: fifty
+                // rows each launching their own history probe fired fifty requests the moment a
+                // page appeared, which is the other half of what made this screen unusable.
                 val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
                 // The WHOLE row toggles, not just the checkmark.
                 val toggleVisibility: () -> Unit = {
@@ -12810,7 +12837,7 @@ private fun ManageAddressesActionsSheet(
                     fontSize = 12.sp,
                 )
                 Text(
-                    "Scanning stops after 20 unused addresses in a row.",
+                    "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center,
