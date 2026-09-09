@@ -18,7 +18,6 @@ import kotlinx.coroutines.tasks.await
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.GET
 import retrofit2.http.POST
 import java.io.IOException
 import java.security.MessageDigest
@@ -42,32 +41,24 @@ sealed class GiftClaimState {
 
 /** Gift faucet REST API (base url https://gift.kachat.duckdns.org/ - see AppModule.provideGiftApi). */
 interface GiftApi {
-    @GET("gift/challenge")
-    suspend fun getChallenge(): GiftChallengeResponse
-
-    @POST("gift/claim")
+    @POST("v1/claim")
     suspend fun claim(@Body body: GiftClaimRequest): Response<GiftClaimResponse>
 }
 
-data class GiftChallengeResponse(val challenge: String)
-
 /**
- * Android claim payload. Unlike iOS (Apple DeviceCheck + App Attest -> `deviceToken`/`attestation`/
- * `keyId`), Android sends a single Play Integrity [integrityToken]. `platform = "android"` lets the
- * server route to the Play Integrity verifier.
+ * Android claim payload. Unlike iOS (Apple DeviceCheck -> `deviceToken`), Android sends a single
+ * Play Integrity [integrityToken]. `platform = "android"` routes the server to its Play Integrity
+ * verifier, which it does carry - the field names and the path here are read back from the live
+ * server's own rejections, not assumed.
  *
- * The OLD gift server (kachatgift.duckdns.org) accepted this shape: `POST /gift/claim` with
- * `platform = "android"` routed to the Play Integrity verifier and reached the token-decode step.
- * That host no longer serves the endpoints, and the interim one (api.kachat.app) rejects this
- * shape outright - it answers HTTP 422 `missing field deviceToken`, i.e. it only knows the iOS
- * DeviceCheck/App Attest payload. Whether gift.kachat.duckdns.org carries the Play Integrity
- * branch is a server question to confirm before trusting this path again.
+ * The field is `address`, not `walletAddress`, and there is no `challenge`: the server exposes no
+ * challenge endpoint at all (`/v1/challenge` is a 404), so the one-time value the nonce used to
+ * bind to is simply gone.
  */
 data class GiftClaimRequest(
     val platform: String = "android",
     val integrityToken: String,
-    val walletAddress: String,
-    val challenge: String,
+    val address: String,
     /**
      * Stable per-device pseudonym: base64url(sha256(ANDROID_ID)). Folded into the Play Integrity
      * nonce (see [claimGift]) so the server can trust it came from the genuine app and enforce
@@ -76,7 +67,22 @@ data class GiftClaimRequest(
     val deviceId: String
 )
 
-data class GiftClaimResponse(val txId: String? = null, val error: String? = null)
+/**
+ * `{"ok":true,"sent":false}` while the service is in record-only mode; [sent] flips true and a
+ * transaction id appears once it is paying out. [reason] carries the server's own wording on
+ * every failure shape. The id's field name is read tolerantly because only the record-only shape
+ * has been observed from the client side.
+ */
+data class GiftClaimResponse(
+    val ok: Boolean = false,
+    val sent: Boolean = false,
+    val reason: String? = null,
+    val txId: String? = null,
+    val txid: String? = null,
+    val transactionId: String? = null,
+) {
+    val resolvedTxId: String? get() = listOfNotNull(txId, txid, transactionId).firstOrNull { it.isNotEmpty() }
+}
 
 @Singleton
 class GiftManager @Inject constructor(
@@ -105,21 +111,23 @@ class GiftManager @Inject constructor(
         try {
             Log.i(TAG, "Gift claim starting (installer=${installerPackageName()}, cloudProject=$CLOUD_PROJECT_NUMBER)")
 
-            // 1. One-time challenge from the server.
-            val challenge = giftApi.getChallenge().challenge
-            Log.i(TAG, "Gift challenge received (${challenge.length} chars)")
-
-            // 2. Stable per-device id = base64url(sha256(ANDROID_ID)). Hashing keeps the raw
+            // 1. Stable per-device id = base64url(sha256(ANDROID_ID)). Hashing keeps the raw
             //    ANDROID_ID on the device; the server only ever sees the pseudonym.
             @Suppress("HardwareIds")
             val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID).orEmpty()
             val deviceId = base64UrlNoPadding(sha256(androidId.toByteArray(Charsets.UTF_8)))
 
-            // 3. Play Integrity token, bound to BOTH the challenge and the deviceId via the nonce.
-            //    Binding deviceId here makes it tamper-proof: the server recomputes
-            //    sha256("$challenge:$deviceId") and compares it to the nonce inside the signed token,
-            //    so a repackaged app can't swap in a different deviceId to re-claim.
-            val nonce = base64UrlNoPadding(sha256("$challenge:$deviceId".toByteArray(Charsets.UTF_8)))
+            // 2. Play Integrity token, with the nonce bound to the destination address and the
+            //    deviceId. Binding both makes them tamper-proof: the server recomputes
+            //    sha256("$address:$deviceId") and compares it to the nonce inside the signed
+            //    token, so a repackaged app cannot swap either one to re-claim or redirect.
+            //
+            //    This USED to bind a server-issued one-time challenge instead. That endpoint no
+            //    longer exists (`/v1/challenge` is a 404), so the address is what takes its place
+            //    as the thing worth binding. UNVERIFIED against the server's own recomputation -
+            //    it is the only derivation the two sides both hold, but the gift service's
+            //    CLIENT_API.md is the authority and this must be checked against it.
+            val nonce = base64UrlNoPadding(sha256("$walletAddress:$deviceId".toByteArray(Charsets.UTF_8)))
             val integrityManager = IntegrityManagerFactory.create(context)
             val tokenResponse = integrityManager.requestIntegrityToken(
                 IntegrityTokenRequest.builder()
@@ -131,28 +139,39 @@ class GiftManager @Inject constructor(
             // Never log the token itself; its length is enough to prove attestation produced one.
             Log.i(TAG, "Play Integrity token obtained (${integrityToken.length} chars, nonce ${nonce.length} chars)")
 
-            // 4. Submit the claim. The server verifies the token, enforces one-per-device, and sends KAS.
+            // 3. Submit the claim. The server verifies the token, enforces one-per-device, and sends KAS.
             val response = giftApi.claim(
                 GiftClaimRequest(
                     integrityToken = integrityToken,
-                    walletAddress = walletAddress,
-                    challenge = challenge,
+                    address = walletAddress,
                     deviceId = deviceId
                 )
             )
+            val body = response.body()
             when {
-                response.isSuccessful -> {
-                    val txId = response.body()?.txId
-                    if (txId.isNullOrEmpty()) {
-                        Log.e(TAG, "Gift server returned HTTP ${response.code()} with no txId")
+                response.isSuccessful && body?.ok == true -> {
+                    val txId = body.resolvedTxId
+                    if (!body.sent || txId.isNullOrEmpty()) {
+                        // Accepted, but nothing was paid - the service is in record-only mode.
+                        // Saying "claimed" would be a lie, and marking it claimed locally would
+                        // burn the one attempt this device gets for a gift it never received.
+                        Log.w(TAG, "Gift claim accepted but not paid (record-only)")
                         _state.value = GiftClaimState.Unavailable(
-                            "Gift server replied without a transaction (HTTP ${response.code()})."
+                            "The gift service isn't paying out right now. Try again later."
                         )
                     } else {
                         Log.i(TAG, "Gift claimed, tx ${txId.take(12)}")
                         prefs.edit().putBoolean(CLAIMED_KEY, true).apply()
                         _state.value = GiftClaimState.Claimed(txId)
                     }
+                }
+                response.isSuccessful -> {
+                    // HTTP 200 with ok=false: the server refused, and said why.
+                    val reason = body?.reason
+                    Log.e(TAG, "Gift server refused the claim: ${reason ?: "(no reason)"}")
+                    _state.value = GiftClaimState.Unavailable(
+                        reason ?: "Gift server refused the claim."
+                    )
                 }
                 response.code() == 409 -> {
                     Log.i(TAG, "Gift server reports this device already claimed (HTTP 409)")
@@ -266,8 +285,9 @@ class GiftManager @Inject constructor(
     private fun base64UrlNoPadding(data: ByteArray): String =
         Base64.encodeToString(data, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
 
+    /** The server says why in `reason` on every failure shape it returns. */
     private fun parseError(body: String): String? =
-        try { gson.fromJson(body, GiftClaimResponse::class.java)?.error } catch (e: Exception) { null }
+        try { gson.fromJson(body, GiftClaimResponse::class.java)?.reason } catch (e: Exception) { null }
 
     companion object {
         private const val TAG = "GiftManager"
