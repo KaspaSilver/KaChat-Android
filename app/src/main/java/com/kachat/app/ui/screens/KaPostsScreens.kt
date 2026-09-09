@@ -164,6 +164,9 @@ import androidx.core.view.WindowCompat
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.util.KaspaAddress
@@ -3518,6 +3521,50 @@ fun KaPostsProfileOverlay(
 // MARK: - Notifications overlay
 
 /**
+ * The half sheet behind a tapped KaPosts notification. Same shape as the app's other half-sheet
+ * menus, so a menu is a menu wherever it appears. Mirrors iOS's `notificationActionsSheet`.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KaPostNotificationActionsSheet(
+    title: String,
+    canOpenInApp: Boolean,
+    onOpenInApp: () -> Unit,
+    onOpenExplorer: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        // Expanded, not half-height: partial expansion cuts the last row off.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            if (canOpenInApp) {
+                ActionSheetRow(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    title = "Open in KaPosts",
+                    subtitle = "Goes to the post this is about, in the app.",
+                    onClick = onOpenInApp,
+                )
+            }
+            ActionSheetRow(
+                icon = Icons.Default.Public,
+                title = "View in Explorer",
+                subtitle = "Opens the transaction on your chosen block explorer.",
+                onClick = onOpenExplorer,
+            )
+        }
+    }
+}
+
+/**
  * Search across KaPosts: posts by their text, and the people who wrote them.
  *
  * The depth line under the results is not decoration. This search is client-side (the K indexer
@@ -3702,9 +3749,29 @@ fun KaPostsNotificationsOverlay(
 
     val listState = rememberLazyListState()
     val paging = pagingStateOf(viewModel, KaPostsViewModel.PAGE_NOTIFICATIONS)
+    // The notification whose action sheet is up. Tapping a row asks what to do with it rather
+    // than committing to one of the two answers.
+    var actionTarget by remember { mutableStateOf<KaPostsViewModel.NotificationItem?>(null) }
 
     LaunchedEffect(Unit) { viewModel.loadNotifications() }
     EndlessScroll(listState = listState) { viewModel.loadMoreNotifications() }
+
+    actionTarget?.let { item ->
+        KaPostNotificationActionsSheet(
+            title = posterDisplayNameState(viewModel, item.actorAddress),
+            canOpenInApp = item.targetTxId != null,
+            onOpenInApp = {
+                val target = item.targetTxId
+                actionTarget = null
+                target?.let(onOpenPost)
+            },
+            onOpenExplorer = {
+                actionTarget = null
+                uriHandler.openUri(kaspaExplorer.txUrl(item.id))
+            },
+            onDismiss = { actionTarget = null },
+        )
+    }
 
     KaPostsOverlayScaffold(title = "Notifications", onClose = onClose) {
         if (isLoading && items.isEmpty()) {
@@ -3741,9 +3808,11 @@ fun KaPostsNotificationsOverlay(
                         verticalAlignment = Alignment.Top,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = item.targetTxId != null) {
-                                item.targetTxId?.let(onOpenPost)
-                            }
+                            // The whole row asks what to do with this notification. There used to
+                            // be a "View" button wired straight to the explorer sitting next to a
+                            // row tap that opened the post in-app - two destinations, one of them
+                            // unlabelled, and the button quietly ate taps meant for the row.
+                            .clickable { actionTarget = item }
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         ContactAvatar(
@@ -3771,12 +3840,11 @@ fun KaPostsNotificationsOverlay(
                                 fontSize = 12.sp,
                             )
                         }
-                        Text(
-                            "View",
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.clickable { uriHandler.openUri(kaspaExplorer.txUrl(item.id)) },
+                        Icon(
+                            Icons.Default.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))

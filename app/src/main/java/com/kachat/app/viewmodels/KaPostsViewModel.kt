@@ -2568,6 +2568,20 @@ class KaPostsViewModel @Inject constructor(
             resetSurface(key)
             generations.remove(key) // resetSurface marks "loaded"; this thread needs a reload
         }
+        // A reply tapped from a notification is spliced into its parent's thread right now,
+        // rather than waiting for the indexer to serve it. get-replies can lag the push by
+        // seconds, so opening a brand-new reply's parent routinely rendered without the reply in
+        // it - you tapped "someone replied" and landed on your own post with nothing new on it.
+        // The reply is already resolved by this point, so nothing here has to depend on the
+        // indexer catching up.
+        post?.parentRemoteId?.takeIf { it.isNotEmpty() }?.let { parentRemoteId ->
+            findPostByRemoteId(parentRemoteId)?.let { parent ->
+                mutateEverywhere(parent.id) { target ->
+                    if (target.comments.any { it.remoteId == post.remoteId }) target
+                    else target.copy(comments = target.comments + post)
+                }
+            }
+        }
         return post
     }
 
