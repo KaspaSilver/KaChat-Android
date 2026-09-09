@@ -12,6 +12,7 @@ import android.view.WindowManager
 import android.os.Build
 import android.provider.ContactsContract
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -5544,13 +5545,46 @@ fun SpendingAddressSendFlow(
                                                 if (chunk != null) {
                                                     manualUtxos = chunk.second
                                                     fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
+                                                } else {
+                                                    // Same silence as the plain Max had: nothing
+                                                    // to consolidate, or nothing known yet.
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Nothing to consolidate here yet.",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
                                                 }
                                             } else {
-                                                val maxSompi = viewModel.estimateMaxSendableAmount(fromAddress, feeRateOverrideSompi, manualUtxos)
-                                                fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                                                // null = the wallet cannot answer yet (the REST
+                                                // client is created a moment after launch); 0 =
+                                                // it answered, and the fee eats the balance.
+                                                // Neither may write "0" into the field, which is
+                                                // what made this read as a dead button.
+                                                when (val maxSompi = viewModel.estimateMaxSendableAmount(fromAddress, feeRateOverrideSompi, manualUtxos)) {
+                                                    null -> Toast.makeText(
+                                                        context,
+                                                        "Still connecting. Try Max again in a moment.",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                    0L -> Toast.makeText(
+                                                        context,
+                                                        "Not enough here to cover the network fee.",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                    else -> fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                                                }
                                             }
                                         } catch (e: Exception) {
-                                            // Leave the field untouched on failure - same as Cold Storage/iOS.
+                                            // Said out loud, not swallowed. A silent catch here is
+                                            // indistinguishable from a button that does nothing,
+                                            // which is exactly how this was reported - and it left
+                                            // no trace in the log to diagnose it from either.
+                                            Log.w("SendFlow", "Max estimate failed for $fromAddress", e)
+                                            Toast.makeText(
+                                                context,
+                                                e.message ?: "Could not work out the maximum.",
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
                                         } finally {
                                             isEstimatingMax = false
                                         }

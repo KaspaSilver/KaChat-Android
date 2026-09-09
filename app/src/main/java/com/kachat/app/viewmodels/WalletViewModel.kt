@@ -655,7 +655,7 @@ class WalletViewModel @Inject constructor(
      * Maximum sendable amount from a specific spending address - thin wrapper over
      * [estimateMaxSendableAmount], resolving the index to an address first.
      */
-    suspend fun estimateMaxSpendingAddressAmount(index: Int, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long =
+    suspend fun estimateMaxSpendingAddressAmount(index: Int, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long? =
         estimateMaxSendableAmount(walletManager.deriveSpendingAddress(index), feeRateOverride, manualUtxos)
 
     /**
@@ -665,8 +665,15 @@ class WalletViewModel @Inject constructor(
      * subset, resolved fresh by outpoint in case it's gone stale - not the whole address's
      * balance. Shared by [SpendingAddressSendFlow]'s Max button regardless of which address it's
      * sending from.
+     *
+     * Returns null for "cannot work it out yet" - the REST client is created a moment after
+     * launch, and before that a UTXO fetch answers with an empty list, which is indistinguishable
+     * from an address that holds nothing. Returning 0 for that made Max fill in "0" during the
+     * first seconds of a session and read as a button that does not work. 0 now means only what
+     * it says: there is a balance, and the fee eats all of it.
      */
-    suspend fun estimateMaxSendableAmount(address: String, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long {
+    suspend fun estimateMaxSendableAmount(address: String, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long? {
+        if (!walletEngine.isRestApiReady) return null
         val fetched = walletEngine.fetchUtxos(address)
         if (fetched.isEmpty()) return 0L
 
@@ -678,11 +685,30 @@ class WalletViewModel @Inject constructor(
         }
         if (utxos.isEmpty()) return 0L
 
-        val totalBalance = utxos.sumOf { it.utxoEntry.amount }
+        // Largest-first, capped at what one transaction can actually hold. Kaspa caps a
+        // transaction's mass, and pricing EVERY UTXO at the address as an input - which this used
+        // to do - breaks down exactly where an address has collected a lot of small ones. The
+        // chatting address is the one that does: every message send leaves its change there, so a
+        // chatty account ends up with dozens of tiny UTXOs, the modelled fee grows with each one,
+        // and past a point `totalBalance <= fee` returned 0. Max then filled in "0" and looked
+        // like a dead button. A spending address never showed it, because its change is routed to
+        // a fresh address every spend, so it holds one or two.
+        //
+        // The cap also makes the answer honest: a "max" priced over more inputs than a
+        // transaction can carry is not sendable. `maxConsolidatableChunk` already reasons this
+        // way; this is the same rule for an ordinary send, and the send's own greedy selection
+        // (largest-first, stops once covered) picks the same inputs back.
+        val capped = if (utxos.size > KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION) {
+            utxos.sortedByDescending { it.utxoEntry.amount }.take(KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)
+        } else {
+            utxos
+        }
+
+        val totalBalance = capped.sumOf { it.utxoEntry.amount }
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
 
-        val mass = KaspaMass.calculateMass(numInputs = maxOf(utxos.size, 1), outputScriptLens = listOf(34, 34), payloadSize = 0)
+        val mass = KaspaMass.calculateMass(numInputs = maxOf(capped.size, 1), outputScriptLens = listOf(34, 34), payloadSize = 0)
         val fee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
         return if (totalBalance > fee) totalBalance - fee else 0L
     }

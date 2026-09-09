@@ -381,6 +381,15 @@ class KaspaWalletEngine @Inject constructor(
      * send that hasn't hit the REST indexer yet) doesn't show up as selectable in the first
      * place, rather than only being caught later at send time.
      */
+    /**
+     * Whether the REST client exists yet. It is created when the network service configures, a
+     * moment AFTER launch, and until then [fetchUtxos] answers `emptyList()` - which reads
+     * identically to "this address holds nothing". Callers that would otherwise present that
+     * silence as a fact about the address check this first.
+     */
+    val isRestApiReady: Boolean
+        get() = networkService.kaspaRestApi.value != null
+
     suspend fun fetchUtxos(address: String): List<UtxoEntry> {
         val api = networkService.kaspaRestApi.value ?: return emptyList()
         return try {
