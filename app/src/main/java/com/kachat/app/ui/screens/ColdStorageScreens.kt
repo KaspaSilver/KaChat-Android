@@ -2518,7 +2518,7 @@ private fun ColdStorageAddressActionsSheet(
                     fontSize = 12.sp,
                 )
                 Text(
-                    "Scanning stops after a run of unused addresses.",
+                    "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
                     color = colors.textSecondary,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center,

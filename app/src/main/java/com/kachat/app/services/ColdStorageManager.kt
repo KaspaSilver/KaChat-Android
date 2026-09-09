@@ -205,4 +205,18 @@ class ColdStorageManager @Inject constructor(
         val remaining = getAllHiddenAddresses().filterNot { it.accountId == accountId && it.index == index }
         saveHiddenAddresses(if (hidden) remaining + HiddenAddress(accountId, index) else remaining)
     }
+
+    /**
+     * Bulk form: ONE rewrite of the stored blob rather than one per index. Discovery can now
+     * sweep hundreds of indices in at once, and [setAddressHidden] in a loop would serialize and
+     * rewrite the whole set every time.
+     */
+    fun setAddressesHidden(accountId: String, indices: Collection<Int>, hidden: Boolean) {
+        if (indices.isEmpty()) return
+        val wanted = indices.toSet()
+        val remaining = getAllHiddenAddresses().filterNot { it.accountId == accountId && it.index in wanted }
+        saveHiddenAddresses(
+            if (hidden) remaining + wanted.map { HiddenAddress(accountId, it) } else remaining
+        )
+    }
 }

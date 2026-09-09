@@ -110,45 +110,76 @@ class ColdStorageAddressDiscovery @Inject constructor(
         // An address is worth surfacing when it HOLDS SOMETHING: a balance, or a KNS domain.
         //
         // This used to count transaction history instead, and to start from the account's stored
-        // high-water mark - so a rescan began PAST everything already known and reported nothing,
-        // while iOS rescanned from zero and reported the same number every time. Same kpub, two
-        // different answers, neither the one asked for.
+        // high-water mark - so a rescan began PAST everything already known and reported nothing.
         //
         // Always from the caller's startIndex (0 for a user-triggered scan), never from a stored
         // mark: the answer CHANGES over time. An address empty last month can hold a balance
         // today, and a scan starting past it would never look again.
         //
-        // Sequential, one address at a time - a prior attempt at concurrent/batched lookups here
-        // (firing several addresses' history+balance calls at once against the shared public REST
-        // API) made things *worse*, not faster: it had no rate-limit handling, so a burst of
-        // concurrent requests routinely got throttled/timed out, and - worse - a single failed
-        // lookup anywhere in a batch (via checkAddress returning null) aborted the entire scan
-        // early. One-at-a-time is slower per-request in isolation but finishes the whole scan
-        // faster and more reliably in practice. Matches iOS's WalletManager.discoverSpendingAddresses/
-        // ColdStorageManager.discoverAddresses, both deliberately sequential for the same reason.
-        while (consecutiveUnused < gapLimit) {
-            onProgress?.invoke(
-                DiscoveryProgress(
-                    checkingIndex = index,
-                    // Matches found so far. Counted off `matched`, not off balance/history:
-                    // the list holds only matches, and a KNS-domain match has neither.
-                    foundCount = results.size,
-                )
-            )
-            // Balance only - one request per address, matching iOS. See [checkAddress].
-            val result = checkAddress(rootKey, chain, index, probeHistory = false) ?: break
-            // Balance first - it is already in hand from checkAddress, and it short-circuits the
-            // KNS lookup for the common case.
+        // ## Why this is no longer a per-address gap-limit walk
+        //
+        // It was: one balance request per address, stop after 20 consecutive empties. That cannot
+        // find what it is asked to find. Any run of 20 empty addresses ends the scan, and a
+        // funded account can easily have one, so anything past the first gap was unreachable with
+        // no way to make it look further. The spending-address scan had the identical bug and was
+        // reported for exactly that: a balance at index 291 that discovery would never see.
+        //
+        // The old comment here argued against batching, and it was right about what it was
+        // describing: firing several addresses' history AND balance calls concurrently, with no
+        // rate-limit handling, where one failure anywhere aborted the whole scan. This is not
+        // that. It is ONE bulk balances request per hundred addresses - the same [fetchBalances]
+        // this file already uses for the detail screen - with a paced per-address fallback when
+        // that endpoint is unavailable. Fewer requests than the walk, not more.
+        while (index < MAX_SCAN_INDEX) {
+            // Past the floor, stop once nothing has turned up for a long stretch.
+            if (index >= DEEP_SCAN_FLOOR && consecutiveUnused >= gapLimit) break
+
+            val batch = (index until minOf(index + BATCH_SIZE, MAX_SCAN_INDEX)).toList()
+            onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = results.size))
+
+            val derived = batch.mapNotNull { i ->
+                val address = try {
+                    KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain, i)
+                } catch (e: Exception) {
+                    null
+                }
+                address?.let { i to it }
+            }
+            if (derived.isEmpty()) break
+
             // A balance only counts when it was actually READ. An unconfirmed lookup is not
-            // evidence of an empty address, and treating it as one both drops real addresses
-            // from the list and overwrites their balance with zero downstream.
-            val matches = (result.balanceConfirmed && result.balanceSompi > 0) ||
-                knsService.getOwnedDomains(result.address).isNotEmpty()
-            if (matches) results.add(result.copy(matched = true))
-            consecutiveUnused = if (matches) 0 else consecutiveUnused + 1
-            index++
+            // evidence of an empty address, and treating it as one both drops real addresses from
+            // the list and overwrites their balance with zero downstream - so a batch that cannot
+            // be read stops the scan instead.
+            val balances = fetchBalances(derived.map { it.second })
+            if (balances == null) {
+                Log.w("ColdStorageAddressDiscovery", "Balances unavailable at $index, stopping scan")
+                break
+            }
+
+            for ((i, address) in derived) {
+                val balance = balances[address] ?: 0L
+                val matches = balance > 0L ||
+                    (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
+                if (matches) {
+                    results.add(
+                        DiscoveredAddress(
+                            index = i,
+                            address = address,
+                            balanceSompi = balance,
+                            hasHistory = false,
+                            matched = true,
+                        )
+                    )
+                    consecutiveUnused = 0
+                } else {
+                    consecutiveUnused++
+                }
+            }
+            index += derived.size
         }
 
+        onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = results.size))
         return results
     }
 
@@ -346,6 +377,16 @@ class ColdStorageAddressDiscovery @Inject constructor(
          *  same offset with exponential backoff (1.5s, 3s, 6s) before settling for partial history. */
         private const val MAX_PAGE_RETRIES = 3
         private const val PAGE_RETRY_BASE_DELAY_MILLIS = 1_500L
+
+        // --- Discovery scan bounds. See [discoverAddresses].
+        /** Swept whatever the gaps, so a run of empty addresses can never end the scan early. */
+        const val DEEP_SCAN_FLOOR = 1000
+        /** Hard stop, so the scan always terminates. */
+        const val MAX_SCAN_INDEX = 5000
+        /** Addresses per bulk balances request. */
+        const val BATCH_SIZE = 100
+        /** KNS has no bulk endpoint, so domain ownership is only probed this far in. */
+        const val KNS_PROBE_DEPTH = 200
     }
 
     /** Unspent outputs currently sitting at a single address — backs the Cold Storage tx history

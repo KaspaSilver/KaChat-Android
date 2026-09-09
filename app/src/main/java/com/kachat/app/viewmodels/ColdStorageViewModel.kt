@@ -229,6 +229,20 @@ class ColdStorageViewModel @Inject constructor(
                     // `beyond` now contains ONLY matches (balance or KNS domain), so the bound
                     // covers exactly the rows worth showing.
                     beyond.maxOfOrNull { it.index }?.let { usedMax ->
+                        // Rows default to VISIBLE unless explicitly hidden, so hide the empty
+                        // indices the new bound sweeps in. The scan reaches a thousand addresses
+                        // deep now, and a match at index 291 would otherwise fill this account's
+                        // list with 290 empty rows. Matches are un-hidden instead: one that now
+                        // holds a balance would otherwise be found and dropped straight back out,
+                        // which reads as not finding it at all.
+                        val previousMax = coldStorageManager.getAccounts()
+                            .firstOrNull { it.id == accountId }?.maxDerivedIndex ?: -1
+                        val matchedIndices = beyond.map { it.index }.toSet()
+                        if (usedMax > previousMax) {
+                            val sweptIn = ((previousMax + 1) until usedMax).filterNot { it in matchedIndices }
+                            coldStorageManager.setAddressesHidden(accountId, sweptIn, true)
+                        }
+                        coldStorageManager.setAddressesHidden(accountId, matchedIndices, false)
                         coldStorageManager.ensureMaxDerivedIndexAtLeast(accountId, usedMax)
                         _accounts.value = coldStorageManager.getAccounts()
                     }
