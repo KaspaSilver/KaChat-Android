@@ -226,7 +226,7 @@
     <string name="leave_delete">Leave &amp; Delete</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this broadcast permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
     <string name="let_s_add_more_details_about">Let\'s add more details about yourself</string>
-    <string name="let_s_fund_your_chatting_address">50 Kaspa is recommended to get started to be able to create a KNS profile and chat for a while. 5 Kaspa is enough for about 1500 messages</string>
+    <string name="let_s_fund_your_chatting_address">50 Kaspa is recommended to get started to be able to create a KNS profile and chat for a while. 5 Kaspa is enough for about 2500 messages</string>
     <string name="link_from_contacts">Link from Contacts</string>
     <string name="linked">Linked</string>
     <string name="local_storage_used">Local storage used</string>
