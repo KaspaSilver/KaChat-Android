@@ -3806,6 +3806,10 @@ fun KaPostTipDialog(
     var feeTier by remember { mutableStateOf(1L) }
     var isSending by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
+    // The completed tip, driving the sent-confirmation half sheet. Set instead of dismissing, so
+    // the transaction id is handed over rather than the dialog just closing on nothing.
+    var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
+    val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val paysViaPool by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
     val spendingUtxos by chatViewModel.spendingUtxos.collectAsState()
@@ -3940,10 +3944,16 @@ fun KaPostTipDialog(
                     chatViewModel.addContact(address, displayName.takeIf { it.isNotBlank() && !it.startsWith("kaspa:") })
                     // Re-apply the tier right before the send (sendPayment consumes the override).
                     chatViewModel.setFeeTierMultiplier(feeTier)
-                    chatViewModel.sendPayment(address, amountText.trim()) { ok, error ->
+                    val tipSompi = ((amountText.trim().toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
+                    chatViewModel.sendPayment(address, amountText.trim()) { ok, error, txId ->
                         if (ok) {
                             chatViewModel.setPaymentAmount("")
-                            onDismiss()
+                            isSending = false
+                            sentTransaction = SentTransaction(
+                                txId = txId.orEmpty(),
+                                amountSompi = tipSompi,
+                                recipient = displayName,
+                            )
                         } else {
                             isSending = false
                             errorText = error ?: "Tip failed."
@@ -3962,6 +3972,18 @@ fun KaPostTipDialog(
             }) { Text("Cancel", color = colors.textSecondary) }
         },
     )
+
+    sentTransaction?.let { sent ->
+        SentConfirmationSheet(
+            transaction = sent,
+            explorerName = kaspaExplorer.displayName,
+            explorerUrl = sent.txId.takeIf { it.isNotEmpty() }?.let { kaspaExplorer.txUrl(it) },
+        ) {
+            sentTransaction = null
+            chatViewModel.setFeeRateOverride(null)
+            onDismiss()
+        }
+    }
 }
 
 /** @mention machinery, hoisted: these were compiled per keystroke inside remember blocks. */

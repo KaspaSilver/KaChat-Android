@@ -2676,8 +2676,10 @@ class ChatViewModel @Inject constructor(
         _feeRateOverride.value = if (multiplier <= 1) null else (_networkFeeRate.value * multiplier).toLong()
     }
 
-    fun sendPayment(contactId: String, amount: String, onResult: ((Boolean, String?) -> Unit)? = null) {
-        val amountKas = amount.toDoubleOrNull() ?: run { onResult?.invoke(false, "Enter a valid amount."); return }
+    /** [onResult] is (succeeded, errorMessage, txId). The txId is what the sent-confirmation
+     *  sheet links to on the explorer; it is null on failure. */
+    fun sendPayment(contactId: String, amount: String, onResult: ((Boolean, String?, String?) -> Unit)? = null) {
+        val amountKas = amount.toDoubleOrNull() ?: run { onResult?.invoke(false, "Enter a valid amount.", null); return }
         val sompi = (amountKas * 100_000_000).toLong()
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
@@ -2757,7 +2759,7 @@ class ChatViewModel @Inject constructor(
                         deliveryStatus = "sent"
                     )
                 )
-                onResult?.invoke(true, null)
+                onResult?.invoke(true, null, txId)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending payment", e)
                 // Remove the optimistic row rather than leaving it as a failed one (iOS parity):
@@ -2765,7 +2767,7 @@ class ChatViewModel @Inject constructor(
                 // "failed" entry in the history for a send the user was simply short the balance
                 // for is a record of nothing. The caller surfaces the reason instead.
                 chatRepository.deleteMessage(pendingId)
-                onResult?.invoke(false, e.message)
+                onResult?.invoke(false, e.message, null)
             }
         }
     }

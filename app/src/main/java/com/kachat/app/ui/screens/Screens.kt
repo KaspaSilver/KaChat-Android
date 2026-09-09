@@ -231,6 +231,8 @@ fun ChatThreadScreen(
     /// Why a payment could not be sent. Shown as a dialog, because a failed payment leaves no row
     /// in the thread to carry the reason.
     var paymentError by remember { mutableStateOf<String?>(null) }
+    /// The completed payment, driving the sent-confirmation half sheet.
+    var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
     val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
     val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val identityFullBalance by walletViewModel.fullBalance.collectAsState()
@@ -698,11 +700,20 @@ fun ChatThreadScreen(
                         Button(
                             onClick = {
                                 if (paymentAmount.isNotEmpty()) {
-                                    chatViewModel.sendPayment(contactId, paymentAmount) { ok, message ->
+                                    val paidSompi = ((paymentAmount.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
+                                    chatViewModel.sendPayment(contactId, paymentAmount) { ok, message, txId ->
                                         // A payment that never reached the network leaves no
                                         // trace in the thread, so the reason has to be said here
                                         // (iOS parity - it alerts and inserts nothing).
-                                        if (!ok) paymentError = message ?: "The payment could not be sent."
+                                        if (!ok) {
+                                            paymentError = message ?: "The payment could not be sent."
+                                        } else if (txId != null) {
+                                            sentTransaction = SentTransaction(
+                                                txId = txId,
+                                                amountSompi = paidSompi,
+                                                recipient = conversation?.contact?.displayName,
+                                            )
+                                        }
                                     }
                                     chatViewModel.setPaymentAmount("")
                                     paymentMode = false
@@ -1571,6 +1582,17 @@ fun ChatThreadScreen(
                 }
             }
         )
+    }
+
+    sentTransaction?.let { sent ->
+        val explorer by walletViewModel.kaspaExplorer.collectAsState()
+        SentConfirmationSheet(
+            transaction = sent,
+            explorerName = explorer.displayName,
+            explorerUrl = explorer.txUrl(sent.txId),
+        ) {
+            sentTransaction = null
+        }
     }
 }
 
@@ -5218,7 +5240,8 @@ fun SpendingAddressSendFlow(
     var customExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
     var showFeeEditor by remember { mutableStateOf(false) }
     var feeEditorInput by remember { mutableStateOf("") }
-    var sentTxId by remember { mutableStateOf<String?>(null) }
+    /// The completed send, driving the sent-confirmation half sheet.
+    var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
     val isSending by viewModel.isSending.collectAsState()
     val sendResult by viewModel.sendResult.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -5291,7 +5314,15 @@ fun SpendingAddressSendFlow(
     LaunchedEffect(sendResult) {
         val result = sendResult ?: return@LaunchedEffect
         if (result.isSuccess) {
-            sentTxId = result.getOrNull()
+            result.getOrNull()?.let { txId ->
+                sentTransaction = SentTransaction(
+                    txId = txId,
+                    amountSompi = ((amountInput.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong().takeIf { it > 0 },
+                    // A compound is a self-send: naming the address it just came from reads as a
+                    // mistake, so it just says how much moved.
+                    recipient = recipientInput.takeIf { !isCompoundMode },
+                )
+            }
         } else {
             Toast.makeText(context, result.exceptionOrNull()?.message ?: context.getString(R.string.withdrawal_failed), Toast.LENGTH_SHORT).show()
         }
@@ -5299,6 +5330,17 @@ fun SpendingAddressSendFlow(
     }
 
     BackHandler(enabled = !isSending) { onDone() }
+
+    sentTransaction?.let { sent ->
+        SentConfirmationSheet(
+            transaction = sent,
+            explorerName = kaspaExplorer.displayName,
+            explorerUrl = kaspaExplorer.txUrl(sent.txId),
+        ) {
+            sentTransaction = null
+            onDone()
+        }
+    }
 
     if (showScanner) {
         BackHandler { showScanner = false }
@@ -5354,45 +5396,8 @@ fun SpendingAddressSendFlow(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (sentTxId != null) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.sent), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Spacer(Modifier.height(20.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(16.dp)
-                    ) {
-                        Text(stringResource(R.string.to), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                        Text(recipientInput, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LocalAppColors.current.surface)
-                            .clickable { sentTxId?.let { uriHandler.openUri(kaspaExplorer.txUrl(it)) } }
-                            .padding(16.dp)
-                    ) {
-                        Text("Transaction ID · tap to view in ${kaspaExplorer.displayName}", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                        Text(sentTxId ?: "", color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = onDone,
-                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                }
-                return@Column
-            }
+            // The confirmation is a half sheet now (see SentConfirmationSheet), not a page that
+            // replaced this form - so every send in the app finishes the same way.
 
             Text(
                 (if (isCompoundMode) stringResource(R.string.consolidating_this_address) else stringResource(R.string.recipient_address)).uppercase(),

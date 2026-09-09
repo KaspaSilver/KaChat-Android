@@ -40,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -449,4 +451,134 @@ fun ConfirmActionSheet(
             onClick = onDismiss,
         )
     }
+}
+
+/**
+ * A completed Kaspa send, for [SentConfirmationSheet].
+ *
+ * [amountSompi] and [recipient] are optional: a consolidation self-send has no meaningful "to
+ * whom", and naming the address it just came from reads as a mistake.
+ */
+data class SentTransaction(
+    val txId: String,
+    val amountSompi: Long? = null,
+    val recipient: String? = null,
+)
+
+/**
+ * The half sheet every successful Kaspa send ends on: a checkmark, what was sent, and the
+ * transaction id as a live link to whichever block explorer Settings names.
+ *
+ * A tip on KaPosts used to close its dialog and tell you nothing - no confirmation, and no
+ * transaction to go and check - and the send flow confirmed inside its own full screen instead.
+ * A send is the one moment where the txid is worth handing over, so it is a link: tapping it
+ * opens the explorer. Mirrors iOS's `SentConfirmationSheet`.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SentConfirmationSheet(
+    transaction: SentTransaction,
+    explorerName: String,
+    explorerUrl: String?,
+    onDone: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val uriHandler = LocalUriHandler.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDone,
+        // Expanded, not half-height: partial expansion cuts the Done button off.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = Color(0xFF4CD964),
+                modifier = Modifier.size(52.dp),
+            )
+            Spacer(Modifier.height(12.dp))
+            Text("Sent", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+
+            transaction.amountSompi?.let { sompi ->
+                Spacer(Modifier.height(2.dp))
+                Text(trimmedKasAmount(sompi), color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+
+            transaction.recipient?.takeIf { it.isNotBlank() }?.let { recipient ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "to ${middleTruncated(recipient)}",
+                    color = colors.textSecondary,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // The txid, as the link. Middle-truncated because both ends identify it and the
+            // middle does not.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.surface)
+                    .let { base ->
+                        if (explorerUrl != null) base.clickable { uriHandler.openUri(explorerUrl) } else base
+                    }
+                    .padding(16.dp),
+            ) {
+                Text(
+                    if (explorerUrl != null) "Transaction ID · tap to view in $explorerName" else "Transaction ID",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    middleTruncated(transaction.txId),
+                    color = if (explorerUrl != null) KaspaTeal else colors.textPrimary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            Button(
+                onClick = onDone,
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) {
+                Text("Done", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+/**
+ * Truncates the MIDDLE, not the end. Both ends of a transaction id identify it and the middle
+ * does not, so an end-ellipsised hash is unrecognisable. (`TextOverflow.MiddleEllipsis` would do
+ * this natively but is not in this Compose version.)
+ */
+private fun middleTruncated(value: String, keep: Int = 12): String =
+    if (value.length <= keep * 2 + 1) value else "${value.take(keep)}…${value.takeLast(keep)}"
+
+/** Trailing zeros trimmed - "1.5 KAS", not "1.50000000 KAS". */
+private fun trimmedKasAmount(sompi: Long): String {
+    var text = "%.8f".format(java.util.Locale.US, sompi / 100_000_000.0)
+    while (text.endsWith("0")) text = text.dropLast(1)
+    if (text.endsWith(".")) text = text.dropLast(1)
+    return "$text KAS"
 }
