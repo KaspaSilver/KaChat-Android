@@ -1217,12 +1217,18 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
         val who = if (message.direction == "sent") "You" else contactLabel
         return "$who replied to \"${replyContent.replyToPreview}\""
     }
-    if (VoiceMessage.parseOrNull(body) != null) return "🎤 Audio message"
-    if (ImageMessage.parseOrNull(body) != null) return "📷 Photo"
-    if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
-    VoiceMessage.parseAnyFileOrNull(body)?.let {
-        return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
+    // One head scan instead of four full parses. Each of those deserializes the WHOLE payload,
+    // and for an inline photo or voice message that is tens of kilobytes of base64 - four times
+    // over, per visible row, on every recomposition. See InlineMediaSniff.
+    com.kachat.app.util.InlineMediaSniff.mimeType(body)?.let { mime ->
+        return when {
+            mime.startsWith("audio/") -> "🎤 Audio message"
+            mime.startsWith("image/") -> "📷 Photo"
+            mime.startsWith("video/") -> "🎬 Video"
+            else -> "📎 File"
+        }
     }
+    if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
     com.kachat.app.util.NextcloudShareSniff.previewLabel(body)?.let { return it }
     return body
 }
@@ -1411,11 +1417,18 @@ private fun ConversationRow(
                     else -> "Reacted to their message"
                 }
             }
+            // Computed once per message, not once per recomposition. The chat list re-renders on
+            // every sync tick, and this walks the message body looking for a reply envelope and a
+            // media mime - cheap now, but not free, and there are as many of these as there are
+            // visible rows.
+            val preview = remember(convo.lastMessage?.id, contactLabel) {
+                messagePreviewText(convo.lastMessage, contactLabel)
+            }
             Text(
                 text = when {
                     reactionPreview != null -> reactionPreview
-                    convo.contact.conversationStatus == "pending" -> "🤝 ${messagePreviewText(convo.lastMessage, contactLabel) ?: "Wants to connect"}"
-                    else -> messagePreviewText(convo.lastMessage, contactLabel) ?: "No messages yet"
+                    convo.contact.conversationStatus == "pending" -> "🤝 ${preview ?: "Wants to connect"}"
+                    else -> preview ?: "No messages yet"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (convo.contact.conversationStatus == "pending") KaspaTeal else Color.Gray,

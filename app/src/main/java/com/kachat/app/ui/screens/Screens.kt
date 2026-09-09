@@ -881,11 +881,24 @@ fun ChatThreadScreen(
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    // Head scan, remembered. This is the composer's "replying to"
+                                    // banner, which recomposes on every keystroke - and it was
+                                    // fully deserializing the quoted message's payload twice each
+                                    // time, which for a quoted photo is tens of kilobytes per
+                                    // character typed.
+                                    val quotedPreview = remember(reply.plaintextBody) {
+                                        val body = reply.plaintextBody
+                                        com.kachat.app.util.InlineMediaSniff.mimeType(body)?.let { mime ->
+                                            when {
+                                                mime.startsWith("audio/") -> "🎤 Audio message"
+                                                mime.startsWith("image/") -> "📷 Photo"
+                                                mime.startsWith("video/") -> "🎬 Video"
+                                                else -> "📎 File"
+                                            }
+                                        } ?: MessageReply.parseOrNull(body)?.text ?: (body ?: "")
+                                    }
                                     Text(
-                                        VoiceMessage.parseOrNull(reply.plaintextBody)?.let { "🎤 Audio message" }
-                                            ?: ImageMessage.parseOrNull(reply.plaintextBody)?.let { "📷 Photo" }
-                                            ?: MessageReply.parseOrNull(reply.plaintextBody)?.text
-                                            ?: (reply.plaintextBody ?: ""),
+                                        quotedPreview,
                                         color = LocalAppColors.current.textSecondary,
                                         fontSize = 12.sp,
                                         maxLines = 1,
@@ -1856,6 +1869,12 @@ fun MessageBubble(
     val replyContent = remember(message.plaintextBody) { MessageReply.parseOrNull(message.plaintextBody) }
     val displayBody = replyContent?.text ?: message.plaintextBody
     val imageContent = remember(displayBody) { ImageMessage.parseOrNull(displayBody) }
+    // Remembered like the image above, and for the same reason: parsing a voice message
+    // deserializes the WHOLE payload, tens of kilobytes of base64, and this bubble asked for it
+    // three separate times per recomposition - once to decide it was audio, once to build the
+    // bubble, and once more in the plain-text test below. Same for the image, which was parsed
+    // twice more despite already being remembered here.
+    val voiceContent = remember(displayBody) { VoiceMessage.parseOrNull(displayBody) }
     val chessEnvelope = remember(displayBody) { com.kachat.app.util.ChessMessage.parseOrNull(displayBody) }
     // Only the plain, non-truncated text bubble ever shows a link preview - hoisted up here
     // (rather than computed inline where it's used) so `separateLinkPreviewUrl`'s card can be
@@ -1867,7 +1886,7 @@ fun MessageBubble(
     val isPlainTextMessage = message.type != "pay" &&
         message.type != MessageProtocol.TYPE_HANDSHAKE &&
         chessEnvelope == null &&
-        VoiceMessage.parseOrNull(displayBody) == null &&
+        voiceContent == null &&
         imageContent == null &&
         bodyText.length <= MESSAGE_TEXT_TRUNCATION_THRESHOLD
     val isEntirelyLinkMessage = remember(bodyText, isPlainTextMessage) {
@@ -2117,16 +2136,16 @@ fun MessageBubble(
                     onOpen = { onOpenChessGame(chessEnvelope.gameId) },
                     onLongPress = { showMenu = true }
                 )
-            } else if (VoiceMessage.parseOrNull(displayBody) != null) {
+            } else if (voiceContent != null) {
                 AudioBubble(
-                    voiceContent = VoiceMessage.parseOrNull(displayBody)!!,
+                    voiceContent = voiceContent,
                     isSent = isSent,
                     onLongPress = { showMenu = true },
                     onDoubleClick = { showQuickReactionBar = true }
                 )
-            } else if (ImageMessage.parseOrNull(displayBody) != null) {
+            } else if (imageContent != null) {
                 ImageBubble(
-                    imageContent = ImageMessage.parseOrNull(displayBody)!!,
+                    imageContent = imageContent,
                     isSent = isSent,
                     onLongPress = { showMenu = true },
                     onDoubleClick = { showQuickReactionBar = true },

@@ -37,6 +37,13 @@ class WalletManager @Inject constructor(
 ) {
 
     companion object {
+        // Gson type tokens, resolved once. `object : TypeToken<...>() {}` allocates a fresh
+        // anonymous class instance and walks reflection every time it is evaluated, and these sat
+        // inside functions called on nearly every screen.
+        private val ACCOUNTS_TYPE = object : TypeToken<List<Account>>() {}.type
+        private val SPENDING_CACHE_TYPE = object : TypeToken<List<CachedSpendingAddress>>() {}.type
+        private val USED_ADDRESSES_TYPE = object : TypeToken<Set<String>>() {}.type
+
         private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         private const val KEY_ALIAS = "kachat_wallet_key"
         private const val SECURE_PREFS_NAME = "kachat_secure_prefs"
@@ -140,14 +147,34 @@ class WalletManager @Inject constructor(
         return getAccounts().isNotEmpty()
     }
 
+    /**
+     * The parsed account list, held in memory.
+     *
+     * [getActiveAccount] and [getAddress] sit behind about 170 call sites across the app -
+     * repositories, view models, composables - and every one of them used to mean a
+     * SharedPreferences read, a fresh `TypeToken` anonymous class, and a full Gson parse of the
+     * whole blob. `getActiveAccount` did it twice when no active address was stored. That is a
+     * lot of reflection for data that changes when the user adds or switches an account.
+     *
+     * Invalidated by [saveAccounts] and [wipe], which are the only two things that write it.
+     */
+    @Volatile private var accountsCache: List<Account>? = null
+
     private fun getAccounts(): List<Account> {
-        val json = sharedPrefs.getString(PREF_ACCOUNTS, null) ?: return emptyList()
-        val type = object : TypeToken<List<Account>>() {}.type
-        return gson.fromJson(json, type)
+        accountsCache?.let { return it }
+        val json = sharedPrefs.getString(PREF_ACCOUNTS, null) ?: return emptyList<Account>().also { accountsCache = it }
+        val parsed = try {
+            gson.fromJson<List<Account>>(json, ACCOUNTS_TYPE) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        accountsCache = parsed
+        return parsed
     }
 
     private fun saveAccounts(accounts: List<Account>) {
         val json = gson.toJson(accounts)
+        accountsCache = accounts
         sharedPrefs.edit().putString(PREF_ACCOUNTS, json).apply()
         // saveAccounts is the single choke point every spendingAddressIndex write goes through
         // (send rotation via setSpendingAddressIndex, advanceSpendingAddressIndex, manual
@@ -418,6 +445,9 @@ class WalletManager @Inject constructor(
      */
     fun wipe() {
         sharedPrefs.edit().clear().apply()
+        accountsCache = null
+        spendingAddressCacheMemo = null
+        usedAddressesMemo = null
         refreshActiveAddressFlow()
     }
 
@@ -673,10 +703,21 @@ class WalletManager @Inject constructor(
      *  (walletAddress, index) keying, same pattern as [HiddenSpendingAddress]. */
     private data class CachedSpendingAddress(val walletAddress: String, val index: Int, val address: String)
 
+    /** Same memo as [accountsCache], for the blob [deriveSpendingAddress] consults on every
+     *  single index lookup. Invalidated by [cacheSpendingAddresses] and [wipe]. */
+    @Volatile private var spendingAddressCacheMemo: List<CachedSpendingAddress>? = null
+
     private fun getAllCachedSpendingAddresses(): List<CachedSpendingAddress> {
-        val json = sharedPrefs.getString(PREF_SPENDING_ADDRESS_CACHE, null) ?: return emptyList()
-        val type = object : TypeToken<List<CachedSpendingAddress>>() {}.type
-        return try { gson.fromJson(json, type) } catch (e: Exception) { emptyList() }
+        spendingAddressCacheMemo?.let { return it }
+        val json = sharedPrefs.getString(PREF_SPENDING_ADDRESS_CACHE, null)
+            ?: return emptyList<CachedSpendingAddress>().also { spendingAddressCacheMemo = it }
+        val parsed = try {
+            gson.fromJson<List<CachedSpendingAddress>>(json, SPENDING_CACHE_TYPE) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        spendingAddressCacheMemo = parsed
+        return parsed
     }
 
     private fun cacheSpendingAddresses(walletAddress: String, byIndex: Map<Int, String>) {
@@ -684,7 +725,9 @@ class WalletManager @Inject constructor(
         val existing = getAllCachedSpendingAddresses()
             .filterNot { it.walletAddress == walletAddress && byIndex.containsKey(it.index) }
         val added = byIndex.map { (index, address) -> CachedSpendingAddress(walletAddress, index, address) }
-        sharedPrefs.edit().putString(PREF_SPENDING_ADDRESS_CACHE, gson.toJson(existing + added)).apply()
+        val merged = existing + added
+        spendingAddressCacheMemo = merged
+        sharedPrefs.edit().putString(PREF_SPENDING_ADDRESS_CACHE, gson.toJson(merged)).apply()
     }
 
     fun deriveSpendingAddress(index: Int): String {
@@ -770,19 +813,31 @@ class WalletManager @Inject constructor(
     // --- "Ever used" cache: monotonic (a used address can never become unused), so positive
     // answers persist forever and skip the network history probe — mirrors iOS. Address-keyed:
     // used-ness is intrinsic to the address, not the wallet.
-    fun isAddressKnownUsed(address: String): Boolean {
-        val json = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null) ?: return false
-        val type = object : TypeToken<Set<String>>() {}.type
-        return try { gson.fromJson<Set<String>>(json, type).contains(address) } catch (e: Exception) { false }
+    /** Same memo again, for the set every address row asks about. */
+    @Volatile private var usedAddressesMemo: Set<String>? = null
+
+    private fun usedAddresses(): Set<String> {
+        usedAddressesMemo?.let { return it }
+        val json = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null)
+            ?: return emptySet<String>().also { usedAddressesMemo = it }
+        val parsed = try {
+            gson.fromJson<Set<String>>(json, USED_ADDRESSES_TYPE) ?: emptySet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+        usedAddressesMemo = parsed
+        return parsed
     }
+
+    fun isAddressKnownUsed(address: String): Boolean = address in usedAddresses()
 
     fun markAddressUsed(address: String) {
         if (address.isBlank()) return
-        val type = object : TypeToken<Set<String>>() {}.type
-        val current: Set<String> = sharedPrefs.getString(PREF_USED_SPENDING_ADDRESSES, null)
-            ?.let { try { gson.fromJson(it, type) } catch (e: Exception) { emptySet<String>() } } ?: emptySet()
+        val current = usedAddresses()
         if (address in current) return
-        sharedPrefs.edit().putString(PREF_USED_SPENDING_ADDRESSES, gson.toJson(current + address)).apply()
+        val updated = current + address
+        usedAddressesMemo = updated
+        sharedPrefs.edit().putString(PREF_USED_SPENDING_ADDRESSES, gson.toJson(updated)).apply()
     }
 
     // --- Manage Addresses snapshot: opaque JSON of the last fully-loaded entry list, persisted

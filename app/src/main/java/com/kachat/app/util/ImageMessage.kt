@@ -55,3 +55,51 @@ object ImageMessage {
     /** The raw base64 image payload, stripped of its "data:<mime>;base64," prefix. */
     fun base64Payload(imageContent: VoiceMessageContent): String = VoiceMessage.base64Payload(imageContent)
 }
+
+/**
+ * Extracts an inline-media payload's `mimeType` by scanning only the payload HEAD.
+ *
+ * The parsers above deserialize the ENTIRE payload, and for an inline photo or voice message that
+ * is a `data:` URL holding tens of kilobytes of base64. The chat list called five of them in a
+ * row - reply, voice, image, chess, file - for every visible row, on every recomposition, just to
+ * decide what one line of preview text should say. On an account with a hundred and thirty chats
+ * that is the difference between a list that scrolls and one that does not.
+ *
+ * App-generated media JSON always carries `mimeType` near the front; 2KB comfortably covers it.
+ * Mirrors iOS's `InlineMediaSniff`, including its two hard-won cases: a sender that built the
+ * envelope from a map may serialize `content` BEFORE `mimeType`, pushing the mime past the head
+ * window - but the `data:` URL names the mime up front anyway - and JSON escapes "/" as "\/", so
+ * the extracted value has to be unescaped before any `startsWith("image/")` check can match.
+ */
+object InlineMediaSniff {
+    private const val HEAD = 2048
+
+    fun mimeType(text: String?): String? {
+        if (text.isNullOrEmpty()) return null
+        val head = text.take(HEAD).trimStart()
+        if (head.firstOrNull() != '{') return null
+        valueAfterKey(head, "\"mimeType\"")?.let { return it }
+        // Fallback: read it off the data: URL, which names the mime before the payload begins.
+        val dataUrl = head.indexOf("data:")
+        if (dataUrl >= 0) {
+            val semicolon = head.indexOf(';', dataUrl)
+            if (semicolon > dataUrl) return unescape(head.substring(dataUrl + 5, semicolon))
+        }
+        return null
+    }
+
+    private fun valueAfterKey(head: String, key: String): String? {
+        val keyAt = head.indexOf(key)
+        if (keyAt < 0) return null
+        val colon = head.indexOf(':', keyAt + key.length)
+        if (colon < 0) return null
+        var i = colon + 1
+        while (i < head.length && head[i] == ' ') i++
+        if (i >= head.length || head[i] != '"') return null
+        val end = head.indexOf('"', i + 1)
+        if (end < 0) return null
+        return unescape(head.substring(i + 1, end))
+    }
+
+    private fun unescape(value: String): String = value.replace("\\/", "/")
+}
