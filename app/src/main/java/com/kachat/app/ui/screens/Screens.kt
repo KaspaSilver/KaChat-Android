@@ -4473,8 +4473,12 @@ fun ManageAddressesScreen(
                     viewModel.discoverSpendingAddresses { count ->
                         // The count is addresses that hold a balance or a KNS domain - say so,
                         // rather than "used", which is what the old number implied and was not.
-                        discoverySummary = if (count == 0) "No addresses with a balance or domain found."
+                        val summary = if (count == 0) "No addresses with a balance or domain found."
                         else "Found $count address${if (count == 1) "" else "es"} with a balance or domain."
+                        discoverySummary = summary
+                        // Closed the sheet and carried on? Then the summary above has nowhere to
+                        // render, so say it here instead of finishing silently.
+                        if (!showActionsMenu) Toast.makeText(context, summary, Toast.LENGTH_LONG).show()
                     }
                 },
                 onVisibility = { showActionsMenu = false; onNavigateToVisibility() },
@@ -12803,9 +12807,11 @@ private fun ManageAddressesActionsSheet(
 ) {
     val colors = LocalAppColors.current
     ModalBottomSheet(
-        // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
-        // either way - so the sheet holds until it is done.
-        onDismissRequest = { if (!isDiscovering) onDismiss() },
+        // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
+        // belongs to the ViewModel rather than to the sheet, so closing it abandons nothing - the
+        // Address Actions button keeps its spinner and the result still arrives. Holding the
+        // sheet open was only ever protecting a progress readout.
+        onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
         containerColor = colors.background,
     ) {
@@ -12842,6 +12848,18 @@ private fun ManageAddressesActionsSheet(
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center,
                 )
+                Spacer(Modifier.height(12.dp))
+                // The scan runs in the ViewModel's own scope, not the sheet's, so closing the
+                // sheet does not stop it - it keeps running and reports what it found. Holding
+                // the sheet open for the length of a thousand-address sweep was the only reason
+                // to sit and watch it.
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(28.dp),
+                ) {
+                    Text("Close and Keep Scanning", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+                }
                 Spacer(Modifier.height(8.dp))
             } else {
                 ActionSheetRow(
