@@ -1092,6 +1092,27 @@ class ChatRepository @Inject constructor(
     }
 
     /**
+     * Reads a 1:1 message straight off the chain and returns its plaintext, or null.
+     *
+     * A push only carries its encrypted payload when that payload is small enough for FCM;
+     * anything larger arrives as a bare txId. Photos compress to tens of kilobytes, so the one
+     * case where a preview matters most is exactly the case with nothing to preview. The message
+     * is public on the blockDAG and this device already holds the key that opens it.
+     */
+    suspend fun decryptChainMessage(txId: String): String? {
+        val api = networkService.kaspaRestApi.value ?: return null
+        return try {
+            val payloadHex = api.getTransactionPayload(txId).payload?.takeIf { it.isNotEmpty() } ?: return null
+            val sealed = decodeOnChainContextualPayload(payloadHex) ?: return null
+            val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed) ?: return null
+            MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
+        } catch (e: Exception) {
+            Log.d("ChatRepository", "Off-chain read failed for ${txId.take(12)}: ${e.message}")
+            null
+        }
+    }
+
+    /**
      * [myAddress] is passed down from [syncContextualMessages] rather than re-read here via
      * `walletManager.getAddress()` — if the user switched the active account mid-sync, a fresh
      * read here would stamp this message under the NEW account even though [contact] belongs
@@ -1370,6 +1391,27 @@ class ChatRepository @Inject constructor(
          * for a contextual message is hex(base64 ascii text), not hex(raw bytes) like a
          * handshake's. Decode both layers to get back to the actual encrypted bytes.
          */
+        /**
+         * The sealed bytes of a contextual message read straight OFF CHAIN, where the payload is
+         * the whole "ciph_msg:1:comm:<alias>:<base64>" string rather than the indexer's already
+         * stripped `message_payload`. Null when it is not a contextual message at all.
+         */
+        internal fun decodeOnChainContextualPayload(hexPayload: String): ByteArray? {
+            val text = try {
+                String(hexPayload.hexToBytes(), Charsets.US_ASCII)
+            } catch (e: Exception) {
+                return null
+            }
+            val prefix = listOf("kchat:1:comm:", "ciph_msg:1:comm:").firstOrNull { text.startsWith(it) }
+                ?: return null
+            // "<alias>:<base64>" - the alias is plaintext and colon-delimited, so the sealed part
+            // is everything after the FIRST colon that follows the prefix.
+            val rest = text.removePrefix(prefix)
+            val base64 = rest.substringAfter(':', missingDelimiterValue = "")
+            if (base64.isEmpty()) return null
+            return try { Base64.getDecoder().decode(base64) } catch (e: Exception) { null }
+        }
+
         internal fun decodeContextualMessagePayload(hexPayload: String): ByteArray {
             val base64Text = String(hexPayload.hexToBytes(), Charsets.US_ASCII)
             return Base64.getDecoder().decode(base64Text)

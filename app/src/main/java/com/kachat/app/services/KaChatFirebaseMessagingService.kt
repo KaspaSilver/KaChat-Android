@@ -238,7 +238,13 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // carry enc_payload and are decrypted here for the real preview.
         val fallback = data["body"].orEmpty().ifEmpty { "New message" }
 
+        // No enc_payload means the message was too big for FCM - which is EVERY photo and voice
+        // message, since those run to tens of kilobytes. Read it off chain so the preview below
+        // can say what it is instead of falling back to the server's generic wording.
         val plaintext = decryptDirectMessage(data["enc_payload"])
+            ?: data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
+                runCatching { chatRepository.decryptChainMessage(txId) }.getOrNull()
+            }
         if (plaintext != null && MessageReaction.parseOrNull(plaintext) != null) {
             // Reactions are never shown as their own notification (matches ChatRepository).
             return
