@@ -94,8 +94,9 @@ android {
         // Each 4.1 rebuild moves this: same versionName, more code behind it, and a device
         // will not treat a rebuild as an update unless this moves. 36 was the second build; 37
         // is the third (address discovery, Max, and the gift service's real endpoint); 38 the
-        // fourth (photo notifications read off chain, KaPosts notification actions).
-        versionCode = 38
+        // fourth (photo notifications read off chain, KaPosts notification actions); 39 the
+        // fifth (performance: no more re-parsing whole message payloads per frame).
+        versionCode = 39
         versionName = "4.1"
 
         buildConfigField(
