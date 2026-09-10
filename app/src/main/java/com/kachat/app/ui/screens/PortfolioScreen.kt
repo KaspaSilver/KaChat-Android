@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.ImportExport
@@ -353,9 +355,23 @@ private fun PortfolioTransactionsContent(
     var showCsvMenu by remember { mutableStateOf(false) }
     var showAddMenu by remember { mutableStateOf(false) }
     var showAddAddressDialog by remember { mutableStateOf(false) }
+    // Multi-select over the ledger, matching iOS's EditMode on PortfolioTransactionsView. Deleting
+    // one row has always been the row's own bin icon; deleting the forty rows a bad CSV import left
+    // behind was forty taps and forty confirmations.
+    var selecting by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var showDeleteSelected by remember { mutableStateOf(false) }
     var isImportingAddress by remember { mutableStateOf(false) }
     var importProgressText by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
+
+    // A row deleted underneath us (edit dialog, CSV re-import) must not leave a phantom in the
+    // count, and an empty ledger has nothing to select.
+    LaunchedEffect(transactions) {
+        val live = transactions.map { it.id }.toSet()
+        if (selectedIds.any { it !in live }) selectedIds = selectedIds intersect live
+        if (transactions.isEmpty() && selecting) { selecting = false; selectedIds = emptySet() }
+    }
 
     val importCsvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -388,94 +404,143 @@ private fun PortfolioTransactionsContent(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Box {
-                IconButton(onClick = { showAddMenu = true }, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Default.AddCircle,
-                        contentDescription = stringResource(R.string.add_transaction),
-                        tint = KaspaTeal,
-                        modifier = Modifier.size(26.dp)
+            if (selecting) {
+                // Add and Import/Export step aside: while selecting, the only things worth doing to
+                // this list are picking rows, binning them, or leaving.
+                TextButton(
+                    onClick = {
+                        selectedIds = if (selectedIds.size == transactions.size) emptySet()
+                        else transactions.map { it.id }.toSet()
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        if (selectedIds.size == transactions.size && transactions.isNotEmpty()) "Deselect All" else "Select All",
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
                     )
                 }
-                if (showAddMenu) {
-                    // A sheet, not a popup: each option gets a line saying what it does - "Add
-                    // Kaspa Address" reads as a contact until you learn otherwise.
-                    ActionSheetContainer(
-                        title = "Add to Portfolio",
-                        subtitle = null,
-                        onDismiss = { showAddMenu = false },
-                    ) {
-                        ActionSheetRow(
-                            icon = Icons.Default.MonetizationOn,
-                            title = stringResource(R.string.add_transaction),
-                            subtitle = "Record a buy or a sell by hand.",
+                IconButton(
+                    onClick = { showDeleteSelected = true },
+                    enabled = selectedIds.isNotEmpty(),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete selected",
+                        tint = if (selectedIds.isEmpty()) LocalAppColors.current.textSecondary else Color(0xFFFF3B30),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                TextButton(
+                    onClick = { selecting = false; selectedIds = emptySet() },
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text("Done", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                }
+            } else {
+                TextButton(
+                    onClick = { selecting = true },
+                    enabled = transactions.isNotEmpty(),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        "Select",
+                        color = if (transactions.isEmpty()) LocalAppColors.current.textSecondary else KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                }
+                Box {
+                    IconButton(onClick = { showAddMenu = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.AddCircle,
+                            contentDescription = stringResource(R.string.add_transaction),
+                            tint = KaspaTeal,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    if (showAddMenu) {
+                        // A sheet, not a popup: each option gets a line saying what it does - "Add
+                        // Kaspa Address" reads as a contact until you learn otherwise.
+                        ActionSheetContainer(
+                            title = "Add to Portfolio",
+                            subtitle = null,
+                            onDismiss = { showAddMenu = false },
                         ) {
-                            showAddMenu = false
-                            pendingPrefillSwapId = null
-                            showAddDialog = true
-                        }
-                        ActionSheetRow(
-                            icon = Icons.Default.QrCodeScanner,
-                            title = stringResource(R.string.add_kaspa_address),
-                            subtitle = "Track an address's balance as part of this portfolio.",
-                        ) {
-                            showAddMenu = false
-                            showAddAddressDialog = true
+                            ActionSheetRow(
+                                icon = Icons.Default.MonetizationOn,
+                                title = stringResource(R.string.add_transaction),
+                                subtitle = "Record a buy or a sell by hand.",
+                            ) {
+                                showAddMenu = false
+                                pendingPrefillSwapId = null
+                                showAddDialog = true
+                            }
+                            ActionSheetRow(
+                                icon = Icons.Default.QrCodeScanner,
+                                title = stringResource(R.string.add_kaspa_address),
+                                subtitle = "Track an address's balance as part of this portfolio.",
+                            ) {
+                                showAddMenu = false
+                                showAddAddressDialog = true
+                            }
                         }
                     }
                 }
-            }
-            Box {
-                IconButton(onClick = { showCsvMenu = true }, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Default.ImportExport,
-                        contentDescription = "Import or export CSV",
-                        tint = KaspaTeal,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                if (showCsvMenu) {
-                    ActionSheetContainer(
-                        title = "Import or Export",
-                        subtitle = null,
-                        onDismiss = { showCsvMenu = false },
-                    ) {
-                        ActionSheetRow(
-                            icon = Icons.Default.FileUpload,
-                            title = stringResource(R.string.export_csv),
-                            subtitle = "Write this portfolio's transactions out to a file.",
+                Box {
+                    IconButton(onClick = { showCsvMenu = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.ImportExport,
+                            contentDescription = "Import or export CSV",
+                            tint = KaspaTeal,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    if (showCsvMenu) {
+                        ActionSheetContainer(
+                            title = "Import or Export",
+                            subtitle = null,
+                            onDismiss = { showCsvMenu = false },
                         ) {
-                            showCsvMenu = false
-                            viewModel.exportCsv(
-                                onReady = { uri ->
-                                    val intent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/csv"
-                                        putExtra(Intent.EXTRA_STREAM, uri)
-                                        // clipData carries the URI grant to targets that read
-                                        // the stream off the ClipData rather than the extra.
-                                        clipData = ClipData.newRawUri("Portfolio CSV", uri)
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            ActionSheetRow(
+                                icon = Icons.Default.FileUpload,
+                                title = stringResource(R.string.export_csv),
+                                subtitle = "Write this portfolio's transactions out to a file.",
+                            ) {
+                                showCsvMenu = false
+                                viewModel.exportCsv(
+                                    onReady = { uri ->
+                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/csv"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            // clipData carries the URI grant to targets that read
+                                            // the stream off the ClipData rather than the extra.
+                                            clipData = ClipData.newRawUri("Portfolio CSV", uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        // No share target installed at all throws rather than showing
+                                        // an empty chooser; say so instead of crashing the tab.
+                                        try {
+                                            context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
+                                        } catch (e: ActivityNotFoundException) {
+                                            Toast.makeText(context, "No app available to share the CSV", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onUnavailable = { message ->
+                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                     }
-                                    // No share target installed at all throws rather than showing
-                                    // an empty chooser; say so instead of crashing the tab.
-                                    try {
-                                        context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
-                                    } catch (e: ActivityNotFoundException) {
-                                        Toast.makeText(context, "No app available to share the CSV", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                onUnavailable = { message ->
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
-                        ActionSheetRow(
-                            icon = Icons.Default.FileDownload,
-                            title = stringResource(R.string.import_csv),
-                            subtitle = "Read transactions in from a file.",
-                        ) {
-                            showCsvMenu = false
-                            importCsvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
+                                )
+                            }
+                            ActionSheetRow(
+                                icon = Icons.Default.FileDownload,
+                                title = stringResource(R.string.import_csv),
+                                subtitle = "Read transactions in from a file.",
+                            ) {
+                                showCsvMenu = false
+                                importCsvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
+                            }
                         }
                     }
                 }
@@ -506,11 +571,44 @@ private fun PortfolioTransactionsContent(
                         onClick = { editingTransaction = tx },
                         onDelete = { viewModel.deleteTransaction(tx.id) },
                         currencyCode = currencyCode,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        selecting = selecting,
+                        picked = tx.id in selectedIds,
+                        onToggle = {
+                            selectedIds = if (tx.id in selectedIds) selectedIds - tx.id else selectedIds + tx.id
+                        }
                     )
                 }
             }
         }
+    }
+
+    if (showDeleteSelected) {
+        val count = selectedIds.size
+        AlertDialog(
+            onDismissRequest = { showDeleteSelected = false },
+            containerColor = LocalAppColors.current.surface,
+            title = {
+                Text(
+                    "Delete $count transaction${if (count == 1) "" else "s"}?",
+                    color = LocalAppColors.current.textPrimary
+                )
+            },
+            text = { Text("This can't be undone.", color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedIds.forEach { viewModel.deleteTransaction(it) }
+                    selectedIds = emptySet()
+                    selecting = false
+                    showDeleteSelected = false
+                }) { Text(stringResource(R.string.delete), color = Color(0xFFFF3B30)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteSelected = false }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
     }
 
     if (showAddDialog || editingTransaction != null) {
@@ -1618,7 +1716,10 @@ private fun TransactionRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     currencyCode: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selecting: Boolean = false,
+    picked: Boolean = false,
+    onToggle: () -> Unit = {}
 ) {
     val isBuy = tx.type == "buy"
     val amountKas = tx.amountSompi / 100_000_000.0
@@ -1630,13 +1731,23 @@ private fun TransactionRow(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surface)
-            .clickable(onClick = onClick)
+            // A picked row is tinted rather than restyled, so the list stays the same list.
+            .background(if (picked) KaspaTeal.copy(alpha = 0.10f) else LocalAppColors.current.surface)
+            .clickable(onClick = if (selecting) onToggle else onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (selecting) {
+                Icon(
+                    if (picked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = if (picked) "Selected" else "Not selected",
+                    tint = if (picked) KaspaTeal else LocalAppColors.current.textSecondary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+            }
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -1672,9 +1783,11 @@ private fun TransactionRow(
             Text("${formatKasAmountGrouped(amountKas)} KAS", color = LocalAppColors.current.textPrimary)
             Text(formatFiatAmount(tx.fiatValue, currencyCode), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
         }
-        Spacer(Modifier.width(8.dp))
-        IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
-            Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+        if (!selecting) {
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
+                Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
