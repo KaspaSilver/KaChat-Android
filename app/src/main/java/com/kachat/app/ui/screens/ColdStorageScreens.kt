@@ -918,7 +918,10 @@ fun ColdStorageAddressVisibilityScreen(
                 // Used-state for derived rows the list loader has never seen.
                 if (entry.index > listMax && entry.address.isNotEmpty() && entry.index !in usedCache) {
                     LaunchedEffect(entry.index) {
-                        usedCache[entry.index] = viewModel.hasColdAddressBeenUsed(accountId, entry.index)
+                        // Only a real answer is cached. A null means the probe failed, and the row
+                        // keeps its neutral badge and is asked again rather than claiming "Unused".
+                        viewModel.hasColdAddressBeenUsed(accountId, entry.index)
+                            ?.let { usedCache[entry.index] = it }
                     }
                 }
                 val used = if (entry.index <= listMax) entry.hasHistory else usedCache[entry.index]
@@ -997,6 +1000,13 @@ fun ColdStorageAddressVisibilityScreen(
                             color = if (used) Color(0xFFF39C12) else Color(0xFF4CD964),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
+                        )
+                        // Not yet answered, or a probe that failed. iOS shows the same neutral
+                        // placeholder rather than an empty gap where every other row has a badge.
+                        else -> Text(
+                            "…",
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 12.sp
                         )
                     }
                 }

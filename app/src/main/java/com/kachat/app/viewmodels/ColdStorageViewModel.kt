@@ -378,10 +378,23 @@ class ColdStorageViewModel @Inject constructor(
 
     /** One-off used check for a pager-derived index (balance or history). Degrades to false
      *  on network failure, matching WalletService.hasSpendingAddressBeenUsed. */
-    suspend fun hasColdAddressBeenUsed(accountId: String, index: Int): Boolean {
-        val rootKey = rootKeyFor(accountId) ?: return false
-        val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index)
-        return discovered != null && (discovered.hasHistory || discovered.balanceSompi > 0)
+    /**
+     * Whether this address has ever been used - or NULL when the probe could not answer.
+     *
+     * Null is the whole point, and it used to be false. A failed lookup, an unreadable balance, a
+     * missing root key: all three collapsed into "false", the caller cached it, and the row read
+     * "Unused" for the rest of the session. That is the answer someone uses to decide an address
+     * is safe to hide, so a lookup that did not happen must not produce it. Same contract as
+     * [ColdStorageAddressDiscovery.hasHistory], which already says so.
+     */
+    suspend fun hasColdAddressBeenUsed(accountId: String, index: Int): Boolean? {
+        val rootKey = rootKeyFor(accountId) ?: return null
+        val discovered = addressDiscovery.checkAddress(rootKey, chain = 0, index = index) ?: return null
+        if (discovered.balanceSompi > 0) return true
+        // A balance that could not be read leaves "used" unknown too: the history says nothing
+        // about money currently sitting there.
+        if (!discovered.balanceConfirmed) return null
+        return discovered.hasHistory
     }
 
     /**
