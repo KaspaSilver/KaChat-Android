@@ -41,7 +41,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Hardware
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -112,6 +111,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -2102,6 +2102,36 @@ private fun HashrateSparkline(points: List<Pair<Long, Double>>, modifier: Modifi
     }
 }
 
+/**
+ * A pickaxe, drawn rather than borrowed.
+ *
+ * The nearest Material icon for mining was `Hardware`, which is a computer chip. The figure it sits
+ * beside is network hashrate, and the shorthand every miner already reads is a pick. Material has no
+ * pickaxe, so it is two strokes: the curved head, and the handle passing through it. Same geometry
+ * as the iOS and desktop marks, so all three agree.
+ */
+@Composable
+private fun PickaxeIcon(iconSize: Dp = 24.dp, tint: Color = KaspaTeal) {
+    Canvas(modifier = Modifier.size(iconSize)) {
+        // Laid out on the same 24x24 grid the desktop SVG uses, scaled to whatever we are handed.
+        val unit = minOf(size.width, size.height) / 24f
+        // The head, arcing up and to the right, then the handle running down through it. Both are
+        // drawn on the diagonal: upright, a curved head over a straight shaft is an anchor, and it
+        // is the tilt that makes a reader see a pick.
+        val path = Path().apply {
+            moveTo(6.37f * unit, 17.9f * unit)
+            cubicTo(1.86f * unit, 11.11f * unit, 12.89f * unit, 1.86f * unit, 18.78f * unit, 7.48f * unit)
+            moveTo(8.3f * unit, 7.59f * unit)
+            lineTo(17.21f * unit, 18.2f * unit)
+        }
+        drawPath(
+            path,
+            color = tint,
+            style = Stroke(width = 2f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}
+
 @Composable
 private fun NetworkHashrateCard(
     hashrate: Double?,
@@ -2118,7 +2148,7 @@ private fun NetworkHashrateCard(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+        PickaxeIcon(iconSize = 24.dp)
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("Network Hashrate", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -2206,7 +2236,7 @@ fun PortfolioHashrateChartScreen(
         ) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+                    PickaxeIcon(iconSize = 24.dp)
                     Spacer(Modifier.width(8.dp))
                     Text("Kaspa Network", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 }
