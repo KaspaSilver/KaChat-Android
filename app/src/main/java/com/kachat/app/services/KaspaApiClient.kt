@@ -25,6 +25,21 @@ data class BalancesRequest(
     val addresses: List<String>
 )
 
+/** Request body for the batched `POST addresses/active` endpoint. */
+data class ActiveAddressesRequest(
+    val addresses: List<String>
+)
+
+/**
+ * One row of `POST addresses/active`: whether the chain has ever seen this address, and when it
+ * last did. Field names verified live against api.kaspa.org, which returns camelCase here.
+ */
+data class ActiveAddressResponse(
+    val address: String,
+    val active: Boolean,
+    @SerializedName("lastTxBlockTime") val lastTxBlockTime: Long?
+)
+
 // Field names verified live against api.kaspa.org's real response (snake_case) —
 // a bare Gson converter (no naming policy) needs explicit @SerializedName for these.
 data class TransactionResponse(
@@ -115,6 +130,23 @@ interface KaspaRestApi {
     suspend fun getBalances(
         @Body request: BalancesRequest
     ): List<BalanceResponse>
+
+    /**
+     * "Has each of these addresses ever been used, and when" - for a whole list at once.
+     *
+     * This is what makes an address scan fast. Both discovery scans used to establish that one
+     * address at a time (and KNS ownership one address at a time on top), which is why a discover
+     * took the better part of a minute; asking about the whole window at once means only the
+     * handful of addresses the chain has actually seen cost anything further.
+     *
+     * Measured against api.kaspa.org: 250 addresses answer in about 350ms, 300 in about 315ms,
+     * but 500 in a single body stalls past 25 seconds - hence the batch size callers use.
+     * Callers fall back to their previous sweep if a given REST host does not expose this.
+     */
+    @POST("addresses/active")
+    suspend fun getActiveAddresses(
+        @Body request: ActiveAddressesRequest
+    ): List<ActiveAddressResponse>
 
     /**
      * Network hashrate over time. `resolution` is one of 15m/1h/3h/1d/7d; the chart uses 1d

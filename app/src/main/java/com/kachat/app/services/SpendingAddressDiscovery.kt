@@ -1,6 +1,9 @@
 package com.kachat.app.services
 
 import android.util.Log
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,6 +21,7 @@ class SpendingAddressDiscovery @Inject constructor(
     private val networkService: NetworkService,
     private val walletManager: WalletManager,
     private val knsService: KnsService,
+    private val addressActivity: AddressActivityService,
 ) {
     /**
      * Returns the recovered index — one past the last address with any transaction history —
@@ -109,44 +113,83 @@ class SpendingAddressDiscovery @Inject constructor(
         var index = 0
         var consecutiveMisses = 0
 
-        while (index < MAX_SCAN_INDEX) {
-            // Past the floor, stop once nothing has turned up for a long stretch.
-            if (index >= DEEP_SCAN_FLOOR && consecutiveMisses >= gapLimit) break
+        // The balances were already batched; KNS was not - it was asked about the first two
+        // hundred addresses one at a time, at roughly a third of a second each, which is what made
+        // this take the better part of a minute. `AddressActivityService` answers "was this ever
+        // used" for the whole window at once, so balances AND KNS are asked only about the handful
+        // the chain says were touched. Neither can sit on an address never touched. It also
+        // removes the gap limit, which is what let the funded address at index 291 go unfound.
+        val windowIndices = (0 until minOf(DEEP_SCAN_FLOOR, MAX_SCAN_INDEX)).toList()
+        val window = try {
+            walletManager.deriveSpendingAddresses(windowIndices)
+        } catch (e: Exception) {
+            Log.w("SpendingAddressDiscovery", "Could not derive the scan window", e)
+            emptyMap()
+        }
+        val ordered = windowIndices.mapNotNull { i -> window[i]?.let { i to it } }
+        onProgress?.invoke(DiscoveryProgress(checkingIndex = 0, foundCount = 0))
 
-            val batch = (index until minOf(index + BATCH_SIZE, MAX_SCAN_INDEX)).toList()
-            onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matched.size))
+        val activity = if (ordered.isEmpty()) emptyMap() else addressActivity.lastActivity(ordered.map { it.second })
+        if (activity != null) {
+            val touched = ordered.filter { activity.containsKey(it.second) }
+            val balances = if (touched.isEmpty()) emptyMap() else (fetchBalances(touched.map { it.second }) ?: emptyMap())
+            onProgress?.invoke(DiscoveryProgress(checkingIndex = touched.lastOrNull()?.first ?: 0, foundCount = 0))
 
-            val addresses = try {
-                walletManager.deriveSpendingAddresses(batch)
-            } catch (e: Exception) {
-                Log.w("SpendingAddressDiscovery", "Could not derive batch at $index, stopping scan", e)
-                break
+            val knsCandidates = touched.filter { (i, address) ->
+                i < KNS_PROBE_DEPTH && (balances[address] ?: 0L) <= 0L
             }
-            if (addresses.isEmpty()) break
-
-            // A balance only counts when it was actually READ: a throttled or failed request is
-            // not evidence of an empty address, and treating it as one drops real addresses. A
-            // batch that cannot be read at all stops the scan rather than reporting emptiness it
-            // never confirmed.
-            val balances = fetchBalances(addresses.values.toList())
-            if (balances == null) {
-                Log.w("SpendingAddressDiscovery", "Balances unavailable at $index, stopping scan")
-                break
+            val domainOwners = if (knsCandidates.isEmpty()) emptySet() else coroutineScope {
+                knsCandidates.map { (_, address) ->
+                    async {
+                        val owns = try { knsService.getOwnedDomains(address).isNotEmpty() } catch (e: Exception) { false }
+                        if (owns) address else null
+                    }
+                }.awaitAll().filterNotNull().toSet()
             }
 
-            for (i in batch) {
-                val address = addresses[i] ?: continue
-                val funded = (balances[address] ?: 0L) > 0L
-                val matches = funded ||
-                    (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
-                if (matches) {
-                    matched.add(i)
-                    consecutiveMisses = 0
-                } else {
-                    consecutiveMisses++
+            for ((i, address) in touched) {
+                if ((balances[address] ?: 0L) > 0L || address in domainOwners) matched.add(i)
+            }
+            index = ordered.size
+        } else {
+            // The configured REST host does not serve addresses/active, or could not be reached.
+            // Fall back to the batched sweep this replaced.
+            Log.w("SpendingAddressDiscovery", "Bulk activity unavailable, using the batched sweep")
+            while (index < MAX_SCAN_INDEX) {
+                // Past the floor, stop once nothing has turned up for a long stretch.
+                if (index >= DEEP_SCAN_FLOOR && consecutiveMisses >= gapLimit) break
+
+                val batch = (index until minOf(index + BATCH_SIZE, MAX_SCAN_INDEX)).toList()
+                onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matched.size))
+
+                val addresses = try {
+                    walletManager.deriveSpendingAddresses(batch)
+                } catch (e: Exception) {
+                    Log.w("SpendingAddressDiscovery", "Could not derive batch at $index, stopping scan", e)
+                    break
                 }
+                if (addresses.isEmpty()) break
+
+                val balances = fetchBalances(addresses.values.toList())
+                if (balances == null) {
+                    Log.w("SpendingAddressDiscovery", "Balances unavailable at $index, stopping scan")
+                    break
+                }
+
+                for (i in batch) {
+                    val address = addresses[i] ?: continue
+                    val funded = (balances[address] ?: 0L) > 0L
+                    val matches = funded ||
+                        (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
+                    if (matches) {
+                        matched.add(i)
+                        consecutiveMisses = 0
+                    } else {
+                        consecutiveMisses++
+                    }
+                }
+                index += batch.size
             }
-            index += batch.size
         }
 
         onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matched.size))

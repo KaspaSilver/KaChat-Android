@@ -24,6 +24,7 @@ import javax.inject.Singleton
 class ColdStorageAddressDiscovery @Inject constructor(
     private val networkService: NetworkService,
     private val knsService: KnsService,
+    private val addressActivity: AddressActivityService,
 ) {
     /** [matched] is set by [discoverAddresses] for an address holding a balance or a KNS domain. */
     data class DiscoveredAddress(
@@ -130,53 +131,110 @@ class ColdStorageAddressDiscovery @Inject constructor(
         // that. It is ONE bulk balances request per hundred addresses - the same [fetchBalances]
         // this file already uses for the detail screen - with a paced per-address fallback when
         // that endpoint is unavailable. Fewer requests than the walk, not more.
-        while (index < MAX_SCAN_INDEX) {
-            // Past the floor, stop once nothing has turned up for a long stretch.
-            if (index >= DEEP_SCAN_FLOOR && consecutiveUnused >= gapLimit) break
-
-            val batch = (index until minOf(index + BATCH_SIZE, MAX_SCAN_INDEX)).toList()
-            onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = results.size))
-
-            val derived = batch.mapNotNull { i ->
-                val address = try {
-                    KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain, i)
-                } catch (e: Exception) {
-                    null
-                }
-                address?.let { i to it }
+        // ## Why the whole window goes out at once now
+        //
+        // The balances were already batched. What made a discover slow was the line under them:
+        // KNS was asked about the first two hundred addresses ONE AT A TIME, at roughly a third of
+        // a second each. `AddressActivityService` answers "was this ever used" for the whole
+        // window in a handful of requests, so balances AND KNS are asked only about the handful
+        // the chain says were actually touched. Neither can sit on an address never touched, so
+        // the filter loses nothing - and it removes the gap limit, which is what let a balance
+        // past a run of empties go unfound.
+        val windowIndices = (startIndex until minOf(startIndex + DEEP_SCAN_FLOOR, MAX_SCAN_INDEX)).toList()
+        val window = windowIndices.mapNotNull { i ->
+            val address = try {
+                KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain, i)
+            } catch (e: Exception) {
+                null
             }
-            if (derived.isEmpty()) break
+            address?.let { i to it }
+        }
+        onProgress?.invoke(DiscoveryProgress(checkingIndex = startIndex, foundCount = 0))
 
-            // A balance only counts when it was actually READ. An unconfirmed lookup is not
-            // evidence of an empty address, and treating it as one both drops real addresses from
-            // the list and overwrites their balance with zero downstream - so a batch that cannot
-            // be read stops the scan instead.
-            val balances = fetchBalances(derived.map { it.second })
-            if (balances == null) {
-                Log.w("ColdStorageAddressDiscovery", "Balances unavailable at $index, stopping scan")
-                break
+        val activity = if (window.isEmpty()) emptyMap() else addressActivity.lastActivity(window.map { it.second })
+        if (activity != null) {
+            val touched = window.filter { activity.containsKey(it.second) }
+            val balances = if (touched.isEmpty()) emptyMap() else (fetchBalances(touched.map { it.second }) ?: emptyMap())
+            onProgress?.invoke(DiscoveryProgress(checkingIndex = touched.lastOrNull()?.first ?: startIndex, foundCount = 0))
+
+            // KNS only for touched, unfunded addresses inside the probe depth - typically none,
+            // and concurrent, because there is no reason for them to wait on each other.
+            val knsCandidates = touched.filter { (i, address) ->
+                i < KNS_PROBE_DEPTH && (balances[address] ?: 0L) <= 0L
+            }
+            val domainOwners = if (knsCandidates.isEmpty()) emptySet() else coroutineScope {
+                knsCandidates.map { (_, address) ->
+                    async {
+                        val owns = try { knsService.getOwnedDomains(address).isNotEmpty() } catch (e: Exception) { false }
+                        if (owns) address else null
+                    }
+                }.awaitAll().filterNotNull().toSet()
             }
 
-            for ((i, address) in derived) {
+            for ((i, address) in touched) {
                 val balance = balances[address] ?: 0L
-                val matches = balance > 0L ||
-                    (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
-                if (matches) {
+                if (balance > 0L || address in domainOwners) {
                     results.add(
                         DiscoveredAddress(
                             index = i,
                             address = address,
                             balanceSompi = balance,
-                            hasHistory = false,
+                            hasHistory = true,
                             matched = true,
                         )
                     )
-                    consecutiveUnused = 0
-                } else {
-                    consecutiveUnused++
                 }
             }
-            index += derived.size
+            index = startIndex + window.size
+        } else {
+            // The configured REST host does not serve addresses/active, or could not be reached.
+            // Fall back to the batched sweep this replaced - slower, and it still pays for the
+            // sequential KNS probes, but a slow answer beats none.
+            Log.w("ColdStorageAddressDiscovery", "Bulk activity unavailable, using the batched sweep")
+            while (index < MAX_SCAN_INDEX) {
+                // Past the floor, stop once nothing has turned up for a long stretch.
+                if (index >= DEEP_SCAN_FLOOR && consecutiveUnused >= gapLimit) break
+
+                val batch = (index until minOf(index + BATCH_SIZE, MAX_SCAN_INDEX)).toList()
+                onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = results.size))
+
+                val derived = batch.mapNotNull { i ->
+                    val address = try {
+                        KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain, i)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    address?.let { i to it }
+                }
+                if (derived.isEmpty()) break
+
+                val balances = fetchBalances(derived.map { it.second })
+                if (balances == null) {
+                    Log.w("ColdStorageAddressDiscovery", "Balances unavailable at $index, stopping scan")
+                    break
+                }
+
+                for ((i, address) in derived) {
+                    val balance = balances[address] ?: 0L
+                    val matches = balance > 0L ||
+                        (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
+                    if (matches) {
+                        results.add(
+                            DiscoveredAddress(
+                                index = i,
+                                address = address,
+                                balanceSompi = balance,
+                                hasHistory = false,
+                                matched = true,
+                            )
+                        )
+                        consecutiveUnused = 0
+                    } else {
+                        consecutiveUnused++
+                    }
+                }
+                index += derived.size
+            }
         }
 
         onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = results.size))
