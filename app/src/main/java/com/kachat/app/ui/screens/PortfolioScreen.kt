@@ -2264,7 +2264,7 @@ fun PortfolioHashrateChartScreen(
                 BlockRewardRow("Next Block Reward", nextBlockReward?.let { "${formatKasAmountGrouped(it)} KAS" } ?: "-")
                 HorizontalDivider(color = colors.divider)
                 BlockRewardRow(
-                    "Next Reward Date",
+                    "Next Block Reward Reduction",
                     nextHalvingTimestamp?.let {
                         java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
                             .format(java.util.Date(it * 1000L))
