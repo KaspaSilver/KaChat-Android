@@ -262,10 +262,40 @@ class ChatRepository @Inject constructor(
         return false
     }
 
+    /**
+     * Never one of the user's OWN accounts. Nothing stopped this before: the row is keyed by
+     * (id, walletAddress), so a second account of the user's own could sit in the first's contact
+     * list reading as a stranger. The auto-add paths make it easy to hit without noticing -
+     * tipping or opening a KaPost written from your own other account adds its author silently.
+     *
+     * Refused at the repository rather than at each caller, because this is the one place every
+     * add goes through. Silent: a caller adding a contact it should not is not an error worth
+     * interrupting anyone over, and the address is already reachable through the account switcher.
+     */
     suspend fun addContact(contact: ContactEntity) {
+        if (isOwnAccountAddress(contact.id)) {
+            Log.w("ChatRepository", "Refusing to add one of the user's own accounts as a contact")
+            return
+        }
         val previous = database.contactDao().getContact(contact.id, contact.walletAddress)
         database.contactDao().insert(contact)
         noteConversationActivated(previous, contact)
+    }
+
+    /**
+     * True when this address belongs to the user themselves: the wallet in use, or any account
+     * saved on this device.
+     *
+     * Both halves matter. The active wallet is the obvious one; the saved list is the one that
+     * leaks - a second account is still "you", and adding it as a contact both clutters the list
+     * and invites messaging yourself by a route the app does not otherwise offer.
+     */
+    private fun isOwnAccountAddress(address: String): Boolean {
+        val normalized = address.trim().lowercase()
+        if (normalized.isEmpty()) return false
+        if (runCatching { walletManager.getAddress() }.getOrNull()?.trim()?.lowercase() == normalized) return true
+        return runCatching { walletManager.getAllAccounts() }.getOrDefault(emptyList())
+            .any { it.address.trim().lowercase() == normalized }
     }
 
     /**
