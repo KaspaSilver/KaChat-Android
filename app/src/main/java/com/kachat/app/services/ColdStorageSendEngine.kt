@@ -156,7 +156,14 @@ class ColdStorageSendEngine @Inject constructor(
             val freshByOutpoint = fetched.associateBy { it.outpoint }
             manualUtxos.mapNotNull { freshByOutpoint[it.outpoint] }
         } else {
-            fetched
+            // Only as much as ONE transaction can actually spend. Selection takes UTXOs
+            // largest-first and stops when the amount is covered, so the most a single send can
+            // move is the largest [KsptCodec.MAX_INPUTS] of them. Summing all of them, which is
+            // what this used to do, offered a Max that could not be built: the build needs every
+            // UTXO to reach it, trips the input cap, and refuses - and the reader only finds that
+            // out after pressing Build. Compound is the way to spend the rest, and it is a tap
+            // away in the same menu.
+            fetched.sortedByDescending { it.utxoEntry.amount }.take(KsptCodec.MAX_INPUTS)
         }
         if (utxos.isEmpty()) return 0L
 
