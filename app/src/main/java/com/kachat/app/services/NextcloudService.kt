@@ -989,6 +989,18 @@ class NextcloudService @Inject constructor(
                     onProgress?.invoke(out.size().toLong(), totalBytes)
                 }
             }
+            // A stream that ends early does not always throw - a connection closed gracefully
+            // mid-body just returns -1 from read() - so short of the advertised length has to be
+            // caught here. Silently accepting it hands megabytes of half an archive to the merge
+            // parser, which reports it as a corrupt or foreign backup. Worth distinguishing,
+            // because the advice is opposite: one is "try again", the other is "your backup is
+            // gone".
+            if (totalBytes != null && out.size().toLong() < totalBytes) {
+                throw IOException(
+                    "The backup download stopped early (${out.size()} of $totalBytes bytes). " +
+                        "Nothing on the server was changed, so trying again is safe."
+                )
+            }
             out.toString("UTF-8").takeIf { it.isNotEmpty() }
                 ?: throw IOException("Unexpected response from the Nextcloud server.")
         }
