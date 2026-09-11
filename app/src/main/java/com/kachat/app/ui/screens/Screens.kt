@@ -115,8 +115,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -1374,12 +1372,6 @@ fun ChatThreadScreen(
                                 chessSourceMessages
                             )
                         }
-                        // A handshake is an accept/decline card, not something there is anything
-                        // to say back to in a quote.
-                        SwipeToReplyRow(
-                            enabled = msg.type != MessageProtocol.TYPE_HANDSHAKE,
-                            onReply = { chatViewModel.startReplyTo(msg) },
-                        ) {
                         Box {
                             MessageBubble(
                                 message = msg,
@@ -1457,7 +1449,6 @@ fun ChatThreadScreen(
                                     )
                                 }
                             }
-                        }
                         }
                     }
                 }
@@ -10741,73 +10732,6 @@ fun QrCodeOverlay(
             }
         }
     }
-    }
-}
-
-/**
- * Drag a message to the right to reply to it, the way every other messenger does it.
- *
- * Deliberately narrow about what counts, because this shares the message list with a vertical
- * scroll and with the thread-wide left-drag that reveals timestamps: rightward only, and the drag
- * is consumed so the outer draggable never sees it. The offset is damped and capped, so the bubble
- * follows your finger without sliding off.
- */
-@Composable
-fun SwipeToReplyRow(
-    enabled: Boolean = true,
-    onReply: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    if (!enabled) {
-        content()
-        return
-    }
-    val haptics = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
-    val offset = remember { Animatable(0f) }
-    val thresholdPx = with(LocalDensity.current) { 56.dp.toPx() }
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // Behind the bubble, revealed as it slides off it.
-        val progress = (offset.value / thresholdPx).coerceIn(0f, 1f)
-        if (progress > 0.05f) {
-            Icon(
-                Icons.AutoMirrored.Filled.Reply,
-                contentDescription = null,
-                tint = if (offset.value >= thresholdPx) KaspaTeal else LocalAppColors.current.textSecondary,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 10.dp)
-                    .size(20.dp)
-                    .alpha(progress),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            val reached = offset.value >= thresholdPx
-                            scope.launch { offset.animateTo(0f) }
-                            if (reached) {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onReply()
-                            }
-                        },
-                        onDragCancel = { scope.launch { offset.animateTo(0f) } },
-                    ) { change, dragAmount ->
-                        // Only once the drag is heading right, or already has - a leftward drag
-                        // belongs to the timestamp reveal on the list behind this.
-                        if (dragAmount > 0f || offset.value > 0f) {
-                            change.consume()
-                            scope.launch {
-                                offset.snapTo((offset.value + dragAmount * 0.55f).coerceIn(0f, thresholdPx + 10f))
-                            }
-                        }
-                    }
-                },
-        ) { content() }
     }
 }
 
