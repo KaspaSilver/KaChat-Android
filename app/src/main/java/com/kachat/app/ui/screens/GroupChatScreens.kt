@@ -837,6 +837,7 @@ fun GroupChatThreadScreen(
                             )
                         }
                     } else
+                    SwipeToReplyRow(onReply = { chatViewModel.startGroupReplyTo(message) }) {
                     Box {
                         GroupMessageBubble(
                             message = message,
@@ -894,6 +895,7 @@ fun GroupChatThreadScreen(
                                 )
                             }
                         }
+                    }
                     }
                 }
             }
