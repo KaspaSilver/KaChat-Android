@@ -10838,6 +10838,21 @@ fun CreateChatScreen(
             .filter { query.isEmpty() || it.name.lowercase().contains(query) || it.address.lowercase().contains(query) }
             .sortedBy { it.name.lowercase() }
     }
+    // Who is actually in the group, built from the selection rather than filtered out of the
+    // candidate list. The candidates are narrowed by the search box, so reading the roster off
+    // them would make members vanish from Members while you search - and anyone added by raw
+    // address or KNS domain is not in that list at all, so they never appeared.
+    val selectedGroupMembers = remember(selectedMemberAddresses, conversations, pickerContacts, knsProfilesForPreview) {
+        selectedMemberAddresses.map { addr ->
+            val profile = knsProfilesForPreview[addr]
+            GroupMemberCandidate(
+                address = addr,
+                name = resolvePickerName(addr, profile?.selectedDomain),
+                avatarUrl = profile?.profile?.avatarUrl
+                    ?: conversations.firstOrNull { it.contact.id == addr }?.contact?.knsAvatarUrl,
+            )
+        }.sortedBy { it.name.lowercase() }
+    }
     LaunchedEffect(Unit) { chatViewModel.loadPickerContacts() }
 
     val context = LocalContext.current
@@ -11037,6 +11052,7 @@ fun CreateChatScreen(
                     searchText = memberSearchText,
                     onSearchTextChange = { memberSearchText = it },
                     candidates = groupMemberCandidates,
+                    selectedMembers = selectedGroupMembers,
                     selectedAddresses = selectedMemberAddresses,
                     onToggleMember = { address ->
                         selectedMemberAddresses = if (selectedMemberAddresses.contains(address)) {
@@ -11518,6 +11534,44 @@ data class GroupAddressRow(
     val isValid: Boolean get() = if (looksLikeDomain) resolvedAddress != null else KaspaAddress.isValid(trimmedText)
 }
 
+/**
+ * One collapsed drawer in New Group: a header row that toggles, and a body that appears under it.
+ *
+ * Matches the desktop client's Members / Contacts sections - same shape, same wording, same
+ * collapsed-by-default behaviour.
+ */
+@Composable
+private fun GroupDisclosure(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() }
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Icon(
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = colors.textSecondary,
+            )
+        }
+        if (expanded) content()
+    }
+}
+
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun GroupChatCreationFields(
@@ -11527,6 +11581,8 @@ fun GroupChatCreationFields(
     onSearchTextChange: (String) -> Unit,
     /** Everyone offerable in one tap: existing chats plus the KaPosts follow graph. */
     candidates: List<GroupMemberCandidate>,
+    /** The current roster, unfiltered - see the note where it is built. */
+    selectedMembers: List<GroupMemberCandidate>,
     selectedAddresses: Set<String>,
     onToggleMember: (String) -> Unit,
     photo: android.graphics.Bitmap?,
@@ -11596,90 +11652,40 @@ fun GroupChatCreationFields(
         )
     }
 
-    Spacer(modifier = Modifier.height(24.dp))
+    Spacer(modifier = Modifier.height(16.dp))
     Text(
-        text = "Add by Address",
-        color = colors.textPrimary,
-        fontWeight = FontWeight.Bold,
-        style = MaterialTheme.typography.titleMedium
-    )
-    Spacer(modifier = Modifier.height(12.dp))
-    addByAddress()
-
-    Spacer(modifier = Modifier.height(24.dp))
-    Text(
-        text = if (selectedAddresses.isEmpty()) "Add People" else "Add People (${selectedAddresses.size})",
-        color = colors.textPrimary,
-        fontWeight = FontWeight.Bold,
-        style = MaterialTheme.typography.titleMedium
-    )
-    Spacer(modifier = Modifier.height(12.dp))
-    TextField(
-        value = searchText,
-        onValueChange = onSearchTextChange,
-        placeholder = { Text("Search name or address", color = Color.DarkGray) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp)),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = colors.surface,
-            unfocusedContainerColor = colors.surface,
-            focusedTextColor = colors.textPrimary,
-            unfocusedTextColor = colors.textPrimary,
-            cursorColor = KaspaTeal,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        ),
-        singleLine = true
+        text = "Add contacts to the group. You control the membership as the group admin.",
+        color = colors.textSecondary,
+        style = MaterialTheme.typography.bodySmall,
     )
 
-    // Selected people ride above the list as removable chips, so a long candidate list never
-    // hides who is already in the group.
-    if (selectedAddresses.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(10.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            candidates.filter { it.address in selectedAddresses }.forEach { candidate ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(colors.surface)
-                        .clickable { onToggleMember(candidate.address) }
-                        .padding(start = 6.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
-                ) {
-                    ContactAvatar(imageUrl = candidate.avatarUrl, fallbackText = candidate.name, size = 22.dp)
-                    Spacer(Modifier.width(6.dp))
-                    Text(candidate.name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.Close, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
-                }
-            }
-        }
-    }
+    // Members and Contacts are collapsed drawers rather than two lists stacked in the open.
+    // Either one can run to dozens of rows, and with both open at once the address field below
+    // them was somewhere you had to go looking for.
+    var membersExpanded by remember { mutableStateOf(false) }
+    var contactsExpanded by remember { mutableStateOf(false) }
 
-    Spacer(modifier = Modifier.height(12.dp))
-    if (candidates.isEmpty()) {
-        Text(
-            text = if (searchText.isBlank()) "Nobody to suggest yet. Add someone by address above." else "No matches.",
-            color = colors.textSecondary,
-            style = MaterialTheme.typography.bodySmall
-        )
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.surface)
-        ) {
-            candidates.forEach { candidate ->
-                val selected = candidate.address in selectedAddresses
+
+    Spacer(modifier = Modifier.height(16.dp))
+    GroupDisclosure(
+        title = if (selectedAddresses.isEmpty()) "Members" else "Members (${selectedAddresses.size})",
+        expanded = membersExpanded,
+        onToggle = { membersExpanded = !membersExpanded },
+    ) {
+        if (selectedMembers.isEmpty()) {
+            Text(
+                "No members added yet. Open Contacts below to add people.",
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            )
+        } else {
+            selectedMembers.forEach { candidate ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onToggleMember(candidate.address) }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ContactAvatar(imageUrl = candidate.avatarUrl, fallbackText = candidate.name, size = 40.dp)
                     Spacer(Modifier.width(12.dp))
@@ -11689,7 +11695,74 @@ fun GroupChatCreationFields(
                             text = KaspaAddress.shortDisplay(candidate.address),
                             color = colors.textSecondary,
                             style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1
+                            maxLines = 1,
+                        )
+                    }
+                    IconButton(onClick = { onToggleMember(candidate.address) }, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Remove from group",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(10.dp))
+    GroupDisclosure(
+        title = "Contacts",
+        expanded = contactsExpanded,
+        onToggle = { contactsExpanded = !contactsExpanded },
+    ) {
+        TextField(
+            value = searchText,
+            onValueChange = onSearchTextChange,
+            placeholder = { Text("Search name or address", color = Color.DarkGray) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(14.dp)),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = colors.background,
+                unfocusedContainerColor = colors.background,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary,
+                cursorColor = KaspaTeal,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            singleLine = true,
+        )
+        if (candidates.isEmpty()) {
+            Text(
+                text = if (searchText.isBlank()) "Nobody to suggest yet. Add someone by address below." else "No matches.",
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            )
+        } else {
+            candidates.forEach { candidate ->
+                val selected = candidate.address in selectedAddresses
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleMember(candidate.address) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContactAvatar(imageUrl = candidate.avatarUrl, fallbackText = candidate.name, size = 40.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(candidate.name, color = colors.textPrimary, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(
+                            text = KaspaAddress.shortDisplay(candidate.address),
+                            color = colors.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
                         )
                     }
                     if (selected) {
@@ -11699,6 +11772,18 @@ fun GroupChatCreationFields(
             }
         }
     }
+
+    // Last, under the people you can add in one tap: the fallback for everyone else.
+    Spacer(modifier = Modifier.height(20.dp))
+    HorizontalDivider(color = colors.divider)
+    Spacer(modifier = Modifier.height(16.dp))
+    Text(
+        text = "Not in your contacts? Add anyone by Kaspa address or KNS domain:",
+        color = colors.textSecondary,
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+    addByAddress()
 
     errorMessage?.let { message ->
         Spacer(modifier = Modifier.height(12.dp))
