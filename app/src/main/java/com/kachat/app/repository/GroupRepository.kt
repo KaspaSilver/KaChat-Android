@@ -1071,9 +1071,18 @@ class GroupRepository @Inject constructor(
             // already-seen txId (e.g. catch-up re-fetching something the live scan already
             // processed) - only notify for a genuinely new, incoming (not our own) message.
             if (rowId != -1L && !isOutgoing) {
-                if (isBackfill(blockTimestamp)) {
-                    // History being backfilled (e.g. right after an account import): keep the
-                    // group read and silent - only live traffic notifies or counts unread.
+                // Two floors, because they catch different things. The wallet-level baseline
+                // covers history backfilled right after an account import. The per-group one
+                // covers being invited to a group that already has a life: its earlier messages
+                // are decryptable here (completeJoin archives older epochs rather than dropping
+                // them), arrive on an ordinary sync well after the wallet baseline, and would
+                // otherwise fire a banner each. group.createdAt is when THIS device learned about
+                // the group, preserved across roster and epoch updates by upsertGroup's copy(),
+                // so an add or remove cannot re-arm the flood. Two minutes of slack for clock skew
+                // between devices. Matches iOS's floor in maybePostGroupLocalNotification.
+                if (isBackfill(blockTimestamp) || blockTimestamp < group.createdAt - 120_000L) {
+                    // History being backfilled: keep the group read and silent - only live
+                    // traffic notifies or counts unread.
                     markGroupRead(group.groupId)
                     return
                 }
