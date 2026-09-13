@@ -257,6 +257,9 @@ fun GroupChatThreadScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
+    // The sender whose avatar was tapped. One sheet serves every row - the parent presents it
+    // for whichever sender was tapped, rather than a menu attached to each avatar in the list.
+    var senderSheetTarget by remember { mutableStateOf<SenderSheetTarget?>(null) }
     // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
     // Storage > Nextcloud). Picking a file sends its public share link as a normal group text
     // message, which recipients' link-preview cards render as tappable media. Matches 1:1 chat.
@@ -806,6 +809,34 @@ fun GroupChatThreadScreen(
                     onDragStopped = { isRevealDragging.value = false }
                 )
         ) {
+            senderSheetTarget?.let { target ->
+                val address = target.address
+                val sheetClipboard = LocalClipboardManager.current
+                val sheetContext = LocalContext.current
+                SenderActionsSheet(
+                    address = address,
+                    displayName = resolveDisplayName(address),
+                    isOwnMessage = target.isOwnMessage,
+                    onDismiss = { senderSheetTarget = null },
+                    // Group members are always saved contacts, so these navigate straight to the
+                    // existing chat/chat_info routes - no "create a contact first" step as in
+                    // broadcast rooms.
+                    onViewProfile = { navController.navigate("chat_info/$address?fromBroadcast=true") },
+                    onOpenChat = { navController.navigate("chat/$address") },
+                    onPayInKaspa = { navController.navigate("chat/$address?paymentMode=true") },
+                    onCopyAddress = {
+                        sheetClipboard.setText(AnnotatedString(address))
+                        com.kachat.app.util.showAddressCopiedToast(sheetContext, address)
+                    },
+                    muteState = chatViewModel.isGroupMemberMuted(groupId, address),
+                    onToggleMute = {
+                        if (chatViewModel.isGroupMemberMuted(groupId, address)) chatViewModel.unmuteGroupMember(groupId, address)
+                        else chatViewModel.muteGroupMember(groupId, address)
+                    },
+                    onHide = { chatViewModel.hideGroupMember(groupId, address) },
+                    hideSubtitle = "Stop seeing their messages in this group. Undo it in Group Info.",
+                )
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -864,10 +895,7 @@ fun GroupChatThreadScreen(
                             isHighlighted = message.txId == highlightedMessageId,
                             resolveMentionName = resolveDisplayName,
                             mentionDomains = primaryKnsByAddress,
-                            isMuted = message.senderAddress?.let { chatViewModel.isGroupMemberMuted(groupId, it) } ?: false,
-                            onMute = { address -> chatViewModel.muteGroupMember(groupId, address) },
-                            onUnmute = { address -> chatViewModel.unmuteGroupMember(groupId, address) },
-                            onHide = { address -> chatViewModel.hideGroupMember(groupId, address) },
+                            onAvatarTap = { address -> senderSheetTarget = SenderSheetTarget(address, isOwnMessage = address == myAddress) },
                             revealOffsetPx = revealOffsetPx,
                             maxRevealOffsetPx = maxRevealOffsetPx,
                             onSelect = {
@@ -1159,10 +1187,9 @@ private fun GroupMessageBubble(
     resolveMentionName: (String) -> String = { it.takeLast(10) },
     /** Address → explicit-primary KNS domain, so @mentions render as the domain (what the user asked). */
     mentionDomains: Map<String, String?> = emptyMap(),
-    isMuted: Boolean = false,
-    onMute: (String) -> Unit = {},
-    onUnmute: (String) -> Unit = {},
-    onHide: (String) -> Unit = {},
+    /** Tapping an avatar. The parent presents the sender half sheet for this address (see
+     *  [SenderActionsSheet]); the row itself no longer owns a menu. */
+    onAvatarTap: (String) -> Unit = {},
     revealOffsetPx: Animatable<Float, AnimationVector1D>,
     maxRevealOffsetPx: Float,
     /** Enters the chat's message multi-select mode with this message pre-selected - null disables
@@ -1249,11 +1276,7 @@ private fun GroupMessageBubble(
                 avatarUrl = avatarUrl,
                 photoUri = avatarPhotoUri,
                 fallbackText = senderName,
-                navController = navController,
-                isMuted = isMuted,
-                onMute = onMute,
-                onUnmute = onUnmute,
-                onHide = onHide
+                onTap = onAvatarTap
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -1531,7 +1554,7 @@ private fun GroupMessageBubble(
 
         if (isSent) {
             Spacer(modifier = Modifier.width(8.dp))
-            groupAvatarButton(address = myAddress, avatarUrl = myAvatarUrl, fallbackText = "You", navController = navController, isOwnMessage = true)
+            groupAvatarButton(address = myAddress, avatarUrl = myAvatarUrl, fallbackText = "You", onTap = onAvatarTap)
         }
     }
     }
@@ -1551,10 +1574,10 @@ private fun GroupMessageBubble(
 }
 
 /**
- * Avatar with the same View Profile / Open Chat / Pay in Kaspa / Copy Address menu
- * [BroadcastScreens.kt]'s avatar `CenteredOptionsMenu` offers for a tapped sender - group
- * members are always saved contacts, so this navigates straight to the existing chat/chat_info
- * routes instead of Broadcast's "create a contact for this anonymous sender first" step.
+ * The sender's avatar. Tapping it opens the sender half sheet - View Profile / Open Chat /
+ * Pay in Kaspa / Copy Address / Mute / Hide - presented by the parent (see
+ * [SenderActionsSheet]), the same shape as the broadcast room's. This was a popup menu of bare
+ * labels; the sheet has room to say what each option does, and one sheet serves every row.
  */
 @Composable
 private fun groupAvatarButton(
@@ -1562,76 +1585,15 @@ private fun groupAvatarButton(
     avatarUrl: String?,
     photoUri: String? = null,
     fallbackText: String,
-    navController: NavController,
-    isOwnMessage: Boolean = false,
-    isMuted: Boolean = false,
-    onMute: (String) -> Unit = {},
-    onUnmute: (String) -> Unit = {},
-    onHide: (String) -> Unit = {}
+    onTap: (String) -> Unit
 ) {
-    if (address == null) {
-        ContactAvatar(imageUrl = avatarUrl, deviceContactPhotoUri = photoUri, fallbackText = fallbackText, size = 32.dp)
-        return
-    }
-    var showAvatarMenu by remember { mutableStateOf(false) }
-    var avatarMenuAnchor by remember { mutableStateOf(Offset.Zero) }
-    val clipboardManager = LocalClipboardManager.current
-    val menuContext = LocalContext.current
-
-    Box(
-        modifier = Modifier.onGloballyPositioned { coords ->
-            avatarMenuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-        }
-    ) {
-        ContactAvatar(
-            imageUrl = avatarUrl,
-            deviceContactPhotoUri = photoUri,
-            fallbackText = fallbackText,
-            size = 32.dp,
-            modifier = Modifier.clickable { showAvatarMenu = true }
-        )
-        if (showAvatarMenu) {
-            CenteredOptionsMenu(onDismissRequest = { showAvatarMenu = false }, anchor = avatarMenuAnchor) {
-                PopupMenuRow(Icons.Default.Person, stringResource(R.string.view_profile)) {
-                    navController.navigate("chat_info/$address?fromBroadcast=true")
-                    showAvatarMenu = false
-                }
-                if (!isOwnMessage) {
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.AutoMirrored.Filled.Chat, stringResource(R.string.open_chat)) {
-                        navController.navigate("chat/$address")
-                        showAvatarMenu = false
-                    }
-                }
-                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
-                    clipboardManager.setText(AnnotatedString(address))
-                    com.kachat.app.util.showAddressCopiedToast(menuContext, address)
-                    showAvatarMenu = false
-                }
-                if (!isOwnMessage) {
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(painterResource(com.kachat.app.R.drawable.ic_kaspa_logo), stringResource(R.string.pay_in_kaspa), iconTint = Color.Unspecified) {
-                        navController.navigate("chat/$address?paymentMode=true")
-                        showAvatarMenu = false
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(
-                        if (isMuted) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                        if (isMuted) "Unmute User" else "Mute User"
-                    ) {
-                        if (isMuted) onUnmute(address) else onMute(address)
-                        showAvatarMenu = false
-                    }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.Default.VisibilityOff, stringResource(R.string.hide_user), labelColor = Color(0xFFFF3B30), iconTint = Color(0xFFFF3B30)) {
-                        onHide(address)
-                        showAvatarMenu = false
-                    }
-                }
-            }
-        }
-    }
+    ContactAvatar(
+        imageUrl = avatarUrl,
+        deviceContactPhotoUri = photoUri,
+        fallbackText = fallbackText,
+        size = 32.dp,
+        modifier = if (address != null) Modifier.clickable { onTap(address) } else Modifier
+    )
 }
 
 /**

@@ -43,6 +43,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -147,6 +155,41 @@ fun ActionSheetRow(
     tint: Color = KaspaTeal,
     onClick: () -> Unit,
 ) {
+    ActionSheetRowFrame(
+        icon = { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp)) },
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+    )
+}
+
+/**
+ * The same row with an asset image in place of the icon glyph - the Kaspa logo on "Pay in
+ * Kaspa", which every menu in the app shows with the logo rather than a stand-in. Mirrors iOS's
+ * `ActionSheetRow(customIcon:)`. The image is drawn as-is, untinted.
+ */
+@Composable
+fun ActionSheetRow(
+    icon: Painter,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    ActionSheetRowFrame(
+        icon = { Icon(icon, contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(22.dp)) },
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun ActionSheetRowFrame(
+    icon: @Composable () -> Unit,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
     val colors = LocalAppColors.current
     Row(
         modifier = Modifier
@@ -157,11 +200,103 @@ fun ActionSheetRow(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        icon()
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(subtitle, color = colors.textSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
+/**
+ * The sender half sheet a tapped avatar opens in a group thread or a broadcast room: what the
+ * avatar's popup menu used to offer, with a line under each option saying what it does - the
+ * same shape as the composer's "+" sheet and every other menu in the app that became a sheet.
+ * One sheet serves every row; the parent presents it for whichever sender was tapped. Mirrors
+ * iOS's `GroupChatDetailView.senderSheet` / `BroadcastChannelView.senderSheet`.
+ *
+ * Where an option opens something of its own (profile, chat), the caller's callback runs
+ * AFTER [onDismiss], so the navigation starts from under a sheet already on its way out.
+ *
+ * @param muteState null hides the Mute row (broadcast rooms have no per-sender mute); otherwise
+ *   whether the sender is currently muted, which picks the row's wording.
+ * @param hideSubtitle where the hide is undone - "Room Info" or "Group Info".
+ */
+/** The sender whose avatar was tapped; non-null presents [SenderActionsSheet]. */
+data class SenderSheetTarget(val address: String, val isOwnMessage: Boolean)
+
+@Composable
+fun SenderActionsSheet(
+    address: String,
+    displayName: String,
+    isOwnMessage: Boolean,
+    onDismiss: () -> Unit,
+    onViewProfile: () -> Unit,
+    onOpenChat: () -> Unit,
+    onPayInKaspa: () -> Unit,
+    onCopyAddress: () -> Unit,
+    onHide: () -> Unit,
+    hideSubtitle: String,
+    muteState: Boolean? = null,
+    onToggleMute: () -> Unit = {},
+) {
+    val colors = LocalAppColors.current
+    ActionSheetContainer(
+        title = if (isOwnMessage) "You" else displayName,
+        subtitle = null,
+        onDismiss = onDismiss,
+    ) {
+        Text(
+            address,
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ActionSheetRow(
+            icon = Icons.Default.Person,
+            title = stringResource(R.string.view_profile),
+            subtitle = "Their KNS profile, domains and address.",
+        ) { onDismiss(); onViewProfile() }
+        if (!isOwnMessage) {
+            ActionSheetRow(
+                icon = Icons.AutoMirrored.Filled.Chat,
+                title = stringResource(R.string.open_chat),
+                subtitle = "Message them directly, one to one.",
+            ) { onDismiss(); onOpenChat() }
+            ActionSheetRow(
+                icon = painterResource(R.drawable.ic_kaspa_logo),
+                title = stringResource(R.string.pay_in_kaspa),
+                subtitle = "Open your chat with them in payment mode.",
+            ) { onDismiss(); onPayInKaspa() }
+        }
+        ActionSheetRow(
+            icon = Icons.Default.ContentCopy,
+            title = stringResource(R.string.copy_address),
+            subtitle = "Copy their Kaspa address.",
+        ) { onDismiss(); onCopyAddress() }
+        if (!isOwnMessage) {
+            if (muteState != null) {
+                ActionSheetRow(
+                    icon = if (muteState) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                    title = if (muteState) "Unmute User" else "Mute User",
+                    subtitle = if (muteState) {
+                        "Get notified for their messages again."
+                    } else {
+                        "Their messages still show, but never notify you."
+                    },
+                ) { onDismiss(); onToggleMute() }
+            }
+            ActionSheetRow(
+                icon = Icons.Default.VisibilityOff,
+                title = stringResource(R.string.hide_user),
+                subtitle = hideSubtitle,
+                tint = Color(0xFFFF3B30),
+            ) { onDismiss(); onHide() }
         }
     }
 }

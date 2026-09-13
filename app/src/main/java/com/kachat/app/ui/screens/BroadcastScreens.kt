@@ -717,6 +717,9 @@ fun BroadcastChannelScreen(
     val feeRateOverride by broadcastViewModel.feeRateOverride.collectAsState()
     var showFeeEditor by remember { mutableStateOf(false) }
     var feeEditorInput by remember { mutableStateOf("") }
+    // The sender whose avatar was tapped. One sheet serves every row - the parent presents it
+    // for whichever sender was tapped, rather than a menu attached to each avatar in the list.
+    var senderSheetTarget by remember { mutableStateOf<SenderSheetTarget?>(null) }
     // Same trick as 1:1 chat's fee pill — recover the mass implied by whatever's currently being
     // composed (text vs. voice) by dividing the live fee preview back out by the rate that
     // produced it, instead of duplicating estimatedFeeSompi's own calculation here.
@@ -1105,6 +1108,35 @@ fun BroadcastChannelScreen(
                 )
             }
         } else {
+            senderSheetTarget?.let { target ->
+                val address = target.address
+                val sheetClipboard = LocalClipboardManager.current
+                val sheetContext = LocalContext.current
+                SenderActionsSheet(
+                    address = address,
+                    displayName = contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
+                    isOwnMessage = target.isOwnMessage,
+                    onDismiss = { senderSheetTarget = null },
+                    // Broadcast senders are usually strangers: openSenderProfile creates the
+                    // contact row first, then hands back the address to navigate with.
+                    onViewProfile = {
+                        broadcastViewModel.openSenderProfile(address) { navController.navigate("chat_info/$it?fromBroadcast=true") }
+                    },
+                    onOpenChat = {
+                        broadcastViewModel.openSenderProfile(address) { navController.navigate("chat/$it") }
+                    },
+                    onPayInKaspa = {
+                        broadcastViewModel.openSenderProfile(address) { navController.navigate("chat/$it?paymentMode=true") }
+                    },
+                    onCopyAddress = {
+                        sheetClipboard.setText(AnnotatedString(address))
+                        com.kachat.app.util.showAddressCopiedToast(sheetContext, address)
+                    },
+                    // Per-room since 4.0: hides this sender in THIS room only.
+                    onHide = { broadcastViewModel.hideSender(address, channelName) },
+                    hideSubtitle = "Stop seeing their messages in this room. Undo it in Room Info.",
+                )
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -1169,62 +1201,18 @@ fun BroadcastChannelScreen(
                         broadcastViewModel.ensureSenderProfileFetched(message.senderAddress)
                     }
 
-                    var showAvatarMenu by remember { mutableStateOf(false) }
-                    var avatarMenuAnchor by remember { mutableStateOf(Offset.Zero) }
-
+                    // The sender's avatar. Tapping it opens the sender half sheet presented by
+                    // the screen (see SenderActionsSheet above the list); the row itself no
+                    // longer owns a menu.
                     val avatar: @Composable () -> Unit = {
-                        Box(
-                            modifier = Modifier.onGloballyPositioned { coords ->
-                                avatarMenuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+                        ContactAvatar(
+                            imageUrl = senderProfiles[message.senderAddress],
+                            fallbackText = message.senderAddress.takeLast(8),
+                            size = 32.dp,
+                            modifier = Modifier.clickable {
+                                senderSheetTarget = SenderSheetTarget(message.senderAddress, isOwnMessage = isMine)
                             }
-                        ) {
-                            ContactAvatar(
-                                imageUrl = senderProfiles[message.senderAddress],
-                                fallbackText = message.senderAddress.takeLast(8),
-                                size = 32.dp,
-                                modifier = Modifier.clickable { showAvatarMenu = true }
-                            )
-                            if (showAvatarMenu) {
-                                CenteredOptionsMenu(onDismissRequest = { showAvatarMenu = false }, anchor = avatarMenuAnchor) {
-                                    PopupMenuRow(Icons.Default.Person, stringResource(R.string.view_profile)) {
-                                        broadcastViewModel.openSenderProfile(message.senderAddress) { address ->
-                                            navController.navigate("chat_info/$address?fromBroadcast=true")
-                                        }
-                                        showAvatarMenu = false
-                                    }
-                                    if (!isMine) {
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.AutoMirrored.Filled.Chat, stringResource(R.string.open_chat)) {
-                                            broadcastViewModel.openSenderProfile(message.senderAddress) { address ->
-                                                navController.navigate("chat/$address")
-                                            }
-                                            showAvatarMenu = false
-                                        }
-                                    }
-                                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                    PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_address)) {
-                                        clipboardManager.setText(AnnotatedString(message.senderAddress))
-                                        com.kachat.app.util.showAddressCopiedToast(menuContext, message.senderAddress)
-                                        showAvatarMenu = false
-                                    }
-                                    if (!isMine) {
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(painterResource(R.drawable.ic_kaspa_logo), stringResource(R.string.pay_in_kaspa), iconTint = Color.Unspecified) {
-                                            broadcastViewModel.openSenderProfile(message.senderAddress) { address ->
-                                                navController.navigate("chat/$address?paymentMode=true")
-                                            }
-                                            showAvatarMenu = false
-                                        }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.Default.VisibilityOff, stringResource(R.string.hide_user), labelColor = Color(0xFFFF3B30), iconTint = Color(0xFFFF3B30)) {
-                                            // Per-room since 4.0: hides this sender in THIS room only.
-                                            broadcastViewModel.hideSender(message.senderAddress, channelName)
-                                            showAvatarMenu = false
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        )
                     }
 
                     val highlightColor by animateColorAsState(
