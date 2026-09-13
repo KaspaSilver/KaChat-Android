@@ -82,7 +82,10 @@ class KnsInscriptionEngine @Inject constructor(
         val outputs = mutableListOf<RawOutputWithVersion>(
             RawOutputWithVersion(amount = commitAmountSompi, scriptPublicKey = ScriptPublicKeyWithVersion(commitScriptPubKeyHex, 0))
         )
-        if (selection.changeAmount > DUST_THRESHOLD_SOMPI) {
+        // Change stays when this transaction's KIP-9 storage mass allows it (see
+        // KaspaMass.storageMass), the same rule every other builder uses; otherwise it is fee.
+        val commitInputs = selection.selectedUtxos.map { it.utxoEntry.amount }
+        if (selection.changeAmount > 0 && KaspaMass.fitsStorageMass(commitInputs, listOf(commitAmountSompi, selection.changeAmount))) {
             outputs.add(RawOutputWithVersion(amount = selection.changeAmount, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0)))
         }
 
@@ -155,11 +158,16 @@ class KnsInscriptionEngine @Inject constructor(
         require(availableForChangeAndFee >= feeWithChange) { "KNS reveal amount cannot be covered by commit output" }
         val changeWithFee = availableForChangeAndFee - feeWithChange
 
-        if (changeWithFee > DUST_THRESHOLD_SOMPI) {
+        // The reveal spends exactly one input, the commit output, so the shape is fully known
+        // here: that input against the reveal output (if any) plus this change. Decided by KIP-9
+        // storage mass (see KaspaMass.storageMass), not a flat floor.
+        val revealInputs = listOf(commit.commitAmountSompi)
+        val baseAmounts = baseOutputs.map { it.amount }
+        if (changeWithFee > 0 && KaspaMass.fitsStorageMass(revealInputs, baseAmounts + changeWithFee)) {
             outputs.add(RawOutputWithVersion(amount = changeWithFee, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0)))
         } else {
-            // Change would be dust — recompute the fee for a transaction with no change output
-            // (lower mass, so a lower fee), and see if THAT leaves enough for change instead.
+            // Change would not stand on its own — recompute the fee for a transaction with no
+            // change output (lower mass, so a lower fee), and see if THAT leaves enough instead.
             val massNoChange = KaspaMass.calculateMass(
                 numInputs = 1,
                 outputScriptLens = baseOutputs.map { it.scriptPublicKey.scriptPublicKey.length / 2 },
@@ -169,7 +177,7 @@ class KnsInscriptionEngine @Inject constructor(
             val feeNoChange = KaspaMass.calculateFee(massNoChange, feeRateSompiPerGram) + priorityFeeSompi
             require(availableForChangeAndFee >= feeNoChange) { "Insufficient commit amount for KNS reveal fee" }
             val changeNoChange = availableForChangeAndFee - feeNoChange
-            if (changeNoChange > DUST_THRESHOLD_SOMPI) {
+            if (changeNoChange > 0 && KaspaMass.fitsStorageMass(revealInputs, baseAmounts + changeNoChange)) {
                 outputs.add(RawOutputWithVersion(amount = changeNoChange, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0)))
             }
         }
@@ -222,8 +230,6 @@ class KnsInscriptionEngine @Inject constructor(
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     companion object {
-        /** Matches iOS's dustThreshold for these builders specifically (10,000 sompi) — more conservative than KaspaWalletEngine's regular-send 500-sompi threshold. */
-        const val DUST_THRESHOLD_SOMPI = 10_000L
         const val REVEAL_PRIORITY_FEE_SOMPI = 2_000_000L
     }
 }

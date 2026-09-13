@@ -108,10 +108,21 @@ class ColdStorageSendEngine @Inject constructor(
             val outputs = mutableListOf<RawOutputWithVersion>(
                 RawOutputWithVersion(amount = selection.finalAmount, scriptPublicKey = ScriptPublicKeyWithVersion(recipientScriptHex, 0))
             )
-            if (selection.changeAmount > 500) { // matches KaspaWalletEngine's dust threshold
+            // Change stands as its own output when this transaction's KIP-9 storage mass allows
+            // it (see KaspaMass.storageMass) - the same rule as KaspaWalletEngine; otherwise it
+            // is folded into the fee.
+            val inputAmounts = selection.selectedUtxos.map { it.utxoEntry.amount }
+            val keepsChange = selection.changeAmount > 0 &&
+                KaspaMass.fitsStorageMass(inputAmounts, listOf(selection.finalAmount, selection.changeAmount))
+            if (keepsChange) {
                 outputs.add(
                     RawOutputWithVersion(amount = selection.changeAmount, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0))
                 )
+            }
+            if (!KaspaMass.fitsStorageMass(inputAmounts, outputs.map { it.amount })) {
+                return@withLock Result.failure(IllegalStateException(
+                    "This amount is too small to send from the coins available (Kaspa storage-mass limit). Try a larger amount, or consolidate this address first."
+                ))
             }
             if (outputs.size > KsptCodec.MAX_OUTPUTS) {
                 return@withLock Result.failure(IllegalStateException("Too many outputs for KSPT"))
@@ -127,7 +138,7 @@ class ColdStorageSendEngine @Inject constructor(
                     rawTx = rawTx,
                     inputUtxos = selection.selectedUtxos,
                     feeSompi = selection.estimatedFee,
-                    changeSompi = selection.changeAmount.coerceAtLeast(0L)
+                    changeSompi = if (keepsChange) selection.changeAmount else 0L
                 )
             )
         } catch (e: Exception) {

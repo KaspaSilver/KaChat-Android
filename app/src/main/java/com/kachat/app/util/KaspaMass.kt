@@ -86,4 +86,55 @@ object KaspaMass {
         val effectiveRate = maxOf(MINIMUM_FEE_RATE_SOMPI_PER_GRAM, quotedFeeRateSompiPerGram ?: MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
         return mass * effectiveRate
     }
+
+    // MARK: - KIP-9 storage mass
+
+    /** Storage mass parameter: C = SOMPI_PER_KAS * 10_000 = 10^12 (KIP-0009). */
+    private const val STORAGE_MASS_PARAMETER = 100_000_000L * 10_000L
+
+    /** The standard transaction mass budget. Consensus rejects a standard transaction whose
+     *  storage mass exceeds this, independently of its compute mass. */
+    const val MAX_STANDARD_MASS = 100_000L
+
+    /**
+     * KIP-9 storage mass for a transaction shape, in the integer math of rusty-kaspa's
+     * `calc_storage_mass` (mirrored from iOS, which mirrors KasSigner's consensus-checked
+     * implementation). Every UTXO here is a standard P2PK entry, so plurality is 1 throughout.
+     *
+     *   harmonic term per element:  C / amount
+     *   relaxed path (one output, or one input, or exactly two of each):
+     *       max(0, harmonic_outs - harmonic_ins)
+     *   otherwise:
+     *       max(0, harmonic_outs - |I| * (C / mean_in))
+     *
+     * This is what decides whether a small output is acceptable - not a flat floor. Storage mass
+     * charges the INCREASE in the UTXO set's harmonic cost, so one 0.2 KAS input spent into one
+     * 0.198 KAS output costs about 500 grams of a 100,000 budget, while the same 0.198 output
+     * carved out of a large input costs 50,000, and a 0.01 KAS output from a large input costs a
+     * million - which the network rejects outright. The flat 500-sompi change floor this replaces
+     * happily built that last transaction.
+     */
+    fun storageMass(inputAmounts: List<Long>, outputAmounts: List<Long>): Long {
+        val c = STORAGE_MASS_PARAMETER
+        fun harmonic(amounts: List<Long>): Long = amounts.fold(0L) { acc, amount -> acc + c / maxOf(amount, 1L) }
+        val harmonicOuts = harmonic(outputAmounts)
+        val relaxed = outputAmounts.size == 1 || inputAmounts.size == 1 ||
+            (outputAmounts.size == 2 && inputAmounts.size == 2)
+        if (relaxed) {
+            val harmonicIns = harmonic(inputAmounts)
+            return (harmonicOuts - harmonicIns).coerceAtLeast(0L)
+        }
+        val sumIns = inputAmounts.fold(0L) { acc, amount -> acc + amount }
+        val meanIns = maxOf(sumIns / maxOf(inputAmounts.size, 1), 1L)
+        val arithmeticIns = inputAmounts.size.toLong() * (c / meanIns)
+        return (harmonicOuts - arithmeticIns).coerceAtLeast(0L)
+    }
+
+    /** Whether a transaction spending [inputAmounts] into [outputAmounts] stays within the
+     *  standard storage-mass budget. Every output must also be non-zero; a zero-value output is
+     *  never worth creating whatever the mass arithmetic says. */
+    fun fitsStorageMass(inputAmounts: List<Long>, outputAmounts: List<Long>): Boolean {
+        if (outputAmounts.any { it <= 0L }) return false
+        return storageMass(inputAmounts, outputAmounts) <= MAX_STANDARD_MASS
+    }
 }

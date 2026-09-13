@@ -91,7 +91,15 @@ class KaspaWalletEngine @Inject constructor(
         changeAddress: String = fromAddress,
         sweepAll: Boolean = false,
         feeRateOverride: Long? = null,
-        manualUtxos: List<UtxoEntry>? = null
+        manualUtxos: List<UtxoEntry>? = null,
+        /**
+         * When the wallet holds the amount but no fee on top, send the amount reduced by the
+         * fee instead of failing. For handshakes: a handshake is recognised by its payload, not
+         * its amount, so one carrying a little under 0.2 KAS opens the conversation just as well -
+         * and it is the only way an account whose only coin IS a received handshake can ever
+         * answer it (iOS buildHandshakeTx's third shape).
+         */
+        allowReducedAmount: Boolean = false
     ): Result<String> = sendMutex.withLock {
         try {
             // 1. Validate address
@@ -158,8 +166,16 @@ class KaspaWalletEngine @Inject constructor(
                     changeScriptLen = changeScriptHex.length / 2
                 )
             }
+            var finalAmount = selectionResult.finalAmount
+            var changeAmount = selectionResult.changeAmount
             if (selectionResult.totalSelected < selectionResult.requiredAmount) {
-                return Result.failure(IllegalStateException("Insufficient funds: Needed ${selectionResult.requiredAmount}, have ${selectionResult.totalSelected}"))
+                val reduced = selectionResult.totalSelected - selectionResult.estimatedFee
+                if (allowReducedAmount && amountSompi > 0 && reduced > 0) {
+                    finalAmount = reduced
+                    changeAmount = 0L
+                } else {
+                    return Result.failure(IllegalStateException("Insufficient funds: Needed ${selectionResult.requiredAmount}, have ${selectionResult.totalSelected}"))
+                }
             }
             // A transaction over Kaspa's mass cap gets rejected by the node. Refuse an over-cap input
             // set up front with an actionable message instead of building a doomed transaction. The
@@ -175,26 +191,40 @@ class KaspaWalletEngine @Inject constructor(
             // amountSompi=0) — a 0-value output is non-standard and gets rejected;
             // the full remaining balance goes out via the change output instead.
             val outputs = mutableListOf<RawOutputWithVersion>()
-            if (selectionResult.finalAmount > 0) {
+            if (finalAmount > 0) {
                 outputs.add(
                     RawOutputWithVersion(
-                        amount = selectionResult.finalAmount,
+                        amount = finalAmount,
                         scriptPublicKey = ScriptPublicKeyWithVersion(recipientScriptHex, 0)
                     )
                 )
             }
+            // Whether the change stands as its own output is decided by this transaction's KIP-9
+            // storage mass, not a flat floor (see KaspaMass.storageMass). The old 500-sompi rule
+            // cut both ways: it emitted change the network rejects (a 0.01 KAS remainder carved
+            // from a large coin), and it would have refused nothing that mass allows. Change that
+            // does not fit is folded into the fee, as before.
+            val inputAmounts = selectionResult.selectedUtxos.map { it.utxoEntry.amount }
+            val recipientAmounts = outputs.map { it.amount }
             var changeOutputIndex = -1
-            if (selectionResult.changeAmount > 500) { // Minimum dust threshold
+            if (changeAmount > 0 && KaspaMass.fitsStorageMass(inputAmounts, recipientAmounts + changeAmount)) {
                 changeOutputIndex = outputs.size
                 outputs.add(
                     RawOutputWithVersion(
-                        amount = selectionResult.changeAmount,
+                        amount = changeAmount,
                         scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0)
                     )
                 )
             }
             if (outputs.isEmpty()) {
                 return Result.failure(IllegalStateException("Insufficient funds to cover network fee"))
+            }
+            if (!KaspaMass.fitsStorageMass(inputAmounts, outputs.map { it.amount })) {
+                // Consensus would reject this shape outright ("storage mass larger than max
+                // allowed"); say so instead of broadcasting a doomed transaction.
+                return Result.failure(IllegalStateException(
+                    "This amount is too small to send from the coins available (Kaspa storage-mass limit). Try a larger amount, or consolidate this address first."
+                ))
             }
 
             val payloadHex = payloadBytes?.joinToString("") { "%02x".format(it) }
@@ -285,7 +315,7 @@ class KaspaWalletEngine @Inject constructor(
                     address = changeAddress,
                     outpoint = Outpoint(transactionId = transactionId, index = changeOutputIndex),
                     utxoEntry = UtxoData(
-                        amount = selectionResult.changeAmount,
+                        amount = changeAmount,
                         scriptPublicKey = ScriptPublicKey(changeScriptHex),
                         blockDaaScore = 0,
                         isCoinbase = false

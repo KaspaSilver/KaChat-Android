@@ -147,8 +147,18 @@ class WalletService @Inject constructor(
      * plain identity-sourced send. "Pay in Kaspa" does NOT go through this — see [payInKaspa].
      * @return The transaction ID if successful.
      */
-    suspend fun sendKaspa(toAddress: String, amountSompi: Long, payloadBytes: ByteArray? = null, feeRateOverride: Long? = null): String {
-        val result = walletEngine.sendKaspa(toAddress, amountSompi, payloadBytes, feeRateOverride = feeRateOverride)
+    suspend fun sendKaspa(
+        toAddress: String,
+        amountSompi: Long,
+        payloadBytes: ByteArray? = null,
+        feeRateOverride: Long? = null,
+        allowReducedAmount: Boolean = false
+    ): String {
+        val result = walletEngine.sendKaspa(
+            toAddress, amountSompi, payloadBytes,
+            feeRateOverride = feeRateOverride,
+            allowReducedAmount = allowReducedAmount
+        )
 
         if (result.isSuccess) {
             refreshBalance()
@@ -593,7 +603,16 @@ class WalletService @Inject constructor(
         val encrypted = MessageProtocol.encrypt(json, recipientPubKey)
         val payloadBytes = MessageProtocol.buildHandshakePayload(encrypted)
 
-        val txId = sendKaspa(toAddress = toAddress, amountSompi = HANDSHAKE_AMOUNT_SOMPI, payloadBytes = payloadBytes)
+        // A handshake is recognised by its payload, not its amount. When this account cannot
+        // cover 0.2 KAS plus the fee - typically because its only coin IS the 0.2 KAS handshake
+        // it just received - the amount is reduced by the fee instead of failing, so the
+        // conversation can still be answered (mirrors iOS buildHandshakeTx).
+        val txId = sendKaspa(
+            toAddress = toAddress,
+            amountSompi = HANDSHAKE_AMOUNT_SOMPI,
+            payloadBytes = payloadBytes,
+            allowReducedAmount = true
+        )
 
         chatRepository.addContact(
             (existing ?: ContactEntity(id = toAddress, walletAddress = walletManager.getAddress(), alias = null, knsName = null, publicKeyHex = null))
