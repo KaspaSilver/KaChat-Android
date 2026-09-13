@@ -182,6 +182,17 @@ class ChatRepository @Inject constructor(
         return scopedToActiveAccount({ address -> database.messageDao().getMessagesForContact(contactId, address) }, emptyList())
     }
 
+    /** The newest [limit] messages of a conversation plus its sticky rows - see the DAO. */
+    fun getMessageWindow(contactId: String, limit: Int): Flow<List<MessageEntity>> {
+        return scopedToActiveAccount({ address -> database.messageDao().getMessageWindowForContact(contactId, address, limit) }, emptyList())
+    }
+
+    /** One page of a conversation's history older than [before], newest first. */
+    suspend fun getOlderMessagesPage(contactId: String, before: MessageEntity, limit: Int): List<MessageEntity> {
+        val address = try { walletManager.getAddress() } catch (_: Exception) { return emptyList() }
+        return database.messageDao().getMessagesForContactBefore(contactId, address, before.blockTimestamp, before.id, limit)
+    }
+
     fun getLatestMessages(): Flow<List<MessageEntity>> {
         return scopedToActiveAccount({ address -> database.messageDao().getLatestMessagePerContact(address) }, emptyList())
     }

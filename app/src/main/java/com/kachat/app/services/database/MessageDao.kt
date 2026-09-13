@@ -11,6 +11,54 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     fun getMessagesForContact(contactId: String, walletAddress: String): Flow<List<MessageEntity>>
 
+    /**
+     * The window of a conversation the open thread keeps live: the newest [limit] rows, plus
+     * every handshake and every row not marked sent - the exact set iOS's
+     * `fetchConversationWindows` produces, so the handshake banners and pending sends never
+     * fall out of view however old they are. Older history is paged in through
+     * [getMessagesForContactBefore]. Re-emits on any change to the table, like the full query.
+     */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE contactId = :contactId AND walletAddress = :walletAddress
+          AND (
+            type = 'handshake'
+            OR deliveryStatus != 'sent'
+            OR id IN (
+                SELECT id FROM messages
+                WHERE contactId = :contactId AND walletAddress = :walletAddress
+                ORDER BY blockTimestamp DESC, id DESC
+                LIMIT :limit
+            )
+          )
+        ORDER BY blockTimestamp ASC, id ASC
+        """
+    )
+    fun getMessageWindowForContact(contactId: String, walletAddress: String, limit: Int): Flow<List<MessageEntity>>
+
+    /**
+     * One page of history OLDER than the (blockTimestamp, id) cursor, newest first - a keyset
+     * page, never an offset, so rows arriving meanwhile cannot shift it (iOS
+     * `fetchMessagesPageAsync`).
+     */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE contactId = :contactId AND walletAddress = :walletAddress
+          AND (blockTimestamp < :beforeTimestamp OR (blockTimestamp = :beforeTimestamp AND id < :beforeId))
+        ORDER BY blockTimestamp DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getMessagesForContactBefore(
+        contactId: String,
+        walletAddress: String,
+        beforeTimestamp: Long,
+        beforeId: String,
+        limit: Int,
+    ): List<MessageEntity>
+
     /** Every message for this wallet, across all contacts — used by chat-history export, not the live UI. */
     @Query("SELECT * FROM messages WHERE walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     suspend fun getAllMessagesForWallet(walletAddress: String): List<MessageEntity>

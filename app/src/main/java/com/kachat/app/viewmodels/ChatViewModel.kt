@@ -32,6 +32,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
@@ -2796,6 +2797,133 @@ class ChatViewModel @Inject constructor(
         return chatRepository.getMessages(contactId)
     }
 
+    // MARK: - Thread history window + load-older paging (iOS inMemoryConversationWindowSize /
+    // loadOlderMessagesPageAsync)
+
+    /**
+     * Older pages the thread has walked back into, per contact, oldest first. The live window
+     * from the store is the newest [THREAD_WINDOW_SIZE] rows; everything before that arrives
+     * here a page at a time as the reader scrolls up, and stays for the life of the view model
+     * so a re-opened thread does not have to re-page what was already read.
+     */
+    private val _olderThreadPages = MutableStateFlow<Map<String, List<MessageEntity>>>(emptyMap())
+    private val _olderHistoryExhausted = MutableStateFlow<Set<String>>(emptySet())
+    private val _loadingOlderContacts = MutableStateFlow<Set<String>>(emptySet())
+    private val olderPageJobs = mutableMapOf<String, kotlinx.coroutines.Deferred<Int>>()
+    /** The newest window per contact as last emitted, so a page cursor can be taken without a
+     *  round trip to the flow. */
+    private val latestThreadWindows = mutableMapOf<String, List<MessageEntity>>()
+
+    /** Whether the thread for [contactId] is fetching older history right now. */
+    fun isLoadingOlderMessages(contactId: String): Flow<Boolean> =
+        _loadingOlderContacts.map { contactId in it }.distinctUntilChanged()
+
+    /** False once a page came back short: there is nothing older to fetch. */
+    fun hasOlderMessages(contactId: String): Flow<Boolean> =
+        _olderHistoryExhausted.map { contactId !in it }.distinctUntilChanged()
+
+    /**
+     * What the open thread renders: the store's live window (newest rows plus sticky handshakes
+     * and unsent sends) with the older pages the reader has scrolled into prepended. Deduped by
+     * id - a row can sit in both once the window slides - and kept in chain order.
+     */
+    fun threadMessages(contactId: String): Flow<List<MessageEntity>> = combine(
+        chatRepository.getMessageWindow(contactId, THREAD_WINDOW_SIZE).onEach { latestThreadWindows[contactId] = it },
+        _olderThreadPages.map { it[contactId].orEmpty() }.distinctUntilChanged(),
+    ) { window, older ->
+        if (older.isEmpty()) return@combine window
+        val seen = HashSet<String>(window.size + older.size)
+        (older + window)
+            .filter { seen.add(it.id) }
+            .sortedWith(compareBy<MessageEntity> { it.blockTimestamp }.thenBy { it.id })
+    }
+
+    /** The oldest row the thread currently holds, which is where the next page starts. */
+    private fun oldestLoadedMessage(contactId: String): MessageEntity? {
+        val older = _olderThreadPages.value[contactId].orEmpty()
+        val candidates = older + latestThreadWindows[contactId].orEmpty()
+        return candidates.minWithOrNull(compareBy<MessageEntity> { it.blockTimestamp }.thenBy { it.id })
+    }
+
+    /**
+     * Pages one batch of older history into the thread. Returns how many rows were added; zero
+     * means the beginning of the conversation has been reached. One fetch per contact at a time:
+     * a second caller joins the in-flight one rather than fetching the same page twice.
+     */
+    suspend fun loadOlderMessages(contactId: String, pageSize: Int = THREAD_OLDER_PAGE_SIZE): Int {
+        if (contactId in _olderHistoryExhausted.value) return 0
+        olderPageJobs[contactId]?.let { return it.await() }
+        val job = viewModelScope.async {
+            _loadingOlderContacts.value = _loadingOlderContacts.value + contactId
+            try {
+                val cursor = oldestLoadedMessage(contactId)
+                if (cursor == null) {
+                    _olderHistoryExhausted.value = _olderHistoryExhausted.value + contactId
+                    return@async 0
+                }
+                val page = try {
+                    chatRepository.getOlderMessagesPage(contactId, cursor, pageSize)
+                } catch (e: Exception) {
+                    Log.w("ChatViewModel", "Older history page failed", e)
+                    emptyList()
+                }
+                if (page.size < pageSize) {
+                    _olderHistoryExhausted.value = _olderHistoryExhausted.value + contactId
+                }
+                if (page.isEmpty()) return@async 0
+                val existing = _olderThreadPages.value[contactId].orEmpty()
+                val known = existing.mapTo(HashSet()) { it.id }
+                val fresh = page.asReversed().filter { it.id !in known }
+                _olderThreadPages.value = _olderThreadPages.value + (contactId to fresh + existing)
+                fresh.size
+            } finally {
+                _loadingOlderContacts.value = _loadingOlderContacts.value - contactId
+            }
+        }
+        olderPageJobs[contactId] = job
+        return try { job.await() } finally { olderPageJobs.remove(contactId) }
+    }
+
+    /**
+     * Pulls every remaining page in, for "jump to the first message": scrolling first would land
+     * on whatever the oldest LOADED row happened to be (iOS jumpToChatStart). Bounded so a store
+     * that keeps answering can never spin here forever.
+     */
+    suspend fun loadAllOlderMessages(contactId: String) {
+        var pagesLeft = 200
+        while (pagesLeft-- > 0) {
+            if (loadOlderMessages(contactId, pageSize = 500) == 0) break
+        }
+    }
+
+    /**
+     * Pages older history in until the thread holds [messageId], for tapping a reply quote whose
+     * original is not loaded yet (iOS jumpToReplyOriginal grows the window to the target).
+     * Returns false when the conversation ran out without finding it.
+     */
+    suspend fun loadOlderMessagesUntil(contactId: String, messageId: String): Boolean {
+        var pagesLeft = 200
+        while (pagesLeft-- > 0) {
+            if (_olderThreadPages.value[contactId].orEmpty().any { it.id == messageId }) return true
+            if (latestThreadWindows[contactId].orEmpty().any { it.id == messageId }) return true
+            if (loadOlderMessages(contactId) == 0) break
+        }
+        return _olderThreadPages.value[contactId].orEmpty().any { it.id == messageId }
+    }
+
+    /** Older pages belong to the account that read them. */
+    private fun resetThreadHistoryForAccountSwitch() {
+        _olderThreadPages.value = emptyMap()
+        _olderHistoryExhausted.value = emptySet()
+        latestThreadWindows.clear()
+    }
+
+    init {
+        viewModelScope.launch {
+            walletManager.activeAddressFlow.drop(1).collect { resetThreadHistoryForAccountSwitch() }
+        }
+    }
+
     fun getReactions(contactId: String): Flow<List<ReactionEntity>> {
         return chatRepository.getReactionsForContact(contactId)
     }
@@ -2804,6 +2932,17 @@ class ChatViewModel @Inject constructor(
     private val knsNameSweepRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
     companion object {
+        /** Newest rows the open thread keeps live from the store - iOS
+         *  ChatService.inMemoryConversationWindowSize. Older history pages in on scroll. */
+        const val THREAD_WINDOW_SIZE = 160
+
+        /** One scroll-up batch of older history - iOS olderHistoryBatchSize (three ~40-row pages). */
+        const val THREAD_OLDER_PAGE_SIZE = 120
+
+        /** How close to the top of the loaded history counts as "nearing it", in rows - iOS
+         *  nearTopPrefetchThresholdIndex. */
+        const val THREAD_OLDER_PREFETCH_ROWS = 12
+
         private const val KNS_NAME_SWEEP_KEY = "last_kns_name_sweep_ms"
         /** A contact's primary domain changes rarely, and the name already lives in the
          *  database, so the sweep is a refresh rather than something the UI waits on. */

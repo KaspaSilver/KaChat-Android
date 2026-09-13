@@ -184,7 +184,12 @@ fun ChatThreadScreen(
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val conversations by chatViewModel.conversations.collectAsState()
     val conversation = conversations.find { it.contact.id == contactId }
-    val allMessages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
+    // A window of the newest history plus whatever older pages have been scrolled into, not the
+    // whole conversation - a two-year chat used to be mapped in full on every emission (iOS keeps
+    // the same 160-row window and pages older history in from the store).
+    val allMessages by chatViewModel.threadMessages(contactId).collectAsState(initial = emptyList())
+    val isLoadingOlderMessages by chatViewModel.isLoadingOlderMessages(contactId).collectAsState(initial = false)
+    val hasOlderMessages by chatViewModel.hasOlderMessages(contactId).collectAsState(initial = true)
     // "Sent via another device" rows are backup fill-in slots, never UI (matches iOS and the
     // chess mini chat); legacy restores from pre-1d236ba builds can still hold such rows.
     val messages = remember(allMessages) { allMessages.filterNot { it.isSentPlaceholder } }
@@ -412,7 +417,16 @@ fun ChatThreadScreen(
                         indication = null,
                     ) {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        coroutineScope.launch { scrollState.scrollToItem(0) }
+                        // Not while the list is moving: tapping the screen to arrest a fling is
+                        // an ordinary reflex, not "take me to the beginning" (iOS). Every
+                        // remaining page is pulled in FIRST - scrolling first would land on
+                        // whatever the oldest LOADED row happened to be, not message one.
+                        if (!scrollState.isScrollInProgress) {
+                            coroutineScope.launch {
+                                chatViewModel.loadAllOlderMessages(contactId)
+                                scrollState.scrollToItem(0)
+                            }
+                        }
                     }
             ) {
             CenterAlignedTopAppBar(
@@ -1148,19 +1162,48 @@ fun ChatThreadScreen(
             }
         }
     ) { padding ->
+        var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
+        // The top pagination spinner is a list row of its own, so every index-addressed scroll
+        // below has to account for it while it is showing.
+        val showOlderSpinner = isLoadingOlderMessages && hasOlderMessages && hasScrolledToInitialPosition
+        val olderSpinnerRows = if (showOlderSpinner) 1 else 0
+        val liveOlderSpinnerRows by rememberUpdatedState(olderSpinnerRows)
         var highlightedMessageId by remember { mutableStateOf<String?>(null) }
+        val liveMessages by rememberUpdatedState(messages)
         val jumpToReply: (String) -> Unit = { targetId ->
-            val index = messages.indexOfFirst { it.id == targetId }
-            if (index >= 0) {
-                coroutineScope.launch {
-                    scrollState.animateScrollToItem(index)
+            coroutineScope.launch {
+                // The original may sit in history that has not been paged in yet: page older
+                // rows in until it is held, rather than making the reader scroll up to find it
+                // by hand (iOS grows the window to the target).
+                var index = liveMessages.indexOfFirst { it.id == targetId }
+                if (index < 0 && chatViewModel.loadOlderMessagesUntil(contactId, targetId)) {
+                    // Let the prepended pages land in the list before addressing it by index.
+                    delay(150)
+                    index = liveMessages.indexOfFirst { it.id == targetId }
+                }
+                if (index >= 0) {
+                    scrollState.animateScrollToItem(index + olderSpinnerRows)
                     highlightedMessageId = targetId
                     delay(1200)
                     if (highlightedMessageId == targetId) highlightedMessageId = null
+                } else {
+                    Toast.makeText(micContext, micContext.getString(R.string.original_message_not_available), Toast.LENGTH_SHORT).show()
                 }
-            } else {
-                Toast.makeText(micContext, micContext.getString(R.string.original_message_not_available), Toast.LENGTH_SHORT).show()
             }
+        }
+
+        // Load older history as the reader nears the top of what is loaded. LazyColumn keeps the
+        // first visible row anchored by KEY when rows are inserted above it, so a prepended page
+        // does not move what is being read. Only after the initial bottom scroll has happened:
+        // the list composes at index 0 for a frame before that, which would otherwise page in
+        // history nobody asked for on every open.
+        LaunchedEffect(scrollState, contactId) {
+            snapshotFlow { scrollState.firstVisibleItemIndex }
+                .collect { firstVisible ->
+                    if (hasScrolledToInitialPosition && firstVisible <= ChatViewModel.THREAD_OLDER_PREFETCH_ROWS) {
+                        chatViewModel.loadOlderMessages(contactId)
+                    }
+                }
         }
 
         // Auto-scroll to bottom when new messages arrive. The very first population of the list
@@ -1173,17 +1216,19 @@ fun ChatThreadScreen(
         // button is the way back down. (The 2s open-chat poll and the live mirror both land
         // here, so the old unconditional scroll yanked the viewport on every insert.)
         val userIsDraggingList by scrollState.interactionSource.collectIsDraggedAsState()
-        var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
         // Message count as of the previous auto-scroll decision. "Was at bottom" is measured
         // against THIS count, not the new one - when the effect fires the just-inserted rows
         // haven't laid out yet, so the last visible index still refers to the pre-insert list,
         // and a multi-message catch-up batch would otherwise fail the gate for a reader who
         // was genuinely pinned to the end.
         var autoScrollBaselineCount by remember { mutableStateOf(0) }
+        // The newest row's id as of the previous decision, so "a fresh own send" can be told
+        // from "the same own send, with older history now loaded above it".
+        var autoScrollNewestId by remember { mutableStateOf<String?>(null) }
         LaunchedEffect(messages.size) {
             if (messages.isNotEmpty()) {
                 if (!hasScrolledToInitialPosition) {
-                    scrollState.scrollToItem(messages.size - 1)
+                    scrollState.scrollToItem(messages.size - 1 + olderSpinnerRows)
                     hasScrolledToInitialPosition = true
                 } else if (messages.size > autoScrollBaselineCount) {
                     val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -1199,16 +1244,21 @@ fun ChatThreadScreen(
                     // at-bottom gate like any other insert instead of yanking the viewport
                     // away from history.
                     val newest = messages.last()
+                    // And it must actually be NEW: the list also grows when an older page is
+                    // paged in ABOVE the reader, and a still-provisional own send sitting at
+                    // the bottom must not turn that into a yank back down to it.
                     val sentFromThisDevice = newest.direction == "sent" &&
-                        MessageEntity.isProvisionalId(newest.id)
+                        MessageEntity.isProvisionalId(newest.id) &&
+                        newest.id != autoScrollNewestId
                     // Never fight an active finger drag - starting a programmatic animated
                     // scroll mid-drag both stutters and steals the gesture. Local sends are
                     // exempt: they come from the send button, not from a drag.
                     if (sentFromThisDevice || (wasAtBottom && !userIsDraggingList)) {
-                        scrollState.animateScrollToItem(messages.size - 1)
+                        scrollState.animateScrollToItem(messages.size - 1 + olderSpinnerRows)
                     }
                 }
                 autoScrollBaselineCount = messages.size
+                autoScrollNewestId = messages.last().id
             }
         }
 
@@ -1231,7 +1281,7 @@ fun ChatThreadScreen(
             }
             val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
             pinToBottomForIme = lastVisible >= messages.lastIndex - 1
-            if (pinToBottomForIme) scrollState.scrollToItem(messages.lastIndex)
+            if (pinToBottomForIme) scrollState.scrollToItem(messages.lastIndex + olderSpinnerRows)
         }
         // The IME inset animates over a few hundred milliseconds and the list shrinks with it, so
         // one scroll at the start is undone by the rest of the animation - the thread ends up
@@ -1244,7 +1294,7 @@ fun ChatThreadScreen(
             snapshotFlow { imeInsets.getBottom(imeDensity) }
                 .collect {
                     if (pinToBottomForIme && liveMessageCount > 0) {
-                        scrollState.scrollToItem(liveMessageCount - 1)
+                        scrollState.scrollToItem(liveMessageCount - 1 + liveOlderSpinnerRows)
                     }
                 }
         }
@@ -1334,6 +1384,20 @@ fun ChatThreadScreen(
                         }
                     }
                 } else {
+                    // Top pagination spinner while an older page is on its way (iOS
+                    // shouldShowTopPaginationSpinner). Keyed, so its arrival above the first
+                    // visible row does not move that row.
+                    if (showOlderSpinner) {
+                        item(key = "older-history-spinner") {
+                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = LocalAppColors.current.textSecondary,
+                                )
+                            }
+                        }
+                    }
                     itemsIndexed(messages, key = { _, msg -> msg.id }) { index, msg ->
                         if (index == 0 || !ChatTimeFormat.isSameDay(messages[index - 1].blockTimestamp, msg.blockTimestamp)) {
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
@@ -1457,7 +1521,7 @@ fun ChatThreadScreen(
             if (showScrollToBottom && messages.isNotEmpty()) {
                 IconButton(
                     onClick = {
-                        coroutineScope.launch { scrollState.animateScrollToItem(messages.size - 1) }
+                        coroutineScope.launch { scrollState.animateScrollToItem(messages.size - 1 + olderSpinnerRows) }
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
