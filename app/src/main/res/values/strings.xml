@@ -273,6 +273,7 @@
     <string name="only_notify_if_i_m_mentioned">Only Notify if I\'m Mentioned</string>
     <string name="open_settings">Open Settings</string>
     <string name="original_message_not_available">Original message not available</string>
+    <string name="original_message_fetching">Original message isn\'t on this device yet - fetching it.</string>
     <string name="other_nodes">Other Nodes</string>
     <string name="paste_from_clipboard">Paste from Clipboard</string>
     <string name="paste_kpub">Paste kpub</string>

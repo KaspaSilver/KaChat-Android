@@ -264,6 +264,17 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setMessageSyncCursor(cursor: MessageSyncCursorEntity)
 
+    /** Pulls every cursor of one contact (both alias streams) back to [floor], so the next fetch
+     *  re-covers a window the normal rewind has already left behind. The only way a cursor ever
+     *  moves backwards - see ChatRepository.recoverMissingReplyOriginal. */
+    @Query(
+        """
+        UPDATE message_sync_cursors SET lastBlockTime = :floor
+        WHERE contactId = :contactId AND walletAddress = :walletAddress AND lastBlockTime > :floor
+        """
+    )
+    suspend fun rewindMessageSyncCursors(contactId: String, walletAddress: String, floor: Long): Int
+
     /** Resets every per-contact sync cursor for this wallet — used by "wipe and re-sync" so it actually re-fetches full history again instead of picking up where the (now-deleted) cache left off. */
     @Query("DELETE FROM message_sync_cursors WHERE walletAddress = :walletAddress")
     suspend fun deleteSyncCursorsForWallet(walletAddress: String)

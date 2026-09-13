@@ -378,6 +378,44 @@ class ChatRepository @Inject constructor(
         }
     }
 
+    // MARK: - Reply-original recovery
+
+    /** Originals this session has already tried to recover, so one that is genuinely gone does
+     *  not rewind the contact's cursors on every re-fetch of its reply. */
+    private val replyRecoveryAttempted = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * A reply names the txId of the message it answers. When that message is not in the store,
+     * the device KNOWS it missed one - the only positive signal of a delivery gap the protocol
+     * offers - so it rewinds the contact's cursors to a day before the reply and refetches that
+     * one conversation; txId dedupe makes the overlap free. Run on ingest for every new reply,
+     * and on demand when a quote is tapped ([force], which retries a known miss). A day rather
+     * than genesis because the paged fetch stops at twenty pages; from zero on a long thread it
+     * would halt hundreds of messages short of the gap. Mirrors iOS recoverMissingReplyOriginal.
+     */
+    fun recoverMissingReplyOriginal(contactId: String, replyToId: String, replyBlockTime: Long, force: Boolean) {
+        if (!force && !replyRecoveryAttempted.add(replyToId)) return
+        replyRecoveryAttempted.add(replyToId)
+        scope.launch {
+            try {
+                val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { return@launch }
+                // In the store is not missing (the thread's memory window is a subset of it).
+                if (database.messageDao().exists(replyToId, walletAddress)) return@launch
+                val floor = (replyBlockTime - REPLY_RECOVERY_REWIND_MS).coerceAtLeast(0L)
+                val rewound = database.messageDao().rewindMessageSyncCursors(contactId, walletAddress, floor)
+                Log.i(
+                    "ChatRepository",
+                    "A reply quotes ${replyToId.take(16)}, which this device never received - " +
+                        "rewound $rewound cursor(s) for ${contactId.takeLast(10)} to recover it",
+                )
+                val api = networkService.indexerApi.value ?: return@launch
+                syncContextualMessages(walletAddress, api, onlyContactIds = setOf(contactId))
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Reply-original recovery for $replyToId failed", e)
+            }
+        }
+    }
+
     /** Every tombstoned contact address for the active wallet — carried in backups so restores skip deleted chats. */
     suspend fun getAllDeletedContactIds(): List<String> =
         database.contactDao().getAllDeletedContactIds(walletManager.getAddress())
@@ -1088,7 +1126,22 @@ class ChatRepository @Inject constructor(
                 // the first fetch after a contact row finally appears, which is meant to pull the
                 // peer's WHOLE history — including everything they sent before any handshake
                 // existed, which nothing had ever asked the indexer for.
-                var cursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, aliasHex)
+                // The stored cursor is the newest block_time the indexer has RETURNED for this
+                // stream - and the indexer does not surface messages in block-time order:
+                // acceptance in the DAG is not monotonic, and an indexer catching up serves what
+                // it has. A reply can be returned before the message it replied to; a fetch that
+                // then started strictly at the cursor would never request the original again.
+                // One message missing from a thread for good, with everything after it delivered
+                // - which is exactly what a user saw, tapping a quote whose original their device
+                // never received. So every fetch starts a rewind window BEHIND the cursor (90s on
+                // the fast open-chat tick, ten minutes on a catch-up sweep); the txId dedupe below
+                // makes the overlap free. The window bounds how late the indexer may be;
+                // recoverMissingReplyOriginal covers anything later than that. Mirrors iOS
+                // syncStartBlockTime after its unconditional-rewind fix.
+                val storedCursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, aliasHex)
+                val rewindMs = if (pollShaped) LIVE_TAIL_REORG_REWIND_MS else SYNC_REORG_REWIND_MS
+                var fetchFrom: Long? = storedCursor?.let { (it - rewindMs).coerceAtLeast(0L) }
+                var newest = storedCursor ?: 0L
                 var page = 0
                 while (page < CONTEXTUAL_MAX_PAGES_PER_SWEEP) {
                     page++
@@ -1096,7 +1149,7 @@ class ChatRepository @Inject constructor(
                         api.getContextualMessagesBySender(
                             contact.id, aliasHex,
                             limit = CONTEXTUAL_PAGE_LIMIT,
-                            blockTime = cursor,
+                            blockTime = fetchFrom,
                         )
                     } catch (e: Exception) {
                         noteIndexerError()
@@ -1115,19 +1168,25 @@ class ChatRepository @Inject constructor(
                         }
                     }
 
-                    val maxBlockTime = messages.maxOfOrNull { it.blockTime }
-                    val advanced = maxBlockTime != null && maxBlockTime > (cursor ?: 0L)
-                    if (advanced) {
+                    val maxBlockTime = messages.maxOf { it.blockTime }
+                    // The stored cursor only ever advances on its own (the recovery path is the
+                    // one thing that moves it back).
+                    if (maxBlockTime > newest) {
+                        newest = maxBlockTime
                         database.messageDao().setMessageSyncCursor(
-                            MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = aliasHex, lastBlockTime = maxBlockTime!!)
+                            MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = aliasHex, lastBlockTime = newest)
                         )
-                        cursor = maxBlockTime
                     }
-                    // Short page = caught up. `!advanced` is the termination guard for a full page
-                    // that all shares one block_time: the cursor is inclusive (`>=`), so without it
-                    // the same page would be re-requested forever. The page cap keeps one sweep
-                    // bounded; a deep backlog simply finishes on the following sweeps.
-                    if (messages.size < CONTEXTUAL_PAGE_LIMIT || !advanced) break
+                    // Paging walks on the PAGE's newest block_time, separately from the stored
+                    // cursor: with a rewound start, a full page can sit entirely at or below the
+                    // stored cursor (a chatty contact inside the window) and still have newer rows
+                    // behind it. Short page = caught up. `!moved` is the termination guard for a
+                    // full page that all shares one block_time: the query is inclusive (`>=`), so
+                    // without it the same page would be re-requested forever. The page cap keeps
+                    // one sweep bounded; a deep backlog simply finishes on the following sweeps.
+                    val moved = fetchFrom == null || maxBlockTime > fetchFrom
+                    if (messages.size < CONTEXTUAL_PAGE_LIMIT || !moved) break
+                    fetchFrom = maxBlockTime
                 }
             }
             onContactDone?.invoke(index + 1, syncableContacts.size)
@@ -1223,6 +1282,11 @@ class ChatRepository @Inject constructor(
         )
 
         val replyContent = MessageReply.parseOrNull(plaintext)
+        // A reply to a message this device never received is the one signal that a message was
+        // missed; act on it rather than leave a quote that opens onto nothing.
+        if (replyContent != null && replyContent.replyToId.isNotEmpty()) {
+            recoverMissingReplyOriginal(contact.id, replyContent.replyToId, message.blockTime, force = false)
+        }
         // Title above is already the contact's name, so these don't repeat it - matches iOS's
         // ChatService.formatNotificationBody wording exactly.
         val notificationText = when {
@@ -1497,6 +1561,16 @@ class ChatRepository @Inject constructor(
          */
         private const val CONTEXTUAL_PAGE_LIMIT = 50
         private const val CONTEXTUAL_MAX_PAGES_PER_SWEEP = 20
+
+        /** How far behind a contact's cursor a catch-up sweep starts - iOS syncReorgBufferMs. */
+        private const val SYNC_REORG_REWIND_MS = 10L * 60 * 1000
+
+        /** The same for the fast open-chat tick - iOS liveTailReorgBufferMs. Small, so the tick
+         *  does not re-download a ten-minute window every two seconds. */
+        private const val LIVE_TAIL_REORG_REWIND_MS = 90L * 1000
+
+        /** How far behind a reply to look for the message it replied to - iOS replyRecoveryRewindMs. */
+        private const val REPLY_RECOVERY_REWIND_MS = 24L * 60 * 60 * 1000
 
         /**
          * How far apart a provisional placeholder's wall-clock timestamp and its confirmed

@@ -1189,7 +1189,16 @@ fun ChatThreadScreen(
                     delay(1200)
                     if (highlightedMessageId == targetId) highlightedMessageId = null
                 } else {
-                    Toast.makeText(micContext, micContext.getString(R.string.original_message_not_available), Toast.LENGTH_SHORT).show()
+                    // Not on this device. The reply that was tapped names the original, so the
+                    // repository can go and get it rather than just say no; the quote works once
+                    // the fetch lands (iOS jumpToReplyOriginal).
+                    val reply = liveMessages.lastOrNull { com.kachat.app.util.MessageReply.parseOrNull(it.plaintextBody)?.replyToId == targetId }
+                    if (reply != null) {
+                        chatViewModel.recoverMissingReplyOriginal(contactId, targetId, reply.blockTimestamp)
+                        Toast.makeText(micContext, micContext.getString(R.string.original_message_fetching), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(micContext, micContext.getString(R.string.original_message_not_available), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }

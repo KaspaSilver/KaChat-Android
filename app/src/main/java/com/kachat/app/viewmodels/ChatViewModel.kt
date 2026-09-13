@@ -2912,6 +2912,15 @@ class ChatViewModel @Inject constructor(
         return _olderThreadPages.value[contactId].orEmpty().any { it.id == messageId }
     }
 
+    /**
+     * A tapped quote whose original is on neither the thread nor the store: the reply names it,
+     * so the repository can go and get it rather than just say no (see
+     * ChatRepository.recoverMissingReplyOriginal). Forced: a quote tap retries a known miss.
+     */
+    fun recoverMissingReplyOriginal(contactId: String, replyToId: String, replyBlockTime: Long) {
+        chatRepository.recoverMissingReplyOriginal(contactId, replyToId, replyBlockTime, force = true)
+    }
+
     /** Older pages belong to the account that read them. */
     private fun resetThreadHistoryForAccountSwitch() {
         _olderThreadPages.value = emptyMap()
