@@ -168,6 +168,15 @@ interface KaspaRestApi {
         @Query("inputs") inputs: Boolean = true
     ): TransactionResponse
 
+    /** [getTransaction] with each input's spent-UTXO owner resolved, i.e. who actually sent it -
+     *  what the indexer leaves blank for a handshake it has not seen accepted yet. */
+    @GET("transactions/{txId}")
+    suspend fun getTransactionWithInputAddresses(
+        @Path("txId") txId: String,
+        @Query("inputs") inputs: Boolean = true,
+        @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "light"
+    ): TransactionResponse
+
     /**
      * Just the payload of one transaction. A separate call from [getTransaction] because that
      * one's DTO declares inputs/outputs non-null, so it cannot be asked to skip them - and the

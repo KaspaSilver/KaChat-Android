@@ -884,7 +884,8 @@ class ChatRepository @Inject constructor(
     private suspend fun syncOutgoingHandshakes(myAddress: String, api: KasiaIndexerApi) {
         val cursor = settingsRepository.handshakeOutSyncCursor(myAddress).first()
         val handshakes = try {
-            api.getHandshakesBySender(myAddress, blockTime = cursor)
+            // Same rewind behind the cursor as the incoming stream (see syncHandshakes).
+            api.getHandshakesBySender(myAddress, blockTime = cursor?.let { (it - SYNC_REORG_REWIND_MS).coerceAtLeast(0L) })
         } catch (e: Exception) {
             noteIndexerError()
             Log.w("ChatRepository", "Failed to fetch outgoing handshakes", e)
@@ -948,54 +949,96 @@ class ChatRepository @Inject constructor(
     private suspend fun syncHandshakes(myAddress: String, api: KasiaIndexerApi) {
         // block_time cursor — see AppSettingsRepository.handshakeSyncCursor's doc comment. Only
         // fetches what's genuinely new since the last successful sync instead of the same recent
-        // window every cycle.
+        // window every cycle. Started a rewind window BEHIND the cursor, like every other stream:
+        // the indexer does not surface handshakes in block-time order, and a handshake served
+        // late would otherwise sit below the cursor forever (iOS syncStartBlockTime).
         val cursor = settingsRepository.handshakeSyncCursor(myAddress).first()
         val handshakes = try {
-            api.getHandshakesByReceiver(myAddress, blockTime = cursor)
+            api.getHandshakesByReceiver(myAddress, blockTime = cursor?.let { (it - SYNC_REORG_REWIND_MS).coerceAtLeast(0L) })
         } catch (e: Exception) {
             noteIndexerError()
             Log.w("ChatRepository", "Failed to fetch handshakes", e)
             return
         }
 
+        // A handshake whose sender could not be resolved yet (see [resolveHandshakeSender]) must
+        // stay inside the next fetch's window: the cursor is held at its block time - the query
+        // is inclusive - rather than advancing past it and losing the request for good.
+        var unresolvedFloor: Long? = null
         for (handshake in handshakes) {
             try {
                 if (database.messageDao().exists(handshake.txId, myAddress)) continue
-                processHandshake(myAddress, handshake)
+                if (!processHandshake(myAddress, handshake)) {
+                    unresolvedFloor = minOf(unresolvedFloor ?: Long.MAX_VALUE, handshake.blockTime)
+                }
             } catch (e: Exception) {
                 Log.w("ChatRepository", "Failed to process handshake ${handshake.txId}", e)
             }
         }
 
         val maxBlockTime = handshakes.maxOfOrNull { it.blockTime }
-        if (maxBlockTime != null && maxBlockTime > (cursor ?: 0L)) {
-            settingsRepository.setHandshakeSyncCursor(myAddress, maxBlockTime)
+        val nextCursor = listOfNotNull(maxBlockTime, unresolvedFloor).minOrNull()
+        if (nextCursor != null && nextCursor > (cursor ?: 0L)) {
+            settingsRepository.setHandshakeSyncCursor(myAddress, nextCursor)
         }
     }
 
-    private suspend fun processHandshake(myAddress: String, handshake: HandshakeIndexerResponse) {
-        if (!KaspaAddress.isValid(handshake.sender)) return
+    /**
+     * The handshake's sender, resolved. The KaChat indexer serves a handshake it has not yet
+     * seen ACCEPTED with an empty `sender` (the field is filled from the spent input once the
+     * transaction has an accepting block) - and that is exactly the window a live poll hits
+     * first. Dropping it there, as this used to, lost the request: the cursor moved past it and
+     * nothing ever asked again. So the sender is read straight off the transaction on the Kaspa
+     * REST API instead - any input whose previous outpoint is not our own address (iOS
+     * resolveSenderAddress / fetchAnyInputAddress). Null when neither source knows yet.
+     */
+    private suspend fun resolveHandshakeSender(myAddress: String, handshake: HandshakeIndexerResponse): String? {
+        if (KaspaAddress.isValid(handshake.sender)) return handshake.sender
+        val restApi = networkService.kaspaRestApi.value ?: return null
+        return try {
+            restApi.getTransactionWithInputAddresses(handshake.txId).inputs
+                .firstNotNullOfOrNull { input ->
+                    input.previousOutpointAddress?.takeIf { it.isNotBlank() && it != myAddress && KaspaAddress.isValid(it) }
+                }
+        } catch (e: Exception) {
+            Log.w("ChatRepository", "Could not resolve sender of handshake ${handshake.txId.take(16)} from chain", e)
+            null
+        }
+    }
+
+    /** Returns false only when the handshake's sender is not knowable yet, so the caller keeps it
+     *  inside the next fetch window; true when it was handled (or is permanently irrelevant). */
+    private suspend fun processHandshake(myAddress: String, handshake: HandshakeIndexerResponse): Boolean {
+        val sender = resolveHandshakeSender(myAddress, handshake)
+        if (sender == null) {
+            Log.i("ChatRepository", "Handshake ${handshake.txId.take(16)} has no resolvable sender yet - will retry")
+            return false
+        }
 
         // A deleted contact's tombstone outlives the contact row itself. This still matters even
         // with the block_time sync cursor above: the very first sync for a *newly re-created*
         // contact (e.g. a fresh handshake after deletion) has no cursor yet, so that one fetch can
         // still surface the old pre-deletion handshake transaction if the indexer hasn't pruned it.
         // Only a handshake sent *after* the deletion creates a real contact/conversation.
-        val deleted = database.contactDao().getDeletedContact(handshake.sender, myAddress)
-        if (isTombstoned(deleted, handshake.txId, handshake.blockTime)) return
+        val deleted = database.contactDao().getDeletedContact(sender, myAddress)
+        if (isTombstoned(deleted, handshake.txId, handshake.blockTime)) return true
 
         val encryptedBytes = handshake.messagePayload.hexToBytes()
-        val encryptedMessage = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes) ?: return
+        val encryptedMessage = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes)
+        if (encryptedMessage == null) {
+            Log.w("ChatRepository", "Handshake ${handshake.txId.take(16)} payload is not a sealed message - skipped")
+            return true
+        }
         val decryptedJson = MessageProtocol.decrypt(encryptedMessage, walletManager.getPrivateKeyBytes())
         val payload = try { gson.fromJson(decryptedJson, HandshakePayload::class.java) } catch (e: Exception) { null }
         val theirAlias = payload?.alias
 
-        val senderPubKeyHex = KaspaAddress.decode(handshake.sender).second.joinToString("") { "%02x".format(it) }
-        val existing = database.contactDao().getContact(handshake.sender, myAddress)
+        val senderPubKeyHex = KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
+        val existing = database.contactDao().getContact(sender, myAddress)
         val newStatus = deriveIncomingHandshakeStatus(existing?.conversationStatus, existing?.handshakeComplete ?: false, payload?.isResponse ?: false)
 
         val updatedContact =
-            (existing ?: ContactEntity(id = handshake.sender, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+            (existing ?: ContactEntity(id = sender, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
                 .copy(
                     publicKeyHex = senderPubKeyHex,
                     conversationStatus = newStatus,
@@ -1011,32 +1054,33 @@ class ChatRepository @Inject constructor(
         insertMessage(
             MessageEntity(
                 id = handshake.txId,
-                contactId = handshake.sender,
+                contactId = sender,
                 walletAddress = myAddress,
                 type = MessageProtocol.TYPE_HANDSHAKE,
                 direction = "received",
-                plaintextBody = "${theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(handshake.sender)} wants to connect",
+                plaintextBody = "${theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(sender)} wants to connect",
                 encryptedPayload = handshake.messagePayload,
                 amountSompi = null,
                 blockTimestamp = handshake.blockTime,
-                isRead = backfill || notificationHelper.isViewingContact(handshake.sender)
+                isRead = backfill || notificationHelper.isViewingContact(sender)
             )
         )
 
-        val displayName = theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(handshake.sender)
+        val displayName = theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(sender)
         // Foreground policy: while the app is on screen the local poll posts the banner itself
         // (only the open conversation is suppressed, inside NotificationHelper); backgrounded
         // with push active, the server is the notification source. txId dedupe collapses the
         // race where both paths fire for the same handshake.
         if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
             notificationHelper.show(
-                contactId = handshake.sender,
+                contactId = sender,
                 title = if (newStatus == "pending") "Request to communicate" else "Connected",
                 text = if (newStatus == "pending") "$displayName wants to connect" else "$displayName accepted your request",
                 notificationOverride = ContactNotificationMode.fromName(existing?.notificationOverride),
                 dedupeTxId = handshake.txId
             )
         }
+        return true
     }
 
     /**
