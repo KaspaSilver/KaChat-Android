@@ -1481,6 +1481,42 @@ class KaPostsViewModel @Inject constructor(
      * same author), fetching each link. Self-sufficient (fetches the first page itself), so it
      * doesn't race loadReplies. Capped defensively.
      */
+    /** Ancestor chains from get-thread, keyed by the post's txid and held root first. */
+    private val _fetchedAncestors = MutableStateFlow<Map<String, List<KaPostDraft>>>(emptyMap())
+    val fetchedAncestors: StateFlow<Map<String, List<KaPostDraft>>> = _fetchedAncestors.asStateFlow()
+
+    /** One post from the indexer by txid. */
+    suspend fun indexerPost(txId: String): KaPostDraft? =
+        try { kaPostsService.fetchPost(txId)?.let { mapRemotePost(it) } } catch (_: Exception) { null }
+
+    /**
+     * The real chain above a post, fetched once per post.
+     *
+     * The context used to be the navigation stack - only the levels you had tapped through - so a
+     * reply opened from a profile, a link or a notification had nothing above it and no way back
+     * to the post it answered.
+     */
+    fun loadAncestors(post: KaPostDraft) {
+        val remoteId = post.remoteId ?: return
+        if (post.parentRemoteId.isNullOrEmpty()) return
+        if (_fetchedAncestors.value.containsKey(remoteId)) return
+        // Claimed before the fetch: the overlay recomposes while this is in flight, and each pass
+        // would otherwise start its own request for the same chain.
+        _fetchedAncestors.value = _fetchedAncestors.value + (remoteId to emptyList())
+        viewModelScope.launch {
+            try {
+                val mapped = kaPostsService.fetchThread(remoteId).mapNotNull { mapRemotePost(it) }
+                if (mapped.isNotEmpty()) {
+                    _fetchedAncestors.value = _fetchedAncestors.value + (remoteId to mapped)
+                }
+            } catch (e: Exception) {
+                // Unclaimed, so reopening the post retries rather than showing no context forever.
+                _fetchedAncestors.value = _fetchedAncestors.value - remoteId
+                Log.w(TAG, "Ancestor chain fetch failed", e)
+            }
+        }
+    }
+
     fun loadSelfThreadChain(post: KaPostDraft) {
         val rootRemote = post.remoteId ?: return
         viewModelScope.launch {
@@ -1489,10 +1525,17 @@ class KaPostsViewModel @Inject constructor(
             var hops = 0
             while (hops < 25) {
                 val page = try { kaPostsService.fetchRepliesPage(currentRemote, 25, null) } catch (_: Exception) { break }
-                val next = page.items
-                    .mapNotNull { mapRemotePost(it) }
-                    .filter { it.posterAddress == post.posterAddress }
-                    .minByOrNull { it.timestamp } ?: break
+                val replies = page.items.mapNotNull { mapRemotePost(it) }
+                // An UNBRANCHED continuation is the conversation, whoever wrote it: a two-person
+                // back-and-forth is one thread to read, and following only the root author's own
+                // replies left every other message behind a tap - one tap down per message, and as
+                // many Backs to leave. With SEVERAL replies there is a real branch, and picking one
+                // would hide the others, so that keeps the old rule and the rest stay in the list.
+                val next = if (replies.size == 1) {
+                    replies.first()
+                } else {
+                    replies.filter { it.posterAddress == post.posterAddress }.minByOrNull { it.timestamp }
+                } ?: break
                 chain.add(next)
                 hops += 1
                 currentRemote = next.remoteId ?: break
@@ -2587,6 +2630,9 @@ class KaPostsViewModel @Inject constructor(
 
     private suspend fun resolveSharedPost(txId: String): KaPostDraft? {
         findPostByRemoteId(txId)?.let { return it }
+        // One request for the exact id, before re-fetching whole feeds and profiles in the hope
+        // the post falls inside one of them.
+        indexerPost(txId)?.let { return it }
         loadFeed()
         findPostByRemoteId(txId)?.let { return it }
         try {

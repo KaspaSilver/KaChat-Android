@@ -54,6 +54,12 @@ data class KPostsResponse(val posts: List<KPost>?, val pagination: KPagination?)
 
 data class KRepliesResponse(val replies: List<KPost>?, val pagination: KPagination?)
 
+/** `get-post?id=` - one post. */
+data class KPostResponse(val post: KPost?)
+
+/** `get-thread?id=` - the post plus its ancestors, ROOT FIRST and excluding the post itself. */
+data class KThreadResponse(val ancestors: List<KPost>?, val post: KPost?)
+
 /**
  * One fetched page, keeping the RAW page's paging facts alongside the filtered rows.
  *
@@ -153,6 +159,20 @@ interface KaPostApi {
         @Query("limit") limit: Int = 100,
         @Query("before") before: String? = null,
     ): KRepliesResponse
+
+    /** One post by id, any age, any author - what makes a reply's context reachable at all. */
+    @GET("get-post")
+    suspend fun getPost(
+        @Query("id") id: String,
+        @Query("requesterPubkey") requesterPubkey: String,
+    ): KPostResponse
+
+    /** A post plus its ancestor chain, root first, done server-side in one request. */
+    @GET("get-thread")
+    suspend fun getThread(
+        @Query("id") id: String,
+        @Query("requesterPubkey") requesterPubkey: String,
+    ): KThreadResponse
 
     /** get-replies dual mode: `user` instead of `post` returns all replies MADE BY that user. */
     @GET("get-replies")
@@ -360,6 +380,22 @@ class KaPostsService @Inject constructor(
             val raw = response.replies.orEmpty()
             pageOf(raw, filterKaChat(raw), response.pagination, limit) { it.id }
         }
+
+    /**
+     * One post by id, any age, any author.
+     *
+     * Deliberately NOT marker-filtered: the feeds drop posts without the KaChat marker because
+     * they are another client's content, but a parent IS the context the reader asked for, and a
+     * hole in a thread is worse than a Kasia-origin post inside it.
+     */
+    suspend fun fetchPost(id: String): KPost? = rethrowingApiError {
+        api().getPost(id, requesterPubkey()).post
+    }
+
+    /** A post's whole ancestor chain, root first - one request instead of one per level. */
+    suspend fun fetchThread(id: String): List<KPost> = rethrowingApiError {
+        api().getThread(id, requesterPubkey()).ancestors.orEmpty()
+    }
 
     /** The requester's notification stream - actions on OUR content. */
     suspend fun fetchNotificationsPage(limit: Int = 50, before: String? = null): KPage<KNotification> =

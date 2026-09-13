@@ -1087,16 +1087,19 @@ fun KaPostsScreen(
 
     // Thread stack - the topmost id renders; back pops. The overlay resolves the id against the
     // live post tree itself (it must recompose as replies land), so only the id is handed over.
+    val fetchedAncestorChains by viewModel.fetchedAncestors.collectAsState()
     threadStack.lastOrNull()?.let { topId ->
         KaPostThreadOverlay(
             postId = topId,
             viewModel = viewModel,
-            // The stack below the top IS the ancestor chain: you reached this post by tapping
-            // down through them, so no lookup can be wrong about it. PARTIAL by nature - a
-            // thread opened from a notification or a shared link starts mid-chain with nothing
-            // beneath it, and the parentRemoteId link inside covers that first step. A
-            // get-post?id= endpoint is what would make the rest exact (see KAPOSTS_INDEXER.md).
-            ancestors = threadStack.dropLast(1).mapNotNull { viewModel.findPost(it) },
+            // The chain get-thread returns, which is every level above this post - exact whether
+            // you tapped down to it, opened it from a profile, or landed on it from a link. The
+            // navigation stack is the fallback for the moment before that fetch answers (and for
+            // a local post that has no txid yet); it can only ever show what you tapped through.
+            ancestors = viewModel.findPost(topId)?.remoteId
+                ?.let { fetchedAncestorChains[it] }
+                ?.takeIf { it.isNotEmpty() }
+                ?: threadStack.dropLast(1).mapNotNull { viewModel.findPost(it) },
             onJumpToAncestor = { ancestor ->
                 val index = threadStack.indexOf(ancestor.id)
                 if (index >= 0) threadStack = threadStack.take(index + 1)
@@ -1439,7 +1442,11 @@ fun KaPostCell(
     // Measured on what is actually rendered, so a translation that runs longer than its original
     // still folds. Same numbers as iOS's KaPostCellView.isLongPost.
     val isLongPost = bodyText.length > 280 || bodyText.count { it == '\n' } >= 8
-    val foldText = truncatesLongText && isLongPost
+    // Show more expands the post IN PLACE. It used to open the thread, so the only way to read a
+    // long post in a feed was to leave the feed - and on an ancestor it did nothing useful at all.
+    // Opening the post is what tapping the post itself is for.
+    var textExpanded by remember(post.id) { mutableStateOf(false) }
+    val foldText = truncatesLongText && isLongPost && !textExpanded
 
     Column(
         modifier = Modifier
@@ -1572,14 +1579,14 @@ fun KaPostCell(
                         },
                     )
                 }
-                if (foldText) {
+                if (truncatesLongText && isLongPost) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Show more",
+                        if (textExpanded) "Show less" else "Show more",
                         color = KaspaTeal,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        modifier = Modifier.clickable { onOpenThread() },
+                        modifier = Modifier.clickable { textExpanded = !textExpanded },
                     )
                 }
                 TranslateAffordance(
@@ -2594,6 +2601,8 @@ fun KaPostThreadOverlay(
     LaunchedEffect(post.remoteId) {
         viewModel.loadReplies(post)
         viewModel.loadSelfThreadChain(post)
+        // The real chain above this post, not just the levels tapped through to reach it.
+        viewModel.loadAncestors(post)
     }
 
     // Endless scroll through the thread's replies. Keyed on the root's txid, so pushing a nested

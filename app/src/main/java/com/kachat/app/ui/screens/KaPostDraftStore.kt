@@ -16,6 +16,12 @@ data class KaPostSavedDraft(
     val id: String,
     val text: String,
     val threadSegments: List<String>,
+    /**
+     * The post this draft REPLIES to, when it was written as a reply. Only the id is kept - the
+     * post itself is resolved on open, so a draft never carries a stale copy of someone else's
+     * post. Null for a plain post or a thread.
+     */
+    val replyRemoteId: String? = null,
     val savedAt: Long,
 ) {
     /** One line for the drafts list: the first segment that has anything in it. */
@@ -47,6 +53,9 @@ object KaPostDraftStore {
                     threadSegments = if (segments == null) emptyList() else {
                         (0 until segments.length()).map { segments.getString(it) }
                     },
+                    // Absent in drafts saved before replies had a parent - decodes to null, so
+                    // nothing stored earlier is disturbed.
+                    replyRemoteId = o.optString("replyRemoteId").takeIf { it.isNotEmpty() },
                     savedAt = o.optLong("savedAt"),
                 )
             }
@@ -60,6 +69,7 @@ object KaPostDraftStore {
         id: String?,
         text: String,
         threadSegments: List<String>,
+        replyRemoteId: String? = null,
     ) {
         if (walletAddress.isEmpty()) return
         if ((listOf(text) + threadSegments).all { it.isBlank() }) return
@@ -67,6 +77,7 @@ object KaPostDraftStore {
             id = id ?: UUID.randomUUID().toString(),
             text = text,
             threadSegments = threadSegments,
+            replyRemoteId = replyRemoteId,
             savedAt = System.currentTimeMillis(),
         )
         val updated = listOf(draft) + load(context, walletAddress).filter { it.id != draft.id }
@@ -85,6 +96,7 @@ object KaPostDraftStore {
                     .put("id", d.id)
                     .put("text", d.text)
                     .put("threadSegments", JSONArray(d.threadSegments))
+                    .put("replyRemoteId", d.replyRemoteId ?: "")
                     .put("savedAt", d.savedAt)
             )
         }
