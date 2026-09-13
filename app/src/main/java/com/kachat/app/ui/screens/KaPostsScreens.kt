@@ -469,6 +469,14 @@ fun KaPostsScreen(
     var profileReturns by remember { mutableStateOf(mapOf<Int, KaPostsProfileReturn>()) }
     var repostTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var quoteTarget by remember { mutableStateOf<KaPostDraft?>(null) }
+    /**
+     * Answering a SPECIFIC reply opens the composer with that reply under the editor, as on iOS
+     * and desktop. The inline box under the post you opened stays for replying to the post
+     * itself - X has both shapes, each where it fits.
+     */
+    var replyComposerTarget by remember { mutableStateOf<KaPostDraft?>(null) }
+    /** The post a reopened reply draft was answering, once resolved from its stored txid. */
+    var draftReplyParent by remember { mutableStateOf<KaPostDraft?>(null) }
     // A post or quote handed back by Undo reopens its composer with the words still in it.
     // Comments are handled inside the thread overlay, where the reply bar already is.
     val restoredDraft by viewModel.restoredDraft.collectAsState()
@@ -953,17 +961,36 @@ fun KaPostsScreen(
 
     // Reopening a draft: posting it removes it, and re-saving updates it in place.
     editingDraft?.let { draft ->
+        // A reply draft keeps only the txid of the post it answers (never a stale copy of someone
+        // else's post), so resolve it here - loaded lists first, then the indexer. Until get-post
+        // existed this lookup could not be done at all.
+        LaunchedEffect(draft.id, draft.replyRemoteId) {
+            draftReplyParent = null
+            val parentId = draft.replyRemoteId
+            if (!parentId.isNullOrEmpty()) {
+                draftReplyParent = viewModel.findPostByRemoteId(parentId) ?: viewModel.indexerPost(parentId)
+            }
+        }
+        val isReplyDraft = !draft.replyRemoteId.isNullOrEmpty()
+        val parent = draftReplyParent
         KaPostComposerDialog(
-            title = "New Post",
-            quoted = null,
-            onDismiss = { editingDraft = null },
+            title = if (isReplyDraft) "Reply to Post" else "New Post",
+            quoted = parent,
+            quotedDisplayName = parent?.let { viewModel.posterDisplayName(it.posterAddress) } ?: "",
+            quotedAvatarUrl = parent?.let { viewModel.senderProfiles.value[it.posterAddress] },
+            submitLabel = if (isReplyDraft) "Reply" else null,
+            onDismiss = { editingDraft = null; draftReplyParent = null },
             onSubmit = { text ->
                 KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
                 editingDraft = null
-                viewModel.schedulePost(text)
+                // The post it answered could not be resolved: post the text rather than discard
+                // what was written.
+                if (parent != null) viewModel.submitReply(parent, text) else viewModel.schedulePost(text)
+                draftReplyParent = null
             },
             viewModel = viewModel,
-            onSubmitThread = { segments ->
+            // A reply is one post to one parent, so it never stacks into a thread.
+            onSubmitThread = if (isReplyDraft) null else { segments ->
                 KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
                 editingDraft = null
                 viewModel.scheduleThread(segments)
@@ -972,7 +999,10 @@ fun KaPostsScreen(
             initialText = draft.text,
             initialThreadSegments = draft.threadSegments,
             onSaveDraft = { draftText, segments ->
-                KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), draft.id, draftText, segments)
+                KaPostDraftStore.save(
+                    draftContext, myAddressForDrafts.orEmpty(), draft.id, draftText, segments,
+                    replyRemoteId = draft.replyRemoteId,
+                )
             },
         )
     }
@@ -1041,6 +1071,32 @@ fun KaPostsScreen(
         }
     }
 
+    replyComposerTarget?.let { target ->
+        KaPostComposerDialog(
+            title = "Reply to Post",
+            // The post being answered renders under the editor - the same card a quote shows.
+            quoted = target,
+            quotedDisplayName = viewModel.posterDisplayName(target.posterAddress),
+            quotedAvatarUrl = viewModel.senderProfiles.value[target.posterAddress],
+            submitLabel = "Reply",
+            initialText = restoredComposerText,
+            onDismiss = { replyComposerTarget = null; restoredComposerText = "" },
+            onSubmit = { text ->
+                replyComposerTarget = null
+                restoredComposerText = ""
+                viewModel.submitReply(target, text)
+            },
+            viewModel = viewModel,
+            // A reply draft remembers WHAT it answers, so reopening it brings the post back.
+            onSaveDraft = { draftText, segments ->
+                KaPostDraftStore.save(
+                    draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments,
+                    replyRemoteId = target.remoteId,
+                )
+            },
+        )
+    }
+
     quoteTarget?.let { target ->
         KaPostComposerDialog(
             title = "Quote Post",
@@ -1104,6 +1160,7 @@ fun KaPostsScreen(
                 val index = threadStack.indexOf(ancestor.id)
                 if (index >= 0) threadStack = threadStack.take(index + 1)
             },
+            onReplyToComment = { target -> replyComposerTarget = target },
             onClose = { closeTopThread() },
             onOpenNested = { nested -> openThread(nested) },
             onOpenProfile = { address, pubkey -> viewModel.openPosterProfile(address, pubkey) },
@@ -1554,7 +1611,13 @@ fun KaPostCell(
                 val postAnnotated = remember(bodyText) { annotatedPostText(bodyText) }
                 androidx.compose.foundation.text.ClickableText(
                     text = postAnnotated,
-                    style = TextStyle(color = colors.textPrimary, fontSize = 15.sp, lineHeight = 20.sp),
+                    // The post a thread is FOCUSED on reads larger than the posts around it, the
+                    // way X sizes the one you opened against its ancestors and replies.
+                    style = TextStyle(
+                        color = colors.textPrimary,
+                        fontSize = if (isRoot) 18.sp else 15.sp,
+                        lineHeight = if (isRoot) 24.sp else 20.sp,
+                    ),
                     maxLines = if (foldText) 8 else Int.MAX_VALUE,
                     overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
                     onClick = { offset ->
@@ -2037,6 +2100,8 @@ fun KaPostComposerDialog(
     quoted: KaPostDraft?,
     quotedDisplayName: String = "",
     quotedAvatarUrl: String? = null,
+    /** Overrides the submit button's wording. A reply says "Reply", not "Post". */
+    submitLabel: String? = null,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
     /** Enables @mention autocomplete (chips of 1:1 KNS-domain contacts) when provided. */
@@ -2171,7 +2236,7 @@ fun KaPostComposerDialog(
                 KaPostCharacterMeter(count = text.text.length)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    if (totalSegments > 1) "Post All ($totalSegments)" else "Post",
+                    if (totalSegments > 1) "Post All ($totalSegments)" else (submitLabel ?: "Post"),
                     color = if (canPost) Color.Black else colors.textSecondary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
@@ -2536,6 +2601,12 @@ fun KaPostThreadOverlay(
     onOpenShared: (String) -> Unit,
     onRepostTap: (KaPostDraft) -> Unit,
     onViewEngagement: (KaPostDraft) -> Unit,
+    /**
+     * Answering a SPECIFIC post in this thread - an ancestor above it, or one of the replies
+     * below. Opens the "Reply to Post" composer with that post under the editor, as on iOS and
+     * desktop. The inline box at the bottom stays for answering the post you opened.
+     */
+    onReplyToComment: (KaPostDraft) -> Unit = {},
     /** RemoteId of a reply to scroll to once it lands (reply-notification taps open the
      *  PARENT's thread and hand the reply's txid through here). */
     focusReplyRemoteId: String? = null,
@@ -2678,35 +2749,22 @@ fun KaPostThreadOverlay(
                 // to that level - X stacks these over the focal post. Replaces a single
                 // "Replying to a post" link that showed one step with no idea whose it was.
                 items(ancestors, key = { "ancestor-${it.id}" }) { ancestor ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onJumpToAncestor(ancestor) }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                viewModel.posterDisplayName(ancestor.posterAddress),
-                                color = colors.textPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp,
-                            )
-                            Text(
-                                ancestor.text,
-                                color = colors.textSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Icon(
-                            Icons.Default.KeyboardArrowUp,
-                            null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
+                    // Full post cells, not summaries. The two-line rungs this replaces read as a
+                    // separate block of older content stapled above the thread, and they could
+                    // not be liked, reposted or replied to - the parents ARE posts, so they
+                    // behave like posts and the screen reads as one conversation. Long ones
+                    // truncate so the post you actually opened still owns the screen.
+                    KaPostCell(
+                        post = ancestor,
+                        viewModel = viewModel,
+                        onOpenThread = { onJumpToAncestor(ancestor) },
+                        onRepostTap = { onRepostTap(ancestor) },
+                        onOpenProfile = { onOpenProfile(ancestor.posterAddress, ancestor.posterPubkey) },
+                        onOpenQuoted = onOpenShared,
+                        onViewEngagement = { onViewEngagement(ancestor) },
+                        truncatesLongText = true,
+                        onReply = { onReplyToComment(ancestor) },
+                    )
                     HorizontalDivider(color = colors.surfaceVariant)
                 }
                 item(key = "root-context") {
@@ -2814,7 +2872,9 @@ fun KaPostThreadOverlay(
                         onOpenShared = onOpenShared,
                         onRepostTap = onRepostTap,
                         onViewEngagement = onViewEngagement,
-                        onReplyTo = { target -> replyTargetId = target.id },
+                        // A specific reply is answered in the composer, where it renders under the
+                        // editor - not by silently re-aiming the box at the bottom of the screen.
+                        onReplyTo = { target -> onReplyToComment(target) },
                     )
                     HorizontalDivider(
                         color = colors.surfaceVariant,
