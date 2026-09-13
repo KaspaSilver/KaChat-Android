@@ -1609,27 +1609,38 @@ fun KaPostCell(
                 // "tap the post to open its thread" only worked on the padding around it.
                 // Root cells keep body taps inert, matching their disabled row clickable.
                 val postAnnotated = remember(bodyText) { annotatedPostText(bodyText) }
-                androidx.compose.foundation.text.ClickableText(
-                    text = postAnnotated,
-                    // The post a thread is FOCUSED on reads larger than the posts around it, the
-                    // way X sizes the one you opened against its ancestors and replies.
-                    style = TextStyle(
-                        color = colors.textPrimary,
-                        fontSize = if (isRoot) 18.sp else 15.sp,
-                        lineHeight = if (isRoot) 24.sp else 20.sp,
-                    ),
-                    maxLines = if (foldText) 8 else Int.MAX_VALUE,
-                    overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
-                    onClick = { offset ->
-                        val mention = postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset).firstOrNull()
-                        val link = postAnnotated.getStringAnnotations(LINK_ANNOTATION_TAG, offset, offset).firstOrNull()
-                        when {
-                            mention != null -> viewModel.openMentionProfile(mention.item)
-                            link != null -> tappedLinkUrl = link.item
-                            !isRoot -> onOpenThread()
-                        }
-                    },
-                )
+                val postBody = @Composable {
+                    androidx.compose.foundation.text.ClickableText(
+                        text = postAnnotated,
+                        // The post a thread is FOCUSED on reads larger than the posts around it,
+                        // the way X sizes the one you opened against its ancestors and replies.
+                        style = TextStyle(
+                            color = colors.textPrimary,
+                            fontSize = if (isRoot) 18.sp else 15.sp,
+                            lineHeight = if (isRoot) 24.sp else 20.sp,
+                        ),
+                        maxLines = if (foldText) 8 else Int.MAX_VALUE,
+                        overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
+                        onClick = { offset ->
+                            val mention = postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset).firstOrNull()
+                            val link = postAnnotated.getStringAnnotations(LINK_ANNOTATION_TAG, offset, offset).firstOrNull()
+                            when {
+                                mention != null -> viewModel.openMentionProfile(mention.item)
+                                link != null -> tappedLinkUrl = link.item
+                                !isRoot -> onOpenThread()
+                            }
+                        },
+                    )
+                }
+                // Long-press selects text only in the post you OPENED. Making every cell
+                // selectable turned a long-press anywhere in a feed into a selection handle
+                // fight, and scrolling past a post is far more common than quoting one; the
+                // focused post is the one you came to read. Matches iOS's selectableText(isRoot).
+                if (isRoot) {
+                    androidx.compose.foundation.text.selection.SelectionContainer { postBody() }
+                } else {
+                    postBody()
+                }
                 // Half sheet rather than an alert dialog - see LinkActionsSheet.
                 tappedLinkUrl?.let { url ->
                     LinkActionsSheet(
