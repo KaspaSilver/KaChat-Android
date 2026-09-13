@@ -201,6 +201,11 @@ class ChatHistoryExportImportService @Inject constructor(
      *  share sheet. [importChatHistory] accepts both this format and legacy plaintext exports. */
     suspend fun exportChatHistory(): Uri {
         val exportDir = File(context.cacheDir, "chat_exports").apply { mkdirs() }
+        // The archive carries the permanent group decryption keys (sealed, but still), and
+        // nothing needs an earlier export once its share sheet is gone - so previous exports
+        // are removed rather than left in the cache directory indefinitely (iOS deletes the
+        // temp file when the share sheet dismisses).
+        exportDir.listFiles()?.forEach { runCatching { it.delete() } }
         val fileTimestamp = isoSeconds(System.currentTimeMillis()).replace(":", "-")
         val file = File(exportDir, "kachat-history-$fileTimestamp.json")
         file.writeText(buildArchiveJson())

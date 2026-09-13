@@ -62,10 +62,17 @@ class KnsService @Inject constructor(
         if (!forceRefresh) {
             profileCache.cachedReverse(address)?.let { return it.domain }
         }
-        val resolved = getExplicitPrimaryDomain(address) ?: getOwnedDomains(address).firstOrNull()?.asset
-        // "Owns nothing" is cached too, with a shorter life - it is the most common answer and
-        // the most wasteful one to keep re-asking for.
-        profileCache.putReverse(address, resolved)
+        getExplicitPrimaryDomain(address)?.let { primary ->
+            profileCache.putReverse(address, primary)
+            return primary
+        }
+        // "Owns nothing" is cached too - it is the most common answer and the most wasteful one
+        // to keep re-asking for - but only a lookup that actually ANSWERED is a negative. One
+        // that could not be completed rests on the short failure window instead, so a dropped
+        // connection can never pin "no domain" for the length of a real negative.
+        val owned = getOwnedDomainsOrNull(address)
+        val resolved = owned?.firstOrNull()?.asset
+        profileCache.putReverse(address, resolved, failed = owned == null)
         return resolved
     }
 
@@ -79,15 +86,22 @@ class KnsService @Inject constructor(
         }
     }
 
-    /** Every verified domain an address owns — a contact may have more than one. */
-    suspend fun getOwnedDomains(address: String): List<KnsAsset> {
+    /** Every verified domain an address owns — a contact may have more than one. A lookup that
+     *  fails reads as "none"; callers that cache negatives should use [getOwnedDomainsOrNull]. */
+    suspend fun getOwnedDomains(address: String): List<KnsAsset> = getOwnedDomainsOrNull(address) ?: emptyList()
+
+    /** [getOwnedDomains] that tells a failed lookup (null) apart from a real "owns none". */
+    suspend fun getOwnedDomainsOrNull(address: String): List<KnsAsset>? {
         return try {
             val response = api().getAssetsByOwner(address)
             response.data?.assets
                 ?.filter { it.isDomain == true && it.isVerifiedDomain == true && it.asset != null && it.assetId != null }
                 ?: emptyList()
+        } catch (e: retrofit2.HttpException) {
+            // The API answers 404 for an owner with no assets - that is a real negative.
+            if (e.code() == 404) emptyList() else null
         } catch (e: Exception) {
-            emptyList()
+            null
         }
     }
 

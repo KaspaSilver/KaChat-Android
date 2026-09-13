@@ -183,8 +183,11 @@ class ChatRepository @Inject constructor(
     }
 
     /** The newest [limit] messages of a conversation plus its sticky rows - see the DAO. */
-    fun getMessageWindow(contactId: String, limit: Int): Flow<List<MessageEntity>> {
-        return scopedToActiveAccount({ address -> database.messageDao().getMessageWindowForContact(contactId, address, limit) }, emptyList())
+    fun getMessageWindow(contactId: String, limit: Int, unsentLimit: Int): Flow<List<MessageEntity>> {
+        return scopedToActiveAccount(
+            { address -> database.messageDao().getMessageWindowForContact(contactId, address, limit, unsentLimit) },
+            emptyList(),
+        )
     }
 
     /** One page of a conversation's history older than [before], newest first. */

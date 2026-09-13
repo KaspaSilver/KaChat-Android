@@ -56,9 +56,15 @@ class KnsProfileCacheStore @Inject constructor(
      *  own edits refresh through the explicit paths rather than waiting for this to expire. */
     private val freshMs = 24L * 60 * 60 * 1000
 
-    /** An address with nothing on it is re-asked sooner - they can inscribe a domain any time,
-     *  and an empty entry may also be a lookup that failed in a way that read as empty. */
-    private val emptyFreshMs = 60L * 60 * 1000
+    /** An address with nothing on it is re-asked sooner than a good answer - they can inscribe a
+     *  domain any time - but not much sooner: "still no domain" for a few hundred domainless
+     *  contacts every hour was the single largest source of KNS traffic, for answers that
+     *  essentially never change (iOS negativeRefreshInterval, six hours). A lookup that FAILED
+     *  is a different thing and rests on [failureFreshMs]. */
+    private val emptyFreshMs = 6L * 60 * 60 * 1000
+
+    /** How long a lookup that could not be completed is trusted before it is re-asked. */
+    private val failureFreshMs = 10L * 60 * 1000
 
     /** Oldest-first cap, matching the in-memory maps this backs. */
     private val maxEntries = 800
@@ -72,10 +78,14 @@ class KnsProfileCacheStore @Inject constructor(
     // answers, and conflating them would let one path's answer silently become the other's.
     // ------------------------------------------------------------------
 
-    private var reverseEntries: MutableMap<String, ReverseEntry> = loadReverse()
+    private var reverseEntries: MutableMap<String, ReverseEntry> = loadReverse().also { healPoisonedNegativesOnce(it) }
 
-    /** A resolved display domain for an address. `domain` null means "asked, owns none". */
-    data class ReverseEntry(val domain: String?, val fetchedAtMs: Long = 0L)
+    /**
+     * A resolved display domain for an address. `domain` null means "asked, owns none";
+     * [failed] marks a null that came from a lookup that could not be completed, which rests
+     * only on the short failure window rather than the negative one.
+     */
+    data class ReverseEntry(val domain: String?, val fetchedAtMs: Long = 0L, val failed: Boolean = false)
 
     /** The cached display domain, or null when there is none recent enough to use. Returns a
      *  wrapper rather than the string so "cached as no-domain" is distinguishable from "miss". */
@@ -83,14 +93,18 @@ class KnsProfileCacheStore @Inject constructor(
     fun cachedReverse(address: String): ReverseEntry? {
         val entry = reverseEntries[address] ?: return null
         val age = System.currentTimeMillis() - entry.fetchedAtMs
-        val limit = if (entry.domain == null) emptyFreshMs else freshMs
+        val limit = when {
+            entry.failed -> failureFreshMs
+            entry.domain == null -> emptyFreshMs
+            else -> freshMs
+        }
         return if (age < limit) entry else null
     }
 
     @Synchronized
-    fun putReverse(address: String, domain: String?) {
+    fun putReverse(address: String, domain: String?, failed: Boolean = false) {
         if (address.isEmpty()) return
-        reverseEntries[address] = ReverseEntry(domain, System.currentTimeMillis())
+        reverseEntries[address] = ReverseEntry(domain, System.currentTimeMillis(), failed = failed && domain == null)
         if (reverseEntries.size > maxEntries) {
             reverseEntries = reverseEntries.entries
                 .sortedByDescending { it.value.fetchedAtMs }
@@ -195,8 +209,31 @@ class KnsProfileCacheStore @Inject constructor(
         }
     }
 
+    /**
+     * One-time repair for negative entries written by builds that cached a failed lookup as
+     * "this address has no domain" (getOwnedDomains swallowed every error into an empty list).
+     * Dropping every no-domain entry makes each refetch exactly once; a real negative is then
+     * written with a fresh timestamp and rests on the long negative window, a failed one on the
+     * short failure window. Runs once per install (iOS healPoisonedNegativeEntriesOnce).
+     */
+    private fun healPoisonedNegativesOnce(reverse: MutableMap<String, ReverseEntry>) {
+        if (prefs.getBoolean(NEGATIVE_HEAL_KEY, false)) return
+        val poisoned = reverse.filterValues { it.domain == null }.keys
+        if (poisoned.isNotEmpty()) {
+            poisoned.forEach { reverse.remove(it) }
+            try {
+                prefs.edit().putString(REVERSE_KEY, gson.toJson(reverse, reverseMapType)).apply()
+            } catch (e: Exception) {
+                Log.w("KnsProfileCacheStore", "Could not write healed reverse cache", e)
+            }
+            Log.i("KnsProfileCacheStore", "Dropped ${poisoned.size} no-domain reverse entries for a one-time refetch")
+        }
+        prefs.edit().putBoolean(NEGATIVE_HEAL_KEY, true).apply()
+    }
+
     private companion object {
         const val KEY = "entries"
         const val REVERSE_KEY = "reverse"
+        const val NEGATIVE_HEAL_KEY = "reverse_negative_heal_v1"
     }
 }

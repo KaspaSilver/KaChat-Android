@@ -326,7 +326,12 @@ class BroadcastViewModel @Inject constructor(
         stopIndexerBackfill()
         indexerPollJob = viewModelScope.launch {
             while (true) {
-                broadcastRepository.backfillFromIndexer(channelName)
+                // The room stays composed (and this loop alive) while the app is in the
+                // background, but there is nobody to show a fresh row to - skip the network work
+                // until the app is active again (iOS gates the same poll on applicationState).
+                if (notificationHelper.isAppInForeground) {
+                    broadcastRepository.backfillFromIndexer(channelName)
+                }
                 kotlinx.coroutines.delay(8_000)
             }
         }

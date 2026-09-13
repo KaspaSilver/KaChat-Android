@@ -326,6 +326,8 @@ fun ChatThreadScreen(
         chatViewModel.setActiveContact(contactId)
         onDispose { chatViewModel.setActiveContact(null) }
     }
+    // Voice-note playback is owned per bubble; the thread going away is what ends it.
+    DisposableEffect(Unit) { onDispose { VoicePlayback.stopAllAfterChildrenDispose() } }
 
     // System-share intake (see ShareIntake/MainActivity.handleShareIntent): an UNTARGETED share
     // (user tapped the plain "KaChat" target, then picked this chat from the Chats list's "choose
@@ -2784,6 +2786,61 @@ fun ChessPieceGlyph(piece: com.kachat.app.util.ChessPiece, fontSize: androidx.co
     }
 }
 
+/**
+ * Voice notes that kept playing after their bubble left the composition.
+ *
+ * A bubble owns its `MediaPlayer`, and a `LazyColumn` disposes a bubble the moment it scrolls
+ * out of view - which used to release the player and cut the voice note off mid-play as soon as
+ * the reader scrolled. Now a bubble that is disposed while PLAYING hands its player here; the
+ * note plays on, a bubble for the same message scrolling back in adopts the player (and shows it
+ * playing), and leaving the thread is what actually stops everything - the thread screens call
+ * [stopAllAfterChildrenDispose] from their own dispose (iOS LazyAudioBubble.stopAllPlayback).
+ * Main-thread only.
+ */
+object VoicePlayback {
+    private class Detached(val player: android.media.MediaPlayer, val tempFile: java.io.File?)
+
+    private val detached = HashMap<String, Detached>()
+
+    /** Takes back a player detached under [key], if one is still playing. */
+    fun adopt(key: String): Pair<android.media.MediaPlayer, java.io.File?>? =
+        detached.remove(key)?.let { it.player to it.tempFile }
+
+    /** Keeps [player] alive after its bubble is gone; released on completion or [stopAll]. */
+    fun detach(key: String, player: android.media.MediaPlayer, tempFile: java.io.File?) {
+        detached.remove(key)?.let { release(it) }
+        val entry = Detached(player, tempFile)
+        detached[key] = entry
+        player.setOnCompletionListener {
+            if (detached[key] === entry) {
+                detached.remove(key)
+                release(entry)
+            }
+        }
+    }
+
+    fun stopAll() {
+        val entries = detached.values.toList()
+        detached.clear()
+        entries.forEach { release(it) }
+    }
+
+    /**
+     * For a thread screen's dispose: its bubbles detach their players during the same
+     * composition apply, in no guaranteed order relative to the screen's own dispose, so the
+     * stop is posted to run once that apply has finished.
+     */
+    fun stopAllAfterChildrenDispose() {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { stopAll() }
+    }
+
+    private fun release(entry: Detached) {
+        runCatching { if (entry.player.isPlaying) entry.player.stop() }
+        runCatching { entry.player.release() }
+        entry.tempFile?.delete()
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AudioBubble(voiceContent: VoiceMessageContent, isSent: Boolean, onLongPress: () -> Unit, onDoubleClick: () -> Unit = {}) {
@@ -2795,28 +2852,49 @@ fun AudioBubble(voiceContent: VoiceMessageContent, isSent: Boolean, onLongPress:
     var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
 
     DisposableEffect(voiceContent.content) {
+        // Stable per message: the same voice note scrolling back in finds the player it left
+        // playing (see VoicePlayback).
+        val playbackKey = "${voiceContent.content.length}:${voiceContent.content.hashCode()}"
         var tempFile: java.io.File? = null
-        try {
-            val bytes = android.util.Base64.decode(VoiceMessage.base64Payload(voiceContent), android.util.Base64.DEFAULT)
-            val file = java.io.File(context.cacheDir, "voice_playback_${System.nanoTime()}.webm")
-            file.writeBytes(bytes)
+        val adopted = VoicePlayback.adopt(playbackKey)
+        if (adopted != null) {
+            val (player, file) = adopted
             tempFile = file
-            val player = android.media.MediaPlayer()
-            player.setDataSource(file.absolutePath)
-            player.setOnPreparedListener {
-                durationMs = it.duration
-                isReady = true
-            }
             player.setOnCompletionListener { isPlaying = false }
-            player.prepareAsync()
+            durationMs = runCatching { player.duration }.getOrDefault(0)
+            isReady = true
+            isPlaying = runCatching { player.isPlaying }.getOrDefault(false)
             mediaPlayer = player
-        } catch (e: Exception) {
-            android.util.Log.e("AudioBubble", "Could not prepare voice message for playback", e)
+        } else {
+            try {
+                val bytes = android.util.Base64.decode(VoiceMessage.base64Payload(voiceContent), android.util.Base64.DEFAULT)
+                val file = java.io.File(context.cacheDir, "voice_playback_${System.nanoTime()}.webm")
+                file.writeBytes(bytes)
+                tempFile = file
+                val player = android.media.MediaPlayer()
+                player.setDataSource(file.absolutePath)
+                player.setOnPreparedListener {
+                    durationMs = it.duration
+                    isReady = true
+                }
+                player.setOnCompletionListener { isPlaying = false }
+                player.prepareAsync()
+                mediaPlayer = player
+            } catch (e: Exception) {
+                android.util.Log.e("AudioBubble", "Could not prepare voice message for playback", e)
+            }
         }
         onDispose {
-            mediaPlayer?.release()
+            val player = mediaPlayer
             mediaPlayer = null
-            tempFile?.delete()
+            // A note still playing when the bubble scrolls out keeps playing; anything else is
+            // released here as before.
+            if (player != null && runCatching { player.isPlaying }.getOrDefault(false)) {
+                VoicePlayback.detach(playbackKey, player, tempFile)
+            } else {
+                player?.release()
+                tempFile?.delete()
+            }
         }
     }
 

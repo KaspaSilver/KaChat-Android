@@ -833,6 +833,8 @@ fun BroadcastChannelScreen(
             broadcastViewModel.stopIndexerBackfill()
         }
     }
+    // Voice-note playback is owned per bubble; the room going away is what ends it.
+    DisposableEffect(Unit) { onDispose { VoicePlayback.stopAllAfterChildrenDispose() } }
     val roomDotColorHex by androidx.hilt.navigation.compose.hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
 
     // Opened from a share link for a room the user isn't in: create/join it first so it lands in

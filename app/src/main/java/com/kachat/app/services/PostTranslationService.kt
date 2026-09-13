@@ -113,7 +113,11 @@ class PostTranslationService @Inject constructor(
      */
     suspend fun detectLanguage(text: String): String? {
         val stripped = strippedForDetection(text)
-        if (stripped.count { it.isLetter() } < MIN_LETTERS) return null
+        val letterCount = stripped.count { it.isLetter() }
+        // Below this the recognizer is not worth running: emoji-only and "gm" posts fall out.
+        // Deliberately NOT the old twelve-letter floor, which rejected "đang rất hóng" (eleven
+        // letters, Vietnamese at 1.00) before the recognizer ever ran (iOS).
+        if (letterCount < MIN_LETTERS_TO_DETECT) return null
         val hypotheses = try {
             languageIdentifier.identifyPossibleLanguages(stripped).await()
                 .filter { it.languageTag != UNDETERMINED }
@@ -131,10 +135,20 @@ class PostTranslationService @Inject constructor(
         // script wins instead, with no confidence floor: Cyrillic text is not Swedish, and the
         // script already said so.
         val script = dominantScript(stripped)
-        if (script != null && script != LATIN_SCRIPT && scriptOf(best.languageTag) != script) {
-            hypotheses.firstOrNull { scriptOf(it.languageTag) == script }?.let { return bareTag(it.languageTag) }
+        if (script != null && script != LATIN_SCRIPT) {
+            // No confidence floor and no length floor on this branch: the floors exist to stop a
+            // coin-flip between two Latin-script languages, and neither is needed to know that
+            // Cyrillic text is not Swedish - five letters of kana identify as Japanese at 1.00.
+            if (scriptOf(best.languageTag) != script) {
+                hypotheses.firstOrNull { scriptOf(it.languageTag) == script }?.let { return bareTag(it.languageTag) }
+            }
+            return bareTag(best.languageTag)
         }
-        if (best.confidence < MIN_CONFIDENCE) return null
+        // Latin script: the floor scales with length. Short text is where the coin-flips live,
+        // so it has to be nearly certain ("bom dia" 0.79 passes, "hola" 0.56 does not); from
+        // MIN_LETTERS up the usual floor applies.
+        val floor = if (letterCount >= MIN_LETTERS) MIN_CONFIDENCE else SHORT_TEXT_CONFIDENCE
+        if (best.confidence < floor) return null
         return bareTag(best.languageTag)
     }
 
@@ -353,9 +367,15 @@ class PostTranslationService @Inject constructor(
     companion object {
         private const val TAG = "KaChatTranslate"
         private const val UNDETERMINED = "und"
+        /** Where the long-text confidence floor takes over from the short-text one. */
         private const val MIN_LETTERS = 12
-        /** Below this the identifier is guessing between Latin-script languages (iOS 0.55). */
+        /** Below this the recognizer is not worth running at all. */
+        private const val MIN_LETTERS_TO_DETECT = 4
+        /** Latin-script floor from [MIN_LETTERS] letters up (iOS 0.55). */
         private const val MIN_CONFIDENCE = 0.55f
+        /** Latin-script floor for text shorter than [MIN_LETTERS]: nearly certain, which short
+         *  replies in another language commonly are (iOS 0.75). */
+        private const val SHORT_TEXT_CONFIDENCE = 0.75f
         private const val LATIN_SCRIPT = "Latn"
         /**
          * Generous, because the FIRST request for a language pair can make the server load that

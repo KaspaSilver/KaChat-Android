@@ -1268,18 +1268,23 @@ fun KaPostsScreen(
     val fetchedAncestorChains by viewModel.fetchedAncestors.collectAsState()
     threadStack.lastOrNull()?.let { topId ->
         val topPost = viewModel.findPost(topId)
-        KaPostThreadOverlay(
-            postId = topId,
-            viewModel = viewModel,
-            // The chain get-thread returns, which is every level above this post - exact whether
-            // you tapped down to it, opened it from a profile, or landed on it from a link. The
-            // navigation stack plus an in-memory parent walk is the fallback for the moment
-            // before that fetch answers (and for a local post that has no txid yet).
-            ancestors = topPost?.remoteId
+        // The chain get-thread returns, which is every level above this post - exact whether
+        // you tapped down to it, opened it from a profile, or landed on it from a link. The
+        // navigation stack plus an in-memory parent walk is the fallback for the moment before
+        // that fetch answers (and for a local post that has no txid yet). Memoised: the walk runs
+        // findParent - a recursive search of every loaded list - several times, and this screen
+        // recomposes far more often than the inputs change (iOS AncestorChainMemo).
+        val ancestors = remember(topPost, threadStack, fetchedAncestorChains) {
+            topPost?.remoteId
                 ?.let { fetchedAncestorChains[it] }
                 ?.takeIf { it.isNotEmpty() }
                 ?: topPost?.let { ancestorsFromMemory(viewModel, it, threadStack) }
-                ?: emptyList(),
+                ?: emptyList()
+        }
+        KaPostThreadOverlay(
+            postId = topId,
+            viewModel = viewModel,
+            ancestors = ancestors,
             onJumpToAncestor = { ancestor -> jumpToAncestor(ancestor) },
             onReplyToComment = { target -> replyComposerTarget = target },
             onClose = { closeTopThread() },

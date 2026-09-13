@@ -51,6 +51,7 @@ object LinkPreviewService {
     private const val FETCH_TIMEOUT_SECONDS = 8L
     private const val MAX_BODY_BYTES = 1_000_000L
     private const val CACHE_LIMIT = 2_048
+    private const val CACHE_TTL_MS = 24L * 60 * 60 * 1000
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -62,6 +63,10 @@ object LinkPreviewService {
     // link isn't refetched on every scroll. Bounded FIFO eviction, not LRU - simplicity over
     // optimality for a cosmetic, cheap-to-refetch-on-relaunch cache.
     private val cache = LinkedHashMap<String, LinkPreviewData?>()
+    /** When each entry was stored: past [CACHE_TTL_MS] it is dropped and refetched - a link whose
+     *  page changed (or whose preview image URL was a short-lived signed one) would otherwise
+     *  stay stale for the whole process lifetime (iOS cacheTTL). */
+    private val cacheStoredAt = HashMap<String, Long>()
     private val cacheLock = Any()
 
     private val titleTagRegex = Regex("<title[^>]*>([^<]*)</title>", RegexOption.IGNORE_CASE)
@@ -115,7 +120,14 @@ object LinkPreviewService {
 
     suspend fun fetchPreview(url: String): LinkPreviewData? {
         synchronized(cacheLock) {
-            if (cache.containsKey(url)) return cache[url]
+            if (cache.containsKey(url)) {
+                val storedAt = cacheStoredAt[url] ?: 0L
+                if (System.currentTimeMillis() - storedAt < CACHE_TTL_MS) return cache[url]
+                // Expired: drop it and fall through to a fresh fetch, which re-stores it at the
+                // back of the FIFO like any new entry.
+                cache.remove(url)
+                cacheStoredAt.remove(url)
+            }
         }
 
         val result = withContext(Dispatchers.IO) { fetchAndParse(url) }
@@ -123,9 +135,13 @@ object LinkPreviewService {
         synchronized(cacheLock) {
             if (!cache.containsKey(url) && cache.size >= CACHE_LIMIT) {
                 val oldestKey = cache.keys.firstOrNull()
-                if (oldestKey != null) cache.remove(oldestKey)
+                if (oldestKey != null) {
+                    cache.remove(oldestKey)
+                    cacheStoredAt.remove(oldestKey)
+                }
             }
             cache[url] = result
+            cacheStoredAt[url] = System.currentTimeMillis()
         }
         return result
     }

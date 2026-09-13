@@ -224,6 +224,13 @@ class BroadcastRepository @Inject constructor(
      *  runs once per room per launch; the 8s poll then only needs the newest page. */
     private val deepBackfilledChannels = mutableSetOf<String>()
 
+    /** Where an interrupted deep backfill picks up: the `before` cursor of the next page to ask
+     *  for, and how many pages of the safety valve are left. Session-only, like the completed
+     *  set above. Without this a single thrown page - one timeout on page 30 of a busy room -
+     *  restarted the whole pager from page 1 on the next 8s tick, and kept doing so until every
+     *  page happened to succeed in one go (iOS deepBackfillResume). */
+    private val deepBackfillResume = mutableMapOf<String, Pair<Long, Int>>()
+
     /** Fetches history for [channelName] and merges it into the local cache. The FIRST call per
      *  channel per launch pages backwards (`before` = oldest blockTime seen) through the
      *  indexer's whole 30-day window — a single newest page (200 rows) meant busy rooms never
@@ -236,12 +243,19 @@ class BroadcastRepository @Inject constructor(
         val override = settings.broadcastIndexerOverrides.first()[channelName.trim().lowercase()]
         val api = (override?.let { networkService.broadcastIndexerApiFor(it) }
             ?: networkService.broadcastIndexerApi.value) ?: return -1
+        var fetched = 0
+        val deep = channelName !in deepBackfilledChannels
+        // Picking up an interrupted pager: everything newer than the recorded cursor is already
+        // in the store from the attempt that recorded it.
+        val resume = if (deep) deepBackfillResume[channelName] else null
+        var before: Long? = resume?.first
+        var pagesLeft = when {
+            !deep -> 1
+            resume != null -> resume.second
+            else -> 50 // 50 × 200 = 10k rows, far beyond any real room
+        }
         return try {
-            var fetched = 0
-            var before: Long? = null
-            val deep = channelName !in deepBackfilledChannels
             val cutoff = System.currentTimeMillis() - BroadcastRetention.INDEXER_MILLIS
-            var pagesLeft = if (deep) 50 else 1 // 50 × 200 = 10k rows, far beyond any real room
             // The one-time deep backfill pages at 200; the recurring 8s poll only needs the
             // newest sliver (dedupe-by-txId makes overlap harmless), so its page is small —
             // 200 rows every 8s was the single biggest steady-state indexer cost per open room.
@@ -268,13 +282,18 @@ class BroadcastRepository @Inject constructor(
                 val oldest = messages.mapNotNull { it.blockTime }.minOrNull() ?: break
                 if (oldest < cutoff) break // older pages would be pruned anyway
                 before = oldest
+                // Recorded after every landed page: a thrown page resumes from here, not page 1.
+                deepBackfillResume[channelName] = oldest to pagesLeft
             }
-            // Marked done only after the pager finishes — a thrown page lands in the catch and
-            // the next 8s poll retries the whole deep backfill.
-            if (deep) deepBackfilledChannels.add(channelName)
+            // Marked done only once the pager actually finishes; a failed one keeps its resume
+            // cursor (see the catch) and the next 8s poll continues from there.
+            if (deep) {
+                deepBackfilledChannels.add(channelName)
+                deepBackfillResume.remove(channelName)
+            }
             fetched
         } catch (e: Exception) {
-            android.util.Log.w("BroadcastRepository", "Indexer backfill failed for $channelName", e)
+            android.util.Log.w("BroadcastRepository", "Indexer backfill paused for $channelName at before=$before", e)
             -1
         }
     }

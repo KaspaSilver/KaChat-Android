@@ -2828,7 +2828,8 @@ class ChatViewModel @Inject constructor(
      * id - a row can sit in both once the window slides - and kept in chain order.
      */
     fun threadMessages(contactId: String): Flow<List<MessageEntity>> = combine(
-        chatRepository.getMessageWindow(contactId, THREAD_WINDOW_SIZE).onEach { latestThreadWindows[contactId] = it },
+        chatRepository.getMessageWindow(contactId, THREAD_WINDOW_SIZE, THREAD_UNSENT_STICKY_LIMIT)
+            .onEach { latestThreadWindows[contactId] = it },
         _olderThreadPages.map { it[contactId].orEmpty() }.distinctUntilChanged(),
     ) { window, older ->
         if (older.isEmpty()) return@combine window
@@ -2938,6 +2939,9 @@ class ChatViewModel @Inject constructor(
 
         /** One scroll-up batch of older history - iOS olderHistoryBatchSize (three ~40-row pages). */
         const val THREAD_OLDER_PAGE_SIZE = 120
+
+        /** Unsent (pending/failed) rows kept sticky in the window - iOS inMemoryUnsentStickyLimit. */
+        const val THREAD_UNSENT_STICKY_LIMIT = 50
 
         /** How close to the top of the loaded history counts as "nearing it", in rows - iOS
          *  nearTopPrefetchThresholdIndex. */

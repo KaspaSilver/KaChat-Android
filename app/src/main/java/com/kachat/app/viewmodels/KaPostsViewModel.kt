@@ -55,6 +55,8 @@ class KaPostsViewModel @Inject constructor(
     private val knsProfileCache: com.kachat.app.services.KnsProfileCacheStore,
     /** The foreground ping poller: the Notifications screen tells it what has been seen. */
     private val notificationPoller: com.kachat.app.services.KaPostsNotificationPoller,
+    /** Which posts were already probed for being thread roots, across launches. */
+    private val threadProbeStore: com.kachat.app.services.KaPostsThreadProbeStore,
 ) : ViewModel() {
 
     /** How many KaPosts notifications have arrived since the bell was last opened. */
@@ -399,6 +401,11 @@ class KaPostsViewModel @Inject constructor(
      */
     fun checkForNewPosts(tab: FeedTab = _selectedFeed.value) {
         if (checkingForNewPosts) return
+        // The feed's poll loop survives backgrounding (the screen is still composed), so this is
+        // the foreground half of the promise: no network from a feed nobody is looking at. The
+        // next tick after resume picks it up (iOS gates on applicationState).
+        val lifecycle = androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle
+        if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) return
         val key = feedKey(tab)
         if (pagingState(key).isLoadingMore || _isLoadingFeed.value) return
         val known = feedFlow(tab).value.mapNotNull { it.remoteId }.toSet()
@@ -769,7 +776,9 @@ class KaPostsViewModel @Inject constructor(
         viewModelScope.launch {
             senderProbeLimit.withPermit {
             try {
-                val ownedAssets = knsService.getOwnedDomains(address)
+                // A lookup that could not be completed caches nothing: "no KNS" below is a real
+                // answer, and a dropped connection must not be written down as one.
+                val ownedAssets = knsService.getOwnedDomainsOrNull(address) ?: return@withPermit
                 if (ownedAssets.isEmpty()) {
                     // "This address has no KNS" is a real answer, and re-asking for it on every
                     // launch was the most common wasted call of the lot. Cached, with a shorter
@@ -962,9 +971,27 @@ class KaPostsViewModel @Inject constructor(
      * passes, so a tab switch, a refresh or an account change stops it instead of paging a feed
      * the user has left.
      */
+    // MARK: - Load gates (iOS FeedLoadGates)
+    //
+    // Session bookkeeping for the loads that are worth NOT repeating. Anything loaded from page
+    // one within this window is current enough to search in place of re-fetching it - a reader's
+    // scrolled pages survive a shared link - and Popular's deep sweep runs at most once per
+    // window unless the feed was refreshed from page one in between.
+    private val loadGateStaleAfterMs = 5 * 60_000L
+    private var feedLoadedAt = 0L
+    private var popularSweptAt = 0L
+    private var myProfileLoadedAt = 0L
+    private var posterProfileLoaded: Pair<String, Long>? = null
+
+    private fun isLoadFresh(at: Long): Boolean = at > 0L && System.currentTimeMillis() - at < loadGateStaleAfterMs
+
     private fun deepenPopularRanking() {
         val key = PAGE_GLOBAL_FEED
         if (popularSweepJob?.isActive == true) return
+        // A heavily-filtered stretch of history never reaches the ranking depth, and without
+        // this every return to the tab re-spent the full request budget chasing it.
+        if (isLoadFresh(popularSweptAt)) return
+        popularSweptAt = System.currentTimeMillis()
         popularSweepJob = viewModelScope.launch {
             var passes = 0
             while (
@@ -1086,6 +1113,11 @@ class KaPostsViewModel @Inject constructor(
                 followingChainSyncStarted = false
                 // One account's reading history must not linger on screen under another's feed.
                 resetTranslations()
+                // Account switch: nothing loaded belongs to the new identity.
+                feedLoadedAt = 0L
+                popularSweptAt = 0L
+                myProfileLoadedAt = 0L
+                posterProfileLoaded = null
             }
         }
         // One-time cleanup of the legacy GLOBAL follow set, which leaked one account's follows
@@ -1122,6 +1154,12 @@ class KaPostsViewModel @Inject constructor(
                 // A refresh just delivered whatever was being offered; leaving the pill up would
                 // promise posts that are already on screen.
                 clearPendingNewPosts()
+                if (key == PAGE_GLOBAL_FEED) {
+                    // Page one is fresh again, and a refresh re-arms Popular's deep sweep: the
+                    // window it ranked was just thrown away.
+                    feedLoadedAt = System.currentTimeMillis()
+                    popularSweptAt = 0L
+                }
             }
             updatePaging(key) {
                 it.copy(
@@ -1542,7 +1580,11 @@ class KaPostsViewModel @Inject constructor(
     // MARK: - X-style thread reading
 
     /** remoteId -> "its replies include one by the author" (false is cached: one probe per post). */
-    private val _threadRootFlags = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    // Seeded with the thread roots found in earlier sessions: a probe answers a question about
+    // history that does not change (see KaPostsThreadProbeStore).
+    private val _threadRootFlags = MutableStateFlow<Map<String, Boolean>>(
+        threadProbeStore.persistedRoots().associateWith { true },
+    )
     val threadRootFlags: StateFlow<Map<String, Boolean>> = _threadRootFlags.asStateFlow()
 
     /** root LOCAL id -> the author's continuation segments, in order. */
@@ -1553,22 +1595,39 @@ class KaPostsViewModel @Inject constructor(
         post.id in _localThreadRoots.value ||
             (post.remoteId != null && _threadRootFlags.value[post.remoteId] == true)
 
-    /** RemoteIds already probed this session - a PLAIN set, not compose state. The claim used to
-     *  be written into [_threadRootFlags] itself (remoteId -> false), so composing each commented
-     *  post row ticked the flags StateFlow the feed collects, recomposing the whole tab per new
-     *  row scrolled in. Now the flags map only ticks when a post actually IS a thread root. */
-    private val probedThreadRoots = mutableSetOf<String>()
+    /**
+     * How many probes may be on the wire at once. One flick through a fresh feed reveals dozens
+     * of rows, and each used to fire its request immediately (iOS maxInFlight = 4).
+     */
+    private val threadProbeLimit = kotlinx.coroutines.sync.Semaphore(4)
 
-    /** Cheap once-per-post probe: first reply page, any self-authored reply = thread root. */
+    /**
+     * Cheap once-per-post probe: first reply page, any self-authored reply = thread root.
+     *
+     * Claims live in [threadProbeStore], persisted across launches, so a post is never probed
+     * twice - and the claim is a PLAIN store, not compose state: the flags map only ticks when a
+     * post actually IS a thread root, so composing each commented row does not recompose the tab.
+     */
     fun probeThreadRoot(post: KaPostDraft) {
         val remoteId = post.remoteId ?: return
         if (_threadRootFlags.value.containsKey(remoteId)) return
         if (commentCount(post) <= 0) return
-        if (!probedThreadRoots.add(remoteId)) return
+        if (!threadProbeStore.claim(remoteId)) return
         viewModelScope.launch {
-            val page = try { kaPostsService.fetchRepliesPage(remoteId, 10, null) } catch (_: Exception) { return@launch }
+            val page = try {
+                threadProbeLimit.withPermit { kaPostsService.fetchRepliesPage(remoteId, 10, null) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Never got to ask: give the claim back so the next appearance asks the question.
+                threadProbeStore.unclaim(remoteId)
+                throw e
+            } catch (_: Exception) {
+                return@launch
+            }
             val isThread = page.items.any { KaPostsService.kaspaAddressFromPubkey(it.userPublicKey) == post.posterAddress }
-            if (isThread) _threadRootFlags.value = _threadRootFlags.value + (remoteId to true)
+            if (isThread) {
+                _threadRootFlags.value = _threadRootFlags.value + (remoteId to true)
+                threadProbeStore.markRoot(remoteId)
+            }
         }
     }
 
@@ -2134,6 +2193,8 @@ class KaPostsViewModel @Inject constructor(
         if (generations[key] != generation) return
         if (result.error == null || result.items.isNotEmpty()) {
             profileFlow(isMine, replies).value = result.items
+            if (isMine) myProfileLoadedAt = System.currentTimeMillis()
+            else posterProfileLoaded = pubkey to System.currentTimeMillis()
         }
         updatePaging(key) {
             it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = result.error)
@@ -2827,15 +2888,9 @@ class KaPostsViewModel @Inject constructor(
             var parent = findPostByRemoteId(parentId)
             if (parent == null && includeOwnContent) {
                 // A reply notification always targets YOUR content: own posts and replies live
-                // outside the feed window, so pull them before asking the indexer for one id.
-                try {
-                    val pubkey = kaPostsService.requesterPubkey()
-                    loadProfileTab(pubkey, isMine = true, replies = false)
-                    loadProfileTab(pubkey, isMine = true, replies = true)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Landing own-content fetch failed", e)
-                }
-                parent = findPostByRemoteId(parentId)
+                // outside the feed window, so pull them (unless fresh) before asking the indexer
+                // for one id.
+                if (reloadMyProfileIfStale()) parent = findPostByRemoteId(parentId)
             }
             if (parent == null) parent = indexerPost(parentId)
             if (parent == null) parent = chainPost(parentId)
@@ -2874,22 +2929,48 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Own posts+replies from page one, unless they were loaded that way within the last
+     * [loadGateStaleAfterMs] - findPost has already searched a fresh set, and resetting would
+     * discard whatever the profile screen has scrolled in. Returns whether it fetched.
+     */
+    private suspend fun reloadMyProfileIfStale(): Boolean {
+        val pubkey = try { kaPostsService.requesterPubkey() } catch (e: Exception) {
+            Log.w(TAG, "Own-content reload skipped: no requester pubkey", e)
+            return false
+        }
+        val hasContent = _myProfilePosts.value.isNotEmpty() || _myProfileReplies.value.isNotEmpty()
+        if (hasContent && isLoadFresh(myProfileLoadedAt)) return false
+        // Replies come from get-replies?user= - the indexer's get-posts never returns them.
+        loadProfileTab(pubkey, isMine = true, replies = false)
+        loadProfileTab(pubkey, isMine = true, replies = true)
+        return true
+    }
+
+    /** Same for a poster's posts+replies: skipped only when what is loaded is THIS poster's and
+     *  still fresh - a different poster's pages are no help in finding their post. */
+    private suspend fun reloadPosterProfileIfStale(pubkey: String) {
+        val loaded = posterProfileLoaded
+        val hasContent = _posterProfilePosts.value.isNotEmpty() || _posterProfileReplies.value.isNotEmpty()
+        if (loaded != null && loaded.first == pubkey && isLoadFresh(loaded.second) && hasContent) return
+        loadProfileTab(pubkey, isMine = false, replies = false)
+        loadProfileTab(pubkey, isMine = false, replies = true)
+    }
+
     private suspend fun resolveSharedPost(txId: String): KaPostDraft? {
         findPostByRemoteId(txId)?.let { return it }
         // One request for the exact id, before re-fetching whole feeds and profiles in the hope
         // the post falls inside one of them.
         indexerPost(txId)?.let { return it }
-        loadFeed()
-        findPostByRemoteId(txId)?.let { return it }
-        try {
-            val pubkey = kaPostsService.requesterPubkey()
-            // Replies come from get-replies?user= - the indexer's get-posts never returns them.
-            loadProfileTab(pubkey, isMine = true, replies = false)
-            loadProfileTab(pubkey, isMine = true, replies = true)
-        } catch (e: Exception) {
-            Log.w(TAG, "Shared-post own-content fetch failed", e)
+        // Only re-pull page one when there is nothing loaded or it has gone stale: a reset throws
+        // away every page the reader has scrolled in, and a fresh window was already searched.
+        if (_globalPosts.value.isEmpty() || !isLoadFresh(feedLoadedAt)) {
+            loadFeed(FeedTab.FEED)
+            findPostByRemoteId(txId)?.let { return it }
         }
-        findPostByRemoteId(txId)?.let { return it }
+        if (reloadMyProfileIfStale()) {
+            findPostByRemoteId(txId)?.let { return it }
+        }
         // Still unresolved: the txid is usually a notification's ACTING content - someone
         // ELSE's reply/quote/mentioning post, which neither the feed window nor the own-
         // content fetch above ever returns (there is no fetch-post-by-id endpoint). The
@@ -2898,8 +2979,7 @@ class KaPostsViewModel @Inject constructor(
         try {
             val n = kaPostsService.fetchNotifications(limit = 100).find { it.id == txId }
             if (n != null) {
-                loadProfileTab(n.userPublicKey, isMine = false, replies = false)
-                loadProfileTab(n.userPublicKey, isMine = false, replies = true)
+                reloadPosterProfileIfStale(n.userPublicKey)
                 findPostByRemoteId(txId)?.let { return it }
                 n.contentId?.takeIf { it.isNotEmpty() }?.let { parentId ->
                     findPostByRemoteId(parentId)?.let { return it }

@@ -362,6 +362,8 @@ fun GroupChatThreadScreen(
         // the database too, so they never accumulate.
         chatViewModel.pruneExpiredGroupSystemMessages(groupId)
     }
+    // Voice-note playback is owned per bubble; the thread going away is what ends it.
+    DisposableEffect(Unit) { onDispose { VoicePlayback.stopAllAfterChildrenDispose() } }
     DisposableEffect(groupId) {
         chatViewModel.setActiveGroup(groupId)
         onDispose { chatViewModel.setActiveGroup(null) }

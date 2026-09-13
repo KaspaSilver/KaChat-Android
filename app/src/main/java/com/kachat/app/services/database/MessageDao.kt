@@ -13,10 +13,13 @@ interface MessageDao {
 
     /**
      * The window of a conversation the open thread keeps live: the newest [limit] rows, plus
-     * every handshake and every row not marked sent - the exact set iOS's
-     * `fetchConversationWindows` produces, so the handshake banners and pending sends never
-     * fall out of view however old they are. Older history is paged in through
-     * [getMessagesForContactBefore]. Re-emits on any change to the table, like the full query.
+     * every handshake and the newest [unsentLimit] rows not marked sent - the set iOS's
+     * `fetchConversationWindows` produces and its trim keeps, so the handshake banners and
+     * pending sends never fall out of view however old they are. Handshakes stay sticky
+     * without a cap (protocol state, a handful per contact); unsent rows are capped because each
+     * failed photo send carries ~20KB of base64 and a conversation that keeps failing would
+     * otherwise pin them all. Older history is paged in through [getMessagesForContactBefore].
+     * Re-emits on any change to the table, like the full query.
      */
     @Query(
         """
@@ -24,7 +27,13 @@ interface MessageDao {
         WHERE contactId = :contactId AND walletAddress = :walletAddress
           AND (
             type = 'handshake'
-            OR deliveryStatus != 'sent'
+            OR id IN (
+                SELECT id FROM messages
+                WHERE contactId = :contactId AND walletAddress = :walletAddress
+                  AND type != 'handshake' AND deliveryStatus != 'sent'
+                ORDER BY blockTimestamp DESC, id DESC
+                LIMIT :unsentLimit
+            )
             OR id IN (
                 SELECT id FROM messages
                 WHERE contactId = :contactId AND walletAddress = :walletAddress
@@ -35,7 +44,12 @@ interface MessageDao {
         ORDER BY blockTimestamp ASC, id ASC
         """
     )
-    fun getMessageWindowForContact(contactId: String, walletAddress: String, limit: Int): Flow<List<MessageEntity>>
+    fun getMessageWindowForContact(
+        contactId: String,
+        walletAddress: String,
+        limit: Int,
+        unsentLimit: Int,
+    ): Flow<List<MessageEntity>>
 
     /**
      * One page of history OLDER than the (blockTimestamp, id) cursor, newest first - a keyset
