@@ -53,6 +53,8 @@ class KaPostsViewModel @Inject constructor(
     private val unseenStore: com.kachat.app.services.KaPostsUnseenStore,
     /** What KNS said about an address last time the app ran - see [KnsProfileCacheStore]. */
     private val knsProfileCache: com.kachat.app.services.KnsProfileCacheStore,
+    /** The foreground ping poller: the Notifications screen tells it what has been seen. */
+    private val notificationPoller: com.kachat.app.services.KaPostsNotificationPoller,
 ) : ViewModel() {
 
     /** How many KaPosts notifications have arrived since the bell was last opened. */
@@ -71,9 +73,16 @@ class KaPostsViewModel @Inject constructor(
          *  inside an email). Same pattern as desktop/iOS and the indexer contract. */
         val MENTION_TOKEN_REGEX = Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)", RegexOption.IGNORE_CASE)
 
-        /** Rows requested per HTTP page. Small enough to stay snappy, big enough that the
-         *  KaChat-marker filter usually still leaves something behind. */
-        private const val PAGE_LIMIT = 25
+        /** Rows requested per HTTP page. Matches iOS's KaPostsAPIClient.pageSize: big enough that
+         *  the KaChat-marker filter usually still leaves something behind. */
+        private const val PAGE_LIMIT = 50
+
+        /** A thread's replies page. iOS reads a hundred at a time: a conversation is read top to
+         *  bottom, so fewer round trips beat smaller pages here. */
+        private const val THREAD_REPLIES_PAGE_LIMIT = 100
+
+        /** Follow lists and the follow-set chain sync read a hundred accounts per page (iOS). */
+        private const val FOLLOW_PAGE_LIMIT = 100
 
         /** How many NEW VISIBLE rows one load-more trigger tries to accumulate. */
         private const val TARGET_NEW_ROWS = 18
@@ -94,7 +103,7 @@ class KaPostsViewModel @Inject constructor(
         private const val POPULAR_RANKING_DEPTH = 300
 
         /** Request budget for one sweep pass (see [KaPostsViewModel.deepenPopularRanking]). */
-        private const val POPULAR_SWEEP_REQUESTS_PER_PASS = 8
+        private const val POPULAR_SWEEP_REQUESTS_PER_PASS = 6
 
         /**
          * Hard ceiling on sweep passes. Heavily-filtered stretches of history (a run of non-KaChat
@@ -135,6 +144,13 @@ class KaPostsViewModel @Inject constructor(
         val isLoadingMore: Boolean = false,
         /** Set when a load-more failed. The list is KEPT and the UI offers a retry row. */
         val error: String? = null,
+        /**
+         * A whole request budget produced zero visible rows while the server still has pages.
+         * Auto-loading stops here and the footer turns into an explicit "Load more" button, so a
+         * stretch of history that is all filtered away cannot turn one scroll into an unattended
+         * crawl of the index. A manual tap clears it. Mirrors iOS's KaPostsPageState.stalled.
+         */
+        val stalled: Boolean = false,
     )
 
     private val _paging = MutableStateFlow<Map<String, PagingState>>(emptyMap())
@@ -177,6 +193,8 @@ class KaPostsViewModel @Inject constructor(
         val cursor: String?,
         val hasMore: Boolean,
         val error: String? = null,
+        /** The budget ran out with nothing visible to show for it - see [PagingState.stalled]. */
+        val stalled: Boolean = false,
     )
 
     /**
@@ -237,7 +255,8 @@ class KaPostsViewModel @Inject constructor(
                 cursor = next
             }
         }
-        return Accumulation(collected, cursor, hasMore, error)
+        val stalled = error == null && hasMore && requests >= maxRequests && visibleCount == 0
+        return Accumulation(collected, cursor, hasMore, error, stalled)
     }
 
     // MARK: - Feed state
@@ -483,9 +502,11 @@ class KaPostsViewModel @Inject constructor(
                 val result = translationService.translate(post.text, post.remoteId)
                 PostTranslationService.TranslationState.Translated(
                     text = result.text,
-                    // The server's detection beats our local guess; ours is only there to decide
-                    // whether to offer the link at all.
-                    sourceName = translationService.displayName(result.sourceLanguage ?: source),
+                    // The server's detection is what the line reports; our local guess only
+                    // decides whether to offer the link at all. No source from the server reads
+                    // as "another language" rather than a guess stated as fact (iOS).
+                    sourceName = result.sourceLanguage?.let { translationService.displayName(it) }
+                        ?: "another language",
                 )
             } catch (e: PostTranslationService.TranslationException) {
                 Log.w(TAG, "Translation failed", e)
@@ -527,6 +548,35 @@ class KaPostsViewModel @Inject constructor(
         considered.clear()
     }
 
+    /** KaPosts came on screen: re-read what the translation service can serve (iOS onAppear). */
+    fun refreshTranslationLanguages() {
+        viewModelScope.launch { translationService.refreshSupportedLanguages() }
+    }
+
+    // MARK: - Composer fee estimate (Settings > Show Fee Estimate)
+
+    val showFeeEstimate: StateFlow<Boolean> = settings.showFeeEstimate
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /**
+     * What a post of [text] would cost, in sompi, for the composer's "Est. fee" line. Sized off
+     * the real payload shape (dummy pubkey and signature of the real fixed lengths, marker
+     * included, no mentions) with the typical single input and the single self output a
+     * zero-amount self-send actually has - mirrors iOS's KaPostsAPIClient.estimatePostFee.
+     */
+    fun estimatePostFeeSompi(text: String): Long {
+        val b64 = com.kachat.app.util.KaPostsProtocol.b64(com.kachat.app.util.KaPostsProtocol.KACHAT_MARKER + text)
+        val payload = com.kachat.app.util.KaPostsProtocol.postPayload(
+            pubkey = "0".repeat(66), signature = "0".repeat(128), b64Message = b64, mentionsJson = "[]",
+        )
+        val mass = com.kachat.app.util.KaspaMass.calculateMass(
+            numInputs = 1,
+            outputScriptLens = listOf(34),
+            payloadSize = payload.toByteArray(Charsets.UTF_8).size,
+        )
+        return com.kachat.app.util.KaspaMass.calculateFee(mass, null)
+    }
+
     // MARK: - Toasts + undo scheduler
 
     /** Transient confirmation that an on-chain action landed, with a link to the tx. */
@@ -557,6 +607,8 @@ class KaPostsViewModel @Inject constructor(
          * splits it back that way.
          */
         val draftSegments: List<String>? = null,
+        /** The post an undone comment answered, so Undo reopens the reply composer on it. */
+        val commentParentId: String? = null,
     )
 
     /** A draft handed back by Undo, for whichever composer is about to reopen. */
@@ -566,6 +618,8 @@ class KaPostsViewModel @Inject constructor(
         val isComment: Boolean,
         /** Segments to stack ABOVE [text] in the composer; empty for a single post. */
         val threadSegments: List<String> = emptyList(),
+        /** For a comment: the LOCAL id of the post it was answering. */
+        val commentParentId: String? = null,
     )
 
     private val _restoredDraft = MutableStateFlow<RestoredDraft?>(null)
@@ -609,6 +663,25 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
+    /** A shared/linked post that nothing could resolve: the same capsule, with the explorer link
+     *  so the reader can at least see the transaction (iOS). */
+    fun showPostNotFound(txId: String) {
+        showActionToast("Post not found - it may be older than the current feed", txId)
+    }
+
+    /** Memory, then the indexer, then the chain - the order every reopened draft resolves its
+     *  reply or quote target in (iOS draftComposer). */
+    suspend fun resolveAnyPost(txId: String): KaPostDraft? =
+        findPostByRemoteId(txId) ?: indexerPost(txId) ?: chainPost(txId)
+
+    /** Page one of the selected feed, only when nothing has been loaded for it yet. Coming back
+     *  to the tab keeps what was on screen (iOS's KaPostsView stays alive across tab switches). */
+    fun loadFeedIfNeeded() {
+        val tab = _selectedFeed.value
+        if (surfaceLoaded(feedKey(tab))) return
+        viewModelScope.launch { loadFeed(tab) }
+    }
+
     // MARK: - Identity chain (contact alias > KNS domain > shortened address; KNS owns display)
 
     /** Address -> KNS avatar URL (null value = fetched, none found). */
@@ -628,6 +701,19 @@ class KaPostsViewModel @Inject constructor(
     /** Address -> locally-set contact alias; always wins over the KNS name. */
     val contactAliases: StateFlow<Map<String, String>> = chatRepository.getContacts()
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** A saved contact's own photo (linked phone contact, or the backup's photo), which every
+     *  avatar in the app lets override the KNS avatar - iOS KNSAvatarView(contactAddress:). */
+    data class ContactPhoto(val deviceContactPhotoUri: String?, val backupPhotoBase64: String?)
+
+    val contactPhotos: StateFlow<Map<String, ContactPhoto>> = chatRepository.getContacts()
+        .map { contacts ->
+            contacts.mapNotNull { c ->
+                if (c.systemContactPhotoUri.isNullOrBlank() && c.backupPhotoBase64.isNullOrBlank()) null
+                else c.id to ContactPhoto(c.systemContactPhotoUri, c.backupPhotoBase64)
+            }.toMap()
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** Oldest-first cap for the per-address sender maps below — every address ever seen in
@@ -759,6 +845,9 @@ class KaPostsViewModel @Inject constructor(
     val searchHasMore: StateFlow<Boolean> = _searchHasMore.asStateFlow()
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+    /** The last read of older posts failed (iOS loadFailed): the footer says so. */
+    private val _searchLoadFailed = MutableStateFlow(false)
+    val searchLoadFailed: StateFlow<Boolean> = _searchLoadFailed.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     fun setSearchQuery(value: String) { _searchQuery.value = value }
@@ -811,7 +900,8 @@ class KaPostsViewModel @Inject constructor(
                 )
                 _searchScanned.value = _searchScanned.value + result.items
                 searchCursor = result.cursor
-                _searchHasMore.value = result.hasMore
+                _searchLoadFailed.value = result.error != null && result.items.isEmpty()
+                _searchHasMore.value = if (result.error != null) true else result.hasMore
                 // Warm the names so People rows are not a wall of shortened addresses. Bounded
                 // by the probe semaphore, and skipped for anything already cached on disk.
                 for (address in result.items.map { it.posterAddress }.distinct()) {
@@ -962,9 +1052,9 @@ class KaPostsViewModel @Inject constructor(
                 }
                 val chain = mutableSetOf<String>()
                 var cursor: String? = null
-                var pagesLeft = 10 // up to 10 pages of PAGE_LIMIT — far beyond any real follow list
+                var pagesLeft = 10 // up to 10 pages of 100 — far beyond any real follow list (iOS)
                 while (pagesLeft-- > 0) {
-                    val page = kaPostsService.fetchFollowListPage(pubkey, followers = false, PAGE_LIMIT, cursor)
+                    val page = kaPostsService.fetchFollowListPage(pubkey, followers = false, FOLLOW_PAGE_LIMIT, cursor)
                     page.items.forEach { user ->
                         KaPostsService.kaspaAddressFromPubkey(user.userPublicKey)?.let { chain += it }
                     }
@@ -1034,7 +1124,10 @@ class KaPostsViewModel @Inject constructor(
                 clearPendingNewPosts()
             }
             updatePaging(key) {
-                it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = null)
+                it.copy(
+                    cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false,
+                    error = null, stalled = result.stalled,
+                )
             }
         } finally {
             if (isSelected) _isLoadingFeed.value = false
@@ -1048,13 +1141,14 @@ class KaPostsViewModel @Inject constructor(
      * Endless scroll for a feed tab. Safe to call on every scroll frame - it is a no-op while a
      * load is in flight, while page one is loading, and once the end has been reached.
      */
-    fun loadMoreFeed(tab: FeedTab) {
+    fun loadMoreFeed(tab: FeedTab, manual: Boolean = false) {
         val key = feedKey(tab)
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || _isLoadingFeed.value) return
+        if (state.stalled && !manual) return
         if (!surfaceLoaded(key)) return
         val generation = generations[key] ?: 0
-        updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+        updatePaging(key) { it.copy(isLoadingMore = true, error = null, stalled = false) }
         loadMoreJobs[key] = viewModelScope.launch {
             val flow = feedFlow(tab)
             val result = accumulate(
@@ -1075,6 +1169,7 @@ class KaPostsViewModel @Inject constructor(
                     hasMore = if (result.error != null) it.hasMore else result.hasMore,
                     isLoadingMore = false,
                     error = result.error,
+                    stalled = result.stalled,
                 )
             }
             loadMoreJobs.remove(key)
@@ -1242,6 +1337,7 @@ class KaPostsViewModel @Inject constructor(
                 quoteTargetId = toast.quoteTargetId,
                 isComment = toast.key.startsWith("comment:"),
                 threadSegments = if (segments.size > 1) segments.dropLast(1) else emptyList(),
+                commentParentId = toast.commentParentId,
             )
         }
     }
@@ -1572,13 +1668,15 @@ class KaPostsViewModel @Inject constructor(
 
     // MARK: - Replies (submit directly with pending state - no undo window, matching iOS)
 
-    /** Page one of a post's replies. Re-entrant: the thread overlay calls it whenever it opens. */
-    fun loadReplies(post: KaPostDraft) {
+    /** Page one of a post's replies. Re-entrant: the thread overlay calls it whenever it opens.
+     *  [force] reloads page one even when pages are already held (jumping to an ancestor, a
+     *  manual retry after a failed first page). */
+    fun loadReplies(post: KaPostDraft, force: Boolean = false) {
         val remoteId = post.remoteId ?: return
         val key = pageThread(remoteId)
         // Already loaded and still holding its pages - don't wipe them (and the reader's place in
         // them) just because the overlay recomposed.
-        if (surfaceLoaded(key) && !pagingState(key).isLoadingMore) {
+        if (!force && surfaceLoaded(key) && !pagingState(key).isLoadingMore) {
             if (findPost(post.id)?.comments?.isNotEmpty() == true) return
         }
         val generation = resetSurface(key)
@@ -1591,7 +1689,7 @@ class KaPostsViewModel @Inject constructor(
                 idOf = KPost::id,
                 map = { mapRemotePost(it) },
                 isVisible = { !isHidden(it.posterAddress) },
-                fetch = { before -> kaPostsService.fetchRepliesPage(remoteId, PAGE_LIMIT, before) },
+                fetch = { before -> kaPostsService.fetchRepliesPage(remoteId, THREAD_REPLIES_PAGE_LIMIT, before) },
             )
             if (generations[key] != generation) return@launch
             if (result.error == null || result.items.isNotEmpty()) {
@@ -1604,20 +1702,38 @@ class KaPostsViewModel @Inject constructor(
                 }
             }
             updatePaging(key) {
-                it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = result.error)
+                it.copy(
+                    cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false,
+                    error = result.error, stalled = result.stalled,
+                )
             }
             loadMoreJobs.remove(key)
         }
     }
 
+    /** Page one of a post's replies has been asked for at least once (loading, failed or done). */
+    fun repliesRequested(post: KaPostDraft): Boolean =
+        post.remoteId?.let { surfaceLoaded(pageThread(it)) } ?: false
+
+    /**
+     * Everything a thread level needs, from scratch: page one of its replies and the author's
+     * continuation. What jumping to an ancestor that was never navigated to runs (iOS
+     * jumpToAncestor), since nothing was loaded for that level on the way down.
+     */
+    fun reloadThread(post: KaPostDraft) {
+        loadReplies(post, force = true)
+        loadSelfThreadChain(post)
+    }
+
     /** Endless scroll for a thread's replies (and for a nested comment's "Show more replies"). */
-    fun loadMoreReplies(post: KaPostDraft) {
+    fun loadMoreReplies(post: KaPostDraft, manual: Boolean = false) {
         val remoteId = post.remoteId ?: return
         val key = pageThread(remoteId)
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || !surfaceLoaded(key)) return
+        if (state.stalled && !manual) return
         val generation = generations[key] ?: 0
-        updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+        updatePaging(key) { it.copy(isLoadingMore = true, error = null, stalled = false) }
         loadMoreJobs[key] = viewModelScope.launch {
             val existing = findPost(post.id)?.comments.orEmpty()
             val result = accumulate(
@@ -1627,7 +1743,7 @@ class KaPostsViewModel @Inject constructor(
                 idOf = KPost::id,
                 map = { mapRemotePost(it) },
                 isVisible = { !isHidden(it.posterAddress) },
-                fetch = { before -> kaPostsService.fetchRepliesPage(remoteId, PAGE_LIMIT, before) },
+                fetch = { before -> kaPostsService.fetchRepliesPage(remoteId, THREAD_REPLIES_PAGE_LIMIT, before) },
             )
             if (generations[key] != generation) return@launch
             if (result.items.isNotEmpty()) {
@@ -1642,6 +1758,7 @@ class KaPostsViewModel @Inject constructor(
                     hasMore = if (result.error != null) it.hasMore else result.hasMore,
                     isLoadingMore = false,
                     error = result.error,
+                    stalled = result.stalled,
                 )
             }
             loadMoreJobs.remove(key)
@@ -1650,6 +1767,19 @@ class KaPostsViewModel @Inject constructor(
 
     fun submitReply(parent: KaPostDraft, text: String) {
         val myAddress = myAddress() ?: return
+        // The parent is still a local session post with no txid: there is nothing on chain to
+        // reply to yet, so the comment is appended as sent - no toast, no submit (iOS).
+        if (parent.remoteId == null) {
+            val comment = KaPostDraft(
+                text = text,
+                timestamp = System.currentTimeMillis(),
+                posterAddress = myAddress,
+                posterPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null },
+                deliveryStatus = KaPostDraft.Delivery.SENT,
+            )
+            mutateEverywhere(parent.id) { it.copy(comments = it.comments + comment) }
+            return
+        }
         val comment = KaPostDraft(
             text = text,
             timestamp = System.currentTimeMillis(),
@@ -1662,7 +1792,10 @@ class KaPostsViewModel @Inject constructor(
         // immediately, the on-chain submit fires when the countdown ends, and Undo removes
         // the comment before anything hits the network.
         val key = "comment:${comment.id}"
-        _undoToast.value = UndoToast(key, comment.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting comment", draftText = text)
+        _undoToast.value = UndoToast(
+            key, comment.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting comment",
+            draftText = text, commentParentId = parent.id,
+        )
         scheduleUndoable(key) {
             clearUndoToast(key)
             try {
@@ -1782,11 +1915,51 @@ class KaPostsViewModel @Inject constructor(
     fun consumeQuoteRequest() { _quoteRequest.value = null }
 
     fun scheduleRepost(target: KaPostDraft) {
+        // A post that is not on chain yet has nothing to quote: the flag just flips locally, the
+        // way iOS's toggleRepost treats a local session post.
+        if (target.remoteId == null) {
+            toggleLocalRepost(target)
+            return
+        }
         val key = "repost:${target.id}"
         _undoToast.value = UndoToast(key, target.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Reposting")
         scheduleUndoable(key) {
             clearUndoToast(key)
             performRepost(target, text = null, localQuoteId = null)
+        }
+    }
+
+    /** "Undo Repost": the same 5-second hold, then the fork's unquote counter-action. */
+    fun scheduleUnrepost(target: KaPostDraft) {
+        if (target.remoteId == null) {
+            toggleLocalRepost(target)
+            return
+        }
+        val key = "repost:${target.id}"
+        _undoToast.value = UndoToast(key, target.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Removing repost")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            performUnrepost(target)
+        }
+    }
+
+    private fun toggleLocalRepost(target: KaPostDraft) {
+        mutateEverywhere(target.id) { post ->
+            if (post.repostedByMe) post.copy(repostedByMe = false, reposts = (post.reposts - 1).coerceAtLeast(0))
+            else post.copy(repostedByMe = true, reposts = post.reposts + 1)
+        }
+    }
+
+    private suspend fun performUnrepost(target: KaPostDraft) {
+        val contentId = target.remoteId ?: return
+        mutateEverywhere(target.id) { post ->
+            if (post.repostedByMe) post.copy(repostedByMe = false, reposts = (post.reposts - 1).coerceAtLeast(0)) else post
+        }
+        try {
+            val txId = kaPostsService.submitUnquote(contentId)
+            showActionToast("Repost removed on the network", txId)
+        } catch (e: Exception) {
+            Log.w(TAG, "Unquote submit failed", e)
         }
     }
 
@@ -1981,13 +2154,14 @@ class KaPostsViewModel @Inject constructor(
         else _posterProfile.value?.pubkey
 
     /** Endless scroll for a profile's Posts or Replies tab. */
-    fun loadMoreProfile(isMine: Boolean, replies: Boolean) {
+    fun loadMoreProfile(isMine: Boolean, replies: Boolean, manual: Boolean = false) {
         val pubkey = profilePubkey(isMine) ?: return
         val key = pageProfile(pubkey, isMine, replies)
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || !surfaceLoaded(key)) return
+        if (state.stalled && !manual) return
         val generation = generations[key] ?: 0
-        updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+        updatePaging(key) { it.copy(isLoadingMore = true, error = null, stalled = false) }
         loadMoreJobs[key] = viewModelScope.launch {
             val flow = profileFlow(isMine, replies)
             val result = accumulate(
@@ -2010,10 +2184,17 @@ class KaPostsViewModel @Inject constructor(
                     hasMore = if (result.error != null) it.hasMore else result.hasMore,
                     isLoadingMore = false,
                     error = result.error,
+                    stalled = result.stalled,
                 )
             }
             loadMoreJobs.remove(key)
         }
+    }
+
+    /** Pull-to-refresh on a profile: page one of the tab being looked at (iOS profileFeedPage). */
+    suspend fun refreshProfileTab(isMine: Boolean, replies: Boolean) {
+        val pubkey = profilePubkey(isMine) ?: return
+        loadProfileTab(pubkey, isMine, replies)
     }
 
     fun loadMyProfile() {
@@ -2206,10 +2387,10 @@ class KaPostsViewModel @Inject constructor(
                 kind = if (n.voteType == "downvote") NotificationItem.Kind.DISLIKE else NotificationItem.Kind.LIKE
                 target = n.contentId
             }
-            // A reply opens its PARENT's thread (contentId = the post replied to), so the
-            // reader lands on the conversation - parent on top, the new reply underneath -
-            // instead of the reply floating alone as a thread root with no context.
-            "reply" -> { kind = NotificationItem.Kind.REPLY; target = n.contentId?.takeIf { it.isNotEmpty() } ?: n.id }
+            // The row targets the REPLY itself (iOS). Landing on it goes through the same
+            // reply rule as a shared link: the parent's thread opens with this reply spliced
+            // into the comments and scrolled into view - see [openSharedPost].
+            "reply" -> { kind = NotificationItem.Kind.REPLY; target = n.id }
             "quote" -> {
                 kind = if (text.isEmpty()) NotificationItem.Kind.REPOST else NotificationItem.Kind.QUOTE
                 target = if (text.isEmpty()) n.contentId else n.id
@@ -2226,41 +2407,55 @@ class KaPostsViewModel @Inject constructor(
         )
     }
 
-    fun loadNotifications() {
+    /** The Notifications screen is on screen: the poller drops its banners meanwhile (iOS). */
+    fun setNotificationsScreenVisible(visible: Boolean) {
+        notificationPoller.isNotificationsScreenVisible = visible
+    }
+
+    suspend fun loadNotifications() {
         val key = PAGE_NOTIFICATIONS
         val generation = resetSurface(key)
-        viewModelScope.launch {
-            _isLoadingNotifications.value = true
-            try {
-                val result = accumulate(
-                    startCursor = null,
-                    target = TARGET_NEW_ROWS,
-                    seenIds = emptySet(),
-                    idOf = com.kachat.app.services.KNotification::id,
-                    map = { mapNotification(it) },
-                    isVisible = { true },
-                    fetch = { before -> kaPostsService.fetchNotificationsPage(PAGE_LIMIT, before) },
-                )
-                if (generations[key] != generation) return@launch
-                if (result.error == null || result.items.isNotEmpty()) {
-                    _notifications.value = result.items
-                }
-                updatePaging(key) {
-                    it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = result.error)
-                }
-            } finally {
-                _isLoadingNotifications.value = false
+        _isLoadingNotifications.value = true
+        try {
+            var newestSeen = 0L
+            val result = accumulate(
+                startCursor = null,
+                target = TARGET_NEW_ROWS,
+                seenIds = emptySet(),
+                idOf = com.kachat.app.services.KNotification::id,
+                map = { n ->
+                    newestSeen = maxOf(newestSeen, n.timestamp)
+                    mapNotification(n)
+                },
+                isVisible = { true },
+                fetch = { before -> kaPostsService.fetchNotificationsPage(PAGE_LIMIT, before) },
+            )
+            if (generations[key] != generation) return
+            if (result.error == null || result.items.isNotEmpty()) {
+                _notifications.value = result.items
             }
+            updatePaging(key) {
+                it.copy(
+                    cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false,
+                    error = result.error, stalled = result.stalled,
+                )
+            }
+            // What was just displayed should not ping later: advance the poller's watermark
+            // and take down any KaPosts banners still in the shade (iOS markSeen).
+            myAddress()?.let { address -> notificationPoller.markSeen(address, newestSeen) }
+        } finally {
+            _isLoadingNotifications.value = false
         }
     }
 
-    fun loadMoreNotifications() {
+    fun loadMoreNotifications(manual: Boolean = false) {
         val key = PAGE_NOTIFICATIONS
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || !surfaceLoaded(key)) return
+        if (state.stalled && !manual) return
         if (_isLoadingNotifications.value) return
         val generation = generations[key] ?: 0
-        updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+        updatePaging(key) { it.copy(isLoadingMore = true, error = null, stalled = false) }
         loadMoreJobs[key] = viewModelScope.launch {
             val result = accumulate(
                 startCursor = state.cursor,
@@ -2283,6 +2478,7 @@ class KaPostsViewModel @Inject constructor(
                     hasMore = if (result.error != null) it.hasMore else result.hasMore,
                     isLoadingMore = false,
                     error = result.error,
+                    stalled = result.stalled,
                 )
             }
             loadMoreJobs.remove(key)
@@ -2381,14 +2577,15 @@ class KaPostsViewModel @Inject constructor(
     }
 
     /** Endless scroll for Post Activity, targeting the tab the reader is actually on. */
-    fun loadMoreEngagement(post: KaPostDraft, tab: Int) {
+    fun loadMoreEngagement(post: KaPostDraft, tab: Int, manual: Boolean = false) {
         val postId = post.remoteId ?: return
         val key = pageEngagement(postId)
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || !surfaceLoaded(key)) return
+        if (state.stalled && !manual) return
         val wantedKind = engagementKindFor(tab)
         val generation = generations[key] ?: 0
-        updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+        updatePaging(key) { it.copy(isLoadingMore = true, error = null, stalled = false) }
         loadMoreJobs[key] = viewModelScope.launch {
             val base = _engagementLists.value ?: EngagementLists()
             val result = accumulate(
@@ -2411,6 +2608,7 @@ class KaPostsViewModel @Inject constructor(
                     hasMore = if (result.error != null) it.hasMore else result.hasMore,
                     isLoadingMore = false,
                     error = result.error,
+                    stalled = result.stalled,
                 )
             }
             loadMoreJobs.remove(key)
@@ -2459,8 +2657,10 @@ class KaPostsViewModel @Inject constructor(
     }
 
     /**
-     * Locally-stored follows the indexer hasn't caught up on. They are appended ONCE, when the
-     * server list has actually run out - appending them per page would duplicate them.
+     * Locally-stored follows the indexer hasn't caught up on, for the tail of the OWN following
+     * list. Recomputed against the server rows on every page (iOS): they always sit after
+     * whatever the server has returned so far, and a row the server then delivers drops out of
+     * the tail rather than appearing twice.
      */
     private fun localOnlyFollows(existing: List<FollowEntry>): List<FollowEntry> {
         val my = myAddress()
@@ -2470,8 +2670,8 @@ class KaPostsViewModel @Inject constructor(
     }
 
     /**
-     * Page one of a follow list. Server order (newest first) is preserved across pages; only the
-     * first page is sorted, so appending can never reshuffle what is already on screen.
+     * Page one of a follow list. Server order (newest first) is kept as delivered, page after
+     * page, so appending can never reshuffle what is already on screen (iOS).
      */
     /// targetPubkey null = the signed-in user's own list (loaded via requesterPubkey, with
     /// locally-stored follows merged in); non-null = another profile's list, server rows only.
@@ -2498,26 +2698,29 @@ class KaPostsViewModel @Inject constructor(
                 idOf = com.kachat.app.services.KFollowUser::userPublicKey,
                 map = { mapFollowUser(it) },
                 isVisible = { true },
-                fetch = { before -> kaPostsService.fetchFollowListPage(pubkey, followers, PAGE_LIMIT, before) },
+                fetch = { before -> kaPostsService.fetchFollowListPage(pubkey, followers, FOLLOW_PAGE_LIMIT, before) },
             )
             if (generations[key] != generation) return@launch
-            var rows = result.items.sortedByDescending { it.timestampMs ?: 0L }
-            if (isOwnList && !followers && !result.hasMore) rows = rows + localOnlyFollows(rows)
-            _followEntries.value = rows
+            val rows = result.items
+            _followEntries.value = if (isOwnList && !followers) rows + localOnlyFollows(rows) else rows
             updatePaging(key) {
-                it.copy(cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false, error = result.error)
+                it.copy(
+                    cursor = result.cursor, hasMore = result.hasMore, isLoadingMore = false,
+                    error = result.error, stalled = result.stalled,
+                )
             }
             loadMoreJobs.remove(key)
         }
     }
 
-    fun loadMoreFollowList(followers: Boolean, targetPubkey: String? = null) {
+    fun loadMoreFollowList(followers: Boolean, targetPubkey: String? = null, manual: Boolean = false) {
         val key = pageFollowList(followers)
         val state = pagingState(key)
         if (state.isLoadingMore || !state.hasMore || !surfaceLoaded(key)) return
+        if (state.stalled && !manual) return
         val generation = generations[key] ?: 0
         val isOwnList = targetPubkey == null
-        updatePaging(key) { it.copy(isLoadingMore = true, error = null) }
+        updatePaging(key) { it.copy(isLoadingMore = true, error = null, stalled = false) }
         loadMoreJobs[key] = viewModelScope.launch {
             val existing = _followEntries.value.orEmpty()
             val pubkey = targetPubkey ?: try { kaPostsService.requesterPubkey() } catch (_: Exception) {
@@ -2531,15 +2734,15 @@ class KaPostsViewModel @Inject constructor(
                 idOf = com.kachat.app.services.KFollowUser::userPublicKey,
                 map = { mapFollowUser(it) },
                 isVisible = { true },
-                fetch = { before -> kaPostsService.fetchFollowListPage(pubkey, followers, PAGE_LIMIT, before) },
+                fetch = { before -> kaPostsService.fetchFollowListPage(pubkey, followers, FOLLOW_PAGE_LIMIT, before) },
             )
             if (generations[key] != generation) return@launch
-            if (result.items.isNotEmpty() || (isOwnList && !followers && !result.hasMore)) {
-                // Drop any local-only placeholders before re-appending, so the server rows that
-                // just arrived always sit above them.
+            if (result.items.isNotEmpty()) {
+                // Drop the local-only tail before re-appending, so the server rows that just
+                // arrived always sit above it.
                 val serverRows = existing.filter { it.pubkey != null } + result.items
                 _followEntries.value =
-                    if (isOwnList && !followers && !result.hasMore) serverRows + localOnlyFollows(serverRows) else serverRows
+                    if (isOwnList && !followers) serverRows + localOnlyFollows(serverRows) else serverRows
             }
             updatePaging(key) {
                 it.copy(
@@ -2547,6 +2750,7 @@ class KaPostsViewModel @Inject constructor(
                     hasMore = if (result.error != null) it.hasMore else result.hasMore,
                     isLoadingMore = false,
                     error = result.error,
+                    stalled = result.stalled,
                 )
             }
             loadMoreJobs.remove(key)
@@ -2594,38 +2798,80 @@ class KaPostsViewModel @Inject constructor(
     fun expandReplies(comment: KaPostDraft) = loadReplies(comment)
 
     /**
-     * Shared-link/notification landing: resolve a txid to a loaded post, refreshing the feed
-     * and then own content (notification targets are usually YOUR posts, which live outside
-     * the feed window). Returns null when unresolvable (other people's older posts - a true
-     * get-post endpoint on the fork would make this exact).
+     * Where a resolved post lands: the thread to open, and - when the post was a reply - the
+     * reply to scroll to once that thread is on screen.
      */
-    suspend fun openSharedPost(txId: String): KaPostDraft? {
-        val post = resolveSharedPost(txId)
-        // A notification/shared-link landing must show a FRESH thread: if this thread was
-        // already opened earlier in the session, its cached reply page predates the very
-        // action that brought the user here (loadReplies keeps existing pages by design).
-        // Retiring the surface makes the overlay's loadReplies run a real page-one reload,
-        // so the new reply is actually under its parent when the thread opens.
-        post?.remoteId?.let { remoteId ->
+    data class ThreadLanding(val post: KaPostDraft, val scrollToRemoteId: String? = null)
+
+    /**
+     * Shared-link/notification/search landing: resolve a txid to a loaded post, refreshing the
+     * feed and then own content (notification targets are usually YOUR posts, which live outside
+     * the feed window). Returns null when unresolvable.
+     *
+     * A resolved target that is itself a REPLY lands on its PARENT's thread - the post that was
+     * replied to on top, the reply spliced into the comments below and scrolled into view -
+     * instead of presenting the bare reply as a context-free thread root (iOS openResolvedPost).
+     */
+    suspend fun openSharedPost(txId: String): ThreadLanding? {
+        val post = resolveSharedPost(txId) ?: return null
+        return landingFor(post, includeOwnContent = true)
+    }
+
+    /**
+     * The landing for a post already in hand - a profile row, a search hit. Same reply rule as
+     * [openSharedPost]: a reply opens the post it answers (iOS openProfileDetail).
+     */
+    suspend fun landingFor(post: KaPostDraft, includeOwnContent: Boolean = false): ThreadLanding {
+        val parentId = post.parentRemoteId?.takeIf { it.isNotEmpty() && it != post.remoteId }
+        if (parentId != null) {
+            var parent = findPostByRemoteId(parentId)
+            if (parent == null && includeOwnContent) {
+                // A reply notification always targets YOUR content: own posts and replies live
+                // outside the feed window, so pull them before asking the indexer for one id.
+                try {
+                    val pubkey = kaPostsService.requesterPubkey()
+                    loadProfileTab(pubkey, isMine = true, replies = false)
+                    loadProfileTab(pubkey, isMine = true, replies = true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Landing own-content fetch failed", e)
+                }
+                parent = findPostByRemoteId(parentId)
+            }
+            if (parent == null) parent = indexerPost(parentId)
+            if (parent == null) parent = chainPost(parentId)
+            if (parent != null) {
+                prepareThreadLanding(parent, ensureComment = post)
+                return ThreadLanding(parent, scrollToRemoteId = post.remoteId)
+            }
+        }
+        prepareThreadLanding(post, ensureComment = null)
+        return ThreadLanding(post)
+    }
+
+    /**
+     * A landing must show a FRESH thread: if this thread was already opened earlier in the
+     * session, its cached reply page predates the very action that brought the user here
+     * (loadReplies keeps existing pages by design). Retiring the surface makes the overlay's
+     * loadReplies run a real page-one reload. [ensureComment] is spliced into the comments right
+     * now rather than waiting for the indexer: get-replies can lag a push by seconds, so the
+     * scroll target exists even before the page that contains it has loaded (iOS ensureComment).
+     */
+    private fun prepareThreadLanding(thread: KaPostDraft, ensureComment: KaPostDraft?) {
+        thread.remoteId?.let { remoteId ->
             val key = pageThread(remoteId)
             resetSurface(key)
             generations.remove(key) // resetSurface marks "loaded"; this thread needs a reload
         }
-        // A reply tapped from a notification is spliced into its parent's thread right now,
-        // rather than waiting for the indexer to serve it. get-replies can lag the push by
-        // seconds, so opening a brand-new reply's parent routinely rendered without the reply in
-        // it - you tapped "someone replied" and landed on your own post with nothing new on it.
-        // The reply is already resolved by this point, so nothing here has to depend on the
-        // indexer catching up.
-        post?.parentRemoteId?.takeIf { it.isNotEmpty() }?.let { parentRemoteId ->
-            findPostByRemoteId(parentRemoteId)?.let { parent ->
-                mutateEverywhere(parent.id) { target ->
-                    if (target.comments.any { it.remoteId == post.remoteId }) target
-                    else target.copy(comments = target.comments + post)
-                }
-            }
+        val ensuredId = ensureComment?.remoteId?.takeIf { it.isNotEmpty() } ?: return
+        // The parent read off the chain lives only in _chainPosts, and a comment can only be
+        // spliced into a post that some list holds - so make sure the thread post is held.
+        if (findPost(thread.id) == null) {
+            _chainPosts.value = _chainPosts.value.filterNot { it.remoteId == thread.remoteId } + thread
         }
-        return post
+        mutateEverywhere(thread.id) { target ->
+            if (target.comments.any { it.remoteId == ensuredId }) target
+            else target.copy(comments = target.comments + ensureComment)
+        }
     }
 
     private suspend fun resolveSharedPost(txId: String): KaPostDraft? {

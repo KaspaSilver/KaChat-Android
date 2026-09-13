@@ -131,6 +131,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.ArrowCircleUp
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -151,6 +167,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontWeight
@@ -164,7 +181,6 @@ import androidx.core.view.WindowCompat
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.text.input.KeyboardType
@@ -338,32 +354,57 @@ private fun LazyListScope.pagingFooter(
     keySuffix: String,
     onRetry: () -> Unit,
 ) {
-    if (!state.isLoadingMore && state.error == null) return
+    if (!state.isLoadingMore && state.error == null && !state.stalled) return
     item(key = "paging-footer-$keySuffix") {
-        val colors = LocalAppColors.current
-        Row(
+        PagingFooterContent(state = state, onLoadMore = onRetry)
+    }
+}
+
+/**
+ * The footer's three states, as iOS's KaPostsLoadMoreFooter draws them: a spinner with
+ * "Loading more...", a tappable "Couldn't load more" block carrying the error and "Tap to retry",
+ * or - after a whole request budget produced nothing visible - an explicit "Load more" button.
+ * Shared by the lazy lists and the inline reply expansions, which are not lists of their own.
+ */
+@Composable
+private fun PagingFooterContent(
+    state: KaPostsViewModel.PagingState,
+    onLoadMore: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    when {
+        state.isLoadingMore -> Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (state.error != null) {
-                Text("Couldn't load more.", color = colors.textSecondary, fontSize = 13.sp)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    "Retry",
-                    color = KaspaTeal,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable { onRetry() },
-                )
-            } else {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = KaspaTeal,
-                )
-            }
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.textSecondary)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Loading more...", color = colors.textSecondary, fontSize = 12.sp)
         }
+        state.error != null -> Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onLoadMore() }
+                .padding(vertical = 16.dp, horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("Couldn't load more", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(state.error, color = colors.textSecondary, fontSize = 12.sp, textAlign = TextAlign.Center)
+            Text("Tap to retry", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+        state.stalled && state.hasMore -> Text(
+            "Load more",
+            color = KaspaTeal,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onLoadMore() }
+                .padding(vertical = 16.dp),
+        )
     }
 }
 
@@ -467,7 +508,6 @@ fun KaPostsScreen(
     // threads pushed on top pop normally and only closing that exact entry re-opens the
     // profile it came from (a thread opened from the feed never restores anything).
     var profileReturns by remember { mutableStateOf(mapOf<Int, KaPostsProfileReturn>()) }
-    var repostTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     var quoteTarget by remember { mutableStateOf<KaPostDraft?>(null) }
     /**
      * Answering a SPECIFIC reply opens the composer with that reply under the editor, as on iOS
@@ -475,18 +515,34 @@ fun KaPostsScreen(
      * itself - X has both shapes, each where it fits.
      */
     var replyComposerTarget by remember { mutableStateOf<KaPostDraft?>(null) }
-    /** The post a reopened reply draft was answering, once resolved from its stored txid. */
-    var draftReplyParent by remember { mutableStateOf<KaPostDraft?>(null) }
-    // A post or quote handed back by Undo reopens its composer with the words still in it.
-    // Comments are handled inside the thread overlay, where the reply bar already is.
+    /** The post a reopened reply or quote draft was about, once resolved from its stored txid. */
+    var draftSourcePost by remember { mutableStateOf<KaPostDraft?>(null) }
+    /** The reply box under the opened post. Lives here rather than in the thread overlay so it
+     *  survives walking up and down the thread stack; cleared only when the thread closes (iOS
+     *  replyText / closeThread). */
+    var threadReplyText by remember { mutableStateOf(TextFieldValue("")) }
+    // Anything handed back by Undo reopens its composer with the words still in it - a post or
+    // thread reopens the composer, a quote reopens the quote composer on its target, and an
+    // undone comment reopens the Reply composer with its parent attached (iOS restoreDraft).
+    // Deferred a beat so the toast's own dismissal animation has somewhere to land.
     val restoredDraft by viewModel.restoredDraft.collectAsState()
     LaunchedEffect(restoredDraft) {
         val draft = restoredDraft ?: return@LaunchedEffect
-        if (draft.isComment) return@LaunchedEffect
-        restoredComposerText = draft.text
-        restoredComposerSegments = draft.threadSegments
-        val target = draft.quoteTargetId?.let { viewModel.findPost(it) }
-        if (target != null) quoteTarget = target else showComposer = true
+        // Cleared LAST: this effect is keyed on the draft, so clearing it first would cancel
+        // the very coroutine waiting out the delay.
+        delay(300)
+        if (draft.isComment) {
+            val parent = draft.commentParentId?.let { viewModel.findPost(it) }
+            if (parent != null) {
+                restoredComposerText = draft.text
+                replyComposerTarget = parent
+            }
+        } else {
+            restoredComposerText = draft.text
+            restoredComposerSegments = draft.threadSegments
+            val target = draft.quoteTargetId?.let { viewModel.findPost(it) }
+            if (target != null) quoteTarget = target else showComposer = true
+        }
         viewModel.clearRestoredDraft()
     }
     var engagementTarget by remember { mutableStateOf<KaPostDraft?>(null) }
@@ -504,8 +560,12 @@ fun KaPostsScreen(
     var showSearch by remember { mutableStateOf(false) }
     val kaPostsUnseen by viewModel.unseenNotifications.collectAsState()
     // Opening the list IS seeing them - cleared on open rather than on close so the badge does
-    // not sit there while you read.
-    LaunchedEffect(showNotifications) { if (showNotifications) viewModel.markNotificationsSeen() }
+    // not sit there while you read. While it is open the poller holds its banners (iOS).
+    LaunchedEffect(showNotifications) {
+        if (showNotifications) viewModel.markNotificationsSeen()
+        viewModel.setNotificationsScreenVisible(showNotifications)
+    }
+    DisposableEffect(Unit) { onDispose { viewModel.setNotificationsScreenVisible(false) } }
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
     // The profile whose follow list is open: null = my own list, non-null = another user's.
     var followListPubkey by remember { mutableStateOf<String?>(null) }
@@ -518,7 +578,7 @@ fun KaPostsScreen(
     val draftContext = LocalContext.current
     val myAddressForDrafts = viewModel.myAddress()
     var drafts by remember { mutableStateOf(emptyList<KaPostSavedDraft>()) }
-    var notFoundNotice by remember { mutableStateOf(false) }
+    fun reloadDrafts() { drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty()) }
 
     val posterProfile by viewModel.posterProfile.collectAsState()
     val deepLinkTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
@@ -561,11 +621,24 @@ fun KaPostsScreen(
     // collapses the shell's reserved bottom padding, which is what lets the overlay reach the
     // bottom of the screen.
     val threadOpen = threadStack.isNotEmpty()
-    LaunchedEffect(threadOpen) { walletViewModel.setHideBottomBar(threadOpen) }
+    LaunchedEffect(threadOpen) {
+        walletViewModel.setHideBottomBar(threadOpen)
+        // Out of the thread entirely: the reply box starts empty next time (iOS closeThread).
+        if (!threadOpen) threadReplyText = TextFieldValue("")
+    }
     DisposableEffect(Unit) { onDispose { walletViewModel.setHideBottomBar(false) } }
 
+    /** Already reading a thread: push, so Back returns here. Re-opening the post already on top
+     *  is a no-op, so a double tap cannot stack it twice (iOS openDetail). */
     fun openThread(post: KaPostDraft) {
-        threadStack = threadStack + post.id
+        if (threadStack.lastOrNull() != post.id) threadStack = threadStack + post.id
+    }
+
+    /** Opens where a resolved post lands: its own thread, or - for a reply - its parent's, scrolled
+     *  to the reply. */
+    fun openLanding(landing: KaPostsViewModel.ThreadLanding, focusReplyTxId: String? = null) {
+        threadFocusReplyId = landing.scrollToRemoteId ?: focusReplyTxId
+        openThread(landing.post)
     }
 
     /** Pops the topmost thread; if that entry was opened from a profile, re-opens the profile. */
@@ -586,26 +659,25 @@ fun KaPostsScreen(
     }
 
     /** Close-then-open (the profile Dialog covers the in-composition thread), remembering the way back. */
-    fun openThreadFromProfile(returnTo: KaPostsProfileReturn, post: KaPostDraft) {
+    fun openLandingFromProfile(returnTo: KaPostsProfileReturn, landing: KaPostsViewModel.ThreadLanding) {
         profileReturns = profileReturns + (threadStack.size to returnTo)
         when (returnTo) {
             KaPostsProfileReturn.Mine -> showMyProfile = false
             is KaPostsProfileReturn.Poster -> viewModel.closePosterProfile()
         }
-        openThread(post)
+        openLanding(landing)
+    }
+
+    /** A post tapped on a profile: a reply opens the post it answers, with the reply scrolled
+     *  into view, the rule notifications and shared links follow (iOS openProfileDetail). */
+    fun openThreadFromProfile(returnTo: KaPostsProfileReturn, post: KaPostDraft) {
+        scope.launch { openLandingFromProfile(returnTo, viewModel.landingFor(post)) }
     }
 
     fun openShared(txId: String, focusReplyTxId: String? = null) {
         scope.launch {
-            val post = viewModel.openSharedPost(txId)
-            if (post != null) {
-                threadFocusReplyId = focusReplyTxId
-                openThread(post)
-            } else {
-                notFoundNotice = true
-                delay(3_000)
-                notFoundNotice = false
-            }
+            val landing = viewModel.openSharedPost(txId)
+            if (landing != null) openLanding(landing, focusReplyTxId) else viewModel.showPostNotFound(txId)
         }
     }
 
@@ -615,29 +687,31 @@ fun KaPostsScreen(
      *  just stays open (the feed's toast would be hidden behind the Dialog anyway). */
     fun openSharedFromProfile(returnTo: KaPostsProfileReturn, txId: String) {
         scope.launch {
-            val post = viewModel.openSharedPost(txId)
-            if (post != null) openThreadFromProfile(returnTo, post)
+            val landing = viewModel.openSharedPost(txId)
+            if (landing != null) openLandingFromProfile(returnTo, landing)
+        }
+    }
+
+    /** Jump to a rung of the chain above the open post: unwind the stack to it when it is on the
+     *  path already, otherwise start a fresh stack there - the rungs above what was walked were
+     *  resolved from the loaded tree, not navigated to (iOS jumpToAncestor). */
+    fun jumpToAncestor(ancestor: KaPostDraft) {
+        threadFocusReplyId = null
+        val index = threadStack.indexOf(ancestor.id)
+        if (index >= 0) {
+            threadStack = threadStack.take(index + 1)
+        } else {
+            profileReturns = emptyMap()
+            threadStack = listOf(ancestor.id)
+            viewModel.reloadThread(ancestor)
         }
     }
 
     LaunchedEffect(Unit) {
-        // Entering KaPosts always lands on the MOST RECENT feed: reload page one and snap every
-        // tab's list to the top (the saved scroll state would otherwise restore last visit's
-        // position deep in older posts). Each snap runs in its OWN coroutine: scrollToItem is
-        // a SUSPENDING call, and on a pager page that isn't composed yet it can park until
-        // that page attaches - run sequentially, a parked hidden-tab snap blocked the visible
-        // list's snap forever, which is why entry kept restoring the old position.
-        viewModel.loadFeed()
-        feedListStates.forEach { state -> launch { runCatching { state.scrollToItem(0) } } }
-    }
-    // The reload above swaps the list contents asynchronously - snap again once the fresh
-    // feed actually lands, so a restored scroll offset can't survive the data swap.
-    var snapOnNextFeed by remember { mutableStateOf(true) }
-    LaunchedEffect(visiblePosts) {
-        if (snapOnNextFeed && visiblePosts.isNotEmpty()) {
-            snapOnNextFeed = false
-            feedListStates.forEach { state -> launch { runCatching { state.scrollToItem(0) } } }
-        }
+        // Page one, once per session: coming back to the tab keeps the feed and the place in it
+        // (iOS's KaPostsView is kept alive by its tab view and loads in a one-shot task).
+        viewModel.loadFeedIfNeeded()
+        viewModel.refreshTranslationLanguages()
     }
     LaunchedEffect(deepLinkTxId) {
         val txId = deepLinkTxId ?: return@LaunchedEffect
@@ -656,19 +730,23 @@ fun KaPostsScreen(
         }
     }
 
-    val repostHandler: (KaPostDraft) -> Unit = { post ->
-        if (post.remoteId != null && post.posterPubkey != null) repostTarget = post
-    }
+    // The repost icon's plain tap only reaches here for a post with no txid yet (on-chain posts
+    // open the Repost/Quote sheet instead): that just flips the flag locally, as on iOS.
+    val repostHandler: (KaPostDraft) -> Unit = { post -> viewModel.scheduleRepost(post) }
 
     Scaffold(
         containerColor = colors.background,
         floatingActionButton = {
+            // iOS createPostButton: a 56pt circle in the material fill with the pencil in accent,
+            // not a filled accent button - the chat list's create-chat button shape.
             FloatingActionButton(
                 onClick = { if (fundingGate.active) showFundingGate = true else showComposer = true },
-                containerColor = KaspaTeal,
-                contentColor = Color.White,
+                shape = CircleShape,
+                containerColor = colors.surface,
+                contentColor = KaspaTeal,
+                modifier = Modifier.size(56.dp),
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New post")
+                Icon(Icons.Default.Edit, contentDescription = "New post", modifier = Modifier.size(22.dp))
             }
         },
     ) { padding ->
@@ -815,16 +893,50 @@ fun KaPostsScreen(
                         // common bootstrap case while feeds are sparse.
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             item {
-                                Box(modifier = Modifier.fillParentMaxSize()) {
+                                Box(modifier = Modifier.fillParentMaxHeight(0.8f).fillMaxWidth()) {
                                     FeedEmptyState(
-                                        title = if (tab == KaPostsViewModel.FeedTab.FOLLOWING) "Nothing here yet" else "No posts yet",
-                                        body = if (tab == KaPostsViewModel.FeedTab.FOLLOWING)
-                                            "Follow people from their posts and their content shows up here."
-                                        else
-                                            "Be the first to post something on the Kaspa network.",
+                                        icon = when (tab) {
+                                            KaPostsViewModel.FeedTab.FOLLOWING -> Icons.Default.Group
+                                            KaPostsViewModel.FeedTab.FEED -> Icons.Default.Edit
+                                            KaPostsViewModel.FeedTab.POPULAR -> Icons.Default.LocalFireDepartment
+                                        },
+                                        title = when (tab) {
+                                            KaPostsViewModel.FeedTab.FOLLOWING -> "Nothing from people you follow"
+                                            KaPostsViewModel.FeedTab.FEED -> "No posts yet"
+                                            KaPostsViewModel.FeedTab.POPULAR -> "Nothing trending yet"
+                                        },
+                                        body = when (tab) {
+                                            KaPostsViewModel.FeedTab.FOLLOWING -> "Posts from accounts you follow will show up here."
+                                            KaPostsViewModel.FeedTab.FEED -> "Be the first - tap the pencil to write a post."
+                                            KaPostsViewModel.FeedTab.POPULAR -> "The most liked, reposted and talked-about posts will show up here."
+                                        },
                                         actionLabel = null,
                                         onAction = {},
                                     )
+                                }
+                            }
+                            // Everything fetched so far was filtered away (all muted, or - on
+                            // Following - none of it from accounts you follow locally) while the
+                            // server still has older pages. No auto-sentinel here: with nothing on
+                            // screen it would walk the whole history unattended, so this stays an
+                            // explicit tap (iOS "Load older posts").
+                            item {
+                                if (!feedPaging.isLoadingMore && feedPaging.hasMore && feedPaging.cursor != null) {
+                                    Text(
+                                        "Load older posts",
+                                        color = KaspaTeal,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { viewModel.loadMoreFeed(tab, manual = true) }
+                                            .padding(vertical = 12.dp),
+                                    )
+                                } else if (feedPaging.isLoadingMore) {
+                                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = KaspaTeal)
+                                    }
                                 }
                             }
                         }
@@ -863,6 +975,9 @@ fun KaPostsScreen(
                                     onOpenQuoted = { txId -> openShared(txId) },
                                     onViewEngagement = { engagementTarget = post },
                                     truncatesLongText = true,
+                                    // The reply bubble opens the Reply composer; the card opens
+                                    // the thread (iOS feed cells).
+                                    onReply = { replyComposerTarget = post },
                                     onTip = { tipTarget = post.posterAddress to viewModel.posterDisplayName(post.posterAddress) },
                                 )
                                 // X-style "View thread" under a thread root - opens the detail,
@@ -879,15 +994,21 @@ fun KaPostsScreen(
                                     }.distinctUntilChanged()
                                 }.collectAsState(initial = viewModel.isThreadRoot(post))
                                 if (isThreadRoot) {
-                                    Text(
-                                        "⤷ View thread",
-                                        color = KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
                                             .clickable { openThread(post) }
                                             .padding(start = 68.dp, top = 2.dp, bottom = 8.dp),
-                                    )
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.PlaylistAdd,
+                                            contentDescription = null,
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("View thread", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    }
                                 }
                                 HorizontalDivider(
                                     color = colors.surfaceVariant,
@@ -895,7 +1016,7 @@ fun KaPostsScreen(
                                 )
                             }
                             pagingFooter(feedPaging, keySuffix = "feed-$page") {
-                                viewModel.loadMoreFeed(tab)
+                                viewModel.loadMoreFeed(tab, manual = true)
                             }
                         }
                     }
@@ -912,10 +1033,10 @@ fun KaPostsScreen(
                 }
             }
 
-            // Left slide-out menu.
+            // Bottom toast stack: undo countdown above the on-chain confirmation (iOS pads 84).
             KaPostsToastLayer(
                 viewModel = viewModel,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 84.dp),
             )
         }
     }
@@ -955,42 +1076,51 @@ fun KaPostsScreen(
             },
             onSaveDraft = { draftText, segments ->
                 KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments)
+                reloadDrafts()
             },
         )
     }
 
-    // Reopening a draft: posting it removes it, and re-saving updates it in place.
+    // Reopening a draft, as whatever it was written as. A reply or quote draft keeps only the
+    // txid of the post it was about (never a stale copy of someone else's post), so that post
+    // is resolved here - memory first, then the indexer, then the chain - and handed to the
+    // composer (iOS draftComposer). Posting it removes it; re-saving updates it in place.
     editingDraft?.let { draft ->
-        // A reply draft keeps only the txid of the post it answers (never a stale copy of someone
-        // else's post), so resolve it here - loaded lists first, then the indexer. Until get-post
-        // existed this lookup could not be done at all.
-        LaunchedEffect(draft.id, draft.replyRemoteId) {
-            draftReplyParent = null
-            val parentId = draft.replyRemoteId
-            if (!parentId.isNullOrEmpty()) {
-                draftReplyParent = viewModel.findPostByRemoteId(parentId) ?: viewModel.indexerPost(parentId)
-            }
+        val sourceId = draft.replyRemoteId?.takeIf { it.isNotEmpty() } ?: draft.quotedRemoteId?.takeIf { it.isNotEmpty() }
+        LaunchedEffect(draft.id, sourceId) {
+            draftSourcePost = null
+            if (sourceId != null) draftSourcePost = viewModel.resolveAnyPost(sourceId)
         }
         val isReplyDraft = !draft.replyRemoteId.isNullOrEmpty()
-        val parent = draftReplyParent
+        val isQuoteDraft = !isReplyDraft && !draft.quotedRemoteId.isNullOrEmpty()
+        val source = draftSourcePost
         KaPostComposerDialog(
-            title = if (isReplyDraft) "Reply to Post" else "New Post",
-            quoted = parent,
-            quotedDisplayName = parent?.let { viewModel.posterDisplayName(it.posterAddress) } ?: "",
-            quotedAvatarUrl = parent?.let { viewModel.senderProfiles.value[it.posterAddress] },
+            title = when {
+                isReplyDraft -> "Reply to Post"
+                isQuoteDraft && source != null -> "Quote Post"
+                else -> "New Post"
+            },
+            quoted = source,
+            quotedDisplayName = source?.let { viewModel.posterDisplayName(it.posterAddress) } ?: "",
+            quotedAvatarUrl = source?.let { viewModel.senderProfiles.value[it.posterAddress] },
+            isReply = isReplyDraft,
             submitLabel = if (isReplyDraft) "Reply" else null,
-            onDismiss = { editingDraft = null; draftReplyParent = null },
+            onDismiss = { editingDraft = null; draftSourcePost = null },
             onSubmit = { text ->
                 KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
                 editingDraft = null
-                // The post it answered could not be resolved: post the text rather than discard
-                // what was written.
-                if (parent != null) viewModel.submitReply(parent, text) else viewModel.schedulePost(text)
-                draftReplyParent = null
+                when {
+                    source != null && isReplyDraft -> viewModel.submitReply(source, text)
+                    source != null && isQuoteDraft -> viewModel.scheduleQuote(source, text)
+                    // The post it referred to could not be resolved: post the text rather than
+                    // discard what was written.
+                    else -> viewModel.schedulePost(text)
+                }
+                draftSourcePost = null
             },
             viewModel = viewModel,
-            // A reply is one post to one parent, so it never stacks into a thread.
-            onSubmitThread = if (isReplyDraft) null else { segments ->
+            // A reply or a quote is one post about one other, so it never stacks into a thread.
+            onSubmitThread = if (isReplyDraft || isQuoteDraft) null else { segments ->
                 KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
                 editingDraft = null
                 viewModel.scheduleThread(segments)
@@ -1002,7 +1132,9 @@ fun KaPostsScreen(
                 KaPostDraftStore.save(
                     draftContext, myAddressForDrafts.orEmpty(), draft.id, draftText, segments,
                     replyRemoteId = draft.replyRemoteId,
+                    quotedRemoteId = draft.quotedRemoteId,
                 )
+                reloadDrafts()
             },
         )
     }
@@ -1011,10 +1143,12 @@ fun KaPostsScreen(
         KaPostsOverlayScaffold(title = "Drafts", onClose = { showDrafts = false }) {
             if (drafts.isEmpty()) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
+                    Icon(Icons.Default.Edit, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(44.dp))
+                    Spacer(Modifier.height(10.dp))
                     Text("No drafts", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -1047,7 +1181,11 @@ fun KaPostsScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    if (draft.segmentCount > 1) "${draft.segmentCount} posts" else "Draft",
+                                    // When it was saved, and how many posts it stacks (iOS row).
+                                    remember(draft.savedAt, draft.segmentCount) {
+                                        relativePostTime(draft.savedAt) +
+                                            (if (draft.segmentCount > 1) " · ${draft.segmentCount} posts" else "")
+                                    },
                                     color = LocalAppColors.current.textSecondary,
                                     fontSize = 11.sp,
                                 )
@@ -1060,7 +1198,7 @@ fun KaPostsScreen(
                                     .size(20.dp)
                                     .clickable {
                                         KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
-                                        drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty())
+                                        reloadDrafts()
                                     },
                             )
                         }
@@ -1078,6 +1216,7 @@ fun KaPostsScreen(
             quoted = target,
             quotedDisplayName = viewModel.posterDisplayName(target.posterAddress),
             quotedAvatarUrl = viewModel.senderProfiles.value[target.posterAddress],
+            isReply = true,
             submitLabel = "Reply",
             initialText = restoredComposerText,
             onDismiss = { replyComposerTarget = null; restoredComposerText = "" },
@@ -1093,6 +1232,7 @@ fun KaPostsScreen(
                     draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments,
                     replyRemoteId = target.remoteId,
                 )
+                reloadDrafts()
             },
         )
     }
@@ -1112,31 +1252,13 @@ fun KaPostsScreen(
             },
             // A quote is never a thread, so no segments to carry here.
             viewModel = viewModel,
-        )
-    }
-
-    repostTarget?.let { target ->
-        AlertDialog(
-            onDismissRequest = { repostTarget = null },
-            containerColor = colors.surface,
-            title = { Text("Repost", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("Share this post to your followers.", color = colors.textSecondary) },
-            confirmButton = {
-                TextButton(onClick = {
-                    repostTarget = null
-                    viewModel.scheduleRepost(target)
-                }) { Text("Repost", color = KaspaTeal, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { repostTarget = null }) {
-                        Text("Cancel", color = colors.textSecondary)
-                    }
-                    TextButton(onClick = {
-                        quoteTarget = target
-                        repostTarget = null
-                    }) { Text("Quote", color = KaspaTeal) }
-                }
+            // A quote draft remembers WHAT it quotes, so reopening it brings the post back (iOS).
+            onSaveDraft = { draftText, segments ->
+                KaPostDraftStore.save(
+                    draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments,
+                    quotedRemoteId = target.remoteId,
+                )
+                reloadDrafts()
             },
         )
     }
@@ -1145,21 +1267,20 @@ fun KaPostsScreen(
     // live post tree itself (it must recompose as replies land), so only the id is handed over.
     val fetchedAncestorChains by viewModel.fetchedAncestors.collectAsState()
     threadStack.lastOrNull()?.let { topId ->
+        val topPost = viewModel.findPost(topId)
         KaPostThreadOverlay(
             postId = topId,
             viewModel = viewModel,
             // The chain get-thread returns, which is every level above this post - exact whether
             // you tapped down to it, opened it from a profile, or landed on it from a link. The
-            // navigation stack is the fallback for the moment before that fetch answers (and for
-            // a local post that has no txid yet); it can only ever show what you tapped through.
-            ancestors = viewModel.findPost(topId)?.remoteId
+            // navigation stack plus an in-memory parent walk is the fallback for the moment
+            // before that fetch answers (and for a local post that has no txid yet).
+            ancestors = topPost?.remoteId
                 ?.let { fetchedAncestorChains[it] }
                 ?.takeIf { it.isNotEmpty() }
-                ?: threadStack.dropLast(1).mapNotNull { viewModel.findPost(it) },
-            onJumpToAncestor = { ancestor ->
-                val index = threadStack.indexOf(ancestor.id)
-                if (index >= 0) threadStack = threadStack.take(index + 1)
-            },
+                ?: topPost?.let { ancestorsFromMemory(viewModel, it, threadStack) }
+                ?: emptyList(),
+            onJumpToAncestor = { ancestor -> jumpToAncestor(ancestor) },
             onReplyToComment = { target -> replyComposerTarget = target },
             onClose = { closeTopThread() },
             onOpenNested = { nested -> openThread(nested) },
@@ -1169,32 +1290,9 @@ fun KaPostsScreen(
             onViewEngagement = { engagementTarget = it },
             focusReplyRemoteId = threadFocusReplyId,
             onFocusReplyHandled = { threadFocusReplyId = null },
+            replyText = threadReplyText,
+            onReplyTextChange = { threadReplyText = it },
         )
-    }
-
-    // AFTER the thread overlay on purpose: openShared is reachable from inside a thread
-    // ("Replying to a post - view it", quoted embeds), and when it was drawn inside the
-    // Scaffold the opaque thread overlay covered it - a failed resolve looked like the tap
-    // did nothing at all. As a later sibling it draws above the thread too.
-    if (notFoundNotice) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(bottom = 90.dp),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.surface)
-                    .border(1.dp, colors.surfaceVariant, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-            ) {
-                Text(
-                    "Post not found - it may be older than the feed window.",
-                    color = colors.textPrimary,
-                    fontSize = 13.sp,
-                )
-            }
-        }
     }
 
     if (showMyProfile) {
@@ -1215,6 +1313,7 @@ fun KaPostsScreen(
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openSharedFromProfile(KaPostsProfileReturn.Mine, it) },
             onOpenFollowList = { followListPubkey = null; followListKind = it },
+            onReply = { replyComposerTarget = it },
         )
     }
 
@@ -1236,6 +1335,7 @@ fun KaPostsScreen(
             onOpenQuoted = { openSharedFromProfile(KaPostsProfileReturn.Poster(profile.address, profile.pubkey), it) },
             onOpenFollowList = { followListPubkey = profile.pubkey; followListKind = it },
             onTip = { tipTarget = it.posterAddress to viewModel.posterDisplayName(it.posterAddress) },
+            onReply = { replyComposerTarget = it },
         )
     }
 
@@ -1304,17 +1404,49 @@ fun KaPostsScreen(
         KaPostsBookmarksOverlay(
             viewModel = viewModel,
             onClose = { showBookmarks = false },
-            onOpenThread = {
-                showBookmarks = false
-                openThread(it)
-            },
+            // Bookmarks can reply; it has no thread surface of its own, so the card tap stays
+            // inert and the reply bubble opens the Reply composer (iOS).
+            onReply = { replyComposerTarget = it },
             // Post Activity and the repost icon were silent no-ops in bookmarks (the cell's
             // defaults); the overlays they raise are Dialog windows, which stack above the
             // bookmarks Dialog, so they open in place.
             onViewEngagement = { engagementTarget = it },
             onRepostTap = { repostHandler(it) },
+            onTip = { tipTarget = it.posterAddress to viewModel.posterDisplayName(it.posterAddress) },
         )
     }
+}
+
+/**
+ * The chain above [post] when get-thread has not answered: the navigation stack (only trusted
+ * when its tail really is this post's parent - a deep link can land mid-thread with a stack that
+ * drifted) plus an upward walk through the loaded tree, at most eight hops, with a cycle guard.
+ * Mirrors iOS ancestorChain.
+ */
+private fun ancestorsFromMemory(
+    viewModel: KaPostsViewModel,
+    post: KaPostDraft,
+    threadStack: List<String>,
+): List<KaPostDraft> {
+    var walked = threadStack.dropLast(1).mapNotNull { viewModel.findPost(it) }
+    val last = walked.lastOrNull()
+    if (last != null &&
+        viewModel.findParent(post.id)?.id != last.id &&
+        last.comments.none { it.id == post.id }
+    ) {
+        walked = emptyList()
+    }
+    val above = mutableListOf<KaPostDraft>()
+    var cursor: KaPostDraft? = walked.firstOrNull() ?: post
+    var hops = 0
+    while (cursor != null && hops < 8) {
+        val parent = viewModel.findParent(cursor.id) ?: break
+        if (above.any { it.id == parent.id } || walked.any { it.id == parent.id }) break
+        above.add(parent)
+        cursor = parent
+        hops++
+    }
+    return above.reversed() + walked
 }
 
 // MARK: - Side menu
@@ -1362,7 +1494,9 @@ private fun FeedTabsRow(
     onSelect: (KaPostsViewModel.FeedTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalAppColors.current
+    val haptics = LocalView.current
+    // iOS feedTabButton: accent bold when selected, accent at half opacity otherwise, a
+    // full-width 2pt accent underline under the selected tab.
     Row(modifier = modifier.fillMaxWidth()) {
         KaPostsFeedTabs.forEach { tab ->
             val label = tab.label()
@@ -1370,22 +1504,24 @@ private fun FeedTabsRow(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { onSelect(tab) }
-                    .padding(vertical = 10.dp),
+                    .clickable {
+                        haptics.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        onSelect(tab)
+                    }
+                    .padding(top = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = label,
-                    color = if (isSelected) colors.textPrimary else colors.textSecondary,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) KaspaTeal else KaspaTeal.copy(alpha = 0.5f),
+                    fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
-                        .width(48.dp)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
+                        .fillMaxWidth()
+                        .height(2.dp)
                         .background(if (isSelected) KaspaTeal else Color.Transparent),
                 )
             }
@@ -1394,16 +1530,26 @@ private fun FeedTabsRow(
 }
 
 @Composable
-private fun FeedEmptyState(title: String, body: String, actionLabel: String?, onAction: () -> Unit) {
+private fun FeedEmptyState(
+    title: String,
+    body: String,
+    actionLabel: String?,
+    onAction: () -> Unit,
+    icon: ImageVector? = null,
+) {
     val colors = LocalAppColors.current
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 44.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(52.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(body, color = colors.textSecondary, fontSize = 14.sp)
+        Text(body, color = colors.textSecondary, fontSize = 14.sp, textAlign = TextAlign.Center)
         if (actionLabel != null) {
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(onClick = onAction) { Text(actionLabel, color = KaspaTeal, fontWeight = FontWeight.Bold) }
@@ -1444,8 +1590,11 @@ fun KaPostCell(
     // or countdowns change. Collecting the whole maps here subscribed every visible cell to
     // every entry, so each author profile arriving mid-scroll re-ran the entire viewport.
     val avatarUrl by viewModel.senderProfiles.collectSelectedAsState(post.posterAddress) { it[post.posterAddress] }
+    val contactPhoto by viewModel.contactPhotos.collectSelectedAsState(post.posterAddress) { it[post.posterAddress] }
     val name = posterDisplayNameState(viewModel, post.posterAddress)
     val isFollowingPoster by viewModel.following.collectSelectedAsState(post.posterAddress) { post.posterAddress in it }
+    val hapticView = LocalView.current
+    fun lightHaptic() { hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP) }
     val cellDeadlines by viewModel.undoDeadlines.collectSelectedAsState(post.id) {
         Triple(it["repost:${post.id}"], it["like:${post.id}"], it["dislike:${post.id}"])
     }
@@ -1509,14 +1658,19 @@ fun KaPostCell(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = !isRoot) { onOpenThread() }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            // iOS KaPostCellView: 16pt horizontal, 12pt vertical, 40pt avatar. The thread line
+            // drawn behind ancestor cells depends on exactly these numbers.
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.Top) {
             Box(modifier = Modifier.clickable { onOpenProfile() }) {
                 ContactAvatar(
                     imageUrl = avatarUrl,
                     fallbackText = name,
-                    size = 42.dp,
+                    size = 40.dp,
+                    // A saved contact's own photo overrides the KNS avatar, as everywhere else.
+                    deviceContactPhotoUri = contactPhoto?.deviceContactPhotoUri,
+                    backupPhotoBase64 = contactPhoto?.backupPhotoBase64,
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -1529,7 +1683,7 @@ fun KaPostCell(
                         fontSize = 15.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false).clickable { onOpenProfile() },
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
@@ -1549,6 +1703,7 @@ fun KaPostCell(
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             modifier = Modifier.clickable {
+                                lightHaptic()
                                 viewModel.toggleFollow(post.posterAddress, post.posterPubkey)
                             },
                         )
@@ -1580,8 +1735,9 @@ fun KaPostCell(
                                 )
                             }
                             if (!isMine) {
+                                // Named, as on iOS: "Mute alice" says who this lands on.
                                 DropdownMenuItem(
-                                    text = { Text("Mute") },
+                                    text = { Text("Mute $name") },
                                     leadingIcon = { Icon(Icons.Default.VolumeOff, null) },
                                     onClick = {
                                         showOverflow = false
@@ -1589,8 +1745,8 @@ fun KaPostCell(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Block") },
-                                    leadingIcon = { Icon(Icons.Default.Block, null) },
+                                    text = { Text("Block $name", color = Color(0xFFFF3B30)) },
+                                    leadingIcon = { Icon(Icons.Default.Block, null, tint = Color(0xFFFF3B30)) },
                                     onClick = {
                                         showOverflow = false
                                         viewModel.block(post.posterAddress)
@@ -1689,27 +1845,6 @@ fun KaPostCell(
                         )
                     }
                 }
-                when (post.deliveryStatus) {
-                    KaPostDraft.Delivery.PENDING -> {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Posting…", color = colors.textSecondary, fontSize = 12.sp)
-                    }
-                    KaPostDraft.Delivery.FAILED -> {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row {
-                            Text("Failed to post.", color = Color(0xFFE57373), fontSize = 12.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Retry",
-                                color = KaspaTeal,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                modifier = Modifier.clickable { viewModel.retryPost(post) },
-                            )
-                        }
-                    }
-                    KaPostDraft.Delivery.SENT -> Unit
-                }
                 Spacer(modifier = Modifier.height(8.dp))
                 EngagementRow(
                     post = post,
@@ -1717,12 +1852,15 @@ fun KaPostCell(
                     repostDeadline = cellDeadlines.first,
                     likeDeadline = cellDeadlines.second,
                     dislikeDeadline = cellDeadlines.third,
-                    onComment = onReply ?: onOpenThread,
+                    // The bubble replies (feed cells open the Reply composer; the card opens the
+                    // thread). The focused post of a thread has no bubble at all - the box under
+                    // it is its reply (iOS threadCell isRoot: onComment nil).
+                    onComment = if (isRoot) null else (onReply ?: onOpenThread),
                     onRepost = onRepostTap,
-                    onLike = { viewModel.toggleLike(post) },
-                    onDislike = { viewModel.toggleDislike(post) },
-                    onBookmark = { viewModel.toggleBookmark(post) },
-                    onCancelCountdown = { viewModel.cancelUndoable(it) },
+                    onLike = { lightHaptic(); viewModel.toggleLike(post) },
+                    onDislike = { lightHaptic(); viewModel.toggleDislike(post) },
+                    onBookmark = { lightHaptic(); viewModel.toggleBookmark(post) },
+                    onCancelCountdown = { lightHaptic(); viewModel.cancelUndoable(it) },
                     onShare = {
                         viewModel.shareText(post)?.let { text ->
                             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -1732,33 +1870,76 @@ fun KaPostCell(
                             context.startActivity(Intent.createChooser(intent, "Share Post"))
                         }
                     },
-                    onTip = if (!isMine) onTip else null,
-                    // X-style anchored repost menu; quote routes through the VM's quoteRequest
-                    // flow so the main screen's composer opens from any cell.
-                    onRepostConfirm = { viewModel.scheduleRepost(post) },
+                    onTip = if (!isMine) onTip?.let { tip -> { lightHaptic(); tip() } } else null,
+                    // X-style repost sheet; quote routes through the VM's quoteRequest flow so
+                    // the main screen's composer opens from any cell. "Undo Repost" submits the
+                    // unquote counter-action rather than a second repost.
+                    onRepostConfirm = {
+                        if (post.repostedByMe) viewModel.scheduleUnrepost(post) else viewModel.scheduleRepost(post)
+                    },
                     onQuote = { viewModel.requestQuote(post) },
+                    onRetry = { lightHaptic(); viewModel.retryPost(post) },
+                    onHaptic = { lightHaptic() },
                 )
             }
         }
     }
 }
 
+/**
+ * A quoted post's text as the reader should see it: bold, italic, underline, strikethrough and
+ * subtext kept, links inert and unstyled - the card is itself tappable through to the quoted
+ * post, and a live link inside it would compete with that (iOS markdownPreview).
+ */
+private fun markdownPreview(source: String): androidx.compose.ui.text.AnnotatedString {
+    val rendered = KaPostsMarkdown.render(source)
+    return androidx.compose.ui.text.buildAnnotatedString {
+        append(rendered.text)
+        for (span in rendered.spans) {
+            if (span.start >= span.end || span.end > rendered.text.length) continue
+            val style = span.style
+            val decorations = buildList {
+                if (style.underline) add(androidx.compose.ui.text.style.TextDecoration.Underline)
+                if (style.strikethrough) add(androidx.compose.ui.text.style.TextDecoration.LineThrough)
+            }
+            addStyle(
+                androidx.compose.ui.text.SpanStyle(
+                    fontWeight = if (style.bold) FontWeight.Bold else null,
+                    fontStyle = if (style.italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
+                    fontSize = if (style.subtext) 11.sp else androidx.compose.ui.unit.TextUnit.Unspecified,
+                    color = if (style.subtext) Color(0xFF8A8A8E) else Color.Unspecified,
+                    textDecoration = if (decorations.isEmpty()) null
+                    else androidx.compose.ui.text.style.TextDecoration.combine(decorations),
+                ),
+                span.start,
+                span.end,
+            )
+        }
+    }
+}
+
 @Composable
-private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String, avatarUrl: String? = null) {
+private fun QuotedEmbedCard(
+    quoted: KaPostDraft.QuotedRef,
+    displayName: String,
+    avatarUrl: String? = null,
+    /** 20 inside a cell's embed, 22 under the composer's editor (iOS). */
+    avatarSize: androidx.compose.ui.unit.Dp = 20.dp,
+) {
     val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, colors.surfaceVariant, RoundedCornerShape(12.dp))
+            .border(1.dp, colors.textSecondary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .padding(10.dp),
     ) {
-        // iOS parity: 20dp avatar + name + timestamp header row, matching quotedEmbedCard.
+        // iOS parity: small avatar + bold name + relative time header row.
         Row(verticalAlignment = Alignment.CenterVertically) {
             ContactAvatar(
                 imageUrl = avatarUrl,
                 fallbackText = displayName,
-                size = 20.dp,
+                size = avatarSize,
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
@@ -1781,14 +1962,11 @@ private fun QuotedEmbedCard(quoted: KaPostDraft.QuotedRef, displayName: String, 
         }
         Spacer(modifier = Modifier.height(3.dp))
         Text(
-            // Markdown-rendered, or the card would show the raw **markers** the author typed.
-            // Only the text, not the annotations: this card is itself tappable through to the
-            // quoted post, and a link inside it would compete with that.
-            text = remember(quoted.text) {
-                KaPostsMarkdown.render(quoted.text).text.ifBlank { "Reposted" }
-            },
+            // Styled markdown preview, links inert. A plain repost has no text and renders as
+            // an empty body, as on iOS.
+            text = remember(quoted.text) { markdownPreview(quoted.text) },
             color = colors.textPrimary,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             maxLines = 5,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1807,7 +1985,8 @@ private fun EngagementRow(
     repostDeadline: Long?,
     likeDeadline: Long?,
     dislikeDeadline: Long?,
-    onComment: () -> Unit,
+    /** Null hides the bubble entirely (the focused post of a thread). */
+    onComment: (() -> Unit)?,
     onRepost: () -> Unit,
     onLike: () -> Unit,
     onDislike: () -> Unit,
@@ -1820,21 +1999,76 @@ private fun EngagementRow(
     // a compact anchored two-row menu (Repost / Quote) instead of the old dialog.
     onRepostConfirm: (() -> Unit)? = null,
     onQuote: (() -> Unit)? = null,
+    /** Re-submits a post that failed to reach the network (the red Retry at the row's end). */
+    onRetry: (() -> Unit)? = null,
+    onHaptic: () -> Unit = {},
 ) {
     val colors = LocalAppColors.current
+    // iOS order and colours: comment, like (red), dislike (orange), repost (accent), bookmark,
+    // share, Tip, then the delivery state at the trailing edge. Fixed 18pt gaps rather than
+    // evenly spread, so the row reads the same on every width.
+    val likeRed = Color(0xFFFF3B30)
+    val dislikeOrange = Color(0xFFFF9500)
+    var likeBurst by remember(post.id) { mutableStateOf(false) }
+    // The Kaspa-logo burst plays when the like actually lands - after the countdown fires, not
+    // on the tap that armed it (iOS runLikeBurst).
+    var previousLiked by remember(post.id) { mutableStateOf(post.likedByMe) }
+    LaunchedEffect(post.likedByMe) {
+        if (post.likedByMe && !previousLiked) {
+            likeBurst = true
+            delay(750)
+            likeBurst = false
+        }
+        previousLiked = post.likedByMe
+    }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
+        if (onComment != null) {
+            EngagementAction(
+                countdownKey = null,
+                deadline = null,
+                icon = { Icon(Icons.Outlined.ChatBubbleOutline, null, tint = colors.textSecondary, modifier = Modifier.size(18.dp)) },
+                count = commentCount,
+                onTap = { onHaptic(); onComment() },
+                onCancel = onCancelCountdown,
+            )
+        }
+        Box {
+            EngagementAction(
+                countdownKey = "like:${post.id}",
+                deadline = likeDeadline,
+                icon = {
+                    Icon(
+                        if (post.likedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null,
+                        tint = if (post.likedByMe) likeRed else colors.textSecondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                count = post.likes,
+                countTint = if (post.likedByMe) likeRed else null,
+                onTap = onLike,
+                onCancel = onCancelCountdown,
+            )
+            LikeBurst(visible = likeBurst, modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp))
+        }
         EngagementAction(
-            countdownKey = null,
-            deadline = null,
-            icon = { Icon(Icons.Outlined.ChatBubbleOutline, null, tint = colors.textSecondary, modifier = Modifier.size(18.dp)) },
-            count = commentCount,
-            onTap = onComment,
+            countdownKey = "dislike:${post.id}",
+            deadline = dislikeDeadline,
+            icon = {
+                Icon(
+                    if (post.dislikedByMe) Icons.Outlined.ThumbDown else Icons.Outlined.ThumbDownOffAlt, null,
+                    tint = if (post.dislikedByMe) dislikeOrange else colors.textSecondary,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+            count = post.dislikes,
+            countTint = if (post.dislikedByMe) dislikeOrange else null,
+            onTap = onDislike,
             onCancel = onCancelCountdown,
         )
-        Spacer(modifier = Modifier.weight(1f))
         Box {
             var repostMenuOpen by remember { mutableStateOf(false) }
             EngagementAction(
@@ -1848,7 +2082,9 @@ private fun EngagementRow(
                     )
                 },
                 count = post.reposts,
+                countTint = if (post.repostedByMe) KaspaTeal else null,
                 onTap = {
+                    onHaptic()
                     // X-style: a compact menu floating over the tapped button.
                     if (onRepostConfirm != null && onQuote != null && post.remoteId != null) {
                         repostMenuOpen = true
@@ -1870,37 +2106,6 @@ private fun EngagementRow(
                 )
             }
         }
-        Spacer(modifier = Modifier.weight(1f))
-        EngagementAction(
-            countdownKey = "like:${post.id}",
-            deadline = likeDeadline,
-            icon = {
-                Icon(
-                    if (post.likedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null,
-                    tint = if (post.likedByMe) Color(0xFFE0245E) else colors.textSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-            },
-            count = post.likes,
-            onTap = onLike,
-            onCancel = onCancelCountdown,
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        EngagementAction(
-            countdownKey = "dislike:${post.id}",
-            deadline = dislikeDeadline,
-            icon = {
-                Icon(
-                    if (post.dislikedByMe) Icons.Outlined.ThumbDown else Icons.Outlined.ThumbDownOffAlt, null,
-                    tint = if (post.dislikedByMe) Color(0xFF7E57C2) else colors.textSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-            },
-            count = post.dislikes,
-            onTap = onDislike,
-            onCancel = onCancelCountdown,
-        )
-        Spacer(modifier = Modifier.weight(1f))
         EngagementAction(
             countdownKey = null,
             deadline = null,
@@ -1918,7 +2123,6 @@ private fun EngagementRow(
         // Share: only for posts that exist on chain, matching iOS, which hides it until the
         // post has a remote id to link to.
         if (onShare != null && post.remoteId != null) {
-            Spacer(modifier = Modifier.weight(1f))
             EngagementAction(
                 countdownKey = null,
                 deadline = null,
@@ -1930,12 +2134,11 @@ private fun EngagementRow(
                     )
                 },
                 count = null,
-                onTap = onShare,
+                onTap = { onHaptic(); onShare() },
                 onCancel = onCancelCountdown,
             )
         }
         if (onTip != null) {
-            Spacer(modifier = Modifier.weight(1f))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -1949,11 +2152,88 @@ private fun EngagementRow(
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Tip", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(3.dp))
+                Text("Tip", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
             }
         }
+        Spacer(modifier = Modifier.weight(1f))
+        // Bottom-right: on-chain delivery state, mirroring chat bubbles - green check once the K
+        // transaction is on the network (for a minute), spinner while submitting, red Retry when
+        // it didn't go through (iOS).
+        DeliveryState(post = post, onRetry = onRetry)
     }
+}
+
+@Composable
+private fun DeliveryState(post: KaPostDraft, onRetry: (() -> Unit)?) {
+    val colors = LocalAppColors.current
+    when (post.deliveryStatus) {
+        KaPostDraft.Delivery.SENT -> {
+            if (post.remoteId == null) return
+            val age = System.currentTimeMillis() - post.timestamp
+            var expired by remember(post.id) { mutableStateOf(age >= 60_000L) }
+            if (!expired) {
+                LaunchedEffect(post.id) {
+                    val remaining = 60_000L - (System.currentTimeMillis() - post.timestamp)
+                    if (remaining > 0) delay(remaining)
+                    expired = true
+                }
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Posted",
+                    tint = Color(0xFF34C759),
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+        KaPostDraft.Delivery.PENDING -> CircularProgressIndicator(
+            modifier = Modifier.size(12.dp),
+            strokeWidth = 1.5.dp,
+            color = colors.textSecondary,
+        )
+        KaPostDraft.Delivery.FAILED -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(enabled = onRetry != null) { onRetry?.invoke() }
+                .padding(2.dp),
+        ) {
+            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
+            Text("Retry", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+    }
+}
+
+/**
+ * The Kaspa logo popping in with a spring, spinning once and dissolving back down to the heart -
+ * iOS runLikeBurst's keyframes, on Animatables.
+ */
+@Composable
+private fun LikeBurst(visible: Boolean, modifier: Modifier = Modifier) {
+    if (!visible) return
+    val scale = remember { androidx.compose.animation.core.Animatable(0.2f) }
+    val rotation = remember { androidx.compose.animation.core.Animatable(0f) }
+    val alpha = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) {
+        launch {
+            scale.animateTo(1.5f, androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 400f))
+        }
+        launch { alpha.animateTo(1f, androidx.compose.animation.core.tween(150)) }
+        launch { rotation.animateTo(360f, androidx.compose.animation.core.tween(550)) }
+        delay(550)
+        launch { alpha.animateTo(0f, androidx.compose.animation.core.tween(180)) }
+        scale.animateTo(0.5f, androidx.compose.animation.core.tween(180))
+    }
+    androidx.compose.foundation.Image(
+        painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+        contentDescription = null,
+        modifier = modifier
+            .size(18.dp)
+            .scale(scale.value)
+            .rotate(rotation.value)
+            .alpha(alpha.value),
+    )
 }
 
 @Composable
@@ -1964,6 +2244,8 @@ private fun EngagementAction(
     count: Int?,
     onTap: () -> Unit,
     onCancel: (String) -> Unit,
+    /** The count takes the icon's active colour (iOS tints the whole button). */
+    countTint: Color? = null,
 ) {
     val colors = LocalAppColors.current
     Row(
@@ -1982,43 +2264,15 @@ private fun EngagementAction(
         }
         if (count != null && count > 0) {
             Spacer(modifier = Modifier.width(5.dp))
+            // Raw integers, as on iOS - no "1.2K".
             Text(
-                text = formatEngagementCount(count),
-                color = colors.textSecondary,
-                fontSize = 13.sp,
+                text = "$count",
+                color = countTint ?: colors.textSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
             )
         }
-    }
-}
-
-/**
- * Live "5...4...3" ring with the seconds left. Belongs to the undo TOAST and nothing else - it is
- * the one place a countdown can be read without hunting for the row it came from, and the only
- * one on screen at a time.
- */
-@Composable
-private fun CountdownBadge(deadlineMs: Long) {
-    var remainingMs by remember(deadlineMs) { mutableLongStateOf(deadlineMs - System.currentTimeMillis()) }
-    LaunchedEffect(deadlineMs) {
-        while (remainingMs > 0) {
-            delay(100)
-            remainingMs = deadlineMs - System.currentTimeMillis()
-        }
-    }
-    val fraction = (remainingMs.coerceAtLeast(0).toFloat() / KaPostsViewModel.UNDO_DELAY_MS).coerceIn(0f, 1f)
-    val seconds = ((remainingMs + 999) / 1000).coerceAtLeast(0)
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(20.dp)) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawArc(
-                color = Color(0xFFFFA726),
-                startAngle = -90f,
-                sweepAngle = 360f * fraction,
-                useCenter = false,
-                style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
-            )
-        }
-        Text(text = "$seconds", color = Color(0xFFFFA726), fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -2032,12 +2286,19 @@ private fun CountdownBadge(deadlineMs: Long) {
  */
 @Composable
 private fun UndoBadge() {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(20.dp)) {
+    // iOS countdownButton: the undo arrow inside an orange-outlined capsule.
+    val orange = Color(0xFFFF9500)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .border(1.dp, orange.copy(alpha = 0.55f), RoundedCornerShape(50))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+    ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
             contentDescription = "Undo",
-            tint = Color(0xFFFFA726),
-            modifier = Modifier.size(17.dp),
+            tint = orange,
+            modifier = Modifier.size(13.dp),
         )
     }
 }
@@ -2113,6 +2374,8 @@ fun KaPostComposerDialog(
     quotedAvatarUrl: String? = null,
     /** Overrides the submit button's wording. A reply says "Reply", not "Post". */
     submitLabel: String? = null,
+    /** The card under the editor is the post being ANSWERED, not quoted: "Post your reply". */
+    isReply: Boolean = false,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
     /** Enables @mention autocomplete (chips of 1:1 KNS-domain contacts) when provided. */
@@ -2135,12 +2398,26 @@ fun KaPostComposerDialog(
     // drafts exist.
     var showCloseOptions by remember { mutableStateOf(false) }
     val limit = KaPostDraft.POST_CHARACTER_LIMIT
+    // Counted in grapheme clusters, as iOS counts Characters: an emoji is one, not two.
+    val charCount = remember(text.text) { graphemeCount(text.text) }
     val totalSegments = threadSegments.size + (if (text.text.isNotBlank()) 1 else 0)
-    val canPost = totalSegments > 0 && text.text.length <= limit
+    val canPost = totalSegments > 0 && charCount <= limit
     val threadingEnabled = onSubmitThread != null && quoted == null
+    val editorFocus = remember { FocusRequester() }
+    var editorFocused by remember { mutableStateOf(false) }
+    val hapticView = LocalView.current
+    val showFeeEstimate by (viewModel?.showFeeEstimate?.collectAsState() ?: remember { mutableStateOf(false) })
+
+    /** Anything written is worth asking about (iOS hasUnsavedContent). */
+    fun requestClose() {
+        val hasContent = (listOf(text.text) + threadSegments).any { it.isNotBlank() }
+        if (hasContent && onSaveDraft != null) showCloseOptions = true else onDismiss()
+    }
 
     // Warm the KNS caches so typing @ has domains to offer.
     LaunchedEffect(Unit) { viewModel?.prefetchMentionCandidates() }
+    // The editor is what this screen is for: it takes focus as it appears (iOS isFocused = true).
+    LaunchedEffect(Unit) { runCatching { editorFocus.requestFocus() } }
     // The @token being typed at the END of the text ("" right after "@"), or null.
     val mentionQuery = remember(text.text) {
         MENTION_QUERY_REGEX
@@ -2155,7 +2432,10 @@ fun KaPostComposerDialog(
         kotlinx.coroutines.delay(400)
         resolvedAnyDomain = viewModel.resolveMentionQuery(query)
     }
-    val mentionSuggestions = remember(text.text, resolvedAnyDomain) {
+    // Keyed on the KNS name map too, so a contact whose domain resolves after the @ was typed
+    // appears without another keystroke (iOS observes KNSService).
+    val knsNames by (viewModel?.senderKnsNames?.collectAsState() ?: remember { mutableStateOf(emptyMap<String, String?>()) })
+    val mentionSuggestions = remember(text.text, resolvedAnyDomain, knsNames) {
         val query = mentionQuery
         if (query == null || viewModel == null) emptyList()
         else {
@@ -2163,7 +2443,6 @@ fun KaPostComposerDialog(
                 .map { it.first }
                 .filter { query.isEmpty() || it.startsWith(query) }
                 .sorted()
-                .take(6)
             val extra = resolvedAnyDomain
             if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
                 contacts + extra
@@ -2172,7 +2451,9 @@ fun KaPostComposerDialog(
     }
 
     Dialog(
-        onDismissRequest = onDismiss,
+        // System back goes through the same "Save this post?" question as the X - a dismiss that
+        // throws written text away is the one thing the drafts flow exists to prevent.
+        onDismissRequest = { requestClose() },
         properties = KaPostsFullScreenDialogProperties,
     ) {
         ForceFullScreenDialogWindow()
@@ -2222,11 +2503,7 @@ fun KaPostComposerDialog(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(colors.surface)
-                        .clickable {
-                            // Anything written is worth asking about.
-                            val hasContent = (listOf(text.text) + threadSegments).any { it.isNotBlank() }
-                            if (hasContent && onSaveDraft != null) showCloseOptions = true else onDismiss()
-                        }
+                        .clickable { requestClose() }
                         .padding(10.dp),
                 ) {
                     Icon(
@@ -2244,7 +2521,7 @@ fun KaPostComposerDialog(
                     fontSize = 20.sp,
                     modifier = Modifier.weight(1f),
                 )
-                KaPostCharacterMeter(count = text.text.length)
+                KaPostCharacterMeter(count = charCount)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     if (totalSegments > 1) "Post All ($totalSegments)" else (submitLabel ?: "Post"),
@@ -2321,37 +2598,15 @@ fun KaPostComposerDialog(
             // you've chatted with (plus a live-resolved any-KNS match), iOS/group-chat style.
             // Above the editor so the keyboard can never hide it.
             if (mentionSuggestions.isNotEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .widthIn(max = 280.dp)
-                        .heightIn(max = 168.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.surface)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    mentionSuggestions.forEachIndexed { index, domain ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val replaced = text.text.replace(MENTION_REPLACE_REGEX, "@$domain ")
-                                    // Caret to the end of the inserted mention, otherwise it would
-                                    // snap back to offset 0 and the editor would scroll to the top.
-                                    text = TextFieldValue(replaced, TextRange(replaced.length))
-                                }
-                                .padding(horizontal = 12.dp, vertical = 9.dp),
-                        ) {
-                            Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(domain, color = colors.textPrimary, fontSize = 14.sp)
-                        }
-                        if (index != mentionSuggestions.lastIndex) {
-                            HorizontalDivider(color = colors.surfaceVariant)
-                        }
-                    }
-                }
+                KaPostMentionSuggestionList(
+                    suggestions = mentionSuggestions,
+                    onPick = { domain ->
+                        val replaced = text.text.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                        // Caret to the end of the inserted mention, otherwise it would
+                        // snap back to offset 0 and the editor would scroll to the top.
+                        text = TextFieldValue(replaced, TextRange(replaced.length))
+                    },
+                )
                 Spacer(modifier = Modifier.height(8.dp))
             }
             // Bordered editor card with the X-style + floating in its corner: tapping + stacks
@@ -2383,10 +2638,9 @@ fun KaPostComposerDialog(
                     // when quoting it pushed the quoted post off the bottom edge so you could
                     // not see what you were replying to. Capped so a long post scrolls inside
                     // the box rather than walking the toolbar off the screen.
-                    .then(
-                        if (quoted != null) Modifier.height(160.dp)
-                        else Modifier.heightIn(min = 120.dp, max = 300.dp)
-                    )
+                    // iOS: a 120pt floor that grows with the text, whatever is under it (a quoted
+                    // or answered post included); capped so a long post scrolls inside the box.
+                    .heightIn(min = 120.dp, max = if (quoted != null) 220.dp else 300.dp)
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
@@ -2398,10 +2652,13 @@ fun KaPostComposerDialog(
                 ) {
                     BasicTextField(
                         value = text,
-                        onValueChange = { if (it.text.length <= limit) text = it },
+                        // Hard cap at the limit, X-style: a paste that overflows is clipped to
+                        // the first 25,000 characters rather than dropped (iOS prefix).
+                        onValueChange = { text = clampToCharacterLimit(it, limit) },
                         onTextLayout = { editorLayout = it },
                         textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp, lineHeight = 22.sp),
                         cursorBrush = SolidColor(KaspaTeal),
+                        keyboardOptions = KeyboardOptions(autoCorrect = false),
                         modifier = Modifier
                             .fillMaxWidth()
                             // Short drafts still fill the whole card, so a tap anywhere inside
@@ -2411,11 +2668,18 @@ fun KaPostComposerDialog(
                             // it up a frame at a time until it hit the cap. 120dp box minus its
                             // 12dp padding top and bottom.
                             .heightIn(min = 96.dp)
-                            .padding(12.dp),
+                            .padding(12.dp)
+                            .focusRequester(editorFocus)
+                            .onFocusChanged { editorFocused = it.isFocused },
                         decorationBox = { inner ->
                             if (text.text.isEmpty()) {
                                 Text(
-                                    if (threadSegments.isEmpty()) "What's happening on Kaspa?" else "Add another post",
+                                    when {
+                                        isReply -> "Post your reply"
+                                        quoted != null -> "Add a comment"
+                                        threadSegments.isEmpty() -> "What's happening on Kaspa?"
+                                        else -> "Add another post"
+                                    },
                                     color = colors.textSecondary,
                                     fontSize = 16.sp,
                                 )
@@ -2458,6 +2722,19 @@ fun KaPostComposerDialog(
                     }
                 }
             }
+            // Live network-fee estimate while typing (Settings > Show Fee Estimate), matching
+            // the chat composer's behaviour (iOS feeEstimateRow).
+            val trimmedForFee = text.text.trim()
+            if (showFeeEstimate && trimmedForFee.isNotEmpty() && viewModel != null) {
+                val fee = remember(trimmedForFee) { viewModel.estimatePostFeeSompi(trimmedForFee) }
+                Text(
+                    "Est. fee: ${"%.8f".format(java.util.Locale.US, fee / 100_000_000.0)} KAS",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
             Spacer(modifier = Modifier.height(2.dp))
             quoted?.let {
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -2470,21 +2747,102 @@ fun KaPostComposerDialog(
                         ),
                         displayName = quotedDisplayName,
                         avatarUrl = quotedAvatarUrl,
+                        avatarSize = 22.dp,
                     )
                 }
             }
+            Spacer(modifier = Modifier.weight(1f))
             // Last in the column, so it rides directly on top of the keyboard, where a formatting
-            // bar belongs.
-            MarkdownFormattingToolbar { action ->
-                val edit = KaPostsMarkdown.apply(
-                    action,
-                    text.text,
-                    text.selection.min,
-                    text.selection.max,
-                )
-                if (edit.text.length <= limit) {
-                    text = TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd))
+            // bar belongs - and only while the editor has focus, as on iOS: a permanent row of
+            // eight icons with nothing to act on is clutter.
+            if (editorFocused) {
+                MarkdownFormattingToolbar { action ->
+                    hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    val edit = KaPostsMarkdown.apply(
+                        action,
+                        text.text,
+                        text.selection.min,
+                        text.selection.max,
+                    )
+                    text = clampToCharacterLimit(
+                        TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd)),
+                        limit,
+                    )
                 }
+            }
+        }
+    }
+}
+
+/** Characters as a reader counts them: grapheme clusters, the way iOS's `String.count` does. */
+private fun graphemeCount(text: String): Int {
+    if (text.isEmpty()) return 0
+    // Pure ASCII cannot contain a multi-unit cluster, so skip the iterator for the common case.
+    if (text.all { it.code < 0x80 }) return text.length
+    val iterator = java.text.BreakIterator.getCharacterInstance()
+    iterator.setText(text)
+    var count = 0
+    while (iterator.next() != java.text.BreakIterator.DONE) count++
+    return count
+}
+
+/** Clips [value] to its first [limit] grapheme clusters, keeping the caret inside the text. */
+private fun clampToCharacterLimit(value: TextFieldValue, limit: Int): TextFieldValue {
+    val text = value.text
+    if (text.length <= limit) return value
+    if (graphemeCount(text) <= limit) return value
+    val iterator = java.text.BreakIterator.getCharacterInstance()
+    iterator.setText(text)
+    var count = 0
+    var end = 0
+    while (count < limit) {
+        val next = iterator.next()
+        if (next == java.text.BreakIterator.DONE) { end = text.length; break }
+        end = next
+        count++
+    }
+    val clipped = text.substring(0, end)
+    return TextFieldValue(
+        clipped,
+        TextRange(value.selection.start.coerceAtMost(clipped.length), value.selection.end.coerceAtMost(clipped.length)),
+    )
+}
+
+/**
+ * The @mention list above an editor: the KNS domains of everyone you've chatted with plus a
+ * live-resolved any-KNS match. Short lists hug their content; longer ones scroll at a fixed
+ * height (~4.5 rows, so it visibly reads as scrollable). iOS KaPostMentionSuggestionBar.
+ */
+@Composable
+private fun KaPostMentionSuggestionList(
+    suggestions: List<String>,
+    onPick: (String) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .widthIn(max = 280.dp)
+            .then(if (suggestions.size > 4) Modifier.height(168.dp) else Modifier)
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.textPrimary.copy(alpha = 0.06f))
+            .border(1.dp, colors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+            .verticalScroll(rememberScrollState()),
+    ) {
+        suggestions.forEachIndexed { index, domain ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onPick(domain) }
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+            ) {
+                Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(domain, color = colors.textPrimary, fontSize = 14.sp)
+            }
+            if (index != suggestions.lastIndex) {
+                HorizontalDivider(color = colors.surfaceVariant)
             }
         }
     }
@@ -2547,7 +2905,6 @@ private fun MarkdownFormattingToolbar(onAction: (KaPostsMarkdown.ToolbarAction) 
  */
 @Composable
 fun KaPostCharacterMeter(count: Int) {
-    if (count == 0) return
     val colors = LocalAppColors.current
     val limit = KaPostDraft.POST_CHARACTER_LIMIT
     val progress = (count.toFloat() / limit).coerceIn(0f, 1f)
@@ -2558,7 +2915,9 @@ fun KaPostCharacterMeter(count: Int) {
         nearLimit -> Color(0xFFFFA726)
         else -> KaspaTeal
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // Invisible rather than absent while empty, so the header does not shift when the first
+    // character is typed (iOS keeps the slot with opacity 0).
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(if (count == 0) 0f else 1f)) {
         if (nearLimit) {
             Text(
                 text = "$remaining",
@@ -2584,7 +2943,7 @@ fun KaPostCharacterMeter(count: Int) {
     }
 }
 
-// MARK: - Thread overlay (root + replies, X-style inline nested expansion)
+// MARK: - Thread overlay (ancestors + root + conversation + comments, X-style)
 
 /**
  * Rendered as a full-screen overlay INSIDE the KaPosts composition, deliberately not as a
@@ -2598,6 +2957,11 @@ fun KaPostCharacterMeter(count: Int) {
  * the bottom of the screen, and no amount of inset padding could fix it because the window itself
  * was the wrong size. In the ordinary composition the overlay is measured by the same layout path
  * as every other screen in the app, which lays out correctly.
+ *
+ * Layout mirrors iOS's thread sheet: the chain above (full cells joined by a thread line), the
+ * focused post, the author's continuation ("Thread") or an unbranched exchange ("Conversation"),
+ * a "Comments (N)" header, the comments with one level of inline expansion, and a small reply box
+ * pinned under it all.
  */
 @Composable
 fun KaPostThreadOverlay(
@@ -2618,10 +2982,13 @@ fun KaPostThreadOverlay(
      * desktop. The inline box at the bottom stays for answering the post you opened.
      */
     onReplyToComment: (KaPostDraft) -> Unit = {},
-    /** RemoteId of a reply to scroll to once it lands (reply-notification taps open the
-     *  PARENT's thread and hand the reply's txid through here). */
+    /** RemoteId of a reply to scroll to once it lands (reply landings open the PARENT's thread
+     *  and hand the reply's txid through here). */
     focusReplyRemoteId: String? = null,
     onFocusReplyHandled: () -> Unit = {},
+    /** The reply box's text, hoisted so it survives walking up and down the thread (iOS). */
+    replyText: TextFieldValue = TextFieldValue(""),
+    onReplyTextChange: (TextFieldValue) -> Unit = {},
 ) {
     val colors = LocalAppColors.current
     // Resolving against the post tree (rather than taking a KaPostDraft parameter) is what
@@ -2641,20 +3008,41 @@ fun KaPostThreadOverlay(
         }
     }
     val post = postState
+    // System back closes this level of the thread, matching the Back button in the header.
+    // Nested pushes each get their own overlay instance, so back walks the thread stack down
+    // one level at a time.
+    BackHandler(onBack = onClose)
     if (post == null) {
-        // The thread's post vanished (feed refresh dropped it) - pop this level.
-        LaunchedEffect(postId) { onClose() }
-        return
-    }
-    /** Which post in this thread the composer targets; null = the thread root. */
-    var replyTargetId by remember(postId) { mutableStateOf<String?>(null) }
-    // Tapping a comment's reply bubble retargets the composer AND raises the keyboard in the
-    // same gesture — before this, the user had to land a second tap on the field itself.
-    val replyFieldFocus = remember { FocusRequester() }
-    LaunchedEffect(replyTargetId) {
-        if (replyTargetId != null) {
-            runCatching { replyFieldFocus.requestFocus() }
+        // An id this view cannot resolve (the feed refresh dropped it, the network never
+        // answered): say so rather than showing a blank screen (iOS).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.background)
+                .pointerInput(Unit) { detectHorizontalDragGestures { _, _ -> } },
+        ) {
+            Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(KaPostsOverlayInsets)) {
+                KaPostsOverlayStatusBar()
+                KaPostsOverlayHeader(title = "Post", closeLabel = "Back", onClose = onClose)
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(Icons.Default.Edit, null, tint = colors.textSecondary, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("This post could not be loaded", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "It may have been removed, or the network may be unreachable.",
+                        color = colors.textSecondary,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
         }
+        return
     }
     // Zero-balance funding gate — tapping the reply composer while the chatting balance is a
     // confirmed 0 KAS opens the shared funding card instead of the reply field/keyboard.
@@ -2674,11 +3062,10 @@ fun KaPostThreadOverlay(
             it.posterAddress !in hidden && (it.remoteId == null || it.remoteId !in chainRemoteIds)
         }
     }
-    // Falls back to the root whenever the targeted comment is gone (a refresh replaced it).
-    val replyTarget = remember(replyTargetId, post) {
-        replyTargetId?.let { viewModel.findPost(it) } ?: post
-    }
-    val replyingToComment = replyTarget.id != post.id
+    // "Thread" is what an author calls their OWN continuation. When the chain carries other
+    // people's replies it is a conversation, and calling that a thread would credit them to
+    // the root author (iOS isSelfThread).
+    val isSelfThread = remember(threadChain, post.posterAddress) { threadChain.all { it.posterAddress == post.posterAddress } }
 
     LaunchedEffect(post.remoteId) {
         viewModel.loadReplies(post)
@@ -2698,26 +3085,23 @@ fun KaPostThreadOverlay(
         viewModel.loadMoreReplies(post)
     }
 
-    // Scroll-to-the-new-reply for notification landings. Re-keys on the comment list until the
-    // focused reply is actually among the loaded comments (page one may still be in flight),
-    // then scrolls once and clears the focus so nothing re-scrolls later. Index math mirrors
-    // the LazyColumn below: root-context + root, then the optional chain section
-    // (header + segments + divider), then the comments.
+    // Scroll-to-the-reply for reply landings. Re-keys on the comment list until the focused
+    // reply is actually among the loaded comments (page one may still be in flight), then
+    // scrolls once and clears the focus so nothing re-scrolls later. Index math mirrors the
+    // LazyColumn below: ancestors, root-context, root, the optional chain section (header +
+    // segments + divider), the comments header, then the comments.
     if (focusReplyRemoteId != null) {
-        LaunchedEffect(visibleComments, threadChain, focusReplyRemoteId) {
+        LaunchedEffect(visibleComments, threadChain, ancestors.size, focusReplyRemoteId) {
             val commentIndex = visibleComments.indexOfFirst { it.remoteId == focusReplyRemoteId }
             if (commentIndex >= 0) {
                 val chainItems = if (threadChain.isEmpty()) 0 else threadChain.size + 2
-                runCatching { threadListState.animateScrollToItem(2 + chainItems + commentIndex) }
+                val target = ancestors.size + 2 + chainItems + 1 + commentIndex
+                delay(500)
+                runCatching { threadListState.animateScrollToItem(target) }
                 onFocusReplyHandled()
             }
         }
     }
-
-    // System back closes this level of the thread, matching the Dialog's dismiss behaviour and the
-    // Back arrow in the header. Nested pushes each get their own overlay instance, so back walks
-    // the thread stack down one level at a time.
-    BackHandler(onBack = onClose)
 
     Box(
         modifier = Modifier
@@ -2745,38 +3129,48 @@ fun KaPostThreadOverlay(
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             KaPostsOverlayStatusBar()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onClose) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = KaspaTeal)
-                }
-                Text("Post", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            }
-            HorizontalDivider(color = colors.surfaceVariant)
+            // ONE control, and it always means back: up a level while the thread has history,
+            // out of it at the root (iOS).
+            KaPostsOverlayHeader(title = "Post", closeLabel = "Back", onClose = onClose)
             LazyColumn(state = threadListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
                 // The chain above this post, oldest first, each rung tappable to jump straight
-                // to that level - X stacks these over the focal post. Replaces a single
-                // "Replying to a post" link that showed one step with no idea whose it was.
+                // to that level - X stacks these over the focal post. Full post cells, not
+                // summaries: the parents ARE posts, so they behave like posts and the screen
+                // reads as one conversation. Long ones truncate so the post you actually opened
+                // still owns the screen.
                 items(ancestors, key = { "ancestor-${it.id}" }) { ancestor ->
-                    // Full post cells, not summaries. The two-line rungs this replaces read as a
-                    // separate block of older content stapled above the thread, and they could
-                    // not be liked, reposted or replied to - the parents ARE posts, so they
-                    // behave like posts and the screen reads as one conversation. Long ones
-                    // truncate so the post you actually opened still owns the screen.
-                    KaPostCell(
-                        post = ancestor,
-                        viewModel = viewModel,
-                        onOpenThread = { onJumpToAncestor(ancestor) },
-                        onRepostTap = { onRepostTap(ancestor) },
-                        onOpenProfile = { onOpenProfile(ancestor.posterAddress, ancestor.posterPubkey) },
-                        onOpenQuoted = onOpenShared,
-                        onViewEngagement = { onViewEngagement(ancestor) },
-                        truncatesLongText = true,
-                        onReply = { onReplyToComment(ancestor) },
-                    )
-                    HorizontalDivider(color = colors.surfaceVariant)
+                    // X's thread line, and no divider: a rule between two posts separates them,
+                    // while the line running down the avatar column from one into the next is
+                    // what makes the chain read as one conversation. Drawn over the cell rather
+                    // than beside it, so the post keeps the same full width as every other cell.
+                    // The geometry follows the cell's own: 16dp leading plus a 40dp avatar puts
+                    // its centre at 36, and 12dp top padding plus that avatar ends it at 52.
+                    Box {
+                        KaPostCell(
+                            post = ancestor,
+                            viewModel = viewModel,
+                            onOpenThread = { onJumpToAncestor(ancestor) },
+                            onRepostTap = { onRepostTap(ancestor) },
+                            onOpenProfile = { onOpenProfile(ancestor.posterAddress, ancestor.posterPubkey) },
+                            onOpenQuoted = onOpenShared,
+                            onViewEngagement = { onViewEngagement(ancestor) },
+                            truncatesLongText = true,
+                            onReply = { onReplyToComment(ancestor) },
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .padding(start = 35.dp, top = 52.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(2.dp)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(1.dp))
+                                    .background(colors.textSecondary.copy(alpha = 0.3f)),
+                            )
+                        }
+                    }
                 }
                 item(key = "root-context") {
                     // The step ABOVE whatever the chain could reach: this post is a reply to
@@ -2804,33 +3198,45 @@ fun KaPostThreadOverlay(
                         onOpenProfile = { onOpenProfile(post.posterAddress, post.posterPubkey) },
                         onOpenQuoted = onOpenShared,
                         onViewEngagement = { onViewEngagement(post) },
+                        // The focused post has no reply bubble: the box under the thread is its
+                        // reply (iOS threadCell isRoot).
                         isRoot = true,
-                        // In-thread the comment bubble means "reply to this", not "open this".
-                        onReply = { replyTargetId = null },
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
                 }
                 // X-style thread reading: the author's own continuation, connected and ordered.
                 if (threadChain.isNotEmpty()) {
                     item(key = "thread-chain-header") {
-                        Text(
-                            "Thread · ${threadChain.size + 1} posts",
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.PlaylistAdd,
+                                contentDescription = null,
+                                tint = KaspaTeal,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${if (isSelfThread) "Thread" else "Conversation"} · ${threadChain.size + 1} posts",
+                                color = KaspaTeal,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                            )
+                        }
                     }
                     items(threadChain, key = { "chain-${it.id}" }) { segment ->
                         LaunchedEffect(segment.posterAddress) {
                             viewModel.ensureSenderProfileFetched(segment.posterAddress)
                         }
-                        Row(modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
                             Box(
                                 modifier = Modifier
-                                    .padding(start = 16.dp)
+                                    .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
                                     .width(2.dp)
                                     .fillMaxHeight()
+                                    .clip(RoundedCornerShape(1.dp))
                                     .background(KaspaTeal.copy(alpha = 0.35f)),
                             )
                             Box(modifier = Modifier.weight(1f)) {
@@ -2842,6 +3248,7 @@ fun KaPostThreadOverlay(
                                     onOpenProfile = { onOpenProfile(segment.posterAddress, segment.posterPubkey) },
                                     onOpenQuoted = onOpenShared,
                                     onViewEngagement = { onViewEngagement(segment) },
+                                    onReply = { onReplyToComment(segment) },
                                 )
                             }
                         }
@@ -2850,18 +3257,28 @@ fun KaPostThreadOverlay(
                         HorizontalDivider(color = colors.surfaceVariant)
                     }
                 }
+                item(key = "comments-header") {
+                    Text(
+                        if (visibleComments.isEmpty()) "Comments" else "Comments (${visibleComments.size})",
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                    )
+                }
                 if (visibleComments.isEmpty()) {
-                    // Otherwise the space between the post and the pinned composer is just a
-                    // large black void (it filled most of the screen in the bug report). Same
-                    // copy as iOS's thread view.
+                    // An unbranched exchange is rendered in full ABOVE, and its members are
+                    // filtered out of this list - so "no comments yet" would contradict the
+                    // replies the reader can already see (iOS).
                     item(key = "no-comments") {
                         Text(
-                            "No comments yet - be the first to reply.",
+                            if (threadChain.isEmpty()) "No comments yet - be the first to reply."
+                            else "Every reply is in the conversation above.",
                             color = colors.textSecondary,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 24.dp),
+                                .padding(horizontal = 16.dp, vertical = 20.dp),
                         )
                     }
                 }
@@ -2871,8 +3288,7 @@ fun KaPostThreadOverlay(
                     }
                     ThreadCommentNode(
                         comment = comment,
-                        depth = 0,
-                        expandedIds = expandedIds,
+                        expanded = comment.id in expandedIds,
                         hidden = hidden,
                         viewModel = viewModel,
                         onToggleExpand = { id ->
@@ -2889,39 +3305,28 @@ fun KaPostThreadOverlay(
                     )
                     HorizontalDivider(
                         color = colors.surfaceVariant,
-                        modifier = Modifier.padding(start = 88.dp),
+                        modifier = Modifier.padding(start = 68.dp),
                     )
                 }
                 pagingFooter(threadPaging, keySuffix = "thread") {
-                    viewModel.loadMoreReplies(post)
+                    viewModel.loadMoreReplies(post, manual = true)
                 }
             }
             HorizontalDivider(color = colors.surfaceVariant)
+            // X's shape: a small reply box directly under the post you opened, with the replies
+            // above it. Answering a SPECIFIC reply still opens the composer (see the comment
+            // cells' onReply), where that reply renders under the editor.
+            //
             // While the funding gate is active the reply row renders dimmed and any tap on it
             // opens the funding card instead of focusing the field — same "no composer until
-            // funded" rule as the New Post FAB above.
+            // funded" rule as the New Post button.
             ThreadReplyComposer(
                 viewModel = viewModel,
-                postId = postId,
-                replyingToComment = replyingToComment,
-                replyTargetName = if (replyingToComment) viewModel.posterDisplayName(replyTarget.posterAddress) else "",
+                text = replyText,
+                onTextChange = onReplyTextChange,
                 fundingGateActive = fundingGate.active,
-                focusRequester = replyFieldFocus,
                 onShowFundingGate = { showFundingGate = true },
-                onClearReplyTarget = { replyTargetId = null },
-                onSubmit = { text ->
-                    // Replies nest against their IMMEDIATE parent (postId + mention = that
-                    // comment and its author), which is what the indexer keys get-replies on.
-                    val target = replyTarget
-                    viewModel.submitReply(target, text)
-                    // Reveal the new reply straight away: a comment's children only render
-                    // while it's expanded.
-                    if (target.id != post.id && target.id !in expandedIds) {
-                        viewModel.expandReplies(target)
-                        expandedIds = expandedIds + target.id
-                    }
-                    replyTargetId = null
-                },
+                onSubmit = { text -> viewModel.submitReply(post, text) },
             )
         }
         // The main screen's toast layer sits BEHIND this opaque overlay — without a copy in
@@ -2931,7 +3336,7 @@ fun KaPostThreadOverlay(
         // KaPostsToastLayer's own restart scope so toast emissions never recompose the overlay.
         KaPostsToastLayer(
             viewModel = viewModel,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 70.dp),
         )
     }
 
@@ -2944,8 +3349,6 @@ fun KaPostThreadOverlay(
         )
     }
 }
-
-
 
 /** The undo/confirmation toast stack in its OWN restart scope (used by the main screen and the
  *  thread overlay): toast emissions recompose this layer only, never the screen or list behind. */
@@ -2965,80 +3368,37 @@ private fun KaPostsToastLayer(viewModel: KaPostsViewModel, modifier: Modifier = 
 }
 
 /**
- * The thread's pinned reply composer, extracted into its OWN restart scope: replyText lives
- * here, so a keystroke recomposes only this composable — previously every character re-ran the
- * whole thread overlay (every visible comment included), which was the reported typing lag.
+ * The thread's pinned reply box, in its OWN restart scope so a keystroke recomposes only this
+ * composable and not every visible comment above it.
+ *
+ * iOS's shape: the mention list above, a field of about four lines that then scrolls internally,
+ * the character meter, and an arrow-up send button - no formatting toolbar, the composer has that.
+ * The box always targets the opened post.
  */
 @Composable
 private fun ThreadReplyComposer(
     viewModel: KaPostsViewModel,
-    postId: String,
-    replyingToComment: Boolean,
-    replyTargetName: String,
+    text: TextFieldValue,
+    onTextChange: (TextFieldValue) -> Unit,
     fundingGateActive: Boolean,
-    focusRequester: FocusRequester,
     onShowFundingGate: () -> Unit,
-    onClearReplyTarget: () -> Unit,
     onSubmit: (String) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    // TextFieldValue rather than String: the formatting bar below needs to know what is
-    // highlighted, and the String overload never exposes it.
-    var reply by remember(postId) { mutableStateOf(TextFieldValue("")) }
-    // Undo on a comment hands the words back here: the reply bar is still on screen, so there
-    // is nothing to reopen - the text just returns to where it was written, caret at the end.
-    val restoredDraft by viewModel.restoredDraft.collectAsState()
-    LaunchedEffect(restoredDraft) {
-        val draft = restoredDraft
-        if (draft != null && draft.isComment) {
-            reply = TextFieldValue(draft.text, selection = TextRange(draft.text.length))
-            viewModel.clearRestoredDraft()
-        }
-    }
-    val replyText = reply.text
-    // The formatting bar only appears while the field has focus - this composer is pinned in the
-    // thread whether or not the keyboard is up, and a permanent row of eight icons over the
-    // thread is clutter with nothing to act on. Matches iOS.
-    var replyFocused by remember(postId) { mutableStateOf(false) }
+    val replyText = text.text
+    val charCount = remember(replyText) { graphemeCount(replyText) }
+    val canSend = replyText.isNotBlank()
+    val hapticView = LocalView.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     Box {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .alpha(if (fundingGateActive) 0.35f else 1f),
+                .alpha(if (fundingGateActive) 0.45f else 1f),
         ) {
-            // "Replying to <name> x" - the composer targets a comment rather than the
-            // thread root (desktop's reply-context chip). Clearing it aims at the root.
-            if (replyingToComment) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 12.dp, top = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Replying to ${replyTargetName}",
-                        color = KaspaTeal,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Reply to the original post instead",
-                        tint = colors.textSecondary,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable { onClearReplyTarget() },
-                    )
-                }
-            }
-            // @mention autocomplete for COMMENTS - identical machinery to the post
-            // composer: KNS domains of everyone you've chatted with, plus a live
-            // any-KNS resolve of the typed query. Shown above the input so the
-            // keyboard can never hide it.
+            // @mention autocomplete for COMMENTS - identical machinery to the post composer:
+            // KNS domains of everyone you've chatted with, plus a live any-KNS resolve of the
+            // typed query. Shown above the input so the keyboard can never hide it.
             LaunchedEffect(Unit) { viewModel.prefetchMentionCandidates() }
             val replyMentionQuery = remember(replyText) {
                 MENTION_QUERY_REGEX
@@ -3052,7 +3412,8 @@ private fun ThreadReplyComposer(
                 kotlinx.coroutines.delay(400)
                 replyResolvedAnyDomain = viewModel.resolveMentionQuery(query)
             }
-            val replyMentionSuggestions = remember(replyText, replyResolvedAnyDomain) {
+            val knsNames by viewModel.senderKnsNames.collectAsState()
+            val replyMentionSuggestions = remember(replyText, replyResolvedAnyDomain, knsNames) {
                 val query = replyMentionQuery
                 if (query == null) emptyList()
                 else {
@@ -3060,7 +3421,6 @@ private fun ThreadReplyComposer(
                         .map { it.first }
                         .filter { query.isEmpty() || it.startsWith(query) }
                         .sorted()
-                        .take(6)
                     val extra = replyResolvedAnyDomain
                     if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
                         contacts + extra
@@ -3068,98 +3428,64 @@ private fun ThreadReplyComposer(
                 }
             }
             if (replyMentionSuggestions.isNotEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .widthIn(max = 280.dp)
-                        .heightIn(max = 168.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.surface)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    replyMentionSuggestions.forEachIndexed { index, domain ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    // The caret goes to the end with the text: this rewrites the
-                                    // field from outside, and the completion always happens at the
-                                    // end, so leaving the old offset would strand it mid-sentence.
-                                    val completed = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
-                                    reply = TextFieldValue(completed, TextRange(completed.length))
-                                }
-                                .padding(horizontal = 12.dp, vertical = 9.dp),
-                        ) {
-                            Text("@", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(domain, color = colors.textPrimary, fontSize = 14.sp)
-                        }
-                        if (index != replyMentionSuggestions.lastIndex) {
-                            HorizontalDivider(color = colors.surfaceVariant)
-                        }
-                    }
-                }
-            }
-            // Replies are posts, so they get the same formatting bar.
-            if (replyFocused) MarkdownFormattingToolbar { action ->
-                val edit = KaPostsMarkdown.apply(action, replyText, reply.selection.min, reply.selection.max)
-                if (edit.text.length <= KaPostDraft.POST_CHARACTER_LIMIT) {
-                    reply = TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd))
-                }
+                Spacer(Modifier.height(8.dp))
+                KaPostMentionSuggestionList(
+                    suggestions = replyMentionSuggestions,
+                    onPick = { domain ->
+                        // The completion lands at the caret: the token being completed is the
+                        // one at the end of the text, so the caret goes to the end with it.
+                        val completed = replyText.replace(MENTION_REPLACE_REGEX, "@$domain ")
+                        onTextChange(TextFieldValue(completed, TextRange(completed.length)))
+                    },
+                )
             }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 BasicTextField(
-                    value = reply,
-                    onValueChange = { if (it.text.length <= KaPostDraft.POST_CHARACTER_LIMIT) reply = it },
-                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
+                    value = text,
+                    // Hard cap at the limit, X-style - clipped, never dropped (iOS prefix).
+                    onValueChange = { onTextChange(clampToCharacterLimit(it, KaPostDraft.POST_CHARACTER_LIMIT)) },
+                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, lineHeight = 20.sp),
                     cursorBrush = SolidColor(KaspaTeal),
-                    // Load-bearing cap, same idea as the chat composer's maxLines = 4. Without it
-                    // this field has no height bound at all: Column measures the pinned composer
-                    // BEFORE the weighted thread list, so a long reply grew until it had eaten the
-                    // entire overlay, and - because the field's own scroll container only starts
-                    // clamping once it hits that ceiling - the caret rode the bottom edge down
-                    // behind the IME on the way there. Capped at six lines the container size is
-                    // constant, so foundation's internal caret scroller keeps the caret in view.
-                    maxLines = 6,
+                    keyboardOptions = KeyboardOptions(autoCorrect = false),
+                    // Roughly four lines: past that the field scrolls instead of pushing the post
+                    // you are answering off the screen (iOS maxHeight 92).
+                    maxLines = 4,
                     modifier = Modifier
                         .weight(1f)
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { replyFocused = it.isFocused }
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(colors.surface)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        // A fixed radius, not a capsule: a capsule's corners are half its height,
+                        // so a grown multi-line field curves into its own text.
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(colors.textSecondary.copy(alpha = 0.12f))
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
                     decorationBox = { inner ->
                         if (replyText.isEmpty()) {
-                            Text(
-                                if (replyingToComment) "Post your reply to this comment" else "Post your reply",
-                                color = colors.textSecondary,
-                                fontSize = 15.sp,
-                            )
+                            Text("Post your reply", color = colors.textSecondary, fontSize = 15.sp)
                         }
                         inner()
                     },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                KaPostCharacterMeter(count = replyText.length)
-                TextButton(
-                    onClick = {
-                        onSubmit(replyText.trim())
-                        reply = TextFieldValue("")
-                    },
-                    enabled = replyText.isNotBlank(),
-                ) {
-                    Text(
-                        "Reply",
-                        color = if (replyText.isNotBlank()) KaspaTeal else colors.textSecondary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                KaPostCharacterMeter(count = charCount)
+                Icon(
+                    Icons.Default.ArrowCircleUp,
+                    contentDescription = "Reply",
+                    tint = if (canSend) KaspaTeal else colors.textSecondary,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = canSend) {
+                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                            val trimmed = replyText.trim()
+                            onTextChange(TextFieldValue(""))
+                            focusManager.clearFocus()
+                            onSubmit(trimmed)
+                        },
+                )
             }
         }
         if (fundingGateActive) {
@@ -3176,39 +3502,14 @@ private fun ThreadReplyComposer(
 }
 
 /**
- * How far a reply may be pushed in, and by how much per level.
- *
- * The indent used to be `20 + depth * 24` with no ceiling. Four or five levels down that leaves a
- * column too narrow to hold a word: text wrapped mid-word ("ambassad / or.") and the next reply
- * was pushed off the right edge, which is what "you can't really see them" looks like. Every
- * threaded feed caps this for the same reason.
- *
- * Only the OFFSET stops growing - `depth` itself keeps counting, so reply targeting and the
- * connector line are unaffected, and tapping a comment still opens it as its own thread root
- * where the indent starts over.
- */
-private const val THREAD_INDENT_STEP_DP = 16
-/**
- * ONE step, then flat.
- *
- * A reply to the post you are reading is indented once, so it reads as a reply. Expanding ITS
- * replies does not push further right - past the first step the indent says nothing you cannot
- * already see from the connector line, and it costs column width that the text needs. X flattens
- * for the same reason; depth beyond this is handled by opening the comment as its own thread,
- * where the indent starts over.
- */
-private const val THREAD_INDENT_MAX_LEVELS = 1
-
-/**
- * One comment with X-style inline expansion: "View N replies" loads and indents its children
- * (connector line at the leading edge), recursively. The comment bubble replies to THIS comment
- * (the composer retargets); tapping the comment body pushes it as a new thread root for full depth.
+ * One comment with X-style inline expansion: "View N replies" loads its direct replies and draws
+ * them under it with a connector down the avatar column. Exactly ONE inline level, as on iOS -
+ * deeper conversation is reached by tapping a reply, which opens it as its own thread root.
  */
 @Composable
 private fun ThreadCommentNode(
     comment: KaPostDraft,
-    depth: Int,
-    expandedIds: Set<String>,
+    expanded: Boolean,
     hidden: Set<String>,
     viewModel: KaPostsViewModel,
     onToggleExpand: (String) -> Unit,
@@ -3220,11 +3521,9 @@ private fun ThreadCommentNode(
     onReplyTo: (KaPostDraft) -> Unit,
 ) {
     val colors = LocalAppColors.current
-    val expanded = comment.id in expandedIds
-    val childCount = maxOf(comment.remoteReplyCount, comment.comments.count { it.posterAddress !in hidden })
+    val replyCount = viewModel.commentCount(comment)
 
-    val indentLevels = minOf(depth, THREAD_INDENT_MAX_LEVELS)
-    Column(modifier = Modifier.padding(start = (20 + indentLevels * THREAD_INDENT_STEP_DP).dp)) {
+    Column {
         KaPostCell(
             post = comment,
             viewModel = viewModel,
@@ -3235,90 +3534,124 @@ private fun ThreadCommentNode(
             onViewEngagement = { onViewEngagement(comment) },
             onReply = { onReplyTo(comment) },
         )
-        if (childCount > 0) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable {
-                        if (!expanded) viewModel.expandReplies(comment)
-                        onToggleExpand(comment.id)
-                    }
-                    .padding(start = 56.dp, top = 2.dp, bottom = 6.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(20.dp)
-                        .height(2.dp)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(colors.surfaceVariant),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (expanded) "Hide replies"
-                    else if (childCount == 1) "View 1 reply"
-                    else "View $childCount replies",
-                    color = KaspaTeal,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-        if (expanded) {
-            val children = comment.comments.filter { it.posterAddress !in hidden }
-            if (children.isEmpty()) {
-                Row(modifier = Modifier.padding(start = 56.dp, bottom = 8.dp)) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = KaspaTeal)
-                }
-            } else {
-                // An inline expansion is not its own scroll container (it is drawn inside ONE
-                // LazyColumn row), so there is no scroll position to derive a trigger from -
-                // deeper pages of a sub-thread load on tap instead.
-                val nestedPaging = pagingStateOf(
+        if (replyCount > 0) {
+            if (expanded) {
+                val replies = comment.comments.filter { it.posterAddress !in hidden }
+                val page = pagingStateOf(
                     viewModel,
                     comment.remoteId?.let { KaPostsViewModel.pageThread(it) } ?: "thread:none",
                 )
-                children.forEach { child ->
-                    LaunchedEffect(child.posterAddress) {
-                        viewModel.ensureSenderProfileFetched(child.posterAddress)
-                    }
-                    ThreadCommentNode(
-                        comment = child,
-                        depth = depth + 1,
-                        expandedIds = expandedIds,
-                        hidden = hidden,
-                        viewModel = viewModel,
-                        onToggleExpand = onToggleExpand,
-                        onOpenNested = onOpenNested,
-                        onOpenProfile = onOpenProfile,
-                        onOpenShared = onOpenShared,
-                        onRepostTap = onRepostTap,
-                        onViewEngagement = onViewEngagement,
-                        onReplyTo = onReplyTo,
-                    )
-                }
-                if (nestedPaging.isLoadingMore) {
-                    Row(modifier = Modifier.padding(start = 56.dp, top = 2.dp, bottom = 8.dp)) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = KaspaTeal)
-                    }
-                } else if (nestedPaging.hasMore || nestedPaging.error != null) {
-                    Text(
-                        text = if (nestedPaging.error != null) "Couldn't load more - retry" else "Show more replies",
-                        color = KaspaTeal,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    // Connector dropping from the comment's avatar column.
+                    Box(
                         modifier = Modifier
-                            .clickable { viewModel.loadMoreReplies(comment) }
-                            .padding(start = 56.dp, top = 2.dp, bottom = 8.dp),
+                            .padding(start = 35.dp)
+                            .width(2.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(colors.textSecondary.copy(alpha = 0.3f)),
                     )
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (replies.isEmpty()) {
+                            // Emptiness alone used to mean "loading", so a comment whose reply
+                            // count is a SUBTREE count while get-replies returns its direct
+                            // replies (none) span forever. The page state knows the difference
+                            // between still fetching, failed, and answered with nothing.
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
+                            ) {
+                                when {
+                                    page.isLoadingMore || !viewModel.repliesRequested(comment) -> {
+                                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.textSecondary)
+                                        Text("Loading replies...", color = colors.textSecondary, fontSize = 12.sp)
+                                    }
+                                    page.error != null -> {
+                                        Text(page.error, color = colors.textSecondary, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                                        Text(
+                                            "Retry",
+                                            color = KaspaTeal,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.clickable { viewModel.loadReplies(comment, force = true) },
+                                        )
+                                    }
+                                    else -> Text("No replies", color = colors.textSecondary, fontSize = 12.sp)
+                                }
+                            }
+                        } else {
+                            replies.forEach { reply ->
+                                LaunchedEffect(reply.posterAddress) {
+                                    viewModel.ensureSenderProfileFetched(reply.posterAddress)
+                                }
+                                KaPostCell(
+                                    post = reply,
+                                    viewModel = viewModel,
+                                    onOpenThread = { onOpenNested(reply) },
+                                    onRepostTap = { onRepostTap(reply) },
+                                    onOpenProfile = { onOpenProfile(reply.posterAddress, reply.posterPubkey) },
+                                    onOpenQuoted = onOpenShared,
+                                    onViewEngagement = { onViewEngagement(reply) },
+                                    onReply = { onReplyTo(reply) },
+                                )
+                            }
+                            // Inline chains page endlessly too (long comment threads). Not its
+                            // own scroll container, so the next page loads on tap.
+                            if (page.isLoadingMore || page.error != null || page.stalled) {
+                                PagingFooterContent(state = page) { viewModel.loadMoreReplies(comment, manual = true) }
+                            } else if (page.hasMore) {
+                                Text(
+                                    "Load more",
+                                    color = KaspaTeal,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { viewModel.loadMoreReplies(comment, manual = true) }
+                                        .padding(vertical = 12.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                ThreadToggleButton("Hide replies") { onToggleExpand(comment.id) }
+            } else {
+                ThreadToggleButton(if (replyCount == 1) "View 1 reply" else "View $replyCount replies") {
+                    viewModel.expandReplies(comment)
+                    onToggleExpand(comment.id)
                 }
             }
         }
     }
 }
 
+/** The "View N replies" / "Hide replies" row: a short rule then the caption, in accent (iOS). */
+@Composable
+private fun ThreadToggleButton(title: String, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(start = 36.dp, top = 8.dp, bottom = 8.dp, end = 16.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(18.dp)
+                .height(2.dp)
+                .clip(RoundedCornerShape(1.dp))
+                .background(colors.textSecondary.copy(alpha = 0.3f)),
+        )
+        Text(title, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
 // MARK: - Profile overlay (mine + tapped poster)
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun KaPostsProfileOverlay(
     address: String,
@@ -3334,6 +3667,8 @@ fun KaPostsProfileOverlay(
     onOpenFollowList: ((Boolean) -> Unit)?,
     /** Quick-tip dialog opener; falls back to the chat payment screen when null. */
     onTip: ((KaPostDraft) -> Unit)? = null,
+    /** The reply bubble on a profile row opens the Reply composer (iOS). */
+    onReply: ((KaPostDraft) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     // Per-address slices for THIS profile's chrome (see collectSelectedAsState): the rows
@@ -3343,6 +3678,7 @@ fun KaPostsProfileOverlay(
     val profileAvatarUrl by viewModel.senderProfiles.collectSelectedAsState(address) { it[address] }
     val profileBannerUrl by viewModel.senderBanners.collectSelectedAsState(address) { it[address] }
     val profileBio by viewModel.senderBios.collectSelectedAsState(address) { it[address] }
+    val profilePhoto by viewModel.contactPhotos.collectSelectedAsState(address) { it[address] }
     val following by viewModel.following.collectAsState()
     val posterProfile by viewModel.posterProfile.collectAsState()
     val myFollowersCount by viewModel.myFollowersCount.collectAsState()
@@ -3359,6 +3695,10 @@ fun KaPostsProfileOverlay(
         remember(localPosts, myProfilePosts) { viewModel.myCombinedPosts() }
     } else posterPosts
     val repliesList = if (isMine) myProfileReplies else posterReplies
+    // Follow is gated on the ADDRESS, not the caller's flag: your own address opened as a
+    // poster (from search, say) must not offer to follow yourself (iOS).
+    val isOwnAddress = address == viewModel.myAddress()
+    val hapticView = LocalView.current
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = Posts, 1 = Replies
     val name = posterDisplayNameState(viewModel, address)
@@ -3378,12 +3718,17 @@ fun KaPostsProfileOverlay(
         onDismissRequest = onClose,
         properties = KaPostsFullScreenDialogProperties,
     ) {
-        // Same window-sizing fix as the other overlays. This one deliberately keeps its content
-        // edge-to-edge at the top (the KNS banner runs under the status bar), so it takes the
-        // navigation-bar inset on the list's bottom instead of padding the whole Column.
+        // Same window-sizing fix as the other overlays.
         ForceFullScreenDialogWindow()
-        Column(modifier = Modifier.fillMaxSize().background(colors.background)) {
-            KaPostsOverlayStatusBar(modifier = Modifier.statusBarsPadding())
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.background)
+                .windowInsetsPadding(KaPostsOverlayInsets),
+        ) {
+            KaPostsOverlayStatusBar()
+            // Inline "Profile" title with a trailing Back, the banner starting BELOW the bar (iOS).
+            KaPostsOverlayHeader(title = "Profile", closeLabel = "Back", onClose = onClose)
             val repliesPage = selectedTab == 1
             val pageItems = if (repliesPage) repliesList else myPostsList
             val pagePaging = pagingStateOf(
@@ -3393,89 +3738,143 @@ fun KaPostsProfileOverlay(
             EndlessScroll(listState = profileListState, key = selectedTab to profilePubkey) {
                 viewModel.loadMoreProfile(isMine, replies = repliesPage)
             }
+            // Pull-to-refresh reloads page one of the tab being looked at (iOS .refreshable).
+            val pullRefreshState = rememberPullToRefreshState()
+            LaunchedEffect(pullRefreshState.isRefreshing) {
+                if (pullRefreshState.isRefreshing) {
+                    viewModel.refreshProfileTab(isMine, replies = repliesPage)
+                    pullRefreshState.endRefresh()
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clipToBounds()
+                    .nestedScroll(pullRefreshState.nestedScrollConnection),
+            ) {
             LazyColumn(
                 state = profileListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
             ) {
                 item(key = "profile-header") {
                     Column {
-                        Box {
-                            val bannerUrl = profileBannerUrl
-                            if (bannerUrl != null) {
-                                SubcomposeAsyncImage(
-                                    model = bannerUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxWidth().height(140.dp),
-                                    loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                                    error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                                )
-                            } else {
-                                Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
-                            }
-                            IconButton(
-                                onClick = onClose,
+                        val bannerUrl = profileBannerUrl
+                        if (bannerUrl != null) {
+                            SubcomposeAsyncImage(
+                                model = bannerUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxWidth().height(140.dp),
+                                loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
+                                error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
+                            )
+                        } else {
+                            Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
+                        }
+                        // Avatar overlapping the banner, X-style, with a 3dp ring in the page
+                        // background so it reads as sitting on top of the banner. The slot is
+                        // only as tall as the part below the banner (82 - 38), so nothing under
+                        // it has to be offset back up.
+                        Box(modifier = Modifier.padding(start = 16.dp).height(44.dp)) {
+                            Box(
                                 modifier = Modifier
-                                    .padding(4.dp)
+                                    .offset(y = (-38).dp)
+                                    .size(82.dp)
                                     .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.35f)),
+                                    .background(colors.background),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                ContactAvatar(
+                                    imageUrl = profileAvatarUrl,
+                                    fallbackText = name,
+                                    size = 76.dp,
+                                    deviceContactPhotoUri = profilePhoto?.deviceContactPhotoUri,
+                                    backupPhotoBase64 = profilePhoto?.backupPhotoBase64,
+                                )
                             }
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.Bottom,
+                        Column(
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Box(modifier = Modifier.offset(y = (-38).dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(82.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.background),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    ContactAvatar(
-                                        imageUrl = profileAvatarUrl,
-                                        fallbackText = name,
-                                        size = 76.dp,
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            if (!isMine) {
-                                val isFollowing = address in following
-                                TextButton(onClick = { viewModel.toggleFollow(address, pubkey) }) {
-                                    Text(
-                                        if (isFollowing) "Following" else "Follow",
-                                        color = if (isFollowing) colors.textSecondary else KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                                TextButton(onClick = {
-                                    viewModel.ensureContactExists(address) { contactId ->
-                                        onClose()
-                                        navController.navigate("chat/$contactId")
+                            // Name with the actions in a single row: name - Follow - Chat. Your
+                            // own profile carries the name alone (iOS).
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    name,
+                                    color = colors.textPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                if (!isMine) {
+                                    Spacer(Modifier.weight(1f))
+                                    if (!isOwnAddress) {
+                                        val isFollowing = address in following
+                                        Button(
+                                            onClick = {
+                                                hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                                viewModel.toggleFollow(address, pubkey)
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isFollowing) colors.textSecondary.copy(alpha = 0.35f) else KaspaTeal,
+                                                contentColor = if (isFollowing) colors.textPrimary else Color.Black,
+                                            ),
+                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(30.dp),
+                                        ) {
+                                            Text(if (isFollowing) "Following" else "Follow", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
                                     }
-                                }) {
-                                    Text("Chat", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                                    OutlinedButton(
+                                        onClick = {
+                                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                            viewModel.ensureContactExists(address) { contactId ->
+                                                onClose()
+                                                navController.navigate("chat/$contactId")
+                                            }
+                                        },
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, KaspaTeal.copy(alpha = 0.5f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KaspaTeal),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(30.dp),
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Chat", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                 }
                             }
-                        }
-                        Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
-                            Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                val followingCount = if (isMine) following.size else posterProfile?.followingCount ?: 0
+                                val followersCount = if (isMine) (myFollowersCount ?: 0) else posterProfile?.followersCount ?: 0
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(false) },
+                                ) {
+                                    Text("$followingCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text("Following", color = colors.textSecondary, fontSize = 15.sp)
+                                }
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(true) },
+                                ) {
+                                    Text("$followersCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text("Followers", color = colors.textSecondary, fontSize = 15.sp)
+                                }
+                            }
                             profileBio?.takeIf { it.isNotBlank() }?.let { bio ->
-                                Spacer(modifier = Modifier.height(4.dp))
-                                ExpandableBioText(bio)
+                                Box(Modifier.padding(top = 2.dp)) { ExpandableBioText(bio) }
                             }
                             if (isMine) {
                                 // Everything above this - avatar, banner, name, bio - comes from your KNS
                                 // profile, so the way to change any of it belongs here rather than only on
                                 // the Profile tab. Same destination that tab's own Edit KNS Profile uses.
-                                Spacer(modifier = Modifier.height(8.dp))
                                 Row(
                                     modifier = Modifier
+                                        .padding(top = 2.dp)
                                         .clip(RoundedCornerShape(50))
                                         .background(KaspaTeal.copy(alpha = 0.15f))
                                         .clickable {
@@ -3490,49 +3889,33 @@ fun KaPostsProfileOverlay(
                                     Text("Edit KNS Profile", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row {
-                                val followingCount = if (isMine) following.size else posterProfile?.followingCount ?: 0
-                                val followersCount = if (isMine) (myFollowersCount ?: 0) else posterProfile?.followersCount ?: 0
-                                Row(
-                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(false) },
-                                ) {
-                                    Text("$followingCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Following", color = colors.textSecondary, fontSize = 14.sp)
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Row(
-                                    modifier = Modifier.clickable(enabled = onOpenFollowList != null) { onOpenFollowList?.invoke(true) },
-                                ) {
-                                    Text("$followersCount", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Followers", color = colors.textSecondary, fontSize = 14.sp)
-                                }
-                            }
                         }
+                        HorizontalDivider(color = colors.surfaceVariant)
+                        // iOS profileFeedTabBar: accent bold / accent at half, full-width 2.5dp underline.
                         Row(modifier = Modifier.fillMaxWidth()) {
                             listOf("Posts", "Replies").forEachIndexed { index, label ->
                                 val isSelected = index == selectedTab
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clickable { selectedTab = index }
-                                        .padding(vertical = 10.dp),
+                                        .clickable {
+                                            hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                            selectedTab = index
+                                        }
+                                        .padding(top = 10.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     Text(
                                         label,
-                                        color = if (isSelected) colors.textPrimary else colors.textSecondary,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) KaspaTeal else KaspaTeal.copy(alpha = 0.5f),
+                                        fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
                                     )
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
                                     Box(
                                         modifier = Modifier
-                                            .width(48.dp)
-                                            .height(3.dp)
-                                            .clip(RoundedCornerShape(2.dp))
+                                            .fillMaxWidth()
+                                            .height(2.5.dp)
                                             .background(if (isSelected) KaspaTeal else Color.Transparent),
                                     )
                                 }
@@ -3546,23 +3929,35 @@ fun KaPostsProfileOverlay(
                     item(key = "empty") {
                         val loading = if (isMine) isLoadingMyProfile else posterProfile?.isLoading == true
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = 40.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             if (loading) {
                                 CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
                             } else {
+                                // Your own profile says whose posts these would be; another
+                                // person's carries the title alone (iOS).
+                                Icon(
+                                    if (repliesPage) Icons.Outlined.ChatBubbleOutline else Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(44.dp),
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Text(
                                     if (repliesPage) "No replies yet" else "No posts yet",
                                     color = colors.textPrimary,
                                     fontWeight = FontWeight.Bold,
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    if (repliesPage) "Replies will show up here." else "Posts will show up here.",
-                                    color = colors.textSecondary,
-                                    fontSize = 13.sp,
-                                )
+                                if (isMine) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        if (repliesPage) "Replies you post will show up here." else "Your posts will show up here.",
+                                        color = colors.textSecondary,
+                                        fontSize = 13.sp,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
@@ -3578,6 +3973,7 @@ fun KaPostsProfileOverlay(
                             onRepostTap = { onRepostTap(post) },
                             onOpenQuoted = onOpenQuoted,
                             onViewEngagement = { onViewEngagement(post) },
+                            onReply = onReply?.let { reply -> { reply(post) } },
                             // The fallback navigates the NAV HOST, which this profile Dialog
                             // window covers - close the profile first or the chat screen
                             // only becomes visible after the user closes it themselves.
@@ -3590,9 +3986,16 @@ fun KaPostsProfileOverlay(
                         )
                     }
                     pagingFooter(pagePaging, keySuffix = "profile-$selectedTab") {
-                        viewModel.loadMoreProfile(isMine, replies = repliesPage)
+                        viewModel.loadMoreProfile(isMine, replies = repliesPage, manual = true)
                     }
                 }
+            }
+            if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+                PullToRefreshContainer(
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
             }
         }
     }
@@ -3666,12 +4069,14 @@ fun KaPostsSearchOverlay(
     val scannedCount by viewModel.searchScannedCount.collectAsState()
     val hasMore by viewModel.searchHasMore.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
+    val loadFailed by viewModel.searchLoadFailed.collectAsState()
 
     LaunchedEffect(query) { viewModel.setSearchQuery(query) }
     // One page up front so the first search has something to answer with.
     LaunchedEffect(Unit) { if (scannedCount == 0) viewModel.searchLoadMore() }
 
-    KaPostsOverlayScaffold(title = "Search", onClose = onClose) {
+    // The one KaPosts screen that says Done rather than Back (iOS).
+    KaPostsOverlayScaffold(title = "Search", onClose = onClose, closeLabel = "Done") {
         Column(Modifier.fillMaxSize()) {
             OutlinedTextField(
                 value = query,
@@ -3711,7 +4116,7 @@ fun KaPostsSearchOverlay(
                     Text("Search KaPosts", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Find posts by what they say, and people by their name. Only people who have posted appear.",
+                        "Find posts by what they say, and people by their name or domain. Only people who have posted appear.",
                         color = colors.textSecondary,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center,
@@ -3720,22 +4125,59 @@ fun KaPostsSearchOverlay(
                 return@KaPostsOverlayScaffold
             }
 
+            val empty = if (showPeople) peopleResults.isEmpty() else postResults.isEmpty()
+            if (empty && !isSearching) {
+                // iOS emptyResults: what was read, and an offer to keep looking.
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text("Nothing found yet", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        if (hasMore) "Searched the most recent $scannedCount posts. Older ones have not been read yet."
+                        else "Searched every post available.",
+                        color = colors.textSecondary,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    if (hasMore) {
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            onClick = { viewModel.searchLoadMore() },
+                            enabled = !isSearching,
+                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                        ) {
+                            Text("Keep looking", color = Color.Black, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+                return@KaPostsOverlayScaffold
+            }
+
             LazyColumn(Modifier.fillMaxSize()) {
                 if (showPeople) {
                     items(peopleResults, key = { it.address }) { person ->
+                        LaunchedEffect(person.address) { viewModel.ensureSenderProfileFetched(person.address) }
+                        val personAvatar by viewModel.senderProfiles
+                            .collectSelectedAsState(person.address) { it[person.address] }
+                        val personName = posterDisplayNameState(viewModel, person.address)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onOpenProfile(person.address); onClose() }
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
+                            ContactAvatar(imageUrl = personAvatar, fallbackText = personName, size = 36.dp)
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    viewModel.posterDisplayName(person.address),
+                                    personName,
                                     color = colors.textPrimary,
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                 )
                                 Text(
                                     if (person.postCount == 1) "1 post found" else "${person.postCount} posts found",
@@ -3754,60 +4196,63 @@ fun KaPostsSearchOverlay(
                                 .fillMaxWidth()
                                 .clickable { post.remoteId?.let { onOpenPost(it) }; onClose() }
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                viewModel.posterDisplayName(post.posterAddress),
+                                posterDisplayNameState(viewModel, post.posterAddress),
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                             )
                             Text(
                                 post.text,
                                 color = colors.textSecondary,
-                                fontSize = 13.sp,
+                                fontSize = 15.sp,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                remember(post.timestamp) { relativePostTime(post.timestamp) },
+                                color = colors.textSecondary,
+                                fontSize = 11.sp,
                             )
                         }
                         HorizontalDivider(color = colors.divider)
                     }
                 }
 
+                // Says how deep the search has gone, and offers to go deeper. Under the results
+                // rather than only when empty: a handful of hits does not mean there are no
+                // more (iOS depthFooter).
                 item {
-                    val empty = if (showPeople) peopleResults.isEmpty() else postResults.isEmpty()
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        if (empty && !isSearching) {
-                            Text("Nothing found yet", color = colors.textPrimary, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(4.dp))
-                        }
-                        Text(
-                            if (hasMore) "Searched the most recent $scannedCount posts."
-                            else "Searched every post available.",
-                            color = colors.textSecondary,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center,
-                        )
-                        if (hasMore) {
-                            Spacer(Modifier.height(8.dp))
-                            Button(
-                                onClick = { viewModel.searchLoadMore() },
-                                enabled = !isSearching,
-                                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                            ) {
-                                if (isSearching) {
-                                    CircularProgressIndicator(
-                                        color = Color.Black,
-                                        strokeWidth = 2.dp,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                } else {
-                                    Text("Search older posts", color = Color.Black, fontWeight = FontWeight.Bold)
-                                }
+                    if (hasMore) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isSearching) { viewModel.searchLoadMore() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                            if (isSearching) {
+                                CircularProgressIndicator(color = colors.textSecondary, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                             }
+                            Text(
+                                if (isSearching) "Reading older posts" else "Search older posts",
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text("$scannedCount read", color = colors.textSecondary, fontSize = 11.sp)
                         }
+                    } else if (loadFailed) {
+                        Text(
+                            "Could not read any further just now.",
+                            color = colors.textSecondary,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
                     }
                 }
             }
@@ -3815,6 +4260,7 @@ fun KaPostsSearchOverlay(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KaPostsNotificationsOverlay(
     viewModel: KaPostsViewModel,
@@ -3835,6 +4281,14 @@ fun KaPostsNotificationsOverlay(
 
     LaunchedEffect(Unit) { viewModel.loadNotifications() }
     EndlessScroll(listState = listState) { viewModel.loadMoreNotifications() }
+    // Pull-to-refresh reloads page one (iOS .refreshable on both the list and the empty state).
+    val pullRefreshState = rememberPullToRefreshState()
+    LaunchedEffect(pullRefreshState.isRefreshing) {
+        if (pullRefreshState.isRefreshing) {
+            viewModel.loadNotifications()
+            pullRefreshState.endRefresh()
+        }
+    }
 
     actionTarget?.let { item ->
         KaPostNotificationActionsSheet(
@@ -3854,34 +4308,48 @@ fun KaPostsNotificationsOverlay(
     }
 
     KaPostsOverlayScaffold(title = "Notifications", onClose = onClose) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection),
+        ) {
         if (isLoading && items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = KaspaTeal)
             }
         } else if (items.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(Icons.Default.NotificationsNone, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Nothing yet", color = colors.textPrimary, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "When someone likes, replies to or shares your posts, it shows up here.",
-                    color = colors.textSecondary,
-                    fontSize = 13.sp,
-                )
+            // Wrapped in a LazyColumn purely so the empty state can be pulled to refresh too.
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                item {
+                    Column(
+                        modifier = Modifier.fillParentMaxSize().padding(horizontal = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(Icons.Default.NotificationsNone, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Nothing yet", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "When someone likes, replies to or shares your posts, it shows up here.",
+                            color = colors.textSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
         } else {
-            LazyColumn(state = listState) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 items(items, key = { it.id }) { item ->
                     LaunchedEffect(item.actorAddress) {
                         viewModel.ensureSenderProfileFetched(item.actorAddress)
                     }
                     // Per-actor slices: one avatar/name landing repaints its own row only.
                     val actorAvatar by viewModel.senderProfiles
+                        .collectSelectedAsState(item.actorAddress) { it[item.actorAddress] }
+                    val actorPhoto by viewModel.contactPhotos
                         .collectSelectedAsState(item.actorAddress) { it[item.actorAddress] }
                     val actorName = posterDisplayNameState(viewModel, item.actorAddress)
                     Row(
@@ -3895,17 +4363,43 @@ fun KaPostsNotificationsOverlay(
                             .clickable { actionTarget = item }
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
-                        ContactAvatar(
-                            imageUrl = actorAvatar,
-                            fallbackText = actorName,
-                            size = 38.dp,
-                        )
+                        // The avatar carries a small badge saying what KIND of action this is,
+                        // bottom-trailing on a page-background disc (iOS itemRow).
+                        Box {
+                            ContactAvatar(
+                                imageUrl = actorAvatar,
+                                fallbackText = actorName,
+                                size = 38.dp,
+                                deviceContactPhotoUri = actorPhoto?.deviceContactPhotoUri,
+                                backupPhotoBase64 = actorPhoto?.backupPhotoBase64,
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .offset(x = 4.dp, y = 4.dp)
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.background),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    notificationKindIcon(item.kind),
+                                    contentDescription = null,
+                                    tint = notificationKindTint(item.kind, colors.textSecondary),
+                                    modifier = Modifier.size(11.dp),
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "$actorName ${notificationActionText(item.kind)}",
+                                text = androidx.compose.ui.text.buildAnnotatedString {
+                                    withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append(actorName) }
+                                    append(" ")
+                                    append(notificationActionText(item.kind))
+                                },
                                 color = colors.textPrimary,
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -3929,10 +4423,34 @@ fun KaPostsNotificationsOverlay(
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
                 }
-                pagingFooter(paging, keySuffix = "notifications") { viewModel.loadMoreNotifications() }
+                pagingFooter(paging, keySuffix = "notifications") { viewModel.loadMoreNotifications(manual = true) }
             }
         }
+        if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+            PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
+        }
+        }
     }
+}
+
+/** iOS Item.Kind.icon: the glyph stamped on the actor's avatar. */
+private fun notificationKindIcon(kind: KaPostsViewModel.NotificationItem.Kind): ImageVector = when (kind) {
+    KaPostsViewModel.NotificationItem.Kind.LIKE -> Icons.Default.Favorite
+    KaPostsViewModel.NotificationItem.Kind.DISLIKE -> Icons.Default.ThumbDown
+    KaPostsViewModel.NotificationItem.Kind.REPLY -> Icons.Default.ChatBubble
+    KaPostsViewModel.NotificationItem.Kind.QUOTE, KaPostsViewModel.NotificationItem.Kind.REPOST -> Icons.Default.Repeat
+    KaPostsViewModel.NotificationItem.Kind.FOLLOW -> Icons.Default.PersonAdd
+    KaPostsViewModel.NotificationItem.Kind.MENTION -> Icons.Default.AlternateEmail
+    KaPostsViewModel.NotificationItem.Kind.OTHER -> Icons.Default.Notifications
+}
+
+/** iOS Item.Kind.tint. */
+private fun notificationKindTint(kind: KaPostsViewModel.NotificationItem.Kind, secondary: Color): Color = when (kind) {
+    KaPostsViewModel.NotificationItem.Kind.LIKE -> Color(0xFFFF3B30)
+    KaPostsViewModel.NotificationItem.Kind.DISLIKE -> Color(0xFFFF9500)
+    KaPostsViewModel.NotificationItem.Kind.QUOTE, KaPostsViewModel.NotificationItem.Kind.REPOST -> Color(0xFF34C759)
+    KaPostsViewModel.NotificationItem.Kind.OTHER -> secondary
+    else -> KaspaTeal
 }
 
 /**
@@ -3964,6 +4482,7 @@ fun KaPostTipDialog(
     val availableKas = remember(spendingUtxos) {
         spendingUtxos.sumOf { it.utxoEntry.amount } / 100_000_000.0
     }
+    val paysFromSpending by chatViewModel.spendingUtxosFromSpendingAddress.collectAsState()
 
     LaunchedEffect(address) {
         // Deliberately does NOT create a contact here: opening the tip dialog and cancelling
@@ -3978,16 +4497,24 @@ fun KaPostTipDialog(
 
     AlertDialog(
         onDismissRequest = {
+            // A tip in flight cannot be dismissed out from under the send (iOS
+            // interactiveDismissDisabled(isSending)).
+            if (isSending) return@AlertDialog
             chatViewModel.setFeeRateOverride(null)
             chatViewModel.setPaymentAmount("")
             onDismiss()
         },
+        properties = DialogProperties(dismissOnBackPress = !isSending, dismissOnClickOutside = !isSending),
         containerColor = colors.surface,
         title = { Text("Tip $displayName", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
         text = {
             // Sectioned like iOS's KaPostTipSheet Form: recipient card + destination line,
             // amount with the Kaspa logo + Available footer, fee tiers + Network Fee row.
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                Text("TIPPING", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -4019,6 +4546,12 @@ fun KaPostTipDialog(
                     color = if (paysViaPool) Color(0xFF35C48D) else colors.textSecondary,
                     fontSize = 12.5.sp,
                 )
+                Text(
+                    "Your Chats Payment Privacy setting decides the destination and funding, exactly like a payment inside their chat.",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                )
+                Text("AMOUNT", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it; errorText = null },
@@ -4035,10 +4568,12 @@ fun KaPostTipDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "Available: ${"%.8f".format(availableKas).trimEnd('0').trimEnd('.')} KAS",
+                    "Available: ${"%.8f".format(availableKas).trimEnd('0').trimEnd('.')} KAS from your " +
+                        (if (paysFromSpending) "primary spending address" else "chatting address"),
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                 )
+                Text("FEE", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -4076,6 +4611,11 @@ fun KaPostTipDialog(
                         fontSize = 13.sp,
                     )
                 }
+                Text(
+                    "If the network is busy, Fast or Priority pays a higher fee to help your tip confirm sooner.",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                )
                 errorText?.let {
                     Text(it, color = Color(0xFFE57373), fontSize = 12.sp)
                 }
@@ -4088,20 +4628,29 @@ fun KaPostTipDialog(
                     isSending = true
                     errorText = null
                     // The chat with the poster is created HERE, on an actual send - not when
-                    // the dialog opened - so a cancelled tip never leaves an orphan chat.
-                    chatViewModel.addContact(address, displayName.takeIf { it.isNotBlank() && !it.startsWith("kaspa:") })
+                    // the dialog opened - so a cancelled tip never leaves an orphan chat. Added
+                    // with no alias, as iOS does: the KNS name keeps resolving live rather than
+                    // being frozen into a nickname.
+                    chatViewModel.addContact(address, null)
                     // Re-apply the tier right before the send (sendPayment consumes the override).
                     chatViewModel.setFeeTierMultiplier(feeTier)
-                    val tipSompi = ((amountText.trim().toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
+                    val tipSompi = Math.round((amountText.trim().toDoubleOrNull() ?: 0.0) * 100_000_000)
                     chatViewModel.sendPayment(address, amountText.trim()) { ok, error, txId ->
                         if (ok) {
                             chatViewModel.setPaymentAmount("")
                             isSending = false
-                            sentTransaction = SentTransaction(
-                                txId = txId.orEmpty(),
-                                amountSompi = tipSompi,
-                                recipient = displayName,
-                            )
+                            if (txId.isNullOrEmpty()) {
+                                // Queued rather than sent (no confirmed inputs yet): there is no
+                                // transaction to show, so the sheet just closes (iOS).
+                                chatViewModel.setFeeRateOverride(null)
+                                onDismiss()
+                            } else {
+                                sentTransaction = SentTransaction(
+                                    txId = txId,
+                                    amountSompi = tipSompi,
+                                    recipient = displayName,
+                                )
+                            }
                         } else {
                             isSending = false
                             errorText = error ?: "Tip failed."
@@ -4109,15 +4658,22 @@ fun KaPostTipDialog(
                     }
                 },
             ) {
-                Text(if (isSending) "Sending…" else "Send Tip", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                if (isSending) {
+                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                } else {
+                    Text("Send Tip", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = {
-                chatViewModel.setFeeRateOverride(null)
-                chatViewModel.setPaymentAmount("")
-                onDismiss()
-            }) { Text("Cancel", color = colors.textSecondary) }
+            TextButton(
+                enabled = !isSending,
+                onClick = {
+                    chatViewModel.setFeeRateOverride(null)
+                    chatViewModel.setPaymentAmount("")
+                    onDismiss()
+                },
+            ) { Text("Cancel", color = colors.textSecondary) }
         },
     )
 
@@ -4247,8 +4803,24 @@ private fun subtractRanges(protectedRanges: List<IntRange>, range: IntRange): Li
     return out.filter { !it.isEmpty() }
 }
 
-/** Detected links in post text: http(s) URLs plus bare www. hosts, like iOS's linkifier. */
-private val POST_URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)\S+""")
+/**
+ * Detected links in post text, the set iOS's NSDataDetector finds: http(s) URLs, www. hosts,
+ * bare domains with a common top-level domain ("kaspa.org", optionally with a path), and email
+ * addresses. A bare domain must not follow an @ (that is a mention, "@alice.kas") or sit inside
+ * another word, hence the lookbehind.
+ */
+private val POST_URL_REGEX = Regex(
+    """(?i)(?:https?://|www\.)\S+""" +
+        """|(?<![@\w.])[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|fyi|xyz|app|dev|me|co|info|ai|network|finance|exchange|to|gg|tv|us|uk|de|fr|ru|cn|jp|in|eu|ch|nl|se|no|es|it|ca|au|link|site|online|tech|club|pro|money|cash|space|world|news|blog|wiki|shop|store|social|chat|zone|one|id|lol|is|be|at|pl|cz|br|mx|ar|kr|tw|hk|sg|nz|za|ie|fi|dk|pt|gr|tr|ua|il|ae|sa|edu|gov|mil|int|biz|name|mobi|tel|asia|cat|jobs|travel|xxx)\b(?:/\S*)?""" +
+        """|[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+""",
+)
+
+/** The tappable form of a detected link: scheme added to bare hosts, mailto: to emails. */
+private fun normalizedLinkUrl(raw: String): String = when {
+    raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true) -> raw
+    raw.contains('@') && !raw.contains('/') -> "mailto:$raw"
+    else -> "https://$raw"
+}
 
 /** Post text with @mention tokens tinted teal AND annotated for tap-to-profile, and URLs
  *  tinted+underlined AND annotated for the tap-to-Copy/Open dialog. */
@@ -4332,12 +4904,7 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
                 start,
                 end,
             )
-            addStringAnnotation(
-                LINK_ANNOTATION_TAG,
-                if (raw.startsWith("www.", ignoreCase = true)) "https://$raw" else raw,
-                start,
-                end,
-            )
+            addStringAnnotation(LINK_ANNOTATION_TAG, normalizedLinkUrl(raw), start, end)
         }
     }
 }
@@ -4355,6 +4922,7 @@ private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind)
 
 // MARK: - Follow list overlay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KaPostsFollowListOverlay(
     followers: Boolean,
@@ -4371,9 +4939,24 @@ fun KaPostsFollowListOverlay(
 
     LaunchedEffect(followers, targetPubkey) { viewModel.loadFollowList(followers, targetPubkey) }
     EndlessScroll(listState = listState, key = followers) { viewModel.loadMoreFollowList(followers, targetPubkey) }
+    // Pull-to-refresh reloads page one (iOS .refreshable).
+    val pullRefreshState = rememberPullToRefreshState()
+    LaunchedEffect(pullRefreshState.isRefreshing) {
+        if (pullRefreshState.isRefreshing) {
+            viewModel.loadFollowList(followers, targetPubkey)
+            delay(400)
+            pullRefreshState.endRefresh()
+        }
+    }
 
     KaPostsOverlayScaffold(title = if (followers) "Followers" else "Following", onClose = onClose) {
         val list = entries
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection),
+        ) {
         if (list == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = KaspaTeal)
@@ -4384,7 +4967,12 @@ fun KaPostsFollowListOverlay(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Icon(Icons.Default.PersonAddAlt1, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
+                Icon(
+                    if (followers) Icons.Default.Group else Icons.Default.PersonAdd,
+                    null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(44.dp),
+                )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     if (followers) "No followers yet" else "Not following anyone yet",
@@ -4400,7 +4988,7 @@ fun KaPostsFollowListOverlay(
                 )
             }
         } else {
-            LazyColumn(state = listState) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 items(list, key = { it.address }) { entry ->
                     LaunchedEffect(entry.address) { viewModel.ensureSenderProfileFetched(entry.address) }
                     // Per-address slices: one avatar/name landing repaints its own row only.
@@ -4449,8 +5037,14 @@ fun KaPostsFollowListOverlay(
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
                 }
-                pagingFooter(paging, keySuffix = "follows") { viewModel.loadMoreFollowList(followers) }
+                // targetPubkey passed through: a retry on someone else's list must page THEIR
+                // list, not the signed-in user's.
+                pagingFooter(paging, keySuffix = "follows") { viewModel.loadMoreFollowList(followers, targetPubkey, manual = true) }
             }
+        }
+        if (pullRefreshState.verticalOffset > 0f || pullRefreshState.isRefreshing) {
+            PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
+        }
         }
     }
 }
@@ -4597,7 +5191,7 @@ fun KaPostEngagementOverlay(
                             HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
                         }
                         pagingFooter(paging, keySuffix = "engagement") {
-                            viewModel.loadMoreEngagement(post, selectedTab)
+                            viewModel.loadMoreEngagement(post, selectedTab, manual = true)
                         }
                     }
                 }
@@ -4605,17 +5199,23 @@ fun KaPostEngagementOverlay(
 
             HorizontalDivider(color = colors.surfaceVariant)
             post.remoteId?.let { txId ->
-                Text(
-                    "View Post Transaction in Explorer",
-                    color = KaspaTeal,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { uriHandler.openUri(kaspaExplorer.txUrl(txId)) }
                         .padding(vertical = 14.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
+                ) {
+                    Icon(Icons.Default.Public, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "View Post Transaction in Explorer",
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                    )
+                }
             }
         }
     }
@@ -4643,16 +5243,26 @@ fun KaPostsModerationOverlay(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
+                Icon(
+                    if (blocked) Icons.Default.PanTool else Icons.Default.VolumeOff,
+                    null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(44.dp),
+                )
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
-                    if (blocked) "No blocked users" else "No muted users",
+                    if (blocked) "No blocked accounts" else "No muted accounts",
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Their posts hide everywhere in KaPosts.",
+                    if (blocked) "Blocked accounts are removed everywhere and can't interact with you."
+                    else "Accounts you mute disappear from your feeds but can still interact with you.",
                     color = colors.textSecondary,
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
                 )
             }
         } else {
@@ -4670,22 +5280,30 @@ fun KaPostsModerationOverlay(
                         ContactAvatar(
                             imageUrl = rowAvatar,
                             fallbackText = rowName,
-                            size = 38.dp,
+                            size = 40.dp,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             rowName,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = {
-                            if (blocked) viewModel.unblock(address) else viewModel.unmute(address)
-                        }) {
-                            Text(if (blocked) "Unblock" else "Unmute", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        val hapticView = LocalView.current
+                        OutlinedButton(
+                            onClick = {
+                                hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (blocked) viewModel.unblock(address) else viewModel.unmute(address)
+                            },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, KaspaTeal.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = KaspaTeal),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp),
+                        ) {
+                            Text(if (blocked) "Unblock" else "Unmute", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
@@ -4699,16 +5317,17 @@ fun KaPostsModerationOverlay(
 fun KaPostsBookmarksOverlay(
     viewModel: KaPostsViewModel,
     onClose: () -> Unit,
-    onOpenThread: (KaPostDraft) -> Unit,
+    /** The reply bubble opens the Reply composer; the card itself is inert here (iOS). */
+    onReply: (KaPostDraft) -> Unit,
     onViewEngagement: (KaPostDraft) -> Unit,
     onRepostTap: (KaPostDraft) -> Unit,
+    onTip: ((KaPostDraft) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     // Recompute against the live lists so un-bookmarking updates immediately - but the
     // full-tree scan only re-runs when one of those lists actually changed.
-    val localPosts by viewModel.localPosts.collectAsState()
-    val feed by viewModel.visibleFeed.collectAsState()
-    val bookmarks = remember(localPosts, feed) { viewModel.bookmarkedPosts() }
+    val tree by viewModel.postTree.collectAsState()
+    val bookmarks = remember(tree) { viewModel.bookmarkedPosts() }
 
     KaPostsOverlayScaffold(title = "Bookmarks", onClose = onClose) {
         if (bookmarks.isEmpty()) {
@@ -4718,20 +5337,29 @@ fun KaPostsBookmarksOverlay(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Icon(Icons.Default.BookmarkBorder, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("No bookmarks yet", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("No bookmarks yet", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Spacer(modifier = Modifier.height(6.dp))
-                Text("Bookmark posts to find them again here.", color = colors.textSecondary, fontSize = 13.sp)
+                Text(
+                    "Tap the bookmark on any post to save it here.",
+                    color = colors.textSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                )
             }
         } else {
             LazyColumn {
                 items(bookmarks, key = { "bookmark-${it.id}" }) { post ->
+                    LaunchedEffect(post.posterAddress) { viewModel.ensureSenderProfileFetched(post.posterAddress) }
                     KaPostCell(
                         post = post,
                         viewModel = viewModel,
-                        onOpenThread = { onOpenThread(post) },
+                        // Bookmarks has no thread surface of its own, so the card tap stays inert.
+                        onOpenThread = {},
                         onRepostTap = { onRepostTap(post) },
                         onViewEngagement = { onViewEngagement(post) },
+                        onReply = { onReply(post) },
+                        onTip = onTip?.let { tip -> { tip(post) } },
                     )
                     HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 68.dp))
                 }
@@ -4763,10 +5391,35 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * The overlays' navigation bar as iOS draws it: an inline centred title and ONE trailing text
+ * control that closes the screen - "Back" everywhere, "Done" on Search.
+ */
+@Composable
+internal fun KaPostsOverlayHeader(title: String, closeLabel: String, onClose: () -> Unit) {
+    val colors = LocalAppColors.current
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(44.dp),
+    ) {
+        Text(
+            title,
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp,
+            modifier = Modifier.align(Alignment.Center),
+        )
+        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) {
+            Text(closeLabel, color = KaspaTeal, fontSize = 16.sp)
+        }
+    }
+    HorizontalDivider(color = colors.surfaceVariant)
+}
+
 @Composable
 private fun KaPostsOverlayScaffold(
     title: String,
     onClose: () -> Unit,
+    closeLabel: String = "Back",
     content: @Composable () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -4782,16 +5435,7 @@ private fun KaPostsOverlayScaffold(
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             KaPostsOverlayStatusBar()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onClose) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = KaspaTeal)
-                }
-                Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            }
-            HorizontalDivider(color = colors.surfaceVariant)
+            KaPostsOverlayHeader(title = title, closeLabel = closeLabel, onClose = onClose)
             Box(modifier = Modifier.weight(1f)) { content() }
         }
     }
@@ -4815,6 +5459,15 @@ fun KaPostsToastOverlay(
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         ) {
             undoToast?.let { toast ->
+                // "Posting in 4s" ticking down, then an orange underlined Undo (iOS toastOverlay).
+                var remainingMs by remember(toast.deadlineMs) { mutableLongStateOf(toast.deadlineMs - System.currentTimeMillis()) }
+                LaunchedEffect(toast.deadlineMs) {
+                    while (remainingMs > 0) {
+                        delay(250)
+                        remainingMs = toast.deadlineMs - System.currentTimeMillis()
+                    }
+                }
+                val seconds = ((remainingMs + 999) / 1000).coerceAtLeast(0)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -4823,15 +5476,14 @@ fun KaPostsToastOverlay(
                         .border(1.dp, colors.surfaceVariant, RoundedCornerShape(24.dp))
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
-                    CountdownBadge(deadlineMs = toast.deadlineMs)
+                    Text("${toast.label} in ${seconds}s", color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(toast.label, color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         "Undo",
-                        color = KaspaTeal,
+                        color = Color(0xFFFF9500),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
                         modifier = Modifier.clickable { onUndo() },
                     )
                 }
@@ -4853,18 +5505,19 @@ fun KaPostsToastOverlay(
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     Icon(
-                        Icons.Default.Favorite, null,
-                        tint = Color(0xFF66BB6A),
+                        Icons.Default.CheckCircle, null,
+                        tint = Color(0xFF34C759),
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(toast.message, color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "View",
                         color = KaspaTeal,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
                         modifier = Modifier.clickable { onViewTx(toast.txId) },
                     )
                 }
@@ -4875,15 +5528,20 @@ fun KaPostsToastOverlay(
 
 // MARK: - Helpers
 
-/** Compact relative timestamp: "now", "5m", "3h", "2d", else short date. */
+/**
+ * Relative timestamp in the abbreviated form iOS's RelativeDateTimeFormatter produces: "5 sec.
+ * ago", "3 min. ago", "2 hr. ago", "3 days ago", "1 wk. ago", "2 mo. ago", "1 yr. ago".
+ */
 fun relativePostTime(timestampMs: Long): String {
     val deltaSec = ((System.currentTimeMillis() - timestampMs) / 1000).coerceAtLeast(0)
     return when {
-        deltaSec < 60 -> "now"
-        deltaSec < 3600 -> "${deltaSec / 60}m"
-        deltaSec < 86_400 -> "${deltaSec / 3600}h"
-        deltaSec < 7 * 86_400 -> "${deltaSec / 86_400}d"
-        else -> java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault()).format(java.util.Date(timestampMs))
+        deltaSec < 60 -> "$deltaSec sec. ago"
+        deltaSec < 3600 -> "${deltaSec / 60} min. ago"
+        deltaSec < 86_400 -> "${deltaSec / 3600} hr. ago"
+        deltaSec < 7 * 86_400 -> (deltaSec / 86_400).let { if (it == 1L) "1 day ago" else "$it days ago" }
+        deltaSec < 30 * 86_400 -> "${deltaSec / (7 * 86_400)} wk. ago"
+        deltaSec < 365 * 86_400 -> "${deltaSec / (30 * 86_400)} mo. ago"
+        else -> "${deltaSec / (365 * 86_400)} yr. ago"
     }
 }
 

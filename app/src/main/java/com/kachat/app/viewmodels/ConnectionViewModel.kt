@@ -195,6 +195,19 @@ class ConnectionViewModel @Inject constructor(
             )
         }
     }
+    /**
+     * Editable like iOS's field: blank resets to the default, and only https is accepted (a
+     * plain-http indexer would hand every feed read to the network in the clear). Returns false
+     * when the value was rejected, so the dialog can say so instead of closing.
+     */
+    fun setKapostIndexerUrl(value: String): Boolean {
+        val trimmed = value.trim().trimEnd('/')
+        if (trimmed.isNotEmpty() && !trimmed.startsWith("https://", ignoreCase = true)) return false
+        viewModelScope.launch {
+            settings.setKapostIndexerUrl(trimmed.ifBlank { AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL })
+        }
+        return true
+    }
     fun setTrustedNodeAddress(value: String) { viewModelScope.launch { settings.setTrustedNodeAddress(value) } }
     fun setDiscoverNewPeers(value: Boolean) { _discoverNewPeers.value = value }
     fun setVerboseApiLogging(value: Boolean) { viewModelScope.launch { settings.setVerboseApiLogging(value) } }

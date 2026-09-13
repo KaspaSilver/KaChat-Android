@@ -373,11 +373,14 @@ class MainActivity : AppCompatActivity() {
         }
         if (intent.action != Intent.ACTION_VIEW) return false
         val uri = intent.data ?: return false
+        // Same forms iOS's KaChatInternalLink.parse accepts: the kachat:// scheme, and the
+        // https/http universal link with or without www.
+        val host = uri.host?.lowercase()?.removePrefix("www.")
         val txId = when {
             uri.scheme.equals("kachat", ignoreCase = true) &&
                 uri.host.equals("kapost", ignoreCase = true) -> uri.lastPathSegment
-            uri.scheme.equals("https", ignoreCase = true) &&
-                uri.host.equals("kachat.duckdns.org", ignoreCase = true) &&
+            (uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true)) &&
+                host == "kachat.duckdns.org" &&
                 uri.pathSegments.firstOrNull() == "post" -> uri.pathSegments.getOrNull(1)
             else -> null
         }

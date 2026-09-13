@@ -251,7 +251,19 @@ class NotificationHelper @Inject constructor(
             .build()
         try {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
+            synchronized(shownKaPostsIds) { shownKaPostsIds.add(notificationId) }
         } catch (_: SecurityException) {}
+    }
+
+    /** Ids of the KaPosts banners posted this process, so the Notifications screen can take
+     *  them down once the reader has seen the stream (iOS clears the "kaposts" thread). */
+    private val shownKaPostsIds = mutableSetOf<Int>()
+
+    fun cancelKaPostsNotifications() {
+        val ids = synchronized(shownKaPostsIds) { shownKaPostsIds.toList().also { shownKaPostsIds.clear() } }
+        if (ids.isEmpty()) return
+        val manager = NotificationManagerCompat.from(context)
+        for (id in ids) manager.cancel(id)
     }
 
     /** Wallet address-activity notification ("Received X KAS" on a spending/cold address) — see

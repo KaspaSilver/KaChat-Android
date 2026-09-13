@@ -19,7 +19,7 @@ import javax.inject.Singleton
 /**
  * In-app KaPosts notification pings, mirroring iOS's KaPostsNotificationService: while the app is
  * in the FOREGROUND (KaChatApplication's process lifecycle observer calls [start]/[stop] on
- * foreground/background transitions), polls the indexer's notification stream every 60s and posts
+ * foreground/background transitions), polls the indexer's notification stream every 30s and posts
  * a local notification for new actions on your content ("alice liked your post"). Once the app is
  * backgrounded or closed, the push service is the only KaPosts notification source — deliberately
  * no background continuation here, so push failures stay visible. Last-seen is stored per wallet
@@ -78,12 +78,20 @@ class KaPostsNotificationPoller @Inject constructor(
 
     private fun lastSeenKey(address: String) = longPreferencesKey("kaposts_notifs_last_seen_$address")
 
+    /**
+     * The open-conversation rule for KaPosts: while the Notifications list is on screen the
+     * reader is already looking at the stream, so a banner for it is noise. The count and the
+     * watermark still advance underneath (iOS isNotificationsScreenVisible).
+     */
+    @Volatile
+    var isNotificationsScreenVisible: Boolean = false
+
     fun start() {
         if (pollJob?.isActive == true) return
         pollJob = scope.launch {
             while (true) {
                 try { pollOnce() } catch (e: Exception) { Log.w("KaPostsPoller", "poll failed", e) }
-                delay(60_000)
+                delay(POLL_INTERVAL_MS)
             }
         }
     }
@@ -94,8 +102,14 @@ class KaPostsNotificationPoller @Inject constructor(
         pollJob = null
     }
 
-    /** The Notifications screen calls this with the newest timestamp it displayed. */
+    /**
+     * The Notifications screen calls this with the newest timestamp it displayed: what the user
+     * has seen on screen shouldn't ping later, and whatever KaPosts banners are still sitting in
+     * the shade come down with it (iOS markSeen + clearDeliveredNotifications).
+     */
     suspend fun markSeen(address: String, upTo: Long) {
+        notificationHelper.cancelKaPostsNotifications()
+        if (upTo <= 0L) return
         dataStore.edit { prefs ->
             val key = lastSeenKey(address)
             if ((prefs[key] ?: 0L) < upTo) prefs[key] = upTo
@@ -104,6 +118,8 @@ class KaPostsNotificationPoller @Inject constructor(
 
     private suspend fun pollOnce() {
         val address = try { walletManager.getAddress() } catch (_: Exception) { return }
+        // Child Mode removes KaPosts entirely - no polling, no count, no pings (iOS).
+        if (settingsRepository.childModeEnabled.first()) return
         val notifications = kaPostsService.fetchNotifications(limit = 50)
         val newest = notifications.maxOfOrNull { it.timestamp } ?: return
         val key = lastSeenKey(address)
@@ -115,6 +131,9 @@ class KaPostsNotificationPoller @Inject constructor(
         }
         val freshAll = notifications.filter { it.timestamp > lastSeen }
         dataStore.edit { it[key] = maxOf(newest, lastSeen) }
+        // Muted and blocked accounts are gone from every KaPosts surface, the bell count and the
+        // shade included (iOS drops them from both the unseen ingest and the banner path).
+        val hidden = settingsRepository.kapostsMuted.first() + settingsRepository.kapostsBlocked.first()
         // Counted, not listed. The KaPosts notifications screen already serves these rows from
         // the indexer with richer formatting, so keeping a second copy in the global center
         // reported the same like or reply twice and let one busy feed dominate the profile
@@ -129,7 +148,7 @@ class KaPostsNotificationPoller @Inject constructor(
         var arrivals = 0
         for (n in freshAll) {
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey)
-            if (actor == null || actor == address) continue
+            if (actor == null || actor == address || actor in hidden) continue
             if (!settingsRepository.shouldNotifyKaPostsAction(n.contentType, n.voteType)) continue
             arrivals++
         }
@@ -146,30 +165,36 @@ class KaPostsNotificationPoller @Inject constructor(
         // actionTxId dedupe inside NotificationHelper.showKaPosts collapses a racing push for
         // the same action into one banner.
         if (pushState.isActive && !notificationHelper.isAppInForeground) return
+        // The list itself is open: the reader sees these land in it, so no banner.
+        if (isNotificationsScreenVisible) return
         // Oldest first, capped so a viral post can't fire fifty pings at once.
         for (n in fresh.sortedBy { it.timestamp }.takeLast(5)) {
             val actor = KaPostsService.kaspaAddressFromPubkey(n.userPublicKey) ?: continue
-            if (actor == address) continue
+            if (actor == address || actor in hidden) continue
             val text = KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
             val name = actorDisplayName(actor)
             notificationHelper.showKaPosts(
                 text = "$name ${actionText(n.contentType, n.voteType, text)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
                 actionTxId = n.id,
-                // Same per-kind target rule as the in-app notifications overlay: a reply opens
-                // its PARENT post's thread (parent on top, the new reply underneath);
-                // quote-with-text opens the quote itself; vote/mention open the acted-on post.
+                // Same per-kind target rule as the in-app notifications overlay and iOS: a
+                // reply targets the reply ITSELF, and the landing rule opens its parent's thread
+                // with the reply spliced in and scrolled to; quote-with-text opens the quote;
+                // vote/mention open the acted-on post.
                 postTxId = when (n.contentType) {
-                    "reply" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
+                    "reply" -> n.id
                     "quote" -> if (text.isEmpty()) n.contentId else n.id
                     "follow" -> null
                     // Same mention fallback as the bell targetId above.
                     "mention" -> n.contentId?.takeIf { it.isNotEmpty() } ?: n.id
                     else -> n.contentId
                 },
-                // The reply's own txid: the opened parent thread scrolls to this comment.
-                focusTxId = if (n.contentType == "reply") n.id else null,
             )
         }
+    }
+
+    private companion object {
+        /** Same cadence as iOS's KaPostsNotificationService. */
+        const val POLL_INTERVAL_MS = 30_000L
     }
 
     private fun actionText(contentType: String?, voteType: String?, text: String): String = when (contentType) {

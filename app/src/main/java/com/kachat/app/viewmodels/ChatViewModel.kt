@@ -1174,10 +1174,17 @@ class ChatViewModel @Inject constructor(
      * and the Max button both price against this set, so they always agree with what
      * [sendPayment] will actually spend (estimators must use the same source the send uses).
      */
+    /** Whether [spendingUtxos] were read from the primary spending address (Chats Payment
+     *  Privacy on) or the chatting address - the KaPosts tip sheet says which (iOS). */
+    private val _spendingUtxosFromSpendingAddress = MutableStateFlow(false)
+    val spendingUtxosFromSpendingAddress: StateFlow<Boolean> = _spendingUtxosFromSpendingAddress.asStateFlow()
+
     fun refreshSpendingUtxos() {
         viewModelScope.launch {
             try {
-                val address = if (paymentPoolService.isChatsPrivacyEnabled()) {
+                val privacy = paymentPoolService.isChatsPrivacyEnabled()
+                _spendingUtxosFromSpendingAddress.value = privacy
+                val address = if (privacy) {
                     walletManager.currentSpendingAddress()
                 } else {
                     walletManager.getAddress()

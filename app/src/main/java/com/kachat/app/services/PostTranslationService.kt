@@ -114,16 +114,94 @@ class PostTranslationService @Inject constructor(
     suspend fun detectLanguage(text: String): String? {
         val stripped = strippedForDetection(text)
         if (stripped.count { it.isLetter() } < MIN_LETTERS) return null
-        val tag = try {
-            languageIdentifier.identifyLanguage(stripped).await()
+        val hypotheses = try {
+            languageIdentifier.identifyPossibleLanguages(stripped).await()
+                .filter { it.languageTag != UNDETERMINED }
+                .sortedByDescending { it.confidence }
         } catch (e: Exception) {
             Log.w(TAG, "Language identification failed", e)
             return null
         }
-        if (tag == UNDETERMINED) return null
-        // ML Kit returns BCP-47 with a region for some languages ("zh-Hans"); the server takes the
-        // bare subtag.
-        return tag.substringBefore('-').takeIf { it.isNotBlank() }
+        val best = hypotheses.firstOrNull() ?: return null
+        // Script beats probability (iOS). The identifier weights Latin words heavily, so a post
+        // in a non-Latin script that also carries brand names, tickers or a "GM" can come back as
+        // a Latin-script language outright. When the text is overwhelmingly written in one
+        // script, a language that is not written in that script is simply the wrong answer,
+        // whatever confidence was attached to it - the best hypothesis that IS written in that
+        // script wins instead, with no confidence floor: Cyrillic text is not Swedish, and the
+        // script already said so.
+        val script = dominantScript(stripped)
+        if (script != null && script != LATIN_SCRIPT && scriptOf(best.languageTag) != script) {
+            hypotheses.firstOrNull { scriptOf(it.languageTag) == script }?.let { return bareTag(it.languageTag) }
+        }
+        if (best.confidence < MIN_CONFIDENCE) return null
+        return bareTag(best.languageTag)
+    }
+
+    /** ML Kit returns BCP-47 with a region for some languages ("zh-Hans"); the server takes the
+     *  bare subtag. */
+    private fun bareTag(tag: String): String? = tag.substringBefore('-').takeIf { it.isNotBlank() }
+
+    /**
+     * The ISO 15924 script a language is normally written in, from ICU's likely-subtags data
+     * ("ru" -> "ru_Cyrl_RU"), so there is no hand-maintained language-to-script table to fall out
+     * of date.
+     */
+    private fun scriptOf(languageTag: String): String? = try {
+        android.icu.util.ULocale.addLikelySubtags(android.icu.util.ULocale.forLanguageTag(languageTag))
+            .script.takeIf { it.isNotBlank() }
+    } catch (_: Exception) {
+        null
+    }
+
+    /**
+     * The script most of the letters are written in, when one clearly dominates (at least 70%
+     * of the letters), as an ISO 15924 code; null for mixed text or no letters.
+     */
+    private fun dominantScript(text: String): String? {
+        val counts = HashMap<Character.UnicodeScript, Int>()
+        var letters = 0
+        for (cp in text.codePoints().toArray()) {
+            if (!Character.isLetter(cp)) continue
+            val script = try { Character.UnicodeScript.of(cp) } catch (_: Exception) { continue }
+            if (script == Character.UnicodeScript.COMMON || script == Character.UnicodeScript.INHERITED) continue
+            letters++
+            counts[script] = (counts[script] ?: 0) + 1
+        }
+        if (letters == 0) return null
+        val (script, count) = counts.maxByOrNull { it.value } ?: return null
+        if (count < letters * 0.7) return null
+        return scriptCode(script)
+    }
+
+    /** Unicode script enum -> ISO 15924 four-letter code, for the scripts ICU reports. */
+    private fun scriptCode(script: Character.UnicodeScript): String? = when (script) {
+        Character.UnicodeScript.LATIN -> "Latn"
+        Character.UnicodeScript.CYRILLIC -> "Cyrl"
+        Character.UnicodeScript.GREEK -> "Grek"
+        Character.UnicodeScript.ARABIC -> "Arab"
+        Character.UnicodeScript.HEBREW -> "Hebr"
+        Character.UnicodeScript.HAN -> "Hani"
+        Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA -> "Jpan"
+        Character.UnicodeScript.HANGUL -> "Kore"
+        Character.UnicodeScript.THAI -> "Thai"
+        Character.UnicodeScript.DEVANAGARI -> "Deva"
+        Character.UnicodeScript.BENGALI -> "Beng"
+        Character.UnicodeScript.TAMIL -> "Taml"
+        Character.UnicodeScript.TELUGU -> "Telu"
+        Character.UnicodeScript.GUJARATI -> "Gujr"
+        Character.UnicodeScript.GURMUKHI -> "Guru"
+        Character.UnicodeScript.KANNADA -> "Knda"
+        Character.UnicodeScript.MALAYALAM -> "Mlym"
+        Character.UnicodeScript.SINHALA -> "Sinh"
+        Character.UnicodeScript.MYANMAR -> "Mymr"
+        Character.UnicodeScript.KHMER -> "Khmr"
+        Character.UnicodeScript.LAO -> "Laoo"
+        Character.UnicodeScript.GEORGIAN -> "Geor"
+        Character.UnicodeScript.ARMENIAN -> "Armn"
+        Character.UnicodeScript.ETHIOPIC -> "Ethi"
+        Character.UnicodeScript.TIBETAN -> "Tibt"
+        else -> null
     }
 
     /**
@@ -231,6 +309,21 @@ class PostTranslationService @Inject constructor(
         }
     }
 
+    /**
+     * Re-reads the supported-language list from the configured service. Called when KaPosts
+     * comes on screen (iOS fetches on appear and again when the URL changes): a deployment
+     * that gained a language pair since the last read starts offering it without a restart.
+     */
+    suspend fun refreshSupportedLanguages() {
+        val base = settings.translationServiceUrl.first().trimEnd('/')
+        supportedMutex.withLock {
+            val fetched = fetchSupportedLanguages(base)
+            // Keep a known-good answer when the refresh itself failed: "we do not know" would
+            // start offering links a moment ago known to be unservable.
+            if (fetched != null || supportedCache?.first != base) supportedCache = base to fetched
+        }
+    }
+
     private suspend fun fetchSupportedLanguages(base: String): SupportedLanguages? =
         withContext(Dispatchers.IO) {
             try {
@@ -261,6 +354,9 @@ class PostTranslationService @Inject constructor(
         private const val TAG = "KaChatTranslate"
         private const val UNDETERMINED = "und"
         private const val MIN_LETTERS = 12
+        /** Below this the identifier is guessing between Latin-script languages (iOS 0.55). */
+        private const val MIN_CONFIDENCE = 0.55f
+        private const val LATIN_SCRIPT = "Latn"
         /**
          * Generous, because the FIRST request for a language pair can make the server load that
          * pair's model. Everyone after that is answered from its cache in well under a second, so

@@ -22,6 +22,8 @@ data class KaPostSavedDraft(
      * post. Null for a plain post or a thread.
      */
     val replyRemoteId: String? = null,
+    /** The post this draft QUOTES, when it was written as a quote. Same id-only rule. */
+    val quotedRemoteId: String? = null,
     val savedAt: Long,
 ) {
     /** One line for the drafts list: the first segment that has anything in it. */
@@ -56,6 +58,7 @@ object KaPostDraftStore {
                     // Absent in drafts saved before replies had a parent - decodes to null, so
                     // nothing stored earlier is disturbed.
                     replyRemoteId = o.optString("replyRemoteId").takeIf { it.isNotEmpty() },
+                    quotedRemoteId = o.optString("quotedRemoteId").takeIf { it.isNotEmpty() },
                     savedAt = o.optLong("savedAt"),
                 )
             }
@@ -70,6 +73,7 @@ object KaPostDraftStore {
         text: String,
         threadSegments: List<String>,
         replyRemoteId: String? = null,
+        quotedRemoteId: String? = null,
     ) {
         if (walletAddress.isEmpty()) return
         if ((listOf(text) + threadSegments).all { it.isBlank() }) return
@@ -78,6 +82,7 @@ object KaPostDraftStore {
             text = text,
             threadSegments = threadSegments,
             replyRemoteId = replyRemoteId,
+            quotedRemoteId = quotedRemoteId,
             savedAt = System.currentTimeMillis(),
         )
         val updated = listOf(draft) + load(context, walletAddress).filter { it.id != draft.id }
@@ -97,6 +102,7 @@ object KaPostDraftStore {
                     .put("text", d.text)
                     .put("threadSegments", JSONArray(d.threadSegments))
                     .put("replyRemoteId", d.replyRemoteId ?: "")
+                    .put("quotedRemoteId", d.quotedRemoteId ?: "")
                     .put("savedAt", d.savedAt)
             )
         }

@@ -10222,6 +10222,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
     val translationServiceUrl by viewModel.translationServiceUrl.collectAsState()
     var editingTranslationUrl by remember { mutableStateOf(false) }
+    var editingKapostIndexerUrl by remember { mutableStateOf(false) }
     val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
     val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
@@ -10267,7 +10268,12 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
 
 
             SettingsSection(title = stringResource(R.string.kapost_indexer)) {
-                ConnectionUrlField(label = "KaPost Indexer URL", value = kapostIndexerUrl)
+                // Editable, as on iOS: someone running their own K indexer points the app at it.
+                ConnectionUrlField(
+                    label = "KaPost Indexer URL",
+                    value = kapostIndexerUrl,
+                    onClick = { editingKapostIndexerUrl = true }
+                )
                 SettingsFooter(stringResource(R.string.kapost_indexer_footer))
             }
 
@@ -10320,6 +10326,44 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
 
             Spacer(modifier = Modifier.height(100.dp))
         }
+    }
+
+    if (editingKapostIndexerUrl) {
+        var draft by remember { mutableStateOf(kapostIndexerUrl) }
+        var rejected by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { editingKapostIndexerUrl = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("KaPost Indexer URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it; rejected = false },
+                        singleLine = true,
+                        isError = rejected,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (rejected) "The URL must start with https://"
+                        else "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL}",
+                        color = if (rejected) Color(0xFFE57373) else LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (viewModel.setKapostIndexerUrl(draft)) editingKapostIndexerUrl = false else rejected = true
+                }) { Text("Save", color = KaspaTeal) }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingKapostIndexerUrl = false }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
     }
 
     if (editingTranslationUrl) {

@@ -7,6 +7,7 @@ import com.kachat.app.util.KaspaMessageSigner
 import com.kachat.app.util.Secp256k1
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -555,6 +556,16 @@ class KaPostsService @Inject constructor(
             payloadBytes = payload.toByteArray(Charsets.UTF_8),
         )
         Log.d(TAG, "Submitted ${payload.take(12)} action tx ${txId.take(12)}")
+        // sendKaspa refreshed the balance once, immediately; a second pass after the UTXO change
+        // settles (Kaspa blocks are ~1s) is what reliably catches the fee just spent (iOS).
+        settleScope.launch {
+            kotlinx.coroutines.delay(2_000)
+            try { walletService.refreshBalance() } catch (_: Exception) {}
+        }
         return txId
     }
+
+    private val settleScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+    )
 }
