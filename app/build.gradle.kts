@@ -98,8 +98,10 @@ android {
         // fifth (performance: no more re-parsing whole message payloads per frame); 40 the
         // sixth (KaPosts one to one with iOS, paged chat history, late-indexed messages and
         // handshakes no longer skipped, small outputs judged by storage mass); 41 the seventh
-        // (sender avatars open the half sheet in groups and broadcast rooms).
-        versionCode = 41
+        // (sender avatars open the half sheet in groups and broadcast rooms); 42 the eighth
+        // (push is the only banner source, KaPosts switches reach the server, link-safe list
+        // previews, primary spending address rotates on every send, Swap "You Get" quotes).
+        versionCode = 42
         versionName = "4.1"
 
         buildConfigField(
