@@ -39,7 +39,6 @@
     <string name="chatting_address_2">Sohbet adresi</string>
     <string name="chatting_vs_spending_address">Sohbet Adresi ve Harcama Adresi</string>
     <string name="check_again">Tekrar Kontrol Et</string>
-    <string name="check_drive_backup_size">Drive yedekleme boyutunu kontrol et</string>
     <string name="checking_availability">Kullanılabilirlik kontrol ediliyor...</string>
     <string name="checking_your_chatting_address_balance">Sohbet adresinizin bakiyesi kontrol ediliyor...</string>
     <string name="chess_stats">Satranc Istatistikleri</string>
@@ -97,7 +96,6 @@
     <string name="from">Gonderen</string>
     <string name="fund_your_chatting_address">Sohbet Adresinizi Fonlayin</string>
     <string name="generate_account">Hesap Oluştur</string>
-    <string name="google_drive_backup_used">Google Drive yedegi kullanildi</string>
     <string name="grant_permission">Izin Ver</string>
     <string name="grant_permission_2">Izin ver</string>
     <string name="group_chats">Grup Sohbetleri</string>
@@ -300,7 +298,6 @@
     <string name="active">Aktif</string>
     <string name="autocreate_system_contacts">Sistem kişilerini otomatik oluştur</string>
     <string name="avatar">avatar</string>
-    <string name="back_up_to_google_drive">Google Drive\'a Yedekle</string>
     <string name="banner">Afiş</string>
     <string name="bio">Biyografi</string>
     <string name="biometrics_for_account_login">Hesap Girisi icin Biyometri</string>

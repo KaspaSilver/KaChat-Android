@@ -1,7 +1,7 @@
 package com.kachat.app.models
 
 /**
- * How long chat history is kept once Google Drive backup is on — mirrors iOS's
+ * How long chat history is kept on this device — mirrors iOS's
  * `MessageRetention` enum (`Models.swift:353-368`) in spirit, but scoped to this app's own
  * backup feature rather than always-on independent pruning. `days = null` means never prune.
  */

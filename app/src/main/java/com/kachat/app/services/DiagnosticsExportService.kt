@@ -119,7 +119,6 @@ class DiagnosticsExportService @Inject constructor(
             "notificationsEnabled" to settingsRepository.notificationsEnabled.first().toString(),
             "syncSystemContactsEnabled" to settingsRepository.syncSystemContactsEnabled.first().toString(),
             "autoCreateSystemContactsEnabled" to settingsRepository.autoCreateSystemContactsEnabled.first().toString(),
-            "googleBackupEnabled" to settingsRepository.googleBackupEnabled.first().toString(),
             "backupRetention" to settingsRepository.backupRetention.first().name,
             "broadcastPopularEnabled" to settingsRepository.broadcastPopularEnabled.first().toString(),
             "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString(),

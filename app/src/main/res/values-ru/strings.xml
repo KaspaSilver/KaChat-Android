@@ -39,7 +39,6 @@
     <string name="chatting_address_2">Адрес для чата</string>
     <string name="chatting_vs_spending_address">Адрес для чата и адрес для трат</string>
     <string name="check_again">Проверить снова</string>
-    <string name="check_drive_backup_size">Проверить размер резервной копии Drive</string>
     <string name="checking_availability">Проверяем наличие...</string>
     <string name="checking_your_chatting_address_balance">Проверка баланса вашего адреса для чата...</string>
     <string name="chess_stats">Статистика шахмат</string>
@@ -97,7 +96,6 @@
     <string name="from">От</string>
     <string name="fund_your_chatting_address">Пополните ваш адрес для чата</string>
     <string name="generate_account">Сгенерировать аккаунт</string>
-    <string name="google_drive_backup_used">Использована резервная копия Google Drive</string>
     <string name="grant_permission">Предоставить разрешение</string>
     <string name="grant_permission_2">Предоставить разрешение</string>
     <string name="group_chats">Групповые чаты</string>
@@ -300,7 +298,6 @@
     <string name="active">Активные</string>
     <string name="autocreate_system_contacts">Автосоздание системных контактов</string>
     <string name="avatar">Аватар</string>
-    <string name="back_up_to_google_drive">Создать резервную копию в Google Drive</string>
     <string name="banner">Баннер</string>
     <string name="bio">О себе</string>
     <string name="biometrics_for_account_login">Биометрия для входа в аккаунт</string>

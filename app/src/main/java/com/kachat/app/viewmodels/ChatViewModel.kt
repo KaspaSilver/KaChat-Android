@@ -16,7 +16,6 @@ import com.kachat.app.models.ReactionEntity
 import com.kachat.app.models.displayName
 import com.kachat.app.repository.GroupConversation
 import com.kachat.app.services.ChatHistoryExportImportService
-import com.kachat.app.services.GoogleDriveBackupService
 import com.kachat.app.services.KnsProfileFields
 import com.kachat.app.services.KnsService
 import com.kachat.app.services.NextcloudFile
@@ -57,8 +56,6 @@ class ChatViewModel @Inject constructor(
     private val chatHistoryExportImportService: ChatHistoryExportImportService,
     private val diagnosticsExportService: com.kachat.app.services.DiagnosticsExportService,
     private val voiceRecorderService: VoiceRecorderService,
-    private val googleDriveBackupService: GoogleDriveBackupService,
-    private val googleDriveSyncService: com.kachat.app.services.GoogleDriveSyncService,
     private val nextcloudService: NextcloudService,
     private val nextcloudSyncService: com.kachat.app.services.NextcloudSyncService,
     private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
@@ -278,174 +275,31 @@ class ChatViewModel @Inject constructor(
     }
 
     // -------------------------------------------------------------------------
-    // Google Drive backup — reuses the same JSON archive + merge logic as local
-    // export/import, just with Drive's appDataFolder as the transport. Off by default;
-    // restore is always manual (never triggered automatically on sign-in/foreground).
+    // Cloud backup — Nextcloud only. Message retention is a device-level setting (see the
+    // Storage hub), and the restore coordinator owns cloud restores end to end.
     // -------------------------------------------------------------------------
-
-    enum class GoogleBackupOpStatus { IDLE, IN_PROGRESS, SUCCESS, FAILED }
-    data class GoogleBackupUiState(
-        val enabled: Boolean = false,
-        val signedInEmail: String? = null,
-        val status: GoogleBackupOpStatus = GoogleBackupOpStatus.IDLE,
-        val message: String? = null
-    )
-
-    val googleBackupEnabled: StateFlow<Boolean> = settings.googleBackupEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
     val backupRetention: StateFlow<BackupRetention> = settings.backupRetention
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), BackupRetention.FOREVER)
 
-    private val _googleBackupOpState = MutableStateFlow(GoogleBackupUiState())
-    val googleBackupOpState: StateFlow<GoogleBackupUiState> = _googleBackupOpState.asStateFlow()
-
     /**
-     * The singleton that owns cloud restores (Google Drive + Nextcloud) end to end — exposed so
-     * the storage screens can observe its phase/progress and render the blocking full-screen
-     * modal. The restore job lives on the coordinator's own scope, NOT viewModelScope: this
-     * viewmodel is nav-entry scoped on the storage pages, and popping the screen must never
-     * cancel a half-written import.
+     * The singleton that owns cloud restores (Nextcloud) end to end — exposed so the storage
+     * screens can observe its phase/progress and render the blocking full-screen modal. The
+     * restore job lives on the coordinator's own scope, NOT viewModelScope: this viewmodel is
+     * nav-entry scoped on the storage pages, and popping the screen must never cancel a
+     * half-written import.
      */
     val restoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator get() = backupRestoreCoordinator
-
-    /** One-shot: the UI observes this and launches the intent via `ActivityResultContracts.StartIntentSenderForResult()` when non-null, then calls [consentIntentLaunched] and [completeGoogleDriveAuthorization]. */
-    private val _pendingConsentIntent = MutableStateFlow<PendingIntent?>(null)
-    val pendingConsentIntent: StateFlow<PendingIntent?> = _pendingConsentIntent.asStateFlow()
-
-    fun consentIntentLaunched() {
-        _pendingConsentIntent.value = null
-    }
-
-    /** Sign-in + Drive authorization. May pause at [pendingConsentIntent] for first-time consent — see [completeGoogleDriveAuthorization]. */
-    fun enableGoogleDriveBackup(activity: Activity) {
-        if (_googleBackupOpState.value.status == GoogleBackupOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _googleBackupOpState.value = GoogleBackupUiState(status = GoogleBackupOpStatus.IN_PROGRESS)
-            val signedIn = try {
-                googleDriveBackupService.signIn(activity)
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Google sign-in failed", e)
-                false
-            }
-            if (!signedIn) {
-                _googleBackupOpState.value = GoogleBackupUiState(status = GoogleBackupOpStatus.FAILED, message = "Sign-in failed or was cancelled")
-                return@launch
-            }
-            when (val outcome = googleDriveBackupService.requestAuthorization(activity)) {
-                is GoogleDriveBackupService.AuthOutcome.Success -> finishEnablingBackup()
-                is GoogleDriveBackupService.AuthOutcome.NeedsConsent -> _pendingConsentIntent.value = outcome.pendingIntent
-                is GoogleDriveBackupService.AuthOutcome.Failed ->
-                    _googleBackupOpState.value = GoogleBackupUiState(status = GoogleBackupOpStatus.FAILED, message = outcome.message)
-            }
-        }
-    }
-
-    /** Call after the UI launches [pendingConsentIntent] and gets a result back. */
-    fun completeGoogleDriveAuthorization(intent: Intent) {
-        viewModelScope.launch {
-            if (googleDriveBackupService.completeAuthorization(intent)) {
-                finishEnablingBackup()
-            } else {
-                _googleBackupOpState.value = GoogleBackupUiState(status = GoogleBackupOpStatus.FAILED, message = "Drive authorization was cancelled or denied")
-            }
-        }
-    }
-
-    private suspend fun finishEnablingBackup() {
-        settings.setGoogleBackupEnabled(true)
-        _googleBackupOpState.value = GoogleBackupUiState(
-            enabled = true,
-            signedInEmail = googleDriveBackupService.signedInAccountEmail,
-            status = GoogleBackupOpStatus.SUCCESS
-        )
-        // Sign-in is one of the two automatic-restore moments (the other is wallet activation):
-        // if this wallet's Drive file already exists, its history is imported silently in the
-        // background — txId dedupe makes it purely additive. Also schedules the fallback work.
-        googleDriveSyncService.onSignedIn()
-    }
-
-    /** Turns off automatic backup — does not delete the existing Drive file, just stops future uploads (including any scheduled automatic sync work). */
-    fun disableGoogleDriveBackup() {
-        viewModelScope.launch {
-            settings.setGoogleBackupEnabled(false)
-            googleDriveBackupService.signOut()
-            googleDriveSyncService.onSignedOut()
-            _googleBackupOpState.value = GoogleBackupUiState()
-        }
-    }
-
-    /** The active wallet's "Automatic Drive Sync" toggle (default on once signed in). */
-    val driveAutoSyncEnabled: StateFlow<Boolean> = googleDriveSyncService.autoSyncEnabled
-
-    /** When the active wallet's archive last uploaded automatically, null = never. */
-    val driveLastAutoSyncMs: StateFlow<Long?> = googleDriveSyncService.lastAutoSyncMs
-
-    fun setDriveAutoSyncEnabled(enabled: Boolean) {
-        googleDriveSyncService.setAutoSyncEnabled(enabled)
-    }
-
-    /**
-     * Deletes the CURRENT wallet's backup file from Drive — the Android counterpart of iOS's
-     * "purge this wallet's CloudKit data". Local messages and other wallets' Drive files are
-     * untouched; automatic sync stays on, so the next message re-creates the file.
-     */
-    fun deleteDriveBackup() {
-        if (_googleBackupOpState.value.status == GoogleBackupOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _googleBackupOpState.value = _googleBackupOpState.value.copy(status = GoogleBackupOpStatus.IN_PROGRESS)
-            val address = try { walletManager.getAddress() } catch (e: Exception) { null }
-            var success = false
-            if (address != null) {
-                success = try {
-                    googleDriveBackupService.deleteBackup(address)
-                } catch (e: Exception) {
-                    Log.e("ChatViewModel", "Drive backup delete failed", e)
-                    false
-                }
-                if (success) googleDriveSyncService.clearLastSyncStamp(address)
-            }
-            _googleBackupOpState.value = _googleBackupOpState.value.copy(
-                status = if (success) GoogleBackupOpStatus.SUCCESS else GoogleBackupOpStatus.FAILED,
-                message = if (success) "Drive backup deleted" else "Could not delete the Drive backup"
-            )
-            refreshDriveBackupSize()
-        }
-    }
 
     fun setBackupRetention(retention: BackupRetention) {
         viewModelScope.launch { settings.setBackupRetention(retention) }
     }
 
-    fun backupNow() {
-        if (_googleBackupOpState.value.status == GoogleBackupOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _googleBackupOpState.value = _googleBackupOpState.value.copy(status = GoogleBackupOpStatus.IN_PROGRESS)
-            try {
-                val json = chatHistoryExportImportService.buildArchiveJson()
-                val success = googleDriveBackupService.uploadBackup(walletManager.getAddress(), json)
-                _googleBackupOpState.value = _googleBackupOpState.value.copy(
-                    status = if (success) GoogleBackupOpStatus.SUCCESS else GoogleBackupOpStatus.FAILED,
-                    message = if (success) "Backed up just now" else "Backup failed"
-                )
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Google Drive backup failed", e)
-                _googleBackupOpState.value = _googleBackupOpState.value.copy(status = GoogleBackupOpStatus.FAILED, message = e.message ?: "Backup failed")
-            }
-        }
-    }
-
-    /** Manual only — never triggered automatically. Hands the whole restore (download, import,
-     *  terminal state) to [restoreCoordinator], which drives the blocking progress modal. */
-    fun restoreFromGoogleDrive() {
-        backupRestoreCoordinator.startGoogleDriveRestore()
-    }
-
     // -------------------------------------------------------------------------
-    // Nextcloud — same JSON archive + merge logic as Google Drive, just with the user's own
-    // Nextcloud server (WebDAV) as the transport. The service itself is exposed so the settings
-    // section and picker composables can read account state / list folders / mint share links
-    // directly; the archive-touching operations stay here, mirroring the Google Drive ones.
+    // Nextcloud — the same JSON archive + merge logic as local export/import, with the user's
+    // own Nextcloud server (WebDAV) as the transport. The service itself is exposed so the
+    // settings section and picker composables can read account state / list folders / mint
+    // share links directly; the archive-touching operations stay here.
     // -------------------------------------------------------------------------
 
     val nextcloud: NextcloudService get() = nextcloudService
@@ -510,7 +364,7 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Manual only — never triggered automatically. Hands the whole restore to
-     *  [restoreCoordinator], same as [restoreFromGoogleDrive]. */
+     *  [restoreCoordinator]. */
     fun restoreFromNextcloud() {
         backupRestoreCoordinator.startNextcloudRestore()
     }
@@ -526,10 +380,7 @@ class ChatViewModel @Inject constructor(
     }
 
     // -------------------------------------------------------------------------
-    // Storage — mirrors iOS's "Local storage used" / "iCloud storage used" split in Settings.
-    // Android has no live per-record cloud sync (Google Drive backup is one flat JSON file per
-    // account instead of iOS's continuous CloudKit mirroring), so "cloud" here just means that
-    // one backup file's current size in Drive, not a per-message tally.
+    // Storage — mirrors iOS's "Local storage used" readout in Settings.
     // -------------------------------------------------------------------------
 
     private val _localStorageSizeBytes = MutableStateFlow<Long?>(null)
@@ -544,31 +395,6 @@ class ChatViewModel @Inject constructor(
             if (sidecar.exists()) total += sidecar.length()
         }
         _localStorageSizeBytes.value = total
-    }
-
-    enum class DriveSizeStatus { IDLE, LOADING, LOADED, FAILED }
-    data class DriveSizeState(val status: DriveSizeStatus = DriveSizeStatus.IDLE, val bytes: Long? = null)
-
-    private val _driveBackupSizeState = MutableStateFlow(DriveSizeState())
-    val driveBackupSizeState: StateFlow<DriveSizeState> = _driveBackupSizeState.asStateFlow()
-
-    /** Live Drive API call - unlike [refreshLocalStorageSize], not run automatically since it costs a network request. */
-    fun refreshDriveBackupSize() {
-        if (_driveBackupSizeState.value.status == DriveSizeStatus.LOADING) return
-        viewModelScope.launch {
-            _driveBackupSizeState.value = DriveSizeState(status = DriveSizeStatus.LOADING)
-            val bytes = try {
-                googleDriveBackupService.currentBackupSizeBytes(walletManager.getAddress())
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Failed to check Google Drive backup size", e)
-                null
-            }
-            _driveBackupSizeState.value = if (bytes != null) {
-                DriveSizeState(status = DriveSizeStatus.LOADED, bytes = bytes)
-            } else {
-                DriveSizeState(status = DriveSizeStatus.FAILED)
-            }
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -595,8 +421,8 @@ class ChatViewModel @Inject constructor(
     val wipeAccountState: StateFlow<DangerZoneOpState> = _wipeAccountState.asStateFlow()
 
     /**
-     * Wipes all local chat data (messages + contacts) for [address], and if [alsoDeleteCloud] is
-     * true, also deletes the Google Drive backup file and signs out of Drive backup entirely.
+     * Wipes all local chat data (messages + contacts) for [address]. [alsoDeleteCloud] is kept
+     * for the callers' shape; Nextcloud state is purged either way.
      * Does NOT delete the wallet's keys — that's a separate, synchronous step
      * ([WalletManager.deleteAccount] via [WalletViewModel.deleteWallet]) the caller must run via
      * [onLocalWipeComplete] once this finishes, since key deletion and the resulting
@@ -617,16 +443,6 @@ class ChatViewModel @Inject constructor(
                 // The continuous Nextcloud sync state (dirty flag, last-synced stamp, restored
                 // marker) and any pending debounced upload go with the account too.
                 nextcloudSyncService.purgeStoredState(address)
-                // Same per-account hygiene for the automatic Drive sync: this wallet's toggle,
-                // stamps, and pending debounced upload go with it; other wallets are untouched.
-                googleDriveSyncService.purgeStoredState(address)
-                if (alsoDeleteCloud) {
-                    googleDriveBackupService.deleteBackup(address)
-                    settings.setGoogleBackupEnabled(false)
-                    googleDriveBackupService.signOut()
-                    googleDriveSyncService.onSignedOut()
-                    _googleBackupOpState.value = GoogleBackupUiState()
-                }
                 _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.SUCCESS)
                 onLocalWipeComplete()
             } catch (e: Exception) {
@@ -1331,16 +1147,22 @@ class ChatViewModel @Inject constructor(
             .sortedBy { (it.storedName ?: it.address).lowercase() }
     }
 
-    fun addContact(address: String, name: String?, knsName: String? = null) {
+    /**
+     * [deliberate]: the user typed the address in (Create Chat) - their own other accounts are
+     * allowed, only the account in use is refused (see ChatRepository.addContact). [onResult]
+     * gets the refusal reason, or null when the contact was stored, so the caller can say why
+     * where the user can see it instead of a tap that does nothing.
+     */
+    fun addContact(address: String, name: String?, knsName: String? = null, deliberate: Boolean = false, onResult: (String?) -> Unit = {}) {
         viewModelScope.launch {
             val existing = chatRepository.getContact(address)
-            if (existing != null) {
+            val stored = if (existing != null) {
                 // If contact exists, update name if provided
                 val updated = existing.copy(
                     alias = if (name.isNullOrBlank()) existing.alias else name,
                     knsName = knsName ?: existing.knsName
                 )
-                chatRepository.addContact(updated)
+                chatRepository.addContact(updated, deliberate = deliberate)
             } else {
                 val newContact = ContactEntity(
                     id = address,
@@ -1349,8 +1171,16 @@ class ChatViewModel @Inject constructor(
                     knsName = knsName,
                     publicKeyHex = null
                 )
-                chatRepository.addContact(newContact)
+                chatRepository.addContact(newContact, deliberate = deliberate)
             }
+            if (!stored) {
+                onResult(
+                    if (deliberate) "That is the account you are using - there is no one to talk to."
+                    else "That address is one of your own accounts."
+                )
+                return@launch
+            }
+            onResult(null)
 
             // Added by raw address with no domain typed: record their primary KNS domain so
             // `ContactEntity.displayName` can show it. It is deliberately NOT copied into
@@ -2272,7 +2102,10 @@ class ChatViewModel @Inject constructor(
      * send happens in the background via the same [WalletService.sendKasiaMessage] pipeline any
      * other message uses.
      */
-    fun sendReaction(contactId: String, targetTxId: String, emoji: String, action: String) {
+    /** [onError] gets the failure's reason. The pill already turns red with a Retry, but the
+     *  error itself was only logged, so a reaction failing instantly on every attempt gave
+     *  nothing to go on - the thread shows it in the same toast a failed send uses (iOS). */
+    fun sendReaction(contactId: String, targetTxId: String, emoji: String, action: String, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             val myAddress = walletManager.getAddress()
             if (action == "add") {
@@ -2289,18 +2122,19 @@ class ChatViewModel @Inject constructor(
                     chatRepository.upsertReaction(targetTxId, myAddress, contactId, emoji, result.txId, System.currentTimeMillis())
                 }
             } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error sending reaction", e)
+                Log.e("ChatViewModel", "Reaction $action $emoji on ${targetTxId.take(12)} failed: ${e.message}", e)
                 // Flag failed so the pill shows the red error icon and a Retry appears under the
                 // message. A failed "remove" restores the optimistically-deleted reaction (marked
                 // failed) so it isn't silently lost; Retry re-attempts the change.
                 chatRepository.upsertReaction(targetTxId, myAddress, contactId, emoji, null, System.currentTimeMillis(), deliveryStatus = "failed", failedAction = action)
+                onError(e.message ?: "Reaction failed")
             }
         }
     }
 
     /** Retries a 1:1 reaction whose send previously failed - re-attempts the stored add/remove. */
-    fun retryReaction(contactId: String, targetTxId: String, emoji: String, action: String) {
-        sendReaction(contactId, targetTxId, emoji, action)
+    fun retryReaction(contactId: String, targetTxId: String, emoji: String, action: String, onError: (String) -> Unit = {}) {
+        sendReaction(contactId, targetTxId, emoji, action, onError)
     }
 
     // -------------------------------------------------------------------------

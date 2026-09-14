@@ -39,7 +39,6 @@
     <string name="chatting_address_2">চ্যাট ঠিকানা</string>
     <string name="chatting_vs_spending_address">চ্যাট ঠিকানা বনাম খরচের ঠিকানা</string>
     <string name="check_again">আবার পরীক্ষা করুন</string>
-    <string name="check_drive_backup_size">Drive ব্যাকআপের আকার পরীক্ষা করুন</string>
     <string name="checking_availability">উপলব্ধতা পরীক্ষা করা হচ্ছে...</string>
     <string name="checking_your_chatting_address_balance">আপনার চ্যাট ঠিকানার ব্যালেন্স পরীক্ষা করা হচ্ছে...</string>
     <string name="chess_stats">দাবা পরিসংখ্যান</string>
@@ -97,7 +96,6 @@
     <string name="from">থেকে</string>
     <string name="fund_your_chatting_address">আপনার চ্যাট ঠিকানা ফান্ড করুন</string>
     <string name="generate_account">অ্যাকাউন্ট জেনারেট করুন</string>
-    <string name="google_drive_backup_used">Google Drive ব্যাকআপ ব্যবহৃত হয়েছে</string>
     <string name="grant_permission">অনুমতি দিন</string>
     <string name="grant_permission_2">অনুমতি দিন</string>
     <string name="group_chats">গ্রুপ চ্যাট</string>
@@ -300,7 +298,6 @@
     <string name="active">সক্রিয়</string>
     <string name="autocreate_system_contacts">সিস্টেম কন্টাক্ট স্বয়ংক্রিয় তৈরি করুন</string>
     <string name="avatar">অবতার</string>
-    <string name="back_up_to_google_drive">Google Drive-এ ব্যাকআপ নিন</string>
     <string name="banner">ব্যানার</string>
     <string name="bio">বায়ো</string>
     <string name="biometrics_for_account_login">অ্যাকাউন্ট লগইনের জন্য বায়োমেট্রিক্স</string>

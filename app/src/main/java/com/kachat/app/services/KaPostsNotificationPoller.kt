@@ -133,7 +133,7 @@ class KaPostsNotificationPoller @Inject constructor(
         dataStore.edit { it[key] = maxOf(newest, lastSeen) }
         // Muted and blocked accounts are gone from every KaPosts surface, the bell count and the
         // shade included (iOS drops them from both the unseen ingest and the banner path).
-        val hidden = settingsRepository.kapostsMuted.first() + settingsRepository.kapostsBlocked.first()
+        val hidden = settingsRepository.kapostsMuted(address).first() + settingsRepository.kapostsBlocked(address).first()
         // Counted, not listed. The KaPosts notifications screen already serves these rows from
         // the indexer with richer formatting, so keeping a second copy in the global center
         // reported the same like or reply twice and let one busy feed dominate the profile

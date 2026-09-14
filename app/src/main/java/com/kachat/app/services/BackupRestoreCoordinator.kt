@@ -38,10 +38,9 @@ import javax.inject.Singleton
 @Singleton
 class BackupRestoreCoordinator @Inject constructor(
     private val nextcloudService: NextcloudService,
-    private val googleDriveBackupService: GoogleDriveBackupService,
     private val chatHistoryExportImportService: ChatHistoryExportImportService,
     private val walletManager: WalletManager,
-    // Lazy because ChatRepository reaches GoogleDriveSyncService (which needs this coordinator)
+    // Lazy because ChatRepository reaches NextcloudSyncService (which needs this coordinator)
     // through its own Lazy edge — keep this side lazy too so the object graph stays acyclic at
     // construction time regardless of instantiation order.
     private val chatRepositoryLazy: dagger.Lazy<com.kachat.app.repository.ChatRepository>
@@ -53,7 +52,7 @@ class BackupRestoreCoordinator @Inject constructor(
         data class Failure(val message: String) : Phase()
     }
 
-    enum class Source { NEXTCLOUD, GOOGLE_DRIVE }
+    enum class Source { NEXTCLOUD }
 
     /** Which flow the current [phase]/[fraction]/[stageText] belong to — picks the overlay's copy. */
     enum class Kind { RESTORE, RESYNC }
@@ -86,7 +85,6 @@ class BackupRestoreCoordinator @Inject constructor(
     private var restoreJob: Job? = null
 
     fun startNextcloudRestore() = start(Source.NEXTCLOUD)
-    fun startGoogleDriveRestore() = start(Source.GOOGLE_DRIVE)
 
     /**
      * Danger Zone "Wipe and Re-sync Incoming Messages". [contactIds] scopes both the wipe and
@@ -190,9 +188,6 @@ class BackupRestoreCoordinator @Inject constructor(
                         advance(0.30f * downloaded, "Downloading backup...")
                     }
                 }
-                // Drive's API hands back the whole body at once — no byte progress to stream.
-                Source.GOOGLE_DRIVE -> googleDriveBackupService.downloadBackup(walletManager.getAddress())
-                    ?: throw IllegalStateException("No Google Drive backup found")
             }
             advance(0.32f, "Validating backup...")
 

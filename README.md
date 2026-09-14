@@ -24,8 +24,8 @@ This is the Android version, a companion to [KaChat on iOS](https://github.com/v
 - Cold storage: watch-only accounts with offline signing via animated QR codes (KSPT)
 - Portfolio tracking and in-app swaps between KAS and other coins (via ChangeNOW)
 - Multiple wallet accounts on one device, plus an optional Child Mode lock
-- Optional, off-by-default encrypted backup of your chat history to your own Google Drive or
-  Nextcloud server
+- Optional, off-by-default encrypted backup of your chat history to your own Nextcloud server,
+  the one sync that works across iOS and Android
 - Optional push notifications for messages, groups, channels, and KaPosts (FCM; see
   `PUSH_ANDROID_SETUP.md`)
 - QR code scanning for addresses and contacts
@@ -77,7 +77,7 @@ Optional pieces, both gitignored and absent by default:
   which is protected at rest by Android's file-based encryption. Android's system backup is
   disabled for the app (`allowBackup="false"`), so chat history and keys are never copied into
   device backups.
-- Optional cloud backups (Google Drive or Nextcloud) are end-to-end encrypted with a key derived
+- Optional Nextcloud backups are end-to-end encrypted with a key derived
   from your wallet before they leave the device. The cloud provider only ever stores ciphertext.
 - Group chat keys are kept in encrypted preferences whose master key lives in the Android
   Keystore, hardware-backed on devices that support it.

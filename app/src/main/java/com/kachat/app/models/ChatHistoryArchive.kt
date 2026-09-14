@@ -17,7 +17,7 @@ data class ChatHistoryArchive(
     // admin groups that have no on-chain invite addressed to it.
     val groups: List<ChatHistoryArchiveGroup>? = null,
     // Deletion tombstones (optional; older archives omit it): addresses whose chats the user
-    // deleted. A restore - local file, Google Drive, or Nextcloud - must never resurrect
+    // deleted. A restore - local file or Nextcloud - must never resurrect
     // them, even on a fresh install with no local tombstones. Field name matches iOS.
     val deletedContactAddresses: List<String>? = null
 ) {

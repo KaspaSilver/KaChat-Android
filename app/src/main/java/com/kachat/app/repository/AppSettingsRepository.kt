@@ -155,8 +155,7 @@ class AppSettingsRepository @Inject constructor(
         // A single in-flight KNS commit awaiting its reveal — see PendingKnsCommit.
         val KEY_PENDING_KNS_COMMIT = stringPreferencesKey("pending_kns_commit")
 
-        // Google Drive chat-history backup — off by default, unlike iOS's iCloud sync.
-        val KEY_GOOGLE_BACKUP_ENABLED = booleanPreferencesKey("google_backup_enabled")
+        // Device-level message retention (Forever / 30 / 90 days) - see BackupRetention.
         val KEY_BACKUP_RETENTION = stringPreferencesKey("backup_retention")
 
         // Broadcasts — whether the "Popular" tab (curated rooms, see FeaturedBroadcastChannels)
@@ -334,8 +333,7 @@ class AppSettingsRepository @Inject constructor(
      * KaPosts follow set, scoped PER WALLET ADDRESS (same pattern as the poller's per-wallet
      * last-seen key). The old KEY_KAPOSTS_FOLLOWING was one global set, so one account's
      * follows leaked into every other account on the device - a brand-new account started out
-     * already "following" the previous account's people. Muted/blocked stay device-global on
-     * purpose: they are viewer preferences, not on-chain identity state.
+     * already "following" the previous account's people.
      */
     private fun kapostsFollowingKey(walletAddress: String) =
         stringSetPreferencesKey("kaposts_following_$walletAddress")
@@ -343,8 +341,37 @@ class AppSettingsRepository @Inject constructor(
     fun kapostsFollowing(walletAddress: String): Flow<Set<String>> =
         dataStore.data.map { it[kapostsFollowingKey(walletAddress)] ?: emptySet() }
 
-    val kapostsMuted: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_MUTED] ?: emptySet() }
-    val kapostsBlocked: Flow<Set<String>> = dataStore.data.map { it[KEY_KAPOSTS_BLOCKED] ?: emptySet() }
+    /**
+     * Mute and block lists, per account like the follow set - who you mute is a decision of one
+     * identity, not of the device; every saved account is a different identity on KaPosts, and
+     * one shared list opened a brand-new account already muting the first account's people.
+     * Same legacy rule as iOS: the pre-scoping lists go to the account when it is the only one
+     * saved (it is the owner by construction); with more they are unassignable and left alone.
+     * See [migrateLegacyKapostsModeration].
+     */
+    private fun kapostsMutedKey(walletAddress: String) = stringSetPreferencesKey("kaposts_muted_$walletAddress")
+    private fun kapostsBlockedKey(walletAddress: String) = stringSetPreferencesKey("kaposts_blocked_$walletAddress")
+
+    fun kapostsMuted(walletAddress: String): Flow<Set<String>> =
+        dataStore.data.map { it[kapostsMutedKey(walletAddress)] ?: emptySet() }
+    fun kapostsBlocked(walletAddress: String): Flow<Set<String>> =
+        dataStore.data.map { it[kapostsBlockedKey(walletAddress)] ?: emptySet() }
+
+    /** Adopts the pre-scoping mute/block lists for [walletAddress] when this device has only
+     *  that one account and no scoped lists exist yet; otherwise leaves everything as it is.
+     *  Idempotent: the legacy keys are removed once adopted. */
+    suspend fun migrateLegacyKapostsModeration(walletAddress: String, singleAccount: Boolean) {
+        dataStore.edit { prefs ->
+            val hasLegacy = prefs.contains(KEY_KAPOSTS_MUTED) || prefs.contains(KEY_KAPOSTS_BLOCKED)
+            if (!hasLegacy) return@edit
+            val hasScoped = prefs.contains(kapostsMutedKey(walletAddress)) || prefs.contains(kapostsBlockedKey(walletAddress))
+            if (hasScoped || !singleAccount) return@edit
+            prefs[kapostsMutedKey(walletAddress)] = prefs[KEY_KAPOSTS_MUTED] ?: emptySet()
+            prefs[kapostsBlockedKey(walletAddress)] = prefs[KEY_KAPOSTS_BLOCKED] ?: emptySet()
+            prefs.remove(KEY_KAPOSTS_MUTED)
+            prefs.remove(KEY_KAPOSTS_BLOCKED)
+        }
+    }
 
 
     // Falls back to DEFAULT_TRUSTED_NODE_ADDRESS only when the key has never been written at
@@ -606,10 +633,6 @@ class AppSettingsRepository @Inject constructor(
     }
 
     /** Off by default — the user must explicitly turn this on, unlike iOS's iCloud sync. */
-    val googleBackupEnabled: Flow<Boolean> = dataStore.data.map {
-        it[KEY_GOOGLE_BACKUP_ENABLED] ?: false
-    }
-
     val backupRetention: Flow<com.kachat.app.models.BackupRetention> = dataStore.data.map {
         com.kachat.app.models.BackupRetention.fromName(it[KEY_BACKUP_RETENTION])
     }
@@ -716,8 +739,10 @@ class AppSettingsRepository @Inject constructor(
      * follow sync rebuilds each account's real follow set from the chain anyway.
      */
     suspend fun clearLegacyKapostsFollowing() = dataStore.edit { it.remove(KEY_KAPOSTS_FOLLOWING) }
-    suspend fun setKapostsMuted(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_MUTED] = value }
-    suspend fun setKapostsBlocked(value: Set<String>) = dataStore.edit { it[KEY_KAPOSTS_BLOCKED] = value }
+    suspend fun setKapostsMuted(walletAddress: String, value: Set<String>) =
+        dataStore.edit { it[kapostsMutedKey(walletAddress)] = value }
+    suspend fun setKapostsBlocked(walletAddress: String, value: Set<String>) =
+        dataStore.edit { it[kapostsBlockedKey(walletAddress)] = value }
     suspend fun setTrustedNodeAddress(value: String) = dataStore.edit { it[KEY_TRUSTED_NODE_ADDRESS] = value }
     suspend fun setKnownGoodNodeAddresses(addresses: List<String>) = dataStore.edit {
         it[KEY_KNOWN_GOOD_NODES] = addresses.joinToString(",")
@@ -876,7 +901,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKaPostsNotifyDislikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_DISLIKES] = value }
     suspend fun setKaPostsNotifyComments(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_COMMENTS] = value }
     suspend fun setKaPostsNotifyMentions(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_MENTIONS] = value }
-    suspend fun setGoogleBackupEnabled(value: Boolean) = dataStore.edit { it[KEY_GOOGLE_BACKUP_ENABLED] = value }
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
     suspend fun setAutoCreateSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_AUTOCREATE_SYSTEM_CONTACTS] = value }
     suspend fun setPendingKnsCommit(commit: PendingKnsCommit) = dataStore.edit { it[KEY_PENDING_KNS_COMMIT] = Gson().toJson(commit) }

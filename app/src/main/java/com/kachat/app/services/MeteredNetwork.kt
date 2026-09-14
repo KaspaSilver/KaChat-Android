@@ -17,7 +17,7 @@ import javax.inject.Singleton
  * now?" — the switch every cellular-data-reduction behavior in the app keys off: slower poll
  * cadences (ChatRepository), no block-added streaming (GroupScanningService, and
  * BroadcastScanningService except for channels with no other delivery path), relaxed cloud-sync
- * debounces (NextcloudSyncService / GoogleDriveSyncService), and a calmer node pool
+ * debounces (NextcloudSyncService), and a calmer node pool
  * (NodePoolManager). WiFi behavior everywhere stays exactly as before.
  *
  * Backed by [ConnectivityManager.isActiveNetworkMetered] with a default-network callback keeping

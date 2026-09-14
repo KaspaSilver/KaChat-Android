@@ -248,12 +248,6 @@ dependencies {
     // Image loading (KNS avatars)
     implementation(libs.coil.compose)
 
-    // Google Drive backup (sign-in + Drive scope authorization)
-    implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play.services.auth)
-    implementation(libs.googleid)
-    implementation(libs.play.services.auth)
-
     // gRPC (Kaspa node connections)
     implementation(libs.grpc.okhttp)
     implementation(libs.grpc.protobuf.lite)

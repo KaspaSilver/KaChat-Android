@@ -69,8 +69,8 @@ class ChatHistoryExportImportService @Inject constructor(
     /**
      * Builds the archive for the active account, ENCRYPTED into the cross-platform v1 backup
      * envelope ([BackupCrypto]) — the shared payload for every backup transport (local file
-     * share, Google Drive manual backup and automatic sync, ...). Callers that need a shareable
-     * file use [exportChatHistory]; callers that just need the bytes (e.g. a Drive upload) call
+     * share, Nextcloud backup and automatic sync, ...). Callers that need a shareable
+     * file use [exportChatHistory]; callers that just need the bytes (e.g. a Nextcloud upload) call
      * this directly. Backup transports that write the SHARED `kachat-backup.json` must go
      * through [buildBackupJson] instead, so they merge rather than overwrite.
      */
@@ -222,7 +222,7 @@ class ChatHistoryExportImportService @Inject constructor(
 
     /**
      * Parses and merges an archive JSON string into the active account's local data — the shared
-     * core used by the local file-picker import and the Google Drive / Nextcloud restores. Throws
+     * core used by the local file-picker import and the Nextcloud restore. Throws
      * with a user-facing message on any validation failure.
      *
      * [onConversationProgress] (optional) fires as `(done, total)` after each conversation's

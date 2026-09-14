@@ -77,207 +77,20 @@ import com.kachat.app.viewmodels.ChatViewModel
 
 /**
  * Settings > Storage sub-pages. The Storage entry itself is a hub of category rows (rendered by
- * [SettingsScreen] under `sectionKey == "storage"`), one per backup provider, exactly like iOS's
- * Settings > Storage — which lists iCloud and Nextcloud rows that each push their own page. On
- * Android the counterpart of iOS's iCloud row is Google Drive ([GoogleDriveStorageScreen]);
- * Nextcloud ([NextcloudStorageScreen]) is the same self-hosted option as on iOS.
+ * [SettingsScreen] under `sectionKey == "storage"`), like iOS's Settings > Storage. Nextcloud
+ * ([NextcloudStorageScreen]) is the one cloud option on Android - the same self-hosted
+ * option as on iOS, and the only sync that works across both platforms.
  *
  * Local (on-device) storage has no settings of its own — just the "Local storage used" readout —
  * so it stays inline on the hub instead of becoming a third row that would open a page holding a
  * single read-only line.
  */
 
-/** Unwraps a Compose [android.content.Context] (often a ContextWrapper) to find the real hosting Activity — needed for Credential Manager / Drive authorization, which require an Activity, not just any Context. */
-internal tailrec fun android.content.Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
-/**
- * Settings > Storage > Google Drive — sign-in/authorization toggle, backup size, manual
- * backup/restore and the retention picker. Drive backup is `drive.appdata`-scoped (hidden
- * per-app folder); see [com.kachat.app.services.GoogleDriveBackupService].
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GoogleDriveStorageScreen(
-    onBack: () -> Unit,
-    chatViewModel: ChatViewModel = hiltViewModel()
-) {
-    val context = LocalContext.current
-    val googleBackupEnabled by chatViewModel.googleBackupEnabled.collectAsState()
-    val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
-    val restorePhase by chatViewModel.restoreCoordinator.phase.collectAsState()
-    val pendingConsentIntent by chatViewModel.pendingConsentIntent.collectAsState()
-    val driveBackupSizeState by chatViewModel.driveBackupSizeState.collectAsState()
-    val activity = context.findActivity()
-
-    val consentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        chatViewModel.consentIntentLaunched()
-        result.data?.let { chatViewModel.completeGoogleDriveAuthorization(it) }
-    }
-
-    LaunchedEffect(pendingConsentIntent) {
-        pendingConsentIntent?.let { pendingIntent ->
-            consentLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
-        }
-    }
-
-    val driveAutoSyncEnabled by chatViewModel.driveAutoSyncEnabled.collectAsState()
-    val driveLastAutoSyncMs by chatViewModel.driveLastAutoSyncMs.collectAsState()
-    var showDeleteBackupDialog by remember { mutableStateOf(false) }
-
-    val backupInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
-    val restoreInFlight = restorePhase is BackupRestoreCoordinator.Phase.Running
-
-    Box(modifier = Modifier.fillMaxSize()) {
-    StoragePageScaffold(title = stringResource(R.string.google_drive), onBack = onBack) {
-        SettingsSection(title = null) {
-            SettingsSwitchItem(
-                stringResource(R.string.back_up_to_google_drive),
-                checked = googleBackupEnabled,
-                onCheckedChange = { checked ->
-                    if (checked) {
-                        activity?.let { chatViewModel.enableGoogleDriveBackup(it) }
-                    } else {
-                        chatViewModel.disableGoogleDriveBackup()
-                    }
-                }
-            )
-            val backupFooterText = when {
-                backupInFlight -> "Working..."
-                googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.FAILED -> googleBackupOpState.message ?: "Something went wrong"
-                googleBackupEnabled && googleBackupOpState.signedInEmail != null -> "Signed in as ${googleBackupOpState.signedInEmail}"
-                else -> "Off by default. Backs up chat history to your own Google Drive as hidden storage, not visible in your regular Drive files."
-            }
-            SettingsFooter(backupFooterText)
-
-            // Google Drive backup is one flat JSON file per account (no live per-record cloud
-            // sync like iOS's CloudKit), so "cloud storage used" here is just that file's size.
-            SettingsDivider()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(stringResource(R.string.google_drive_backup_used), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        text = when (driveBackupSizeState.status) {
-                            ChatViewModel.DriveSizeStatus.IDLE -> "Not checked"
-                            ChatViewModel.DriveSizeStatus.LOADING -> "Checking..."
-                            ChatViewModel.DriveSizeStatus.LOADED -> driveBackupSizeState.bytes?.let {
-                                android.text.format.Formatter.formatShortFileSize(context, it)
-                            } ?: "No backup found"
-                            ChatViewModel.DriveSizeStatus.FAILED -> "Unavailable"
-                        },
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                if (driveBackupSizeState.status == ChatViewModel.DriveSizeStatus.LOADING) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                } else {
-                    IconButton(onClick = { chatViewModel.refreshDriveBackupSize() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.check_drive_backup_size), tint = KaspaTeal)
-                    }
-                }
-            }
-
-            if (googleBackupEnabled) {
-                // Automatic sync: the Android counterpart of iOS's invisible iCloud persistence.
-                // On keeps the wallet's Drive file current after message activity (debounced,
-                // with a periodic fallback) and restores it automatically on wallet activation.
-                SettingsDivider()
-                SettingsSwitchItem(
-                    "Automatic Drive Sync",
-                    checked = driveAutoSyncEnabled,
-                    onCheckedChange = { chatViewModel.setDriveAutoSyncEnabled(it) }
-                )
-                SettingsFooter(
-                    (if (driveAutoSyncEnabled) {
-                        val lastSync = driveLastAutoSyncMs
-                        if (lastSync != null) {
-                            "Chat history syncs to Drive automatically. Last synced " +
-                                android.text.format.DateUtils.getRelativeTimeSpanString(lastSync).toString().lowercase() + "."
-                        } else {
-                            "Chat history syncs to Drive automatically after new messages. Not synced yet."
-                        }
-                    } else {
-                        "Automatic sync is off. Only manual backups update the Drive file."
-                    }) + " Automatic sync works with one cloud service at a time."
-                )
-                SettingsDivider()
-                SettingsActionItem(
-                    label = if (backupInFlight) "Backing Up..." else "Back Up Now",
-                    icon = Icons.Default.CloudUpload,
-                    color = if (backupInFlight) Color.Gray else KaspaTeal
-                ) {
-                    if (!backupInFlight) chatViewModel.backupNow()
-                }
-                SettingsDivider()
-                SettingsActionItem(
-                    label = if (restoreInFlight) "Restoring..." else "Restore from Google Drive",
-                    icon = Icons.Default.CloudDownload,
-                    color = if (restoreInFlight) Color.Gray else KaspaTeal
-                ) {
-                    // Terminal states (success/failure) show in the blocking restore modal, not
-                    // as footer rows here.
-                    if (!restoreInFlight) chatViewModel.restoreFromGoogleDrive()
-                }
-                // Purge: mirrors iOS's "delete this wallet's CloudKit data". Only the current
-                // wallet's Drive file; local messages and other wallets' files are untouched.
-                SettingsDivider()
-                SettingsActionItem(
-                    label = "Delete Drive Backup",
-                    icon = Icons.Default.Delete,
-                    color = if (backupInFlight) Color.Gray else Color(0xFFFF3B30)
-                ) {
-                    if (!backupInFlight) showDeleteBackupDialog = true
-                }
-            }
-        }
-    }
-
-    if (showDeleteBackupDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteBackupDialog = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Delete Drive Backup?", color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    "This permanently deletes this wallet's chat history backup from your Google Drive. " +
-                        "Messages on this device are not affected. If Automatic Drive Sync stays on, a new backup will be created after the next message.",
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteBackupDialog = false
-                    chatViewModel.deleteDriveBackup()
-                }) {
-                    Text("Delete", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteBackupDialog = false }) {
-                    Text("Cancel", color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
-    }
-    ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
-    }
-}
-
 /**
  * Device-level message retention (Forever / 30 / 90 days), shown on the Storage hub before any
  * cloud provider is chosen. This governs how long messages live on THIS device — older messages
  * are permanently deleted regardless of whether any backup is connected — so it is intentionally
- * separate from (and not gated by) Google Drive / Nextcloud.
+ * separate from (and not gated by) Nextcloud.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -322,7 +135,7 @@ fun MessageRetentionSetting(chatViewModel: ChatViewModel) {
 }
 
 /**
- * Settings > Storage > Nextcloud — the self-hosted alternative to Google Drive. All of the
+ * Settings > Storage > Nextcloud — the self-hosted cloud backup. All of the
  * behaviour (connect form, start/backup folders, media-send toggle, automatic + manual backup,
  * restore, disconnect) lives in [NextcloudSettingsSection], unchanged; this screen only supplies
  * the sub-page chrome around it.

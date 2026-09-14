@@ -300,9 +300,26 @@ class KaPostsViewModel @Inject constructor(
             if (address == null) flowOf(emptySet<String>()) else settings.kapostsFollowing(address)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-    val muted: StateFlow<Set<String>> = settings.kapostsMuted
+    // Mutes and blocks are per account too, swapped with the active address exactly like the
+    // follow set; the pre-scoping lists are adopted by a device's only account (see
+    // AppSettingsRepository.migrateLegacyKapostsModeration).
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val muted: StateFlow<Set<String>> = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) flowOf(emptySet<String>()) else {
+                settings.migrateLegacyKapostsModeration(address, singleAccount = walletManager.getAllAccounts().size <= 1)
+                settings.kapostsMuted(address)
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-    val blocked: StateFlow<Set<String>> = settings.kapostsBlocked
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val blocked: StateFlow<Set<String>> = walletManager.activeAddressFlow
+        .flatMapLatest { address ->
+            if (address == null) flowOf(emptySet<String>()) else {
+                settings.migrateLegacyKapostsModeration(address, singleAccount = walletManager.getAllAccounts().size <= 1)
+                settings.kapostsBlocked(address)
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     fun isHidden(address: String, mutedSet: Set<String> = muted.value, blockedSet: Set<String> = blocked.value): Boolean =
@@ -2094,24 +2111,28 @@ class KaPostsViewModel @Inject constructor(
 
     fun mute(address: String) {
         if (address.isEmpty()) return
-        viewModelScope.launch { settings.setKapostsMuted(muted.value + address) }
+        val wallet = walletManager.activeAddressFlow.value ?: return
+        viewModelScope.launch { settings.setKapostsMuted(wallet, muted.value + address) }
     }
 
     fun unmute(address: String) {
-        viewModelScope.launch { settings.setKapostsMuted(muted.value - address) }
+        val wallet = walletManager.activeAddressFlow.value ?: return
+        viewModelScope.launch { settings.setKapostsMuted(wallet, muted.value - address) }
     }
 
     fun block(address: String) {
         if (address.isEmpty()) return
+        val wallet = walletManager.activeAddressFlow.value ?: return
         viewModelScope.launch {
             // Block supersedes mute - no need to track both.
-            settings.setKapostsBlocked(blocked.value + address)
-            settings.setKapostsMuted(muted.value - address)
+            settings.setKapostsBlocked(wallet, blocked.value + address)
+            settings.setKapostsMuted(wallet, muted.value - address)
         }
     }
 
     fun unblock(address: String) {
-        viewModelScope.launch { settings.setKapostsBlocked(blocked.value - address) }
+        val wallet = walletManager.activeAddressFlow.value ?: return
+        viewModelScope.launch { settings.setKapostsBlocked(wallet, blocked.value - address) }
     }
 
     fun toggleBookmark(post: KaPostDraft) {

@@ -39,7 +39,6 @@
     <string name="chatting_address_2">聊天地址</string>
     <string name="chatting_vs_spending_address">聊天地址与消费地址</string>
     <string name="check_again">重新检查</string>
-    <string name="check_drive_backup_size">检查 Drive 备份大小</string>
     <string name="checking_availability">正在检查可用性...</string>
     <string name="checking_your_chatting_address_balance">正在检查您的聊天地址余额...</string>
     <string name="chess_stats">国际象棋战绩</string>
@@ -97,7 +96,6 @@
     <string name="from">发件人</string>
     <string name="fund_your_chatting_address">为您的聊天地址充值</string>
     <string name="generate_account">生成账户</string>
-    <string name="google_drive_backup_used">已使用 Google Drive 备份</string>
     <string name="grant_permission">授予权限</string>
     <string name="grant_permission_2">授予权限</string>
     <string name="group_chats">群聊</string>
@@ -300,7 +298,6 @@
     <string name="active">活跃</string>
     <string name="autocreate_system_contacts">自动创建系统联系人</string>
     <string name="avatar">阿凡达</string>
-    <string name="back_up_to_google_drive">备份到 Google Drive</string>
     <string name="banner">横幅</string>
     <string name="bio">简介</string>
     <string name="biometrics_for_account_login">账户登录的生物识别</string>

@@ -11,7 +11,7 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * The cross-platform "Encrypted Backup Envelope (v1)" codec (see MESSAGING.md in the iOS repo) —
  * the ONE place every backup transport encrypts and decrypts the chat archive. Nextcloud's shared
- * `kachat-backup.json`, the per-account Google Drive files, and the local file-picker export all
+ * `kachat-backup.json` and the local file-picker export all
  * carry this envelope as the file's entire content:
  *
  * ```json

@@ -68,20 +68,14 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier
 
-    // Continuous automatic Nextcloud sync — same eager-init reasoning as GoogleDriveSyncService
-    // below: its init block observes the connected account + Automatic Sync toggle (schedules or
+    // Continuous automatic Nextcloud sync — same lazy-singleton reasoning as the scanners
+    // above: its init block observes the connected account + Automatic Sync toggle (schedules or
     // cancels the 6h WorkManager fallback) and the active wallet (silent one-time auto-restore
-    // of the shared backup file). The lifecycle triggers below also feed it.
+    // of the shared backup file). Field-injecting it here guarantees those observers run from
+    // app startup, not only after the Nextcloud storage screen happens to be opened. The
+    // lifecycle triggers below also feed it.
     @Inject
     lateinit var nextcloudSyncService: com.kachat.app.services.NextcloudSyncService
-
-    // Same lazy-singleton reasoning as the scanners above: GoogleDriveSyncService's init block
-    // observes the active wallet (automatic Drive restore on wallet activation) and the Drive
-    // sign-in + auto-sync toggles (schedules/cancels the 6h WorkManager fallback). Field-
-    // injecting it here guarantees those observers run from app startup, not only after the
-    // Google Drive storage screen happens to be opened.
-    @Inject
-    lateinit var googleDriveSyncService: com.kachat.app.services.GoogleDriveSyncService
 
     // For mirroring the persisted "Verbose API Logging" toggle into ApiLogging.verbose (a plain
     // volatile flag the OkHttp logging interceptor reads per request) — see onCreate below.

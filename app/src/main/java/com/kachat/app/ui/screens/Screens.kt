@@ -1485,10 +1485,14 @@ fun ChatThreadScreen(
                                 onReact = { emoji ->
                                     val existing = reactionsByTxId[msg.id]?.find { it.reactorAddress == myAddress }
                                     val action = if (existing?.emoji == emoji) "remove" else "add"
-                                    chatViewModel.sendReaction(contactId, msg.id, emoji, action)
+                                    chatViewModel.sendReaction(contactId, msg.id, emoji, action) { reason ->
+                                        Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                                 onRetryReaction = { reaction ->
-                                    chatViewModel.retryReaction(contactId, reaction.targetTxId, reaction.emoji, reaction.failedAction ?: "add")
+                                    chatViewModel.retryReaction(contactId, reaction.targetTxId, reaction.emoji, reaction.failedAction ?: "add") { reason ->
+                                        Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                                 onSavePhoto = savePhotoIfPermitted,
                                 revealOffsetPx = revealOffsetPx,
@@ -8618,11 +8622,10 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "storage") {
-            // Storage hub (matches iOS's Settings > Storage): one category row per backup
-            // provider, each pushing its own page (see StorageScreens.kt). Google Drive is
-            // Android's counterpart to iOS's iCloud row. On-device usage has no settings of its
-            // own, so it stays inline here as a readout rather than a row leading to a page with
-            // a single read-only line.
+            // Storage hub (matches iOS's Settings > Storage): the Nextcloud row pushes its own
+            // page (see StorageScreens.kt). On-device usage has no settings of its own, so it
+            // stays inline here as a readout rather than a row leading to a page with a single
+            // read-only line. Cross-platform sync is Nextcloud only.
             // On-device settings first (message retention + local usage), matching iOS's Storage
             // screen, before the cloud-provider rows below.
             SettingsSection(title = stringResource(R.string.on_this_device)) {
@@ -8648,10 +8651,6 @@ fun SettingsScreen(
             SettingsFooter("Images and files the app can always download again. Clearing them frees space and loses nothing.")
 
             SettingsSection(title = stringResource(R.string.cloud_storage)) {
-                SettingsNavigationItem(stringResource(R.string.google_drive), Icons.Default.CloudQueue, onClick = {
-                    navController.navigate("storage_google_drive")
-                })
-                SettingsDivider()
                 SettingsNavigationItem(stringResource(R.string.nextcloud), Icons.Default.Cloud, onClick = {
                     navController.navigate("storage_nextcloud")
                 })
@@ -8728,16 +8727,10 @@ fun SettingsScreen(
 
             if (sectionKey == "danger_zone") {
             SettingsSection(title = stringResource(R.string.danger_zone)) {
-                val googleBackupOpState by chatViewModel.googleBackupOpState.collectAsState()
                 val resyncPhase by chatViewModel.restoreCoordinator.phase.collectAsState()
                 var showResyncScopeDialog by remember { mutableStateOf(false) }
-                var showDriveWipeConfirm by remember { mutableStateOf(false) }
-                // The shared Drive op state also carries backup/restore results from the storage
-                // pages; only surface it here once a wipe was actually requested from this row.
-                var driveWipeRequested by remember { mutableStateOf(false) }
 
                 val resyncInFlight = resyncPhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
-                val driveWipeInFlight = googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.IN_PROGRESS
 
                 // Runs through the BackupRestoreCoordinator: scope chooser first (All Chats or a
                 // multi-select of conversations), then the same un-leavable progress modal as a
@@ -8748,22 +8741,6 @@ fun SettingsScreen(
                     color = if (resyncInFlight) Color.Gray else Color.Red
                 ) {
                     if (!resyncInFlight) showResyncScopeDialog = true
-                }
-                SettingsDivider()
-                // 4.0 (matches iOS): the old combined "wipe account & messages (& Cloud)"
-                // entries are gone. This row touches ONLY the current wallet's Google Drive
-                // backup file (ChatViewModel.deleteDriveBackup); the account, local messages,
-                // and other wallets' backups stay. Account removal keeps its own flow on the
-                // accounts screen (WalletViewModel.deleteWallet).
-                SettingsActionItem(
-                    label = if (driveWipeInFlight) "Wiping..." else "Wipe Google Drive Backup",
-                    icon = Icons.Default.CloudOff,
-                    color = if (driveWipeInFlight) Color.Gray else Color.Red
-                ) {
-                    if (!driveWipeInFlight) showDriveWipeConfirm = true
-                }
-                if (driveWipeRequested && (googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.SUCCESS || googleBackupOpState.status == ChatViewModel.GoogleBackupOpStatus.FAILED)) {
-                    SettingsFooter(googleBackupOpState.message ?: "Done")
                 }
 
                 // Half sheets, like every other chooser in the app - and a destructive action is
@@ -8800,20 +8777,6 @@ fun SettingsScreen(
                             subtitle = "Leave your messages as they are.",
                         ) { showResyncScopeDialog = false }
                     }
-                }
-
-                if (showDriveWipeConfirm) {
-                    ConfirmActionSheet(
-                        title = "Wipe Google Drive Backup?",
-                        confirmTitle = "Wipe Backup",
-                        confirmSubtitle = "Deletes this wallet's chat history backup from Google Drive. Your account and the messages on this device stay as they are, and other wallets' backups are untouched.",
-                        confirmIcon = Icons.Default.CloudOff,
-                        onConfirm = {
-                            driveWipeRequested = true
-                            chatViewModel.deleteDriveBackup()
-                        },
-                        onDismiss = { showDriveWipeConfirm = false },
-                    )
                 }
             }
             }
@@ -11221,12 +11184,18 @@ fun CreateChatScreen(
                                 // No name is captured: `ContactEntity.displayName` shows their
                                 // KNS domain (then the short address) until the user renames
                                 // them in Chat Info.
+                                // Deliberate add: your own other account is allowed; only the
+                                // account in use is refused, and the reason shows under the
+                                // address field (it clears when the input changes) instead of
+                                // the tap looking like it did nothing.
                                 chatViewModel.addContact(
                                     address = resolvedAddress,
                                     name = null,
-                                    knsName = if (looksLikeKnsDomain) com.kachat.app.services.KnsService.normalizeDomain(address) else null
-                                )
-                                onChatCreated(resolvedAddress)
+                                    knsName = if (looksLikeKnsDomain) com.kachat.app.services.KnsService.normalizeDomain(address) else null,
+                                    deliberate = true,
+                                ) { refusal ->
+                                    if (refusal == null) onChatCreated(resolvedAddress) else importErrorMessage = refusal
+                                }
                             },
                             enabled = isValidAddress
                         ) {

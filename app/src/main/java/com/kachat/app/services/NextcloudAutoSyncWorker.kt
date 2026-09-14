@@ -10,7 +10,7 @@ import dagger.assisted.AssistedInject
 /**
  * Periodic fallback for the continuous automatic Nextcloud chat-history sync (see
  * [NextcloudSyncService]) — every 6 hours, network connected + battery not low, its own unique
- * work separate from [DriveAutoSyncWorker]. The debounced in-process upload is the primary path;
+ * work. The debounced in-process upload is the primary path;
  * this worker only exists so an upload the process died before finishing (persisted dirty flag
  * still set) eventually lands. When nothing is owed it does no network work at all.
  *

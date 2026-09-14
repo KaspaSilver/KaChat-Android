@@ -39,7 +39,6 @@
     <string name="chatting_address_2">Adresse de discussion</string>
     <string name="chatting_vs_spending_address">Adresse de discussion et adresse de depense</string>
     <string name="check_again">Verifier a nouveau</string>
-    <string name="check_drive_backup_size">Verifier la taille de la sauvegarde Drive</string>
     <string name="checking_availability">Vérification de la disponibilité...</string>
     <string name="checking_your_chatting_address_balance">Verification du solde de votre adresse de discussion...</string>
     <string name="chess_stats">Statistiques d\'echecs</string>
@@ -97,7 +96,6 @@
     <string name="from">De</string>
     <string name="fund_your_chatting_address">Financez votre adresse de discussion</string>
     <string name="generate_account">Générer un compte</string>
-    <string name="google_drive_backup_used">Sauvegarde Google Drive utilisee</string>
     <string name="grant_permission">Accorder l\'autorisation</string>
     <string name="grant_permission_2">Accorder l\'autorisation</string>
     <string name="group_chats">Discussions de groupe</string>
@@ -300,7 +298,6 @@
     <string name="active">Actif</string>
     <string name="autocreate_system_contacts">Création automatique des contacts du téléphone</string>
     <string name="avatar">Avatar</string>
-    <string name="back_up_to_google_drive">Sauvegarder sur Google Drive</string>
     <string name="banner">Bannière</string>
     <string name="bio">Biographie</string>
     <string name="biometrics_for_account_login">Biometrie pour la connexion au compte</string>

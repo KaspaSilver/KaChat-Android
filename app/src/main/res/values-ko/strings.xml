@@ -39,7 +39,6 @@
     <string name="chatting_address_2">채팅 주소</string>
     <string name="chatting_vs_spending_address">채팅 주소 대 지출 주소</string>
     <string name="check_again">다시 확인</string>
-    <string name="check_drive_backup_size">Drive 백업 크기 확인</string>
     <string name="checking_availability">이용 가능 여부 확인 중...</string>
     <string name="checking_your_chatting_address_balance">채팅 주소의 잔액을 확인하는 중...</string>
     <string name="chess_stats">체스 전적</string>
@@ -97,7 +96,6 @@
     <string name="from">보낸 사람</string>
     <string name="fund_your_chatting_address">채팅 주소에 자금을 지원하세요</string>
     <string name="generate_account">계정 생성</string>
-    <string name="google_drive_backup_used">Google Drive 백업 사용됨</string>
     <string name="grant_permission">권한 부여</string>
     <string name="grant_permission_2">권한 부여</string>
     <string name="group_chats">그룹 채팅</string>
@@ -300,7 +298,6 @@
     <string name="active">활성</string>
     <string name="autocreate_system_contacts">시스템 연락처 자동 생성</string>
     <string name="avatar">화신</string>
-    <string name="back_up_to_google_drive">Google Drive에 백업</string>
     <string name="banner">기치</string>
     <string name="bio">바이오</string>
     <string name="biometrics_for_account_login">계정 로그인을 위한 생체 인식</string>

@@ -39,7 +39,6 @@
     <string name="chatting_address_2">チャットアドレス</string>
     <string name="chatting_vs_spending_address">チャットアドレスと使用アドレス</string>
     <string name="check_again">再確認</string>
-    <string name="check_drive_backup_size">Driveバックアップサイズを確認</string>
     <string name="checking_availability">空き状況を確認中...</string>
     <string name="checking_your_chatting_address_balance">チャットアドレスの残高を確認しています...</string>
     <string name="chess_stats">チェス戦績</string>
@@ -97,7 +96,6 @@
     <string name="from">送信元</string>
     <string name="fund_your_chatting_address">チャットアドレスに資金を入れる</string>
     <string name="generate_account">アカウントを生成</string>
-    <string name="google_drive_backup_used">Google Driveバックアップを使用しました</string>
     <string name="grant_permission">許可を付与</string>
     <string name="grant_permission_2">許可を付与</string>
     <string name="group_chats">グループチャット</string>
@@ -300,7 +298,6 @@
     <string name="active">アクティブ</string>
     <string name="autocreate_system_contacts">システム連絡先を自動作成</string>
     <string name="avatar">アバター</string>
-    <string name="back_up_to_google_drive">Google Driveにバックアップ</string>
     <string name="banner">バナー</string>
     <string name="bio">バイオ</string>
     <string name="biometrics_for_account_login">アカウントログインの生体認証</string>

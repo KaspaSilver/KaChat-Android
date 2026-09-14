@@ -39,7 +39,6 @@
     <string name="chatting_address_2">चैट पता</string>
     <string name="chatting_vs_spending_address">चैट पता बनाम खर्च पता</string>
     <string name="check_again">फिर से जांचें</string>
-    <string name="check_drive_backup_size">Drive बैकअप का आकार जांचें</string>
     <string name="checking_availability">उपलब्धता की जाँच की जा रही है...</string>
     <string name="checking_your_chatting_address_balance">आपकी चैट पते का बैलेंस जांचा जा रहा है...</string>
     <string name="chess_stats">शतरंज आंकड़े</string>
@@ -97,7 +96,6 @@
     <string name="from">से</string>
     <string name="fund_your_chatting_address">अपना चैट पता फंड करें</string>
     <string name="generate_account">खाता जनरेट करें</string>
-    <string name="google_drive_backup_used">Google Drive बैकअप उपयोग किया गया</string>
     <string name="grant_permission">अनुमति दें</string>
     <string name="grant_permission_2">अनुमति दें</string>
     <string name="group_chats">समूह चैट</string>
@@ -300,7 +298,6 @@
     <string name="active">सक्रिय</string>
     <string name="autocreate_system_contacts">सिस्टम संपर्क स्वतः बनाएं</string>
     <string name="avatar">अवतार</string>
-    <string name="back_up_to_google_drive">Google Drive पर बैकअप लें</string>
     <string name="banner">बैनर</string>
     <string name="bio">जैव</string>
     <string name="biometrics_for_account_login">खाता लॉगिन के लिए बायोमेट्रिक्स</string>

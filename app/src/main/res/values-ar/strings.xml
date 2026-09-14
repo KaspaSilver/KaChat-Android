@@ -39,7 +39,6 @@
     <string name="chatting_address_2">عنوان الدردشة</string>
     <string name="chatting_vs_spending_address">عنوان الدردشة مقابل عنوان الإنفاق</string>
     <string name="check_again">التحقق مرة أخرى</string>
-    <string name="check_drive_backup_size">التحقق من حجم النسخة الاحتياطية على Drive</string>
     <string name="checking_availability">جارٍ التحقق من التوفر...</string>
     <string name="checking_your_chatting_address_balance">جارٍ التحقق من رصيد عنوان الدردشة الخاص بك...</string>
     <string name="chess_stats">احصائيات الشطرنج</string>
@@ -97,7 +96,6 @@
     <string name="from">من</string>
     <string name="fund_your_chatting_address">موّل عنوان الدردشة الخاص بك</string>
     <string name="generate_account">إنشاء حساب</string>
-    <string name="google_drive_backup_used">تم استخدام النسخة الاحتياطية من Google Drive</string>
     <string name="grant_permission">منح الإذن</string>
     <string name="grant_permission_2">منح الإذن</string>
     <string name="group_chats">دردشات جماعية</string>
@@ -300,7 +298,6 @@
     <string name="active">نشط</string>
     <string name="autocreate_system_contacts">إنشاء جهات اتصال النظام تلقائياً</string>
     <string name="avatar">الصورة الرمزية</string>
-    <string name="back_up_to_google_drive">النسخ الاحتياطي إلى Google Drive</string>
     <string name="banner">راية</string>
     <string name="bio">السيرة الذاتية</string>
     <string name="biometrics_for_account_login">القياسات الحيوية لتسجيل دخول الحساب</string>

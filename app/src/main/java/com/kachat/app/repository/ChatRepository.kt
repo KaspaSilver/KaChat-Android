@@ -68,12 +68,10 @@ class ChatRepository @Inject constructor(
     // Drives the poll loop's metered cadence tiers (see the loop in init) — cellular polls
     // slower than WiFi, in-chat and idle alike.
     private val meteredNetwork: MeteredNetwork,
-    // Lazy because GoogleDriveSyncService depends (via the export service) on ChatRepository —
+    // Lazy because NextcloudSyncService depends (via the export service) on ChatRepository —
     // a direct circular constructor dependency Dagger can't resolve. Lazy<T> defers
     // instantiation past construction time, breaking the cycle while still letting this class
-    // signal message activity into it (the automatic Drive sync debounce).
-    private val googleDriveSyncServiceLazy: dagger.Lazy<com.kachat.app.services.GoogleDriveSyncService>,
-    // Same cycle-break for the Nextcloud sibling of that signal (continuous Nextcloud sync).
+    // signal message activity into it (the continuous Nextcloud sync debounce).
     private val nextcloudSyncServiceLazy: dagger.Lazy<com.kachat.app.services.NextcloudSyncService>,
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
@@ -286,14 +284,32 @@ class ChatRepository @Inject constructor(
      * add goes through. Silent: a caller adding a contact it should not is not an error worth
      * interrupting anyone over, and the address is already reachable through the account switcher.
      */
-    suspend fun addContact(contact: ContactEntity) {
-        if (isOwnAccountAddress(contact.id)) {
+    /**
+     * @param deliberate the user typed this address in themselves (Create Chat). Another of the
+     *   user's OWN accounts is refused only for the auto-add paths: tipping or opening a KaPost
+     *   written from your second account would otherwise add its author silently. A deliberate
+     *   add is different - chatting between your own accounts is a real thing to do (moving
+     *   funds, trying the app from a fresh account), and the person typing the address knows
+     *   whose it is. The account in use is refused either way: there is no one to talk to.
+     * @return false when the add was refused.
+     */
+    suspend fun addContact(contact: ContactEntity, deliberate: Boolean = false): Boolean {
+        val refused = if (deliberate) isActiveWalletAddress(contact.id) else isOwnAccountAddress(contact.id)
+        if (refused) {
             Log.w("ChatRepository", "Refusing to add one of the user's own accounts as a contact")
-            return
+            return false
         }
         val previous = database.contactDao().getContact(contact.id, contact.walletAddress)
         database.contactDao().insert(contact)
         noteConversationActivated(previous, contact)
+        return true
+    }
+
+    /** The account in use right now - the one address that can never be a contact of itself. */
+    private fun isActiveWalletAddress(address: String): Boolean {
+        val normalized = address.trim().lowercase()
+        if (normalized.isEmpty()) return false
+        return runCatching { walletManager.getAddress() }.getOrNull()?.trim()?.lowercase() == normalized
     }
 
     /**
@@ -472,25 +488,21 @@ class ChatRepository @Inject constructor(
     /**
      * Automatic cloud-sync signal — every new message (sent or received, from any insertion
      * path, since all of them funnel through [insertMessage]) is reported to
-     * [com.kachat.app.services.GoogleDriveSyncService] and its Nextcloud sibling
-     * [com.kachat.app.services.NextcloudSyncService]. Each service owns its own debounce,
-     * per-wallet gating, wallet snapshotting, and WorkManager fallback, and no-ops when its
-     * backend or the wallet's automatic-sync toggle is off — so both calls are cheap here.
+     * [com.kachat.app.services.NextcloudSyncService]. The service owns its own debounce,
+     * per-wallet gating, wallet snapshotting, and WorkManager fallback, and no-ops when no
+     * account is connected or the wallet's automatic-sync toggle is off — so the call is cheap.
      */
     private fun scheduleAutoBackupIfEnabled() {
-        googleDriveSyncServiceLazy.get().noteMessageActivity()
         nextcloudSyncServiceLazy.get().noteMessageActivity()
     }
 
     /**
-     * Backup retention pruning — permanently deletes messages older than the configured window
-     * for the active account. Only runs while Google Drive backup is enabled and retention isn't
-     * FOREVER: retention is presented to the user as a property of the backup feature, not an
-     * always-on independent rule (deliberately diverges from iOS's `MessageStore.applyRetention`,
-     * which prunes regardless of iCloud sync state — see the plan doc for why).
+     * Message retention pruning — permanently deletes messages older than the configured window
+     * for the active account, whenever retention isn't FOREVER. A device-level rule, as the
+     * Storage hub presents it, and as iOS's `MessageStore.applyRetention` prunes regardless of
+     * cloud sync state.
      */
     suspend fun pruneOldMessages() {
-        if (!settingsRepository.googleBackupEnabled.first()) return
         val retention = settingsRepository.backupRetention.first()
         val cutoff = retention.cutoffMillis(System.currentTimeMillis()) ?: return
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
@@ -782,7 +794,7 @@ class ChatRepository @Inject constructor(
         return IncomingResyncResult(chatCount = chatCount, messageCount = messageCount)
     }
 
-    /** Deletes every local message and contact for [address] — used when wiping an account entirely. Does not touch the wallet's keys (see WalletManager.deleteAccount) or any Google Drive backup. */
+    /** Deletes every local message and contact for [address] — used when wiping an account entirely. Does not touch the wallet's keys (see WalletManager.deleteAccount) or any cloud backup. */
     suspend fun wipeAllLocalDataForAddress(address: String) {
         database.messageDao().deleteAllForWallet(address)
         database.reactionDao().deleteAllForWallet(address)

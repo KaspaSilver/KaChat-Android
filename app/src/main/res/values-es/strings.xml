@@ -39,7 +39,6 @@
     <string name="chatting_address_2">Direccion de chat</string>
     <string name="chatting_vs_spending_address">Direccion de chat vs. direccion de gasto</string>
     <string name="check_again">Verificar de nuevo</string>
-    <string name="check_drive_backup_size">Revisar tamano de la copia de seguridad de Drive</string>
     <string name="checking_availability">Comprobando disponibilidad...</string>
     <string name="checking_your_chatting_address_balance">Revisando el saldo de tu direccion de chat...</string>
     <string name="chess_stats">Estadisticas de ajedrez</string>
@@ -97,7 +96,6 @@
     <string name="from">Desde</string>
     <string name="fund_your_chatting_address">Financia tu direccion de chat</string>
     <string name="generate_account">Generar cuenta</string>
-    <string name="google_drive_backup_used">Copia de seguridad de Google Drive usada</string>
     <string name="grant_permission">Otorgar permiso</string>
     <string name="grant_permission_2">Otorgar permiso</string>
     <string name="group_chats">Chats grupales</string>
@@ -300,7 +298,6 @@
     <string name="active">Activo</string>
     <string name="autocreate_system_contacts">Crear contactos del sistema automaticamente</string>
     <string name="avatar">Avatar</string>
-    <string name="back_up_to_google_drive">Respaldar en Google Drive</string>
     <string name="banner">Bandera</string>
     <string name="bio">Biografía</string>
     <string name="biometrics_for_account_login">Biometria para inicio de sesion de cuenta</string>

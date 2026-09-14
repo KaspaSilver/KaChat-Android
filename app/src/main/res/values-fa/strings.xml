@@ -57,7 +57,6 @@
     <string name="chatting_address_2">آدرس گفتگو</string>
     <string name="chatting_vs_spending_address">آدرس گفتگو در برابر آدرس خرج کردن</string>
     <string name="check_again">بررسی مجدد</string>
-    <string name="check_drive_backup_size">بررسی حجم پشتیبان Drive</string>
     <string name="checking_availability">بررسی در دسترس بودن...</string>
     <string name="checking_your_chatting_address_balance">در حال بررسی موجودی آدرس گفتگوی شما...</string>
     <string name="chess_stats">آمار شطرنج</string>
@@ -118,7 +117,6 @@
     <string name="from">از</string>
     <string name="fund_your_chatting_address">آدرس گفتگوی خود را شارژ کنید</string>
     <string name="generate_account">تولید حساب</string>
-    <string name="google_drive_backup_used">از پشتیبان Google Drive استفاده شد</string>
     <string name="grant_permission">اعطای مجوز</string>
     <string name="grant_permission_2">اعطای مجوز</string>
     <string name="group_chats">گفتگوهای گروهی</string>
@@ -334,7 +332,6 @@
     <string name="active">فعال</string>
     <string name="autocreate_system_contacts">ایجاد خودکار مخاطبین سیستم</string>
     <string name="avatar">آواتار</string>
-    <string name="back_up_to_google_drive">پشتیبان‌گیری در Google Drive</string>
     <string name="banner">بنر</string>
     <string name="bio">بیوگرافی</string>
     <string name="biometrics_for_account_login">بیومتریک برای ورود به حساب</string>
