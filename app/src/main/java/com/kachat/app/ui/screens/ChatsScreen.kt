@@ -1201,8 +1201,9 @@ private fun groupMessagePreviewText(
     VoiceMessage.parseAnyFileOrNull(body)?.let {
         return if (it.mimeType.startsWith("video/")) "🎬 Video" else "📎 File"
     }
-    com.kachat.app.util.NextcloudShareSniff.previewLabel(body)?.let { return it }
-    return GroupMentionCodec.decodeForDisplay(body, members, resolve)
+    // Never a link in the row - a Nextcloud share link IS the message for that media, and a
+    // raw URL is noise for anything else. See NextcloudShareSniff.linkSafePreview.
+    return GroupMentionCodec.decodeForDisplay(com.kachat.app.util.NextcloudShareSniff.linkSafePreview(body), members, resolve)
 }
 
 /**
@@ -1229,8 +1230,8 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
         }
     }
     if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
-    com.kachat.app.util.NextcloudShareSniff.previewLabel(body)?.let { return it }
-    return body
+    // Never a link in the row - see NextcloudShareSniff.linkSafePreview.
+    return com.kachat.app.util.NextcloudShareSniff.linkSafePreview(body)
 }
 
 /**

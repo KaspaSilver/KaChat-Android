@@ -590,7 +590,6 @@ fun NextcloudPdfViewerDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     var pages by remember { mutableStateOf<List<android.graphics.Bitmap>?>(null) }
     var loadFailed by remember { mutableStateOf(false) }
 
@@ -650,16 +649,14 @@ fun NextcloudPdfViewerDialog(
                     }
                 }
                 loadFailed -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Could not load this file.", color = Color.White.copy(alpha = 0.7f))
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { uriHandler.openUri(shareUrl) }) {
-                            Text("Open in Nextcloud", color = KaspaTeal)
-                        }
-                    }
+                    // No "Open in Nextcloud" escape hatch. A file that fails to load here has
+                    // almost always lost its share, and that link opened a browser onto the
+                    // same dead share - a second failure dressed as an option.
+                    Text(
+                        "Could not load this file.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
                 else -> {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))

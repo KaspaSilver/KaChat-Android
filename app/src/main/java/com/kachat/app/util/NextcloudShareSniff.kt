@@ -19,13 +19,23 @@ object NextcloudShareSniff {
     /** The share URL in [text], if it holds one. */
     fun shareUrl(text: String): String? = PATTERN.find(text)?.value
 
+    /** The preview a link-bearing message gets in the chat and group lists. */
+    const val SENT_A_LINK = "📎 Sent a link"
+
     /**
-     * Preview label for text carrying a share link, or null when there is none. Text with a
-     * caption keeps the caption and just drops the URL, so the sender's own words survive.
+     * The preview a message gets in the chat and group lists: never a link. Any message carrying
+     * a web link previews as [SENT_A_LINK], whatever else it says; a message with none previews
+     * as itself.
+     *
+     * A raw URL in a list row is noise at best, and for Nextcloud media it was worse - the
+     * message IS a public share link, so the row showed the address of someone's photo to anyone
+     * glancing at the phone. Web links only: a message that is a `kaspa:` address must keep
+     * reading as one, and an in-app `kachat://` link is not a web address either. Same rule as
+     * iOS's `LinkSafePreview`.
      */
-    fun previewLabel(text: String): String? {
-        val url = shareUrl(text) ?: return null
-        val caption = text.replace(url, "").trim()
-        return caption.ifEmpty { "📎 Shared a file" }
-    }
+    fun linkSafePreview(text: String): String =
+        if (containsWebLink(text)) SENT_A_LINK else text
+
+    private fun containsWebLink(text: String): Boolean =
+        TextLinkify.findUrls(text).any { !it.uri.startsWith("kachat://", ignoreCase = true) }
 }
