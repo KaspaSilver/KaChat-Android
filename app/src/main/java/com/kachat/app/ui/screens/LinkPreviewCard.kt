@@ -259,11 +259,18 @@ private fun TapToLoadPreviewBubble(
 
     if (showMenu) {
         CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
-                clipboardManager.setText(AnnotatedString(url))
-                showMenu = false
+            // Not for a Nextcloud share, revoked or not: the link is the address of someone's
+            // photo or file, and the preview exists so the recipient can SEE it - a long-press
+            // that hands out the URL to forward defeats the sender's choice to share it in one
+            // place. Decided here from the URL, with the classifier the preview pipeline uses,
+            // so it holds in every card state - the tap-to-load placeholder included.
+            if (LinkPreviewService.nextcloudShareEndpoints(url) == null) {
+                PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                    clipboardManager.setText(AnnotatedString(url))
+                    showMenu = false
+                }
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             PopupMenuRow(Icons.Default.Public, "View in Explorer") {
                 uriHandler.openUri(kaspaExplorer.txUrl(txId))
                 showMenu = false
@@ -308,11 +315,18 @@ private fun LinkPreviewFallbackBubble(text: String, url: String, txId: String, k
 
     if (showMenu) {
         CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
-                clipboardManager.setText(AnnotatedString(url))
-                showMenu = false
+            // Not for a Nextcloud share, revoked or not: the link is the address of someone's
+            // photo or file, and the preview exists so the recipient can SEE it - a long-press
+            // that hands out the URL to forward defeats the sender's choice to share it in one
+            // place. Decided here from the URL, with the classifier the preview pipeline uses,
+            // so it holds in every card state - the tap-to-load placeholder included.
+            if (LinkPreviewService.nextcloudShareEndpoints(url) == null) {
+                PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                    clipboardManager.setText(AnnotatedString(url))
+                    showMenu = false
+                }
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             PopupMenuRow(Icons.Default.Public, "View in Explorer") {
                 uriHandler.openUri(kaspaExplorer.txUrl(txId))
                 showMenu = false
@@ -424,11 +438,18 @@ private fun NextcloudMediaBubble(data: LinkPreviewData, url: String, txId: Strin
 
     if (showMenu) {
         CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
-                clipboardManager.setText(AnnotatedString(url))
-                showMenu = false
+            // Not for a Nextcloud share, revoked or not: the link is the address of someone's
+            // photo or file, and the preview exists so the recipient can SEE it - a long-press
+            // that hands out the URL to forward defeats the sender's choice to share it in one
+            // place. Decided here from the URL, with the classifier the preview pipeline uses,
+            // so it holds in every card state - the tap-to-load placeholder included.
+            if (LinkPreviewService.nextcloudShareEndpoints(url) == null) {
+                PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                    clipboardManager.setText(AnnotatedString(url))
+                    showMenu = false
+                }
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             PopupMenuRow(Icons.Default.Public, "View in Explorer") {
                 uriHandler.openUri(kaspaExplorer.txUrl(txId))
                 showMenu = false
@@ -538,11 +559,18 @@ private fun NextcloudAttachmentCard(data: LinkPreviewData, url: String, txId: St
 
     if (showMenu) {
         CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
-                clipboardManager.setText(AnnotatedString(url))
-                showMenu = false
+            // Not for a Nextcloud share, revoked or not: the link is the address of someone's
+            // photo or file, and the preview exists so the recipient can SEE it - a long-press
+            // that hands out the URL to forward defeats the sender's choice to share it in one
+            // place. Decided here from the URL, with the classifier the preview pipeline uses,
+            // so it holds in every card state - the tap-to-load placeholder included.
+            if (LinkPreviewService.nextcloudShareEndpoints(url) == null) {
+                PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                    clipboardManager.setText(AnnotatedString(url))
+                    showMenu = false
+                }
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             PopupMenuRow(Icons.Default.Public, "View in Explorer") {
                 uriHandler.openUri(kaspaExplorer.txUrl(txId))
                 showMenu = false
@@ -669,11 +697,18 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
 
     if (showMenu) {
         CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
-                clipboardManager.setText(AnnotatedString(url))
-                showMenu = false
+            // Not for a Nextcloud share, revoked or not: the link is the address of someone's
+            // photo or file, and the preview exists so the recipient can SEE it - a long-press
+            // that hands out the URL to forward defeats the sender's choice to share it in one
+            // place. Decided here from the URL, with the classifier the preview pipeline uses,
+            // so it holds in every card state - the tap-to-load placeholder included.
+            if (LinkPreviewService.nextcloudShareEndpoints(url) == null) {
+                PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+                    clipboardManager.setText(AnnotatedString(url))
+                    showMenu = false
+                }
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
             PopupMenuRow(Icons.Default.Public, "View in Explorer") {
                 uriHandler.openUri(kaspaExplorer.txUrl(txId))
                 showMenu = false

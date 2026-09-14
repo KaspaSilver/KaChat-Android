@@ -506,11 +506,15 @@ fun LinkActionsSheet(
             title = "Open Link",
             subtitle = "Opens in your browser.",
         ) { onDismiss(); onOpen() }
-        ActionSheetRow(
-            icon = Icons.Default.ContentCopy,
-            title = "Copy Link",
-            subtitle = "Copies the address to your clipboard.",
-        ) { onDismiss(); onCopy() }
+        // Not for a Nextcloud share: the link is the address of someone's file, and the preview
+        // card already refuses to hand it out on long-press - same rule here, same classifier.
+        if (com.kachat.app.services.LinkPreviewService.nextcloudShareEndpoints(url) == null) {
+            ActionSheetRow(
+                icon = Icons.Default.ContentCopy,
+                title = "Copy Link",
+                subtitle = "Copies the address to your clipboard.",
+            ) { onDismiss(); onCopy() }
+        }
         if (onReply != null) {
             ActionSheetRow(
                 icon = Icons.AutoMirrored.Filled.Reply,
