@@ -620,9 +620,16 @@ class WalletViewModel @Inject constructor(
      * Sends KAS out of one specific spending-chain address (not necessarily the currently
      * active one) to [toAddress] — unlike [WalletService.sendKaspa]/`onSendClicked` (identity)
      * or the "Pay in Kaspa" sweep-all-and-rotate flow, this targets a single address by
-     * [index] and leaves any leftover balance right where it is (change returns to the same
-     * address rather than sweeping or rotating). Reuses [sendResult]/[isSending] — only one of
-     * these send dialogs can be open at a time, so sharing that state is fine.
+     * [index]. Reuses [sendResult]/[isSending] — only one of these send dialogs can be open at
+     * a time, so sharing that state is fine.
+     *
+     * For a NON-primary index the change stays on the same address: that is a scoped, explicit
+     * single-address operation, and the row's own balance is what the user is managing. The
+     * primary is different. A send from it puts its change on a fresh index and rotates the
+     * primary to that index - exactly what a chat payment does - so the address you spend from
+     * and hand out next has never been used before. This path used to leave the primary sitting
+     * on the address it had just spent from. The old primary keeps whatever it still holds,
+     * listed in Manage Addresses like any other revealed slot.
      */
     fun withdrawFromSpendingAddress(
         index: Int,
@@ -634,18 +641,37 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch {
             _isSending.value = true
             val fromAddress = walletManager.deriveSpendingAddress(index)
+            // Fresh change index for the primary only: past the all-time max, so it has never
+            // been revealed, funded or offered (the rule KaspaWalletEngine.sendSpendingPayment
+            // uses). Decided up front and applied only after the node accepts the transaction,
+            // so a failed send moves nothing. If the fresh address cannot be derived, change
+            // stays put and the primary stays put with it - rotating onto an address the change
+            // did not reach would strand the funds behind a pointer. A self-send (the Compound
+            // action) moves nothing out of the address, so it neither splits its consolidation
+            // onto a fresh address nor rotates.
+            val isSelfSend = toAddress.equals(fromAddress, ignoreCase = true)
+            val activeIndex = walletManager.getActiveAccount()?.spendingAddressIndex
+            val fresh = if (!isSelfSend && index == activeIndex) {
+                walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+            } else null
             val result = walletEngine.sendKaspa(
                 toAddress = toAddress,
                 amountSompi = amountSompi,
                 fromAddress = fromAddress,
                 signingPrivateKey = walletManager.getSpendingPrivateKeyBytes(index),
-                changeAddress = fromAddress,
+                changeAddress = fresh?.second ?: fromAddress,
                 feeRateOverride = feeRateOverride,
                 manualUtxos = manualUtxos
             )
+            if (result.isSuccess && fresh != null) {
+                // The primary follows its change onto the fresh address. Manage Addresses
+                // reloads below and moves its star.
+                walletManager.setSpendingAddressIndex(walletManager.getAddress(), fresh.first)
+            }
             _sendResult.value = result
             _isSending.value = false
             if (result.isSuccess) {
+                refreshSpendingAddress()
                 loadManageAddresses()
             }
         }

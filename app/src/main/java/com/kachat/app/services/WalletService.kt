@@ -850,6 +850,20 @@ class WalletService @Inject constructor(
 
         val payloadJson = Gson().toJson(KnsTransferDomainPayload(op = "transfer", p = "domain", id = trimmedAssetId, to = toAddress)).toByteArray()
 
+        // A transfer funded by the PRIMARY spending address is a send out of it, so both
+        // transactions' change lands on a fresh index (past the all-time max: never revealed,
+        // funded or offered) and the primary rotates there once the commit is accepted - the
+        // same rule as chat payments and withdrawals. The domain itself leaves anyway; the old
+        // address keeps any other domains it holds and stays listed in Manage Addresses. If the
+        // fresh address cannot be derived, change stays on the source and nothing rotates - a
+        // pointer must never move to an address the funds did not reach.
+        val identityAddress = walletManager.getAddress()
+        val activeSpendingIndex = walletManager.getActiveAccount()?.spendingAddressIndex
+        val fresh = if (fromSpendingAddressIndex != null && fromSpendingAddressIndex == activeSpendingIndex) {
+            walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+        } else null
+        val changeAddress = fresh?.second ?: sourceAddress
+
         onStep(KnsInscribeStep.SUBMITTING_COMMIT)
         val commit = knsInscriptionEngine.buildAndSubmitCommit(
             payloadJson = payloadJson,
@@ -859,10 +873,18 @@ class WalletService @Inject constructor(
             operationType = "transfer",
             fundingAddress = sourceAddress,
             fundingPrivateKey = sourcePrivateKey,
-            ownerPrivateKey = sourcePrivateKey
+            ownerPrivateKey = sourcePrivateKey,
+            changeAddress = changeAddress
         )
+        if (fresh != null) {
+            // The commit is accepted and its change is already on the fresh address, so the
+            // primary follows it now. Should the reveal still fail, the commit output is
+            // recoverable from the source key either way, and the pointer no longer names an
+            // address that just spent.
+            walletManager.setSpendingAddressIndex(identityAddress, fresh.first)
+        }
         onStep(KnsInscribeStep.SUBMITTING_REVEAL)
-        val revealTxId = knsInscriptionEngine.buildAndSubmitReveal(commit, sourceAddress, sourceAddress, sourcePrivateKey, priorityFeeSompi)
+        val revealTxId = knsInscriptionEngine.buildAndSubmitReveal(commit, sourceAddress, changeAddress, sourcePrivateKey, priorityFeeSompi)
 
         onStep(KnsInscribeStep.VERIFYING)
         val verified = verifyDomainOwnership(fullDomain, toAddress)

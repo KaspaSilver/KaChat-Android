@@ -47,7 +47,11 @@ class KnsInscriptionEngine @Inject constructor(
         operationType: String,
         fundingAddress: String,
         fundingPrivateKey: ByteArray,
-        ownerPrivateKey: ByteArray
+        ownerPrivateKey: ByteArray,
+        /** Where the commit's funding change goes; defaults back to [fundingAddress]. Used when
+         *  the primary spending address funds a transfer and its change must land on a fresh
+         *  address (see WalletService.transferDomain). */
+        changeAddress: String = fundingAddress
     ): CommitResult = mutex.withLock {
         val api = networkService.kaspaRestApi.value ?: throw IllegalStateException("Network service unavailable")
 
@@ -60,7 +64,7 @@ class KnsInscriptionEngine @Inject constructor(
         val redeemScript = KnsInscriptionScript.buildRedeemScript(xOnlyPubKey, "kns", payloadJson)
         val commitAddress = KnsInscriptionScript.commitAddress(redeemScript, hrp)
         val commitScriptPubKeyHex = KaspaAddress.getScriptPublicKey(commitAddress)
-        val changeScriptHex = KaspaAddress.getScriptPublicKey(fundingAddress)
+        val changeScriptHex = KaspaAddress.getScriptPublicKey(changeAddress)
 
         val utxos = api.getUtxos(fundingAddress)
         if (utxos.isEmpty()) throw IllegalStateException("No spendable UTXOs available for KNS inscription")
@@ -111,7 +115,7 @@ class KnsInscriptionEngine @Inject constructor(
                 revealAmountSompi = revealAmountSompi,
                 revealTargetAddress = revealTargetAddress,
                 operationType = operationType,
-                changeAddress = fundingAddress
+                changeAddress = changeAddress
             )
         )
 
