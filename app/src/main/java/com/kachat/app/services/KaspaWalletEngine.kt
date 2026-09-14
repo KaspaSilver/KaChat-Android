@@ -489,6 +489,15 @@ class KaspaWalletEngine @Inject constructor(
     val isRestApiReady: Boolean
         get() = networkService.kaspaRestApi.value != null
 
+    /**
+     * The balance at [address] as the node sees it - the sum of every UTXO there, exactly how
+     * iOS's WalletManager.refreshBalance computes it - or null when no node can answer, so the
+     * caller can fall back to the REST gateway. The gateway rate-limits a burst (HTTP 429),
+     * and a balance refresh that silently fails is a header that never moves after a send.
+     */
+    suspend fun nodeBalance(address: String): Long? =
+        nodePoolManager.getUtxosByAddress(address)?.sumOf { it.utxoEntry.amount }
+
     suspend fun fetchUtxos(address: String): List<UtxoEntry> {
         val api = networkService.kaspaRestApi.value ?: return emptyList()
         return try {

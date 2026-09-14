@@ -98,11 +98,13 @@ class WalletService @Inject constructor(
         val api = readyApi() ?: return
 
         try {
-            val response = api.getBalance(address)
+            // Node first (the sum of the address's UTXOs, as iOS computes it), the REST
+            // gateway second - see KaspaWalletEngine.nodeBalance.
+            val balance = walletEngine.nodeBalance(address) ?: api.getBalance(address).balance
             // A fetch that raced an account switch must not stamp the OLD account's balance
             // under the new one.
             if ((try { walletManager.getAddress() } catch (e: Exception) { null }) != address) return
-            _balance.value = response.balance
+            _balance.value = balance
             _balanceKnown.value = true
         } catch (e: Exception) {
             Log.e("WalletService", "Error refreshing balance", e)
@@ -114,11 +116,11 @@ class WalletService @Inject constructor(
         val api = readyApi() ?: return
 
         try {
-            val response = api.getBalance(address)
+            val balance = walletEngine.nodeBalance(address) ?: api.getBalance(address).balance
             // Same account-switch race guard as refreshBalance (the spending address is
             // per-account too).
             if ((try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }) != address) return
-            _spendingBalance.value = response.balance
+            _spendingBalance.value = balance
         } catch (e: Exception) {
             Log.e("WalletService", "Error refreshing spending balance", e)
         }
