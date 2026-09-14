@@ -754,7 +754,14 @@ class GroupRepository @Inject constructor(
         return sendGroupMessage(json, groupId)
     }
 
-    suspend fun sendGroupMessage(text: String, groupId: String): String {
+    /**
+     * [retryOfTxId]: the failed row a Retry tap is re-sending. That row is flipped back to
+     * pending and reused as the placeholder, then swapped for the real row on success or
+     * flipped to failed again - so a retry never leaves the failed bubble behind next to a new
+     * one. The message is re-encrypted under a fresh msg_id either way; a msg_id is never
+     * reused. Mirrors the 1:1 retry (ChatViewModel.retrySendMessage).
+     */
+    suspend fun sendGroupMessage(text: String, groupId: String, retryOfTxId: String? = null): String {
         val walletAddress = walletManager.getAddress()
         database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
         val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing group secrets - try rejoining this group.")
@@ -779,15 +786,22 @@ class GroupRepository @Inject constructor(
         val blindedGroupId = GroupCipher.deriveBlindedGroupId(blindingKey, senderXOnlyPub)
         val payloadString = GroupCipher.buildGroupMessagePayload(blindedGroupId, bag.currentEpoch, senderId, senderXOnlyPub, msgId, ciphertext, signature)
 
-        val pendingId = "pending_${UUID.randomUUID()}"
         val nowMs = System.currentTimeMillis()
-        database.groupDao().insertMessage(
-            GroupMessageEntity(
-                txId = pendingId, walletAddress = walletAddress, groupId = groupId, senderAddress = walletAddress,
-                senderIdHex = senderId.toHexString(), epoch = bag.currentEpoch, msgIdHex = msgId.toHexString(),
-                contentEncryptedHex = ciphertext.toHexString(), blockTimestamp = nowMs, isOutgoing = true, deliveryStatus = "pending"
+        val pendingId: String
+        if (retryOfTxId != null && database.groupDao().getMessage(retryOfTxId, walletAddress) != null) {
+            // Retry: the failed row becomes the pending placeholder, in place.
+            pendingId = retryOfTxId
+            database.groupDao().updateMessageStatus(pendingId, walletAddress, "pending")
+        } else {
+            pendingId = "pending_${UUID.randomUUID()}"
+            database.groupDao().insertMessage(
+                GroupMessageEntity(
+                    txId = pendingId, walletAddress = walletAddress, groupId = groupId, senderAddress = walletAddress,
+                    senderIdHex = senderId.toHexString(), epoch = bag.currentEpoch, msgIdHex = msgId.toHexString(),
+                    contentEncryptedHex = ciphertext.toHexString(), blockTimestamp = nowMs, isOutgoing = true, deliveryStatus = "pending"
+                )
             )
-        )
+        }
         try {
             val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
             database.groupDao().deleteMessage(pendingId, walletAddress)

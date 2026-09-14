@@ -31,6 +31,12 @@ class KaspaWalletEngine @Inject constructor(
     private val pendingSpentOutpoints = mutableMapOf<String, MutableSet<String>>()
     private val pendingChangeUtxos = mutableMapOf<String, MutableList<UtxoEntry>>()
 
+    /** When each pending spent key / pending change outpoint was recorded. An entry the chain
+     *  never confirms (a chained send whose parent was dropped, an orphan that never found its
+     *  parent) would otherwise sit in these caches forever and be re-selected by every later
+     *  send, each rejected the same way. iOS expires both after 120s (pendingMessageUtxoTTL). */
+    private val pendingRecordedAtMs = mutableMapOf<String, Long>()
+
     // Rapid-fire sends (e.g. several chat messages tapped in quick succession) each
     // spawn their own coroutine — without this, two could fetch the same UTXO snapshot
     // before either records its spend, both select the same input, and every one after
@@ -48,6 +54,10 @@ class KaspaWalletEngine @Inject constructor(
     private fun reconcileUtxos(address: String, freshUtxos: List<UtxoEntry>): List<UtxoEntry> {
         val spent = pendingSpentOutpoints.getOrPut(address) { mutableSetOf() }
         val change = pendingChangeUtxos.getOrPut(address) { mutableListOf() }
+        val cutoff = System.currentTimeMillis() - PENDING_UTXO_TTL_MS
+        spent.removeAll { key -> (pendingRecordedAtMs[key] ?: 0L) < cutoff }
+        change.removeAll { (pendingRecordedAtMs[outpointKey(it.outpoint)] ?: 0L) < cutoff }
+        pendingRecordedAtMs.entries.removeAll { it.value < cutoff }
         return reconcilePendingUtxos(freshUtxos, spent, change)
     }
 
@@ -56,6 +66,20 @@ class KaspaWalletEngine @Inject constructor(
         val spent = pendingSpentOutpoints.getOrPut(spentAddress) { mutableSetOf() }
         val change = pendingChangeUtxos.getOrPut(changeAddress) { mutableListOf() }
         applySpend(spent, change, spentUtxos, changeUtxo)
+        val now = System.currentTimeMillis()
+        spentUtxos.forEach { pendingRecordedAtMs[outpointKey(it.outpoint)] = now }
+        changeUtxo?.let { pendingRecordedAtMs[outpointKey(it.outpoint)] = now }
+    }
+
+    /** One accepted submit: what it spent and the change it left, for [recordSpend]. */
+    private data class SubmittedSend(val txId: String, val spentUtxos: List<UtxoEntry>, val changeUtxo: UtxoEntry?)
+
+    /** The node rejections that mean "state mismatch between nodes", not "bad transaction":
+     *  the submit node is behind the one that served the UTXO snapshot, or behind a just-
+     *  accepted send whose change was chained. Same test as iOS's shouldRetrySendError. */
+    private fun isTransientNodeRejection(e: Exception): Boolean {
+        val message = e.message?.lowercase() ?: return false
+        return message.contains("orphan") || message.contains("already spent")
     }
 
     /**
@@ -136,6 +160,12 @@ class KaspaWalletEngine @Inject constructor(
             val recipientScriptHex = KaspaAddress.getScriptPublicKey(toAddress)
             val changeScriptHex = KaspaAddress.getScriptPublicKey(changeAddress)
 
+            // One build -> sign -> submit attempt against a fixed candidate set. Split out so
+            // the transient-rejection fallback below can rerun the whole attempt against a
+            // freshly fetched, confirmed-only input set (iOS buildSignSubmitBroadcast /
+            // the 1:1 confirmed-only fallback).
+            suspend fun attempt(candidates: List<UtxoEntry>): Result<SubmittedSend> {
+            val utxos = candidates
             // 4. UTXO selection and fee calculation using Kaspa's real mass model
             val selectionResult = if (sweepAll) {
                 KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
@@ -270,7 +300,13 @@ class KaspaWalletEngine @Inject constructor(
             // that served the UTXO snapshot — retry that rejection once tolerating orphan
             // (same recovery KnsInscriptionEngine's reveal step uses) instead of failing.
             val usesUnconfirmedInputs = selectionResult.selectedUtxos.any { it.utxoEntry.blockDaaScore == 0L }
-            val transactionId = if (payloadBytes != null) {
+            // EVERY send goes to a node over gRPC first, plain payments included - as iOS does.
+            // Plain payments used to POST to the REST gateway alone, and api.kaspa.org
+            // rate-limits that too (HTTP 429), so a wallet send failed for the same reason a
+            // burst of messages did. The gateway is now only the fallback for a plain payment
+            // when no node can be reached at all; a payload send has no REST fallback (the
+            // gateway rejects those, see above).
+            val transactionId = try {
                 try {
                     nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
                 } catch (e: Exception) {
@@ -297,7 +333,7 @@ class KaspaWalletEngine @Inject constructor(
                                 // rejects them, see the broadcast comment above), so when the pool
                                 // has already concluded the whole network blocks gRPC, surface that
                                 // honestly instead of a raw DEADLINE_EXCEEDED string.
-                                if (nodePoolManager.nodeConnectionsBlocked.value) {
+                                if (payloadBytes != null && nodePoolManager.nodeConnectionsBlocked.value) {
                                     throw IllegalStateException(
                                         "No Kaspa node is reachable on this network. Node connections appear blocked, so the message could not be sent.",
                                         e2
@@ -309,8 +345,18 @@ class KaspaWalletEngine @Inject constructor(
                         else -> throw e
                     }
                 }
-            } else {
-                api.postTransaction(PostTransactionRequest(signedTx)).transactionId
+            } catch (e: Exception) {
+                // A plain payment can still reach the network through the REST gateway when
+                // every node attempt was transport-shaped (nothing answered). A node's verdict
+                // on the transaction itself is final and is not second-guessed over REST.
+                val transportShaped = e is kotlinx.coroutines.TimeoutCancellationException ||
+                    e is io.grpc.StatusException || e is io.grpc.StatusRuntimeException
+                if (payloadBytes == null && transportShaped) {
+                    Log.w("KaspaWalletEngine", "No node answered the submit, falling back to the REST gateway", e)
+                    api.postTransaction(PostTransactionRequest(signedTx)).transactionId
+                } else {
+                    throw e
+                }
             }
 
             val changeUtxo = if (changeOutputIndex >= 0) {
@@ -325,9 +371,29 @@ class KaspaWalletEngine @Inject constructor(
                     )
                 )
             } else null
-            recordSpend(fromAddress, changeAddress, selectionResult.selectedUtxos, changeUtxo)
+            return Result.success(SubmittedSend(transactionId, selectionResult.selectedUtxos, changeUtxo))
+            }
 
-            Result.success(transactionId)
+            val submitted = try {
+                attempt(utxos)
+            } catch (e: Exception) {
+                // The node pool's submit node can be a few seconds behind the node that served
+                // the UTXO snapshot, or behind a just-accepted send whose change was chained.
+                // It then rejects with kaspad's raw "orphan" / "already spent" text - a
+                // transient state mismatch, not a user error. Retry ONCE with a freshly fetched,
+                // confirmed-only input set before giving up, exactly as iOS does. Coin control
+                // fixed the inputs on purpose, so it is left to its own verdict.
+                if (!isTransientNodeRejection(e) || !manualUtxos.isNullOrEmpty()) throw e
+                val refetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
+                val confirmedOnly = filterSpendableCoinbase(reconcileUtxos(fromAddress, refetched))
+                    .filter { it.utxoEntry.blockDaaScore > 0L }
+                if (confirmedOnly.isEmpty()) throw e
+                Log.w("KaspaWalletEngine", "Submit rejected (${e.message}), retrying once with confirmed-only inputs")
+                attempt(confirmedOnly)
+            }.getOrElse { return Result.failure(it) }
+
+            recordSpend(fromAddress, changeAddress, submitted.spentUtxos, submitted.changeUtxo)
+            Result.success(submitted.txId)
         } catch (e: Exception) {
             Log.e("KaspaWalletEngine", "Error sending Kaspa", e)
             Result.failure(e)
@@ -480,6 +546,10 @@ class KaspaWalletEngine @Inject constructor(
         const val COINBASE_MATURITY = 1000L
 
         internal fun outpointKey(outpoint: Outpoint) = "${outpoint.transactionId}:${outpoint.index}"
+
+        /** How long a pending spend / pending change entry is trusted before the chain has to
+         *  confirm it (iOS pendingMessageUtxoTTL). */
+        private const val PENDING_UTXO_TTL_MS = 120_000L
 
         /**
          * Pure reconciliation logic (no network/DI dependencies) — mutates [pendingSpentKeys]/

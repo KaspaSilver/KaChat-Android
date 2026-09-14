@@ -1793,10 +1793,13 @@ class ChatViewModel @Inject constructor(
      * content (works uniformly for text/photo/audio, since all three are just a content string)
      * as a fresh message rather than mutating the failed one, which stays in history marked failed.
      */
-    fun retryGroupMessage(groupId: String, content: String) {
+    /** Re-sends a failed group message IN PLACE: the failed row is reused as the pending
+     *  placeholder and swapped for the real row, rather than a second bubble appearing next to
+     *  the failed one (see GroupRepository.sendGroupMessage's retryOfTxId). */
+    fun retryGroupMessage(groupId: String, content: String, failedTxId: String? = null) {
         viewModelScope.launch {
             try {
-                groupRepository.sendGroupMessage(content, groupId)
+                groupRepository.sendGroupMessage(content, groupId, retryOfTxId = failedTxId)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error retrying group message", e)
             }

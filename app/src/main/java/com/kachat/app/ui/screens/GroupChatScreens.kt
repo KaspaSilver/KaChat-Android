@@ -883,7 +883,7 @@ fun GroupChatThreadScreen(
                             myAddress = myAddress,
                             myAvatarUrl = myKnsProfile?.avatarUrl,
                             navController = navController,
-                            onRetry = { chatViewModel.retryGroupMessage(groupId, message.content) },
+                            onRetry = { chatViewModel.retryGroupMessage(groupId, message.content, failedTxId = message.txId) },
                             onReply = { chatViewModel.startGroupReplyTo(message) },
                             reactions = groupReactionsByTxId[message.txId] ?: emptyList(),
                             onReact = { emoji ->
