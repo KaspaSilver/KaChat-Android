@@ -106,6 +106,8 @@ fun SwapScreen(
     val kasIsSendSide by swapViewModel.kasIsSendSide.collectAsState()
     val otherCoin by swapViewModel.otherCoin.collectAsState()
     val amountText by swapViewModel.amountText.collectAsState()
+    val receiveAmountText by swapViewModel.receiveAmountText.collectAsState()
+    val editedSide by swapViewModel.editedSide.collectAsState()
     val payoutAddressText by swapViewModel.payoutAddressText.collectAsState()
     val estimateState by swapViewModel.estimateState.collectAsState()
     val createSwapState by swapViewModel.createSwapState.collectAsState()
@@ -184,13 +186,16 @@ fun SwapScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Both cards take input. Type under "You Send" and "You Get" is quoted; type under
+            // "You Get" and the derived quote fills "You Send" with what that costs.
+            val isQuoteLoading = estimateState.status == SwapViewModel.EstimateStatus.LOADING
             SwapAmountCard(
                 label = "You Send",
                 coin = if (kasIsSendSide) com.kachat.app.models.KAS_SWAP_COIN else otherCoin,
                 coinLabel = if (kasIsSendSide) "KAS" else otherCoin.displayName,
                 amountText = amountText,
                 onAmountChange = { swapViewModel.setAmountText(it) },
-                editable = true,
+                isQuoting = editedSide == SwapViewModel.AmountSide.GET && isQuoteLoading,
                 onMaxClick = null,
                 onCoinClick = if (!kasIsSendSide) { { showCoinPicker = true } } else null
             )
@@ -231,18 +236,13 @@ fun SwapScreen(
                 }
             }
 
-            val estimatedAmountText = when (estimateState.status) {
-                SwapViewModel.EstimateStatus.SUCCESS -> "%.8f".format(Locale.US, estimateState.toAmount ?: 0.0)
-                SwapViewModel.EstimateStatus.LOADING -> "..."
-                else -> ""
-            }
             SwapAmountCard(
                 label = "You Get",
                 coin = if (kasIsSendSide) otherCoin else com.kachat.app.models.KAS_SWAP_COIN,
                 coinLabel = if (kasIsSendSide) otherCoin.displayName else "KAS",
-                amountText = estimatedAmountText,
-                onAmountChange = {},
-                editable = false,
+                amountText = receiveAmountText,
+                onAmountChange = { swapViewModel.setReceiveAmountText(it) },
+                isQuoting = editedSide == SwapViewModel.AmountSide.SEND && isQuoteLoading,
                 onCoinClick = if (kasIsSendSide) { { showCoinPicker = true } } else null
             )
 
@@ -312,7 +312,8 @@ fun SwapScreen(
                 Text(stringResource(R.string.rate), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                 Spacer(Modifier.height(2.dp))
                 val rateText = if (estimateState.status == SwapViewModel.EstimateStatus.SUCCESS) {
-                    val fromAmount = amountText.toDoubleOrNull() ?: 0.0
+                    // Both figures come from the quote itself, whichever side was typed.
+                    val fromAmount = estimateState.fromAmount ?: 0.0
                     val toAmount = estimateState.toAmount ?: 0.0
                     if (fromAmount > 0) {
                         val fromLabel = if (kasIsSendSide) "KAS" else otherCoin.displayName
@@ -939,7 +940,9 @@ private fun SwapAmountCard(
     coinLabel: String,
     amountText: String,
     onAmountChange: (String) -> Unit,
-    editable: Boolean,
+    /** The card whose figure is being fetched for the other card's input: it shows a spinner
+     *  where the number will land, instead of an empty field that reads as "nothing entered". */
+    isQuoting: Boolean,
     onMaxClick: (() -> Unit)? = null,
     // Only the non-KAS side of the pair is actually pickable - KAS is always the fixed side, so
     // callers only ever pass this for the card showing `otherCoin`.
@@ -954,7 +957,11 @@ private fun SwapAmountCard(
             Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (editable) {
+                if (isQuoting) {
+                    Box(modifier = Modifier.weight(1f).height(56.dp), contentAlignment = Alignment.CenterStart) {
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                    }
+                } else {
                     OutlinedTextField(
                         value = amountText,
                         onValueChange = onAmountChange,
@@ -972,14 +979,6 @@ private fun SwapAmountCard(
                             focusedTextColor = LocalAppColors.current.textPrimary,
                             unfocusedTextColor = LocalAppColors.current.textPrimary
                         ),
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    Text(
-                        amountText.ifBlank { "0.00" },
-                        color = LocalAppColors.current.textPrimary,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
                 }

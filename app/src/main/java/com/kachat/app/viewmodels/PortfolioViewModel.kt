@@ -262,7 +262,7 @@ class PortfolioViewModel @Inject constructor(
             priceHistoryCache.clear()
         }
         fetchPriceHistory(_priceRangeDays.value, force = force)
-        fetchSevenDayPriceHistoryForCards()
+        fetchSevenDayPriceHistoryForCards(force = force)
         val historyJob = priceHistoryJob
         viewModelScope.launch {
             _isRefreshingPortfolio.value = true
@@ -295,31 +295,64 @@ class PortfolioViewModel @Inject constructor(
         }
     }
 
+    /** The one in-flight refresh of [_sevenDayPriceHistory] (dedup, like [priceHistoryJob]). */
+    private var sevenDayHistoryJob: Job? = null
+
+    /** Bumped by every [fetchSevenDayPriceHistoryForCards] that starts a fresh refresh (a forced
+     *  refresh or a currency switch), so a superseded task can neither write its result nor
+     *  clear the in-flight slot from under its successor. */
+    private var sevenDayHistoryEpoch = 0
+
     /**
      * Fetches (or refetches, on a currency change) the fixed 7-day window [_sevenDayPriceHistory]
      * relies on — independent of whatever range the visible chart is currently toggled to.
-     * Served from the persisted 10-minute cache when fresh enough (the cards tolerate slight
-     * staleness), and otherwise staggered 1.5s behind the main chart's fetch — this call landing
-     * in the same instant as the price + chart fetches was part of the launch burst that tripped
-     * CoinGecko's keyless-tier throttle (see [PortfolioRepository.getPriceHistory]).
+     *
+     * Stale-while-refresh, same as the chart: whatever 7-day curve is already persisted paints
+     * at once, however old (the Value card's 24h figure from an hour-old curve is still the
+     * right figure, and it beats "not available yet"), and a network refresh runs behind it
+     * unless the copy is inside the 10-minute TTL. The refresh is staggered behind the launch
+     * burst (price + stats + chart), which is exactly the burst that trips CoinGecko's
+     * keyless-tier 429, and it retries on a growing backoff rather than giving up on the first
+     * empty answer - one throttled reply used to leave the card blank until the next launch.
+     * [force] (pull-to-refresh) skips the TTL early-out but still paints the stale copy first.
      */
-    private fun fetchSevenDayPriceHistoryForCards() {
+    private fun fetchSevenDayPriceHistoryForCards(force: Boolean = false) {
         val currencyCode = currency.value
         repository.readPersistedPriceHistory(7, currencyCode)?.let { persisted ->
-            if (System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
-                _sevenDayPriceHistory.value = persisted.points
+            _sevenDayPriceHistory.value = persisted.points
+            if (!force && System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
                 return
             }
         }
-        viewModelScope.launch {
-            delay(1_500)
-            val result = repository.getPriceHistory(7, currencyCode)
-            if (result.isNotEmpty()) {
+        if (force || currencyCode != lastSevenDayCurrency) {
+            // A refresh or currency switch supersedes whatever is in flight.
+            sevenDayHistoryJob?.cancel()
+            sevenDayHistoryJob = null
+            sevenDayHistoryEpoch++
+        }
+        lastSevenDayCurrency = currencyCode
+        if (sevenDayHistoryJob != null) return
+        val epoch = sevenDayHistoryEpoch
+        sevenDayHistoryJob = viewModelScope.launch {
+            try {
+                var result: List<Pair<Long, Double>> = emptyList()
+                for (delayMillis in SEVEN_DAY_RETRY_DELAYS_MILLIS) {
+                    delay(delayMillis)
+                    if (sevenDayHistoryEpoch != epoch) return@launch
+                    result = repository.getPriceHistory(7, currencyCode)
+                    if (result.isNotEmpty()) break
+                }
+                if (sevenDayHistoryEpoch != epoch || result.isEmpty()) return@launch
                 repository.persistPriceHistory(result, 7, currencyCode)
                 _sevenDayPriceHistory.value = result
+            } finally {
+                if (sevenDayHistoryEpoch == epoch) sevenDayHistoryJob = null
             }
         }
     }
+
+    /** The currency the in-flight (or last) 7-day refresh was for - a switch supersedes it. */
+    private var lastSevenDayCurrency: String? = null
 
     /** Switches the price chart's window (1/7/30 days) and refetches history for it. */
     fun setPriceRangeDays(days: Int) {
@@ -499,6 +532,9 @@ class PortfolioViewModel @Inject constructor(
 
         /** First deferred-retry wait for a plain (non-throttled) failure — offline, DNS, 5xx with no Retry-After. */
         private const val INITIAL_RETRY_BACKOFF_MILLIS = 15_000L
+        /** 1.5s behind the launch burst, then a growing backoff - four tries before the card is
+         *  left to the next refresh. Mirrors iOS. */
+        private val SEVEN_DAY_RETRY_DELAYS_MILLIS = listOf(1_500L, 6_000L, 15_000L, 40_000L)
 
         /** Backoff ceiling — a persistent outage retries every 5 minutes, cheap enough to leave running for the ViewModel's lifetime. */
         private const val MAX_RETRY_BACKOFF_MILLIS = 5 * 60_000L
