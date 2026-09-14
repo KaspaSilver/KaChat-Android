@@ -25,6 +25,7 @@ import protowire.Rpc
 import protowire.getBlockDagInfoRequestMessage
 import protowire.getInfoRequestMessage
 import protowire.getPeerAddressesRequestMessage
+import protowire.getUtxosByAddressesRequestMessage
 import protowire.kaspadRequest
 import protowire.notifyBlockAddedRequestMessage
 import protowire.rpcOutpoint
@@ -247,6 +248,28 @@ class KaspadConnection internal constructor(
         build = { id -> kaspadRequest { this.id = id; getPeerAddressesRequest = getPeerAddressesRequestMessage {} } },
         extract = { it.getPeerAddressesResponse }
     )
+
+    /**
+     * Every current UTXO at [addresses], straight from the node (`GetUtxosByAddresses`). The
+     * spend path used to read these from the REST gateway alone, and api.kaspa.org rate-limits
+     * a burst of sends with HTTP 429 - a node has no such limit, and it is what iOS asks. Only
+     * answered by a node started with `--utxoindex`; any other node returns an RPC error, which
+     * is thrown here so the caller can fall back.
+     */
+    suspend fun getUtxosByAddresses(addresses: List<String>, timeoutMs: Long = 8000): List<Rpc.RpcUtxosByAddressesEntry> {
+        val response = call(
+            timeoutMs = timeoutMs,
+            build = { id ->
+                kaspadRequest {
+                    this.id = id
+                    getUtxosByAddressesRequest = getUtxosByAddressesRequestMessage { this.addresses.addAll(addresses) }
+                }
+            },
+            extract = { it.getUtxosByAddressesResponse }
+        )
+        if (response.hasError()) throw IllegalStateException(response.error.message)
+        return response.entriesList
+    }
 
     /**
      * Subscribes this connection to block-added notifications — used for broadcast-message

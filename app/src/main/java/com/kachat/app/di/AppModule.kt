@@ -120,10 +120,37 @@ object AppModule {
             .addInterceptor { chain ->
                 if (ApiLogging.verbose) verboseLogger.intercept(chain) else chain.proceed(chain.request())
             }
+            // A rate-limited GET (HTTP 429) is retried once after the server's Retry-After,
+            // capped so a send never waits long, instead of failing the caller outright. The
+            // same allowance iOS makes for its message fetches and price lookups. Reads only:
+            // a POST (a transaction submit, a push registration) must not be replayed blind.
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val response = chain.proceed(request)
+                if (response.code != 429 || request.method != "GET") return@addInterceptor response
+                val retryAfterMs = response.header("Retry-After")?.trim()?.toLongOrNull()
+                    ?.let { it * 1000L }
+                    ?.coerceIn(500L, MAX_RATE_LIMIT_WAIT_MS)
+                    ?: DEFAULT_RATE_LIMIT_WAIT_MS
+                Log.w(API_LOG_TAG, "HTTP 429 ${request.url} - retrying once in ${retryAfterMs}ms")
+                response.close()
+                try {
+                    Thread.sleep(retryAfterMs)
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw java.io.InterruptedIOException("interrupted while waiting out a rate limit")
+                }
+                chain.proceed(request)
+            }
             .build()
     }
 
     private const val API_LOG_TAG = "ApiLog"
+
+    /** How long a rate-limited GET waits before its one retry when the server gives no
+     *  Retry-After, and the most it will honor when it does - a send cannot sit for a minute. */
+    private const val DEFAULT_RATE_LIMIT_WAIT_MS = 2_000L
+    private const val MAX_RATE_LIMIT_WAIT_MS = 5_000L
 
     /** Anything slower than this on a healthy endpoint is worth a line even on success. */
     private const val SLOW_REQUEST_THRESHOLD_MS = 2_000L

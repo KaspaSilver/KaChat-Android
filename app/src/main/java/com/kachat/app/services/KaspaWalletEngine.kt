@@ -112,7 +112,10 @@ class KaspaWalletEngine @Inject constructor(
             // 2. Fetch UTXOs from node, reconciled against our own not-yet-indexed sends, then drop
             //    immature coinbase (mining rewards can't be spent until matured — see
             //    filterSpendableCoinbase). Mature coinbase and all non-coinbase UTXOs are kept.
-            val reconciled = reconcileUtxos(fromAddress, api.getUtxos(fromAddress))
+            // Node first, REST second: api.kaspa.org rate-limits a burst of sends (HTTP 429) and
+            // a node does not - see NodePoolManager.getUtxosByAddress.
+            val fetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
+            val reconciled = reconcileUtxos(fromAddress, fetched)
             val utxos = filterSpendableCoinbase(reconciled)
             if (utxos.isEmpty()) {
                 val msg = if (reconciled.any { it.utxoEntry.isCoinbase }) {
@@ -423,7 +426,8 @@ class KaspaWalletEngine @Inject constructor(
     suspend fun fetchUtxos(address: String): List<UtxoEntry> {
         val api = networkService.kaspaRestApi.value ?: return emptyList()
         return try {
-            filterSpendableCoinbase(reconcileUtxos(address, api.getUtxos(address)))
+            val fetched = nodePoolManager.getUtxosByAddress(address) ?: api.getUtxos(address)
+            filterSpendableCoinbase(reconcileUtxos(address, fetched))
         } catch (e: Exception) {
             emptyList()
         }

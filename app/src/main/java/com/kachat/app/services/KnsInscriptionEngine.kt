@@ -66,7 +66,8 @@ class KnsInscriptionEngine @Inject constructor(
         val commitScriptPubKeyHex = KaspaAddress.getScriptPublicKey(commitAddress)
         val changeScriptHex = KaspaAddress.getScriptPublicKey(changeAddress)
 
-        val utxos = api.getUtxos(fundingAddress)
+        // Node first, REST second - see NodePoolManager.getUtxosByAddress.
+        val utxos = nodePoolManager.getUtxosByAddress(fundingAddress) ?: api.getUtxos(fundingAddress)
         if (utxos.isEmpty()) throw IllegalStateException("No spendable UTXOs available for KNS inscription")
 
         val feeRateSompiPerGram = fetchFeeRate(api)

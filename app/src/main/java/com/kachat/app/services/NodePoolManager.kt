@@ -719,6 +719,33 @@ class NodePoolManager @Inject constructor(
     }
 
     /**
+     * The UTXOs at [address] from the node the next broadcast would use, in the same shape the
+     * REST gateway returns them, or null when the node cannot answer (no UTXO index, dead
+     * stream, timeout) so the caller can fall back to REST. The spend path asks here first: a
+     * burst of sends used to hit api.kaspa.org once per send for the UTXO set and got HTTP 429
+     * back, failing the message. A node has no such limit, and it is what iOS asks.
+     */
+    suspend fun getUtxosByAddress(address: String): List<UtxoEntry>? {
+        return try {
+            getBroadcastConnection().getUtxosByAddresses(listOf(address)).map { entry ->
+                UtxoEntry(
+                    address = entry.address.ifEmpty { address },
+                    outpoint = Outpoint(transactionId = entry.outpoint.transactionId, index = entry.outpoint.index),
+                    utxoEntry = UtxoData(
+                        amount = entry.utxoEntry.amount,
+                        scriptPublicKey = ScriptPublicKey(entry.utxoEntry.scriptPublicKey.scriptPublicKey),
+                        blockDaaScore = entry.utxoEntry.blockDaaScore,
+                        isCoinbase = entry.utxoEntry.isCoinbase
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("NodePoolManager", "Node UTXO fetch failed, falling back to REST: ${e.message}")
+            null
+        }
+    }
+
+    /**
      * Drops the cached connection the next [getBroadcastConnection] would return, so it dials
      * fresh. A silently-died gRPC stream is otherwise only reaped by the 30s probe cycle — any
      * submit in that window queued onto the dead stream and ate the full 15s timeout, failing

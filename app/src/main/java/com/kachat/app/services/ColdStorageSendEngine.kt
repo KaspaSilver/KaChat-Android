@@ -60,7 +60,8 @@ class ColdStorageSendEngine @Inject constructor(
             val api = networkService.kaspaRestApi.value
                 ?: return@withLock Result.failure(IllegalStateException("Network service unavailable"))
 
-            val utxos = api.getUtxos(fromAddress)
+            // Node first, REST second - see NodePoolManager.getUtxosByAddress.
+            val utxos = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
             if (utxos.isEmpty()) {
                 return@withLock Result.failure(IllegalStateException("No spendable UTXOs at this address"))
             }
@@ -160,7 +161,7 @@ class ColdStorageSendEngine @Inject constructor(
     suspend fun estimateMaxAmount(fromAddress: String, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long {
         val api = networkService.kaspaRestApi.value
             ?: throw IllegalStateException("Network service unavailable")
-        val fetched = api.getUtxos(fromAddress)
+        val fetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
         if (fetched.isEmpty()) return 0L
 
         val utxos = if (!manualUtxos.isNullOrEmpty()) {
@@ -204,7 +205,7 @@ class ColdStorageSendEngine @Inject constructor(
         if (amountSompi <= 0) return null
         val api = networkService.kaspaRestApi.value ?: return null
         val utxos = try {
-            api.getUtxos(fromAddress)
+            nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
         } catch (e: Exception) {
             return null
         }
