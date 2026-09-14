@@ -92,8 +92,10 @@ class NotificationHelper @Inject constructor(
         appForeground.value = foreground
     }
 
-    /** Read by the local poll/scan notification gates: while the app is foregrounded, local
-     *  banners fire even in remote-push mode (dupes with a racing push collapse via [claimTxId]). */
+    /** Whether the app is on screen. No longer a banner gate: while push is active the remote
+     *  push is the only banner source, foreground included (see [PushState]); the txId ledger
+     *  in [claimTxId] stays so the push's own two paths (FCM handler and a push-triggered sync)
+     *  cannot double-post. */
     val isAppInForeground: Boolean get() = appForeground.value
 
     /** Reactive form of [isAppInForeground] — drives lifecycle-scoped loops that must start on

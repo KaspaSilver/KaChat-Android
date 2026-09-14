@@ -718,13 +718,24 @@ fun GroupChatThreadScreen(
                                         subtitle = null,
                                         onDismiss = { showComposerMenu = false },
                                     ) {
+                                        // Always offered, named for what they do - see the 1:1
+                                        // composer's sheet. On-chain photo, on-chain voice, then
+                                        // Nextcloud when a server is connected, as on iOS.
                                         ActionSheetRow(
                                             icon = Icons.Default.Image,
-                                            title = stringResource(R.string.send_photo_2),
-                                            subtitle = "Pick an image from your library.",
+                                            title = stringResource(R.string.send_on_chain_photo),
+                                            subtitle = "Pick an image from your library and send it on chain.",
                                         ) {
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
+                                        }
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Mic,
+                                            title = stringResource(R.string.send_on_chain_voice_message),
+                                            subtitle = "Record a voice message and send it to the group on chain.",
+                                        ) {
+                                            showComposerMenu = false
+                                            startVoiceRecordingIfPermitted()
                                         }
                                         if (nextcloudAccount != null) {
                                             ActionSheetRow(
@@ -735,14 +746,6 @@ fun GroupChatThreadScreen(
                                                 showComposerMenu = false
                                                 showNextcloudPicker = true
                                             }
-                                        }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Mic,
-                                            title = stringResource(R.string.send_audio_message),
-                                            subtitle = "Record a voice message and send it to the group.",
-                                        ) {
-                                            showComposerMenu = false
-                                            startVoiceRecordingIfPermitted()
                                         }
                                     }
                                 }

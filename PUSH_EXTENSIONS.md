@@ -105,6 +105,11 @@ Honor removal counter-actions: an `unvote`/`unquote` should not generate a push.
   default true) and skip the push server-side. Filtering on the device still wakes the phone
   and burns the push; skipping at the source is the real fix. Mentions are deliberately not
   switchable.
+  **The app SENDS these five fields as of 4.1**, on every register call, and re-registers the
+  moment a switch changes. Until the server honors them, a switched-off kind still arrives in
+  the background: a KaPosts push carries a `notification` block, so a backgrounded app never
+  runs and cannot filter it - the client gate in `KaChatFirebaseMessagingService` only applies
+  while the app is in the foreground.
 - Body text (match the app's own in-app wording): `liked your post`, `disliked your post`,
   `replied to your post: <snippet>`, `quoted your post: <snippet>`, `reposted your post`,
   `followed you`. Snippets: marker-stripped (drop the leading U+2060), ~140 chars.
@@ -115,10 +120,17 @@ Honor removal counter-actions: an `unvote`/`unquote` should not generate a push.
 
 - Plain alert pushes — NO `mutable-content` needed; both content types are public/unencrypted
   so there's nothing for the app's notification service extension to decrypt.
-- The app SUPPRESSES its own local/scan-driven banners for broadcasts and its in-app KaPosts
-  polling pings while in remote-push mode — the server is the ONLY notification source for
-  these once this ships. Until it ships, users get no broadcast/KaPosts notifications when
-  the app is closed, so this is the top-priority server item.
+- **The app posts NO local banners of its own while push is active, for anything** - not for
+  1:1 messages, handshakes or payments, broadcasts, or KaPosts activity - whatever it discovers
+  through its own sync, scan or poll (`PushState`, as of 4.1). The server's push is the only
+  notification source, foreground or background, exactly as when the app is closed.
+  Consequences the server side should know: a message the push service misses notifies nothing;
+  broadcast rooms that are not indexed for push notify nothing; and the foreground no longer
+  banners locally on the assumption the push would be a duplicate, so every push shows unless
+  the reader is looking at that very stream. (Group messages are the exception by design: the
+  `group_message` push triggers a sync that decrypts and posts the precise banner locally.)
+  The one device that still banners locally is one with no push at all - no Play services, or a
+  failed registration - where the pollers are the only source there is.
 - APNs environment: production for TestFlight/App Store builds (see the CHANGENOW/secrets
   notes for the sandbox story on dev builds — same applies here).
 - Rate sanity: batch/coalesce bursts (a viral post's votes) — collapse-id already dedupes

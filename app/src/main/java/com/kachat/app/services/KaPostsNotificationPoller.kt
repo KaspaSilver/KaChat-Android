@@ -160,11 +160,10 @@ class KaPostsNotificationPoller @Inject constructor(
             settingsRepository.shouldNotifyKaPostsAction(it.contentType, it.voteType)
         }
         if (fresh.isEmpty()) return
-        // Foreground policy: this poller only runs while the app is on screen, and in-app pings
-        // must fire there too — so remote-push mode no longer silences it wholesale. The
-        // actionTxId dedupe inside NotificationHelper.showKaPosts collapses a racing push for
-        // the same action into one banner.
-        if (pushState.isActive && !notificationHelper.isAppInForeground) return
+        // The remote push is the only banner source while push is active - see PushState. The
+        // bell count above is fed regardless; only the banner is the push's. A device with no
+        // push at all still pings from here.
+        if (pushState.isActive) return
         // The list itself is open: the reader sees these land in it, so no banner.
         if (isNotificationsScreenVisible) return
         // Oldest first, capped so a viral post can't fire fifty pings at once.

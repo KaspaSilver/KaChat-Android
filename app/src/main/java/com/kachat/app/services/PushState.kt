@@ -8,8 +8,19 @@ import javax.inject.Singleton
 /**
  * Whether native FCM push is currently ACTIVE for this device — meaning the server, not the
  * in-app pollers, is the notification source for the push-covered surfaces (1:1 DMs, broadcast
- * channels, KaPosts pings), per PUSH_EXTENSIONS.md §4's "the app SUPPRESSES its own local/
- * scan-driven banners while in remote-push mode".
+ * channels, KaPosts pings), per PUSH_EXTENSIONS.md §4: the app posts no banners of its own for
+ * what it discovers itself while push is active.
+ *
+ * Foreground included. The app used to banner from both sources while on screen - the local
+ * poll or scan posted, and a racing push for the same tx was collapsed by NotificationHelper's
+ * txId ledger - and the seams showed: the same message arriving as two differently-worded
+ * banners, or a banner whose wording depended on which path won. Every discovery path (the
+ * 1:1 sync, the broadcast scan, the KaPosts poller) now returns before posting whenever this
+ * flag is true, exactly as when the app is closed; discovery itself is untouched, so the data
+ * is fresh when the app opens. The trade, made on purpose and the same one iOS makes: a
+ * message the push service misses, or a broadcast room the server does not index, notifies
+ * nothing. Unlike iOS, a device with no push at all (no Play services, registration failed)
+ * keeps the local banners, because there the pollers are the only source there is.
  *
  * Set true by [PushRegistrationManager] only after a registration round-trip SUCCEEDS while
  * system notifications are actually deliverable (POST_NOTIFICATIONS granted); flipped false on

@@ -1067,11 +1067,10 @@ class ChatRepository @Inject constructor(
         )
 
         val displayName = theirAlias ?: com.kachat.app.util.KaspaAddress.shortDisplay(sender)
-        // Foreground policy: while the app is on screen the local poll posts the banner itself
-        // (only the open conversation is suppressed, inside NotificationHelper); backgrounded
-        // with push active, the server is the notification source. txId dedupe collapses the
-        // race where both paths fire for the same handshake.
-        if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
+        // The remote push is the only banner source while push is active, foreground or
+        // background - see PushState. The sync still lands the handshake; it just no longer
+        // announces it. Only a device with no push at all banners from here.
+        if (!backfill && !pushState.isActive) {
             notificationHelper.show(
                 contactId = sender,
                 title = if (newStatus == "pending") "Request to communicate" else "Connected",
@@ -1340,10 +1339,9 @@ class ChatRepository @Inject constructor(
             com.kachat.app.util.ChessMessage.parseOrNull(plaintext) != null -> "♟️ Chess game"
             else -> plaintext
         }
-        // Foreground policy: local banner while the app is on screen (open thread suppressed in
-        // NotificationHelper); defer to the server push only while backgrounded. txId-deduped
-        // against a racing push for the same message.
-        if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
+        // The remote push is the only banner source while push is active, foreground or
+        // background - see PushState. Only a device with no push at all banners from here.
+        if (!backfill && !pushState.isActive) {
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.displayName,
@@ -1472,10 +1470,9 @@ class ChatRepository @Inject constructor(
             )
         )
 
-        // Foreground policy: local banner while the app is on screen (open thread suppressed in
-        // NotificationHelper); defer to the server push only while backgrounded. txId-deduped
-        // against a racing push for the same payment.
-        if (!backfill && (notificationHelper.isAppInForeground || !pushState.isActive)) {
+        // The remote push is the only banner source while push is active, foreground or
+        // background - see PushState. Only a device with no push at all banners from here.
+        if (!backfill && !pushState.isActive) {
             notificationHelper.show(
                 contactId = conversationId,
                 title = "Payment received",

@@ -477,6 +477,8 @@
     <string name="send_handshake">Send Handshake</string>
     <string name="handshake_sent">Handshake sent</string>
     <string name="send_photo_2">Send Photo</string>
+    <string name="send_on_chain_photo">Send On-Chain Photo</string>
+    <string name="send_on_chain_voice_message">Send On-Chain Voice Message</string>
     <string name="sending_2">Sending...</string>
     <string name="set_as_primary_address">Set as Primary Address</string>
     <string name="setup_guide">Setup Guide</string>

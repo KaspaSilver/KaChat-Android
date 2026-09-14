@@ -54,8 +54,33 @@ data class PushRegistrationRequest(
     @SerializedName("watched_broadcast_channels") val watchedBroadcastChannels: List<String> = emptyList(),
     @SerializedName("hidden_broadcast_senders") val hiddenBroadcastSenders: Map<String, List<String>> = emptyMap(),
     @SerializedName("kaposts_pubkey") val kaPostsPubkey: String? = null,
+    /**
+     * The reader's per-kind KaPosts switches, so the server can skip a push at the source
+     * (PUSH_EXTENSIONS.md §3). A KaPosts push carries a `notification` block, so while the app
+     * is in the background the OS shows it without this client ever running - registering the
+     * kinds is the only way a switched-off kind stops arriving there. Mentions are deliberately
+     * not switchable. Same five fields iOS sends.
+     */
+    @SerializedName("kaposts_notify_likes") val kaPostsNotifyLikes: Boolean = true,
+    @SerializedName("kaposts_notify_dislikes") val kaPostsNotifyDislikes: Boolean = true,
+    @SerializedName("kaposts_notify_comments") val kaPostsNotifyComments: Boolean = true,
+    @SerializedName("kaposts_notify_reposts") val kaPostsNotifyReposts: Boolean = true,
+    @SerializedName("kaposts_notify_follows") val kaPostsNotifyFollows: Boolean = true,
     @SerializedName("auth") val auth: PushAuthRequest? = null,
 )
+
+/** The five switchable KaPosts kinds, as sent at registration. Order: likes, dislikes,
+ *  comments, reposts, follows. */
+data class KaPostsNotifyKinds(
+    val likes: Boolean = true,
+    val dislikes: Boolean = true,
+    val comments: Boolean = true,
+    val reposts: Boolean = true,
+    val follows: Boolean = true,
+) {
+    /** Stable text for the registration fingerprint. */
+    fun fingerprint(): String = listOf(likes, dislikes, comments, reposts, follows).joinToString(",") { if (it) "1" else "0" }
+}
 
 data class PushUnregisterRequest(
     @SerializedName("device_token") val deviceToken: String,

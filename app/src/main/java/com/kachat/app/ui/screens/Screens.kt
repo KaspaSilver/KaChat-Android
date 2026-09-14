@@ -1027,13 +1027,28 @@ fun ChatThreadScreen(
                                         subtitle = null,
                                         onDismiss = { showComposerMenu = false },
                                     ) {
+                                        // The on-chain photo and voice options are ALWAYS
+                                        // offered, named for what they do: a photo or a voice
+                                        // note that uploads to Nextcloud and one that lives on
+                                        // chain are different things, and the composer bar's
+                                        // own camera and mic only cover the server one. Order
+                                        // matches iOS: on-chain photo, on-chain voice, then
+                                        // Nextcloud when a server is connected.
                                         ActionSheetRow(
                                             icon = Icons.Default.Image,
-                                            title = stringResource(R.string.send_photo_2),
-                                            subtitle = "Pick an image from your library.",
+                                            title = stringResource(R.string.send_on_chain_photo),
+                                            subtitle = "Pick an image from your library and send it on chain.",
                                         ) {
                                             showComposerMenu = false
                                             photoPickerLauncher.launch("image/*")
+                                        }
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Mic,
+                                            title = stringResource(R.string.send_on_chain_voice_message),
+                                            subtitle = "Record a voice message and send it on chain.",
+                                        ) {
+                                            showComposerMenu = false
+                                            startVoiceRecordingIfPermitted()
                                         }
                                         if (nextcloudAccount != null) {
                                             ActionSheetRow(
@@ -1044,14 +1059,6 @@ fun ChatThreadScreen(
                                                 showComposerMenu = false
                                                 showNextcloudPicker = true
                                             }
-                                        }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Mic,
-                                            title = stringResource(R.string.send_audio_message),
-                                            subtitle = "Record a voice message and send it.",
-                                        ) {
-                                            showComposerMenu = false
-                                            startVoiceRecordingIfPermitted()
                                         }
                                         // Send Kaspa left this menu: the Kaspa logo inside the
                                         // input bubble is the one entry point to payment mode now.

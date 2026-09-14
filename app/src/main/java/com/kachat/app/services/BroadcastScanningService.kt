@@ -339,10 +339,11 @@ class BroadcastScanningService @Inject constructor(
                 )
             }
 
-            // Foreground policy: while the app is on screen the scan posts the banner itself
-            // (the channel open on screen is suppressed inside NotificationHelper); backgrounded
-            // with push active, the server is the source. txId-deduped against a racing push.
-            if (isChannelNotifyEnabled(parsed.channel) && (notificationHelper.isAppInForeground || !pushState.isActive)) {
+            // The remote push is the only banner source while push is active, foreground or
+            // background - see PushState. A room the push server does not index notifies
+            // nothing; that is the trade, made on purpose and the same one iOS makes. Only a
+            // device with no push at all banners from the scan.
+            if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive) {
                 // A reaction's raw JSON must never surface in a notification — humanize it.
                 // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
                 // message" too, rather than showing the raw reply JSON (see MessageReply).
