@@ -104,8 +104,9 @@ android {
         // the ninth (Google Drive removed - Nextcloud is the one sync; sends and balance read
         // the node, not the rate-limited REST gateway; rapid sends chain like iOS); 44 the
         // tenth (the GitHub APK calls itself "KaChat APK" - the github flavor); 45 the eleventh
-        // (crashes are recorded and offered for sharing on the next launch).
-        versionCode = 45
+        // (crashes are recorded and offered for sharing on the next launch); 46 the twelfth
+        // (a silent close - native crash, ANR, OS kill - is recorded from the exit history).
+        versionCode = 46
         versionName = "4.1"
 
         buildConfigField(
