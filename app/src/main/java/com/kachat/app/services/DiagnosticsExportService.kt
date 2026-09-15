@@ -75,6 +75,12 @@ class DiagnosticsExportService @Inject constructor(
             zip.write(logs.toByteArray())
             zip.closeEntry()
 
+            // The system's crash log buffer holds this app's fatal entries - Java and native -
+            // from EARLIER processes too, which the pid-filtered app.log above cannot see.
+            zip.putNextEntry(ZipEntry("crash-buffer.log"))
+            zip.write(collectCrashBuffer().toByteArray())
+            zip.closeEntry()
+
             // Crashes from EARLIER launches. app.log above is this process only, so a crash
             // that ended the previous process - the kind that leaves the app "unable to open"
             // - would otherwise never make it into the archive. See CrashRecorder.
@@ -161,6 +167,20 @@ class DiagnosticsExportService @Inject constructor(
             messageStore = messageStore,
             nodePool = nodePool
         )
+    }
+
+    /** The `crash` log buffer: fatal exceptions and native crash summaries for this app's UID,
+     *  whichever process wrote them. An app can read only its own entries, so no permission. */
+    private fun collectCrashBuffer(maxLines: Int = 2000): String {
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-b", "crash", "-v", "time"))
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor()
+            val lines = output.lines()
+            if (lines.size > maxLines) lines.takeLast(maxLines).joinToString("\n") else output
+        } catch (e: Exception) {
+            "Failed to collect crash buffer: ${e.message}"
+        }
     }
 
     /** This process's own recent logcat output — capped since a long-running session's buffer can be large. */

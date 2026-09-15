@@ -112,6 +112,10 @@ class KaChatApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
+        // How did the previous process end? A native crash or an OS kill never reaches the
+        // exception handler installed in attachBaseContext; the system's own exit history does.
+        CrashRecorder.noteProcessExits(this)
+
         // Background catch-up for GROUP chat only (see SyncWorker's doc comment): groups have no
         // remote push (the push registration is the LegacyV1 shape with no watched_group_ids), so
         // this 15-minute WorkManager cadence is their sole closed-app notification path. All
