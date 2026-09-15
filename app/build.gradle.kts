@@ -105,8 +105,9 @@ android {
         // the node, not the rate-limited REST gateway; rapid sends chain like iOS); 44 the
         // tenth (the GitHub APK calls itself "KaChat APK" - the github flavor); 45 the eleventh
         // (crashes are recorded and offered for sharing on the next launch); 46 the twelfth
-        // (a silent close - native crash, ANR, OS kill - is recorded from the exit history).
-        versionCode = 46
+        // (a silent close - native crash, ANR, OS kill - is recorded from the exit history); 47
+        // the thirteenth (the KaPosts three-dots menu is a half sheet).
+        versionCode = 47
         versionName = "4.1"
 
         buildConfigField(
