@@ -14,6 +14,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kachat.app.repository.GroupRepository
 import com.kachat.app.services.BroadcastScanningService
+import com.kachat.app.services.CrashRecorder
 import com.kachat.app.services.GroupScanningService
 import com.kachat.app.services.KaPostsNotificationPoller
 import com.kachat.app.services.SyncWorker
@@ -29,6 +30,14 @@ import javax.inject.Inject
  */
 @HiltAndroidApp
 class KaChatApplication : Application(), Configuration.Provider {
+
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(base)
+        // Before anything else - Hilt builds the whole object graph in onCreate, and a crash in
+        // there is exactly the "closes on the splash screen" a user cannot describe. The record
+        // is bundled into the diagnostics archive and offered for sharing on the next launch.
+        CrashRecorder.install(this)
+    }
 
     // @Singleton instances are otherwise only created lazily the first time something actually
     // requests them — field-injecting this here forces it to exist from app startup, so its

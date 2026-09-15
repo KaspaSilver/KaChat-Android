@@ -44,6 +44,8 @@ class DiagnosticsExportService @Inject constructor(
         val generatedAt: String,
         val app: AppInfo,
         val device: DeviceInfo,
+        /** How many crash reports the archive carries under `crashes/`, newest first. */
+        val recordedCrashes: Int,
         val settings: Map<String, String?>,
         val messageStore: MessageStoreDiagnostics,
         val nodePool: NodePoolSummary
@@ -72,6 +74,15 @@ class DiagnosticsExportService @Inject constructor(
             zip.putNextEntry(ZipEntry("app.log"))
             zip.write(logs.toByteArray())
             zip.closeEntry()
+
+            // Crashes from EARLIER launches. app.log above is this process only, so a crash
+            // that ended the previous process - the kind that leaves the app "unable to open"
+            // - would otherwise never make it into the archive. See CrashRecorder.
+            for (crash in CrashRecorder.crashFiles(context)) {
+                zip.putNextEntry(ZipEntry("crashes/${crash.name}"))
+                zip.write(crash.readBytes())
+                zip.closeEntry()
+            }
         }
 
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", zipFile)
@@ -145,6 +156,7 @@ class DiagnosticsExportService @Inject constructor(
                 androidRelease = Build.VERSION.RELEASE,
                 sdkInt = Build.VERSION.SDK_INT
             ),
+            recordedCrashes = CrashRecorder.crashFiles(context).size,
             settings = settings,
             messageStore = messageStore,
             nodePool = nodePool

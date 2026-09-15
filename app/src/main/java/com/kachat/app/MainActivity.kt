@@ -16,9 +16,13 @@ import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -26,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
+import com.kachat.app.services.CrashRecorder
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PendingShare
 import com.kachat.app.services.ShareIntake
@@ -141,9 +146,51 @@ class MainActivity : AppCompatActivity() {
                         pendingWalletActivityKind = pendingWalletActivityKind,
                         onPendingWalletActivityHandled = { pendingWalletActivityKind = null }
                     )
+                    CrashNotice()
                 }
             }
         }
+    }
+
+    /**
+     * Shown once on the launch after the app crashed: the previous process died before anyone
+     * could see why, and its record is the one thing that turns "it will not open" into a fix.
+     * Share sends the newest report to a share sheet (mail, Telegram, anything); Not now keeps
+     * it for the diagnostics archive under Settings > Diagnostics.
+     */
+    @androidx.compose.runtime.Composable
+    private fun CrashNotice() {
+        val crashFile = remember { CrashRecorder.unseenCrash(this) }
+        var show by remember { mutableStateOf(crashFile != null) }
+        if (!show || crashFile == null) return
+        AlertDialog(
+            onDismissRequest = { show = false; CrashRecorder.markSeen(this) },
+            title = { Text("KaChat closed unexpectedly") },
+            text = { Text("The app crashed the last time it ran. A report of what went wrong was saved. Sharing it with the developer is the quickest way to get it fixed - it contains no messages, keys or addresses.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    show = false
+                    CrashRecorder.markSeen(this)
+                    shareCrashReport(crashFile)
+                }) { Text("Share report") }
+            },
+            dismissButton = {
+                TextButton(onClick = { show = false; CrashRecorder.markSeen(this) }) { Text("Not now") }
+            }
+        )
+    }
+
+    private fun shareCrashReport(file: File) {
+        runCatching {
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "KaChat crash report")
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(send, "Share crash report"))
+        }.onFailure { android.util.Log.w("MainActivity", "Could not share crash report", it) }
     }
 
     override fun onNewIntent(intent: Intent) {

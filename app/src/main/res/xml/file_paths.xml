@@ -4,4 +4,7 @@
     <cache-path name="diagnostics_exports" path="diagnostics_exports/" />
     <cache-path name="portfolio_exports" path="portfolio_exports/" />
     <cache-path name="camera_captures" path="camera_captures/" />
+    <!-- Crash reports the app recorded about itself (CrashRecorder) - shared from the
+         next-launch notice so a report can leave a phone with no computer attached. -->
+    <files-path name="crashes" path="crashes/" />
 </paths>
