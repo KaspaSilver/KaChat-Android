@@ -1714,49 +1714,53 @@ fun KaPostCell(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    Box {
-                        Icon(
-                            Icons.Default.MoreHoriz,
-                            contentDescription = "More",
-                            tint = colors.textSecondary,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable { showOverflow = true },
-                        )
-                        DropdownMenu(
-                            expanded = showOverflow,
-                            onDismissRequest = { showOverflow = false },
+                    Icon(
+                        Icons.Default.MoreHoriz,
+                        contentDescription = "More",
+                        tint = colors.textSecondary,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable { showOverflow = true },
+                    )
+                    // The three-dots menu is a half sheet, like every other menu in the app,
+                    // so each option can say what it does; the popup had room for a verb and
+                    // nothing else. Share lives in the action row itself, next to bookmark,
+                    // matching iOS - no duplicate entry here.
+                    if (showOverflow) {
+                        ActionSheetContainer(
+                            title = "Post",
+                            subtitle = null,
+                            onDismiss = { showOverflow = false },
                         ) {
                             if (post.remoteId != null) {
-                                // Share lives in the action row itself now, next to bookmark,
-                                // matching iOS - no duplicate entry here.
-                                DropdownMenuItem(
-                                    text = { Text("Post Activity") },
-                                    leadingIcon = { Icon(Icons.Outlined.BarChart, null) },
-                                    onClick = {
-                                        showOverflow = false
-                                        onViewEngagement()
-                                    },
-                                )
+                                ActionSheetRow(
+                                    icon = Icons.Outlined.BarChart,
+                                    title = "Post Activity",
+                                    subtitle = "Who liked, disliked, reposted and quoted this post.",
+                                ) {
+                                    showOverflow = false
+                                    onViewEngagement()
+                                }
                             }
                             if (!isMine) {
                                 // Named, as on iOS: "Mute alice" says who this lands on.
-                                DropdownMenuItem(
-                                    text = { Text("Mute $name") },
-                                    leadingIcon = { Icon(Icons.Default.VolumeOff, null) },
-                                    onClick = {
-                                        showOverflow = false
-                                        viewModel.mute(post.posterAddress)
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Block $name", color = Color(0xFFFF3B30)) },
-                                    leadingIcon = { Icon(Icons.Default.Block, null, tint = Color(0xFFFF3B30)) },
-                                    onClick = {
-                                        showOverflow = false
-                                        viewModel.block(post.posterAddress)
-                                    },
-                                )
+                                ActionSheetRow(
+                                    icon = Icons.Default.VolumeOff,
+                                    title = "Mute $name",
+                                    subtitle = "Hides their posts everywhere. They can still interact with you.",
+                                ) {
+                                    showOverflow = false
+                                    viewModel.mute(post.posterAddress)
+                                }
+                                ActionSheetRow(
+                                    icon = Icons.Default.Block,
+                                    title = "Block $name",
+                                    subtitle = "Hides their posts and stops them interacting with you.",
+                                    tint = Color(0xFFFF3B30),
+                                ) {
+                                    showOverflow = false
+                                    viewModel.block(post.posterAddress)
+                                }
                             }
                         }
                     }
