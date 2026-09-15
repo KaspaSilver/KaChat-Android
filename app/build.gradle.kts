@@ -103,8 +103,9 @@ android {
         // previews, primary spending address rotates on every send, Swap "You Get" quotes); 43
         // the ninth (Google Drive removed - Nextcloud is the one sync; sends and balance read
         // the node, not the rate-limited REST gateway; rapid sends chain like iOS); 44 the
-        // tenth (the GitHub APK calls itself "KaChat APK" - the github flavor).
-        versionCode = 44
+        // tenth (the GitHub APK calls itself "KaChat APK" - the github flavor); 45 the eleventh
+        // (crashes are recorded and offered for sharing on the next launch).
+        versionCode = 45
         versionName = "4.1"
 
         buildConfigField(
