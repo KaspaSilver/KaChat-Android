@@ -21,7 +21,7 @@ Push stays **inactive until you add `app/google-services.json`** — the app sti
 ## 2. Build
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assemblePlayDebug
 ```
 
 With `google-services.json` present, the `com.google.gms.google-services` plugin activates and

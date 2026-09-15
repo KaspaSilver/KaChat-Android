@@ -102,8 +102,9 @@ android {
         // (push is the only banner source, KaPosts switches reach the server, link-safe list
         // previews, primary spending address rotates on every send, Swap "You Get" quotes); 43
         // the ninth (Google Drive removed - Nextcloud is the one sync; sends and balance read
-        // the node, not the rate-limited REST gateway; rapid sends chain like iOS).
-        versionCode = 43
+        // the node, not the rate-limited REST gateway; rapid sends chain like iOS); 44 the
+        // tenth (the GitHub APK calls itself "KaChat APK" - the github flavor).
+        versionCode = 44
         versionName = "4.1"
 
         buildConfigField(
@@ -142,6 +143,17 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
         }
+    }
+
+    // Where a build is handed out from. Same package, same signing key, same code - the one
+    // thing that differs is the launcher name: the GitHub APK calls itself "KaChat APK" (see
+    // src/github/res) so a person can tell it from the Play Store's "KaChat" at a glance.
+    // Installing one over the other still updates in place, since Android sees one package.
+    // Play builds: bundlePlayRelease. GitHub APK: assembleGithubRelease.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") { dimension = "distribution" }
+        create("github") { dimension = "distribution" }
     }
 
     compileOptions {

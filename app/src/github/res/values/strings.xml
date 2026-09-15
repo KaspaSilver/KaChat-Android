@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The GitHub APK's launcher name. Overrides main's "KaChat" for this flavor only, so a
+         sideloaded install reads differently from the Play Store one on the same phone. -->
+    <string name="app_name">KaChat APK</string>
+</resources>

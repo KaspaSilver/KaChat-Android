@@ -56,11 +56,17 @@ safe. Nobody, including the developers, can recover it for you if it's lost.
 ```bash
 git clone https://github.com/KaspaSilver/KaChatForAndroid.git
 cd KaChatForAndroid
-./gradlew assembleDebug
+./gradlew assemblePlayDebug
+```
+
+The GitHub release APK is the `github` flavor - the same app under the launcher name "KaChat APK", so a sideloaded install is easy to tell from the Play Store one:
+
+```bash
+./gradlew assembleGithubRelease
 ```
 
 Requires JDK 17 and the Android SDK (compileSdk 36). The resulting APK is at
-`app/build/outputs/apk/debug/app-debug.apk`.
+`app/build/outputs/apk/play/debug/app-play-debug.apk` (the GitHub flavor lands under `apk/github/`).
 
 Optional pieces, both gitignored and absent by default:
 
