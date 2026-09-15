@@ -8655,6 +8655,7 @@ fun SettingsScreen(
                     navController.navigate("storage_nextcloud")
                 })
             }
+            SettingsFooter("Your own Nextcloud server is the only place messages sync to. Nothing is stored with Google or Apple.")
             }
 
             if (sectionKey == "chat_history") {

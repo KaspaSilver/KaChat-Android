@@ -803,7 +803,7 @@ fun ChatsScreen(
                         if (isOnGroupsTab) {
                             "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
                         } else {
-                            "This permanently deletes every message in each selected chat, including from iCloud, so they're removed from your other devices too. This cannot be undone."
+                            "This permanently deletes every message in each selected chat from this device. This cannot be undone."
                         },
                         color = LocalAppColors.current.textSecondary
                     )

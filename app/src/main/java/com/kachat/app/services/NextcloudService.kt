@@ -270,8 +270,23 @@ class NextcloudService @Inject constructor(
         migrateLegacyGlobalStateIfNeeded()
 
         _account.value = loadAccount()
-        _autoBackupEnabled.value = scopedKey(PREF_AUTO_BACKUP_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
+        _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = _account.value != null)
         _mediaSendEnabled.value = scopedKey(PREF_MEDIA_SEND_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
+    }
+
+    /**
+     * The wallet's Automatic Sync toggle. A choice on record wins. With none, the connected
+     * default is ON: Nextcloud is the only cross-device sync the app has, so a connected server
+     * syncs unless told not to (iOS resolveAndMigrateAutoSyncEnabled). The resolved default is
+     * written back, so every later read - here, the sync service's activation read, the
+     * settings toggle - agrees.
+     */
+    private fun resolveAutoBackupEnabled(suffix: String, connected: Boolean): Boolean {
+        val key = scopedKey(PREF_AUTO_BACKUP_ENABLED, suffix)
+        if (prefs.contains(key)) return prefs.getBoolean(key, false)
+        if (!connected) return false
+        prefs.edit().putBoolean(key, true).apply()
+        return true
     }
 
     /**
@@ -403,6 +418,8 @@ class NextcloudService @Inject constructor(
             }
         }
         persistAccount(candidate)
+        // Connected: Automatic Sync defaults ON unless a choice is already on record.
+        _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = true)
 
         // Point at the backup this account already has, before anything reads or writes one.
         // Only when the user has not chosen a folder themselves - an explicit choice outranks
@@ -492,8 +509,11 @@ class NextcloudService @Inject constructor(
     /** Reads [walletAddress]'s persisted Automatic Sync toggle straight from storage, without
      *  waiting for the active-wallet state swap — the timing-independent read the
      *  reconciliation the sync service uses at wallet activation. */
-    fun isAutoBackupEnabledFor(walletAddress: String): Boolean =
-        prefs.getBoolean(scopedKey(PREF_AUTO_BACKUP_ENABLED, walletHashSuffix(walletAddress)), false)
+    fun isAutoBackupEnabledFor(walletAddress: String): Boolean {
+        val suffix = walletHashSuffix(walletAddress)
+        val connected = prefs.contains(scopedKey(PREF_SERVER, suffix)) && prefs.contains(scopedKey(PREF_APP_PASSWORD, suffix))
+        return resolveAutoBackupEnabled(suffix, connected)
+    }
 
     fun setMediaSendEnabled(enabled: Boolean) {
         val key = scopedKey(PREF_MEDIA_SEND_ENABLED) ?: return
