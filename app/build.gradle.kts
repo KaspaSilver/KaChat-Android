@@ -100,8 +100,10 @@ android {
         // handshakes no longer skipped, small outputs judged by storage mass); 41 the seventh
         // (sender avatars open the half sheet in groups and broadcast rooms); 42 the eighth
         // (push is the only banner source, KaPosts switches reach the server, link-safe list
-        // previews, primary spending address rotates on every send, Swap "You Get" quotes).
-        versionCode = 42
+        // previews, primary spending address rotates on every send, Swap "You Get" quotes); 43
+        // the ninth (Google Drive removed - Nextcloud is the one sync; sends and balance read
+        // the node, not the rate-limited REST gateway; rapid sends chain like iOS).
+        versionCode = 43
         versionName = "4.1"
 
         buildConfigField(
