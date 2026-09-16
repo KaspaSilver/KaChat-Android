@@ -70,7 +70,7 @@ object CrashRecorder {
         val version = runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
             val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()
-            "${info.versionName} ($code)"
+            "${com.kachat.app.util.AppVersion.display} [versionCode $code]"
         }.getOrDefault("unknown")
         val trace = StringWriter().also { throwable.printStackTrace(PrintWriter(it)) }.toString()
         file.writeText(
@@ -156,7 +156,7 @@ object CrashRecorder {
         val version = runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
             val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()
-            "${info.versionName} ($code)"
+            "${com.kachat.app.util.AppVersion.display} [versionCode $code]"
         }.getOrDefault("unknown")
         file.writeText(
             buildString {

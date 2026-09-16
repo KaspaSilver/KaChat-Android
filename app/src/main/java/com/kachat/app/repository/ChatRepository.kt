@@ -73,6 +73,9 @@ class ChatRepository @Inject constructor(
     // instantiation past construction time, breaking the cycle while still letting this class
     // signal message activity into it (the continuous Nextcloud sync debounce).
     private val nextcloudSyncServiceLazy: dagger.Lazy<com.kachat.app.services.NextcloudSyncService>,
+    // Lazy for the same reason: CallService sends its envelopes through WalletService, which
+    // depends on this repository. Incoming call envelopes are handed to it from the ingest.
+    private val callServiceLazy: dagger.Lazy<com.kachat.app.services.CallService>,
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
     private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>,
@@ -1336,6 +1339,15 @@ class ChatRepository @Inject constructor(
             )
         )
 
+        // Call events (invite / answer / hang-up) ring through the chat itself. They DO stay as
+        // bubbles - the chat shows "Voice call · 4:12" the way a phone's history would - so this
+        // only hands the envelope to CallService and carries on.
+        if (contact.id != myAddress) {
+            com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { envelope ->
+                callServiceLazy.get().handleIncoming(envelope, contact.id, message.blockTime, isOutgoing = false)
+            }
+        }
+
         val replyContent = MessageReply.parseOrNull(plaintext)
         // A reply to a message this device never received is the one signal that a message was
         // missed; act on it rather than leave a quote that opens onto nothing.
@@ -1349,6 +1361,7 @@ class ChatRepository @Inject constructor(
             VoiceMessage.parseOrNull(plaintext) != null -> "Sent a voice message"
             ImageMessage.parseOrNull(plaintext) != null -> "Sent a photo"
             com.kachat.app.util.ChessMessage.parseOrNull(plaintext) != null -> "♟️ Chess game"
+            com.kachat.app.util.CallCodec.parseOrNull(plaintext) != null -> com.kachat.app.util.CallCodec.notificationPreview(com.kachat.app.util.CallCodec.parseOrNull(plaintext)!!)
             else -> plaintext
         }
         // The remote push is the only banner source while push is active, foreground or

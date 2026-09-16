@@ -214,6 +214,12 @@ class NextcloudService @Inject constructor(
     /** "Send Media via Nextcloud": photos/voice notes upload to the server and the chat message is the share link. */
     val mediaSendEnabled: StateFlow<Boolean> = _mediaSendEnabled.asStateFlow()
 
+    /** Whether the connected server has Nextcloud Talk with calls enabled - what makes the call
+     *  button appear in 1:1 chats (see CallService.canCall). Read from the server's capabilities
+     *  on connect and on every wallet activation; false until known. */
+    private val _talkCallsAvailable = MutableStateFlow(false)
+    val talkCallsAvailable: StateFlow<Boolean> = _talkCallsAvailable.asStateFlow()
+
     /** The active wallet's address — every credential/settings read and write is scoped to it.
      *  Null (signed out / no wallet yet) presents as disconnected and persists nothing. */
     @Volatile
@@ -264,6 +270,7 @@ class NextcloudService @Inject constructor(
             _account.value = null
             _autoBackupEnabled.value = false
             _mediaSendEnabled.value = false
+            _talkCallsAvailable.value = false
             return
         }
 
@@ -272,6 +279,52 @@ class NextcloudService @Inject constructor(
         _account.value = loadAccount()
         _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = _account.value != null)
         _mediaSendEnabled.value = scopedKey(PREF_MEDIA_SEND_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
+        _talkCallsAvailable.value = false
+        refreshTalkAvailability()
+    }
+
+    /** Asks the server's capabilities whether Talk is installed with calls on, and publishes
+     *  the answer. Best effort: a failed lookup leaves the button hidden until the next try. */
+    fun refreshTalkAvailability() {
+        val account = _account.value ?: run { _talkCallsAvailable.value = false; return }
+        val owner = currentWalletAddress
+        serviceScope.launch {
+            val available = withContext(Dispatchers.IO) { probeTalkCalls(account) }
+            if (currentWalletAddress != owner || _account.value?.server != account.server) return@launch
+            if (_talkCallsAvailable.value != available) {
+                _talkCallsAvailable.value = available
+                Log.i("NextcloudService", "Talk calls ${if (available) "available" else "not available"} on ${account.server}")
+            }
+        }
+    }
+
+    private fun probeTalkCalls(account: NextcloudAccount): Boolean {
+        return try {
+            val request = Request.Builder()
+                .url("${account.server.trimEnd('/')}/ocs/v2.php/cloud/capabilities?format=json")
+                .header("Authorization", basicAuth(account))
+                .header("OCS-APIRequest", "true")
+                .header("Accept", "application/json")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return false
+                val body = response.body?.string() ?: return false
+                val spreed = JSONObject(body).getJSONObject("ocs").getJSONObject("data").getJSONObject("capabilities").optJSONObject("spreed") ?: return false
+                val features = spreed.optJSONArray("features")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } } ?: emptyList()
+                if ("conversation-v4" !in features || "signaling-v3" !in features) return false
+                val call = spreed.optJSONObject("config")?.optJSONObject("call")
+                // Absent means an older Talk that never had the switch - calls are on.
+                when (val enabled = call?.opt("enabled")) {
+                    null -> true
+                    is Boolean -> enabled
+                    is Number -> enabled.toInt() != 0
+                    is String -> enabled != "0" && enabled != "false"
+                    else -> true
+                }
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**
@@ -420,6 +473,7 @@ class NextcloudService @Inject constructor(
         persistAccount(candidate)
         // Connected: Automatic Sync defaults ON unless a choice is already on record.
         _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = true)
+        refreshTalkAvailability()
 
         // Point at the backup this account already has, before anything reads or writes one.
         // Only when the user has not chosen a folder themselves - an explicit choice outranks
@@ -445,6 +499,7 @@ class NextcloudService @Inject constructor(
         _account.value = null
         _autoBackupEnabled.value = false
         _mediaSendEnabled.value = false
+        _talkCallsAvailable.value = false
     }
 
     /** Persists the picker's start folder (null/"" = files root). */

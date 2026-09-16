@@ -59,6 +59,11 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.PhoneDisabled
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Apps
@@ -244,6 +249,39 @@ fun ChatThreadScreen(
     val identityFullBalance by walletViewModel.fullBalance.collectAsState()
     val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     var showComposerMenu by remember { mutableStateOf(false) }
+    // The voice-or-video half sheet behind the header's call button, and the microphone (and
+    // camera) permission ask that starting a call may need first.
+    var showCallOptions by remember { mutableStateOf(false) }
+    var pendingCallVideo by remember { mutableStateOf<Boolean?>(null) }
+    val callSession by chatViewModel.callSession.collectAsState()
+    val callHostingAvailable by chatViewModel.callHostingAvailable.collectAsState()
+    val callLastError by chatViewModel.callLastError.collectAsState()
+    val callContext = LocalContext.current
+    val callPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        val video = pendingCallVideo
+        pendingCallVideo = null
+        if (video != null && granted[android.Manifest.permission.RECORD_AUDIO] == true) {
+            conversation?.contact?.let { chatViewModel.startCall(it, video) }
+        } else if (video != null) {
+            Toast.makeText(callContext, "KaChat needs the microphone to make a call.", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val startCallWithPermissions: (Boolean) -> Unit = { video ->
+        val needed = buildList {
+            add(android.Manifest.permission.RECORD_AUDIO)
+            if (video) add(android.Manifest.permission.CAMERA)
+        }.filter { ContextCompat.checkSelfPermission(callContext, it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isEmpty()) {
+            conversation?.contact?.let { chatViewModel.startCall(it, video) }
+        } else {
+            pendingCallVideo = video
+            callPermissionLauncher.launch(needed.toTypedArray())
+        }
+    }
+    // A start that failed before ringing ("Connect a Nextcloud with Talk...") says why.
+    LaunchedEffect(callLastError) {
+        callLastError?.let { Toast.makeText(callContext, it, Toast.LENGTH_SHORT).show() }
+    }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
     // casual untimed game (the pre-timer behavior). Same CenteredOptionsMenu style, same anchor.
@@ -471,21 +509,56 @@ fun ChatThreadScreen(
                             }
                             Spacer(Modifier.width(8.dp))
                         }
-                        val statusColor = Color(dotColorHex)
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusOverlayState.open() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(modifier = Modifier.size(10.dp).background(statusColor, CircleShape))
+                        // The connection dot is gone from inside a 1:1 chat (the chat list and
+                        // group chats still have it) - the one thing in the trailing slot is the
+                        // call button. Only the side that can host a call sees it (a connected
+                        // Nextcloud with Talk calls enabled); the contact needs nothing but
+                        // KaChat to pick up. Hidden when the contact was switched off in Chat
+                        // Info, and while a call is already up. Tapping it asks voice or video in
+                        // a half sheet, like every other choice in the app.
+                        val canCall = callHostingAvailable && callSession == null &&
+                            conversation?.contact?.callsDisabled != true && contactId != myAddress
+                        if (canCall) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(LocalAppColors.current.surface, CircleShape)
+                                    .clickable { showCallOptions = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Phone, "Call", tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(4.dp))
                         }
-                        Spacer(Modifier.width(4.dp))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
+            if (showCallOptions) {
+                // Voice or video - the same half-sheet shape as every other menu.
+                ActionSheetContainer(
+                    title = "Call ${conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)}",
+                    subtitle = null,
+                    onDismiss = { showCallOptions = false },
+                ) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Phone,
+                        title = "Voice call",
+                        subtitle = "Rings them in KaChat; your Nextcloud carries the call.",
+                    ) {
+                        showCallOptions = false
+                        startCallWithPermissions(false)
+                    }
+                    ActionSheetRow(
+                        icon = Icons.Default.Videocam,
+                        title = "Video call",
+                        subtitle = "Same, with your camera on from the start.",
+                    ) {
+                        showCallOptions = false
+                        startCallWithPermissions(true)
+                    }
+                }
+            }
             ChatHeaderCard(
                 imageUrl = conversation?.contact?.knsAvatarUrl,
                 photoUri = conversation?.contact?.systemContactPhotoUri,
@@ -1962,6 +2035,7 @@ fun MessageBubble(
     // twice more despite already being remembered here.
     val voiceContent = remember(displayBody) { VoiceMessage.parseOrNull(displayBody) }
     val chessEnvelope = remember(displayBody) { com.kachat.app.util.ChessMessage.parseOrNull(displayBody) }
+    val callEnvelope = remember(displayBody) { com.kachat.app.util.CallCodec.parseOrNull(displayBody) }
     // Only the plain, non-truncated text bubble ever shows a link preview - hoisted up here
     // (rather than computed inline where it's used) so `separateLinkPreviewUrl`'s card can be
     // placed as a sibling *after* the whole message-content Box below, matching iOS's structure:
@@ -1972,6 +2046,7 @@ fun MessageBubble(
     val isPlainTextMessage = message.type != "pay" &&
         message.type != MessageProtocol.TYPE_HANDSHAKE &&
         chessEnvelope == null &&
+        callEnvelope == null &&
         voiceContent == null &&
         imageContent == null &&
         bodyText.length <= MESSAGE_TEXT_TRUNCATION_THRESHOLD
@@ -2211,6 +2286,9 @@ fun MessageBubble(
                         )
                     }
                 }
+            } else if (callEnvelope != null) {
+                // Calls leave a compact history line, like a phone's recents.
+                CallBubble(envelope = callEnvelope, isSent = isSent, onLongPress = { showMenu = true })
             } else if (chessEnvelope != null) {
                 ChessBubble(
                     envelope = chessEnvelope,
@@ -3747,7 +3825,9 @@ fun ProfileScreen(
                     } ?: "--"
                 )
                 SettingsDivider()
-                SettingsInfoItem(stringResource(R.string.version), com.kachat.app.BuildConfig.VERSION_NAME)
+                // "5.0 (1)" through the betas, "5.0" at release - so anyone can say which build
+                // they are on. Same shape as iOS's About row.
+                SettingsInfoItem(stringResource(R.string.version), com.kachat.app.util.AppVersion.display)
                 SettingsDivider()
                 SettingsInfoItem(
                     stringResource(R.string.website),
@@ -12358,6 +12438,11 @@ fun ChatInfoScreen(
                     ) { infoSheet = "photos" }
 
                     InfoSectionCard(
+                        title = "Calls",
+                        icon = if (conversation?.contact?.callsDisabled == true) Icons.Default.PhoneDisabled else Icons.Default.Phone,
+                    ) { infoSheet = "calls" }
+
+                    InfoSectionCard(
                         title = stringResource(R.string.info),
                         icon = Icons.Default.Info,
                         showDivider = false,
@@ -12372,6 +12457,34 @@ fun ChatInfoScreen(
     // Every section's half sheet, declared here so each can close over the locals the
     // screen builds above - AliasRow and the reveal state among them.
 
+            // Whether this person can ring you. Off means their call invites are ignored on
+            // this device (they get no answer, not a decline) and the call button disappears
+            // on your side too. Per contact, this device only.
+            if (infoSheet == "calls") {
+                ActionSheetContainer(
+                    title = "Calls",
+                    subtitle = "Calls run through Nextcloud Talk and stay inside KaChat. Turn this off if you never want this contact to be able to call you.",
+                    onDismiss = { infoSheet = null },
+                ) {
+                    val callsAllowed = conversation?.contact?.callsDisabled != true
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(LocalAppColors.current.surface)
+                            .clickable { chatViewModel.setCallsDisabled(contactId, disabled = callsAllowed) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Allow calls and video calls", color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = callsAllowed,
+                            onCheckedChange = { allowed -> chatViewModel.setCallsDisabled(contactId, disabled = !allowed) },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                        )
+                    }
+                }
+            }
             if (infoSheet == "address") {
                 ActionSheetContainer(
                     title = stringResource(R.string.address),

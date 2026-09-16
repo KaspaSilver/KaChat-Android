@@ -30,7 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
+import com.kachat.app.services.CallService
 import com.kachat.app.services.CrashRecorder
+import com.kachat.app.ui.screens.CallOverlay
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PendingShare
 import com.kachat.app.services.ShareIntake
@@ -44,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import javax.inject.Inject
 
 /**
  * Single Activity — all navigation is handled in Compose via NavHost.
@@ -55,6 +58,7 @@ import java.io.File
  */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject lateinit var callService: CallService
 
     private var pendingContactId by mutableStateOf<String?>(null)
     private var pendingChannelName by mutableStateOf<String?>(null)
@@ -147,6 +151,10 @@ class MainActivity : AppCompatActivity() {
                         onPendingWalletActivityHandled = { pendingWalletActivityKind = null }
                     )
                     CrashNotice()
+                    // The call screen (ringing in, ringing out, connected) sits over the whole
+                    // app, whichever screen is showing - a call is not a page of the chat it
+                    // started from.
+                    CallOverlay(callService)
                 }
             }
         }

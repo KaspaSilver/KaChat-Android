@@ -282,6 +282,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"
         if (ImageMessage.parseOrNull(plaintext) != null) return "Sent a photo"
         if (ChessMessage.parseOrNull(plaintext) != null) return "♟️ Chess game"
+        com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
         return plaintext
     }
 

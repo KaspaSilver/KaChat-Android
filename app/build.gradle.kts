@@ -87,28 +87,25 @@ android {
         applicationId = "com.kachat.app"
         minSdk = 26
         targetSdk = 36
-        // Play's versionCode high-water mark is permanent and per app, and unlike iOS it does
-        // NOT reset when versionName changes. 32 was the last value this repo built (the 4.0
-        // bundle); 33 may also have been uploaded from elsewhere. Codes are free to skip, so
-        // 4.1 starts at 35 to clear both rather than risk a rejected upload for one integer.
-        // Each 4.1 rebuild moves this: same versionName, more code behind it, and a device
-        // will not treat a rebuild as an update unless this moves. 36 was the second build; 37
-        // is the third (address discovery, Max, and the gift service's real endpoint); 38 the
-        // fourth (photo notifications read off chain, KaPosts notification actions); 39 the
-        // fifth (performance: no more re-parsing whole message payloads per frame); 40 the
-        // sixth (KaPosts one to one with iOS, paged chat history, late-indexed messages and
-        // handshakes no longer skipped, small outputs judged by storage mass); 41 the seventh
-        // (sender avatars open the half sheet in groups and broadcast rooms); 42 the eighth
-        // (push is the only banner source, KaPosts switches reach the server, link-safe list
-        // previews, primary spending address rotates on every send, Swap "You Get" quotes); 43
-        // the ninth (Google Drive removed - Nextcloud is the one sync; sends and balance read
-        // the node, not the rate-limited REST gateway; rapid sends chain like iOS); 44 the
-        // tenth (the GitHub APK calls itself "KaChat APK" - the github flavor); 45 the eleventh
-        // (crashes are recorded and offered for sharing on the next launch); 46 the twelfth
-        // (a silent close - native crash, ANR, OS kill - is recorded from the exit history); 47
-        // the thirteenth (the KaPosts three-dots menu is a half sheet).
-        versionCode = 47
-        versionName = "4.1"
+        // ---- Version train ----
+        // 4.1 shipped on 2026-09-15; every build from here is 5.0, the same train iOS runs.
+        //
+        // KACHAT_BUILD_NUMBER is the number people see: the About row and the crash and
+        // diagnostics reports read "5.0 (1)", "5.0 (2)", ... through the betas, and plain "5.0"
+        // once KACHAT_IS_RELEASE is flipped for the store build. Bump it for every build that
+        // is handed out (the GitHub APK, a Play beta) - the counterpart of iOS's
+        // Version.xcconfig KACHAT_BUILD_NUMBER, so the two apps report the same shape.
+        //
+        // versionCode is a separate thing and only ever goes up: Play's high-water mark is
+        // permanent and per app, and unlike iOS it does NOT reset when versionName changes
+        // (4.1's builds ran 35..47). A device will not treat a rebuild as an update unless it
+        // moves, so it goes up with every handed-out build too, alongside the build number.
+        val kachatBuildNumber = 1
+        val kachatIsRelease = false
+        versionCode = 48
+        versionName = "5.0"
+        buildConfigField("int", "KACHAT_BUILD_NUMBER", kachatBuildNumber.toString())
+        buildConfigField("boolean", "KACHAT_IS_RELEASE", kachatIsRelease.toString())
 
         buildConfigField(
             "String",
@@ -264,6 +261,9 @@ dependencies {
 
     // Image loading (KNS avatars)
     implementation(libs.coil.compose)
+
+    // Voice and video calls (WebRTC over Nextcloud Talk's signaling) - see CallService
+    implementation(libs.webrtc)
 
     // gRPC (Kaspa node connections)
     implementation(libs.grpc.okhttp)

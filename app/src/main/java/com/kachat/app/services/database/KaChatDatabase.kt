@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 37,
+    version = 38,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -455,6 +455,16 @@ abstract class KaChatDatabase : RoomDatabase() {
          * Index names must match what Room generates for the `indices` on each @Entity, or the
          * post-migration schema validation fails.
          */
+        /** v37 -> v38: `contacts.callsDisabled` (nullable, null = calls allowed) behind Chat
+         *  Info's "Allow calls and video calls" switch. */
+        val MIGRATION_37_38 = object : Migration(37, 38) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!columnExists(db, "contacts", "callsDisabled")) {
+                    db.execSQL("ALTER TABLE `contacts` ADD COLUMN `callsDisabled` INTEGER DEFAULT NULL")
+                }
+            }
+        }
+
         val MIGRATION_36_37 = object : Migration(36, 37) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_walletAddress_contactId_blockTimestamp` ON `messages` (`walletAddress`, `contactId`, `blockTimestamp`)")

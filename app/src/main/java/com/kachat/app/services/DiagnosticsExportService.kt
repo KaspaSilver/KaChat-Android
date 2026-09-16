@@ -50,7 +50,7 @@ class DiagnosticsExportService @Inject constructor(
         val messageStore: MessageStoreDiagnostics,
         val nodePool: NodePoolSummary
     ) {
-        data class AppInfo(val packageName: String, val versionName: String?, val versionCode: Long)
+        data class AppInfo(val packageName: String, val versionName: String?, val versionCode: Long, val build: String = com.kachat.app.util.AppVersion.display)
         data class DeviceInfo(val manufacturer: String, val model: String, val androidRelease: String, val sdkInt: Int)
         data class MessageStoreDiagnostics(val contactCount: Int, val totalMessages: Int, val outgoingCount: Int, val incomingCount: Int, val pendingCount: Int)
         data class NodePoolSummary(val counts: Map<String, Int>, val totalRecords: Int, val activeRecords: Int)

@@ -16,8 +16,16 @@
     <!-- Voice messages -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- Camera (optional, for sharing images) -->
+    <!-- Camera (optional, for sharing images, and for video calls) -->
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Voice and video calls over Nextcloud Talk: the speaker/earpiece route, and the
+         foreground service that keeps the microphone and camera usable while a call is
+         backgrounded (Android 14 cuts them off otherwise) - see CallForegroundService. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
 
     <!-- Saving a received photo message to the device gallery. Only needed on API 28 and below —
          API 29+ (Q) scoped storage lets MediaStore inserts succeed without this permission. -->
@@ -138,6 +146,12 @@
         <!-- FCM Push Notification Service. Data-only messages are handled here and turned into
              notifications via NotificationHelper (mirrors iOS's Notification Service Extension).
              Inactive at runtime until google-services.json is added (see app/build.gradle.kts). -->
+        <!-- Keeps a live call's microphone and camera usable in the background (CallService). -->
+        <service
+            android:name=".services.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|camera" />
+
         <service
             android:name=".services.KaChatFirebaseMessagingService"
             android:exported="false">

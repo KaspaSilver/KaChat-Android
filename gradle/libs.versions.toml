@@ -1,4 +1,5 @@
 [versions]
+webrtc = "125.6422.07"
 agp = "8.13.2"
 kotlin = "2.0.21"
 coreKtx = "1.13.1"
@@ -114,6 +115,10 @@ androidx-compose-material = { group = "androidx.compose.material", name = "mater
 
 # Image loading (KNS avatars)
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Voice and video calls over Nextcloud Talk: the Android WebRTC library (Google's libwebrtc,
+# published to Maven Central by the webrtc-sdk project). The counterpart of iOS's WebRTC SPM package.
+webrtc = { group = "io.github.webrtc-sdk", name = "android", version.ref = "webrtc" }
 
 play-integrity = { group = "com.google.android.play", name = "integrity", version.ref = "playIntegrity" }
 

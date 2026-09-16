@@ -24,6 +24,10 @@ This is the Android version, a companion to [KaChat on iOS](https://github.com/v
 - Cold storage: watch-only accounts with offline signing via animated QR codes (KSPT)
 - Portfolio tracking and in-app swaps between KAS and other coins (via ChangeNOW)
 - Multiple wallet accounts on one device, plus an optional Child Mode lock
+- Voice and video calls in 1:1 chats, over Nextcloud Talk, entirely inside the app: the caller's
+  own Nextcloud hosts a throwaway Talk conversation, the contact joins it as a guest, and the
+  media is one WebRTC connection between the two phones (see the Calls section in the iOS
+  repo's MESSAGING.md for the protocol - the same three encrypted `call_*` messages)
 - Optional, off-by-default encrypted backup of your chat history to your own Nextcloud server,
   the one sync that works across iOS and Android
 - Optional push notifications for messages, groups, channels, and KaPosts (FCM; see

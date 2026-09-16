@@ -1230,6 +1230,7 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
         }
     }
     if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
+    com.kachat.app.util.CallCodec.parseOrNull(body)?.let { return com.kachat.app.util.CallCodec.listPreview(it) }
     // Never a link in the row - see NextcloudShareSniff.linkSafePreview.
     return com.kachat.app.util.NextcloudShareSniff.linkSafePreview(body)
 }

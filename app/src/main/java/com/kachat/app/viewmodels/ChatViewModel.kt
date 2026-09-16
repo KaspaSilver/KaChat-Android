@@ -35,6 +35,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -58,6 +62,7 @@ class ChatViewModel @Inject constructor(
     private val voiceRecorderService: VoiceRecorderService,
     private val nextcloudService: NextcloudService,
     private val nextcloudSyncService: com.kachat.app.services.NextcloudSyncService,
+    private val callService: com.kachat.app.services.CallService,
     private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
@@ -198,6 +203,33 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = getOrCreateContact(contactId)
             chatRepository.addContact(existing.copy(notificationOverride = override?.name))
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Calls (Nextcloud Talk over the 1:1 channel) - see CallService.
+    // -------------------------------------------------------------------------
+
+    /** The live call, if any; the thread hides its call button while one is up. */
+    val callSession: StateFlow<com.kachat.app.services.CallService.ActiveCall?> = callService.session
+
+    /** Whether THIS side can host a call: a connected Nextcloud with Talk calls enabled. The
+     *  per-contact switch is checked by the thread against the contact itself. */
+    val callHostingAvailable: StateFlow<Boolean> = combine(nextcloudService.account, nextcloudService.talkCallsAvailable) { account, talk ->
+        account != null && talk
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val callLastError: StateFlow<String?> = callService.lastError
+
+    fun startCall(contact: ContactEntity, video: Boolean) = callService.startCall(contact, video)
+
+    /** Chat Info's "Allow calls and video calls". Off means this contact's invites are ignored
+     *  on this device (they get no answer, not a decline) and the call button disappears on
+     *  your side too. Per contact, this device only. */
+    fun setCallsDisabled(contactId: String, disabled: Boolean) {
+        viewModelScope.launch {
+            val existing = getOrCreateContact(contactId)
+            chatRepository.addContact(existing.copy(callsDisabled = if (disabled) true else null))
         }
     }
 
