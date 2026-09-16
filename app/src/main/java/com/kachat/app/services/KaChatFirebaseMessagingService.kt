@@ -249,6 +249,20 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             // Reactions are never shown as their own notification (matches ChatRepository).
             return
         }
+        // Chats Payment Privacy's fresh-address pool control envelopes (addr_pool /
+        // addr_pool_request) are invisible protocol traffic - the app processes them under the
+        // hood when it syncs, and nothing about them is for the reader. No banner at all, as on
+        // iOS's notification service extension (isSilentPoolEnvelope). A payment_notice IS a
+        // payment the reader should see, so it falls through and is worded like one below.
+        when (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)) {
+            is com.kachat.app.util.PaymentPoolProtocol.Envelope.Pool,
+            is com.kachat.app.util.PaymentPoolProtocol.Envelope.Request -> {
+                Log.i(TAG, "Payment pool envelope push kept silent")
+                data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                return
+            }
+            else -> {}
+        }
 
         val text = plaintext?.let { notificationPreview(it) } ?: fallback
         notificationHelper.show(
@@ -278,11 +292,17 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
     /** Same preview mapping the in-app poller uses (ChatRepository) so text matches iOS wording. */
     private fun notificationPreview(plaintext: String): String {
+        // A payment made to a fresh address reads like a payment, not like its JSON envelope
+        // (iOS paymentNoticePreviewText).
+        (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext) as? com.kachat.app.util.PaymentPoolProtocol.Envelope.Notice)?.let { notice ->
+            val sompi = notice.content.amountSompi
+            return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f KAS", sompi / 100_000_000.0) else "Received payment"
+        }
+        com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
         MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
         if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"
         if (ImageMessage.parseOrNull(plaintext) != null) return "Sent a photo"
         if (ChessMessage.parseOrNull(plaintext) != null) return "♟️ Chess game"
-        com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
         return plaintext
     }
 
