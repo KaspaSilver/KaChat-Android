@@ -1,6 +1,7 @@
 package com.kachat.app.services
 
 import android.util.Base64
+import android.util.Log
 import okhttp3.Call
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -59,6 +60,7 @@ class NextcloudTalkClient(val server: String, val auth: Auth) {
     }
 
     companion object {
+        private const val TAG = "NextcloudTalk"
         /** In-call flag bits (Talk constants): in call, with audio, with video. */
         const val FLAG_IN_CALL = 1
         const val FLAG_WITH_AUDIO = 2
@@ -238,9 +240,15 @@ class NextcloudTalkClient(val server: String, val auth: Auth) {
     private suspend fun ocs(method: String, path: String, query: Map<String, String>? = null, form: Map<String, String>? = null): JSONObject {
         val request = makeRequest(method, path, query, form)
         val (code, body) = perform(request, trackAsPull = false)
+        // Every Talk request and its answer, so a failed call can be read back from the
+        // diagnostics archive (app.log) without guessing which step it was.
+        Log.i(TAG, "$method ${request.url.encodedPath} -> $code${if (code !in 200..299) " ${body.take(300)}" else ""}")
         if (code !in 200..299) {
             val detail = errorBody(body)
-            throw TalkException(if (detail.isEmpty()) "Nextcloud Talk answered $code." else "Nextcloud Talk answered $code: $detail")
+            // Names the request: "answered 404 for POST /ocs/v2.php/apps/spreed/api/v4/room" is
+            // a diagnosis; "answered 404" is a shrug.
+            val where = "$method ${request.url.encodedPath}"
+            throw TalkException(if (detail.isEmpty()) "Nextcloud Talk answered $code for $where." else "Nextcloud Talk answered $code for $where: $detail")
         }
         if (body.isBlank()) return JSONObject()
         return ocsData(body) as? JSONObject ?: JSONObject()

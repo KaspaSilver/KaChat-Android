@@ -3,6 +3,7 @@ package com.kachat.app.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -63,11 +64,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
 import com.kachat.app.models.avatarFallbackText
 import com.kachat.app.models.displayName
 import com.kachat.app.services.CallService
@@ -93,21 +92,26 @@ import java.util.Locale
 fun CallOverlay(callService: CallService) {
     val call by callService.session.collectAsState()
     val live = call ?: return
-    Dialog(
-        onDismissRequest = {},
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false, dismissOnClickOutside = false),
+    // Drawn straight into the activity's window, not a Dialog: a Compose Dialog sizes its
+    // window from content measured against the nominal screen height, so the bottom of a
+    // full-screen layout - the control bar here - lands under the navigation bar on many
+    // phones (the same trap the KaPosts overlays hit). The activity is edge-to-edge and knows
+    // the real insets on every device, so `safeDrawing` padding below is right everywhere.
+    // Back does nothing while a call is up, and the sheet swallows touches so the app
+    // beneath cannot be poked through it.
+    BackHandler(enabled = true) {}
+    val view = LocalView.current
+    // A call keeps the screen awake, as a phone does.
+    DisposableEffect(Unit) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(Unit) { detectTapGestures { } },
     ) {
-        val view = LocalView.current
-        LaunchedEffect(Unit) {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: return@LaunchedEffect
-            window.setLayout(android.view.WindowManager.LayoutParams.MATCH_PARENT, android.view.WindowManager.LayoutParams.MATCH_PARENT)
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-        }
-        // A call keeps the screen awake, as a phone does.
-        DisposableEffect(Unit) {
-            view.keepScreenOn = true
-            onDispose { view.keepScreenOn = false }
-        }
         CallScreen(call = live, callService = callService)
     }
 }
@@ -246,7 +250,7 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 8.dp)
-            .padding(top = 8.dp),
+            .padding(top = 8.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         VideoTile(
@@ -266,8 +270,8 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         Row(
-            modifier = Modifier.fillMaxWidth().height(96.dp),
-            horizontalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth().height(88.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SmallControl(if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic, active = call.isMuted) { callService.toggleMute() }

@@ -220,6 +220,12 @@ class NextcloudService @Inject constructor(
     private val _talkCallsAvailable = MutableStateFlow(false)
     val talkCallsAvailable: StateFlow<Boolean> = _talkCallsAvailable.asStateFlow()
 
+    /** Why the last Talk probe answered what it did - "Talk with calls enabled", "no spreed
+     *  capability", "HTTP 401", ... - for the diagnostics archive and the log, so a missing call
+     *  button can be explained rather than guessed at. */
+    private val _talkAvailabilityReason = MutableStateFlow("not probed yet")
+    val talkAvailabilityReason: StateFlow<String> = _talkAvailabilityReason.asStateFlow()
+
     /** The active wallet's address — every credential/settings read and write is scoped to it.
      *  Null (signed out / no wallet yet) presents as disconnected and persists nothing. */
     @Volatile
@@ -286,19 +292,19 @@ class NextcloudService @Inject constructor(
     /** Asks the server's capabilities whether Talk is installed with calls on, and publishes
      *  the answer. Best effort: a failed lookup leaves the button hidden until the next try. */
     fun refreshTalkAvailability() {
-        val account = _account.value ?: run { _talkCallsAvailable.value = false; return }
+        val account = _account.value ?: run { _talkCallsAvailable.value = false; _talkAvailabilityReason.value = "no Nextcloud account connected"; return }
         val owner = currentWalletAddress
         serviceScope.launch {
-            val available = withContext(Dispatchers.IO) { probeTalkCalls(account) }
+            val (available, reason) = withContext(Dispatchers.IO) { probeTalkCalls(account) }
             if (currentWalletAddress != owner || _account.value?.server != account.server) return@launch
-            if (_talkCallsAvailable.value != available) {
-                _talkCallsAvailable.value = available
-                Log.i("NextcloudService", "Talk calls ${if (available) "available" else "not available"} on ${account.server}")
-            }
+            _talkAvailabilityReason.value = reason
+            if (_talkCallsAvailable.value != available) _talkCallsAvailable.value = available
+            Log.i("NextcloudService", "Talk calls ${if (available) "available" else "NOT available"} on ${account.server}: $reason")
         }
     }
 
-    private fun probeTalkCalls(account: NextcloudAccount): Boolean {
+    /** Whether the server has Talk with calls enabled, and the reason in words. */
+    private fun probeTalkCalls(account: NextcloudAccount): Pair<Boolean, String> {
         return try {
             val request = Request.Builder()
                 .url("${account.server.trimEnd('/')}/ocs/v2.php/cloud/capabilities?format=json")
@@ -307,23 +313,28 @@ class NextcloudService @Inject constructor(
                 .header("Accept", "application/json")
                 .build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return false
-                val body = response.body?.string() ?: return false
-                val spreed = JSONObject(body).getJSONObject("ocs").getJSONObject("data").getJSONObject("capabilities").optJSONObject("spreed") ?: return false
+                if (!response.isSuccessful) return false to "capabilities answered HTTP ${response.code}"
+                val body = response.body?.string() ?: return false to "capabilities answered an empty body"
+                val capabilities = runCatching {
+                    JSONObject(body).getJSONObject("ocs").getJSONObject("data").getJSONObject("capabilities")
+                }.getOrNull() ?: return false to "capabilities answer was not the OCS shape"
+                val spreed = capabilities.optJSONObject("spreed") ?: return false to "Nextcloud Talk (spreed) is not installed or not enabled for this user"
                 val features = spreed.optJSONArray("features")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } } ?: emptyList()
-                if ("conversation-v4" !in features || "signaling-v3" !in features) return false
+                val missing = listOf("conversation-v4", "signaling-v3").filter { it !in features }
+                if (missing.isNotEmpty()) return false to "Talk is too old: missing ${missing.joinToString()}"
                 val call = spreed.optJSONObject("config")?.optJSONObject("call")
                 // Absent means an older Talk that never had the switch - calls are on.
-                when (val enabled = call?.opt("enabled")) {
+                val enabled = when (val raw = call?.opt("enabled")) {
                     null -> true
-                    is Boolean -> enabled
-                    is Number -> enabled.toInt() != 0
-                    is String -> enabled != "0" && enabled != "false"
+                    is Boolean -> raw
+                    is Number -> raw.toInt() != 0
+                    is String -> raw != "0" && raw != "false"
                     else -> true
                 }
+                if (enabled) true to "Talk with calls enabled" else false to "Talk is installed but calls are switched off in its settings"
             }
         } catch (e: Exception) {
-            false
+            false to "capabilities request failed: ${e.message}"
         }
     }
 

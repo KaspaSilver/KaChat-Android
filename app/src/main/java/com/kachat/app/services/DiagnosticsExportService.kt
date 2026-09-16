@@ -36,7 +36,8 @@ class DiagnosticsExportService @Inject constructor(
     private val walletManager: WalletManager,
     private val settingsRepository: AppSettingsRepository,
     private val nodePoolManager: NodePoolManager,
-    private val pushState: PushState
+    private val pushState: PushState,
+    private val nextcloudService: NextcloudService
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -135,6 +136,11 @@ class DiagnosticsExportService @Inject constructor(
                 ?: runCatching { walletManager.getAddress() }.getOrDefault("none")),
             "notificationsEnabled" to settingsRepository.notificationsEnabled.first().toString(),
             "syncSystemContactsEnabled" to settingsRepository.syncSystemContactsEnabled.first().toString(),
+            // Calls: whether this side can host one, and why not when it cannot.
+            "nextcloudConnected" to (nextcloudService.account.value != null).toString(),
+            "nextcloudServer" to (nextcloudService.account.value?.server ?: "none"),
+            "talkCallsAvailable" to nextcloudService.talkCallsAvailable.value.toString(),
+            "talkAvailabilityReason" to nextcloudService.talkAvailabilityReason.value,
             "autoCreateSystemContactsEnabled" to settingsRepository.autoCreateSystemContactsEnabled.first().toString(),
             "backupRetention" to settingsRepository.backupRetention.first().name,
             "broadcastPopularEnabled" to settingsRepository.broadcastPopularEnabled.first().toString(),
