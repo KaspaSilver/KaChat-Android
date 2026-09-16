@@ -160,6 +160,7 @@ class CallService @Inject constructor(
         val pipes = Plumbing(callId)
         plumbing = pipes
         _session.value = call
+        CallDiagnostics.log(TAG, "outgoing ${if (video) "video" else "voice"} call $callId to ${contact.id.takeLast(8)} via $server")
         CallForegroundService.start(context, contact.displayName, video)
 
         scope.launch {
@@ -180,6 +181,7 @@ class CallService @Inject constructor(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Starting call failed", e)
+                CallDiagnostics.log(TAG, "start failed: ${e.message}")
                 _lastError.value = e.message ?: "Call failed"
                 finish("failed", notifyPeer = false)
             }
@@ -210,6 +212,7 @@ class CallService @Inject constructor(
                     }
                     val pipes = Plumbing(envelope.callId)
                     plumbing = pipes
+                    CallDiagnostics.log(TAG, "incoming ${if (envelope.video) "video" else "voice"} call ${envelope.callId} from ${contact.id.takeLast(8)} via $server")
                     _session.value = ActiveCall(id = envelope.callId, contact = contact, isOutgoing = false, server = server, token = envelope.token, video = envelope.video, phase = Phase.RingingIn)
                     startRinging(pipes)
                     pipes.timeoutJob = scope.launch {
@@ -253,6 +256,7 @@ class CallService @Inject constructor(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Joining call failed", e)
+                CallDiagnostics.log(TAG, "join failed: ${e.message}")
                 _lastError.value = e.message ?: "Call failed"
                 finish("failed", notifyPeer = true)
             }
@@ -492,15 +496,27 @@ class CallService @Inject constructor(
         val call = _session.value ?: return
         val pipes = plumbing ?: return
         if (call.phase is Phase.Ended) return
+        CallDiagnostics.log(TAG, "call ${call.id} ends: $reason (phase was ${call.phase}, notifyPeer=$notifyPeer)")
         stopRinging(pipes)
         pipes.timeoutJob?.cancel()
         pipes.offerFallbackJob?.cancel()
         pipes.pullJob?.cancel()
         pipes.client?.cancelPull()
-        pipes.webrtc?.close()
-        pipes.webrtc = null
         val duration = call.connectedAtMs?.let { ((System.currentTimeMillis() - it) / 1000).toInt() }
+        // Order matters. The screen holds sinks on the video tracks; publish the ended state
+        // with the tracks gone FIRST and give Compose a frame to detach them, THEN destroy the
+        // peer connection - off the main thread, since disposing a factory is slow. Closing
+        // first left the renderer detaching from a track whose native side no longer existed,
+        // and that call never returned: a ten-second ANR on the main thread.
         update { it.copy(phase = Phase.Ended(reason), remoteVideoTrack = null, localVideoTrack = null) }
+        val webrtc = pipes.webrtc
+        pipes.webrtc = null
+        if (webrtc != null) {
+            scope.launch {
+                delay(120)
+                withContext(Dispatchers.IO) { runCatching { webrtc.close() } }
+            }
+        }
         CallForegroundService.stop(context)
 
         if (notifyPeer) {

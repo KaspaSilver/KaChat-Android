@@ -377,11 +377,20 @@ private fun VideoRendererView(track: VideoTrack, mirrored: Boolean, overlay: Boo
         update = { view -> view.setMirror(mirrored) },
         onRelease = { view -> runCatching { view.release() } },
     )
-    // The sink follows the track: attached while both exist, detached on the way out.
+    // The sink follows the track: attached while both exist, detached on the way out. The
+    // service publishes "tracks gone" before it destroys the peer connection (see
+    // CallService.finish), so this detach runs against a live track; a detach that still
+    // finds the track disposed is skipped rather than allowed to hang the main thread.
     val current = renderer
     DisposableEffect(track, current) {
-        if (current != null) track.addSink(current)
-        onDispose { if (current != null) runCatching { track.removeSink(current) } }
+        if (current != null) runCatching { track.addSink(current) }
+        onDispose {
+            if (current != null) runCatching {
+                // `id()` throws IllegalStateException on a disposed track - the cheap probe.
+                track.id()
+                track.removeSink(current)
+            }
+        }
     }
 }
 

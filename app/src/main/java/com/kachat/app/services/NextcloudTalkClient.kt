@@ -72,18 +72,43 @@ class NextcloudTalkClient(val server: String, val auth: Auth) {
         )
     }
 
-    /** Per-call cookie jar: the guest's PHP session lives here and dies with the client. */
+    /**
+     * Per-call cookie jar: the PHP session - a guest's identity, and for a logged-in caller the
+     * Talk session that joinCall looks up - lives here and dies with the client.
+     *
+     * Behaves like a browser: a cookie is keyed by name, domain and path, and a Set-Cookie whose
+     * expiry has passed DELETES it. Nextcloud's login answers carry exactly such deletions
+     * (nc_username / nc_token / nc_session_id cleared with a past expiry). The first version of
+     * this jar kept them and sent the empty values back, Nextcloud attempted a remember-me login
+     * with them, failed, and cleared the session - so a logged-in caller's `POST call/{token}`
+     * found no Talk session and answered 404, while a guest (who never logs in) was unaffected.
+     */
     private class SessionCookieJar : CookieJar {
-        private val store = mutableMapOf<String, Cookie>()
+        private val store = mutableMapOf<Triple<String, String, String>, Cookie>()
+
         @Synchronized override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            cookies.forEach { store[it.name] = it }
+            val now = System.currentTimeMillis()
+            for (cookie in cookies) {
+                val key = Triple(cookie.name, cookie.domain, cookie.path)
+                if (cookie.expiresAt <= now) store.remove(key) else store[key] = cookie
+            }
         }
-        @Synchronized override fun loadForRequest(url: HttpUrl): List<Cookie> =
-            store.values.filter { it.matches(url) }
+
+        @Synchronized override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            val now = System.currentTimeMillis()
+            store.values.removeAll { it.expiresAt <= now }
+            return store.values.filter { it.matches(url) }
+        }
+
+        /** Cookie names only, for the call log - never values. */
+        @Synchronized fun names(url: HttpUrl): String =
+            store.values.filter { it.matches(url) }.joinToString(",") { it.name }.ifEmpty { "none" }
     }
 
+    private val cookieJar = SessionCookieJar()
+
     private val client = OkHttpClient.Builder()
-        .cookieJar(SessionCookieJar())
+        .cookieJar(cookieJar)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
@@ -242,12 +267,17 @@ class NextcloudTalkClient(val server: String, val auth: Auth) {
         val (code, body) = perform(request, trackAsPull = false)
         // Every Talk request and its answer, so a failed call can be read back from the
         // diagnostics archive (app.log) without guessing which step it was.
-        Log.i(TAG, "$method ${request.url.encodedPath} -> $code${if (code !in 200..299) " ${body.take(300)}" else ""}")
+        CallDiagnostics.log(
+            TAG,
+            "$method ${request.url.encodedPath} -> $code" +
+                if (code !in 200..299) " cookies=[${cookieJar.names(request.url)}] ${body.take(300)}" else ""
+        )
         if (code !in 200..299) {
             val detail = errorBody(body)
             // Names the request: "answered 404 for POST /ocs/v2.php/apps/spreed/api/v4/room" is
             // a diagnosis; "answered 404" is a shrug.
-            val where = "$method ${request.url.encodedPath}"
+            // The part after /spreed/ is the whole story and fits a toast; the prefix does not.
+            val where = "$method ${request.url.encodedPath.substringAfter("/apps/spreed/", request.url.encodedPath)}"
             throw TalkException(if (detail.isEmpty()) "Nextcloud Talk answered $code for $where." else "Nextcloud Talk answered $code for $where: $detail")
         }
         if (body.isBlank()) return JSONObject()
