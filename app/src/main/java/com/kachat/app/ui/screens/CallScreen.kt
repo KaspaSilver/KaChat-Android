@@ -112,8 +112,13 @@ fun CallOverlay(callService: CallService) {
     }
 }
 
-/** One view for voice and video - a video call just puts the remote picture behind everything
- *  and a local preview in the corner. */
+/**
+ * Voice calls look like the phone's own call screen: name and timer up top, big round buttons
+ * with labels underneath, the red hang-up at the bottom. Video calls are two equal tiles, the
+ * other person on top and you underneath, both shown exactly as the camera sees them (no
+ * mirroring - the picture the other side gets is the picture you see), with a slim control
+ * bar below. Mirrors iOS's CallView.
+ */
 @Composable
 private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
     val context = LocalContext.current
@@ -135,15 +140,22 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
             callService.declineIncoming()
         }
     }
-    val connected = call.phase == CallService.Phase.Connected
+    val accept: () -> Unit = {
+        val needed = buildList {
+            add(Manifest.permission.RECORD_AUDIO)
+            if (call.video) add(Manifest.permission.CAMERA)
+        }.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isEmpty()) callService.acceptIncoming() else acceptLauncher.launch(needed.toTypedArray())
+    }
+    val timer = call.connectedAtMs?.let { start ->
+        val seconds = ((nowMs - start) / 1000).coerceAtLeast(0)
+        String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60)
+    }
     val statusText = when (val phase = call.phase) {
-        CallService.Phase.RingingOut -> "Calling…"
-        CallService.Phase.RingingIn -> if (call.video) "Incoming video call" else "Incoming voice call"
-        CallService.Phase.Connecting -> call.statusDetail ?: "Connecting…"
-        CallService.Phase.Connected -> call.statusDetail ?: call.connectedAtMs?.let { start ->
-            val seconds = ((nowMs - start) / 1000).coerceAtLeast(0)
-            String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60)
-        } ?: "Connected"
+        CallService.Phase.RingingOut -> "calling…"
+        CallService.Phase.RingingIn -> if (call.video) "KaChat Video" else "KaChat Audio"
+        CallService.Phase.Connecting -> call.statusDetail ?: "connecting…"
+        CallService.Phase.Connected -> call.statusDetail ?: timer ?: "connected"
         is CallService.Phase.Ended -> when (phase.reason) {
             "declined" -> "Declined"
             "no_answer" -> "No answer"
@@ -153,100 +165,178 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
             else -> "Call ended"
         }
     }
+    val isVideoLayout = call.video && (call.phase == CallService.Phase.Connected || call.phase == CallService.Phase.Connecting)
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        val remote = call.remoteVideoTrack
-        if (call.video && remote != null && connected) {
-            VideoRendererView(track = remote, mirrored = false, overlay = false, modifier = Modifier.fillMaxSize())
+        if (isVideoLayout) {
+            VideoLayout(call, callService, timer)
+        } else {
+            VoiceLayout(call, callService, statusText, onAccept = accept)
         }
+    }
+}
+
+// ---- Voice (and every ringing/ended state) ----
+
+@Composable
+private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, statusText: String, onAccept: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(bottom = 52.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 24.dp)
-                .padding(top = 24.dp, bottom = 36.dp),
+            modifier = Modifier.padding(top = 56.dp).padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(if (call.video && connected) Color.Black.copy(alpha = 0.35f) else Color.Transparent)
-                    .padding(vertical = 20.dp, horizontal = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                ContactAvatar(
-                    imageUrl = call.contact.knsAvatarUrl,
-                    fallbackText = call.contact.avatarFallbackText,
-                    size = 96.dp,
-                    fontSize = 32.sp,
-                    deviceContactPhotoUri = call.contact.systemContactPhotoUri,
-                    backupPhotoBase64 = call.contact.backupPhotoBase64,
-                )
-                Text(call.contact.displayName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(statusText, color = Color.White.copy(alpha = 0.75f), fontSize = 15.sp)
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            if (call.phase == CallService.Phase.RingingIn) {
-                Row(horizontalArrangement = Arrangement.spacedBy(64.dp)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 72.dp) { callService.declineIncoming() }
-                        Text("Decline", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RoundCallButton(if (call.video) Icons.Default.Videocam else Icons.Default.Phone, tint = Color(0xFF34C759), size = 72.dp) {
-                            val needed = buildList {
-                                add(Manifest.permission.RECORD_AUDIO)
-                                if (call.video) add(Manifest.permission.CAMERA)
-                            }.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
-                            if (needed.isEmpty()) callService.acceptIncoming() else acceptLauncher.launch(needed.toTypedArray())
-                        }
-                        Text("Accept", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    }
-                }
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
-                    if (call.phase !is CallService.Phase.Ended) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                            CallControl(if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic, if (call.isMuted) "Unmute" else "Mute", active = call.isMuted) { callService.toggleMute() }
-                            CallControl(if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.VolumeDown, "Speaker", active = call.isSpeakerOn) { callService.toggleSpeaker() }
-                            if (call.video) {
-                                CallControl(if (call.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam, "Camera", active = call.isCameraOff) { callService.toggleCamera() }
-                                CallControl(Icons.Default.Cameraswitch, "Flip", active = false) { callService.flipCamera() }
-                            }
-                        }
-                    }
-                    if (call.phase is CallService.Phase.Ended) {
-                        RoundCallButton(Icons.Default.Close, tint = Color.White.copy(alpha = 0.2f), size = 64.dp) { callService.dismissEnded() }
-                    } else {
-                        RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 72.dp) { callService.hangUp() }
-                    }
-                }
-            }
+            ContactAvatar(
+                imageUrl = call.contact.knsAvatarUrl,
+                fallbackText = call.contact.avatarFallbackText,
+                size = 120.dp,
+                fontSize = 40.sp,
+                deviceContactPhotoUri = call.contact.systemContactPhotoUri,
+                backupPhotoBase64 = call.contact.backupPhotoBase64,
+            )
+            Text(call.contact.displayName, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(statusText, color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp)
         }
-        val local = call.localVideoTrack
-        if (call.video && local != null && !call.isCameraOff) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(top = 16.dp, end = 16.dp)
-                    .size(width = 110.dp, height = 160.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(14.dp)),
-            ) {
-                VideoRendererView(track = local, mirrored = true, overlay = true, modifier = Modifier.fillMaxSize())
+        Spacer(modifier = Modifier.weight(1f))
+        when (val phase = call.phase) {
+            CallService.Phase.RingingIn -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(96.dp)) {
+                    BigButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), label = "Decline") { callService.declineIncoming() }
+                    BigButton(if (call.video) Icons.Default.Videocam else Icons.Default.Phone, tint = Color(0xFF34C759), label = "Accept", onClick = onAccept)
+                }
+            }
+            is CallService.Phase.Ended -> {
+                BigButton(Icons.Default.Close, tint = Color.White.copy(alpha = 0.22f), label = "Close") { callService.dismissEnded() }
+            }
+            else -> {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(40.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(44.dp)) {
+                        BigButton(
+                            if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
+                            tint = if (call.isMuted) Color.White else Color.White.copy(alpha = 0.22f),
+                            label = "mute",
+                            foreground = if (call.isMuted) Color.Black else Color.White,
+                        ) { callService.toggleMute() }
+                        BigButton(
+                            Icons.AutoMirrored.Filled.VolumeUp,
+                            tint = if (call.isSpeakerOn) Color.White else Color.White.copy(alpha = 0.22f),
+                            label = "speaker",
+                            foreground = if (call.isSpeakerOn) Color.Black else Color.White,
+                        ) { callService.toggleSpeaker() }
+                    }
+                    BigButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), label = null) { callService.hangUp() }
+                }
             }
         }
     }
 }
 
+// ---- Video ----
+
 @Composable
-private fun CallControl(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        RoundCallButton(icon, tint = if (active) Color.White else Color.White.copy(alpha = 0.2f), size = 56.dp, foreground = if (active) Color.Black else Color.White, onClick = onClick)
-        Text(label, color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
+private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, timer: String?) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 8.dp)
+            .padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        VideoTile(
+            track = call.remoteVideoTrack,
+            name = call.contact.displayName,
+            timer = if (call.phase == CallService.Phase.Connected) timer else null,
+            placeholder = if (call.phase == CallService.Phase.Connected) "Camera off" else (call.statusDetail ?: "Connecting…"),
+            contact = call.contact,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        )
+        VideoTile(
+            track = if (call.isCameraOff) null else call.localVideoTrack,
+            name = "You",
+            timer = null,
+            placeholder = "Camera off",
+            contact = null,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().height(96.dp),
+            horizontalArrangement = Arrangement.spacedBy(22.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SmallControl(if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic, active = call.isMuted) { callService.toggleMute() }
+            SmallControl(Icons.AutoMirrored.Filled.VolumeUp, active = call.isSpeakerOn) { callService.toggleSpeaker() }
+            SmallControl(if (call.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam, active = call.isCameraOff) { callService.toggleCamera() }
+            SmallControl(Icons.Default.Cameraswitch, active = false) { callService.flipCamera() }
+            RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 60.dp) { callService.hangUp() }
+        }
     }
+}
+
+/** One tile: the picture as the camera sees it, or an avatar / glyph with a placeholder line
+ *  when there is none, and a name chip (with the timer on the other person's). */
+@Composable
+private fun VideoTile(track: VideoTrack?, name: String, timer: String?, placeholder: String, contact: com.kachat.app.models.ContactEntity?, modifier: Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0xFF1F1F1F)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (track != null) {
+            VideoRendererView(track = track, mirrored = false, overlay = contact == null, modifier = Modifier.fillMaxSize())
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (contact != null) {
+                    ContactAvatar(
+                        imageUrl = contact.knsAvatarUrl,
+                        fallbackText = contact.avatarFallbackText,
+                        size = 72.dp,
+                        fontSize = 26.sp,
+                        deviceContactPhotoUri = contact.systemContactPhotoUri,
+                        backupPhotoBase64 = contact.backupPhotoBase64,
+                    )
+                } else {
+                    Icon(Icons.Default.VideocamOff, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(34.dp))
+                }
+                Text(placeholder, color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(12.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.45f))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (timer != null) Text(timer, color = Color.White.copy(alpha = 0.75f), fontSize = 15.sp)
+        }
+    }
+}
+
+// ---- Pieces ----
+
+@Composable
+private fun BigButton(icon: ImageVector, tint: Color, label: String?, foreground: Color = Color.White, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        RoundCallButton(icon, tint = tint, size = 84.dp, foreground = foreground, onClick = onClick)
+        if (label != null) Text(label, color = Color.White.copy(alpha = 0.85f), fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun SmallControl(icon: ImageVector, active: Boolean, onClick: () -> Unit) {
+    RoundCallButton(icon, tint = if (active) Color.White else Color.White.copy(alpha = 0.22f), size = 52.dp, foreground = if (active) Color.Black else Color.White, onClick = onClick)
 }
 
 @Composable
@@ -263,8 +353,8 @@ private fun RoundCallButton(icon: ImageVector, tint: Color, size: Dp, foreground
     }
 }
 
-/** A WebRTC video track on screen. [overlay] puts the surface above the other renderer, for the
- *  local preview in the corner. */
+/** A WebRTC video track on screen, as the camera sees it - never mirrored. [overlay] puts the
+ *  surface above the other renderer (two SurfaceViews in one window need an order). */
 @Composable
 private fun VideoRendererView(track: VideoTrack, mirrored: Boolean, overlay: Boolean, modifier: Modifier = Modifier) {
     var renderer by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
