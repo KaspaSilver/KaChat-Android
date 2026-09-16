@@ -254,7 +254,6 @@ fun ChatThreadScreen(
     var showCallOptions by remember { mutableStateOf(false) }
     var pendingCallVideo by remember { mutableStateOf<Boolean?>(null) }
     val callSession by chatViewModel.callSession.collectAsState()
-    val callHostingAvailable by chatViewModel.callHostingAvailable.collectAsState()
     val callLastError by chatViewModel.callLastError.collectAsState()
     val callContext = LocalContext.current
     val callPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
@@ -511,12 +510,11 @@ fun ChatThreadScreen(
                         }
                         // The connection dot is gone from inside a 1:1 chat (the chat list and
                         // group chats still have it) - the one thing in the trailing slot is the
-                        // call button. Only the side that can host a call sees it (a connected
-                        // Nextcloud with Talk calls enabled); the contact needs nothing but
-                        // KaChat to pick up. Hidden when the contact was switched off in Chat
-                        // Info, and while a call is already up. Tapping it asks voice or video in
-                        // a half sheet, like every other choice in the app.
-                        val canCall = callHostingAvailable && callSession == null &&
+                        // call button. Chat Info's "Allow calls" switch is its only gate: a phone
+                        // with no Nextcloud of its own asks the contact to host the call, so
+                        // either side can start one as long as one of them has Talk. Hidden while
+                        // a call is already up. Tapping it asks voice or video in a half sheet.
+                        val canCall = callSession == null && conversation?.contact != null &&
                             conversation?.contact?.callsDisabled != true && contactId != myAddress
                         if (canCall) {
                             Box(
@@ -544,7 +542,7 @@ fun ChatThreadScreen(
                     ActionSheetRow(
                         icon = Icons.Default.Phone,
                         title = "Voice call",
-                        subtitle = "Rings them in KaChat; your Nextcloud carries the call.",
+                        subtitle = "Rings them in KaChat; whichever of you has Nextcloud Talk carries the call.",
                     ) {
                         showCallOptions = false
                         startCallWithPermissions(false)
@@ -12463,7 +12461,7 @@ fun ChatInfoScreen(
             if (infoSheet == "calls") {
                 ActionSheetContainer(
                     title = "Calls",
-                    subtitle = "Calls run through Nextcloud Talk and stay inside KaChat. Turn this off if you never want this contact to be able to call you.",
+                    subtitle = "Calls run through Nextcloud Talk and stay inside KaChat - only one of you needs a Nextcloud. Turn this off if you never want this contact to be able to call you, and they will not be able to ask your Nextcloud to host a call either.",
                     onDismiss = { infoSheet = null },
                 ) {
                     val callsAllowed = conversation?.contact?.callsDisabled != true

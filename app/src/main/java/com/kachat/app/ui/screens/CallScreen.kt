@@ -165,6 +165,7 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
             "no_answer" -> "No answer"
             "missed" -> "Missed call"
             "busy" -> "Busy"
+            "no_host" -> "One person in this chat needs Nextcloud Talk set up to make calls."
             "failed" -> lastError ?: "Call failed"
             else -> "Call ended"
         }
@@ -404,7 +405,7 @@ private fun VideoRendererView(track: VideoTrack, mirrored: Boolean, overlay: Boo
 fun CallBubble(envelope: CallEnvelope, isSent: Boolean, onLongPress: () -> Unit = {}) {
     val (text, ended) = CallCodec.bubbleText(envelope, isOutgoing = isSent)
     val icon = when {
-        envelope is CallEnvelope.Invite && envelope.video -> Icons.Default.Videocam
+        (envelope is CallEnvelope.Invite && envelope.video) || (envelope is CallEnvelope.Request && envelope.video) -> Icons.Default.Videocam
         ended -> Icons.Default.PhoneDisabled
         else -> Icons.Default.Phone
     }

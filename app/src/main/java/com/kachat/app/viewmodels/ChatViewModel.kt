@@ -213,12 +213,6 @@ class ChatViewModel @Inject constructor(
     /** The live call, if any; the thread hides its call button while one is up. */
     val callSession: StateFlow<com.kachat.app.services.CallService.ActiveCall?> = callService.session
 
-    /** Whether THIS side can host a call: a connected Nextcloud with Talk calls enabled. The
-     *  per-contact switch is checked by the thread against the contact itself. */
-    val callHostingAvailable: StateFlow<Boolean> = combine(nextcloudService.account, nextcloudService.talkCallsAvailable) { account, talk ->
-        account != null && talk
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     val callLastError: StateFlow<String?> = callService.lastError
 
     fun startCall(contact: ContactEntity, video: Boolean) = callService.startCall(contact, video)
