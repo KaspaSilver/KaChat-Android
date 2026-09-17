@@ -160,10 +160,11 @@ class CallService @Inject constructor(
 
     // ---- Availability ----
 
-    /** Whether the call button shows for this contact. Chat Info's "Allow calls" switch is the
-     *  only gate: a phone with no Nextcloud of its own can still start a call by asking the
-     *  contact to host it, so hosting ability is not required here. */
-    fun canCall(contact: ContactEntity?): Boolean = contact != null && contact.callsDisabled != true
+    /** Whether calls are allowed with this contact - the per-contact switch, OFF by default.
+     *  The call button shows regardless; tapping it on a contact that is not yet enabled asks
+     *  first. This is the only gate: a phone with no Nextcloud of its own can still start a call
+     *  by asking the contact to host it, so hosting ability is not required here. */
+    fun canCall(contact: ContactEntity?): Boolean = contact?.callsEnabled == true
 
     /** Whether this device can open a Talk room itself: a connected Nextcloud with Talk calls
      *  enabled. */
@@ -174,7 +175,7 @@ class CallService @Inject constructor(
 
     fun startCall(contact: ContactEntity, video: Boolean) {
         if (_session.value != null) return
-        if (contact.callsDisabled == true) return
+        if (contact.callsEnabled != true) return
         _lastError.value = null
         val callId = UUID.randomUUID().toString().lowercase()
         markHandled(callId)
@@ -271,7 +272,7 @@ class CallService @Inject constructor(
     private suspend fun handleRequest(request: CallEnvelope.Request, contactAddress: String, fresh: Boolean) {
         if (hasHandled(request.callId)) return
         val contact = chatRepository.getContact(contactAddress) ?: return
-        if (contact.callsDisabled == true || !fresh) return
+        if (contact.callsEnabled != true || !fresh) return
         val account = nextcloudService.account.value
         if (!canHost || account == null) {
             // Neither side can host. The requester's screen turns this into "one person in this
@@ -348,7 +349,7 @@ class CallService @Inject constructor(
         // ended) is history, not a phone ringing.
         if (hasHandled(invite.callId)) return
         val contact = chatRepository.getContact(contactAddress) ?: return
-        if (contact.callsDisabled == true || !fresh) return
+        if (contact.callsEnabled != true || !fresh) return
         if (current != null) {
             // Already on a call: a different invite gets a decline (the caller sees "busy"
             // rather than ringing out); this same invite delivered twice is simply ignored.

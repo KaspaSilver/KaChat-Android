@@ -1363,6 +1363,7 @@ fun BroadcastChannelScreen(
                                         kaspaExplorer = kaspaExplorer,
                                         fallbackText = displayContent,
                                         onDoubleTap = { showQuickReactionBar = true },
+                                        isOutgoing = isMine,
                                         autoFetch = false
                                     )
                                 } else {
@@ -1563,7 +1564,7 @@ fun BroadcastChannelScreen(
                             separateLinkPreviewUrl?.takeIf { internalLinkMatch == null }?.let { url ->
                                 // Tap-to-load for all broadcast previews - see the entire-link
                                 // branch above for why.
-                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true }, autoFetch = false)
+                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isMine, autoFetch = false)
                             }
 
                             if (showQuickReactionBar) {

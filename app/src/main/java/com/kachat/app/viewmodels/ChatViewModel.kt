@@ -217,13 +217,13 @@ class ChatViewModel @Inject constructor(
 
     fun startCall(contact: ContactEntity, video: Boolean) = callService.startCall(contact, video)
 
-    /** Chat Info's "Allow calls and video calls". Off means this contact's invites are ignored
-     *  on this device (they get no answer, not a decline) and the call button disappears on
-     *  your side too. Per contact, this device only. */
-    fun setCallsDisabled(contactId: String, disabled: Boolean) {
+    /** "Allow calls and video calls" for one contact - Chat Info's switch and the prompt behind
+     *  the call button. OFF by default: while off, this contact's invites and requests are
+     *  ignored on this device (silently, no reply). Per contact, this device only. */
+    fun setCallsEnabled(contactId: String, enabled: Boolean) {
         viewModelScope.launch {
             val existing = getOrCreateContact(contactId)
-            chatRepository.addContact(existing.copy(callsDisabled = if (disabled) true else null))
+            chatRepository.addContact(existing.copy(callsEnabled = if (enabled) true else null))
         }
     }
 

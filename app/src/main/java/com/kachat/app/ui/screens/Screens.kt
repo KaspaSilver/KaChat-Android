@@ -59,6 +59,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhoneEnabled
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.Videocam
@@ -252,6 +253,9 @@ fun ChatThreadScreen(
     // The voice-or-video half sheet behind the header's call button, and the microphone (and
     // camera) permission ask that starting a call may need first.
     var showCallOptions by remember { mutableStateOf(false) }
+    // The "Enable calls with this person?" half sheet - what the call button opens while calls
+    // are still off for this contact (the default).
+    var showEnableCalls by remember { mutableStateOf(false) }
     var pendingCallVideo by remember { mutableStateOf<Boolean?>(null) }
     val callSession by chatViewModel.callSession.collectAsState()
     val callLastError by chatViewModel.callLastError.collectAsState()
@@ -260,7 +264,7 @@ fun ChatThreadScreen(
         val video = pendingCallVideo
         pendingCallVideo = null
         if (video != null && granted[android.Manifest.permission.RECORD_AUDIO] == true) {
-            conversation?.contact?.let { chatViewModel.startCall(it, video) }
+            conversation?.contact?.let { chatViewModel.startCall(it.copy(callsEnabled = true), video) }
         } else if (video != null) {
             Toast.makeText(callContext, "KaChat needs the microphone to make a call.", Toast.LENGTH_SHORT).show()
         }
@@ -271,7 +275,9 @@ fun ChatThreadScreen(
             if (video) add(android.Manifest.permission.CAMERA)
         }.filter { ContextCompat.checkSelfPermission(callContext, it) != PackageManager.PERMISSION_GRANTED }
         if (needed.isEmpty()) {
-            conversation?.contact?.let { chatViewModel.startCall(it, video) }
+            // Only reachable once calls are enabled for this contact - the saved row may still be
+            // on its way to the database when the prompt was just answered.
+            conversation?.contact?.let { chatViewModel.startCall(it.copy(callsEnabled = true), video) }
         } else {
             pendingCallVideo = video
             callPermissionLauncher.launch(needed.toTypedArray())
@@ -510,18 +516,21 @@ fun ChatThreadScreen(
                         }
                         // The connection dot is gone from inside a 1:1 chat (the chat list and
                         // group chats still have it) - the one thing in the trailing slot is the
-                        // call button. Chat Info's "Allow calls" switch is its only gate: a phone
+                        // call button, always there (hidden only while a call is already up).
+                        // Calls are off per contact by default, so the first tap asks "Enable
+                        // calls with this person?"; once enabled it asks voice or video. A phone
                         // with no Nextcloud of its own asks the contact to host the call, so
-                        // either side can start one as long as one of them has Talk. Hidden while
-                        // a call is already up. Tapping it asks voice or video in a half sheet.
-                        val canCall = callSession == null && conversation?.contact != null &&
-                            conversation?.contact?.callsDisabled != true && contactId != myAddress
-                        if (canCall) {
+                        // either side can start one as long as one of them has Talk.
+                        val showCallButton = callSession == null && contactId != myAddress
+                        if (showCallButton) {
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .background(LocalAppColors.current.surface, CircleShape)
-                                    .clickable { showCallOptions = true },
+                                    .clickable {
+                                        if (conversation?.contact?.callsEnabled == true) showCallOptions = true
+                                        else showEnableCalls = true
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(Icons.Default.Phone, "Call", tint = KaspaTeal, modifier = Modifier.size(18.dp))
@@ -532,6 +541,36 @@ fun ChatThreadScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
+            if (showEnableCalls) {
+                // The first tap on the call button for a contact: calls are off by default, and
+                // enabling them is a decision about this person (they can ring you from then on,
+                // and use your Nextcloud to host a call), so it is asked plainly before anything
+                // rings.
+                val who = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
+                ActionSheetContainer(
+                    title = "Enable calls and video calls with $who?",
+                    subtitle = "They will be able to call you too. You can turn this off any time in Chat Info.",
+                    onDismiss = { showEnableCalls = false },
+                ) {
+                    ActionSheetRow(
+                        icon = Icons.Default.PhoneEnabled,
+                        title = "Enable calls",
+                        subtitle = "Saves this for $who and lets you call now.",
+                    ) {
+                        chatViewModel.setCallsEnabled(contactId, enabled = true)
+                        showEnableCalls = false
+                        // Enabled: go straight on to voice-or-video, as if the button had been
+                        // tapped on an already-enabled contact.
+                        showCallOptions = true
+                    }
+                    ActionSheetRow(
+                        icon = Icons.Default.Close,
+                        title = "Not now",
+                        subtitle = "Calls stay off for this contact.",
+                        tint = LocalAppColors.current.textSecondary,
+                    ) { showEnableCalls = false }
+                }
+            }
             if (showCallOptions) {
                 // Voice or video - the same half-sheet shape as every other menu.
                 ActionSheetContainer(
@@ -2379,6 +2418,7 @@ fun MessageBubble(
                         fallbackText = bodyText,
                         onSelect = onSelect,
                         onDoubleTap = { showQuickReactionBar = true },
+                        isOutgoing = isSent,
                         autoFetch = linkPreviewAutoFetch
                     )
                 } else {
@@ -2529,7 +2569,7 @@ fun MessageBubble(
         // An internal link is always claimed above as the message itself, so only an external
         // link can still want a card down here.
         separateLinkPreviewUrl?.takeIf { internalLinkMatch == null }?.let { url ->
-            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, autoFetch = linkPreviewAutoFetch)
+            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent, autoFetch = linkPreviewAutoFetch)
         }
 
         if (isSent) {
@@ -2990,6 +3030,101 @@ fun AudioBubble(voiceContent: VoiceMessageContent, isSent: Boolean, onLongPress:
             } else {
                 player?.release()
                 tempFile?.delete()
+            }
+        }
+    }
+
+    Surface(
+        color = if (isSent) LocalAppColors.current.surfaceVariant else LocalAppColors.current.surface,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .widthIn(min = 150.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                enabled = isReady,
+                onClick = {
+                    val player = mediaPlayer ?: return@IconButton
+                    if (isPlaying) {
+                        player.pause()
+                        isPlaying = false
+                    } else {
+                        if (player.currentPosition >= player.duration) player.seekTo(0)
+                        player.start()
+                        isPlaying = true
+                    }
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = if (isReady) KaspaTeal else Color.Gray
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.Default.GraphicEq, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = if (isReady) VoiceMessage.formatDuration(durationMs) else "...",
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+/**
+ * A voice note that lives in a local file - one sent through Nextcloud, downloaded from its share.
+ * The same play button, waveform glyph and duration as [AudioBubble], and the same sent/received
+ * colours, so an on-chain and a Nextcloud voice note look and play alike. The file belongs to the
+ * preview cache and is not deleted here.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun AudioFileBubble(file: java.io.File, isSent: Boolean, onLongPress: () -> Unit, onDoubleClick: () -> Unit = {}) {
+    var isPlaying by remember { mutableStateOf(false) }
+    var durationMs by remember { mutableStateOf(0) }
+    var isReady by remember { mutableStateOf(false) }
+    var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+
+    DisposableEffect(file.absolutePath) {
+        // Stable per file: the same note scrolling back in finds the player it left playing.
+        val playbackKey = "file:${file.absolutePath}"
+        val adopted = VoicePlayback.adopt(playbackKey)
+        if (adopted != null) {
+            val (player, _) = adopted
+            player.setOnCompletionListener { isPlaying = false }
+            durationMs = runCatching { player.duration }.getOrDefault(0)
+            isReady = true
+            isPlaying = runCatching { player.isPlaying }.getOrDefault(false)
+            mediaPlayer = player
+        } else {
+            try {
+                val player = android.media.MediaPlayer()
+                player.setDataSource(file.absolutePath)
+                player.setOnPreparedListener {
+                    durationMs = it.duration
+                    isReady = true
+                }
+                player.setOnCompletionListener { isPlaying = false }
+                player.prepareAsync()
+                mediaPlayer = player
+            } catch (e: Exception) {
+                android.util.Log.e("AudioFileBubble", "Could not prepare voice note for playback", e)
+            }
+        }
+        onDispose {
+            val player = mediaPlayer
+            mediaPlayer = null
+            if (player != null && runCatching { player.isPlaying }.getOrDefault(false)) {
+                VoicePlayback.detach(playbackKey, player, null)
+            } else {
+                player?.release()
             }
         }
     }
@@ -12437,7 +12572,7 @@ fun ChatInfoScreen(
 
                     InfoSectionCard(
                         title = "Calls",
-                        icon = if (conversation?.contact?.callsDisabled == true) Icons.Default.PhoneDisabled else Icons.Default.Phone,
+                        icon = if (conversation?.contact?.callsEnabled == true) Icons.Default.Phone else Icons.Default.PhoneDisabled,
                     ) { infoSheet = "calls" }
 
                     InfoSectionCard(
@@ -12461,23 +12596,23 @@ fun ChatInfoScreen(
             if (infoSheet == "calls") {
                 ActionSheetContainer(
                     title = "Calls",
-                    subtitle = "Calls run through Nextcloud Talk and stay inside KaChat - only one of you needs a Nextcloud. Turn this off if you never want this contact to be able to call you, and they will not be able to ask your Nextcloud to host a call either.",
+                    subtitle = "Off for everyone until you turn it on. While off, this contact cannot ring you or ask your Nextcloud to host a call. Calls run through Nextcloud Talk and stay inside KaChat - only one of you needs a Nextcloud.",
                     onDismiss = { infoSheet = null },
                 ) {
-                    val callsAllowed = conversation?.contact?.callsDisabled != true
+                    val callsAllowed = conversation?.contact?.callsEnabled == true
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .background(LocalAppColors.current.surface)
-                            .clickable { chatViewModel.setCallsDisabled(contactId, disabled = callsAllowed) }
+                            .clickable { chatViewModel.setCallsEnabled(contactId, enabled = !callsAllowed) }
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Allow calls and video calls", color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
                         Switch(
                             checked = callsAllowed,
-                            onCheckedChange = { allowed -> chatViewModel.setCallsDisabled(contactId, disabled = !allowed) },
+                            onCheckedChange = { allowed -> chatViewModel.setCallsEnabled(contactId, enabled = allowed) },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
                         )
                     }

@@ -149,7 +149,9 @@ data class ContactEntity(
     val photoAutoDisplayOverride: String? = null, // PhotoAutoDisplayMode.name, null = automatic (see ChatRepository.shouldAutoDisplayPhotos)
     val notificationOverride: String? = null, // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
     val backupPhotoBase64: String? = null, // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS or system-contact photo (e.g. a photo set on desktop)
-    val callsDisabled: Boolean? = null // True when this contact must never be able to ring you - Chat Info's "Allow calls" switch off. Hides the call button on your side too; null/false = calls allowed (device-local, like iOS Contact.callsDisabled)
+    @Deprecated("Superseded by callsEnabled (calls are off by default now); the column stays so the table shape is unchanged.")
+    val callsDisabled: Boolean? = null,
+    val callsEnabled: Boolean? = null // True once you have allowed calls with this contact - the prompt behind the call button or Chat Info's switch. Off (null) by default: nobody can ring you, or ask your Nextcloud to host a call, until you say so for them (device-local, like iOS Contact.callsEnabled)
 )
 
 /**

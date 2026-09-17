@@ -43,7 +43,7 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
     ],
-    version = 38,
+    version = 39,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -455,6 +455,16 @@ abstract class KaChatDatabase : RoomDatabase() {
          * Index names must match what Room generates for the `indices` on each @Entity, or the
          * post-migration schema validation fails.
          */
+        /** v38 -> v39: `contacts.callsEnabled` (nullable, null = calls OFF). Calls became opt-in
+         *  per contact; the old callsDisabled column is left in place and ignored. */
+        val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!columnExists(db, "contacts", "callsEnabled")) {
+                    db.execSQL("ALTER TABLE `contacts` ADD COLUMN `callsEnabled` INTEGER DEFAULT NULL")
+                }
+            }
+        }
+
         /** v37 -> v38: `contacts.callsDisabled` (nullable, null = calls allowed) behind Chat
          *  Info's "Allow calls and video calls" switch. */
         val MIGRATION_37_38 = object : Migration(37, 38) {

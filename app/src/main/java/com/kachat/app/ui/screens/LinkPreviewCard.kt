@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
@@ -97,6 +98,9 @@ fun LinkPreviewCard(
      *  reply), exactly like double-tapping a normal message bubble. Null disables it. Single tap
      *  still opens the link. Mirrors iOS's `LinkPreviewCardView.onDoubleTap`. */
     onDoubleTap: (() -> Unit)? = null,
+    /** Whether the owning message is ours - only the inline Nextcloud voice-note bubble cares
+     *  (it takes the sent/received colours like an on-chain voice note); the cards are neutral. */
+    isOutgoing: Boolean = false,
     /** Privacy gate (2026-08 audit, decision 5A, matching iOS): rendering a preview fetches the
      *  stranger-controlled URL from THIS device, revealing the reader's IP and that the message
      *  was seen. True (the default) fetches on render — for accepted/handshaken 1:1 contacts,
@@ -156,14 +160,110 @@ fun LinkPreviewCard(
             // Nextcloud media renders as a bare photo/video bubble (like a sent photo), not a
             // titled link card — the media IS the message. Mirrors iOS's nextcloudMediaBubble.
             NextcloudMediaBubble(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+        } else if (data.nextcloudMedia == "audio" && data.mediaDownloadUrl != null) {
+            // A voice note sent through Nextcloud plays right here, like an on-chain one - no
+            // file card, no separate player. Mirrors iOS's NextcloudAudioBubble.
+            NextcloudAudioBubble(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, isOutgoing = isOutgoing, onSelect = onSelect, onDoubleTap = onDoubleTap)
         } else if (data.nextcloudMedia != null) {
-            // Audio/PDF/generic files get an attachment card: icon + filename + kind/size caption.
+            // PDF/generic files get an attachment card: icon + filename + kind/size caption.
             NextcloudAttachmentCard(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
         } else {
             LinkPreviewCardContent(data = data, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
         }
     } else if (hasFinishedLoading && fallbackText != null) {
         LinkPreviewFallbackBubble(text = fallbackText, url = url, txId = txId, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = onDoubleTap)
+    }
+}
+
+/**
+ * A voice note that was sent through Nextcloud: the same play button, duration and colours as an
+ * on-chain voice note, downloaded once from the share's `/download` endpoint and kept for the
+ * bubble's life, with a loading state and tap-to-retry. Long-press offers what every message
+ * does here - no Copy Link, since a share link is the address of someone's file.
+ */
+@Composable
+private fun NextcloudAudioBubble(
+    data: LinkPreviewData,
+    url: String,
+    txId: String,
+    kaspaExplorer: KaspaExplorer,
+    isOutgoing: Boolean,
+    onSelect: (() -> Unit)?,
+    onDoubleTap: (() -> Unit)?,
+) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val download = data.mediaDownloadUrl ?: return
+    var file by remember(download) { mutableStateOf<java.io.File?>(null) }
+    var failed by remember(download) { mutableStateOf(false) }
+    var attempt by remember(download) { mutableStateOf(0) }
+    var showMenu by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(download, attempt) {
+        if (file != null) return@LaunchedEffect
+        failed = false
+        val fetched = LinkPreviewService.downloadToCacheFile(context, download, maxBytes = 30_000_000L)
+        if (fetched != null && fetched.length() > 0) file = fetched else failed = true
+    }
+
+    Box(
+        modifier = Modifier.onGloballyPositioned { coords ->
+            menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+        }
+    ) {
+        val ready = file
+        if (ready != null) {
+            AudioFileBubble(
+                file = ready,
+                isSent = isOutgoing,
+                onLongPress = { showMenu = true },
+                onDoubleClick = { onDoubleTap?.invoke() },
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isOutgoing) LocalAppColors.current.surfaceVariant else LocalAppColors.current.surface)
+                    .pointerInput(failed) {
+                        detectTapGestures(
+                            onTap = { if (failed) attempt++ },
+                            onLongPress = { showMenu = true },
+                            onDoubleTap = { onDoubleTap?.invoke() },
+                        )
+                    }
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .widthIn(min = 150.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (failed) {
+                    Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
+                } else {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(if (failed) "Voice message unavailable" else "Voice message", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                    Text(if (failed) "Tap to retry" else "Loading…", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+
+    if (showMenu) {
+        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
+            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+                uriHandler.openUri(kaspaExplorer.txUrl(txId))
+                showMenu = false
+            }
+            if (onSelect != null) {
+                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                    onSelect()
+                    showMenu = false
+                }
+            }
+        }
     }
 }
 

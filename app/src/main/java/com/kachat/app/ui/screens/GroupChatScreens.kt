@@ -1386,7 +1386,8 @@ private fun GroupMessageBubble(
                             txId = message.txId,
                             fallbackText = displayContent,
                             onSelect = onSelect,
-                            onDoubleTap = { showQuickReactionBar = true }
+                            onDoubleTap = { showQuickReactionBar = true },
+                            isOutgoing = isSent
                         )
                     } else {
                         Surface(
@@ -1431,7 +1432,7 @@ private fun GroupMessageBubble(
                         // An internal link is always claimed above as the message itself, so
                         // only an external link can still want a card down here.
                         TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
-                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true })
+                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent)
                         }
                     }
                 }
