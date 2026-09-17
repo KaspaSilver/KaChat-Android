@@ -6,10 +6,14 @@ import com.google.gson.JsonParser
 import java.util.Locale
 
 /**
- * Calls ring through the chat itself: `call_invite`, `call_response` and `call_end` are
- * ordinary encrypted 1:1 messages sharing a `callId`, JSON like the chess envelopes. Clients
- * render them as call-history bubbles ("Voice call started", "Missed call", "Call · 4:12") and
- * never as raw JSON. Byte-compatible with iOS's `CallCodec` - see MESSAGING.md "Calls".
+ * Calls ring through the chat itself: ordinary encrypted 1:1 messages sharing a `callId`, JSON
+ * like the chess envelopes. THE CALLER is the only side that ever writes to the chain, and at
+ * most twice per call: one opening message (an invite, or a request when the caller has no
+ * Nextcloud) and one closing message saying how it went. The callee answers, declines and hangs
+ * up through the Talk room instead. [CallEnvelope.Response] is legacy - nothing sends it any
+ * more, and it is still parsed so older clients' messages render. Clients render all of these as
+ * call-history bubbles ("Voice call started", "Call declined", "Call · 4:12") and never as raw
+ * JSON. Byte-compatible with iOS's `CallCodec` - see MESSAGING.md "Calls".
  */
 sealed class CallEnvelope {
     abstract val callId: String
@@ -114,9 +118,12 @@ object CallCodec {
         }
         is CallEnvelope.End -> {
             val seconds = envelope.durationSeconds
-            if (seconds != null && seconds > 0) "📞 Call · ${clock(seconds)}"
-            else if (envelope.reason == "no_answer" || envelope.reason == "cancelled") "📞 Missed call"
-            else "📞 Call ended"
+            when {
+                seconds != null && seconds > 0 -> "📞 Call · ${clock(seconds)}"
+                envelope.reason == "no_answer" || envelope.reason == "cancelled" -> "📞 Missed call"
+                envelope.reason == "declined" -> "📞 Call declined"
+                else -> "📞 Call ended"
+            }
         }
     }
 
@@ -135,9 +142,12 @@ object CallCodec {
         }
         is CallEnvelope.End -> {
             val seconds = envelope.durationSeconds
-            if (seconds != null && seconds > 0) "📞 Call · ${clock(seconds)}"
-            else if (envelope.reason == "no_answer" || envelope.reason == "cancelled") "📞 Missed call"
-            else "📞 Call ended"
+            when {
+                seconds != null && seconds > 0 -> "📞 Call · ${clock(seconds)}"
+                envelope.reason == "no_answer" || envelope.reason == "cancelled" -> "📞 Missed call"
+                envelope.reason == "declined" -> "📞 Call declined"
+                else -> "📞 Call ended"
+            }
         }
     }
 
@@ -165,6 +175,7 @@ object CallCodec {
             if (seconds != null && seconds > 0) "Call · ${clock(seconds)}" to false
             else when (envelope.reason) {
                 "no_answer" -> (if (isOutgoing) "No answer" else "Missed call") to true
+                "declined" -> "Call declined" to true
                 "cancelled" -> (if (isOutgoing) "Call cancelled" else "Missed call") to true
                 "failed" -> "Call failed" to true
                 else -> "Call ended" to true

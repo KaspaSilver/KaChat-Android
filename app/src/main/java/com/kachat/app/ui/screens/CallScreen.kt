@@ -162,7 +162,9 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
         CallService.Phase.Connected -> call.statusDetail ?: timer ?: "connected"
         is CallService.Phase.Ended -> when (phase.reason) {
             "declined" -> "Declined"
-            "no_answer" -> "No answer"
+            // A request nobody hosted rings out exactly like an unanswered call - the other
+            // side never says anything on chain - so the hint rides along here.
+            "no_answer" -> if (call.hostsThisCall) "No answer" else "No answer. If they don't have Nextcloud Talk, one of you needs it to make calls."
             "missed" -> "Missed call"
             "busy" -> "Busy"
             "no_host" -> "One person in this chat needs Nextcloud Talk set up to make calls."

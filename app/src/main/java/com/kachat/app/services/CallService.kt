@@ -128,6 +128,10 @@ class CallService @Inject constructor(
         var ringJob: Job? = null
         var sawPeerInCall = false
         var ringtone: Ringtone? = null
+        /** Whether this side's opening message (invite / request) has gone out. The closing
+         *  call_end is only ever sent by the side that started the call, and only after its
+         *  opening message did - so a call that failed before ringing costs nothing. */
+        var openingMessageSent = false
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -192,15 +196,16 @@ class CallService @Inject constructor(
             scope.launch {
                 try {
                     sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Request(callId, video)))
+                    pipes.openingMessageSent = true
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     _lastError.value = e.message ?: "Call failed"
-                    finish("failed", notifyPeer = false)
+                    finish("failed")
                     return@launch
                 }
                 pipes.timeoutJob = scope.launch {
                     delay(RING_TIMEOUT_MS)
-                    if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) finish("no_answer", notifyPeer = true)
+                    if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) finish("no_answer")
                 }
             }
             return
@@ -222,16 +227,17 @@ class CallService @Inject constructor(
                 update { it.copy(token = token) }
                 joinAndSignal(pipes)
                 sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Invite(callId = callId, server = server, token = token, video = video)))
+                pipes.openingMessageSent = true
                 pipes.timeoutJob = scope.launch {
                     delay(RING_TIMEOUT_MS)
-                    if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) finish("no_answer", notifyPeer = true)
+                    if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) finish("no_answer")
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Starting call failed", e)
                 CallDiagnostics.log(TAG, "start failed: ${e.message}")
                 _lastError.value = e.message ?: "Call failed"
-                finish("failed", notifyPeer = false)
+                finish("failed")
             }
         }
     }
@@ -254,14 +260,14 @@ class CallService @Inject constructor(
                     if (envelope.accepted) {
                         if (call.phase == Phase.RingingOut) update { it.copy(phase = Phase.Connecting) }
                     } else {
-                        finish(if (envelope.reason == "no_host") "no_host" else "declined", notifyPeer = false)
+                        finish(if (envelope.reason == "no_host") "no_host" else "declined")
                     }
                 }
                 is CallEnvelope.End -> {
                     markHandled(envelope.callId)
                     val call = _session.value ?: return@launch
                     if (call.id != envelope.callId) return@launch
-                    finish(if (call.phase == Phase.RingingIn) "missed" else "remote_hangup", notifyPeer = false)
+                    finish(if (call.phase == Phase.RingingIn) "missed" else "remote_hangup")
                 }
             }
         }
@@ -275,20 +281,15 @@ class CallService @Inject constructor(
         if (contact.callsEnabled != true || !fresh) return
         val account = nextcloudService.account.value
         if (!canHost || account == null) {
-            // Neither side can host. The requester's screen turns this into "one person in this
-            // chat needs Nextcloud Talk" instead of ringing out.
+            // Neither side can host. Nothing goes on chain from this side - the caller is the
+            // only one who pays for a call - so the requester's ring-out is what tells them one
+            // of the two needs Nextcloud Talk.
             markHandled(request.callId)
-            CallDiagnostics.log(TAG, "request ${request.callId} from ${contact.id.takeLast(8)}: cannot host, answering no_host")
-            runCatching { sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Response(request.callId, accepted = false, reason = "no_host"))) }
+            CallDiagnostics.log(TAG, "request ${request.callId} from ${contact.id.takeLast(8)}: cannot host, staying silent")
             return
         }
-        val current = _session.value
-        if (current != null) {
-            if (current.id != request.callId) {
-                runCatching { sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Response(request.callId, accepted = false))) }
-            }
-            return
-        }
+        // Busy: silent, and the caller rings out. Same request delivered twice: ignored.
+        if (_session.value != null) return
         markHandled(request.callId)
         val server = account.server.trimEnd('/')
         val pipes = Plumbing(request.callId)
@@ -298,7 +299,7 @@ class CallService @Inject constructor(
         startRinging(pipes)
         pipes.timeoutJob = scope.launch {
             delay(INCOMING_RING_MS)
-            if (plumbing === pipes && _session.value?.phase == Phase.RingingIn) finish("missed", notifyPeer = false)
+            if (plumbing === pipes && _session.value?.phase == Phase.RingingIn) finish("missed")
         }
         // Open the room now so the requester can already be waiting in it as a guest when we
         // accept; we join the call itself on accept.
@@ -315,7 +316,7 @@ class CallService @Inject constructor(
                 Log.w(TAG, "Hosting a requested call failed", e)
                 CallDiagnostics.log(TAG, "hosting failed: ${e.message}")
                 _lastError.value = e.message ?: "Call failed"
-                finish("failed", notifyPeer = true)
+                finish("failed")
             }
         }
     }
@@ -341,7 +342,7 @@ class CallService @Inject constructor(
                 Log.w(TAG, "Joining the hosted call failed", e)
                 CallDiagnostics.log(TAG, "joining hosted call failed: ${e.message}")
                 _lastError.value = e.message ?: "Call failed"
-                finish("failed", notifyPeer = true)
+                finish("failed")
             }
             return
         }
@@ -350,14 +351,9 @@ class CallService @Inject constructor(
         if (hasHandled(invite.callId)) return
         val contact = chatRepository.getContact(contactAddress) ?: return
         if (contact.callsEnabled != true || !fresh) return
-        if (current != null) {
-            // Already on a call: a different invite gets a decline (the caller sees "busy"
-            // rather than ringing out); this same invite delivered twice is simply ignored.
-            if (current.id != invite.callId) {
-                runCatching { sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Response(invite.callId, accepted = false))) }
-            }
-            return
-        }
+        // Already on a call: stay silent and let the caller ring out. This same invite
+        // delivered twice is simply ignored.
+        if (current != null) return
         markHandled(invite.callId)
         val incoming = Plumbing(invite.callId)
         plumbing = incoming
@@ -366,7 +362,7 @@ class CallService @Inject constructor(
         startRinging(incoming)
         incoming.timeoutJob = scope.launch {
             delay(INCOMING_RING_MS)
-            if (plumbing === incoming && _session.value?.phase == Phase.RingingIn) finish("missed", notifyPeer = false)
+            if (plumbing === incoming && _session.value?.phase == Phase.RingingIn) finish("missed")
         }
     }
 
@@ -389,7 +385,7 @@ class CallService @Inject constructor(
                     waited++
                 }
                 if (plumbing !== pipes || _session.value?.token.isNullOrEmpty() || pipes.client == null) {
-                    finish("failed", notifyPeer = true)
+                    finish("failed")
                     return@launch
                 }
             } else {
@@ -397,14 +393,14 @@ class CallService @Inject constructor(
                 pipes.client = NextcloudTalkClient(server, NextcloudTalkClient.Auth.Guest)
             }
             try {
+                // Turning up in the Talk call is the answer; nothing goes on chain from here.
                 joinAndSignal(pipes)
-                runCatching { sendCallMessage(call.contact.id, CallCodec.encode(CallEnvelope.Response(call.id, accepted = true))) }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Joining call failed", e)
                 CallDiagnostics.log(TAG, "join failed: ${e.message}")
                 _lastError.value = e.message ?: "Call failed"
-                finish("failed", notifyPeer = true)
+                finish("failed")
             }
         }
     }
@@ -414,14 +410,37 @@ class CallService @Inject constructor(
         val pipes = plumbing ?: return
         if (call.phase != Phase.RingingIn) return
         stopRinging(pipes)
-        scope.launch { runCatching { sendCallMessage(call.contact.id, CallCodec.encode(CallEnvelope.Response(call.id, accepted = false))) } }
-        scope.launch { finish("declined", notifyPeer = false) }
+        val server = call.server
+        val token = call.token
+        if (!call.hostsThisCall && server != null && token.isNotEmpty()) {
+            // Tell the caller through Talk, not the chain: join their room as a guest, hand
+            // their session one "kachat_decline", and leave. Best effort - if it fails the
+            // caller simply rings out.
+            scope.launch(Dispatchers.IO) {
+                runCatching {
+                    val client = NextcloudTalkClient(server, NextcloudTalkClient.Auth.Guest)
+                    val sessionId = client.joinConversation(token)
+                    client.pullSignaling(token, sessionId)
+                        .filterIsInstance<NextcloudTalkClient.SignalingEvent.UsersInRoom>()
+                        .flatMap { it.users }
+                        .filter { it.sessionId != sessionId }
+                        .forEach { user ->
+                            val message = NextcloudTalkClient.PeerMessage(to = user.sessionId, sid = "decline", roomType = "video", type = "kachat_decline", payload = JSONObject())
+                            runCatching { client.sendSignaling(token, sessionId, listOf(message)) }
+                        }
+                    client.leaveConversation(token)
+                }
+            }
+        }
+        // A hosted request we are declining: finish deletes the room, and the requester waiting
+        // in it reads the 404 as the decline.
+        scope.launch { finish("declined") }
     }
 
     fun hangUp() {
         val call = _session.value ?: return
         if (call.phase is Phase.Ended) return
-        scope.launch { finish(if (call.isOutgoing && call.phase == Phase.RingingOut) "cancelled" else "hangup", notifyPeer = true) }
+        scope.launch { finish(if (call.isOutgoing && call.phase == Phase.RingingOut) "cancelled" else "hangup") }
     }
 
     /** Clears an ended call off the screen. */
@@ -499,7 +518,7 @@ class CallService @Inject constructor(
                     PeerConnection.IceConnectionState.CONNECTED, PeerConnection.IceConnectionState.COMPLETED ->
                         update { it.copy(phase = Phase.Connected, connectedAtMs = it.connectedAtMs ?: System.currentTimeMillis(), statusDetail = null) }
                     PeerConnection.IceConnectionState.DISCONNECTED -> update { it.copy(statusDetail = "Reconnecting") }
-                    PeerConnection.IceConnectionState.FAILED -> finish("failed", notifyPeer = true)
+                    PeerConnection.IceConnectionState.FAILED -> finish("failed")
                     else -> {}
                 }
             }
@@ -525,7 +544,11 @@ class CallService @Inject constructor(
                 when (e.kind) {
                     NextcloudTalkClient.TalkException.Kind.CONVERSATION_GONE, NextcloudTalkClient.TalkException.Kind.SESSION_LOST -> {
                         Log.i(TAG, "Signaling ended: ${e.message}")
-                        finish("remote_hangup", notifyPeer = false)
+                        // A room that disappears before the call connected, while we are the
+                        // guest, is the host declining our request.
+                        val call = _session.value
+                        val declined = call != null && !call.hostsThisCall && call.connectedAtMs == null
+                        finish(if (declined) "declined" else "remote_hangup")
                         return
                     }
                     else -> delay(3_000)
@@ -561,13 +584,19 @@ class CallService @Inject constructor(
                     }
                 } else if (pipes.peerSessionId != null && pipes.sawPeerInCall && others.none { it.sessionId == pipes.peerSessionId }) {
                     // The other side left the call (hung up, or their app died).
-                    finish("remote_hangup", notifyPeer = false)
+                    finish("remote_hangup")
                 }
             }
             is NextcloudTalkClient.SignalingEvent.Message -> {
                 val data = event.data
                 val from = data.optString("from").ifEmpty { return }
                 val type = data.optString("type").ifEmpty { return }
+                if (type == "kachat_decline") {
+                    // The callee said no through Talk (no chain message from their side).
+                    val call = _session.value
+                    if (call != null && call.isOutgoing && call.connectedAtMs == null) finish("declined")
+                    return
+                }
                 if (pipes.peerSessionId == null) pipes.peerSessionId = from
                 if (from != pipes.peerSessionId) return
                 val webrtc = pipes.webrtc ?: return
@@ -638,11 +667,11 @@ class CallService @Inject constructor(
 
     // ---- Teardown ----
 
-    private suspend fun finish(reason: String, notifyPeer: Boolean) {
+    private suspend fun finish(reason: String) {
         val call = _session.value ?: return
         val pipes = plumbing ?: return
         if (call.phase is Phase.Ended) return
-        CallDiagnostics.log(TAG, "call ${call.id} ends: $reason (phase was ${call.phase}, notifyPeer=$notifyPeer)")
+        CallDiagnostics.log(TAG, "call ${call.id} ends: $reason (phase was ${call.phase})")
         markHandled(call.id)
         stopRinging(pipes)
         pipes.timeoutJob?.cancel()
@@ -666,7 +695,10 @@ class CallService @Inject constructor(
         }
         CallForegroundService.stop(context)
 
-        if (notifyPeer) {
+        // The caller is the only side that ever puts a call on chain: one opening message
+        // (invite or request) and one closing message with how it went and, if it connected, for
+        // how long. A callee's hang-up reaches the caller through the room instead.
+        if (call.isOutgoing && pipes.openingMessageSent) {
             runCatching { sendCallMessage(call.contact.id, CallCodec.encode(CallEnvelope.End(call.id, reason = reason, durationSeconds = duration))) }
         }
         val client = pipes.client
