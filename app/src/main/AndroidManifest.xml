@@ -23,6 +23,10 @@
          foreground service that keeps the microphone and camera usable while a call is
          backgrounded (Android 14 cuts them off otherwise) - see CallForegroundService. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Rings a locked or busy phone with the call screen instead of a banner, the way the
+         phone's own dialler does. Granted without asking for an app that posts call-style
+         notifications (IncomingCallNotifier). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
@@ -151,6 +155,11 @@
             android:name=".services.CallForegroundService"
             android:exported="false"
             android:foregroundServiceType="microphone|camera" />
+
+        <!-- Declining from the ringing notification, which needs no UI (IncomingCallNotifier). -->
+        <receiver
+            android:name=".services.CallActionReceiver"
+            android:exported="false" />
 
         <service
             android:name=".services.KaChatFirebaseMessagingService"

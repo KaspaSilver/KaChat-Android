@@ -62,6 +62,9 @@ class CallService @Inject constructor(
     private val walletManager: WalletManager,
     private val nextcloudService: NextcloudService,
     private val knsService: KnsService,
+    /** Lazy: the push manager reaches back into the chat repository, which owns this service. */
+    private val pushRegistration: dagger.Lazy<PushRegistrationManager>,
+    private val incomingCallNotifier: IncomingCallNotifier,
 ) {
     companion object {
         private const val TAG = "CallService"
@@ -73,6 +76,11 @@ class CallService @Inject constructor(
         /** How long an invite or request stays answerable after it was mined (an old one from a
          *  closed app must not ring hours later). */
         private const val INVITE_FRESHNESS_MS = 45_000L
+        /** How long after the media connects the call checks that it really has the phone's
+         *  audio - long enough for whatever else was holding it to let go. */
+        private const val AUDIO_WATCHDOG_MS = 2_500L
+        /** A ring push is only worth sending while the phone is still ringing. */
+        private const val RING_PUSH_TIMEOUT_MS = 15_000L
     }
 
     sealed class Phase {
@@ -105,7 +113,13 @@ class CallService @Inject constructor(
         val phase: Phase,
         val connectedAtMs: Long? = null,
         val isMuted: Boolean = false,
+        /** What the phone is actually doing: true while sound comes out of the loudspeaker.
+         *  Read from the audio route itself once audio runs, so the button never claims a state
+         *  the hardware is not in. */
         val isSpeakerOn: Boolean = video,
+        /** What the user asked for (video calls start on the speaker); applied whenever the
+         *  audio comes up, and what [isSpeakerOn] converges to. */
+        val speakerRequested: Boolean = video,
         val isCameraOff: Boolean = false,
         val remoteVideoTrack: VideoTrack? = null,
         val localVideoTrack: VideoTrack? = null,
@@ -195,8 +209,9 @@ class CallService @Inject constructor(
             CallForegroundService.start(context, contact.displayName, video)
             scope.launch {
                 try {
-                    sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Request(callId, video)))
+                    val payloadHex = sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Request(callId, video)))
                     pipes.openingMessageSent = true
+                    requestRing(contact.id, callId, video, kind = "request", payloadHex = payloadHex)
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     _lastError.value = e.message ?: "Call failed"
@@ -226,8 +241,9 @@ class CallService @Inject constructor(
                 if (plumbing !== pipes) { withContext(Dispatchers.IO) { client.deleteConversation(token) }; return@launch }
                 update { it.copy(token = token) }
                 joinAndSignal(pipes)
-                sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Invite(callId = callId, server = server, token = token, video = video)))
+                val payloadHex = sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Invite(callId = callId, server = server, token = token, video = video)))
                 pipes.openingMessageSent = true
+                requestRing(contact.id, callId, video, kind = "invite", payloadHex = payloadHex)
                 pipes.timeoutJob = scope.launch {
                     delay(RING_TIMEOUT_MS)
                     if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) finish("no_answer")
@@ -462,9 +478,36 @@ class CallService @Inject constructor(
 
     fun toggleSpeaker() {
         val call = _session.value ?: return
+        // Flip from where the audio actually is, not from where we last asked it to be.
         val on = !call.isSpeakerOn
-        update { it.copy(isSpeakerOn = on) }
+        update { it.copy(isSpeakerOn = on, speakerRequested = on) }
         plumbing?.webrtc?.setSpeaker(on)
+        // The route-change callback settles the displayed state a moment later.
+    }
+
+    /**
+     * The phone's audio route moved (the speaker button, headphones, Bluetooth, another app
+     * handing audio back): show where the sound really comes out. Only once there is a peer
+     * connection - before that the route says nothing about this call.
+     */
+    private fun routeChanged() {
+        val webrtc = plumbing?.webrtc ?: return
+        val onSpeaker = webrtc.isOnSpeaker ?: return
+        if (_session.value?.isSpeakerOn != onSpeaker) update { it.copy(isSpeakerOn = onSpeaker) }
+    }
+
+    /**
+     * Makes sure the call still has the phone's audio. Sound goes missing when something else
+     * held it at the moment the call was answered, or took it and never handed it back; either
+     * way, take it again and put the route back where the user asked for it.
+     */
+    private fun ensureAudioRunning(reason: String) {
+        val call = _session.value ?: return
+        if (call.phase != Phase.Connecting && call.phase != Phase.Connected) return
+        val webrtc = plumbing?.webrtc ?: return
+        CallDiagnostics.log(TAG, "re-asserting call audio ($reason)")
+        webrtc.ensureAudioRunning(call.speakerRequested)
+        routeChanged()
     }
 
     fun toggleCamera() {
@@ -515,15 +558,30 @@ class CallService @Inject constructor(
             scope.launch {
                 if (plumbing !== pipes) return@launch
                 when (state) {
-                    PeerConnection.IceConnectionState.CONNECTED, PeerConnection.IceConnectionState.COMPLETED ->
+                    PeerConnection.IceConnectionState.CONNECTED, PeerConnection.IceConnectionState.COMPLETED -> {
+                        val firstTime = _session.value?.connectedAtMs == null
                         update { it.copy(phase = Phase.Connected, connectedAtMs = it.connectedAtMs ?: System.currentTimeMillis(), statusDetail = null) }
+                        routeChanged()
+                        if (firstTime) {
+                            // Audio watchdog: media is flowing, so a couple of seconds from now
+                            // sound must be too. If something else was holding the phone's audio
+                            // when the call was answered, take it now.
+                            scope.launch {
+                                delay(AUDIO_WATCHDOG_MS)
+                                if (plumbing === pipes) ensureAudioRunning("watchdog")
+                            }
+                        }
+                    }
                     PeerConnection.IceConnectionState.DISCONNECTED -> update { it.copy(statusDetail = "Reconnecting") }
                     PeerConnection.IceConnectionState.FAILED -> finish("failed")
                     else -> {}
                 }
             }
         }
-        webrtc.setSpeaker(_session.value?.isSpeakerOn ?: call.video)
+        webrtc.onAudioRouteChanged = { scope.launch { if (plumbing === pipes) routeChanged() } }
+        webrtc.onAudioFocusRegained = { scope.launch { if (plumbing === pipes) ensureAudioRunning("audio focus returned") } }
+        webrtc.setSpeaker(_session.value?.speakerRequested ?: call.video)
+        routeChanged()
         if (call.video) webrtc.startCaptureIfNeeded()
 
         pipes.pullJob = scope.launch { pullLoop(pipes) }
@@ -724,6 +782,13 @@ class CallService @Inject constructor(
     // ---- Ringing ----
 
     private fun startRinging(pipes: Plumbing) {
+        // The system's own ringing UI: a call notification with a full-screen intent, so a
+        // locked or busy phone shows the call screen and Answer / Decline without the app being
+        // open. Silent by design - the ringtone and the vibrator below are the one ring.
+        _session.value?.let { call ->
+            runCatching { incomingCallNotifier.showIncoming(call.id, call.contact.displayName, call.video) }
+                .onFailure { Log.w(TAG, "Incoming call notification failed", it) }
+        }
         runCatching {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             val ringtone = RingtoneManager.getRingtone(context, uri)
@@ -748,6 +813,7 @@ class CallService @Inject constructor(
     }
 
     private fun stopRinging(pipes: Plumbing) {
+        incomingCallNotifier.clear()
         pipes.ringJob?.cancel()
         pipes.ringJob = null
         runCatching { pipes.ringtone?.stop() }
@@ -766,12 +832,42 @@ class CallService @Inject constructor(
         return if (!domain.isNullOrEmpty()) domain else "KaChat ${address.takeLast(6)}"
     }
 
+    /**
+     * Asks the push service to ring the callee's phones for this call (PUSH_EXTENSIONS.md §5).
+     * A phone with KaChat closed cannot see the chain, so without this it only rings once the app
+     * happens to sync. [payloadHex] is the very message that just went on chain, so the push
+     * carries nothing the chain does not.
+     *
+     * Best effort: no push and an open app still rings off the chain message a little later.
+     */
+    private fun requestRing(contactAddress: String, callId: String, video: Boolean, kind: String, payloadHex: String) {
+        if (payloadHex.isEmpty()) return
+        scope.launch {
+            runCatching {
+                // Bounded: the ring is only worth anything while the phone is still ringing, and
+                // the push API can be unconfigured, which would otherwise wait for ever.
+                kotlinx.coroutines.withTimeout(RING_PUSH_TIMEOUT_MS) {
+                    withContext(Dispatchers.IO) {
+                        pushRegistration.get().requestRing(
+                            toAddress = contactAddress,
+                            callId = callId,
+                            video = video,
+                            kind = kind,
+                            payloadHex = payloadHex,
+                        )
+                    }
+                }
+            }.onFailure { CallDiagnostics.log(TAG, "ring push not sent: ${it.message}") }
+        }
+    }
+
     /** One encrypted 1:1 message carrying a call envelope, with its own sent bubble - the
-     *  same insert / send / finalize the composer does, so the chat shows the call history. */
-    private suspend fun sendCallMessage(contactId: String, payload: String) {
+     *  same insert / send / finalize the composer does, so the chat shows the call history.
+     *  Returns the on-chain payload hex, which the ring push carries to a sleeping phone. */
+    private suspend fun sendCallMessage(contactId: String, payload: String): String {
         val myAddress = walletManager.getAddress()
         val pendingId = "pending_${UUID.randomUUID()}"
-        withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             chatRepository.insertMessage(
                 MessageEntity(
                     id = pendingId, contactId = contactId, walletAddress = myAddress, type = MessageProtocol.TYPE_COMM,
@@ -789,6 +885,7 @@ class CallService @Inject constructor(
                         blockTimestamp = System.currentTimeMillis(), deliveryStatus = "sent"
                     )
                 )
+                result.payloadHex
             } catch (e: Exception) {
                 chatRepository.updateMessageStatus(pendingId, "failed")
                 throw e

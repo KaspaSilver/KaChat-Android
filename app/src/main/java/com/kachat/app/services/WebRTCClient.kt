@@ -1,7 +1,11 @@
 package com.kachat.app.services
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.AudioTrack
@@ -65,11 +69,20 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
     private var capturing = false
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val previousAudioMode = audioManager.mode
+    private var focusRequest: AudioFocusRequest? = null
+    private var audioFocusHeld = false
+    private var routeListener: AudioManager.OnCommunicationDeviceChangedListener? = null
+    private var routeListenerExecutor: java.util.concurrent.ExecutorService? = null
 
     /** Fired on WebRTC's own threads; CallService hops to its scope. */
     var onLocalCandidate: ((IceCandidate) -> Unit)? = null
     var onConnectionState: ((PeerConnection.IceConnectionState) -> Unit)? = null
     var onRemoteVideoTrack: ((VideoTrack) -> Unit)? = null
+    /** The phone moved the sound somewhere else (speaker, earpiece, headphones, Bluetooth), so
+     *  the speaker button can show where it really is. */
+    var onAudioRouteChanged: (() -> Unit)? = null
+    /** Audio came back after something else had taken it. */
+    var onAudioFocusRegained: (() -> Unit)? = null
 
     // Declared before init: the peer connection is created in init and needs it.
     private val observer = object : PeerConnection.Observer {
@@ -127,6 +140,15 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
             capturer = createCapturer()?.also { it.initialize(surfaceHelper, context.applicationContext, videoSource.capturerObserver) }
         }
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val listener = AudioManager.OnCommunicationDeviceChangedListener { onAudioRouteChanged?.invoke() }
+            val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+            runCatching {
+                audioManager.addOnCommunicationDeviceChangedListener(executor, listener)
+                routeListener = listener
+                routeListenerExecutor = executor
+            }.onFailure { executor.shutdown() }
+        }
     }
 
     private fun createCapturer(): CameraVideoCapturer? {
@@ -167,11 +189,83 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
         if (enabled) startCaptureIfNeeded() else stopCapture()
     }
 
-    /** The audio route: earpiece or speaker. */
+    /**
+     * The audio route: earpiece or speaker. Each step stands alone - a mode the system refuses
+     * to change mid-call must not stop the route from moving, and a refused route must not stop
+     * the call from holding audio focus.
+     */
     fun setSpeaker(speaker: Boolean) {
-        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        runCatching { audioManager.mode = AudioManager.MODE_IN_COMMUNICATION }
+            .onFailure { Log.w(TAG, "Audio mode failed: ${it.message}") }
+        runCatching { routeTo(speaker) }
+            .onFailure { Log.w(TAG, "Audio route change failed: ${it.message}") }
+        runCatching { holdAudioFocus() }
+            .onFailure { Log.w(TAG, "Audio focus failed: ${it.message}") }
+    }
+
+    /** Android 12 moved routing to a device object; older phones keep the speakerphone flag. */
+    private fun routeTo(speaker: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val wanted = if (speaker) AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+            val device = audioManager.availableCommunicationDevices.firstOrNull { it.type == wanted }
+            if (device != null) {
+                audioManager.setCommunicationDevice(device)
+                return
+            }
+        }
         @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = speaker
+    }
+
+    /**
+     * Where the sound actually comes out right now, read from the phone rather than from the
+     * last thing the app asked for - so the speaker button can never claim a state the hardware
+     * is not in. Null while there is nothing to read.
+     */
+    val isOnSpeaker: Boolean?
+        get() = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audioManager.communicationDevice?.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.isSpeakerphoneOn
+            }
+        }.getOrNull()
+
+    /**
+     * Makes sure the call still owns the phone's audio. Sound goes missing when something else
+     * took the focus (another app's call, an alarm) and did not hand it back, or when the mode
+     * was reset under us; re-asserting all three costs nothing when they are already right.
+     */
+    fun ensureAudioRunning(speaker: Boolean) {
+        setSpeaker(speaker)
+    }
+
+    /**
+     * Takes the phone's audio for this call, the way a dialler does: everything else pauses,
+     * and [onAudioFocusRegained] fires if it comes back after being taken away.
+     */
+    private fun holdAudioFocus() {
+        if (audioFocusHeld) return
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+            .setAudioAttributes(attributes)
+            .setOnAudioFocusChangeListener { change ->
+                if (change == AudioManager.AUDIOFOCUS_GAIN) onAudioFocusRegained?.invoke()
+            }
+            .build()
+        focusRequest = request
+        audioFocusHeld = audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun releaseAudioFocus() {
+        val request = focusRequest ?: return
+        focusRequest = null
+        audioFocusHeld = false
+        runCatching { audioManager.abandonAudioFocusRequest(request) }
     }
 
     // ---- Negotiation ----
@@ -208,6 +302,16 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
         onLocalCandidate = null
         onConnectionState = null
         onRemoteVideoTrack = null
+        onAudioRouteChanged = null
+        onAudioFocusRegained = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            routeListener?.let { listener -> runCatching { audioManager.removeOnCommunicationDeviceChangedListener(listener) } }
+            runCatching { audioManager.clearCommunicationDevice() }
+        }
+        routeListener = null
+        routeListenerExecutor?.shutdown()
+        routeListenerExecutor = null
+        releaseAudioFocus()
         runCatching { capturer?.dispose() }
         runCatching { surfaceHelper?.dispose() }
         runCatching { connection.close() }

@@ -44,6 +44,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     @Inject lateinit var chatRepository: ChatRepository
     @Inject lateinit var groupRepository: com.kachat.app.repository.GroupRepository
     @Inject lateinit var settingsRepository: com.kachat.app.repository.AppSettingsRepository
+    @Inject lateinit var callService: CallService
 
     override fun onNewToken(token: String) {
         // FCM rotated the token — re-register it with the indexer (signed with the wallet key).
@@ -264,6 +265,22 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             else -> {}
         }
 
+        // A call. The chain is how a call is carried, but a closed app cannot watch the chain -
+        // this push is what wakes it, and the phone must ring, not show a banner. Hand the
+        // envelope to the call machinery, which rings exactly as it does with the app open
+        // (once per call id, only if calls are on for this contact, only while it is fresh) and
+        // posts the full-screen call notification. The invite and the request are the two that
+        // ring; everything else about a call still reads as an ordinary line in the chat.
+        val callEnvelope = plaintext?.let { com.kachat.app.util.CallCodec.parseOrNull(it) }
+        if (callEnvelope != null) {
+            val sentAtMs = pushSentAtMs(data)
+            callService.handleIncoming(callEnvelope, contactAddress = sender, blockTimeMs = sentAtMs, isOutgoing = false)
+            if (callEnvelope is com.kachat.app.util.CallEnvelope.Invite || callEnvelope is com.kachat.app.util.CallEnvelope.Request) {
+                data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                return
+            }
+        }
+
         val text = plaintext?.let { notificationPreview(it) } ?: fallback
         notificationHelper.show(
             contactId = sender,
@@ -274,6 +291,18 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             // paths see the same message.
             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
         )
+    }
+
+    /**
+     * When the message this push is about was sent, in milliseconds. A call only rings while it
+     * is fresh, so this decides whether a push that arrives late still rings: the server's
+     * timestamp is the honest answer, and arrival time is the fallback when it is missing or
+     * unreadable. Seconds are accepted too - the field has been written both ways.
+     */
+    private fun pushSentAtMs(data: Map<String, String>): Long {
+        val raw = data["timestamp"]?.trim()?.toLongOrNull() ?: return System.currentTimeMillis()
+        if (raw <= 0) return System.currentTimeMillis()
+        return if (raw < 100_000_000_000L) raw * 1000 else raw
     }
 
     /** Base64 → EncryptedMessage → ChaCha20-Poly1305 decrypt with the wallet key. Null on failure

@@ -191,6 +191,43 @@ class PushRegistrationManager @Inject constructor(
     }
 
     /**
+     * Asks the push service to ring [toAddress]'s devices for a call this device is placing
+     * (PUSH_EXTENSIONS.md §5). The request is signed like every other push call, which is how the
+     * service knows the sender it names in the push; [payloadHex] is the opening call message
+     * encrypted to the contact, exactly as it went on chain.
+     *
+     * Best effort by design: a phone with the app open rings off the chain message anyway, so a
+     * failure here costs nothing but the ring on a sleeping phone. Throws so the caller can log it.
+     */
+    suspend fun requestRing(toAddress: String, callId: String, video: Boolean, kind: String, payloadHex: String) {
+        val api = networkService.pushApi.first { it != null }
+            ?: throw IllegalStateException("push API unavailable")
+        val token = FirebaseMessaging.getInstance().token.await().trim()
+        if (token.isEmpty()) throw IllegalStateException("no FCM token")
+        val material = signingMaterial()
+        val auth = buildAuth(
+            material,
+            method = "POST",
+            path = "/v1/push/ring",
+            deviceToken = token,
+            watchedAddresses = emptyList(),
+            primaryAddress = material.walletAddress,
+        )
+        api.ring(
+            PushRingRequest(
+                deviceToken = token,
+                toAddress = toAddress,
+                callId = callId,
+                video = video,
+                kind = kind,
+                payload = payloadHex,
+                timestampMs = System.currentTimeMillis(),
+                auth = auth,
+            )
+        )
+    }
+
+    /**
      * Fire-and-forget unregister that snapshots the signing material SYNCHRONOUSLY, so callers
      * about to destroy the wallet (account deletion, logout) can invoke it first and the
      * challenge/sign round-trip still has the key even though the wallet is gone by the time the

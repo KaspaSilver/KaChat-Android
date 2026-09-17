@@ -32,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
 import com.kachat.app.services.CallService
 import com.kachat.app.services.CrashRecorder
+import com.kachat.app.services.IncomingCallNotifier
 import com.kachat.app.ui.screens.CallOverlay
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PendingShare
@@ -130,6 +131,8 @@ class MainActivity : AppCompatActivity() {
         intent?.let(::handleBroadcastDeepLink)
         intent?.let(::handleShareIntent)
         intent?.let(::clearConsumedIntentPayload)
+        intent?.let(::consumeCallAnswer)
+        observeCallForLockScreen()
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
             val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
@@ -208,6 +211,58 @@ class MainActivity : AppCompatActivity() {
         handleBroadcastDeepLink(intent)
         handleShareIntent(intent)
         clearConsumedIntentPayload(intent)
+        consumeCallAnswer(intent)
+    }
+
+    /**
+     * Answering from the ringing notification. The notification's Answer button opens the app
+     * with the call's id attached; picking up needs the microphone, which only an Activity can
+     * ask for, so the tap lands here. With the permission already granted this is a real
+     * one-tap answer; without it the call screen is on screen anyway and its Accept button asks.
+     *
+     * The id is checked so a stale tap (the call already over, or another one ringing) cannot
+     * answer the wrong call, and stripped so a configuration change does not re-answer.
+     */
+    private fun consumeCallAnswer(intent: Intent) {
+        val callId = intent.getStringExtra(IncomingCallNotifier.EXTRA_ANSWER_CALL_ID) ?: return
+        intent.removeExtra(IncomingCallNotifier.EXTRA_ANSWER_CALL_ID)
+        val call = callService.session.value ?: return
+        if (call.id != callId || call.phase != CallService.Phase.RingingIn) return
+        val needed = buildList {
+            add(Manifest.permission.RECORD_AUDIO)
+            if (call.video) add(Manifest.permission.CAMERA)
+        }.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isEmpty()) callService.acceptIncoming()
+    }
+
+    /**
+     * A ringing or live call shows over the lock screen and wakes the display, the way the
+     * phone's own dialler does - and only then: the flags come straight back off when the call
+     * ends, so the rest of the app stays behind the lock screen where it belongs.
+     */
+    private fun observeCallForLockScreen() {
+        lifecycleScope.launch {
+            callService.session.collect { call ->
+                val live = call != null && call.phase !is CallService.Phase.Ended
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    setShowWhenLocked(live)
+                    setTurnScreenOn(live)
+                } else {
+                    @Suppress("DEPRECATION")
+                    if (live) {
+                        window.addFlags(
+                            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                        )
+                    } else {
+                        window.clearFlags(
+                            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                        )
+                    }
+                }
+            }
+        }
     }
 
     /**

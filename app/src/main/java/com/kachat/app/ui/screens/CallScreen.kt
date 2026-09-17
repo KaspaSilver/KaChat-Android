@@ -39,7 +39,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhoneDisabled
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
-import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -224,16 +224,19 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
             else -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(40.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(44.dp)) {
+                        // Off: translucent circle, plain glyph. On: solid white circle, the
+                        // crossed-out mic / loud speaker glyph, and the label says so - one look
+                        // tells you whether you are muted and where the sound is going.
                         BigButton(
                             if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
                             tint = if (call.isMuted) Color.White else Color.White.copy(alpha = 0.22f),
-                            label = "mute",
+                            label = if (call.isMuted) "muted" else "mute",
                             foreground = if (call.isMuted) Color.Black else Color.White,
                         ) { callService.toggleMute() }
                         BigButton(
-                            Icons.AutoMirrored.Filled.VolumeUp,
+                            if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown,
                             tint = if (call.isSpeakerOn) Color.White else Color.White.copy(alpha = 0.22f),
-                            label = "speaker",
+                            label = if (call.isSpeakerOn) "speaker on" else "speaker",
                             foreground = if (call.isSpeakerOn) Color.Black else Color.White,
                         ) { callService.toggleSpeaker() }
                     }
@@ -278,7 +281,7 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SmallControl(if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic, active = call.isMuted) { callService.toggleMute() }
-            SmallControl(Icons.AutoMirrored.Filled.VolumeUp, active = call.isSpeakerOn) { callService.toggleSpeaker() }
+            SmallControl(if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown, active = call.isSpeakerOn) { callService.toggleSpeaker() }
             SmallControl(if (call.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam, active = call.isCameraOff) { callService.toggleCamera() }
             SmallControl(Icons.Default.Cameraswitch, active = false) { callService.flipCamera() }
             RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 60.dp) { callService.hangUp() }
