@@ -172,6 +172,11 @@ class KaPostsViewModel @Inject constructor(
     private val generations = mutableMapOf<String, Int>()
     private val loadMoreJobs = mutableMapOf<String, Job>()
 
+    /** Replies written in this session, by local id. They sit at the top of their thread until
+     *  the indexer returns them; a thread reload that does not yet include one keeps it there
+     *  rather than dropping it for the seconds indexing takes. */
+    private val sessionReplyIds = mutableSetOf<String>()
+
     /** The Popular tab's deep ranking sweep (see [deepenPopularRanking]); at most one at a time. */
     private var popularSweepJob: Job? = null
 
@@ -1400,6 +1405,8 @@ class KaPostsViewModel @Inject constructor(
     /** Strips an optimistic comment out of every post tree that holds it —
      *  the same collections mutateEverywhere() searches. */
     private fun removeReplyEverywhere(commentId: String) {
+        // Undone before it was ever posted: nothing left to hold at the top of the thread.
+        sessionReplyIds.remove(commentId)
         fun strip(list: List<KaPostDraft>): List<KaPostDraft> = list.map { post ->
             post.copy(comments = strip(post.comments.filterNot { it.id == commentId }))
         }
@@ -1770,11 +1777,18 @@ class KaPostsViewModel @Inject constructor(
             if (generations[key] != generation) return@launch
             if (result.error == null || result.items.isNotEmpty()) {
                 mutateEverywhere(post.id) { target ->
-                    // Keep locally-composed comments that the indexer hasn't caught up to yet.
-                    val localOnly = target.comments.filter { c ->
-                        c.remoteId == null || result.items.none { it.remoteId == c.remoteId }
+                    // This session's replies stay on top, newest first, until the indexer
+                    // returns them - then the server's copy takes over. A reply whose
+                    // transaction is already sent has a txid and would otherwise look like an
+                    // ordinary server comment, and vanish for the seconds indexing takes.
+                    val indexed = result.items.mapNotNull { it.remoteId }.toSet()
+                    val mine = target.comments.filter { c ->
+                        c.id in sessionReplyIds && (c.remoteId == null || c.remoteId !in indexed)
                     }
-                    target.copy(comments = result.items + localOnly)
+                    val otherLocal = target.comments.filter { c ->
+                        c.id !in sessionReplyIds && (c.remoteId == null || c.remoteId !in indexed)
+                    }
+                    target.copy(comments = mine + result.items + otherLocal)
                 }
             }
             updatePaging(key) {
@@ -1853,7 +1867,10 @@ class KaPostsViewModel @Inject constructor(
                 posterPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null },
                 deliveryStatus = KaPostDraft.Delivery.SENT,
             )
-            mutateEverywhere(parent.id) { it.copy(comments = it.comments + comment) }
+            sessionReplyIds.add(comment.id)
+            // Newest first, the order the indexer returns replies in - so a new comment appears
+            // right under the post instead of at the far end of a long thread.
+            mutateEverywhere(parent.id) { it.copy(comments = listOf(comment) + it.comments) }
             return
         }
         val comment = KaPostDraft(
@@ -1863,7 +1880,8 @@ class KaPostsViewModel @Inject constructor(
             posterPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null },
             deliveryStatus = KaPostDraft.Delivery.PENDING,
         )
-        mutateEverywhere(parent.id) { it.copy(comments = it.comments + comment) }
+        sessionReplyIds.add(comment.id)
+        mutateEverywhere(parent.id) { it.copy(comments = listOf(comment) + it.comments) }
         // Same 5s undo TOAST as every other interaction: the optimistic comment shows
         // immediately, the on-chain submit fires when the countdown ends, and Undo removes
         // the comment before anything hits the network.
