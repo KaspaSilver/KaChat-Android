@@ -1592,6 +1592,7 @@ fun ChatThreadScreen(
                                 contactAvatarUrl = conversation?.contact?.knsAvatarUrl,
                                 contactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 contactAvatarFallback = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
+                                contactDisplayName = conversation?.contact?.displayName.orEmpty(),
                                 myAvatarUrl = myKnsProfile?.avatarUrl,
                                 myAvatarFallback = myAddress?.takeLast(8) ?: "",
                                 isPendingRequest = msg.type == MessageProtocol.TYPE_HANDSHAKE &&
@@ -2024,6 +2025,9 @@ fun MessageBubble(
     /** Device address-book photo of this contact — the fallback when they have no KNS avatar. */
     contactPhotoUri: String? = null,
     contactAvatarFallback: String = "",
+    /** Who the other side is, by name: what a reply quote credits the original to when it was
+     *  not written by us. Matches iOS, which names the person rather than saying "Them". */
+    contactDisplayName: String = "",
     myAvatarUrl: String? = null,
     myAvatarFallback: String = "",
     isPendingRequest: Boolean = false,
@@ -2241,7 +2245,11 @@ fun MessageBubble(
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     Text(
-                        if (replyContent.replyToSender == message.walletAddress) "You" else "Them",
+                        // Ours says "You"; anyone else is named, not called "Them" (iOS
+                        // replyDisplayName). The address tail is the last resort, for a reply
+                        // to someone who is not this chat's contact.
+                        if (replyContent.replyToSender == message.walletAddress) "You"
+                        else contactDisplayName.ifBlank { replyContent.replyToSender.takeLast(10) },
                         color = KaspaTeal,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
