@@ -65,6 +65,7 @@ class CallService @Inject constructor(
     /** Lazy: the push manager reaches back into the chat repository, which owns this service. */
     private val pushRegistration: dagger.Lazy<PushRegistrationManager>,
     private val incomingCallNotifier: IncomingCallNotifier,
+    private val cameraPreview: CallCameraPreview,
 ) {
     companion object {
         private const val TAG = "CallService"
@@ -81,6 +82,10 @@ class CallService @Inject constructor(
         private const val AUDIO_WATCHDOG_MS = 2_500L
         /** A ring push is only worth sending while the phone is still ringing. */
         private const val RING_PUSH_TIMEOUT_MS = 15_000L
+        /** How long a call woken by a push waits for the wallet and the Talk probe behind the
+         *  decision to ring: eighty steps of 100 ms, so eight seconds at worst. */
+        private const val READY_WAIT_STEPS = 80
+        private const val READY_WAIT_STEP_MS = 100L
     }
 
     sealed class Phase {
@@ -142,6 +147,8 @@ class CallService @Inject constructor(
         var ringJob: Job? = null
         var sawPeerInCall = false
         var ringtone: Ringtone? = null
+        /** What the caller hears while the other phone rings. */
+        val ringback = CallRingback()
         /** Whether this side's opening message (invite / request) has gone out. The closing
          *  call_end is only ever sent by the side that started the call, and only after its
          *  opening message did - so a call that failed before ringing costs nothing. */
@@ -155,6 +162,21 @@ class CallService @Inject constructor(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
     private var plumbing: Plumbing? = null
+
+    /** The stand-in camera the call screen shows while a video call rings out. */
+    val ringOutCamera: CallCameraPreview get() = cameraPreview
+
+    init {
+        // The ringback belongs to ringing out and to nothing else: the moment the call is
+        // answered, declined, given up on, or the other phone turns up in the room, it stops.
+        // Watching the phase means every one of those paths is covered by itself. Declared after
+        // the state it reads, so the collector cannot start before there is anything to collect.
+        scope.launch {
+            _session.collect { call ->
+                if (call == null || call.phase != Phase.RingingOut) plumbing?.ringback?.stop()
+            }
+        }
+    }
 
     private fun update(transform: (ActiveCall) -> ActiveCall) {
         _session.value = _session.value?.let(transform)
@@ -206,12 +228,14 @@ class CallService @Inject constructor(
             plumbing = pipes
             _session.value = ActiveCall(id = callId, contact = contact, isOutgoing = true, server = null, token = "", hostsThisCall = false, video = video, phase = Phase.RingingOut)
             CallDiagnostics.log(TAG, "outgoing ${if (video) "video" else "voice"} call $callId to ${contact.id.takeLast(8)} - asking them to host")
+            if (video) cameraPreview.start()
             CallForegroundService.start(context, contact.displayName, video)
             scope.launch {
                 try {
                     val payloadHex = sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Request(callId, video)))
                     pipes.openingMessageSent = true
                     requestRing(contact.id, callId, video, kind = "request", payloadHex = payloadHex)
+                    if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) pipes.ringback.start()
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     _lastError.value = e.message ?: "Call failed"
@@ -231,6 +255,7 @@ class CallService @Inject constructor(
         plumbing = pipes
         _session.value = ActiveCall(id = callId, contact = contact, isOutgoing = true, server = server, token = "", hostsThisCall = true, video = video, phase = Phase.RingingOut)
         CallDiagnostics.log(TAG, "outgoing ${if (video) "video" else "voice"} call $callId to ${contact.id.takeLast(8)} hosted on $server")
+        if (video) cameraPreview.start()
         CallForegroundService.start(context, contact.displayName, video)
 
         scope.launch {
@@ -244,6 +269,7 @@ class CallService @Inject constructor(
                 val payloadHex = sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Invite(callId = callId, server = server, token = token, video = video)))
                 pipes.openingMessageSent = true
                 requestRing(contact.id, callId, video, kind = "invite", payloadHex = payloadHex)
+                if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) pipes.ringback.start()
                 pipes.timeoutJob = scope.launch {
                     delay(RING_TIMEOUT_MS)
                     if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) finish("no_answer")
@@ -264,6 +290,12 @@ class CallService @Inject constructor(
         if (isOutgoing) return
         val fresh = System.currentTimeMillis() - blockTimeMs < INVITE_FRESHNESS_MS
         scope.launch {
+            // The app may be running only because a push woke it for this very call, with the
+            // Nextcloud account and the Talk probe behind "can this device host?" still on their
+            // way. Deciding now would turn the call away as unhostable a second before the
+            // answer arrives. Freshness was taken above, at arrival, so waiting cannot make a
+            // call look newer than it is.
+            waitUntilReadyForCalls()
             when (envelope) {
                 is CallEnvelope.Request -> handleRequest(envelope, contactAddress, fresh)
                 is CallEnvelope.Invite -> handleInvite(envelope, contactAddress, fresh)
@@ -289,12 +321,50 @@ class CallService @Inject constructor(
         }
     }
 
+    /** Why a call that reached this device never rang - the first question to ask of a call
+     *  that "did nothing", and the answer is in the diagnostics archive. */
+    private fun dropped(callId: String, why: String) {
+        CallDiagnostics.log(TAG, "call ${callId.take(8)} not rung: $why")
+    }
+
+    /**
+     * Waits, briefly, for the things a call is judged against: a wallet to read contacts with,
+     * and the answer to "can this device host a call?". A push that starts the app races both,
+     * and the capabilities probe behind the second one is a network round trip.
+     *
+     * Returns as soon as there is nothing left to wait for: no wallet at all, no Nextcloud
+     * account (so hosting was never possible), or a probe that has answered - including from
+     * what it answered last time, which is remembered per wallet.
+     */
+    private suspend fun waitUntilReadyForCalls() {
+        var waited = 0
+        while (waited < READY_WAIT_STEPS) {
+            val hasWallet = runCatching { walletManager.hasWallet() }.getOrDefault(false)
+            if (!hasWallet) {
+                delay(READY_WAIT_STEP_MS)
+                waited++
+                continue
+            }
+            if (nextcloudService.account.value == null) return
+            if (nextcloudService.talkCallsAvailable.value) return
+            if (nextcloudService.talkAvailabilityReason.value != "not probed yet") return
+            delay(READY_WAIT_STEP_MS)
+            waited++
+        }
+        if (waited >= READY_WAIT_STEPS) {
+            CallDiagnostics.log(TAG, "still not ready to judge a call after ${READY_WAIT_STEPS * READY_WAIT_STEP_MS / 1000}s - deciding anyway")
+        }
+    }
+
     /** The contact has no Nextcloud and asks us to host their call - only if their "Allow calls"
      *  switch is on and this device can host; if it cannot, say so at once with no_host. */
     private suspend fun handleRequest(request: CallEnvelope.Request, contactAddress: String, fresh: Boolean) {
-        if (hasHandled(request.callId)) return
-        val contact = chatRepository.getContact(contactAddress) ?: return
-        if (contact.callsEnabled != true || !fresh) return
+        val id = request.callId
+        if (hasHandled(id)) { dropped(id, "already handled"); return }
+        val contact = runCatching { chatRepository.getContact(contactAddress) }.getOrNull()
+        if (contact == null) { dropped(id, "unknown sender"); return }
+        if (contact.callsEnabled != true) { dropped(id, "calls not enabled for this contact"); return }
+        if (!fresh) { dropped(id, "stale"); return }
         val account = nextcloudService.account.value
         if (!canHost || account == null) {
             // Neither side can host. Nothing goes on chain from this side - the caller is the
@@ -305,7 +375,7 @@ class CallService @Inject constructor(
             return
         }
         // Busy: silent, and the caller rings out. Same request delivered twice: ignored.
-        if (_session.value != null) return
+        if (_session.value != null) { dropped(id, "busy"); return }
         markHandled(request.callId)
         val server = account.server.trimEnd('/')
         val pipes = Plumbing(request.callId)
@@ -364,12 +434,15 @@ class CallService @Inject constructor(
         }
         // Once per call id, ever. A re-ingested invite for a call that already rang (or already
         // ended) is history, not a phone ringing.
-        if (hasHandled(invite.callId)) return
-        val contact = chatRepository.getContact(contactAddress) ?: return
-        if (contact.callsEnabled != true || !fresh) return
+        val id = invite.callId
+        if (hasHandled(id)) { dropped(id, "already handled"); return }
+        val contact = runCatching { chatRepository.getContact(contactAddress) }.getOrNull()
+        if (contact == null) { dropped(id, "unknown sender"); return }
+        if (contact.callsEnabled != true) { dropped(id, "calls not enabled for this contact"); return }
+        if (!fresh) { dropped(id, "stale"); return }
         // Already on a call: stay silent and let the caller ring out. This same invite
         // delivered twice is simply ignored.
-        if (current != null) return
+        if (current != null) { dropped(id, "busy"); return }
         markHandled(invite.callId)
         val incoming = Plumbing(invite.callId)
         plumbing = incoming
@@ -532,6 +605,9 @@ class CallService @Inject constructor(
     private suspend fun joinAndSignal(pipes: Plumbing) {
         val client = pipes.client ?: return
         val call = _session.value ?: return
+        // Only one thing can hold the camera: take it back from the ring-out preview before the
+        // call opens it for real.
+        if (call.video) cameraPreview.stop()
         val settings = withContext(Dispatchers.IO) { client.signalingSettings(call.token) }
         if (settings.mode.equals("external", ignoreCase = true)) throw NextcloudTalkClient.externalSignalingUnsupported()
         val sessionId = withContext(Dispatchers.IO) { client.joinConversation(call.token) }
@@ -732,6 +808,8 @@ class CallService @Inject constructor(
         CallDiagnostics.log(TAG, "call ${call.id} ends: $reason (phase was ${call.phase})")
         markHandled(call.id)
         stopRinging(pipes)
+        pipes.ringback.stop()
+        if (call.video) cameraPreview.stop()
         pipes.timeoutJob?.cancel()
         pipes.offerFallbackJob?.cancel()
         pipes.pullJob?.cancel()

@@ -134,11 +134,15 @@ class NextcloudService @Inject constructor(
         // owns the last-synced stamp now (DataStore).
         private const val PREF_LAST_AUTO_BACKUP_MS = "last_auto_backup_ms"
         private const val PREF_MEDIA_SEND_ENABLED = "media_send_enabled"
+        /** The last capabilities probe's answer, per wallet, so a launch knows at once whether
+         *  this account can host a call - a push that starts the app cannot wait for the network. */
+        private const val PREF_TALK_CALLS = "talk_calls_available"
 
         /** Every per-wallet key base — the unit `disconnect`/`purgeStoredState`/migration act on. */
         private val ALL_PREF_BASES = listOf(
             PREF_SERVER, PREF_USERNAME, PREF_APP_PASSWORD, PREF_START_FOLDER, PREF_BACKUP_FOLDER,
-            PREF_AUTO_BACKUP_ENABLED, PREF_LAST_AUTO_BACKUP_MS, PREF_MEDIA_SEND_ENABLED
+            PREF_AUTO_BACKUP_ENABLED, PREF_LAST_AUTO_BACKUP_MS, PREF_MEDIA_SEND_ENABLED,
+            PREF_TALK_CALLS
         )
 
         /** First 8 bytes of SHA256(walletAddress) as hex — byte-identical to iOS's
@@ -285,7 +289,11 @@ class NextcloudService @Inject constructor(
         _account.value = loadAccount()
         _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = _account.value != null)
         _mediaSendEnabled.value = scopedKey(PREF_MEDIA_SEND_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
-        _talkCallsAvailable.value = false
+        // What the last probe said, until this one answers. A call arriving seconds after the
+        // app was woken by a push would otherwise be turned away as "cannot host" simply because
+        // the capabilities lookup had not come back yet.
+        _talkCallsAvailable.value = _account.value != null &&
+            (scopedKey(PREF_TALK_CALLS)?.let { prefs.getBoolean(it, false) } ?: false)
         refreshTalkAvailability()
     }
 
@@ -299,6 +307,7 @@ class NextcloudService @Inject constructor(
             if (currentWalletAddress != owner || _account.value?.server != account.server) return@launch
             _talkAvailabilityReason.value = reason
             if (_talkCallsAvailable.value != available) _talkCallsAvailable.value = available
+            scopedKey(PREF_TALK_CALLS)?.let { prefs.edit().putBoolean(it, available).apply() }
             Log.i("NextcloudService", "Talk calls ${if (available) "available" else "NOT available"} on ${account.server}: $reason")
         }
     }

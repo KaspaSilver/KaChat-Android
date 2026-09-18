@@ -6,6 +6,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -57,6 +61,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -172,7 +177,13 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
             else -> "Call ended"
         }
     }
-    val isVideoLayout = call.video && (call.phase == CallService.Phase.Connected || call.phase == CallService.Phase.Connecting)
+    // A video call shows its two tiles from the first second, ringing out included: the contact
+    // up top with "calling...", your own camera below. Matches iOS.
+    val isVideoLayout = call.video && (
+        call.phase == CallService.Phase.Connected ||
+            call.phase == CallService.Phase.Connecting ||
+            (call.phase == CallService.Phase.RingingOut && call.isOutgoing)
+        )
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (isVideoLayout) {
@@ -251,6 +262,8 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
 
 @Composable
 private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, timer: String?) {
+    // The call takes the camera back by turning this off, and waits for the tile below to let go.
+    val standInWanted by callService.ringOutCamera.active.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -263,7 +276,11 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             track = call.remoteVideoTrack,
             name = call.contact.displayName,
             timer = if (call.phase == CallService.Phase.Connected) timer else null,
-            placeholder = if (call.phase == CallService.Phase.Connected) "Camera off" else (call.statusDetail ?: "Connecting…"),
+            placeholder = when (call.phase) {
+                CallService.Phase.Connected -> "Camera off"
+                CallService.Phase.RingingOut -> "calling…"
+                else -> call.statusDetail ?: "Connecting…"
+            },
             contact = call.contact,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
@@ -273,6 +290,10 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             timer = null,
             placeholder = "Camera off",
             contact = null,
+            // Before the call has a camera of its own, the stand-in fills this tile.
+            standInCamera = standInWanted && !call.isCameraOff && call.localVideoTrack == null,
+            onCameraHeld = { callService.ringOutCamera.noteHeld() },
+            onCameraReleased = { callService.ringOutCamera.noteReleased() },
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         Row(
@@ -292,7 +313,17 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
 /** One tile: the picture as the camera sees it, or an avatar / glyph with a placeholder line
  *  when there is none, and a name chip (with the timer on the other person's). */
 @Composable
-private fun VideoTile(track: VideoTrack?, name: String, timer: String?, placeholder: String, contact: com.kachat.app.models.ContactEntity?, modifier: Modifier) {
+private fun VideoTile(
+    track: VideoTrack?,
+    name: String,
+    timer: String?,
+    placeholder: String,
+    contact: com.kachat.app.models.ContactEntity?,
+    modifier: Modifier,
+    standInCamera: Boolean = false,
+    onCameraHeld: () -> Unit = {},
+    onCameraReleased: () -> Unit = {},
+) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(22.dp))
@@ -301,6 +332,8 @@ private fun VideoTile(track: VideoTrack?, name: String, timer: String?, placehol
     ) {
         if (track != null) {
             VideoRendererView(track = track, mirrored = false, overlay = contact == null, modifier = Modifier.fillMaxSize())
+        } else if (standInCamera) {
+            RingOutCameraPreview(onHeld = onCameraHeld, onReleased = onCameraReleased, modifier = Modifier.fillMaxSize())
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (contact != null) {
@@ -332,6 +365,40 @@ private fun VideoTile(track: VideoTrack?, name: String, timer: String?, placehol
             if (timer != null) Text(timer, color = Color.White.copy(alpha = 0.75f), fontSize = 15.sp)
         }
     }
+}
+
+/**
+ * Your own camera while a video call rings out, before the call has one of its own. Let go the
+ * moment this leaves the screen, and the call is told so - only one thing may hold the camera,
+ * and the call itself is about to want it.
+ */
+@Composable
+private fun RingOutCameraPreview(onHeld: () -> Unit, onReleased: () -> Unit, modifier: Modifier) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val previewView = remember {
+        PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE }
+    }
+    DisposableEffect(Unit) {
+        onHeld()
+        val future = ProcessCameraProvider.getInstance(context)
+        var provider: ProcessCameraProvider? = null
+        future.addListener({
+            runCatching {
+                val cameraProvider = future.get()
+                provider = cameraProvider
+                val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                cameraProvider.unbindAll()
+                // The front camera, the same one the call starts on.
+                cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, preview)
+            }
+        }, ContextCompat.getMainExecutor(context))
+        onDispose {
+            runCatching { provider?.unbindAll() }
+            onReleased()
+        }
+    }
+    AndroidView(factory = { previewView }, modifier = modifier)
 }
 
 // ---- Pieces ----
