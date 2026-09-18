@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -96,7 +98,25 @@ import java.util.Locale
 @Composable
 fun CallOverlay(callService: CallService) {
     val call by callService.session.collectAsState()
+    val minimized by callService.isMinimized.collectAsState()
+    val floating by callService.isInPictureInPicture.collectAsState()
     val live = call ?: return
+    if (floating) {
+        // In the system's small window there is room for one thing: the other person. No
+        // controls - the window's own tap brings the app back.
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            live.remoteVideoTrack?.let { track ->
+                VideoRendererView(track = track, mirrored = false, overlay = false, modifier = Modifier.fillMaxSize())
+            }
+        }
+        return
+    }
+    if (minimized) {
+        // Tucked away: the call goes on while the rest of the app is used. A bar across the top
+        // says so and taps back into it, the way a phone shows a call you have left.
+        CallReturnBar(call = live, onReturn = { callService.restore() })
+        return
+    }
     // Drawn straight into the activity's window, not a Dialog: a Compose Dialog sizes its
     // window from content measured against the nominal screen height, so the bottom of a
     // full-screen layout - the control bar here - lands under the navigation bar on many
@@ -118,6 +138,24 @@ fun CallOverlay(callService: CallService) {
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
         CallScreen(call = live, callService = callService)
+        // Tucks the call away so the rest of the app can be used while it goes on. Not offered
+        // on a call that is still ringing or already over - there is nothing to go back to.
+        if (live.phase == CallService.Phase.Connecting || live.phase == CallService.Phase.Connected) {
+            IconButton(
+                onClick = { callService.minimize() },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(8.dp),
+            ) {
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Tuck the call away",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+        }
     }
 }
 
@@ -251,6 +289,14 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                             foreground = if (call.isSpeakerOn) Color.Black else Color.White,
                         ) { callService.toggleSpeaker() }
                     }
+                    if (!call.video && call.phase == CallService.Phase.Connected) {
+                        // Turns this into a video call for both sides - nobody hangs up.
+                        BigButton(
+                            Icons.Default.Videocam,
+                            tint = Color.White.copy(alpha = 0.22f),
+                            label = "video",
+                        ) { callService.upgradeToVideo() }
+                    }
                     BigButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), label = null) { callService.hangUp() }
                 }
             }
@@ -301,8 +347,9 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // No speaker control here: a video call is never held to an ear, so it stays on
+            // the speaker and mute is the control that matters.
             SmallControl(if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic, active = call.isMuted) { callService.toggleMute() }
-            SmallControl(if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown, active = call.isSpeakerOn) { callService.toggleSpeaker() }
             SmallControl(if (call.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam, active = call.isCameraOff) { callService.toggleCamera() }
             SmallControl(Icons.Default.Cameraswitch, active = false) { callService.flipCamera() }
             RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 60.dp) { callService.hangUp() }
@@ -399,6 +446,52 @@ private fun RingOutCameraPreview(onHeld: () -> Unit, onReleased: () -> Unit, mod
         }
     }
     AndroidView(factory = { previewView }, modifier = modifier)
+}
+
+/**
+ * The green bar across the top of the app while a call is tucked away: who it is with, how long
+ * it has been going, and a tap to come back to it.
+ */
+@Composable
+private fun CallReturnBar(call: CallService.ActiveCall, onReturn: () -> Unit) {
+    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(call.phase) {
+        while (call.phase == CallService.Phase.Connected) {
+            nowMs = System.currentTimeMillis()
+            delay(1_000)
+        }
+    }
+    val timer = call.connectedAtMs?.let { start ->
+        val seconds = ((nowMs - start) / 1000).coerceAtLeast(0)
+        String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF34C759))
+            .clickable { onReturn() }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(
+                if (call.video) Icons.Default.Videocam else Icons.Default.Phone,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                "${call.contact.displayName}${timer?.let { " · $it" } ?: ""} · Tap to return",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 // ---- Pieces ----

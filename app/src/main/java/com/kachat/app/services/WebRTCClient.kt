@@ -34,7 +34,7 @@ import kotlin.coroutines.resumeWithException
  * signaling channel. Deliberately small - a 1:1 call is one connection, one audio track, at
  * most one video track each way. Mirrors iOS's WebRTCClient on the Android WebRTC library.
  */
-class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkClient.IceServer>, val wantsVideo: Boolean) {
+class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkClient.IceServer>, wantsVideo: Boolean) {
     companion object {
         private const val TAG = "WebRTCClient"
         @Volatile private var initialized = false
@@ -62,6 +62,10 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
     var localVideoTrack: VideoTrack? = null
         private set
     var remoteVideoTrack: VideoTrack? = null
+        private set
+    /** Whether this connection carries a camera. A voice call turns it on mid-call; see
+     *  [enableVideo]. */
+    var wantsVideo: Boolean = wantsVideo
         private set
     private var capturer: CameraVideoCapturer? = null
     private var surfaceHelper: SurfaceTextureHelper? = null
@@ -131,14 +135,7 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
         audioTrack = factory.createAudioTrack("kachat-audio", audioSource)
         connection.addTrack(audioTrack, listOf("kachat"))
 
-        if (wantsVideo) {
-            val videoSource = factory.createVideoSource(false)
-            val track = factory.createVideoTrack("kachat-video", videoSource)
-            connection.addTrack(track, listOf("kachat"))
-            localVideoTrack = track
-            surfaceHelper = SurfaceTextureHelper.create("KaChatCapture", eglBase.eglBaseContext)
-            capturer = createCapturer()?.also { it.initialize(surfaceHelper, context.applicationContext, videoSource.capturerObserver) }
-        }
+        if (wantsVideo) attachCamera()
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val listener = AudioManager.OnCommunicationDeviceChangedListener { onAudioRouteChanged?.invoke() }
@@ -149,6 +146,28 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
                 routeListenerExecutor = executor
             }.onFailure { executor.shutdown() }
         }
+    }
+
+    /**
+     * Turns a voice call's connection into a video one: adds the camera track - the first offer
+     * already carried a receive-capable video line, so there is something for it to attach to -
+     * and starts capturing. The caller renegotiates afterwards. Returns the local track.
+     */
+    fun enableVideo(): VideoTrack? {
+        localVideoTrack?.let { return it }
+        attachCamera()
+        wantsVideo = true
+        startCaptureIfNeeded()
+        return localVideoTrack
+    }
+
+    private fun attachCamera() {
+        val videoSource = factory.createVideoSource(false)
+        val track = factory.createVideoTrack("kachat-video", videoSource)
+        connection.addTrack(track, listOf("kachat"))
+        localVideoTrack = track
+        surfaceHelper = SurfaceTextureHelper.create("KaChatCapture", eglBase.eglBaseContext)
+        capturer = createCapturer()?.also { it.initialize(surfaceHelper, context.applicationContext, videoSource.capturerObserver) }
     }
 
     private fun createCapturer(): CameraVideoCapturer? {

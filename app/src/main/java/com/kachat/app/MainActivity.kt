@@ -236,11 +236,45 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Floats a live video call in the system's small window, over KaChat and over other apps -
+     * Android's own version of the call window a phone shows when you leave a video call. Only
+     * a call whose other side is actually sending video is worth floating; anything else keeps
+     * the green return bar instead.
+     */
+    private fun enterCallPictureInPicture(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (!callService.canFloatVideo) return false
+        return runCatching {
+            val params = android.app.PictureInPictureParams.Builder()
+                .setAspectRatio(android.util.Rational(9, 16))
+                .build()
+            enterPictureInPictureMode(params)
+        }.getOrDefault(false)
+    }
+
+    /** Leaving the app with a video call up floats it, rather than leaving it behind. */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (callService.session.value != null) enterCallPictureInPicture()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        callService.setInPictureInPicture(isInPictureInPictureMode)
+    }
+
+    /**
      * A ringing or live call shows over the lock screen and wakes the display, the way the
      * phone's own dialler does - and only then: the flags come straight back off when the call
      * ends, so the rest of the app stays behind the lock screen where it belongs.
      */
     private fun observeCallForLockScreen() {
+        // Tucking a video call away floats it in the system's own window.
+        lifecycleScope.launch {
+            callService.isMinimized.collect { minimized ->
+                if (minimized && !callService.isInPictureInPicture.value) enterCallPictureInPicture()
+            }
+        }
         lifecycleScope.launch {
             callService.session.collect { call ->
                 val live = call != null && call.phase !is CallService.Phase.Ended

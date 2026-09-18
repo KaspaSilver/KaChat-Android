@@ -163,6 +163,27 @@ class CallService @Inject constructor(
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
     private var plumbing: Plumbing? = null
 
+    /** The call screen is tucked away: the user is elsewhere in the app while the call goes on.
+     *  [restore] brings it back, and a call that ends clears it. */
+    private val _isMinimized = MutableStateFlow(false)
+    val isMinimized: StateFlow<Boolean> = _isMinimized.asStateFlow()
+
+    /** The call is floating in the system's picture-in-picture window: the other person's video
+     *  over whatever else is on screen, KaChat included. Set by the activity, which is the only
+     *  thing that can know. */
+    private val _isInPictureInPicture = MutableStateFlow(false)
+    val isInPictureInPicture: StateFlow<Boolean> = _isInPictureInPicture.asStateFlow()
+
+    fun setInPictureInPicture(active: Boolean) {
+        _isInPictureInPicture.value = active
+        if (active) _isMinimized.value = true
+    }
+
+    /** Whether there is a live video call with the other side's picture already arriving - the
+     *  only thing worth floating in a small window. */
+    val canFloatVideo: Boolean
+        get() = _session.value?.let { it.video && it.remoteVideoTrack != null && it.phase !is Phase.Ended } == true
+
     /** The stand-in camera the call screen shows while a video call rings out. */
     val ringOutCamera: CallCameraPreview get() = cameraPreview
 
@@ -215,6 +236,7 @@ class CallService @Inject constructor(
 
     fun startCall(contact: ContactEntity, video: Boolean) {
         if (_session.value != null) return
+        _isMinimized.value = false
         if (contact.callsEnabled != true) return
         _lastError.value = null
         val callId = UUID.randomUUID().toString().lowercase()
@@ -381,6 +403,7 @@ class CallService @Inject constructor(
         val pipes = Plumbing(request.callId)
         plumbing = pipes
         CallDiagnostics.log(TAG, "request ${request.callId} from ${contact.id.takeLast(8)}: hosting on $server")
+        _isMinimized.value = false
         _session.value = ActiveCall(id = request.callId, contact = contact, isOutgoing = false, server = server, token = "", hostsThisCall = true, video = request.video, phase = Phase.RingingIn)
         startRinging(pipes)
         pipes.timeoutJob = scope.launch {
@@ -447,6 +470,7 @@ class CallService @Inject constructor(
         val incoming = Plumbing(invite.callId)
         plumbing = incoming
         CallDiagnostics.log(TAG, "incoming ${if (invite.video) "video" else "voice"} call ${invite.callId} from ${contact.id.takeLast(8)} via $server")
+        _isMinimized.value = false
         _session.value = ActiveCall(id = invite.callId, contact = contact, isOutgoing = false, server = server, token = invite.token, hostsThisCall = false, video = invite.video, phase = Phase.RingingIn)
         startRinging(incoming)
         incoming.timeoutJob = scope.launch {
@@ -537,6 +561,7 @@ class CallService @Inject constructor(
         if (_session.value?.phase is Phase.Ended) {
             _session.value = null
             plumbing = null
+            _isMinimized.value = false
         }
     }
 
@@ -551,6 +576,8 @@ class CallService @Inject constructor(
 
     fun toggleSpeaker() {
         val call = _session.value ?: return
+        // A video call is never held to an ear: it stays on the speaker.
+        if (call.video) return
         // Flip from where the audio actually is, not from where we last asked it to be.
         val on = !call.isSpeakerOn
         update { it.copy(isSpeakerOn = on, speakerRequested = on) }
@@ -591,6 +618,55 @@ class CallService @Inject constructor(
         plumbing?.webrtc?.setVideoEnabled(!off)
         val client = plumbing?.client ?: return
         scope.launch(Dispatchers.IO) { client.updateCallFlags(call.token, video = !off) }
+    }
+
+    /**
+     * Turns the voice call into a video call, for both sides, without anyone hanging up: our
+     * camera goes on, the other phone is told to turn its own on, and the connection is
+     * renegotiated with the new tracks.
+     */
+    fun upgradeToVideo() {
+        val call = _session.value ?: return
+        val pipes = plumbing ?: return
+        if (call.video) return
+        if (call.phase != Phase.Connecting && call.phase != Phase.Connected) return
+        if (!turnOnVideo(pipes)) return
+        scope.launch {
+            // Order matters, and the channel keeps it: the other side turns its camera on
+            // first, so its answer to the offer that follows already carries its video.
+            send(pipes, "kachat_video_upgrade", JSONObject())
+            sendOffer(pipes)
+        }
+    }
+
+    /** Our own half of the switch to video: the camera on, the speaker on, the room told. */
+    private fun turnOnVideo(pipes: Plumbing): Boolean {
+        val call = _session.value ?: return false
+        if (call.video || plumbing !== pipes) return false
+        val webrtc = pipes.webrtc ?: return false
+        val track = webrtc.enableVideo() ?: return false
+        update { it.copy(video = true, isCameraOff = false, speakerRequested = true, isSpeakerOn = true, localVideoTrack = track) }
+        webrtc.setSpeaker(true)
+        CallDiagnostics.log(TAG, "call ${call.id}: switched to video")
+        val client = pipes.client
+        if (client != null) {
+            scope.launch(Dispatchers.IO) { runCatching { client.updateCallFlags(call.token, video = true) } }
+        }
+        return true
+    }
+
+    /**
+     * Puts the call screen away while the call goes on, and brings it back. The call itself is
+     * untouched: this is only about what is on screen.
+     */
+    fun minimize() {
+        val call = _session.value ?: return
+        if (call.phase is Phase.Ended) return
+        _isMinimized.value = true
+    }
+
+    fun restore() {
+        if (_session.value != null) _isMinimized.value = false
     }
 
     fun flipCamera() {
@@ -729,6 +805,12 @@ class CallService @Inject constructor(
                     // The callee said no through Talk (no chain message from their side).
                     val call = _session.value
                     if (call != null && call.isOutgoing && call.connectedAtMs == null) finish("declined")
+                    return
+                }
+                if (type == "kachat_video_upgrade") {
+                    // The other side switched to video: turn ours on too, before their offer
+                    // arrives, so the answer we send already carries our camera.
+                    turnOnVideo(pipes)
                     return
                 }
                 if (pipes.peerSessionId == null) pipes.peerSessionId = from
