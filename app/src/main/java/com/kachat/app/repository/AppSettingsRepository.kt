@@ -95,7 +95,6 @@ class AppSettingsRepository @Inject constructor(
         
         // How hard chat photos get compressed before sending — mirrors iOS's
         // `chatPhotoQualityPreset` setting. Only affects photos sent, not received.
-        val KEY_CHAT_PHOTO_QUALITY_PRESET = stringPreferencesKey("chat_photo_quality_preset")
         // Which block explorer website "Go to Explorer" links open in.
         val KEY_KASPA_EXPLORER = stringPreferencesKey("kaspa_explorer")
         // Flat, chain-wide set of txIds the user has manually revealed a hidden photo for —
@@ -405,9 +404,6 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_ACTIVE_ADDRESS]
     }
 
-    val chatPhotoQualityPreset: Flow<com.kachat.app.models.ChatPhotoQualityPreset> = dataStore.data.map {
-        com.kachat.app.models.ChatPhotoQualityPreset.fromName(it[KEY_CHAT_PHOTO_QUALITY_PRESET])
-    }
 
     val kaspaExplorer: Flow<com.kachat.app.models.KaspaExplorer> = dataStore.data.map {
         com.kachat.app.models.KaspaExplorer.fromName(it[KEY_KASPA_EXPLORER])
@@ -769,7 +765,6 @@ class AppSettingsRepository @Inject constructor(
     }
     suspend fun setHasWallet(value: Boolean) = dataStore.edit { it[KEY_HAS_WALLET] = value }
     suspend fun setActiveAddress(value: String) = dataStore.edit { it[KEY_ACTIVE_ADDRESS] = value }
-    suspend fun setChatPhotoQualityPreset(value: com.kachat.app.models.ChatPhotoQualityPreset) = dataStore.edit { it[KEY_CHAT_PHOTO_QUALITY_PRESET] = value.name }
     suspend fun setKaspaExplorer(value: com.kachat.app.models.KaspaExplorer) = dataStore.edit { it[KEY_KASPA_EXPLORER] = value.name }
     suspend fun revealPhoto(txId: String) = dataStore.edit {
         it[KEY_REVEALED_PHOTO_TX_IDS] = (it[KEY_REVEALED_PHOTO_TX_IDS] ?: emptySet()) + txId

@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">Collez la kpub exportee depuis votre appareil KasSigner. Cela ne contient aucune cle privee.</string>
     <string name="payment">Paiement</string>
     <string name="photo">Photo</string>
-    <string name="photo_quality">Qualite photo</string>
     <string name="photo_message">Message photo</string>
     <string name="photo_message_full_screen">Message photo, plein ecran</string>
-    <string name="photo_quality_2">Qualité photo</string>
     <string name="photos">Photos</string>
     <string name="polygon_network">Reseau Polygon</string>
     <string name="pool_health">Santé du pool</string>

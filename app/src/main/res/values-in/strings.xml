@@ -129,8 +129,6 @@
     <string name="paste_the_kpub_exported_from_your">Tempel kpub yang diekspor dari perangkat KasSigner Anda. Ini tidak berisi materi kunci privat apa pun.</string>
     <string name="payment">Pembayaran</string>
     <string name="photo">Foto</string>
-    <string name="photo_quality">Kualitas Foto</string>
-    <string name="photo_quality_2">Kualitas foto</string>
     <string name="pool_health">Kesehatan Kumpulan</string>
     <string name="portfolio">Portofolio</string>
     <string name="price_per_coin">Harga Per Koin</string>

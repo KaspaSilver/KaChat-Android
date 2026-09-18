@@ -272,10 +272,8 @@
     <string name="paste_the_kpub_exported_from_your">Paste the kpub exported from your KasSigner device. This contains no private key material.</string>
     <string name="payment">Payment</string>
     <string name="photo">Photo</string>
-    <string name="photo_quality">Photo Quality</string>
     <string name="photo_message">Photo message</string>
     <string name="photo_message_full_screen">Photo message, full screen</string>
-    <string name="photo_quality_2">Photo quality</string>
     <string name="photos">Photos</string>
     <string name="polygon_network">Polygon network</string>
     <string name="pool_health">Pool Health</string>

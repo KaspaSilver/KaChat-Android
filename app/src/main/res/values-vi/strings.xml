@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">Dán kpub được xuất từ thiết bị KasSigner của bạn. Điều này không chứa dữ liệu khóa riêng tư.</string>
     <string name="payment">Thanh toán</string>
     <string name="photo">Ảnh</string>
-    <string name="photo_quality">Chất lượng ảnh</string>
     <string name="photo_message">Tin nhắn ảnh</string>
     <string name="photo_message_full_screen">Tin nhắn ảnh, toàn màn hình</string>
-    <string name="photo_quality_2">Chất lượng ảnh</string>
     <string name="photos">Ảnh</string>
     <string name="polygon_network">Mạng Polygon</string>
     <string name="pool_health">Sức khỏe nhóm</string>

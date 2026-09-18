@@ -1358,12 +1358,6 @@ fun MainShell(
                 )
             }
 
-            composable("photo_quality_settings") {
-                PhotoQualitySettingsScreen(
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
             composable("quick_reaction_settings") {
                 QuickReactionSettingsScreen(
                     onBack = { navController.popBackStack() }

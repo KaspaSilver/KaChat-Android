@@ -169,12 +169,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { walletService.refreshBalance() }
     }
 
-    val chatPhotoQualityPreset: StateFlow<com.kachat.app.models.ChatPhotoQualityPreset> = settings.chatPhotoQualityPreset
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kachat.app.models.ChatPhotoQualityPreset.default)
 
-    fun updateChatPhotoQualityPreset(preset: com.kachat.app.models.ChatPhotoQualityPreset) {
-        viewModelScope.launch { settings.setChatPhotoQualityPreset(preset) }
-    }
 
     val kaspaExplorer: StateFlow<com.kachat.app.models.KaspaExplorer> = settings.kaspaExplorer
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kachat.app.models.KaspaExplorer.default)
@@ -800,11 +795,28 @@ class ChatViewModel @Inject constructor(
     /** A picked-but-not-yet-sent chat photo, staged for preview (thumbnail + fee) before the user confirms send. */
     val pendingPhotoUri: StateFlow<Uri?> = _pendingPhotoUri.asStateFlow()
 
-    fun setPendingPhoto(uri: Uri?) {
+    /**
+     * The photo or voice note being composed came from the "+" menu's on-chain rows. Those mean
+     * exactly what they say: the bytes go on chain even while "Send Media via Nextcloud" is on.
+     * Cleared when the attachment is sent or discarded; a recording started from the composer
+     * bar's own microphone resets the voice flag.
+     */
+    private var onChainPhotoRequested = false
+    private var onChainVoiceRequested = false
+    private var groupOnChainPhotoRequested = false
+    private var groupOnChainVoiceRequested = false
+
+    /** Whether the photo waiting in the composer is one the chain must carry. */
+    val photoGoesOnChain: Boolean get() = onChainPhotoRequested
+    val groupPhotoGoesOnChain: Boolean get() = groupOnChainPhotoRequested
+
+    fun setPendingPhoto(uri: Uri?, onChain: Boolean = false) {
+        onChainPhotoRequested = onChain && uri != null
         _pendingPhotoUri.value = uri
     }
 
     fun cancelPendingPhoto() {
+        onChainPhotoRequested = false
         _pendingPhotoUri.value = null
     }
 
@@ -817,11 +829,13 @@ class ChatViewModel @Inject constructor(
     private val _groupPendingPhotoUri = MutableStateFlow<Uri?>(null)
     val groupPendingPhotoUri: StateFlow<Uri?> = _groupPendingPhotoUri.asStateFlow()
 
-    fun setGroupPendingPhoto(uri: Uri?) {
+    fun setGroupPendingPhoto(uri: Uri?, onChain: Boolean = false) {
+        groupOnChainPhotoRequested = onChain && uri != null
         _groupPendingPhotoUri.value = uri
     }
 
     fun cancelGroupPendingPhoto() {
+        groupOnChainPhotoRequested = false
         _groupPendingPhotoUri.value = null
     }
 
@@ -832,7 +846,7 @@ class ChatViewModel @Inject constructor(
      * photo — same shape as [VoiceMessage.estimatedWirePayloadSize]: the real send always measures
      * the actual encoded bytes exactly, this is only ever used for the live preview.
      */
-    private val previewPayloadSize: Flow<Int> = combine(_messageText, voiceRecordingState, pendingPhotoUri, chatPhotoQualityPreset, nextcloudService.mediaSendEnabled) { text, recording, photoUri, photoQuality, mediaSend ->
+    private val previewPayloadSize: Flow<Int> = combine(_messageText, voiceRecordingState, pendingPhotoUri, nextcloudService.mediaSendEnabled) { text, recording, photoUri, mediaSend ->
         // Via Nextcloud, the chain only carries the ~100-byte share link regardless of media
         // size — mirrors groupPreviewPayloadSize's identical branch.
         val nextcloudMode = mediaSend && nextcloudService.isConnected
@@ -842,7 +856,7 @@ class ChatViewModel @Inject constructor(
             // Compressed image bytes -> inner base64 (+33%) -> JSON envelope overhead -> encryption
             // + outer base64 (+33%) -- rough multiplier, calibrated the same way VoiceMessage's
             // estimate is: never used for the real fee, only this live preview.
-            if (nextcloudMode) NEXTCLOUD_LINK_PREVIEW_BYTES else (photoQuality.targetBytes * 1.33 * 1.33).toInt() + 150
+            if (nextcloudMode) NEXTCLOUD_LINK_PREVIEW_BYTES else (ImagePrep.DEFAULT_CHAT_TARGET_BYTES * 1.33 * 1.33).toInt() + 150
         } else {
             text.toByteArray().size
         }
@@ -2125,7 +2139,7 @@ class ChatViewModel @Inject constructor(
         }
         return try {
             val prepared = withContext(Dispatchers.Default) {
-                ImagePrep.prepareForChatMessage(appContext, uri, chatPhotoQualityPreset.value.targetBytes)
+                ImagePrep.prepareForChatMessage(appContext, uri)
             }
             val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
             ImageMessage.encode(
@@ -2259,7 +2273,8 @@ class ChatViewModel @Inject constructor(
     /** Recording (not playback) needs Android 10+ — the mic button should be disabled below that. */
     val voiceRecordingSupported: Boolean get() = voiceRecorderService.isSupported
 
-    fun startVoiceRecording(contactId: String) {
+    fun startVoiceRecording(contactId: String, onChain: Boolean = false) {
+        onChainVoiceRequested = onChain
         if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
         try {
             voiceRecorderService.startRecording()
@@ -2271,7 +2286,7 @@ class ChatViewModel @Inject constructor(
         val startedAt = System.currentTimeMillis()
         // On-chain notes are payload-capped at 10s; a Nextcloud-uploaded note only needs to
         // fit the server, so the ceiling relaxes to 10 minutes while the toggle is on.
-        val maxDurationMs = if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+        val maxDurationMs = if (!onChainVoiceRequested && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
             VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
         } else {
             VoiceRecorderService.MAX_RECORDING_DURATION_MS
@@ -2291,6 +2306,9 @@ class ChatViewModel @Inject constructor(
 
     /** Stops recording and sends it — unless it was too short to be a real message (a stray tap), in which case it's discarded silently, same as a cancel. */
     fun stopAndSendVoiceRecording(contactId: String) {
+        // Read before it is cleared: what was asked for is what gets sent.
+        val onChainOnly = onChainVoiceRequested
+        onChainVoiceRequested = false
         if (_voiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
         val elapsed = _voiceRecordingState.value.elapsedMs
         recordingTickerJob?.cancel()
@@ -2302,10 +2320,11 @@ class ChatViewModel @Inject constructor(
             file?.delete()
             return
         }
-        sendVoiceMessage(contactId, file)
+        sendVoiceMessage(contactId, file, onChainOnly)
     }
 
     fun cancelVoiceRecording() {
+        onChainVoiceRequested = false
         recordingTickerJob?.cancel()
         recordingTickerJob = null
         _voiceRecordingState.value = VoiceRecordingState()
@@ -2327,7 +2346,8 @@ class ChatViewModel @Inject constructor(
 
     private var groupRecordingTickerJob: Job? = null
 
-    fun startGroupVoiceRecording(groupId: String) {
+    fun startGroupVoiceRecording(groupId: String, onChain: Boolean = false) {
+        groupOnChainVoiceRequested = onChain
         if (_groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
         try {
             voiceRecorderService.startRecording()
@@ -2340,7 +2360,7 @@ class ChatViewModel @Inject constructor(
         // Same dynamic ceiling as 1:1's startVoiceRecording: on-chain group notes are
         // payload-capped at 10s, but a Nextcloud-uploaded note only needs to fit the server,
         // so the cap relaxes to 10 minutes while the toggle is on.
-        val maxDurationMs = if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+        val maxDurationMs = if (!groupOnChainVoiceRequested && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
             VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
         } else {
             VoiceRecorderService.MAX_RECORDING_DURATION_MS
@@ -2364,6 +2384,9 @@ class ChatViewModel @Inject constructor(
      *  the group message is just the public share link; any upload/share failure falls back to
      *  the embedded on-chain gcomm envelope below, with a toast so the sender knows. */
     fun stopAndSendGroupVoiceRecording(groupId: String) {
+        // Read before it is cleared: what was asked for is what gets sent.
+        val onChainOnly = groupOnChainVoiceRequested
+        groupOnChainVoiceRequested = false
         if (_groupVoiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
         val elapsed = _groupVoiceRecordingState.value.elapsedMs
         groupRecordingTickerJob?.cancel()
@@ -2378,7 +2401,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
-                if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
                     try {
                         val extension = file.extension.ifEmpty { "webm" }
                         val mimeType = when (extension.lowercase()) {
@@ -2406,6 +2429,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun cancelGroupVoiceRecording() {
+        groupOnChainVoiceRequested = false
         groupRecordingTickerJob?.cancel()
         groupRecordingTickerJob = null
         _groupVoiceRecordingState.value = VoiceRecordingState()
@@ -2421,9 +2445,12 @@ class ChatViewModel @Inject constructor(
      *  with a toast so the sender knows. */
     fun sendPendingGroupPhoto(groupId: String) {
         val uri = _groupPendingPhotoUri.value ?: return
+        // Read before it is cleared: the send below runs after this returns.
+        val onChainOnly = groupOnChainPhotoRequested
         _groupPendingPhotoUri.value = null
+        groupOnChainPhotoRequested = false
         viewModelScope.launch {
-            if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
                 try {
                     val url = withContext(Dispatchers.IO) {
                         val resolver = appContext.contentResolver
@@ -2459,9 +2486,12 @@ class ChatViewModel @Inject constructor(
      *  ([sendPendingGroupPhoto]) is untouched. */
     fun sendPendingPhoto(contactId: String) {
         val uri = _pendingPhotoUri.value ?: return
+        // Read before it is cleared: the send below runs after this returns.
+        val onChainOnly = onChainPhotoRequested
         _pendingPhotoUri.value = null
+        onChainPhotoRequested = false
         viewModelScope.launch {
-            if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
                 try {
                     val url = withContext(Dispatchers.IO) {
                         val resolver = appContext.contentResolver
@@ -2479,7 +2509,7 @@ class ChatViewModel @Inject constructor(
                 }
             }
             try {
-                val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, chatPhotoQualityPreset.value.targetBytes) }
+                val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri) }
                 val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
                 val json = ImageMessage.encode(fileName = prepared.fileName, sizeBytes = prepared.bytes.size.toLong(), base64Image = base64, mimeType = prepared.mimeType)
                 sendMessage(contactId, json)
@@ -2493,11 +2523,11 @@ class ChatViewModel @Inject constructor(
      *  no duration cap pressure from on-chain payload size) uploads to the server and the message
      *  is the share link; any failure falls back to the embedded on-chain envelope with a toast.
      *  1:1 only — the group voice path is untouched. */
-    private fun sendVoiceMessage(contactId: String, file: java.io.File) {
+    private fun sendVoiceMessage(contactId: String, file: java.io.File, onChainOnly: Boolean) {
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
-                if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
                     try {
                         val extension = file.extension.ifEmpty { "webm" }
                         val mimeType = when (extension.lowercase()) {

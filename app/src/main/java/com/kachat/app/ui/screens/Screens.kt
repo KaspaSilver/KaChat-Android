@@ -312,17 +312,23 @@ fun ChatThreadScreen(
         showFeeEditor = true
     }
     val micContext = LocalContext.current
+    // Which row asked for the recording, kept across the permission prompt: "Send On-Chain
+    // Voice Message" means the chain carries it whatever the Nextcloud switch says, while the
+    // composer bar's own microphone follows the switch.
+    var voiceGoesOnChain by remember { mutableStateOf(false) }
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) chatViewModel.startVoiceRecording(contactId)
+        if (granted) chatViewModel.startVoiceRecording(contactId, onChain = voiceGoesOnChain)
     }
+    // Only "Send On-Chain Photo" opens the library picker, so what it picks goes on chain.
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) chatViewModel.setPendingPhoto(uri)
+        if (uri != null) chatViewModel.setPendingPhoto(uri, onChain = true)
     }
     val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setPendingPhoto(uri) }
-    val startVoiceRecordingIfPermitted = {
+    val startVoiceRecordingIfPermitted = { onChain: Boolean ->
+        voiceGoesOnChain = onChain
         if (chatViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                chatViewModel.startVoiceRecording(contactId)
+                chatViewModel.startVoiceRecording(contactId, onChain = onChain)
             } else {
                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
@@ -1094,7 +1100,7 @@ fun ChatThreadScreen(
                                                 modifier = Modifier.size(28.dp)
                                             )
                                         }
-                                        IconButton(onClick = { startVoiceRecordingIfPermitted() }) {
+                                        IconButton(onClick = { startVoiceRecordingIfPermitted(false) }) {
                                             Icon(
                                                 Icons.Default.Mic,
                                                 contentDescription = stringResource(R.string.send_audio_message),
@@ -1158,7 +1164,7 @@ fun ChatThreadScreen(
                                             subtitle = "Record a voice message and send it on chain.",
                                         ) {
                                             showComposerMenu = false
-                                            startVoiceRecordingIfPermitted()
+                                            startVoiceRecordingIfPermitted(true)
                                         }
                                         if (nextcloudAccount != null) {
                                             ActionSheetRow(
@@ -8581,7 +8587,6 @@ fun SettingsScreen(
         }
     }
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
-    val chatPhotoQualityPreset by chatViewModel.chatPhotoQualityPreset.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val syncSystemContactsEnabled by chatViewModel.syncSystemContactsEnabled.collectAsState()
     val autoCreateSystemContactsEnabled by chatViewModel.autoCreateSystemContactsEnabled.collectAsState()
@@ -8798,13 +8803,6 @@ fun SettingsScreen(
 
             if (sectionKey == "chats") {
             SettingsSection(title = stringResource(R.string.chats)) {
-                SettingsNavigationItem(
-                    stringResource(R.string.photo_quality),
-                    Icons.Default.Photo,
-                    chatPhotoQualityPreset.displayName,
-                    onClick = { navController.navigate("photo_quality_settings") }
-                )
-                SettingsDivider()
                 val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
                 SettingsNavigationItem(
                     "Quick Reactions",
@@ -10114,81 +10112,6 @@ fun KaPostsNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsVie
                 SettingsSwitchItem("Mentions", mentions) { viewModel.setKaPostsNotifyMentions(it) }
                 SettingsFooter("Choose which KaPosts activity reaches you. Anything switched off sends no notification and does not appear in the KaPosts bell. Quotes of your posts count as reposts.")
             }
-        }
-    }
-}
-
-/**
- * Global default photo-compression quality for chat photos — mirrors iOS's
- * `PhotoQualitySettingsSheet`/`ChatPhotoQualitySlider`. Writes take effect immediately (no
- * separate Save step), matching every other row in [SettingsScreen]; only affects photos attached
- * after the change, never a photo already staged in a chat's composer.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PhotoQualitySettingsScreen(onBack: () -> Unit, chatViewModel: ChatViewModel = hiltViewModel()) {
-    val preset by chatViewModel.chatPhotoQualityPreset.collectAsState()
-    val presets = com.kachat.app.models.ChatPhotoQualityPreset.entries
-    val sliderPosition = presets.indexOf(preset).coerceAtLeast(0).toFloat()
-
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.photo_quality), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                stringResource(R.string.controls_how_much_photos_are_compressed),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            SettingsSection(title = stringResource(R.string.chats)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(stringResource(R.string.photo_quality_2), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge)
-                        Text(preset.summaryText, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Slider(
-                        value = sliderPosition,
-                        onValueChange = {
-                            chatViewModel.updateChatPhotoQualityPreset(
-                                com.kachat.app.models.ChatPhotoQualityPreset.fromSliderValue(it.toInt())
-                            )
-                        },
-                        valueRange = 0f..(presets.size - 1).toFloat(),
-                        steps = presets.size - 2,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = KaspaTeal,
-                            inactiveTrackColor = Color.Gray
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

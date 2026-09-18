@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">粘贴从您的 KasSigner 设备导出的 kpub。它不包含任何私钥材料。</string>
     <string name="payment">付款</string>
     <string name="photo">照片</string>
-    <string name="photo_quality">照片质量</string>
     <string name="photo_message">照片消息</string>
     <string name="photo_message_full_screen">照片消息,全屏</string>
-    <string name="photo_quality_2">照片质量</string>
     <string name="photos">照片</string>
     <string name="polygon_network">Polygon 网络</string>
     <string name="pool_health">连接池状况</string>

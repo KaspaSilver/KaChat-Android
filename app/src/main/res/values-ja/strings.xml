@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">KasSignerデバイスからエクスポートされたkpubを貼り付けてください。これには秘密鍵の情報は含まれていません。</string>
     <string name="payment">支払い</string>
     <string name="photo">写真</string>
-    <string name="photo_quality">写真の品質</string>
     <string name="photo_message">写真メッセージ</string>
     <string name="photo_message_full_screen">写真メッセージ、全画面</string>
-    <string name="photo_quality_2">写真の画質</string>
     <string name="photos">写真</string>
     <string name="polygon_network">Polygonネットワーク</string>
     <string name="pool_health">プールの状態</string>

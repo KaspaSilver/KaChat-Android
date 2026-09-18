@@ -376,17 +376,22 @@ fun GroupChatThreadScreen(
     }
 
     val micContext = LocalContext.current
+    // See the 1:1 composer: the on-chain row means the chain carries it whatever the Nextcloud
+    // switch says, and the intent has to survive the permission prompt.
+    var voiceGoesOnChain by remember { mutableStateOf(false) }
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) chatViewModel.startGroupVoiceRecording(groupId)
+        if (granted) chatViewModel.startGroupVoiceRecording(groupId, onChain = voiceGoesOnChain)
     }
+    // Only "Send On-Chain Photo" opens the library picker, so what it picks goes on chain.
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) chatViewModel.setGroupPendingPhoto(uri)
+        if (uri != null) chatViewModel.setGroupPendingPhoto(uri, onChain = true)
     }
     val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setGroupPendingPhoto(uri) }
-    val startVoiceRecordingIfPermitted = {
+    val startVoiceRecordingIfPermitted = { onChain: Boolean ->
+        voiceGoesOnChain = onChain
         if (chatViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                chatViewModel.startGroupVoiceRecording(groupId)
+                chatViewModel.startGroupVoiceRecording(groupId, onChain = onChain)
             } else {
                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
@@ -735,7 +740,7 @@ fun GroupChatThreadScreen(
                                             subtitle = "Record a voice message and send it to the group on chain.",
                                         ) {
                                             showComposerMenu = false
-                                            startVoiceRecordingIfPermitted()
+                                            startVoiceRecordingIfPermitted(true)
                                         }
                                         if (nextcloudAccount != null) {
                                             ActionSheetRow(

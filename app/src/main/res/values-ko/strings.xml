@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">KasSigner 기기에서 내보낸 kpub를 붙여넣으세요. 개인 키 자료는 포함되어 있지 않습니다.</string>
     <string name="payment">결제</string>
     <string name="photo">사진</string>
-    <string name="photo_quality">사진 품질</string>
     <string name="photo_message">사진 메시지</string>
     <string name="photo_message_full_screen">사진 메시지, 전체 화면</string>
-    <string name="photo_quality_2">사진 품질</string>
     <string name="photos">사진</string>
     <string name="polygon_network">Polygon 네트워크</string>
     <string name="pool_health">풀 상태</string>

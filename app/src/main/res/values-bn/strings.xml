@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">আপনার KasSigner ডিভাইস থেকে এক্সপোর্ট করা kpub পেস্ট করুন। এতে কোনো প্রাইভেট কী উপাদান নেই।</string>
     <string name="payment">পেমেন্ট</string>
     <string name="photo">ছবি</string>
-    <string name="photo_quality">ছবির মান</string>
     <string name="photo_message">ছবি বার্তা</string>
     <string name="photo_message_full_screen">ছবি বার্তা, পূর্ণ পর্দা</string>
-    <string name="photo_quality_2">ছবির গুণমান</string>
     <string name="photos">ছবি</string>
     <string name="polygon_network">Polygon নেটওয়ার্ক</string>
     <string name="pool_health">পুল স্বাস্থ্য</string>

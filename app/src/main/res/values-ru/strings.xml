@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">Вставьте kpub, экспортированный с вашего устройства KasSigner. Он не содержит материала приватного ключа.</string>
     <string name="payment">Платёж</string>
     <string name="photo">Фото</string>
-    <string name="photo_quality">Качество фото</string>
     <string name="photo_message">Фотосообщение</string>
     <string name="photo_message_full_screen">Фотосообщение, полный экран</string>
-    <string name="photo_quality_2">Качество фото</string>
     <string name="photos">Фото</string>
     <string name="polygon_network">Сеть Polygon</string>
     <string name="pool_health">Состояние пула</string>

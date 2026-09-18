@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">KasSigner cihazinizdan disa aktarilan kpub\'i yapistirin. Bu, ozel anahtar materyali icermez.</string>
     <string name="payment">Ödeme</string>
     <string name="photo">Fotoğraf</string>
-    <string name="photo_quality">Fotograf Kalitesi</string>
     <string name="photo_message">Fotograf mesaji</string>
     <string name="photo_message_full_screen">Fotograf mesaji, tam ekran</string>
-    <string name="photo_quality_2">Fotoğraf kalitesi</string>
     <string name="photos">Fotograflar</string>
     <string name="polygon_network">Polygon agi</string>
     <string name="pool_health">Havuz Sağlığı</string>

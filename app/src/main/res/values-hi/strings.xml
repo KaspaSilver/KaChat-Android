@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">अपने KasSigner डिवाइस से निर्यात किया गया kpub पेस्ट करें। इसमें कोई निजी कुंजी सामग्री नहीं है।</string>
     <string name="payment">भुगतान</string>
     <string name="photo">फ़ोटो</string>
-    <string name="photo_quality">फ़ोटो गुणवत्ता</string>
     <string name="photo_message">फ़ोटो संदेश</string>
     <string name="photo_message_full_screen">फ़ोटो संदेश, पूर्ण स्क्रीन</string>
-    <string name="photo_quality_2">फ़ोटो गुणवत्ता</string>
     <string name="photos">फ़ोटो</string>
     <string name="polygon_network">Polygon नेटवर्क</string>
     <string name="pool_health">पूल स्वास्थ्य</string>

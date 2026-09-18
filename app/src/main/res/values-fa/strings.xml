@@ -207,10 +207,8 @@
     <string name="paste_the_kpub_exported_from_your">kpub صادرشده از دستگاه KasSigner خود را بچسبانید. این شامل هیچ ماده کلید خصوصی نمی‌شود.</string>
     <string name="payment">پرداخت</string>
     <string name="photo">عکس</string>
-    <string name="photo_quality">کیفیت عکس</string>
     <string name="photo_message">پیام عکس</string>
     <string name="photo_message_full_screen">پیام عکس، تمام صفحه</string>
-    <string name="photo_quality_2">کیفیت عکس</string>
     <string name="photos">عکس‌ها</string>
     <string name="polygon_network">شبکه Polygon</string>
     <string name="pool_health">سلامت مجموعه</string>

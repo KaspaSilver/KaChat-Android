@@ -177,10 +177,8 @@
     <string name="paste_the_kpub_exported_from_your">הדבק את ה-kpub שיוצא מהמכשיר KasSigner שלך. זה לא מכיל חומר מפתח פרטי.</string>
     <string name="payment">תשלום</string>
     <string name="photo">תמונה</string>
-    <string name="photo_quality">איכות תמונה</string>
     <string name="photo_message">הודעת תמונה</string>
     <string name="photo_message_full_screen">הודעת תמונה, מסך מלא</string>
-    <string name="photo_quality_2">איכות התמונה</string>
     <string name="photos">תמונות</string>
     <string name="polygon_network">רשת Polygon</string>
     <string name="pool_health">בריאות המאגר</string>
