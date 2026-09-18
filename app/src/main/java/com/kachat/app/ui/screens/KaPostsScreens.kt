@@ -1929,10 +1929,13 @@ fun KaPostCell(
                     onBookmark = { lightHaptic(); viewModel.toggleBookmark(post) },
                     onCancelCountdown = { lightHaptic(); viewModel.cancelUndoable(it) },
                     onShare = {
-                        viewModel.shareText(post)?.let { text ->
+                        viewModel.shareText(post)?.let { link ->
+                            // Shared as a link and nothing else, which is what a paste target
+                            // wants: the link unfurls the post's preview by itself.
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, text)
+                                putExtra(Intent.EXTRA_TEXT, link)
+                                putExtra(Intent.EXTRA_TITLE, link)
                             }
                             context.startActivity(Intent.createChooser(intent, "Share Post"))
                         }

@@ -2257,15 +2257,14 @@ class KaPostsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.kachat.app.models.KaspaExplorer.default)
 
     /**
-     * A snippet and the kachat.app link. The https link is the whole story: it unfurls a preview
-     * of the post in every chat app, opens KaChat when it is installed, and shows the post with
-     * download buttons when it is not. A bare kachat:// line previews nowhere, so it is gone.
+     * The kachat.app link, and nothing else. It used to come with a quoted snippet of the post in
+     * front, which made copying hand over a paragraph rather than a link. The link is the whole
+     * story anyway: it unfurls a preview of the post in every chat app, opens KaChat when it is
+     * installed, and shows the post with download buttons when it is not.
      */
     fun shareText(post: KaPostDraft): String? {
         val remoteId = post.remoteId ?: return null
-        val snippet = post.text.take(60).trim()
-        val ellipsis = if (post.text.length > 60) "..." else ""
-        return "\"$snippet$ellipsis\"\n\n${com.kachat.app.ui.screens.KaChatLink.kaPostWebUrl(remoteId)}"
+        return com.kachat.app.ui.screens.KaChatLink.kaPostWebUrl(remoteId)
     }
 
     // MARK: - Profiles (mine + tapped poster): banner/counts + on-chain Posts|Replies feeds
