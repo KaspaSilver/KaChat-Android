@@ -53,8 +53,23 @@ data class KaPostDraft(
     val quoted: QuotedRef? = null,
     /** Set for replies fetched from the indexer - splits profile feeds into Posts/Replies. */
     val parentRemoteId: String? = null,
+    /** When the text shown is an edit - ours this session, or one the indexer accepted (ms). */
+    val editedAt: Long? = null,
+    /** When this session last put the post on the network, which for an edit is the edit's own
+     *  transaction. The sent checkmark counts its minute from here, so an edit to an old post
+     *  still gets one. */
+    val sentAt: Long? = null,
 ) {
     enum class Delivery { PENDING, SENT, FAILED }
+
+    /** Milliseconds left to edit this post, or null once it is permanent. Only on-chain posts
+     *  of our own can be edited at all; the caller checks the author. */
+    val editTimeRemainingMs: Long?
+        get() {
+            if (remoteId == null) return null
+            val left = timestamp + com.kachat.app.services.KaPostsService.EDIT_WINDOW_MS - System.currentTimeMillis()
+            return left.takeIf { it > 0 }
+        }
 
     @Immutable
     data class QuotedRef(

@@ -44,6 +44,9 @@ data class KPost(
     val contentType: String?,
     val isQuote: Boolean?,
     val quote: KQuoteRef?,
+    /** Set by the indexer when the text shown is an accepted edit (ms). [postContent] is then
+     *  the edited text; [timestamp] stays the original's. */
+    val editedAt: Long? = null,
 ) {
     /** Base64 -> plain text (K encodes all content fields). */
     val decodedContent: String? get() = KaPostsProtocol.decodeB64(postContent)
@@ -245,6 +248,10 @@ class KaPostsService @Inject constructor(
 ) {
     companion object {
         private const val TAG = "KaPostsService"
+
+        /** How long after posting a post, reply or quote can still be edited. The indexer
+         *  enforces the same window on chain time; after it the text is permanent. */
+        const val EDIT_WINDOW_MS = 2 * 60 * 60 * 1000L
 
         /**
          * Compressed (02/03 + x) or raw x-only pubkey hex -> Kaspa address. THE bridge that
@@ -502,6 +509,25 @@ class KaPostsService @Inject constructor(
         val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
         val signature = sign(KaPostsProtocol.replySigningString(postId, b64, mentions))
         return submitPayloadTx(KaPostsProtocol.replyPayload(pubkey, signature, postId, b64, mentions))
+    }
+
+    /**
+     * Replaces the text of one of our own posts, replies or quotes
+     * (KAPOSTS_INDEXER.md section 5.7). Same mention rules as a post, so an @mention added in
+     * the edit notifies the person it names. The indexer accepts it only within
+     * [EDIT_WINDOW_MS] of the original, measured on chain time.
+     */
+    suspend fun submitEdit(text: String, postId: String, mentionedPubkeys: List<String> = emptyList()): String {
+        val b64 = KaPostsProtocol.b64(KaPostsProtocol.KACHAT_MARKER + text)
+        val pubkey = requesterPubkey()
+        val me = pubkey.lowercase()
+        val clean = mentionedPubkeys
+            .map { it.lowercase() }
+            .filter { it.matches(Regex("^0[23][0-9a-f]{64}$")) && it != me }
+            .distinct()
+        val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
+        val signature = sign(KaPostsProtocol.editSigningString(postId, b64, mentions))
+        return submitPayloadTx(KaPostsProtocol.editPayload(pubkey, signature, postId, b64, mentions))
     }
 
     /** Casts an upvote/downvote on a post. */

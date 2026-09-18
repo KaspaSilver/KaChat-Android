@@ -56,6 +56,13 @@ object KaPostsProtocol {
     fun unquoteSigningString(contentId: String) = contentId
 
     /**
+     * Edits carry the action name in what is signed. A reply signs these very same three fields,
+     * so without the prefix a reply to your own post could be replayed as an edit of it.
+     */
+    fun editSigningString(postId: String, b64Message: String, mentionsJson: String) =
+        "edit:$postId:$b64Message:$mentionsJson"
+
+    /**
      * The on-chain record behind one post id, read straight off the transaction payload.
      *
      * The K indexer has no single-post lookup (`get-post?id=` is still a NEEDED item in
@@ -125,4 +132,9 @@ object KaPostsProtocol {
 
     fun unquotePayload(pubkey: String, signature: String, contentId: String) =
         "${PREFIX}unquote:$pubkey:$signature:$contentId"
+
+    /** Replaces the text of [postId] - a post, reply or quote by the same pubkey. The indexer
+     *  honours it only within the edit window of the original (KAPOSTS_INDEXER.md section 5.7). */
+    fun editPayload(pubkey: String, signature: String, postId: String, b64Message: String, mentionsJson: String) =
+        "${PREFIX}edit:$pubkey:$signature:$postId:$b64Message:$mentionsJson"
 }

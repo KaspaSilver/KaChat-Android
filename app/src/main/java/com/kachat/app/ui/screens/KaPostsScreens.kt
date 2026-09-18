@@ -1604,6 +1604,9 @@ fun KaPostCell(
         Triple(it["repost:${post.id}"], it["like:${post.id}"], it["dislike:${post.id}"])
     }
     var showOverflow by remember { mutableStateOf(false) }
+    // The edit composer is opened from the cell itself, so editing works wherever a post is
+    // shown: the feed, a thread, your profile, bookmarks.
+    var editing by remember { mutableStateOf(false) }
     // Tapped link awaiting the Copy/Open choice (iOS parity: links never auto-open).
     var tappedLinkUrl by remember { mutableStateOf<String?>(null) }
     val uriHandler = LocalUriHandler.current
@@ -1699,6 +1702,11 @@ fun KaPostCell(
                         color = colors.textSecondary,
                         fontSize = 13.sp,
                     )
+                    // A post whose text was changed says so, as on iOS.
+                    if (post.editedAt != null) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("· edited", color = colors.textSecondary, fontSize = 13.sp)
+                    }
                     if (!isMine) {
                         Spacer(modifier = Modifier.width(8.dp))
                         val isFollowing = isFollowingPoster
@@ -1722,6 +1730,22 @@ fun KaPostCell(
                             .size(20.dp)
                             .clickable { showOverflow = true },
                     )
+                    if (editing) {
+                        // Edit mode: no threading and no draft prompt - this is a change to
+                        // something already posted, not a new one being written.
+                        KaPostComposerDialog(
+                            title = "Edit Post",
+                            quoted = null,
+                            submitLabel = "Save",
+                            onDismiss = { editing = false },
+                            onSubmit = { newText ->
+                                editing = false
+                                viewModel.editPost(post, newText)
+                            },
+                            viewModel = viewModel,
+                            initialText = post.text,
+                        )
+                    }
                     // The three-dots menu is a half sheet, like every other menu in the app,
                     // so each option can say what it does; the popup had room for a verb and
                     // nothing else. Share lives in the action row itself, next to bookmark,
@@ -1740,6 +1764,20 @@ fun KaPostCell(
                                 ) {
                                     showOverflow = false
                                     onViewEngagement()
+                                }
+                            }
+                            // Editable only while the window is open, and only our own: the
+                            // indexer enforces the same rules, so anything else would be
+                            // written to the chain and then ignored.
+                            val editLeftMs = if (isMine) post.editTimeRemainingMs else null
+                            if (editLeftMs != null) {
+                                ActionSheetRow(
+                                    icon = Icons.Default.Edit,
+                                    title = "Edit",
+                                    subtitle = "Change the text. ${editWindowLeftText(editLeftMs)} left.",
+                                ) {
+                                    showOverflow = false
+                                    editing = true
                                 }
                             }
                             if (!isMine) {
@@ -2179,11 +2217,14 @@ private fun DeliveryState(post: KaPostDraft, onRetry: (() -> Unit)?) {
     when (post.deliveryStatus) {
         KaPostDraft.Delivery.SENT -> {
             if (post.remoteId == null) return
-            val age = System.currentTimeMillis() - post.timestamp
-            var expired by remember(post.id) { mutableStateOf(age >= 60_000L) }
+            // An edit's transaction landing restarts the minute, so a change to an old post
+            // gets its own check rather than none at all.
+            val sentReference = post.sentAt ?: post.timestamp
+            val age = System.currentTimeMillis() - sentReference
+            var expired by remember(sentReference) { mutableStateOf(age >= 60_000L) }
             if (!expired) {
-                LaunchedEffect(post.id) {
-                    val remaining = 60_000L - (System.currentTimeMillis() - post.timestamp)
+                LaunchedEffect(sentReference) {
+                    val remaining = 60_000L - (System.currentTimeMillis() - sentReference)
                     if (remaining > 0) delay(remaining)
                     expired = true
                 }
@@ -4477,6 +4518,18 @@ fun KaPostsNotificationsOverlay(
             )
         }
         }
+    }
+}
+
+/** "1h 12m" / "8m" / "40s" - how long is left to edit, said the way a countdown is read. */
+private fun editWindowLeftText(remainingMs: Long): String {
+    val totalSeconds = (remainingMs / 1000).coerceAtLeast(0)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m"
+        minutes > 0 -> "${minutes}m"
+        else -> "${totalSeconds}s"
     }
 }
 

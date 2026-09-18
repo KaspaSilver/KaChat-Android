@@ -177,6 +177,9 @@ class KaPostsViewModel @Inject constructor(
      *  rather than dropping it for the seconds indexing takes. */
     private val sessionReplyIds = mutableSetOf<String>()
 
+    /** What an edit replaced, kept for the five seconds Undo can put it back. */
+    private val pendingEditOriginals = mutableMapOf<String, Pair<String, Long?>>()
+
     /** The Popular tab's deep ranking sweep (see [deepenPopularRanking]); at most one at a time. */
     private var popularSweepJob: Job? = null
 
@@ -1280,6 +1283,7 @@ class KaPostsViewModel @Inject constructor(
             remoteReplyCount = post.repliesCount ?: 0,
             quoted = quoted,
             parentRemoteId = post.parentPostId,
+            editedAt = post.editedAt,
         )
     }
 
@@ -1383,6 +1387,10 @@ class KaPostsViewModel @Inject constructor(
             toast.key.startsWith("post:") ->
                 _localPosts.value = _localPosts.value.filterNot { it.id == toast.postId }
             toast.key.startsWith("comment:") -> removeReplyEverywhere(toast.postId)
+            // An undone edit puts the previous text back exactly as it was.
+            toast.key.startsWith("edit:") -> pendingEditOriginals.remove(toast.postId)?.let { (text, editedAt) ->
+                mutateEverywhere(toast.postId) { it.copy(text = text, editedAt = editedAt, deliveryStatus = KaPostDraft.Delivery.SENT) }
+            }
         }
         _undoToast.value = null
         // Hand the words back so the five seconds are a chance to fix something rather than a
@@ -1399,6 +1407,49 @@ class KaPostsViewModel @Inject constructor(
                 threadSegments = if (segments.size > 1) segments.dropLast(1) else emptyList(),
                 commentParentId = toast.commentParentId,
             )
+        }
+    }
+
+    /**
+     * Replaces the text of one of our own posts, replies or quotes. The new words show at once,
+     * behind the same five-second countdown as every other action, and then go on chain. Undo
+     * puts the old text back, and so does a transaction that fails.
+     *
+     * Only inside the edit window, only our own on-chain content: the indexer enforces the same
+     * rules, so anything else would be written to the chain and then ignored.
+     */
+    fun editPost(post: KaPostDraft, newText: String) {
+        val trimmed = newText.trim()
+        val remoteId = post.remoteId ?: return
+        if (trimmed.isEmpty() || trimmed == post.text) return
+        if (post.editTimeRemainingMs == null) return
+        if (post.posterAddress != myAddress()) return
+
+        pendingEditOriginals[post.id] = post.text to post.editedAt
+        mutateEverywhere(post.id) {
+            it.copy(text = trimmed, editedAt = System.currentTimeMillis(), deliveryStatus = KaPostDraft.Delivery.PENDING)
+        }
+        val key = "edit:${post.id}"
+        _undoToast.value = UndoToast(key, post.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Saving edit")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            val original = pendingEditOriginals.remove(post.id)
+            try {
+                kaPostsService.submitEdit(trimmed, remoteId, mentionedPubkeys(trimmed))
+                mutateEverywhere(post.id) {
+                    it.copy(deliveryStatus = KaPostDraft.Delivery.SENT, sentAt = System.currentTimeMillis())
+                }
+            } catch (e: Exception) {
+                mutateEverywhere(post.id) {
+                    it.copy(
+                        text = original?.first ?: it.text,
+                        editedAt = original?.second,
+                        deliveryStatus = KaPostDraft.Delivery.SENT,
+                    )
+                }
+                _feedError.value = "Couldn't save the edit: ${e.message}"
+                Log.w(TAG, "Edit submit failed", e)
+            }
         }
     }
 
