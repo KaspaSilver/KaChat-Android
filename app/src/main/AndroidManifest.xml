@@ -161,6 +161,52 @@
             android:name=".services.CallActionReceiver"
             android:exported="false" />
 
+        <!-- "KaChat call" / "KaChat video call" tapped on a phone contact's card. Exported
+             because the Contacts app is what launches it; it accepts nothing but KaChat's own
+             contact rows (CallableContactsExporter). -->
+        <activity
+            android:name=".ui.CallFromContactsActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.com.kachat.app.call" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.com.kachat.app.videocall" />
+            </intent-filter>
+        </activity>
+
+        <!-- The account KaChat's contact rows belong to. Holds no credentials; the contacts
+             provider simply requires an owner for rows an app adds to a contact card. -->
+        <service
+            android:name=".services.contacts.KaChatAccountService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/kachat_authenticator" />
+        </service>
+
+        <!-- A sync adapter that never syncs, required before that account type may own contact
+             rows. CONTACTS_STRUCTURE is how the Contacts app knows what to draw for them. -->
+        <service
+            android:name=".services.contacts.KaChatContactsSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/kachat_sync_contacts" />
+            <meta-data
+                android:name="android.provider.CONTACTS_STRUCTURE"
+                android:resource="@xml/kachat_contacts" />
+        </service>
+
         <service
             android:name=".services.KaChatFirebaseMessagingService"
             android:exported="false">

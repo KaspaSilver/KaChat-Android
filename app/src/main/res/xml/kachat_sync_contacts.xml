@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A sync adapter that never syncs. The contacts provider will only let an account type own
+    contact rows when that type declares one, and the contact card's own layout for those rows
+    (CONTACTS_STRUCTURE on the service) is read from here too. KaChat writes the rows itself
+    whenever the "Allow calls" switch changes, so nothing is ever uploaded or fetched.
+-->
+<sync-adapter xmlns:android="http://schemas.android.com/apk/res/android"
+    android:contentAuthority="com.android.contacts"
+    android:accountType="com.kachat.app"
+    android:supportsUploading="false"
+    android:userVisible="false"
+    android:isAlwaysSyncable="true" />

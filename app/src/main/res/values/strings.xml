@@ -568,4 +568,11 @@
     <string name="share_to_kachat">Share to KaChat</string>
     <string name="send_to">Send to</string>
     <string name="couldnt_send_saved_as_draft">Couldn\'t send. Saved as a draft in this chat.</string>
+
+    <!-- Calling from the phone's own Contacts app -->
+    <string name="contacts_action_voice_call">Voice call</string>
+    <string name="contacts_action_video_call">Video call</string>
+    <string name="contacts_call_needs_microphone">KaChat needs the microphone to make a call.</string>
+    <string name="contacts_call_contact_missing">That contact is no longer in KaChat.</string>
+    <string name="contacts_call_not_enabled">Calls are turned off for this contact in KaChat.</string>
 </resources>

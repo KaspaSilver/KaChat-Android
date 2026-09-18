@@ -52,7 +52,8 @@ class WalletViewModel @Inject constructor(
      *  source here as it is for Cold Storage's own tx-history screen. */
     private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
     private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
-    private val onboardingGate: com.kachat.app.services.OnboardingGate
+    private val onboardingGate: com.kachat.app.services.OnboardingGate,
+    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter
 ) : ViewModel() {
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
@@ -1149,6 +1150,9 @@ class WalletViewModel @Inject constructor(
         // deleting some other saved account from the Welcome list must not kill this one's push.
         if (address == walletManager.getActiveAccount()?.address) {
             pushRegistrationManager.unregisterAsync()
+            // The phone's contact cards must not keep offering "KaChat call" for chats whose
+            // keys are about to be destroyed.
+            viewModelScope.launch(Dispatchers.IO) { runCatching { callableContactsExporter.removeAll() } }
         }
         walletManager.deleteAccount(address)
         _accounts.value = walletManager.getAllAccounts()

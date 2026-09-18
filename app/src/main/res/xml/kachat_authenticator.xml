@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    KaChat owns an account type so it can put its own rows on a phone contact - that is the only
+    way Android lets an app add "KaChat call" and "KaChat video call" to someone's contact card.
+    Nothing signs in and nothing is stored: the account exists so the contacts provider has an
+    owner for those rows, and it holds no credentials at all.
+-->
+<account-authenticator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accountType="com.kachat.app"
+    android:icon="@mipmap/ic_launcher"
+    android:smallIcon="@mipmap/ic_launcher"
+    android:label="@string/app_name" />

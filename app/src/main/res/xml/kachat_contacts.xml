@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What the Contacts app draws for KaChat's own rows on a contact card: one row to call and one
+    to make a video call. The two lines of each row are written per contact when the row is
+    created (summary "KaChat", detail "Voice call" / "Video call"), so they follow the app's
+    language rather than living here.
+-->
+<ContactsAccountType xmlns:android="http://schemas.android.com/apk/res/android">
+    <ContactsDataKind
+        android:mimeType="vnd.android.cursor.item/vnd.com.kachat.app.call"
+        android:icon="@mipmap/ic_launcher"
+        android:summaryColumn="data2"
+        android:detailColumn="data3" />
+    <ContactsDataKind
+        android:mimeType="vnd.android.cursor.item/vnd.com.kachat.app.videocall"
+        android:icon="@mipmap/ic_launcher"
+        android:summaryColumn="data2"
+        android:detailColumn="data3" />
+</ContactsAccountType>

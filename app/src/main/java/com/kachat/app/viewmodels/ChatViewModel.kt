@@ -69,7 +69,8 @@ class ChatViewModel @Inject constructor(
     private val paymentPoolService: com.kachat.app.services.PaymentPoolService,
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
     private val kaPostsService: com.kachat.app.services.KaPostsService,
-    private val onboardingGate: com.kachat.app.services.OnboardingGate
+    private val onboardingGate: com.kachat.app.services.OnboardingGate,
+    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter
 ) : ViewModel() {
 
     // ---------------------------------------------------------------------
@@ -224,6 +225,21 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = getOrCreateContact(contactId)
             chatRepository.addContact(existing.copy(callsEnabled = if (enabled) true else null))
+            // The phone contact's card gains or loses "KaChat call" with the switch, so it never
+            // offers a call this device would ignore.
+            exportCallableContacts()
+        }
+    }
+
+    /**
+     * Puts "KaChat call" and "KaChat video call" on the card of every phone contact a callable
+     * KaChat contact is linked to, and takes them off everyone else's. Off the main thread: it
+     * walks the phone's contacts database.
+     */
+    private fun exportCallableContacts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { callableContactsExporter.sync(chatRepository.getContacts().first()) }
+                .onFailure { android.util.Log.w("ChatViewModel", "Could not update contact cards: ${it.message}") }
         }
     }
 
@@ -1888,6 +1904,9 @@ class ChatViewModel @Inject constructor(
      * whenever the chat list appears, alongside the KNS name refresh.
      */
     fun syncSystemContacts() {
+        // Independent of the switches below: the rows follow "Allow calls" and the contact link,
+        // both of which can have changed since the last time the list was on screen.
+        exportCallableContacts()
         viewModelScope.launch {
             if (!settings.syncSystemContactsEnabled.first()) return@launch
             if (!systemContactsSyncService.hasReadPermission()) return@launch
