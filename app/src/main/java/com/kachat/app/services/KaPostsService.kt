@@ -530,6 +530,15 @@ class KaPostsService @Inject constructor(
         return submitPayloadTx(KaPostsProtocol.editPayload(pubkey, signature, postId, b64, mentions))
     }
 
+    /**
+     * Deletes one of our own posts, replies or quotes (KAPOSTS_INDEXER.md section 5.8), at any
+     * age. The chain keeps the bytes it always had; the indexer stops serving the post.
+     */
+    suspend fun submitDelete(postId: String): String {
+        val signature = sign(KaPostsProtocol.deleteSigningString(postId))
+        return submitPayloadTx(KaPostsProtocol.deletePayload(requesterPubkey(), signature, postId))
+    }
+
     /** Casts an upvote/downvote on a post. */
     suspend fun submitVote(postId: String, upvote: Boolean, authorPubkey: String): String =
         submitVoteAction(postId, if (upvote) "upvote" else "downvote", authorPubkey)

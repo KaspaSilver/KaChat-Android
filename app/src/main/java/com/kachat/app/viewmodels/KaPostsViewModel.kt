@@ -1387,6 +1387,9 @@ class KaPostsViewModel @Inject constructor(
             toast.key.startsWith("post:") ->
                 _localPosts.value = _localPosts.value.filterNot { it.id == toast.postId }
             toast.key.startsWith("comment:") -> removeReplyEverywhere(toast.postId)
+            // An undone delete simply lifts the dimming; nothing was sent.
+            toast.key.startsWith("delete:") ->
+                mutateEverywhere(toast.postId) { it.copy(pendingDeletion = false) }
             // An undone edit puts the previous text back exactly as it was.
             toast.key.startsWith("edit:") -> pendingEditOriginals.remove(toast.postId)?.let { (text, editedAt) ->
                 mutateEverywhere(toast.postId) { it.copy(text = text, editedAt = editedAt, deliveryStatus = KaPostDraft.Delivery.SENT) }
@@ -1461,6 +1464,40 @@ class KaPostsViewModel @Inject constructor(
         fun strip(list: List<KaPostDraft>): List<KaPostDraft> = list.map { post ->
             post.copy(comments = strip(post.comments.filterNot { it.id == commentId }))
         }
+        for (flow in allPostLists()) flow.value = strip(flow.value)
+    }
+
+    /**
+     * Deletes one of our own posts, replies or quotes, at any age. The card dims behind the same
+     * five-second countdown as every other action - Undo simply lifts it - and after that the
+     * delete goes on chain and the post leaves every list and every comment tree.
+     */
+    fun deletePost(post: KaPostDraft) {
+        val remoteId = post.remoteId ?: return
+        if (post.deliveryStatus != KaPostDraft.Delivery.SENT || post.pendingDeletion) return
+        if (post.posterAddress != myAddress()) return
+
+        mutateEverywhere(post.id) { it.copy(pendingDeletion = true) }
+        val key = "delete:${post.id}"
+        _undoToast.value = UndoToast(key, post.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Deleting post")
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            try {
+                kaPostsService.submitDelete(remoteId)
+                removePostEverywhere(post.id)
+            } catch (e: Exception) {
+                mutateEverywhere(post.id) { it.copy(pendingDeletion = false) }
+                _feedError.value = "Couldn't delete the post: ${e.message}"
+                Log.w(TAG, "Delete submit failed", e)
+            }
+        }
+    }
+
+    /** Drops every node with this id from every list and every comment tree - a post can be a
+     *  feed card and a comment at once. */
+    private fun removePostEverywhere(id: String) {
+        fun strip(list: List<KaPostDraft>): List<KaPostDraft> =
+            list.filterNot { it.id == id }.map { it.copy(comments = strip(it.comments)) }
         for (flow in allPostLists()) flow.value = strip(flow.value)
     }
 

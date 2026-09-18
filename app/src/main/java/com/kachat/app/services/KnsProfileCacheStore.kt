@@ -5,6 +5,12 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +48,13 @@ class KnsProfileCacheStore @Inject constructor(
 
     private val prefs = context.getSharedPreferences("kns_profile_cache", Context.MODE_PRIVATE)
     private val gson = Gson()
+    // Writing is coalesced and done off the caller's thread. Every lookup that resolved used to
+    // re-encode the WHOLE cache where it stood, and a contact sweep (opening the post composer)
+    // or a long thread (one lookup per poster) resolves hundreds in a row - the app stopped for
+    // as long as all those encodes took.
+    private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var persistJob: Job? = null
+    private var persistReverseJob: Job? = null
     private val entryMapType = object : TypeToken<Map<String, Entry>>() {}.type
     private val reverseMapType = object : TypeToken<Map<String, ReverseEntry>>() {}.type
 
@@ -185,11 +198,17 @@ class KnsProfileCacheStore @Inject constructor(
         mutableMapOf()
     }
 
+    @Synchronized
     private fun persist() {
-        try {
-            prefs.edit().putString(KEY, gson.toJson(entries, entryMapType)).apply()
-        } catch (e: Exception) {
-            Log.w("KnsProfileCacheStore", "Could not write cache", e)
+        persistJob?.cancel()
+        val snapshot = entries.toMap()
+        persistJob = writeScope.launch {
+            delay(PERSIST_DEBOUNCE_MS)
+            try {
+                prefs.edit().putString(KEY, gson.toJson(snapshot, entryMapType)).apply()
+            } catch (e: Exception) {
+                Log.w("KnsProfileCacheStore", "Could not write cache", e)
+            }
         }
     }
 
@@ -201,11 +220,17 @@ class KnsProfileCacheStore @Inject constructor(
         mutableMapOf()
     }
 
+    @Synchronized
     private fun persistReverse() {
-        try {
-            prefs.edit().putString(REVERSE_KEY, gson.toJson(reverseEntries, reverseMapType)).apply()
-        } catch (e: Exception) {
-            Log.w("KnsProfileCacheStore", "Could not write reverse cache", e)
+        persistReverseJob?.cancel()
+        val snapshot = reverseEntries.toMap()
+        persistReverseJob = writeScope.launch {
+            delay(PERSIST_DEBOUNCE_MS)
+            try {
+                prefs.edit().putString(REVERSE_KEY, gson.toJson(snapshot, reverseMapType)).apply()
+            } catch (e: Exception) {
+                Log.w("KnsProfileCacheStore", "Could not write reverse cache", e)
+            }
         }
     }
 
@@ -235,5 +260,9 @@ class KnsProfileCacheStore @Inject constructor(
         const val KEY = "entries"
         const val REVERSE_KEY = "reverse"
         const val NEGATIVE_HEAL_KEY = "reverse_negative_heal_v1"
+
+        /** Long enough for a burst of lookups to settle into one write, short enough that the
+         *  cache is on disk well before the app is closed. */
+        const val PERSIST_DEBOUNCE_MS = 750L
     }
 }

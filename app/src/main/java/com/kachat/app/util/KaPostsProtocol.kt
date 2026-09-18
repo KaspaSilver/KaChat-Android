@@ -62,6 +62,9 @@ object KaPostsProtocol {
     fun editSigningString(postId: String, b64Message: String, mentionsJson: String) =
         "edit:$postId:$b64Message:$mentionsJson"
 
+    /** Deletes carry the action name in what is signed, for the same reason edits do. */
+    fun deleteSigningString(postId: String) = "delete:$postId"
+
     /**
      * The on-chain record behind one post id, read straight off the transaction payload.
      *
@@ -137,4 +140,9 @@ object KaPostsProtocol {
      *  honours it only within the edit window of the original (KAPOSTS_INDEXER.md section 5.7). */
     fun editPayload(pubkey: String, signature: String, postId: String, b64Message: String, mentionsJson: String) =
         "${PREFIX}edit:$pubkey:$signature:$postId:$b64Message:$mentionsJson"
+
+    /** Removes [postId] - a post, reply or quote by the same pubkey - from every feed. The chain
+     *  keeps the bytes; the indexer stops serving it (KAPOSTS_INDEXER.md section 5.8). */
+    fun deletePayload(pubkey: String, signature: String, postId: String) =
+        "${PREFIX}delete:$pubkey:$signature:$postId"
 }

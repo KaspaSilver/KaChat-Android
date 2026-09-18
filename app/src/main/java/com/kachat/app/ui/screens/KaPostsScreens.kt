@@ -1665,6 +1665,9 @@ fun KaPostCell(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // Dimmed while a delete waits out its undo countdown: the post is on its way out,
+            // and Undo is right there.
+            .alpha(if (post.pendingDeletion) 0.4f else 1f)
             .clickable(enabled = !isRoot) { onOpenThread() }
             // iOS KaPostCellView: 16pt horizontal, 12pt vertical, 40pt avatar. The thread line
             // drawn behind ancestor cells depends on exactly these numbers.
@@ -1778,6 +1781,18 @@ fun KaPostCell(
                                 ) {
                                     showOverflow = false
                                     editing = true
+                                }
+                            }
+                            // Any age, unlike an edit: what you posted is yours to withdraw.
+                            if (isMine && post.remoteId != null && post.deliveryStatus == KaPostDraft.Delivery.SENT) {
+                                ActionSheetRow(
+                                    icon = Icons.Default.Delete,
+                                    title = "Delete",
+                                    subtitle = "Takes it out of every feed. The chain keeps the transaction.",
+                                    tint = Color(0xFFFF3B30),
+                                ) {
+                                    showOverflow = false
+                                    viewModel.deletePost(post)
                                 }
                             }
                             if (!isMine) {
@@ -3058,6 +3073,12 @@ fun KaPostThreadOverlay(
         }
     }
     val post = postState
+    // Deleting the post this thread is about leaves nothing to read here, so the thread closes
+    // itself rather than sitting on the "couldn't find it" state (iOS closeThread).
+    var everResolved by remember(postId) { mutableStateOf(postState != null) }
+    LaunchedEffect(post) {
+        if (post != null) everResolved = true else if (everResolved) onClose()
+    }
     // System back closes this level of the thread, matching the Back button in the header.
     // Nested pushes each get their own overlay instance, so back walks the thread stack down
     // one level at a time.

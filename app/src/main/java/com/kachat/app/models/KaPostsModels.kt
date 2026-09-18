@@ -59,6 +59,9 @@ data class KaPostDraft(
      *  transaction. The sent checkmark counts its minute from here, so an edit to an old post
      *  still gets one. */
     val sentAt: Long? = null,
+    /** Deleted, behind the five seconds Undo can lift it: the card dims until the countdown
+     *  ends and the delete goes on chain. */
+    val pendingDeletion: Boolean = false,
 ) {
     enum class Delivery { PENDING, SENT, FAILED }
 
