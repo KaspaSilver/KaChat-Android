@@ -173,7 +173,9 @@ fun BroadcastRoomInfoScreen(
                 title = "Share this room",
                 subtitle = "Sends a link that opens it in KaChat, and a web link for anyone without it.",
             ) {
-                val text = "Join #$normalized on KaChat: ${com.kachat.app.ui.screens.KaChatLink.broadcastUrl(normalized)}"
+                // The https link only: it previews everywhere and opens the app when it is
+                // installed, which a bare kachat:// line does neither of.
+                val text = "Join #$normalized on KaChat.\n\n${com.kachat.app.ui.screens.KaChatLink.broadcastWebUrl(normalized)}"
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, text)

@@ -40,6 +40,7 @@ import com.kachat.app.services.ShareIntake
 import com.kachat.app.ui.theme.KaChatTheme
 import com.kachat.app.ui.KaChatApp
 import com.kachat.app.ui.screens.BroadcastDeepLink
+import com.kachat.app.ui.screens.KaChatLink
 import com.kachat.app.ui.screens.KaPostsDeepLink
 import com.kachat.app.viewmodels.WalletViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -411,12 +412,18 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Broadcast room share links: kachat://broadcast/<channel> (the share-text form) and
-     * https://kachat.duckdns.org/broadcast/<channel> (universal-link form). The name is untrusted,
+     * https://kachat.app/broadcast/<channel> (universal-link form). The name is untrusted,
      * so [BroadcastDeepLink.request] runs it through normalizeChannelName/isValidChannelName (plus
      * the route-safety rules) and drops it outright if it doesn't pass — nothing is joined and no
      * navigation happens. MainShell picks up a request that does pass, enforces Child Mode, and
      * opens the room (joining it first when it isn't one of the curated ones).
      */
+    /** The hosts a KaChat link can arrive on: the one the app writes, and the one it used to. */
+    private fun isKaChatWebHost(host: String?): Boolean {
+        val clean = host?.lowercase()?.removePrefix("www.") ?: return false
+        return clean == KaChatLink.WEB_HOST || clean in KaChatLink.LEGACY_WEB_HOSTS
+    }
+
     private fun handleBroadcastDeepLink(intent: Intent) {
         if (intent.action != Intent.ACTION_VIEW) return
         val uri = intent.data ?: return
@@ -424,7 +431,7 @@ class MainActivity : AppCompatActivity() {
             uri.scheme.equals("kachat", ignoreCase = true) &&
                 uri.host.equals("broadcast", ignoreCase = true) -> uri.lastPathSegment
             uri.scheme.equals("https", ignoreCase = true) &&
-                uri.host.equals("kachat.duckdns.org", ignoreCase = true) &&
+                isKaChatWebHost(uri.host) &&
                 uri.pathSegments.firstOrNull() == "broadcast" -> uri.pathSegments.getOrNull(1)
             else -> null
         } ?: return
@@ -496,7 +503,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * KaPosts share links land here: kachat://kapost/<txid> (the share-text form) and
-     * https://kachat.duckdns.org/post/<txid> (universal-link form). The txid is handed to
+     * https://kachat.app/post/<txid> (universal-link form). The txid is handed to
      * [KaPostsDeepLink]; KaChatApp navigates to the KaPosts tab and the screen opens the
      * post's thread.
      */
@@ -524,7 +531,7 @@ class MainActivity : AppCompatActivity() {
             uri.scheme.equals("kachat", ignoreCase = true) &&
                 uri.host.equals("kapost", ignoreCase = true) -> uri.lastPathSegment
             (uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true)) &&
-                host == "kachat.duckdns.org" &&
+                isKaChatWebHost(host) &&
                 uri.pathSegments.firstOrNull() == "post" -> uri.pathSegments.getOrNull(1)
             else -> null
         }

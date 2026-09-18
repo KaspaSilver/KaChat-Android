@@ -2256,12 +2256,16 @@ class KaPostsViewModel @Inject constructor(
     val kaspaExplorer: StateFlow<com.kachat.app.models.KaspaExplorer> = settings.kaspaExplorer
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.kachat.app.models.KaspaExplorer.default)
 
-    /** Short snippet + the kachat:// deep link - opens the post straight in the app. */
+    /**
+     * A snippet and the kachat.app link. The https link is the whole story: it unfurls a preview
+     * of the post in every chat app, opens KaChat when it is installed, and shows the post with
+     * download buttons when it is not. A bare kachat:// line previews nowhere, so it is gone.
+     */
     fun shareText(post: KaPostDraft): String? {
         val remoteId = post.remoteId ?: return null
         val snippet = post.text.take(60).trim()
         val ellipsis = if (post.text.length > 60) "..." else ""
-        return "\"$snippet$ellipsis\"\n\nOpen in KaChat: kachat://kapost/$remoteId"
+        return "\"$snippet$ellipsis\"\n\n${com.kachat.app.ui.screens.KaChatLink.kaPostWebUrl(remoteId)}"
     }
 
     // MARK: - Profiles (mine + tapped poster): banner/counts + on-chain Posts|Replies feeds

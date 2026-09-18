@@ -1864,7 +1864,12 @@ fun KaPostCell(
                     LinkActionsSheet(
                         url = url,
                         onDismiss = { tappedLinkUrl = null },
-                        onOpen = { uriHandler.openUri(url) },
+                        onOpen = {
+                            // A KaChat link goes straight to the post or room it names, rather
+                            // than out to the browser and back - same as the chat screens.
+                            val internal = KaChatLink.parse(url)
+                            if (internal != null) openKaChatLink(internal) else uriHandler.openUri(url)
+                        },
                         onCopy = {
                             clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
                             Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()

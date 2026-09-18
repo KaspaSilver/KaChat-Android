@@ -111,7 +111,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Broadcast room share links (`kachat://broadcast/<channel>`,
- * `https://kachat.duckdns.org/broadcast/<channel>`) land here — from an inbound system intent
+ * `https://kachat.app/broadcast/<channel>`) land here — from an inbound system intent
  * (MainActivity) or from a tap on an in-app invite card ([openKaChatLink]). MainShell watches
  * [pendingChannel] and navigates; the room screen itself consumes [consumeJoinRequest] so a room
  * the user isn't in yet is created/joined before it opens, landing in their own channel list.

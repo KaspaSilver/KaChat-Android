@@ -834,8 +834,11 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
  * pasted with, and tapping one routes inside the app instead of handing the URL to a browser.
  *
  * Wire forms (identical on iOS):
- *   KaPosts post   kachat://kapost/<txid>       https://kachat.duckdns.org/post/<txid>
- *   Broadcast room kachat://broadcast/<channel> https://kachat.duckdns.org/broadcast/<channel>
+ *   KaPosts post   kachat://kapost/<txid>       https://kachat.app/post/<txid>
+ *   Broadcast room kachat://broadcast/<channel> https://kachat.app/broadcast/<channel>
+ *
+ * Links written before kachat.app used kachat.duckdns.org. Those are still opened; they are
+ * never written.
  *
  * `<channel>` is the normalized channel name with NO leading '#'
  * (see [MessageProtocol.normalizeChannelName]).
@@ -849,7 +852,13 @@ sealed class KaChatLinkRef {
 data class KaChatLinkMatch(val range: IntRange, val raw: String, val ref: KaChatLinkRef)
 
 object KaChatLink {
-    const val WEB_HOST = "kachat.duckdns.org"
+    /** The only host the app ever writes into a share. With KaChat installed the link opens
+     *  the app; without it the site shows the post, or the room invite, with download buttons -
+     *  and it unfurls a preview in every chat app, which a bare kachat:// line does nowhere. */
+    const val WEB_HOST = "kachat.app"
+
+    /** Hosts from before kachat.app: still opened, never written. */
+    val LEGACY_WEB_HOSTS = setOf("kachat.duckdns.org")
 
     fun kaPostUrl(txId: String) = "kachat://kapost/$txId"
     fun kaPostWebUrl(txId: String) = "https://$WEB_HOST/post/$txId"
@@ -859,7 +868,7 @@ object KaChatLink {
     // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
     // second path component, a query string or a fragment into the app.
     private val LINK_REGEX = Regex(
-        """(?:kachat://(kapost|broadcast)/|https?://kachat\.duckdns\.org/(post|broadcast)/)([^\s/?#]+)""",
+        """(?:kachat://(kapost|broadcast)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(post|broadcast)/)([^\s/?#]+)""",
         RegexOption.IGNORE_CASE
     )
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')

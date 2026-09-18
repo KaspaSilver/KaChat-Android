@@ -547,7 +547,7 @@ fun MainShell(
         )
     }
 
-    // KaPosts share/deep links (kachat://kapost/<txid>, https://kachat.duckdns.org/post/…):
+    // KaPosts share/deep links (kachat://kapost/<txid>, https://kachat.app/post/…):
     // surface the KaPosts tab; KaPostsScreen itself consumes the pending txid and opens the
     // post's thread once visible.
     val pendingKaPostTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
@@ -566,7 +566,7 @@ fun MainShell(
     }
 
     // Broadcast room share/deep links (kachat://broadcast/<channel>,
-    // https://kachat.duckdns.org/broadcast/…) and taps on an in-app room-invite card. The name has
+    // https://kachat.app/broadcast/…) and taps on an in-app room-invite card. The name has
     // already been normalized and validated by BroadcastDeepLink.request; a room that isn't one of
     // the curated ones carries a join request that BroadcastChannelScreen consumes on open, so it
     // lands in the user's own channel list rather than disappearing when they navigate away.

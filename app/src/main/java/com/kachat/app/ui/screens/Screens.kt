@@ -1307,7 +1307,14 @@ fun ChatThreadScreen(
                     index = liveMessages.indexOfFirst { it.id == targetId }
                 }
                 if (index >= 0) {
-                    scrollState.animateScrollToItem(index + olderSpinnerRows)
+                    val row = index + olderSpinnerRows
+                    // Animating a scroll across rows the list has only just been handed lays
+                    // every one of them out mid-flight, which on a long chat freezes the app for
+                    // seconds. A target already on screen still glides; one the window had to
+                    // grow to reach is landed on at once (iOS ae8ab44, and the same reason
+                    // jumping to the start of a chat is not animated either).
+                    val alreadyOnScreen = scrollState.layoutInfo.visibleItemsInfo.any { it.index == row }
+                    if (alreadyOnScreen) scrollState.animateScrollToItem(row) else scrollState.scrollToItem(row)
                     highlightedMessageId = targetId
                     delay(1200)
                     if (highlightedMessageId == targetId) highlightedMessageId = null
