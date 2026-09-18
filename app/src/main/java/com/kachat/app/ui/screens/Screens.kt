@@ -3790,7 +3790,8 @@ fun ProfileScreen(
                             )
                         )
                     }
-                    val heroName = activeProfileDomainName?.removeSuffix(".kas") ?: accountName ?: ""
+                    // The .kas is part of the name, so the hero shows it too.
+                    val heroName = activeProfileDomainName ?: accountName ?: ""
                     // This card only ever renders the user's own profile (ProfileScreen is
                     // own-account only), so the edit/create entry is always shown here.
                     // Label follows the same reactive condition as the destination: no profile

@@ -846,11 +846,25 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
-    /** "alice.kas" reads better as just "alice" - the .kas is implied everywhere in KaPosts. */
-    fun strippingKasSuffix(domain: String): String {
-        val trimmed = domain.trim()
-        return if (trimmed.lowercase().endsWith(".kas")) trimmed.dropLast(4) else trimmed
+    /**
+     * A name as it is SHOWN. A KNS domain keeps its ".kas" everywhere: the suffix is part of the
+     * name, and KaPosts used to be the one place that dropped it. Aliases pass through exactly
+     * as the user wrote them.
+     */
+    fun displayKasName(name: String): String = name.trim()
+
+    /**
+     * A domain as a LOOKUP KEY: lowercased, ".kas" off. Typing and matching never need the
+     * suffix - it is the only one there is - so mention queries, the candidate map and KNS
+     * resolution all work on this form.
+     */
+    fun bareKasName(domain: String): String {
+        val trimmed = domain.trim().lowercase()
+        return if (trimmed.endsWith(".kas")) trimmed.dropLast(4) else trimmed
     }
+
+    /** A domain as shown and as typed into a post: always with ".kas". */
+    fun fullKasName(domain: String): String = bareKasName(domain).let { if (it.isEmpty()) it else "$it.kas" }
 
     /** Contact alias > KNS domain > shortened address. */
     // ------------------------------------------------------------------
@@ -949,8 +963,8 @@ class KaPostsViewModel @Inject constructor(
 
     fun posterDisplayName(address: String): String {
         if (address.isEmpty()) return "Unknown"
-        contactAliases.value[address]?.takeIf { it.isNotBlank() }?.let { return strippingKasSuffix(it) }
-        _senderKnsNames.value[address]?.takeIf { it.isNotBlank() }?.let { return strippingKasSuffix(it) }
+        contactAliases.value[address]?.takeIf { it.isNotBlank() }?.let { return displayKasName(it) }
+        _senderKnsNames.value[address]?.takeIf { it.isNotBlank() }?.let { return displayKasName(it) }
         return address.takeLast(10)
     }
 
@@ -1529,7 +1543,7 @@ class KaPostsViewModel @Inject constructor(
         val seen = mutableSetOf<String>()
         for ((address, _) in aliases) {
             val domain = knsNames[address]?.takeIf { it.isNotBlank() } ?: continue
-            val bare = strippingKasSuffix(domain).lowercase()
+            val bare = bareKasName(domain)
             if (bare.isEmpty() || bare in seen) continue
             val pubkey = KaPostsService.kapostPubkeyFromAddress(address) ?: continue
             seen.add(bare)

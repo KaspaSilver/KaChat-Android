@@ -69,13 +69,13 @@ class KaPostLinkPreviewService @Inject constructor(
         val current = previews.value[txId] ?: return
         // A contact alias the user set themselves still wins over the domain.
         val name = if (aliasFor(address) != null) current.authorName
-            else activeName?.let { strippingKasSuffix(it) } ?: current.authorName
+            else activeName?.let { displayKasName(it) } ?: current.authorName
         publish(txId, current.copy(authorName = name, authorAvatarUrl = avatar))
     }
 
     private suspend fun localName(address: String?): String? {
         if (address.isNullOrEmpty()) return null
-        aliasFor(address)?.let { return strippingKasSuffix(it) }
+        aliasFor(address)?.let { return displayKasName(it) }
         return address.takeLast(10)
     }
 
@@ -88,11 +88,8 @@ class KaPostLinkPreviewService @Inject constructor(
         null
     }
 
-    /** "alice.kas" reads better as just "alice" - the .kas is implied everywhere in KaPosts. */
-    private fun strippingKasSuffix(domain: String): String {
-        val trimmed = domain.trim()
-        return if (trimmed.lowercase().endsWith(".kas")) trimmed.dropLast(4) else trimmed
-    }
+    /** A name as it is shown: a KNS domain keeps its ".kas", which is part of the name. */
+    private fun displayKasName(name: String): String = name.trim()
 
     private fun snippet(text: String): String {
         val trimmed = text.trim()

@@ -441,8 +441,8 @@ private fun posterDisplayNameState(viewModel: KaPostsViewModel, address: String)
     val alias by viewModel.contactAliases.collectSelectedAsState(address) { it[address] }
     val kns by viewModel.senderKnsNames.collectSelectedAsState(address) { it[address] }
     return remember(alias, kns, address) {
-        alias?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
-            ?: kns?.takeIf { it.isNotBlank() }?.let { viewModel.strippingKasSuffix(it) }
+        alias?.takeIf { it.isNotBlank() }?.let { viewModel.displayKasName(it) }
+            ?: kns?.takeIf { it.isNotBlank() }?.let { viewModel.displayKasName(it) }
             ?: if (address.isEmpty()) "Unknown" else address.takeLast(10)
     }
 }
@@ -2512,12 +2512,15 @@ fun KaPostComposerDialog(
         val query = mentionQuery
         if (query == null || viewModel == null) emptyList()
         else {
+            // Matched on the bare name, because that is what gets typed, but offered and
+            // inserted in full: a domain keeps its .kas.
             val contacts = viewModel.mentionCandidates()
                 .map { it.first }
                 .filter { query.isEmpty() || it.startsWith(query) }
                 .sorted()
-            val extra = resolvedAnyDomain
-            if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
+                .map { viewModel.fullKasName(it) }
+            val extra = resolvedAnyDomain?.let { viewModel.fullKasName(it) }
+            if (extra != null && extra !in contacts && (query.isEmpty() || viewModel.bareKasName(extra).startsWith(query))) {
                 contacts + extra
             } else contacts
         }
@@ -3496,12 +3499,14 @@ private fun ThreadReplyComposer(
                 val query = replyMentionQuery
                 if (query == null) emptyList()
                 else {
+                    // Matched bare, offered and inserted in full - see the composer above.
                     val contacts = viewModel.mentionCandidates()
                         .map { it.first }
                         .filter { query.isEmpty() || it.startsWith(query) }
                         .sorted()
-                    val extra = replyResolvedAnyDomain
-                    if (extra != null && extra !in contacts && (query.isEmpty() || extra.startsWith(query))) {
+                        .map { viewModel.fullKasName(it) }
+                    val extra = replyResolvedAnyDomain?.let { viewModel.fullKasName(it) }
+                    if (extra != null && extra !in contacts && (query.isEmpty() || viewModel.bareKasName(extra).startsWith(query))) {
                         contacts + extra
                     } else contacts
                 }

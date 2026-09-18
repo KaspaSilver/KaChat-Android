@@ -60,14 +60,15 @@ class KaPostsNotificationPoller @Inject constructor(
         val contact = try { chatRepository.getContacts().first().find { it.id == address } } catch (_: Exception) { null }
         val alias = contact?.alias?.trim().orEmpty()
         val fallback = address.takeLast(10)
+        // A domain keeps its ".kas" here too: the suffix is part of the name.
         val name = if (alias.isNotEmpty()) {
-            alias.removeSuffix(".kas")
+            alias
         } else {
             val domain = contact?.knsName?.trim().orEmpty().ifEmpty {
                 try { knsService.getExplicitPrimaryDomain(address) ?: knsService.reverseResolve(address) ?: "" }
                 catch (_: Exception) { "" }
             }
-            if (domain.isNotEmpty()) domain.removeSuffix(".kas") else fallback
+            if (domain.isNotEmpty()) domain else fallback
         }
         // Only cache real resolutions — a network miss must not pin the short-address
         // fallback for the rest of the session. Bounded: clear wholesale past 500 entries.
