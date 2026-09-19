@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.pager.HorizontalPager
@@ -1258,10 +1260,13 @@ private fun LauncherSquare(
 private fun PortfolioBigChart(
     points: List<Pair<Long, Double>>,
     lineColor: Color,
-    onScrub: (Pair<Long, Double>?) -> Unit
+    onScrub: (Pair<Long, Double>?) -> Unit,
+    /** Two fingers on the chart: the span between them, oldest first, or null when they lift. */
+    onRange: ((Pair<Pair<Long, Double>, Pair<Long, Double>>?) -> Unit)? = null,
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    var rangeIndices by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val minV = points.minOf { it.second }
     val maxV = points.maxOf { it.second }
     val range = (maxV - minV).takeIf { it > 0 } ?: 1.0
@@ -1275,18 +1280,68 @@ private fun PortfolioBigChart(
                 .height(220.dp)
                 .onSizeChanged { canvasSize = it }
                 .pointerInput(points) {
+                    fun indexAt(x: Float): Int =
+                        ((x / canvasSize.width.coerceAtLeast(1)) * (points.size - 1)).roundToInt()
+                            .coerceIn(0, points.size - 1)
                     fun scrubAt(x: Float) {
                         if (canvasSize.width <= 0) return
-                        val idx = ((x / canvasSize.width) * (points.size - 1)).roundToInt().coerceIn(0, points.size - 1)
+                        rangeIndices = null
+                        onRange?.invoke(null)
+                        val idx = indexAt(x)
                         selectedIndex = idx
                         onScrub(points[idx])
                     }
-                    detectDragGestures(
-                        onDragStart = { scrubAt(it.x) },
-                        onDrag = { change, _ -> scrubAt(change.position.x); change.consume() },
-                        onDragEnd = { selectedIndex = null; onScrub(null) },
-                        onDragCancel = { selectedIndex = null; onScrub(null) }
-                    )
+                    fun rangeAt(x1: Float, x2: Float) {
+                        if (canvasSize.width <= 0) return
+                        selectedIndex = null
+                        onScrub(null)
+                        val a = indexAt(minOf(x1, x2))
+                        val b = indexAt(maxOf(x1, x2))
+                        rangeIndices = a to b
+                        onRange?.invoke(points[a] to points[b])
+                    }
+                    fun clear() {
+                        selectedIndex = null
+                        rangeIndices = null
+                        onScrub(null)
+                        onRange?.invoke(null)
+                    }
+                    // Touches are tracked by hand rather than with a drag detector, for two
+                    // reasons: two fingers select the span between them, and a chart being read
+                    // has to hold the page still underneath it. A single finger moving mostly up
+                    // or down is left alone, so the page still scrolls past the chart.
+                    awaitEachGesture {
+                        val first = awaitFirstDown(requireUnconsumed = false)
+                        val start = first.position
+                        var owned = false
+                        var abandoned = false
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pressed = event.changes.filter { it.pressed }
+                            if (pressed.isEmpty()) break
+                            if (pressed.size >= 2) {
+                                owned = true
+                                abandoned = false
+                                rangeAt(pressed[0].position.x, pressed[1].position.x)
+                                pressed.forEach { it.consume() }
+                                continue
+                            }
+                            if (abandoned) continue
+                            val change = pressed.first()
+                            if (!owned) {
+                                val dx = kotlin.math.abs(change.position.x - start.x)
+                                val dy = kotlin.math.abs(change.position.y - start.y)
+                                val slop = viewConfiguration.touchSlop
+                                if (dy > slop && dy > dx) { abandoned = true; continue }
+                                if (dx > slop) { owned = true; scrubAt(start.x) }
+                            }
+                            if (owned) {
+                                scrubAt(change.position.x)
+                                change.consume()
+                            }
+                        }
+                        clear()
+                    }
                 }
         ) {
             val padTop = 10f
@@ -1328,6 +1383,24 @@ private fun PortfolioBigChart(
                 val y = yFor(points[idx].second)
                 drawLine(color = cursorColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 2f)
                 drawCircle(color = lineColor, radius = 6f, center = Offset(x, y))
+            }
+            // The span between two fingers: shaded across the chart, green when it ends higher
+            // than it started and red when it ends lower, with both ends marked.
+            rangeIndices?.let { (a, b) ->
+                val xa = a * stepX
+                val xb = b * stepX
+                val up = points[b].second >= points[a].second
+                val shade = if (up) Color(0xFF34C759) else Color(0xFFFF3B30)
+                drawRect(
+                    color = shade.copy(alpha = 0.16f),
+                    topLeft = Offset(minOf(xa, xb), 0f),
+                    size = androidx.compose.ui.geometry.Size(kotlin.math.abs(xb - xa), size.height),
+                )
+                for (idx in listOf(a, b)) {
+                    val ex = idx * stepX
+                    drawLine(color = shade, start = Offset(ex, 0f), end = Offset(ex, size.height), strokeWidth = 2f)
+                    drawCircle(color = shade, radius = 6f, center = Offset(ex, yFor(points[idx].second)))
+                }
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -1478,6 +1551,7 @@ fun PortfolioPriceChartScreen(
     val marketCapRank by viewModel.marketCapRank.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+    var selectedSpan by remember { mutableStateOf<Pair<Pair<Long, Double>, Pair<Long, Double>>?>(null) }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -1530,12 +1604,20 @@ fun PortfolioPriceChartScreen(
                 scrubbed?.let {
                     Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
                 }
+                selectedSpan?.let { (from, to) ->
+                    Text(
+                        "${formatDateTime(from.first)} → ${formatDateTime(to.first)}",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                    )
+                }
                 // The change sits UNDER the price rather than beside it. A long price and a
                 // long change figure on one line had no room left at larger text sizes or in a
                 // currency with a wordy symbol, and something had to shrink or clip. Stacked,
                 // neither constrains the other whatever they say.
                 Text(
                     text = when {
+                        selectedSpan != null -> formatUsdPrice(selectedSpan!!.second.second, currencyCode)
                         scrubbed != null -> formatUsdPrice(scrubbed!!.second, currencyCode)
                         currentPriceUsd != null -> formatUsdPrice(currentPriceUsd!!, currencyCode)
                         else -> "—"
@@ -1544,6 +1626,17 @@ fun PortfolioPriceChartScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 32.sp
                 )
+                // What the two fingers are actually asking: how the price moved between them.
+                selectedSpan?.let { (from, to) ->
+                    val pct = if (from.second != 0.0) (to.second - from.second) / from.second * 100 else 0.0
+                    val up = to.second >= from.second
+                    Text(
+                        "${if (up) "+" else "-"}${String.format(Locale.US, "%.2f", kotlin.math.abs(pct))}% over this span",
+                        color = if (up) Color(0xFF34C759) else Color(0xFFFF3B30),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                    )
+                }
                 // Read off the series the chart is drawing, so the number and the line can never
                 // disagree - and so it answers whichever range button is selected rather than
                 // repeating the 24h figure under every one of them. Percent only: the move in
@@ -1579,7 +1672,12 @@ fun PortfolioPriceChartScreen(
             }
 
             if (priceHistory.size >= 2) {
-                PortfolioBigChart(points = priceHistory, lineColor = KaspaTeal, onScrub = { scrubbed = it })
+                PortfolioBigChart(
+                    points = priceHistory,
+                    lineColor = KaspaTeal,
+                    onScrub = { scrubbed = it },
+                    onRange = { selectedSpan = it },
+                )
             } else {
                 Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                     Text("Loading…", color = LocalAppColors.current.textSecondary)
@@ -1607,6 +1705,7 @@ fun PortfolioValueChartScreen(
     val priceRangeDays by viewModel.priceRangeDays.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+    var selectedSpan by remember { mutableStateOf<Pair<Pair<Long, Double>, Pair<Long, Double>>?>(null) }
     // Today's change, not all-time P&L - the same figure the portfolio cards show, computed off
     // the stable seven-day history rather than the visible range, so switching to 1Y does not
     // change what "today" means.
@@ -1654,15 +1753,36 @@ fun PortfolioValueChartScreen(
                 scrubbed?.let {
                     Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
                 }
+                selectedSpan?.let { (from, to) ->
+                    Text(
+                        "${formatDateTime(from.first)} → ${formatDateTime(to.first)}",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                    )
+                }
                 // The change sits UNDER the value rather than beside it - see the note on the
                 // price header. A six-figure portfolio and its change had nowhere to go on one
                 // line.
                 Text(
-                    money(scrubbed?.second ?: summary.currentValue, currencyCode),
+                    money(selectedSpan?.second?.second ?: scrubbed?.second ?: summary.currentValue, currencyCode),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 32.sp
                 )
+                // The return across the span the two fingers mark: the percentage, and what it
+                // came to in money - masked with everything else when the eye is on.
+                selectedSpan?.let { (from, to) ->
+                    val delta = to.second - from.second
+                    val pct = if (from.second != 0.0) delta / from.second * 100 else 0.0
+                    val up = delta >= 0
+                    Text(
+                        "${if (up) "+" else "-"}${money(kotlin.math.abs(delta), currencyCode)} " +
+                            "(${String.format(Locale.US, "%.2f", kotlin.math.abs(pct))}%) over this span",
+                        color = if (up) Color(0xFF34C759) else Color(0xFFFF3B30),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                    )
+                }
                 // The move across the SELECTED range, so pressing 1W answers "how did this do
                 // this week" rather than repeating the 24h figure under every button. Hidden
                 // while scrubbing: the big number is then a past value, and a range figure under
@@ -1701,7 +1821,12 @@ fun PortfolioValueChartScreen(
             }
 
             if (valueHistory.size >= 2) {
-                PortfolioBigChart(points = valueHistory, lineColor = KaspaTeal, onScrub = { scrubbed = it })
+                PortfolioBigChart(
+                    points = valueHistory,
+                    lineColor = KaspaTeal,
+                    onScrub = { scrubbed = it },
+                    onRange = { selectedSpan = it },
+                )
             } else {
                 Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                     Text(
@@ -2370,6 +2495,7 @@ fun PortfolioHashrateChartScreen(
     val price by viewModel.currentPriceUsd.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
+    var selectedSpan by remember { mutableStateOf<Pair<Pair<Long, Double>, Pair<Long, Double>>?>(null) }
     var rangeDays by remember { mutableStateOf(90) }
 
     LaunchedEffect(Unit) { viewModel.refreshHashrate() }
@@ -2429,7 +2555,12 @@ fun PortfolioHashrateChartScreen(
             }
 
             if (visible.size >= 2) {
-                PortfolioBigChart(points = visible, lineColor = KaspaTeal, onScrub = { scrubbed = it })
+                PortfolioBigChart(
+                    points = visible,
+                    lineColor = KaspaTeal,
+                    onScrub = { scrubbed = it },
+                    onRange = { selectedSpan = it },
+                )
             } else {
                 Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                     Text("Loading…", color = colors.textSecondary)
