@@ -1689,7 +1689,8 @@ fun KaPostCell(
 
     // Measured on what is actually rendered, so a translation that runs longer than its original
     // still folds. Same numbers as iOS's KaPostCellView.isLongPost.
-    val isLongPost = bodyText.length > 280 || bodyText.count { it == '\n' } >= 8
+    // The newline count only decides short posts, so it is only counted for them.
+    val isLongPost = bodyText.length > 280 || bodyText.take(281).count { it == '\n' } >= 8
     // Show more expands the post IN PLACE. It used to open the thread, so the only way to read a
     // long post in a feed was to leave the feed - and on an ancestor it did nothing useful at all.
     // Opening the post is what tapping the post itself is for.
@@ -1860,7 +1861,13 @@ fun KaPostCell(
                 // action by hand - the body covers most of the cell, and without this
                 // "tap the post to open its thread" only worked on the padding around it.
                 // Root cells keep body taps inert, matching their disabled row clickable.
-                val postAnnotated = remember(bodyText) { annotatedPostText(bodyText) }
+                // What actually gets laid out. A folded cell shows eight lines at most, yet it
+                // was handed the whole post - up to twenty-five thousand characters, styled and
+                // measured per cell on every pass. Eight lines never need more than the first
+                // few hundred, so a folded cell renders a prefix and the full text only once it
+                // is expanded (iOS a3a7524).
+                val layoutText = remember(bodyText, foldText) { foldedLayoutText(bodyText, foldText) }
+                val postAnnotated = remember(layoutText) { annotatedPostText(layoutText) }
                 val postBody = @Composable {
                     androidx.compose.foundation.text.ClickableText(
                         text = postAnnotated,
@@ -4588,6 +4595,20 @@ fun KaPostsNotificationsOverlay(
         }
     }
 }
+
+/**
+ * The first part of a folded post, cut on whitespace so a markdown span or a link is never split
+ * mid-token. Anything short enough, or not folded at all, is returned as it is.
+ */
+private fun foldedLayoutText(text: String, folded: Boolean): String {
+    if (!folded || text.length <= FOLDED_POST_LAYOUT_CHARS) return text
+    val cut = text.take(FOLDED_POST_LAYOUT_CHARS)
+    val lastSpace = cut.indexOfLast { it.isWhitespace() }
+    return (if (lastSpace > FOLDED_POST_LAYOUT_CHARS / 2) cut.take(lastSpace) else cut) + "\u2026"
+}
+
+/** Eight lines never need more than this, and a cell that lays out less scrolls better. */
+private const val FOLDED_POST_LAYOUT_CHARS = 1_200
 
 /** "1h 12m" / "8m" / "40s" - how long is left to edit, said the way a countdown is read. */
 private fun editWindowLeftText(remainingMs: Long): String {

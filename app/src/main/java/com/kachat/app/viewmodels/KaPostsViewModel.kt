@@ -57,8 +57,6 @@ class KaPostsViewModel @Inject constructor(
     private val notificationPoller: com.kachat.app.services.KaPostsNotificationPoller,
     /** Which posts were already probed for being thread roots, across launches. */
     private val threadProbeStore: com.kachat.app.services.KaPostsThreadProbeStore,
-    /** Posts deleted on this device, which the indexer may still be serving. */
-    private val deletedPosts: com.kachat.app.services.KaPostsDeletedPostsStore,
 ) : ViewModel() {
 
     /** How many KaPosts notifications have arrived since the bell was last opened. */
@@ -1153,12 +1151,6 @@ class KaPostsViewModel @Inject constructor(
         // Before anything else: open with what KNS told us last time this app ran, rather than
         // a feed of shortened addresses that fills in as requests land.
         seedSenderCachesFromDisk()
-        // One account's deletions are not another's, and the list has to be in hand before the
-        // first page is mapped.
-        deletedPosts.setCurrentWallet(walletManager.activeAddressFlow.value)
-        viewModelScope.launch {
-            walletManager.activeAddressFlow.collect { deletedPosts.setCurrentWallet(it) }
-        }
         viewModelScope.launch {
             // Strictly per-account follow state, part 2: on an account switch, re-arm the
             // one-shot chain sync so the NEW account's on-chain follow graph is imported into
@@ -1284,8 +1276,6 @@ class KaPostsViewModel @Inject constructor(
 
     /** K wire post -> UI model. Content arrives base64-decoded with the marker stripped. */
     fun mapRemotePost(post: KPost): KaPostDraft? {
-        // Deleted here, still served by the indexer: it stays deleted on this device.
-        if (deletedPosts.contains(post.id)) return null
         val content = post.decodedContent ?: return null
         val address = KaPostsService.kaspaAddressFromPubkey(post.userPublicKey) ?: return null
         val quoted = post.quote?.let { q ->
@@ -1516,7 +1506,6 @@ class KaPostsViewModel @Inject constructor(
             clearUndoToast(key)
             try {
                 kaPostsService.submitDelete(remoteId)
-                deletedPosts.insert(remoteId)
                 removePostEverywhere(post.id)
             } catch (e: Exception) {
                 mutateEverywhere(post.id) { it.copy(pendingDeletion = false) }
