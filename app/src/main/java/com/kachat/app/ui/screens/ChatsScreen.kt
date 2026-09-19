@@ -129,11 +129,16 @@ fun ChatsScreen(
     var selectedContactIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showBulkDeleteConfirmation by remember { mutableStateOf(false) }
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    // Three pages: Chats, Group Chats, and Public Chats - the broadcast rooms, which used to be
+    // a feature of their own and now live one swipe past Group Chats (iOS a566da7).
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
     // Selection is scoped to whichever tab it was started on - switching tabs mid-select would
     // either strand a selection the visible list can't act on, or blend Chats and Group Chats
     // selections together, so the other tab is blocked while editing (matches iOS).
     val isOnGroupsTab = pagerState.currentPage == 1
+    /** The rooms page brings its own join and create entry points, and nothing on it is
+     *  selectable in bulk. */
+    val isOnPublicChatsTab = pagerState.currentPage == 2
     val tabCoroutineScope = rememberCoroutineScope()
 
     // A group notification with no openable thread asked for the Group Chats tab — see
@@ -403,6 +408,19 @@ fun ChatsScreen(
                             }
                         }
                     )
+                    Tab(
+                        selected = pagerState.currentPage == 2,
+                        onClick = {
+                            if (!isSelectionMode) tabCoroutineScope.launch { pagerState.animateScrollToPage(2) }
+                        },
+                        text = {
+                            Text(
+                                stringResource(R.string.public_chats),
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelectionMode) LocalContentColor.current.copy(alpha = 0.25f) else LocalContentColor.current,
+                            )
+                        }
+                    )
                 }
             }
         },
@@ -410,6 +428,8 @@ fun ChatsScreen(
             // Same style/placement as Portfolio's add-transaction FAB (see PortfolioScreen.kt) —
             // sits above the app-wide floating tab bar for free, since this screen's own content
             // region is already reserved above it before this Scaffold is even composed.
+            // No create button on the rooms page: it carries its own join and create row.
+            if (isOnPublicChatsTab) return@Scaffold
             FloatingActionButton(
                 // Tab-aware: opens the group builder on the Group Chats tab, the 1:1 create
                 // screen on the Chats tab.
@@ -488,6 +508,13 @@ fun ChatsScreen(
             modifier = Modifier.fillMaxSize().padding(padding)
         ) { page ->
         when (page) {
+            // The rooms screen, whole, as the third page - its own join and create affordances
+            // come with it.
+            2 -> BroadcastListScreen(
+                navController = navController,
+                onBack = {},
+                embeddedInChats = true,
+            )
             1 -> Box(
                 modifier = Modifier
                     .fillMaxSize()

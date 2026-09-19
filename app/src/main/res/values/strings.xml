@@ -573,4 +573,5 @@
     <string name="contacts_call_needs_microphone">KaChat needs the microphone to make a call.</string>
     <string name="contacts_call_contact_missing">That contact is no longer in KaChat.</string>
     <string name="contacts_call_not_enabled">Calls are turned off for this contact in KaChat.</string>
+    <string name="public_chats">Public Chats</string>
 </resources>

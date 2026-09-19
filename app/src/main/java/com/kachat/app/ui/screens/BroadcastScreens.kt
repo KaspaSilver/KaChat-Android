@@ -156,11 +156,14 @@ object BroadcastDeepLink {
 fun BroadcastListScreen(
     navController: NavController,
     onBack: () -> Unit,
+    /** True when this is the Chats screen's Public Chats tab rather than a destination of its
+     *  own: the Chats header is already up, and back belongs to the Chats screen. */
+    embeddedInChats: Boolean = false,
     broadcastViewModel: BroadcastViewModel = hiltViewModel()
 ) {
     // The back arrow is gone from the header (iOS has none), so system back carries what it
     // did: from the Kaspa Hub this returns to the grid rather than leaving the Hub entirely.
-    BackHandler(onBack = onBack)
+    if (!embeddedInChats) BackHandler(onBack = onBack)
 
     val channels by broadcastViewModel.joinedChannels.collectAsState()
     val joinState by broadcastViewModel.joinChannelState.collectAsState()
@@ -190,13 +193,16 @@ fun BroadcastListScreen(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            MainPageHeader(
-                title = stringResource(R.string.broadcasts),
-                // No back arrow, matching iOS: Broadcasts is a browsing destination you reach
-                // from the dock or the Kaspa Hub grid, not something you were pushed into.
-                // System back still runs onBack (see the BackHandler above), which is how the
-                // Hub gets back to its grid.
-            )
+            // Embedded, the Chats header and its tab row are already above this.
+            if (!embeddedInChats) {
+                MainPageHeader(
+                    title = stringResource(R.string.broadcasts),
+                    // No back arrow, matching iOS: Public Chats is a browsing destination you
+                    // arrive at, not something you were pushed into. System back still runs
+                    // onBack (see the BackHandler above), which is how the Hub gets back to
+                    // its grid.
+                )
+            }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {

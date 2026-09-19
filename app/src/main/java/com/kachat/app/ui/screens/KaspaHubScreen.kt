@@ -90,9 +90,6 @@ fun KaspaHubScreen(
     fun badgeCount(screen: Screen): Int = when (screen) {
         Screen.Profile -> notifEntries.count { it.timestampMs > notifLastSeen }
         Screen.KaPosts -> kaPostsUnseen
-        Screen.Broadcasts -> notifEntries.count {
-            it.source == "broadcast" && it.timestampMs > notifLastSeen
-        }
         else -> 0
     }
 
@@ -140,10 +137,6 @@ fun KaspaHubScreen(
             )
         )
         openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel)
-        openSection == Screen.Broadcasts -> BroadcastListScreen(
-            navController = navController,
-            onBack = { openSectionRoute = null }
-        )
         openSection == Screen.Swap -> SwapScreen(navController = navController)
         else -> HubGrid(
             sections = sections,

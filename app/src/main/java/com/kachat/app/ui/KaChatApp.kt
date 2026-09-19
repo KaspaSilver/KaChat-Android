@@ -127,7 +127,7 @@ val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
 /** Tabs the user can place. Excludes the pinned two. */
 val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
-    Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route,
+    Screen.Swap.route, Screen.KaPosts.route,
     Screen.KaspaWebsites.route
 )
 
@@ -182,7 +182,10 @@ fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>, childMode: Bo
     val byRoute = bottomNavItems.associateBy { it.route }
     val resolved = routes.mapNotNull { byRoute[it] }
     val missing = bottomNavItems.filter { it !in resolved }
-    val ordered = resolved + missing
+    // Public Chats moved INTO the Chats screen as its third tab, so the rooms are no longer a
+    // destination of their own. The Screen stays so a dock arrangement saved by an older build
+    // still decodes; it simply never renders (iOS keeps the AppTab case for the same reason).
+    val ordered = (resolved + missing).filterNot { it.route == Screen.Broadcasts.route }
     var visible = ordered.filter { it.route in ALWAYS_VISIBLE_TAB_ROUTES || it.route !in hiddenTabs }
     if (childMode) {
         visible = visible.filter { it.route !in CHILD_MODE_HIDDEN_ROUTES }
