@@ -347,9 +347,9 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // No speaker control here: a video call is never held to an ear, so it stays on
-            // the speaker and mute is the control that matters.
             SmallControl(if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic, active = call.isMuted) { callService.toggleMute() }
+            // Video calls start on the speaker; the toggle stays for whoever needs it.
+            SmallControl(if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown, active = call.isSpeakerOn) { callService.toggleSpeaker() }
             SmallControl(if (call.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam, active = call.isCameraOff) { callService.toggleCamera() }
             SmallControl(Icons.Default.Cameraswitch, active = false) { callService.flipCamera() }
             RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 60.dp) { callService.hangUp() }

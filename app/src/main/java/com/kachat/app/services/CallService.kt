@@ -576,8 +576,6 @@ class CallService @Inject constructor(
 
     fun toggleSpeaker() {
         val call = _session.value ?: return
-        // A video call is never held to an ear: it stays on the speaker.
-        if (call.video) return
         // Flip from where the audio actually is, not from where we last asked it to be.
         val on = !call.isSpeakerOn
         update { it.copy(isSpeakerOn = on, speakerRequested = on) }

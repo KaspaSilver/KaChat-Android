@@ -140,6 +140,9 @@ class AppSettingsRepository @Inject constructor(
         val KEY_KAPOSTS_NOTIFY_DISLIKES = booleanPreferencesKey("kaposts_notify_dislikes")
         val KEY_KAPOSTS_NOTIFY_COMMENTS = booleanPreferencesKey("kaposts_notify_comments")
         val KEY_KAPOSTS_NOTIFY_MENTIONS = booleanPreferencesKey("kaposts_notify_mentions")
+        /** The amount a tap on Tip sends straight away, in sompi. Unset (or 0) means the amount
+         *  screen opens instead, which is the default. */
+        val KEY_KAPOSTS_DEFAULT_TIP_SOMPI = longPreferencesKey("kaposts_default_tip_sompi")
 
         // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
         val KEY_SYNC_SYSTEM_CONTACTS = booleanPreferencesKey("sync_system_contacts")
@@ -504,6 +507,11 @@ class AppSettingsRepository @Inject constructor(
     /** Defaults ON, and an install with no such key reads ON - a switch appearing for the first
      *  time must not silently mute anything. */
     val kaPostsNotifyMentions: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_MENTIONS] ?: true }
+
+    /** See [KEY_KAPOSTS_DEFAULT_TIP_SOMPI]. Null while tipping asks for an amount every time. */
+    val kaPostsDefaultTipSompi: Flow<Long?> = dataStore.data.map {
+        it[KEY_KAPOSTS_DEFAULT_TIP_SOMPI]?.takeIf { sompi -> sompi > 0 }
+    }
 
     /**
      * Whether a KaPosts notification event should post, per the K API's contentType/voteType
@@ -896,6 +904,11 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKaPostsNotifyDislikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_DISLIKES] = value }
     suspend fun setKaPostsNotifyComments(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_COMMENTS] = value }
     suspend fun setKaPostsNotifyMentions(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_MENTIONS] = value }
+
+    suspend fun setKaPostsDefaultTipSompi(value: Long?) = dataStore.edit {
+        if (value != null && value > 0) it[KEY_KAPOSTS_DEFAULT_TIP_SOMPI] = value
+        else it.remove(KEY_KAPOSTS_DEFAULT_TIP_SOMPI)
+    }
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
     suspend fun setAutoCreateSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_AUTOCREATE_SYSTEM_CONTACTS] = value }
     suspend fun setPendingKnsCommit(commit: PendingKnsCommit) = dataStore.edit { it[KEY_PENDING_KNS_COMMIT] = Gson().toJson(commit) }

@@ -1352,12 +1352,6 @@ fun MainShell(
                 )
             }
 
-            composable("kaposts_notification_settings") {
-                KaPostsNotificationSettingsScreen(
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
             composable("quick_reaction_settings") {
                 QuickReactionSettingsScreen(
                     onBack = { navController.popBackStack() }

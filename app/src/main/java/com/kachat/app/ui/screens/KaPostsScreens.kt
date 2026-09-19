@@ -84,6 +84,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -477,6 +478,8 @@ fun KaPostsScreen(
     navController: NavController,
     viewModel: KaPostsViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
+    chatViewModel: ChatViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
@@ -571,8 +574,34 @@ fun KaPostsScreen(
     var followListPubkey by remember { mutableStateOf<String?>(null) }
     // Quick-tip dialog target: (poster address, display name).
     var tipTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val defaultTipSompi by settingsViewModel.kaPostsDefaultTipSompi.collectAsState()
+    /**
+     * Tipping a poster. With a default amount set (KaPosts Settings) it goes out at once,
+     * through exactly the path the tip sheet's Send uses - the same contact creation, the same
+     * funding source and destination rules as a payment in that person's chat. Without one, the
+     * amount screen opens. A send that fails falls back to the amount screen so the tip can
+     * still be made by hand.
+     */
+    val tip: (String, String) -> Unit = { address, name ->
+        val amount = defaultTipSompi
+        if (amount == null || amount <= 0) {
+            tipTarget = address to name
+        } else {
+            chatViewModel.addContact(address, null)
+            val kasText = kasAmountText(amount)
+            chatViewModel.sendPayment(address, kasText) { ok, error, txId ->
+                if (ok) {
+                    viewModel.showTipToast("Tipped $kasText KAS to $name", txId.orEmpty())
+                } else {
+                    viewModel.showFeedError(error ?: "Tip didn't send.")
+                    tipTarget = address to name
+                }
+            }
+        }
+    }
     var moderationKind by remember { mutableStateOf<Boolean?>(null) } // true = blocked
     var showBookmarks by remember { mutableStateOf(false) }
+    var showKaPostsSettings by remember { mutableStateOf(false) }
     var showDrafts by remember { mutableStateOf(false) }
     var editingDraft by remember { mutableStateOf<KaPostSavedDraft?>(null) }
     val draftContext = LocalContext.current
@@ -802,6 +831,7 @@ fun KaPostsScreen(
                     KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
                     KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
                     KaPostsMenuIcon(Icons.Default.Block, "Blocked") { moderationKind = true }
+                    KaPostsMenuIcon(Icons.Default.Settings, "KaPosts Settings") { showKaPostsSettings = true }
                     Spacer(Modifier.weight(1f))
                 }
                 FeedTabsRow(
@@ -978,7 +1008,7 @@ fun KaPostsScreen(
                                     // The reply bubble opens the Reply composer; the card opens
                                     // the thread (iOS feed cells).
                                     onReply = { replyComposerTarget = post },
-                                    onTip = { tipTarget = post.posterAddress to viewModel.posterDisplayName(post.posterAddress) },
+                                    onTip = { tip(post.posterAddress, viewModel.posterDisplayName(post.posterAddress)) },
                                 )
                                 // X-style "View thread" under a thread root - opens the detail,
                                 // where the full continuation renders as a connected section.
@@ -1339,7 +1369,7 @@ fun KaPostsScreen(
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openSharedFromProfile(KaPostsProfileReturn.Poster(profile.address, profile.pubkey), it) },
             onOpenFollowList = { followListPubkey = profile.pubkey; followListKind = it },
-            onTip = { tipTarget = it.posterAddress to viewModel.posterDisplayName(it.posterAddress) },
+            onTip = { tip(it.posterAddress, viewModel.posterDisplayName(it.posterAddress)) },
             onReply = { replyComposerTarget = it },
         )
     }
@@ -1405,6 +1435,10 @@ fun KaPostsScreen(
         )
     }
 
+    if (showKaPostsSettings) {
+        KaPostsSettingsOverlay(onClose = { showKaPostsSettings = false })
+    }
+
     if (showBookmarks) {
         KaPostsBookmarksOverlay(
             viewModel = viewModel,
@@ -1417,7 +1451,7 @@ fun KaPostsScreen(
             // bookmarks Dialog, so they open in place.
             onViewEngagement = { engagementTarget = it },
             onRepostTap = { repostHandler(it) },
-            onTip = { tipTarget = it.posterAddress to viewModel.posterDisplayName(it.posterAddress) },
+            onTip = { tip(it.posterAddress, viewModel.posterDisplayName(it.posterAddress)) },
         )
     }
 }
@@ -5354,6 +5388,108 @@ fun KaPostEngagementOverlay(
         }
     }
 }
+
+/**
+ * KaPosts' own settings, behind the gear in the feed's icon row: which KaPosts activity notifies
+ * you (these switches used to live in Settings, Notifications), and the default tip - the amount
+ * a tap on Tip sends at once, with no amount screen in between. Mirrors iOS's KaPostsSettingsView.
+ */
+@Composable
+fun KaPostsSettingsOverlay(
+    onClose: () -> Unit,
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    val defaultTipSompi by settingsViewModel.kaPostsDefaultTipSompi.collectAsState()
+    val likes by settingsViewModel.kaPostsNotifyLikes.collectAsState()
+    val reposts by settingsViewModel.kaPostsNotifyReposts.collectAsState()
+    val follows by settingsViewModel.kaPostsNotifyFollows.collectAsState()
+    val dislikes by settingsViewModel.kaPostsNotifyDislikes.collectAsState()
+    val comments by settingsViewModel.kaPostsNotifyComments.collectAsState()
+    val mentions by settingsViewModel.kaPostsNotifyMentions.collectAsState()
+
+    // Seeded from the stored amount once; typing owns the field after that, so a re-read cannot
+    // rewrite what is half-typed.
+    var instantTipEnabled by remember(defaultTipSompi == null) { mutableStateOf(defaultTipSompi != null) }
+    var tipText by remember { mutableStateOf(defaultTipSompi?.let { kasAmountText(it) } ?: "") }
+
+    fun commitTip(text: String) {
+        val kas = text.replace(',', '.').trim().toDoubleOrNull() ?: return
+        if (kas <= 0) return
+        settingsViewModel.setKaPostsDefaultTipSompi(Math.round(kas * 100_000_000))
+    }
+
+    KaPostsOverlayScaffold(title = "KaPosts Settings", onClose = onClose) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Spacer(Modifier.height(4.dp))
+            SettingsSection(title = "Tipping") {
+                SettingsSwitchItem("Send a default tip instantly", instantTipEnabled) { enabled ->
+                    instantTipEnabled = enabled
+                    if (enabled) {
+                        if (tipText.isBlank()) tipText = "1"
+                        commitTip(tipText)
+                    } else {
+                        settingsViewModel.setKaPostsDefaultTipSompi(null)
+                    }
+                }
+                if (instantTipEnabled) {
+                    SettingsDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = tipText,
+                            onValueChange = { input ->
+                                tipText = input.filter { it.isDigit() || it == '.' || it == ',' }
+                                commitTip(tipText)
+                            },
+                            placeholder = { Text("1", color = colors.textSecondary) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("KAS", color = colors.textSecondary, fontSize = 15.sp)
+                    }
+                }
+                SettingsFooter(
+                    if (instantTipEnabled) {
+                        "Tapping Tip on a post sends this amount straight away, with no amount screen. It goes out exactly like a payment in that person's chat: from your primary spending address when Chats Payment Privacy is on, and to a fresh private address of theirs when they shared one."
+                    } else {
+                        "Off: tapping Tip opens the amount screen every time."
+                    }
+                )
+            }
+
+            SettingsSection(title = "Notifications") {
+                SettingsSwitchItem("Likes", likes) { settingsViewModel.setKaPostsNotifyLikes(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Reposts", reposts) { settingsViewModel.setKaPostsNotifyReposts(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Follows", follows) { settingsViewModel.setKaPostsNotifyFollows(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Dislikes", dislikes) { settingsViewModel.setKaPostsNotifyDislikes(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Comments", comments) { settingsViewModel.setKaPostsNotifyComments(it) }
+                SettingsDivider()
+                SettingsSwitchItem("Mentions", mentions) { settingsViewModel.setKaPostsNotifyMentions(it) }
+                SettingsFooter("Choose which KaPosts activity reaches you. Anything switched off sends no notification and does not appear in the KaPosts bell. Quotes of your posts count as reposts.")
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** A sompi amount as KAS, with the trailing zeros off: "1", "0.5", "12.25". */
+private fun kasAmountText(sompi: Long): String =
+    java.math.BigDecimal(sompi).divide(java.math.BigDecimal(100_000_000)).stripTrailingZeros().toPlainString()
 
 // MARK: - Muted/Blocked + Bookmarks overlays
 

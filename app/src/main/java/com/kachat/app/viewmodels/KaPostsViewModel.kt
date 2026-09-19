@@ -686,6 +686,14 @@ class KaPostsViewModel @Inject constructor(
         _undoDeadlines.value = _undoDeadlines.value - key
     }
 
+    /** The same capsule the in-app actions use, for a tip that went out without a sheet. */
+    fun showTipToast(message: String, txId: String) = showActionToast(message, txId)
+
+    /** Says what went wrong where the feed already says things, for a tip that did not send. */
+    fun showFeedError(message: String) {
+        _feedError.value = message
+    }
+
     private fun showActionToast(message: String, txId: String) {
         val toast = ActionToast(message = message, txId = txId)
         _actionToast.value = toast

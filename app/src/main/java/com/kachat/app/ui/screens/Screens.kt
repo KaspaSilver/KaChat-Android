@@ -8810,10 +8810,6 @@ fun SettingsScreen(
                 SettingsNavigationItem("Wallet", Icons.Default.AccountBalanceWallet, onClick = {
                     navController.navigate("wallet_notification_settings")
                 })
-                SettingsDivider()
-                SettingsNavigationItem("KaPosts", Icons.Default.Edit, onClick = {
-                    navController.navigate("kaposts_notification_settings")
-                })
             }
             }
 
@@ -10070,63 +10066,6 @@ fun WalletNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsView
                     viewModel.setAddressActivityNotificationsEnabled(it)
                 }
                 SettingsFooter("Notify when any of your spending or cold storage addresses receives Kaspa from an external source. Transfers between your own addresses are ignored.")
-            }
-        }
-    }
-}
-
-/**
- * Settings > Notifications > KaPosts — five default-ON toggles choosing which KaPosts activity
- * kinds post a notification. Filtering happens at the poll source
- * ([com.kachat.app.services.KaPostsNotificationPoller]) via the K API contentType/voteType
- * mapping (vote+downvote = dislike, vote = like, reply = comment, quote = repost,
- * follow = follow). Mirrors iOS's KaPostsNotificationSettingsView.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun KaPostsNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
-    val likes by viewModel.kaPostsNotifyLikes.collectAsState()
-    val reposts by viewModel.kaPostsNotifyReposts.collectAsState()
-    val follows by viewModel.kaPostsNotifyFollows.collectAsState()
-    val dislikes by viewModel.kaPostsNotifyDislikes.collectAsState()
-    val comments by viewModel.kaPostsNotifyComments.collectAsState()
-    val mentions by viewModel.kaPostsNotifyMentions.collectAsState()
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("KaPosts", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-            SettingsSection(title = null) {
-                SettingsSwitchItem("Likes", likes) { viewModel.setKaPostsNotifyLikes(it) }
-                SettingsDivider()
-                SettingsSwitchItem("Reposts", reposts) { viewModel.setKaPostsNotifyReposts(it) }
-                SettingsDivider()
-                SettingsSwitchItem("Follows", follows) { viewModel.setKaPostsNotifyFollows(it) }
-                SettingsDivider()
-                SettingsSwitchItem("Dislikes", dislikes) { viewModel.setKaPostsNotifyDislikes(it) }
-                SettingsDivider()
-                SettingsSwitchItem("Comments", comments) { viewModel.setKaPostsNotifyComments(it) }
-                SettingsDivider()
-                SettingsSwitchItem("Mentions", mentions) { viewModel.setKaPostsNotifyMentions(it) }
-                SettingsFooter("Choose which KaPosts activity reaches you. Anything switched off sends no notification and does not appear in the KaPosts bell. Quotes of your posts count as reposts.")
             }
         }
     }

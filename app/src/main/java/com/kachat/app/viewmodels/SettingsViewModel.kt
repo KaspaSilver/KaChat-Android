@@ -78,6 +78,10 @@ class SettingsViewModel @Inject constructor(
     val kaPostsNotifyMentions = settings.kaPostsNotifyMentions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
+    /** The amount a tap on Tip sends at once, in sompi; null while it asks every time. */
+    val kaPostsDefaultTipSompi = settings.kaPostsDefaultTipSompi
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun setAddressActivityNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setAddressActivityNotificationsEnabled(value) }
     fun setKaPostsNotifyLikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyLikes(value) }
     fun setKaPostsNotifyReposts(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyReposts(value) }
@@ -85,6 +89,7 @@ class SettingsViewModel @Inject constructor(
     fun setKaPostsNotifyDislikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyDislikes(value) }
     fun setKaPostsNotifyComments(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyComments(value) }
     fun setKaPostsNotifyMentions(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyMentions(value) }
+    fun setKaPostsDefaultTipSompi(value: Long?) = viewModelScope.launch { settings.setKaPostsDefaultTipSompi(value) }
 
     // ------------------------------------------------------------------
     // Chats Payment Privacy (per-account) — fresh-address payment pools.
