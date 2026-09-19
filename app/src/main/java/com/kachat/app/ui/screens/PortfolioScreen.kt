@@ -48,6 +48,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -85,6 +87,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -128,6 +131,8 @@ import com.kachat.app.services.KaspaNetworkStatsService
 import com.kachat.app.services.formatHashrate
 import com.kachat.app.util.currencySymbolFor
 import com.kachat.app.util.formatFiatAmount
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import com.kachat.app.util.formatKasAmount
 import com.kachat.app.util.formatKasAmountGrouped
 import com.kachat.app.viewmodels.PortfolioSummary
@@ -194,16 +199,46 @@ fun PortfolioScreen(
             viewModel.refreshPrice()
         }
     }
+    // Coming back to the app with the Portfolio already on screen: a price left sitting for
+    // minutes is refetched, so the number being read is not one from before lunch (iOS 2c50823).
+    val priceLifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(priceLifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.refreshSpotPriceIfStale()
+        }
+        priceLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { priceLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(isRefreshing) {
         if (!isRefreshing && pullRefreshState.isRefreshing) {
             pullRefreshState.endRefresh()
         }
     }
 
+    val valuesHidden by viewModel.valuesHidden.collectAsState()
+
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        topBar = { MainPageHeader(title = stringResource(R.string.portfolio)) }
+        topBar = {
+            MainPageHeader(
+                title = stringResource(R.string.portfolio),
+                actions = {
+                    // One tap turns every amount on this screen into dots - for reading the
+                    // Portfolio somewhere with people around. The KAS price and the percentages
+                    // stay: those say nothing about what is held.
+                    IconButton(onClick = { viewModel.toggleValuesHidden() }) {
+                        Icon(
+                            if (valuesHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (valuesHidden) "Show amounts" else "Hide amounts",
+                            tint = LocalAppColors.current.textPrimary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                },
+            )
+        }
     ) { padding ->
+      CompositionLocalProvider(LocalPortfolioValuesHidden provides valuesHidden) {
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             PortfolioPickerHeader(
                 portfolios = portfolios,
@@ -270,6 +305,7 @@ fun PortfolioScreen(
                 )
             }
         }
+      }
     }
 }
 
@@ -905,11 +941,11 @@ private fun PortfolioSummaryCard(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(stringResource(R.string.holdings), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text("${formatKasAmount(summary.holdingsKas)} KAS", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                Text(kas(summary.holdingsKas), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(stringResource(R.string.current_value), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(formatFiatAmount(summary.currentValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                Text(money(summary.currentValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -918,7 +954,7 @@ private fun PortfolioSummaryCard(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(stringResource(R.string.total_invested), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(formatFiatAmount(summary.totalInvested, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                Text(money(summary.totalInvested, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(stringResource(R.string.total_p_l), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
@@ -931,7 +967,7 @@ private fun PortfolioSummaryCard(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        "${formatFiatAmount(summary.totalPL, currencyCode)} (${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%)",
+                        "${money(summary.totalPL, currencyCode)} (${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%)",
                         color = plColor,
                         fontWeight = FontWeight.Bold
                     )
@@ -1056,7 +1092,7 @@ private fun PortfolioValueChartCard(valueHistory: List<Pair<Long, Double>>, curr
             Triple("Value Over Time", valueHistory.last().first, valueHistory.last().second)
         }
         Text(headerLabel, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-        Text(formatFiatAmount(headerValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text(money(headerValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(6.dp))
         val textSecondaryColor = LocalAppColors.current.textSecondary
         Canvas(
@@ -1125,7 +1161,7 @@ private fun PortfolioLauncherSquares(
         LauncherSquare(
             modifier = Modifier.weight(1f).clickable { onOpenValue() },
             title = "Value",
-            value = formatFiatAmount(summary.currentValue, currencyCode),
+            value = money(summary.currentValue, currencyCode),
             // The last 24 hours, not all-time P&L. A number that only ever grows over the life of
             // the portfolio says nothing about today, and it sat beside the Kaspa square's 24h
             // figure reading as though the two were comparable.
@@ -1381,6 +1417,29 @@ private fun MarketStatsCard(marketCap: Double?, rank: Int?, currencyCode: String
     }
 }
 
+/**
+ * Whether Portfolio's eye button is masking amounts. A composition local rather than a parameter
+ * threaded through a dozen private composables: every amount on this screen already goes through
+ * [money], and this is what that reads.
+ */
+private val LocalPortfolioValuesHidden = compositionLocalOf { false }
+
+/** What the eye shows instead of a number. */
+private const val MASKED_AMOUNT = "••••••"
+
+/** Every amount on the Portfolio goes through here, so the eye masks all of them at once. */
+@Composable
+private fun money(value: Double, currencyCode: String): String =
+    if (LocalPortfolioValuesHidden.current) MASKED_AMOUNT else formatFiatAmount(value, currencyCode)
+
+/** A held quantity, masked by the same eye: how much is held says as much as what it is worth. */
+@Composable
+private fun kas(value: Double, grouped: Boolean = false): String = when {
+    LocalPortfolioValuesHidden.current -> MASKED_AMOUNT
+    grouped -> "${formatKasAmountGrouped(value)} KAS"
+    else -> "${formatKasAmount(value)} KAS"
+}
+
 @Composable
 private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit) {
     val ranges = listOf(1 to "1D", 7 to "1W", 30 to "1M", 90 to "3M", 365 to "1Y")
@@ -1554,7 +1613,10 @@ fun PortfolioValueChartScreen(
     val activePortfolioId by viewModel.activePortfolioId.collectAsState()
     val cardSummaries by viewModel.cardSummaries.collectAsState()
     val todayCard = activePortfolioId?.let { cardSummaries[it] }
+    // This screen is all amounts, so the eye reaches it too.
+    val valuesHidden by viewModel.valuesHidden.collectAsState()
 
+    CompositionLocalProvider(LocalPortfolioValuesHidden provides valuesHidden) {
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
@@ -1596,7 +1658,7 @@ fun PortfolioValueChartScreen(
                 // price header. A six-figure portfolio and its change had nowhere to go on one
                 // line.
                 Text(
-                    formatFiatAmount(scrubbed?.second ?: summary.currentValue, currencyCode),
+                    money(scrubbed?.second ?: summary.currentValue, currencyCode),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 32.sp
@@ -1621,7 +1683,7 @@ fun PortfolioValueChartScreen(
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
-                            "${formatFiatAmount(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
+                            "${money(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
                             color = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
@@ -1657,6 +1719,7 @@ fun PortfolioValueChartScreen(
             PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
     }
+    }
 }
 
 @Composable
@@ -1672,11 +1735,11 @@ private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: Str
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(stringResource(R.string.holdings), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text("${formatKasAmountGrouped(summary.holdingsKas)} KAS", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                Text(kas(summary.holdingsKas, grouped = true), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(stringResource(R.string.current_value), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(formatFiatAmount(summary.currentValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                Text(money(summary.currentValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -1685,12 +1748,12 @@ private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: Str
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(stringResource(R.string.total_invested), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(formatFiatAmount(summary.totalInvested, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                Text(money(summary.totalInvested, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(stringResource(R.string.total_p_l), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                 Text(
-                    "${formatFiatAmount(summary.totalPL, currencyCode)} (${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%)",
+                    "${money(summary.totalPL, currencyCode)} (${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%)",
                     color = plColor,
                     fontWeight = FontWeight.Bold
                 )
@@ -1780,8 +1843,8 @@ private fun TransactionRow(
             }
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("${formatKasAmountGrouped(amountKas)} KAS", color = LocalAppColors.current.textPrimary)
-            Text(formatFiatAmount(tx.fiatValue, currencyCode), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+            Text(kas(amountKas, grouped = true), color = LocalAppColors.current.textPrimary)
+            Text(money(tx.fiatValue, currencyCode), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
         }
         if (!selecting) {
             Spacer(Modifier.width(8.dp))
@@ -1965,7 +2028,7 @@ private fun TransactionDialog(
                 ) {
                     Text(if (isBuy) "Total Spent" else "Total Received", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                     Text(
-                        text = if (total != null) formatFiatAmount(total, currencyCode) else "${currencySymbolFor(currencyCode)}0",
+                        text = if (total != null) money(total, currencyCode) else "${currencySymbolFor(currencyCode)}0",
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
@@ -2564,7 +2627,7 @@ private fun MiningPayoutRow(title: String, kas: Double, price: Double?, currency
             )
             if (price != null && price > 0) {
                 Text(
-                    formatFiatAmount(kas * price, currencyCode),
+                    money(kas * price, currencyCode),
                     color = colors.textSecondary,
                     fontSize = 12.sp
                 )

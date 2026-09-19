@@ -143,6 +143,8 @@ class AppSettingsRepository @Inject constructor(
         /** The amount a tap on Tip sends straight away, in sompi. Unset (or 0) means the amount
          *  screen opens instead, which is the default. */
         val KEY_KAPOSTS_DEFAULT_TIP_SOMPI = longPreferencesKey("kaposts_default_tip_sompi")
+        /** Portfolio's eye button: every amount on that screen reads as dots. */
+        val KEY_PORTFOLIO_VALUES_HIDDEN = booleanPreferencesKey("portfolio_values_hidden")
 
         // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
         val KEY_SYNC_SYSTEM_CONTACTS = booleanPreferencesKey("sync_system_contacts")
@@ -507,6 +509,9 @@ class AppSettingsRepository @Inject constructor(
     /** Defaults ON, and an install with no such key reads ON - a switch appearing for the first
      *  time must not silently mute anything. */
     val kaPostsNotifyMentions: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_MENTIONS] ?: true }
+
+    /** See [KEY_PORTFOLIO_VALUES_HIDDEN]. */
+    val portfolioValuesHidden: Flow<Boolean> = dataStore.data.map { it[KEY_PORTFOLIO_VALUES_HIDDEN] ?: false }
 
     /** See [KEY_KAPOSTS_DEFAULT_TIP_SOMPI]. Null while tipping asks for an amount every time. */
     val kaPostsDefaultTipSompi: Flow<Long?> = dataStore.data.map {
@@ -904,6 +909,8 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setKaPostsNotifyDislikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_DISLIKES] = value }
     suspend fun setKaPostsNotifyComments(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_COMMENTS] = value }
     suspend fun setKaPostsNotifyMentions(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_MENTIONS] = value }
+
+    suspend fun setPortfolioValuesHidden(value: Boolean) = dataStore.edit { it[KEY_PORTFOLIO_VALUES_HIDDEN] = value }
 
     suspend fun setKaPostsDefaultTipSompi(value: Long?) = dataStore.edit {
         if (value != null && value > 0) it[KEY_KAPOSTS_DEFAULT_TIP_SOMPI] = value

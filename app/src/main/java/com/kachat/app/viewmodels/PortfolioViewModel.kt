@@ -227,6 +227,40 @@ class PortfolioViewModel @Inject constructor(
      * degrades to a slightly stale number instead of a blank dash, and any failure schedules a
      * deferred retry via [scheduleRetry] rather than parking forever.
      */
+    /**
+     * Portfolio's eye button: every amount on that screen reads as dots, the KAS price and the
+     * percentages aside. Persisted, so a hidden portfolio stays hidden across launches.
+     */
+    val valuesHidden: StateFlow<Boolean> = settings.portfolioValuesHidden
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun toggleValuesHidden() {
+        viewModelScope.launch { settings.setPortfolioValuesHidden(!valuesHidden.value) }
+    }
+
+    /**
+     * Coming back to the app with this screen already up: a price older than five minutes, or
+     * none at all, is fetched again - just the price, not the whole launch burst, which is what
+     * CoinGecko's keyless tier throttles. A fresh one is left alone.
+     */
+    fun refreshSpotPriceIfStale() {
+        val currencyCode = currency.value
+        val persisted = repository.readPersistedPrice(currencyCode)
+        val fresh = persisted != null && _currentPriceUsd.value != null &&
+            System.currentTimeMillis() - persisted.fetchedAtMillis < SPOT_PRICE_STALE_MILLIS
+        if (fresh) return
+        viewModelScope.launch {
+            val result = repository.getCurrentPriceUsd(currencyCode)
+            if (result != null) {
+                _currentPriceUsd.value = result.price
+                _priceChange24h.value = result.change24hPercent
+                retryBackoffMillis = INITIAL_RETRY_BACKOFF_MILLIS
+            } else {
+                scheduleRetry()
+            }
+        }
+    }
+
     fun refreshPrice(force: Boolean = true) {
         retryJob?.cancel()
         val currencyCode = currency.value
@@ -532,6 +566,9 @@ class PortfolioViewModel @Inject constructor(
 
         /** First deferred-retry wait for a plain (non-throttled) failure — offline, DNS, 5xx with no Retry-After. */
         private const val INITIAL_RETRY_BACKOFF_MILLIS = 15_000L
+
+        /** How old a spot price has to be before returning to the app refetches it. */
+        private const val SPOT_PRICE_STALE_MILLIS = 5 * 60 * 1000L
         /** 1.5s behind the launch burst, then a growing backoff - four tries before the card is
          *  left to the next refresh. Mirrors iOS. */
         private val SEVEN_DAY_RETRY_DELAYS_MILLIS = listOf(1_500L, 6_000L, 15_000L, 40_000L)
