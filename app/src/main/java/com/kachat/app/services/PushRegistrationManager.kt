@@ -104,6 +104,9 @@ class PushRegistrationManager @Inject constructor(
         /** The five KaPosts switches. A flip re-registers at once: the server reads them from
          *  the registration, and nothing on the device can stop a background KaPosts push. */
         val kaPostsKinds: KaPostsNotifyKinds,
+        /** Groups silenced on this device. They are dropped from the watched ids, so silencing
+         *  one has to reach the service the moment the switch flips. */
+        val silentGroups: Set<String>,
     )
 
     /** The five per-kind KaPosts switches as one flow, so a flip of any of them is one input. */
@@ -119,8 +122,8 @@ class PushRegistrationManager @Inject constructor(
 
     init {
         scope.launch {
-            // The 6-flow combine only exists as the vararg overload (typed ones stop at 5),
-            // hence the positional Array<Any?> casts.
+            // A combine of this many flows only exists as the vararg overload (the typed ones
+            // stop at five), hence the positional Array<Any?> casts.
             combine(
                 walletManager.activeAddressFlow,
                 settings.notificationsEnabled,
@@ -133,6 +136,7 @@ class PushRegistrationManager @Inject constructor(
                 },
                 settings.childModeEnabled,
                 kaPostsKindsFlow,
+                settings.groupSilent,
             ) { values ->
                 @Suppress("UNCHECKED_CAST")
                 Snapshot(
@@ -143,6 +147,7 @@ class PushRegistrationManager @Inject constructor(
                     hiddenSenderRows = values[4] as Set<Pair<String, String>>,
                     childModeEnabled = values[5] as Boolean,
                     kaPostsKinds = values[6] as KaPostsNotifyKinds,
+                    silentGroups = values[7] as Set<String>,
                 )
             }
                 .distinctUntilChanged()
@@ -547,9 +552,15 @@ class PushRegistrationManager @Inject constructor(
      */
     private suspend fun collectWatchedGroupIds(walletAddress: String): List<String> {
         val muted = runCatching { settings.groupMutedMembers.first() }.getOrDefault(emptySet())
+        val silent = runCatching { settings.groupSilent.first() }.getOrDefault(emptySet())
         val groups = runCatching { groupRepository.getGroups().first() }.getOrDefault(emptyList())
         val ids = mutableSetOf<String>()
         for (group in groups) {
+            // A silenced group is not watched at all, so no push is ever sent for it. It used to
+            // stay on the list and rely on this app to swallow the push on arrival, which leaves
+            // a generic banner behind whenever the message cannot be read - no payload, keys not
+            // reachable, group secrets not yet resynced after an update (iOS 62664af).
+            if (group.groupId in silent) continue
             val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
             val blindingKey = runCatching { bag.blindingKey.hexToBytes() }.getOrNull() ?: continue
             for (member in groupRepository.membersOf(group)) {
