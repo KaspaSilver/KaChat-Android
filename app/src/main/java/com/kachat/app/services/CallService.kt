@@ -85,6 +85,12 @@ class CallService @Inject constructor(
         /** How long a call woken by a push waits for the wallet and the Talk probe behind the
          *  decision to ring: eighty steps of 100 ms, so eight seconds at worst. */
         private const val READY_WAIT_STEPS = 80
+        /** How long a request to switch to video waits for an answer. */
+        private const val VIDEO_REQUEST_TIMEOUT_MS = 30_000L
+        /** How long a notice ("Alex declined video") stays on the call screen. */
+        private const val NOTICE_MS = 4_000L
+        /** How many times a call puts the speaker back before leaving the route alone. */
+        private const val MAX_SPEAKER_REASSERTS = 4
         private const val READY_WAIT_STEP_MS = 100L
     }
 
@@ -129,7 +135,14 @@ class CallService @Inject constructor(
         val remoteVideoTrack: VideoTrack? = null,
         val localVideoTrack: VideoTrack? = null,
         val statusDetail: String? = null,
+        /** A voice call being asked to become a video call: OUTGOING while we wait for the other
+         *  side's answer, INCOMING while they wait for ours (the call screen asks). */
+        val videoRequest: VideoRequest? = null,
+        /** A short line shown on the call screen for a few seconds ("Alex declined video"). */
+        val notice: String? = null,
     )
+
+    enum class VideoRequest { OUTGOING, INCOMING }
 
     /** Everything about the live call the screen does not need: the Talk client, the peer
      *  connection, the timers. Lives and dies with one call. */
@@ -145,6 +158,10 @@ class CallService @Inject constructor(
         var timeoutJob: Job? = null
         var offerFallbackJob: Job? = null
         var ringJob: Job? = null
+        /** Gives up on an unanswered video request. */
+        var videoRequestTimeout: Job? = null
+        /** How many times the speaker was put back after the system slid it to the earpiece. */
+        var speakerReasserts = 0
         var sawPeerInCall = false
         var ringtone: Ringtone? = null
         /** What the caller hears while the other phone rings. */
@@ -578,6 +595,7 @@ class CallService @Inject constructor(
         val call = _session.value ?: return
         // Flip from where the audio actually is, not from where we last asked it to be.
         val on = !call.isSpeakerOn
+        plumbing?.speakerReasserts = 0
         update { it.copy(isSpeakerOn = on, speakerRequested = on) }
         plumbing?.webrtc?.setSpeaker(on)
         // The route-change callback settles the displayed state a moment later.
@@ -589,8 +607,22 @@ class CallService @Inject constructor(
      * connection - before that the route says nothing about this call.
      */
     private fun routeChanged() {
-        val webrtc = plumbing?.webrtc ?: return
+        val pipes = plumbing ?: return
+        val webrtc = pipes.webrtc ?: return
         val onSpeaker = webrtc.isOnSpeaker ?: return
+        // The speaker was asked for - a video call starts on it - and the phone slid back to the
+        // earpiece, which the system does when it resets a route. Put it back. Only from the
+        // earpiece, since headphones or Bluetooth taking over is the user's doing, and only a
+        // few times, so this can never fight the system in a loop (iOS 96dbee0).
+        val call = _session.value
+        if (call != null && call.speakerRequested && !onSpeaker && webrtc.isOnEarpiece &&
+            pipes.speakerReasserts < MAX_SPEAKER_REASSERTS
+        ) {
+            pipes.speakerReasserts++
+            CallDiagnostics.log(TAG, "speaker slid back to the earpiece - putting it back (${pipes.speakerReasserts})")
+            webrtc.setSpeaker(true)
+            return
+        }
         if (_session.value?.isSpeakerOn != onSpeaker) update { it.copy(isSpeakerOn = onSpeaker) }
     }
 
@@ -619,21 +651,48 @@ class CallService @Inject constructor(
     }
 
     /**
-     * Turns the voice call into a video call, for both sides, without anyone hanging up: our
-     * camera goes on, the other phone is told to turn its own on, and the connection is
-     * renegotiated with the new tracks.
+     * Asks the other side to turn this voice call into a video call. Nothing changes until they
+     * say yes: a camera never comes on because someone else pressed a button. No answer in half
+     * a minute reads as such.
      */
     fun upgradeToVideo() {
         val call = _session.value ?: return
         val pipes = plumbing ?: return
-        if (call.video) return
+        if (call.video || call.videoRequest != null || pipes.webrtc == null) return
         if (call.phase != Phase.Connecting && call.phase != Phase.Connected) return
-        if (!turnOnVideo(pipes)) return
+        update { it.copy(videoRequest = VideoRequest.OUTGOING, notice = null) }
+        scope.launch { send(pipes, "kachat_video_request", JSONObject()) }
+        pipes.videoRequestTimeout?.cancel()
+        pipes.videoRequestTimeout = scope.launch {
+            delay(VIDEO_REQUEST_TIMEOUT_MS)
+            if (plumbing !== pipes || _session.value?.videoRequest != VideoRequest.OUTGOING) return@launch
+            update { it.copy(videoRequest = null) }
+            showNotice("No answer to your video request")
+        }
+    }
+
+    /** The answer to the other side's video request, from the call screen's question. */
+    fun answerVideoRequest(accept: Boolean) {
+        val call = _session.value ?: return
+        val pipes = plumbing ?: return
+        if (call.videoRequest != VideoRequest.INCOMING) return
+        update { it.copy(videoRequest = null) }
+        if (!accept) {
+            scope.launch { send(pipes, "kachat_video_decline", JSONObject()) }
+            return
+        }
+        // Our camera first, then the yes: the requester offers on hearing it, and our answer to
+        // that offer already carries our picture.
+        turnOnVideo(pipes)
+        scope.launch { send(pipes, "kachat_video_accept", JSONObject()) }
+    }
+
+    /** A line on the call screen for a few seconds, then gone. */
+    private fun showNotice(text: String) {
+        update { it.copy(notice = text) }
         scope.launch {
-            // Order matters, and the channel keeps it: the other side turns its camera on
-            // first, so its answer to the offer that follows already carries its video.
-            send(pipes, "kachat_video_upgrade", JSONObject())
-            sendOffer(pipes)
+            delay(NOTICE_MS)
+            if (_session.value?.notice == text) update { it.copy(notice = null) }
         }
     }
 
@@ -805,10 +864,29 @@ class CallService @Inject constructor(
                     if (call != null && call.isOutgoing && call.connectedAtMs == null) finish("declined")
                     return
                 }
-                if (type == "kachat_video_upgrade") {
-                    // The other side switched to video: turn ours on too, before their offer
-                    // arrives, so the answer we send already carries our camera.
-                    turnOnVideo(pipes)
+                if (type == "kachat_video_request" || type == "kachat_video_upgrade") {
+                    // They want video. Ask; never switch a camera on unasked. "upgrade" is what
+                    // builds before the request flow sent, and it gets the same question. The
+                    // call screen comes back if it was tucked away, so the question is seen.
+                    val current = _session.value ?: return
+                    if (current.video || current.videoRequest != null) return
+                    update { it.copy(videoRequest = VideoRequest.INCOMING) }
+                    restore()
+                    return
+                }
+                if (type == "kachat_video_accept") {
+                    if (_session.value?.videoRequest != VideoRequest.OUTGOING) return
+                    pipes.videoRequestTimeout?.cancel()
+                    update { it.copy(videoRequest = null) }
+                    if (turnOnVideo(pipes)) sendOffer(pipes)
+                    return
+                }
+                if (type == "kachat_video_decline") {
+                    val current = _session.value ?: return
+                    if (current.videoRequest != VideoRequest.OUTGOING) return
+                    pipes.videoRequestTimeout?.cancel()
+                    update { it.copy(videoRequest = null) }
+                    showNotice("${current.contact.displayName} declined video")
                     return
                 }
                 if (pipes.peerSessionId == null) pipes.peerSessionId = from
@@ -892,6 +970,7 @@ class CallService @Inject constructor(
         if (call.video) cameraPreview.stop()
         pipes.timeoutJob?.cancel()
         pipes.offerFallbackJob?.cancel()
+        pipes.videoRequestTimeout?.cancel()
         pipes.pullJob?.cancel()
         pipes.client?.cancelPull()
         val duration = call.connectedAtMs?.let { ((System.currentTimeMillis() - it) / 1000).toInt() }

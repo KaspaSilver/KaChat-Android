@@ -256,6 +256,7 @@ fun ChatThreadScreen(
     // The "Enable calls with this person?" half sheet - what the call button opens while calls
     // are still off for this contact (the default).
     var showEnableCalls by remember { mutableStateOf(false) }
+    val requestCallPermissions = rememberCallPermissionRequester()
     var pendingCallVideo by remember { mutableStateOf<Boolean?>(null) }
     val callSession by chatViewModel.callSession.collectAsState()
     val callLastError by chatViewModel.callLastError.collectAsState()
@@ -564,6 +565,9 @@ fun ChatThreadScreen(
                         subtitle = "Saves this for $who and lets you call now.",
                     ) {
                         chatViewModel.setCallsEnabled(contactId, enabled = true)
+                        // The microphone and camera are asked for now, not in the middle of the
+                        // first call.
+                        requestCallPermissions()
                         showEnableCalls = false
                         // Enabled: go straight on to voice-or-video, as if the button had been
                         // tapped on an already-enabled contact.
@@ -12478,19 +12482,25 @@ fun ChatInfoScreen(
                     onDismiss = { infoSheet = null },
                 ) {
                     val callsAllowed = conversation?.contact?.callsEnabled == true
+                    val requestCallPermissions = rememberCallPermissionRequester()
+                    val setCalls: (Boolean) -> Unit = { allowed ->
+                        chatViewModel.setCallsEnabled(contactId, enabled = allowed)
+                        // Switching calls on asks for the microphone and camera there and then.
+                        if (allowed) requestCallPermissions()
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .background(LocalAppColors.current.surface)
-                            .clickable { chatViewModel.setCallsEnabled(contactId, enabled = !callsAllowed) }
+                            .clickable { setCalls(!callsAllowed) }
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Allow calls and video calls", color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
                         Switch(
                             checked = callsAllowed,
-                            onCheckedChange = { allowed -> chatViewModel.setCallsEnabled(contactId, enabled = allowed) },
+                            onCheckedChange = { allowed -> setCalls(allowed) },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
                         )
                     }

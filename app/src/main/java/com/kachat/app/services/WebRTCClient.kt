@@ -252,6 +252,21 @@ class WebRTCClient(private val context: Context, iceServers: List<NextcloudTalkC
         }.getOrNull()
 
     /**
+     * Whether the sound is on the earpiece - the phone's own receiver, not headphones and not
+     * Bluetooth. Those two are the user's doing and are left alone; the earpiece is what the
+     * system falls back to when it resets a route the call had asked for.
+     */
+    val isOnEarpiece: Boolean
+        get() = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audioManager.communicationDevice?.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+            } else {
+                @Suppress("DEPRECATION")
+                !audioManager.isSpeakerphoneOn && !audioManager.isWiredHeadsetOn && !audioManager.isBluetoothScoOn
+            }
+        }.getOrDefault(false)
+
+    /**
      * Makes sure the call still owns the phone's audio. Sound goes missing when something else
      * took the focus (another app's call, an alarm) and did not hand it back, or when the mode
      * was reset under us; re-asserting all three costs nothing when they are already right.

@@ -138,6 +138,30 @@ fun CallOverlay(callService: CallService) {
             .pointerInput(Unit) { detectTapGestures { } },
     ) {
         CallScreen(call = live, callService = callService)
+        // "Alex declined video" and the like, for a few seconds.
+        live.notice?.let { notice ->
+            Text(
+                notice,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(top = 56.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.2f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+        // The other side asked to switch to video: yes or no, and nothing happens until then.
+        if (live.videoRequest == CallService.VideoRequest.INCOMING) {
+            VideoRequestSheet(
+                name = live.contact.displayName,
+                onAccept = { callService.answerVideoRequest(accept = true) },
+                onDecline = { callService.answerVideoRequest(accept = false) },
+            )
+        }
         // Tucks the call away so the rest of the app can be used while it goes on. Not offered
         // on a call that is still ringing or already over - there is nothing to go back to.
         if (live.phase == CallService.Phase.Connecting || live.phase == CallService.Phase.Connected) {
@@ -290,11 +314,12 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                         ) { callService.toggleSpeaker() }
                     }
                     if (!call.video && call.phase == CallService.Phase.Connected) {
-                        // Turns this into a video call for both sides - nobody hangs up.
+                        // Asks the other side to switch to video - nothing changes until they
+                        // say yes, and nobody hangs up either way.
                         BigButton(
                             Icons.Default.Videocam,
                             tint = Color.White.copy(alpha = 0.22f),
-                            label = "video",
+                            label = if (call.videoRequest == CallService.VideoRequest.OUTGOING) "asking…" else "video",
                         ) { callService.upgradeToVideo() }
                     }
                     BigButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), label = null) { callService.hangUp() }
@@ -490,6 +515,109 @@ private fun CallReturnBar(call: CallService.ActiveCall, onReturn: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+/**
+ * "Alex wants to switch to video", drawn in the call screen's own window: the call screen is
+ * not a dialog, so a sheet here needs no window of its own. Tapping away, or back, answers no.
+ */
+@Composable
+private fun VideoRequestSheet(name: String, onAccept: () -> Unit, onDecline: () -> Unit) {
+    BackHandler(enabled = true) { onDecline() }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    onClick = onDecline,
+                ),
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(Color(0xFF1C1C1E))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    onClick = {},
+                )
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp, bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.3f)),
+            )
+            Text(
+                "$name wants to switch to video",
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+            VideoRequestRow(
+                icon = Icons.Default.Videocam,
+                title = "Switch to video",
+                subtitle = "Your camera turns on and the call moves to the speaker.",
+                onClick = onAccept,
+            )
+            VideoRequestRow(
+                icon = Icons.Default.Phone,
+                title = "Stay on voice",
+                subtitle = "The call carries on as it is, and they are told.",
+                onClick = onDecline,
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoRequestRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Column {
+            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+        }
+    }
+}
+
+/**
+ * Asks for the microphone and the camera at the moment calls are switched on for someone, so the
+ * first call is not the moment two system prompts get in the way. Each is asked once per install;
+ * after that this does nothing. Mirrors iOS's CallService.requestMediaPermissions.
+ */
+@Composable
+fun rememberCallPermissionRequester(): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+    return remember(context, launcher) {
+        {
+            val missing = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
+                .filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+            if (missing.isNotEmpty()) launcher.launch(missing.toTypedArray())
         }
     }
 }
