@@ -382,7 +382,12 @@ class MainActivity : AppCompatActivity() {
      * their taps.
      */
     private fun applyFcmNotificationTarget(intent: Intent) {
-        when (intent.getStringExtra(FCM_KEY_TYPE)) {
+        // The push's own `type` names it; a KaPosts push also carries thread_id "kaposts" (the
+        // same thread the iOS payload uses), which is taken when `type` is missing - otherwise
+        // such a tap reopened whatever screen was last up instead of the post.
+        val type = intent.getStringExtra(FCM_KEY_TYPE)
+            ?: intent.getStringExtra("thread_id")?.takeIf { it == "kaposts" }
+        when (type) {
             "broadcast" -> pendingChannelName = intent.getStringExtra("channel")?.takeIf { it.isNotBlank() }
             "kaposts" -> {
                 // The server's own key for "the content that was acted on" has been spelled
@@ -392,12 +397,22 @@ class MainActivity : AppCompatActivity() {
                 val postId = FCM_KEYS_POST_ID.firstNotNullOfOrNull {
                     intent.getStringExtra(it)?.takeIf { value -> value.isNotBlank() }
                 }
+                // A reply targets the reply ITSELF - the push's tx_id is the reply's own - and the
+                // landing rule opens its parent's thread with it spliced in and scrolled to, the
+                // same as a tap on the foreground banner. Anything else opens the acted-on post.
+                val actionTxId = intent.getStringExtra("tx_id")?.takeIf { it.isNotBlank() }
+                val replyTxId = actionTxId?.takeIf {
+                    postId != null && KaPostsDeepLink.isReplyPush(
+                        intent.getStringExtra("kaposts_kind"),
+                        intent.getStringExtra("body"),
+                    )
+                }
                 KaPostsDeepLink.pendingFocusReplyTxId.value = null
                 // No post id (a follow, or a payload that omitted it): the Notifications list,
                 // never the action's own txid — that is a vote/follow transaction, not a post,
                 // and opening it as one only produced a "post not found" toast.
                 KaPostsDeepLink.pendingOpenNotifications.value = postId == null
-                KaPostsDeepLink.pendingPostTxId.value = postId ?: ""
+                KaPostsDeepLink.pendingPostTxId.value = replyTxId ?: postId ?: ""
             }
             "contextual", "payment", "handshake" ->
                 pendingContactId = intent.getStringExtra("sender")?.takeIf { it.isNotBlank() }
@@ -407,7 +422,8 @@ class MainActivity : AppCompatActivity() {
             "group_message", "group_control" -> pendingOpenGroups = true
         }
         FCM_KEYS_POST_ID.forEach(intent::removeExtra)
-        listOf("channel", "sender").forEach(intent::removeExtra)
+        // Stripped once read, so a configuration change cannot route the same tap twice.
+        listOf("channel", "sender", "thread_id", "tx_id", "kaposts_kind", "body").forEach(intent::removeExtra)
     }
 
     /**

@@ -216,6 +216,14 @@ import androidx.compose.ui.text.style.TextAlign
 object KaPostsDeepLink {
     val pendingPostTxId = MutableStateFlow<String?>(null)
 
+    /**
+     * Whether a KaPosts push is a reply, so its own transaction id is the comment a tap should
+     * land on inside the post's thread rather than just the top of it. Read from the push's
+     * `kaposts_kind` when the server sends one, and otherwise from its server-written wording.
+     */
+    fun isReplyPush(kind: String?, body: String?): Boolean =
+        kind == "reply" || (kind == null && body.orEmpty().lowercase().contains("replied to your"))
+
     /** For reply notifications: the reply's own txid, so the opened PARENT thread (which is
      *  what [pendingPostTxId] carries) can scroll to the new comment. */
     val pendingFocusReplyTxId = MutableStateFlow<String?>(null)
@@ -480,6 +488,15 @@ fun KaPostsScreen(
     walletViewModel: WalletViewModel = hiltViewModel(),
     settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel(),
+    /**
+     * Whether this instance opens posts named by a notification or a shared link. Exactly one
+     * may: the KaPosts route that MainShell navigates to on every such tap. The copy inside the
+     * Kaspa Hub must not - it is the one being navigated AWAY from, so a link it took was opened
+     * in a coroutine that was cancelled a frame later, and the tap landed on the feed with no
+     * post. That was every tap made while KaPosts was open in the Hub, which is where KaPosts
+     * lives by default.
+     */
+    handlesDeepLinks: Boolean = true,
 ) {
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
@@ -742,7 +759,8 @@ fun KaPostsScreen(
         viewModel.loadFeedIfNeeded()
         viewModel.refreshTranslationLanguages()
     }
-    LaunchedEffect(deepLinkTxId) {
+    LaunchedEffect(deepLinkTxId, handlesDeepLinks) {
+        if (!handlesDeepLinks) return@LaunchedEffect
         val txId = deepLinkTxId ?: return@LaunchedEffect
         val focusReplyTxId = KaPostsDeepLink.pendingFocusReplyTxId.value
         KaPostsDeepLink.pendingPostTxId.value = null

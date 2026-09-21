@@ -136,7 +136,9 @@ fun KaspaHubScreen(
                 remember(navController) { navController.getBackStackEntry(navController.graph.id) }
             )
         )
-        openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel)
+        // Never the one that opens a notification's post: MainShell moves to the KaPosts route
+        // for that, and this copy is what it leaves behind (see handlesDeepLinks).
+        openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel, handlesDeepLinks = false)
         openSection == Screen.Swap -> SwapScreen(navController = navController)
         else -> HubGrid(
             sections = sections,
