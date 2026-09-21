@@ -285,6 +285,15 @@ fun ChatThreadScreen(
         }
     }
     // A start that failed before ringing ("Connect a Nextcloud with Talk...") says why.
+    // Why a call from this person did not ring - calls off, already over, nothing to host with,
+    // or another call up. Said once, as this chat opens or while it is open (iOS aa10cce).
+    val callChatNotice by chatViewModel.callChatNotice.collectAsState()
+    LaunchedEffect(callChatNotice, contactId) {
+        if (callChatNotice?.contactId != contactId) return@LaunchedEffect
+        // A beat, so the notice lands on the chat rather than on the transition into it.
+        delay(600)
+        chatViewModel.takeCallChatNotice(contactId)?.let { Toast.makeText(callContext, it, Toast.LENGTH_LONG).show() }
+    }
     LaunchedEffect(callLastError) {
         callLastError?.let { Toast.makeText(callContext, it, Toast.LENGTH_SHORT).show() }
     }

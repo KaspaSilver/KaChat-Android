@@ -211,6 +211,11 @@ class ChatViewModel @Inject constructor(
 
     val callLastError: StateFlow<String?> = callService.lastError
 
+    /** Why a call from someone did not ring, for their chat to say once (see CallService). */
+    val callChatNotice: StateFlow<com.kachat.app.services.CallService.ChatNotice?> = callService.chatNotice
+
+    fun takeCallChatNotice(contactId: String): String? = callService.takeChatNotice(contactId)
+
     fun startCall(contact: ContactEntity, video: Boolean) = callService.startCall(contact, video)
 
     /** "Allow calls and video calls" for one contact - Chat Info's switch and the prompt behind

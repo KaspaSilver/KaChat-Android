@@ -274,11 +274,18 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         val callEnvelope = plaintext?.let { com.kachat.app.util.CallCodec.parseOrNull(it) }
         if (callEnvelope != null) {
             val sentAtMs = pushSentAtMs(data)
-            callService.handleIncoming(callEnvelope, contactAddress = sender, blockTimeMs = sentAtMs, isOutgoing = false)
-            if (callEnvelope is com.kachat.app.util.CallEnvelope.Invite || callEnvelope is com.kachat.app.util.CallEnvelope.Request) {
+            val opening = callEnvelope is com.kachat.app.util.CallEnvelope.Invite ||
+                callEnvelope is com.kachat.app.util.CallEnvelope.Request
+            if (!opening) {
+                callService.handleIncoming(callEnvelope, contactAddress = sender, blockTimeMs = sentAtMs, isOutgoing = false)
+            } else if (callService.receivePushedCall(callEnvelope, contactAddress = sender, sentAtMs = sentAtMs)) {
+                // It is ringing: the call screen is the notification.
                 data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
                 return
             }
+            // Turned away - calls off for this contact, already over, nothing to host with, or
+            // another call in progress. It used to vanish without a trace; now the ordinary
+            // notification says a call came, and the chat it opens says why it did not ring.
         }
 
         val text = plaintext?.let { notificationPreview(it) } ?: fallback

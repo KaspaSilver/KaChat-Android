@@ -178,6 +178,19 @@ class CallService @Inject constructor(
     /** A one-line reason the last attempt failed, for a toast in the chat. */
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+    /** Something a chat should say about a call from [contactId] that did not ring - "that call
+     *  already ended", "calls are off for this contact". The chat shows it and takes it. */
+    data class ChatNotice(val contactId: String, val text: String)
+    private val _chatNotice = MutableStateFlow<ChatNotice?>(null)
+    val chatNotice: StateFlow<ChatNotice?> = _chatNotice.asStateFlow()
+
+    /** The notice for [contactId]'s chat, once: taking it clears it. */
+    fun takeChatNotice(contactId: String): String? {
+        val notice = _chatNotice.value?.takeIf { it.contactId == contactId } ?: return null
+        _chatNotice.value = null
+        return notice.text
+    }
     private var plumbing: Plumbing? = null
 
     /** The call screen is tucked away: the user is elsewhere in the app while the call goes on.
@@ -360,10 +373,58 @@ class CallService @Inject constructor(
         }
     }
 
+    /**
+     * A call that reached this phone as a push - the only way a closed app hears of one. Rings it
+     * as the chain message would, after waiting for the wallet and the hosting answer, and says
+     * whether it did. When it could not ring, the chat is given a line saying why, so opening it
+     * does not land somewhere nothing happens (iOS aa10cce).
+     *
+     * Returns true when the call is ringing (or was already), false when it was turned away.
+     */
+    suspend fun receivePushedCall(envelope: CallEnvelope, contactAddress: String, sentAtMs: Long): Boolean =
+        withContext(Dispatchers.Main.immediate) {
+            val fresh = System.currentTimeMillis() - sentAtMs < INVITE_FRESHNESS_MS
+            waitUntilReadyForCalls()
+            // The host's answer to a call WE asked for. It never rings here and never earns a
+            // notice; if our call is still waiting on it, it is what lets us join, and the push
+            // gets us there before the chain message would.
+            if (envelope is CallEnvelope.Invite && envelope.viaRequest) {
+                if (_session.value?.id == envelope.callId) handleInvite(envelope, contactAddress, fresh)
+                return@withContext true
+            }
+            // Already ringing from the chain message, or answered: nothing left to decide.
+            if (_session.value?.id == envelope.callId) return@withContext true
+            val reason = when (envelope) {
+                is CallEnvelope.Request -> handleRequest(envelope, contactAddress, fresh)
+                is CallEnvelope.Invite -> handleInvite(envelope, contactAddress, fresh)
+                else -> return@withContext true
+            }
+            if (reason == null) return@withContext true
+            explainDroppedCall(contactAddress, reason)
+            false
+        }
+
+    /** Words for the chat about a call that did not ring. An unknown sender gets none. */
+    private suspend fun explainDroppedCall(contactAddress: String, reason: String) {
+        if (reason.startsWith("unknown sender")) return
+        val name = runCatching { chatRepository.getContact(contactAddress)?.displayName }.getOrNull()
+            ?.takeIf { it.isNotBlank() } ?: contactAddress.takeLast(8)
+        val text = when {
+            reason.startsWith("calls not enabled") ->
+                "Calls are off for $name. Tap the call button to turn them on, then call back."
+            reason.startsWith("cannot host") ->
+                "$name asked you to host this call, which needs Nextcloud Talk set up here."
+            reason.startsWith("busy") -> "You're already on a call."
+            else -> "That call from $name already ended. Tap the call button to call back."
+        }
+        _chatNotice.value = ChatNotice(contactAddress, text)
+    }
+
     /** Why a call that reached this device never rang - the first question to ask of a call
      *  that "did nothing", and the answer is in the diagnostics archive. */
-    private fun dropped(callId: String, why: String) {
+    private fun dropped(callId: String, why: String): String {
         CallDiagnostics.log(TAG, "call ${callId.take(8)} not rung: $why")
+        return why
     }
 
     /**
@@ -397,24 +458,23 @@ class CallService @Inject constructor(
 
     /** The contact has no Nextcloud and asks us to host their call - only if their "Allow calls"
      *  switch is on and this device can host; if it cannot, say so at once with no_host. */
-    private suspend fun handleRequest(request: CallEnvelope.Request, contactAddress: String, fresh: Boolean) {
+    private suspend fun handleRequest(request: CallEnvelope.Request, contactAddress: String, fresh: Boolean): String? {
         val id = request.callId
-        if (hasHandled(id)) { dropped(id, "already handled"); return }
+        if (hasHandled(id)) return dropped(id, "already handled")
         val contact = runCatching { chatRepository.getContact(contactAddress) }.getOrNull()
-        if (contact == null) { dropped(id, "unknown sender"); return }
-        if (contact.callsEnabled != true) { dropped(id, "calls not enabled for this contact"); return }
-        if (!fresh) { dropped(id, "stale"); return }
+        if (contact == null) return dropped(id, "unknown sender")
+        if (contact.callsEnabled != true) return dropped(id, "calls not enabled for this contact")
+        if (!fresh) return dropped(id, "stale")
         val account = nextcloudService.account.value
         if (!canHost || account == null) {
             // Neither side can host. Nothing goes on chain from this side - the caller is the
             // only one who pays for a call - so the requester's ring-out is what tells them one
             // of the two needs Nextcloud Talk.
             markHandled(request.callId)
-            CallDiagnostics.log(TAG, "request ${request.callId} from ${contact.id.takeLast(8)}: cannot host, staying silent")
-            return
+            return dropped(id, "cannot host (no Nextcloud Talk)")
         }
         // Busy: silent, and the caller rings out. Same request delivered twice: ignored.
-        if (_session.value != null) { dropped(id, "busy"); return }
+        if (_session.value != null) return dropped(id, "busy")
         markHandled(request.callId)
         val server = account.server.trimEnd('/')
         val pipes = Plumbing(request.callId)
@@ -445,11 +505,12 @@ class CallService @Inject constructor(
                 finish("failed")
             }
         }
+        return null
     }
 
-    private suspend fun handleInvite(invite: CallEnvelope.Invite, contactAddress: String, fresh: Boolean) {
+    private suspend fun handleInvite(invite: CallEnvelope.Invite, contactAddress: String, fresh: Boolean): String? {
         val server = invite.server.trimEnd('/')
-        if (!server.startsWith("https://", ignoreCase = true)) return
+        if (!server.startsWith("https://", ignoreCase = true)) return dropped(invite.callId, "bad server in invite")
         // The contact hosting the call WE asked for: this invite answers our request, so join it
         // straight away as a guest - their phone is the one ringing.
         val current = _session.value
@@ -470,19 +531,19 @@ class CallService @Inject constructor(
                 _lastError.value = e.message ?: "Call failed"
                 finish("failed")
             }
-            return
+            return null
         }
         // Once per call id, ever. A re-ingested invite for a call that already rang (or already
         // ended) is history, not a phone ringing.
         val id = invite.callId
-        if (hasHandled(id)) { dropped(id, "already handled"); return }
+        if (hasHandled(id)) return dropped(id, "already handled")
         val contact = runCatching { chatRepository.getContact(contactAddress) }.getOrNull()
-        if (contact == null) { dropped(id, "unknown sender"); return }
-        if (contact.callsEnabled != true) { dropped(id, "calls not enabled for this contact"); return }
-        if (!fresh) { dropped(id, "stale"); return }
+        if (contact == null) return dropped(id, "unknown sender")
+        if (contact.callsEnabled != true) return dropped(id, "calls not enabled for this contact")
+        if (!fresh) return dropped(id, "stale")
         // Already on a call: stay silent and let the caller ring out. This same invite
         // delivered twice is simply ignored.
-        if (current != null) { dropped(id, "busy"); return }
+        if (current != null) return dropped(id, "busy")
         markHandled(invite.callId)
         val incoming = Plumbing(invite.callId)
         plumbing = incoming
@@ -494,6 +555,7 @@ class CallService @Inject constructor(
             delay(INCOMING_RING_MS)
             if (plumbing === incoming && _session.value?.phase == Phase.RingingIn) finish("missed")
         }
+        return null
     }
 
     fun acceptIncoming() {
