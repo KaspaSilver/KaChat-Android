@@ -74,7 +74,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         notificationHelper.showBroadcast(
                             channelName = channel,
                             title = title.ifEmpty { "#$channel" },
-                            text = body,
+                            // The server has sent room messages on raw - a reply's JSON, the same
+                            // cut off mid-way, or still base64 - and each read as gibberish.
+                            text = com.kachat.app.util.BroadcastPushPreview.clean(body),
                             // Collapses with the live block scan's banner when the app is
                             // foregrounded and both paths see the same message.
                             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },

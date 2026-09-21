@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.filled.Flag
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -1849,6 +1850,20 @@ fun KaPostCell(
                                 }
                             }
                             if (!isMine) {
+                                // Reporting: the post's id, author and text go to KaChat by email,
+                                // where a person reads them. Posts are on a public chain and
+                                // nobody can take one down, so the remedies that act at once are
+                                // the two rows under this one - Mute and Block remove the author
+                                // from this reader's KaPosts on the spot (iOS dd58e26).
+                                ActionSheetRow(
+                                    icon = Icons.Default.Flag,
+                                    title = "Report",
+                                    subtitle = "Tell KaChat about abusive or objectionable content. Opens an email with this post attached.",
+                                    tint = Color(0xFFFF3B30),
+                                ) {
+                                    showOverflow = false
+                                    reportPost(context, post)
+                                }
                                 // Named, as on iOS: "Mute alice" says who this lands on.
                                 ActionSheetRow(
                                     icon = Icons.Default.VolumeOff,
@@ -4627,6 +4642,37 @@ private fun foldedLayoutText(text: String, folded: Boolean): String {
 
 /** Eight lines never need more than this, and a cell that lays out less scrolls better. */
 private const val FOLDED_POST_LAYOUT_CHARS = 1_200
+
+/** Where a KaPosts report is sent. */
+private const val KAPOSTS_REPORT_ADDRESS = "kaspasilver@gmail.com"
+
+/**
+ * Opens an email to KaChat about [post]: its id, author and text, and a line for what is wrong
+ * with it. An email rather than a form because a person reads it, and nothing else can act on a
+ * post that lives on a public chain.
+ */
+private fun reportPost(context: android.content.Context, post: KaPostDraft) {
+    val body = buildString {
+        appendLine("I want to report this post.")
+        appendLine()
+        appendLine("Post: ${post.remoteId ?: "not yet on chain"}")
+        appendLine("Author: ${post.posterAddress}")
+        appendLine("Text: ${post.text.take(500)}")
+        appendLine()
+        appendLine("What is wrong with it:")
+        appendLine()
+    }
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        data = android.net.Uri.parse("mailto:")
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(KAPOSTS_REPORT_ADDRESS))
+        putExtra(Intent.EXTRA_SUBJECT, "KaPosts report")
+        putExtra(Intent.EXTRA_TEXT, body)
+    }
+    runCatching { context.startActivity(intent) }.onFailure {
+        // No mail app on this phone: say where to write instead of doing nothing.
+        Toast.makeText(context, "No email app found. Please write to $KAPOSTS_REPORT_ADDRESS", Toast.LENGTH_LONG).show()
+    }
+}
 
 /** "1h 12m" / "8m" / "40s" - how long is left to edit, said the way a countdown is read. */
 private fun editWindowLeftText(remainingMs: Long): String {

@@ -813,7 +813,17 @@ class CallService @Inject constructor(
         }
         withContext(Dispatchers.IO) { client.joinCall(call.token, call.video) }
 
-        val webrtc = WebRTCClient(context, settings.iceServers, call.video)
+        // A phone that cannot build a peer connection - the native WebRTC library failing to load,
+        // or no connection coming back - ends the CALL, not the app. Every caller of this function
+        // catches exceptions and finishes the call as failed; a native load failure is an Error,
+        // which it would not catch, so it is turned into one here (iOS dd58e26).
+        val webrtc = try {
+            WebRTCClient(context, settings.iceServers, call.video)
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            CallDiagnostics.log(TAG, "peer connection could not be created: ${e.message}")
+            throw IllegalStateException("This phone could not start the call.", e)
+        }
         pipes.webrtc = webrtc
         update { it.copy(localVideoTrack = webrtc.localVideoTrack) }
         webrtc.onLocalCandidate = { candidate ->

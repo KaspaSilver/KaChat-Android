@@ -1,5 +1,7 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Settings
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -140,6 +142,7 @@ fun ChatsScreen(
     /** The rooms page brings its own join and create entry points, and nothing on it is
      *  selectable in bulk. */
     val isOnPublicChatsTab = pagerState.currentPage == 2
+    var showPublicChatsSettings by remember { mutableStateOf(false) }
     val tabCoroutineScope = rememberCoroutineScope()
 
     // A group notification with no openable thread asked for the Group Chats tab — see
@@ -247,6 +250,13 @@ fun ChatsScreen(
         }
     }
 
+    if (showPublicChatsSettings) {
+        PublicChatsSettingsSheet(
+            onDismiss = { showPublicChatsSettings = false },
+            broadcastViewModel = broadcastViewModel,
+        )
+    }
+
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
@@ -266,7 +276,24 @@ fun ChatsScreen(
                         onStatusClick = { ConnectionStatusOverlayState.open() },
                         dotColorHex = dotColorHex,
                         showAddButton = false,
-                        showEditButton = if (isOnGroupsTab) groupConversations.isNotEmpty() else conversations.isNotEmpty(),
+                        // Rooms are not selectable in bulk; their corner holds Public Chats
+                        // settings (which default rooms show at all) instead (iOS d5c7613).
+                        showEditButton = when {
+                            isOnPublicChatsTab -> false
+                            isOnGroupsTab -> groupConversations.isNotEmpty()
+                            else -> conversations.isNotEmpty()
+                        },
+                        trailingContent = if (isOnPublicChatsTab) {
+                            {
+                                IconButton(onClick = { showPublicChatsSettings = true }) {
+                                    Icon(
+                                        Icons.Default.Settings,
+                                        contentDescription = "Public Chats settings",
+                                        tint = LocalAppColors.current.textPrimary,
+                                    )
+                                }
+                            }
+                        } else null,
                         isEditing = isSelectionMode,
                         onEditClick = {
                             isSelectionMode = !isSelectionMode

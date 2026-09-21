@@ -288,9 +288,13 @@ class BroadcastViewModel @Inject constructor(
                             val name = channel.channelName
                             broadcastRepository.roomSummary(name, me, read.lastReadByChannel[name])
                                 .map { summary ->
-                                    // A room marked unread by hand shows at least one.
+                                    // A default room switched off in Public Chats settings is
+                                    // never counted; one marked unread by hand shows at least one.
+                                    val hidden = name in read.hiddenCurated
                                     val manual = name in read.manuallyUnread
-                                    name to summary.copy(unreadCount = maxOf(summary.unreadCount, if (manual) 1 else 0))
+                                    name to summary.copy(
+                                        unreadCount = if (hidden) 0 else maxOf(summary.unreadCount, if (manual) 1 else 0)
+                                    )
                                 }
                         }
                     ) { pairs -> pairs.toMap() }
@@ -313,6 +317,26 @@ class BroadcastViewModel @Inject constructor(
 
     fun markRoomUnread(channelName: String) {
         readState.markUnread(channelName)
+    }
+
+    /** Default rooms switched off in Public Chats settings, for this wallet. */
+    val hiddenCuratedRooms: StateFlow<Set<String>> = readState.state
+        .map { it.hiddenCurated }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    /**
+     * Public Chats settings: shows or hides one of the default rooms. Off takes the room out of
+     * the list and turns its notifications off, which also takes it off the push service's watch
+     * list. On brings it back - #kaspa and #kachat-bugs with their bell on again, as they start,
+     * and a language room as it was (iOS d5c7613).
+     */
+    fun setCuratedRoomShown(channelName: String, shown: Boolean) {
+        if (channelName !in FeaturedBroadcastChannels.INDEXED_NAMES) return
+        readState.setCuratedShown(channelName, shown)
+        val joined = joinedChannels.value.any { it.channelName == channelName }
+        if (!joined) return
+        if (!shown) setNotifyEnabled(channelName, false)
+        else if (channelName in FeaturedBroadcastChannels.NAMES) setNotifyEnabled(channelName, true)
     }
 
     /** Whether the Popular tab shows at all — toggled from the gear icon next to the join button. */
@@ -387,7 +411,8 @@ class BroadcastViewModel @Inject constructor(
         val joined = channels.map { it.channelName }.toSet()
         if (!FeaturedBroadcastChannels.NAMES.all { it in joined }) return
         readState.markFeaturedNotifyDefaultApplied()
-        FeaturedBroadcastChannels.NAMES.forEach { setNotifyEnabled(it, true) }
+        val hidden = readState.state.value.hiddenCurated
+        FeaturedBroadcastChannels.NAMES.filter { it !in hidden }.forEach { setNotifyEnabled(it, true) }
     }
 
     private var indexerPollJob: kotlinx.coroutines.Job? = null

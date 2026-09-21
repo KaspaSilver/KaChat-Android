@@ -1,5 +1,10 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.filled.AddComment
@@ -241,12 +246,16 @@ fun BroadcastListScreen(
             val contactAliases by broadcastViewModel.contactAliases.collectAsState()
             val myAddressForRows = remember { runCatching { broadcastViewModel.myAddress() }.getOrNull() }
             val featured = com.kachat.app.models.FeaturedBroadcastChannels.NAMES
+            // Default rooms switched off in Public Chats settings stay out of the list entirely.
+            val hiddenCurated by broadcastViewModel.hiddenCuratedRooms.collectAsState()
             fun lastActivity(channel: com.kachat.app.models.BroadcastChannelEntity): Long =
                 summaries[channel.channelName]?.lastMessage?.blockTimestamp ?: channel.joinedAt
-            val listed = featured.mapNotNull { name -> channels.firstOrNull { it.channelName == name } } +
-                channels.filter { it.channelName !in featured }.sortedByDescending(::lastActivity)
+            val shownChannels = channels.filter { it.channelName !in hiddenCurated }
+            val listed = featured.mapNotNull { name -> shownChannels.firstOrNull { it.channelName == name } } +
+                shownChannels.filter { it.channelName !in featured }.sortedByDescending(::lastActivity)
             val joinedNames = channels.map { it.channelName }.toSet()
-            val unjoinedLanguages = com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES.filter { it !in joinedNames }
+            val unjoinedLanguages = com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES
+                .filter { it !in joinedNames && it !in hiddenCurated }
             fun senderName(address: String): String = when {
                 address == myAddressForRows -> "You"
                 !contactAliases[address].isNullOrBlank() -> contactAliases[address]!!
@@ -484,6 +493,57 @@ fun BroadcastListScreen(
         )
     }
 
+}
+
+/**
+ * Public Chats settings, behind the gear on the Public Chats tab: every default room with a
+ * switch. Off takes the room out of the list and silences it for good; on brings it back.
+ * Mirrors iOS's PublicChatsSettingsView.
+ */
+@Composable
+fun PublicChatsSettingsSheet(
+    onDismiss: () -> Unit,
+    broadcastViewModel: BroadcastViewModel = hiltViewModel(),
+) {
+    val hidden by broadcastViewModel.hiddenCuratedRooms.collectAsState()
+    val colors = LocalAppColors.current
+    ActionSheetContainer(title = "Public Chats", subtitle = null, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 520.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            @Composable
+            fun roomSwitch(name: String) {
+                val language = com.kachat.app.models.FeaturedBroadcastChannels.languageDisplayName(name)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("#$name", color = colors.textPrimary, fontSize = 16.sp)
+                        if (language != null) Text(language, color = colors.textSecondary, fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = name !in hidden,
+                        onCheckedChange = { shown -> broadcastViewModel.setCuratedRoomShown(name, shown) },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                    )
+                }
+            }
+            Text("Popular", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
+            com.kachat.app.models.FeaturedBroadcastChannels.NAMES.forEach { roomSwitch(it) }
+            Text(
+                "A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time.",
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+            Text("Other Languages", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 2.dp))
+            com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES.forEach { roomSwitch(it) }
+        }
+    }
 }
 
 /**

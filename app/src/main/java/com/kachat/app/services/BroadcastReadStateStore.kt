@@ -25,6 +25,9 @@ class BroadcastReadStateStore @Inject constructor(
     data class State(
         val lastReadByChannel: Map<String, Long> = emptyMap(),
         val manuallyUnread: Set<String> = emptySet(),
+        /** Default rooms switched off in Public Chats settings: out of the list, never
+         *  notifying, never counted. */
+        val hiddenCurated: Set<String> = emptySet(),
     )
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -70,6 +73,13 @@ class BroadcastReadStateStore @Inject constructor(
         save(current.copy(manuallyUnread = current.manuallyUnread + channel))
     }
 
+    /** Shows or hides one of the default rooms in Public Chats. */
+    fun setCuratedShown(channel: String, shown: Boolean) = synchronized(lock) {
+        if (wallet == null) return@synchronized
+        val current = _state.value
+        save(current.copy(hiddenCurated = if (shown) current.hiddenCurated - channel else current.hiddenCurated + channel))
+    }
+
     /** A room left for good takes its read state with it. */
     fun forget(channel: String) = synchronized(lock) {
         if (wallet == null) return@synchronized
@@ -94,7 +104,8 @@ class BroadcastReadStateStore @Inject constructor(
             json.keys().asSequence().associateWith { json.getLong(it) }
         }.getOrDefault(emptyMap())
         val unread = prefs.getStringSet("manual_unread_$key", emptySet())?.toSet().orEmpty()
-        return State(markers, unread)
+        val hidden = prefs.getStringSet("hidden_curated_$key", emptySet())?.toSet().orEmpty()
+        return State(markers, unread, hidden)
     }
 
     private fun save(state: State) {
@@ -104,6 +115,7 @@ class BroadcastReadStateStore @Inject constructor(
         prefs.edit()
             .putString("last_read_$key", json.toString())
             .putStringSet("manual_unread_$key", state.manuallyUnread)
+            .putStringSet("hidden_curated_$key", state.hiddenCurated)
             .apply()
     }
 
