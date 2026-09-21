@@ -166,6 +166,14 @@ fun BroadcastRoomInfoScreen(
                 messages.minOfOrNull { it.blockTimestamp }?.let {
                     InfoRow("Oldest held", dateFormat.format(Date(it)))
                 }
+                // Only the curated rooms have history worth a number: the indexer keeps theirs. A
+                // room you made holds nothing for anyone who was not there (see its info button).
+                if (isCurated) {
+                    channel?.retentionMillis?.takeIf { it > 0 }?.let { millis ->
+                        val days = Math.round(millis / 86_400_000.0).toInt()
+                        InfoRow("Kept for", if (days == 1) "1 day" else "$days days")
+                    }
+                }
             }
 
             ActionSheetRow(

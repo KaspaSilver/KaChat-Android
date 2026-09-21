@@ -1,5 +1,8 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.filled.AddComment
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.MarkEmailUnread
@@ -177,7 +180,6 @@ fun BroadcastListScreen(
     /** The room whose long-press sheet is up. */
     var roomActionTarget by remember { mutableStateOf<String?>(null) }
     val roomClipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-    var retentionSettingsChannelName by remember { mutableStateOf<String?>(null) }
     // Collapsed by default: eleven language rooms would bury the two Popular rooms and the
     // user's own channels under a wall of list.
     var languagesExpanded by remember { mutableStateOf(false) }
@@ -199,6 +201,23 @@ fun BroadcastListScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // The same floating button the Chats and Group Chats pages carry, here for joining or
+        // creating a room (iOS 6639a0b). Drawn by this page because it owns the join dialog.
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    channelInput = ""
+                    broadcastViewModel.resetJoinChannelState()
+                    showJoinDialog = true
+                },
+                containerColor = KaspaTeal,
+                contentColor = Color.Black,
+                shape = CircleShape,
+                modifier = Modifier.size(64.dp),
+            ) {
+                Icon(Icons.Default.AddComment, contentDescription = "Join or create a public room", modifier = Modifier.size(28.dp))
+            }
+        },
         topBar = {
             // Embedded, the Chats header and its tab row are already above this.
             if (!embeddedInChats) {
@@ -237,7 +256,8 @@ fun BroadcastListScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                // Room at the bottom so the last row never sits under the floating button.
+                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
             ) {
                 items(listed, key = { "room:${it.channelName}" }) { channel ->
                     val summary = summaries[channel.channelName]
@@ -308,20 +328,6 @@ fun BroadcastListScreen(
                     }
                 }
 
-                item(key = "action:join") {
-                    TextButton(
-                        onClick = {
-                            channelInput = ""
-                            broadcastViewModel.resetJoinChannelState()
-                            showJoinDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    ) {
-                        Icon(Icons.Default.AddCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Join or create a room", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
-                    }
-                }
                 item(key = "footer:note") {
                     Text(
                         "Public rooms are open to everyone. #kaspa, #kachat-bugs and the language rooms keep 30 days of history.",
@@ -377,20 +383,10 @@ fun BroadcastListScreen(
                 roomClipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
                 say("Room link copied")
             }
+            // No listening or retention rows: the bell is the one control. A room with
+            // notifications on is listened to while the app is open, which is what lets it notify
+            // and count unread (iOS ac34790).
             if (channel != null && !isCurated) {
-                ActionSheetRow(
-                    icon = if (channel.alwaysListen) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                    title = if (channel.alwaysListen) "Stop Listening in the Background" else "Listen While the App Is Open",
-                    subtitle = if (channel.alwaysListen) "Messages arrive only while you are in the room."
-                        else "Collects this room's messages whenever the app is open.",
-                ) {
-                    roomActionTarget = null
-                    broadcastViewModel.setAlwaysListen(name, !channel.alwaysListen)
-                }
-                ActionSheetRow(icon = Icons.Default.Settings, title = "Message Retention", subtitle = "How long this room's messages stay on this device.") {
-                    roomActionTarget = null
-                    retentionSettingsChannelName = name
-                }
                 ActionSheetRow(
                     icon = Icons.Default.Delete,
                     title = "Delete",
@@ -486,116 +482,6 @@ fun BroadcastListScreen(
                 }
             }
         )
-    }
-
-    retentionSettingsChannelName?.let { channelName ->
-        // Looked up live from `channels` (rather than captured at click time) so a stale snapshot
-        // never overwrites a concurrent update; only used to seed the fields below, though, since
-        // the fields themselves must survive unrelated recompositions (e.g. a new message arriving)
-        // while the dialog is open without resetting whatever the user is mid-typing.
-        val channel = channels.firstOrNull { it.channelName == channelName }
-        if (channel != null) {
-            val (initialAmount, initialUnit) = remember(channelName) { BroadcastRetention.toAmountAndUnit(channel.retentionMillis) }
-            var amountText by remember(channelName) { mutableStateOf(initialAmount.toString()) }
-            var selectedUnit by remember(channelName) { mutableStateOf(initialUnit) }
-            var unitMenuExpanded by remember(channelName) { mutableStateOf(false) }
-
-            val amount = amountText.toLongOrNull()
-            val isValid = amount != null && amount in 1..selectedUnit.maxAmount
-
-            AlertDialog(
-                onDismissRequest = { retentionSettingsChannelName = null },
-                containerColor = LocalAppColors.current.surface,
-                title = { Text("Message Retention for #$channelName", color = LocalAppColors.current.textPrimary) },
-                text = {
-                    Column {
-                        Text(
-                            stringResource(R.string.how_long_messages_in_this_broadcast),
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 13.sp
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = amountText,
-                                onValueChange = { input -> amountText = input.filter { it.isDigit() }.take(9) },
-                                singleLine = true,
-                                isError = !isValid,
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = LocalAppColors.current.textPrimary,
-                                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                    focusedBorderColor = KaspaTeal,
-                                    unfocusedBorderColor = LocalAppColors.current.textSecondary
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                            Box {
-                                OutlinedButton(
-                                    onClick = { unitMenuExpanded = true },
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAppColors.current.textPrimary)
-                                ) {
-                                    Text(selectedUnit.label)
-                                }
-                                DropdownMenu(
-                                    expanded = unitMenuExpanded,
-                                    onDismissRequest = { unitMenuExpanded = false },
-                                    modifier = Modifier.background(LocalAppColors.current.surfaceVariant)
-                                ) {
-                                    BroadcastRetention.Unit.entries.forEach { unit ->
-                                        DropdownMenuItem(
-                                            text = { Text(unit.label, color = LocalAppColors.current.textPrimary) },
-                                            onClick = {
-                                                // Re-clamp the typed amount to the new unit's cap rather than clearing it,
-                                                // so switching e.g. seconds -> hours after typing 200 lands on the 72-hour max.
-                                                val current = amountText.toLongOrNull()
-                                                if (current != null && current > unit.maxAmount) {
-                                                    amountText = unit.maxAmount.toString()
-                                                }
-                                                selectedUnit = unit
-                                                unitMenuExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Max: ${selectedUnit.maxAmount} ${selectedUnit.label}",
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 12.sp
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            stringResource(R.string.longer_retention_means_more_messages_stay),
-                            color = Color(0xFFF39C12),
-                            fontSize = 12.sp
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        enabled = isValid,
-                        onClick = {
-                            broadcastViewModel.setRetentionMillis(channelName, amount!! * selectedUnit.millisPerUnit)
-                            retentionSettingsChannelName = null
-                        }
-                    ) {
-                        Text(stringResource(R.string.save), color = if (isValid) KaspaTeal else Color.Gray, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { retentionSettingsChannelName = null }) {
-                        Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                    }
-                }
-            )
-        }
     }
 
 }
@@ -714,6 +600,34 @@ fun BroadcastChannelScreen(
     walletViewModel: WalletViewModel = hiltViewModel(),
     settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel()
 ) {
+    // A room made here, rather than one of the curated indexed rooms: messages in it reach only
+    // whoever is in it at the time, which the info button in the header says.
+    val isCuratedRoom = channelName in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
+    var showOwnRoomExplainer by remember { mutableStateOf(false) }
+    if (showOwnRoomExplainer) {
+        ActionSheetContainer(
+            title = "About this room",
+            subtitle = null,
+            onDismiss = { showOwnRoomExplainer = false },
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    "No one can see your messages in here unless they are also active in the room at the same time.",
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 15.sp,
+                )
+                Text(
+                    "If you want messages to persist and be seen by anyone who joins, you need to run your own indexer and have users add it to the room.",
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 15.sp,
+                )
+            }
+        }
+    }
+
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val messages by broadcastViewModel.getMessages(channelName).collectAsState(initial = emptyList())
     // Reactions aggregated per message txId — same shape as GroupChatScreen's groupReactionsByTxId.
@@ -935,6 +849,15 @@ fun BroadcastChannelScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Box(modifier = Modifier.size(10.dp).background(Color(roomDotColorHex), CircleShape))
+                        }
+                    }
+                },
+                actions = {
+                    // A room you made yourself: what "public" does and does not mean here. The
+                    // curated rooms are indexed, so they need no such warning (iOS ac34790).
+                    if (!isCuratedRoom) {
+                        IconButton(onClick = { showOwnRoomExplainer = true }) {
+                            Icon(Icons.Default.Info, contentDescription = "About this room", tint = KaspaTeal)
                         }
                     }
                 },

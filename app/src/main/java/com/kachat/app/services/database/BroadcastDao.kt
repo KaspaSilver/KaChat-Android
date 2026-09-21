@@ -49,8 +49,15 @@ interface BroadcastDao {
     @Query("SELECT channelName, MAX(retentionMillis) AS retentionMillis FROM broadcast_channels GROUP BY channelName")
     suspend fun getChannelRetentions(): List<ChannelRetention>
 
-    /** Drives both whether background scanning should run at all (non-empty) and which channels' messages actually get cached while it's running — see BroadcastScanningService. */
-    @Query("SELECT channelName FROM broadcast_channels WHERE walletAddress = :walletAddress AND alwaysListen = 1")
+    /**
+     * Drives both whether background scanning should run at all (non-empty) and which channels'
+     * messages actually get cached while it's running - see BroadcastScanningService.
+     *
+     * The bell is the one control now (iOS ac34790): a room with notifications on is listened to
+     * while the app is open, which is what lets it notify and count unread. The separate listen
+     * switch is gone, and a value an older build stored in `alwaysListen` is no longer read.
+     */
+    @Query("SELECT channelName FROM broadcast_channels WHERE walletAddress = :walletAddress AND notifyEnabled = 1")
     fun getAlwaysListenChannelNames(walletAddress: String): Flow<List<String>>
 
     /** Which channels should fire a system notification for new messages — see BroadcastScanningService. */
