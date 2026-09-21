@@ -71,6 +71,7 @@ class PushRegistrationManager @Inject constructor(
     private val groupSecretStore: GroupSecretStore,
     private val settings: AppSettingsRepository,
     private val pushState: PushState,
+    private val peerAliasStore: PeerAliasStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // Serialize registrations so an account switch + a token refresh can't race.
@@ -540,6 +541,9 @@ class PushRegistrationManager @Inject constructor(
             contact.theirAlias?.trim()?.takeIf { it.isNotEmpty() }?.let { aliases += it }
             runCatching { walletManager.myDeterministicAlias(contact.id) }
                 .getOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { aliases += it }
+            // Every alias they have been seen sending to us under (PeerAliasStore), so a push is
+            // sent for those messages too.
+            aliases += peerAliasStore.aliases(contact.walletAddress, contact.id)
         }
         return aliases.toList()
     }

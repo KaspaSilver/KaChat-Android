@@ -79,7 +79,8 @@ class ChatRepository @Inject constructor(
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
     private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>,
-    private val onboardingGate: com.kachat.app.services.OnboardingGate
+    private val onboardingGate: com.kachat.app.services.OnboardingGate,
+    private val peerAliasStore: com.kachat.app.services.PeerAliasStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -1047,6 +1048,8 @@ class ChatRepository @Inject constructor(
         val decryptedJson = MessageProtocol.decrypt(encryptedMessage, walletManager.getPrivateKeyBytes())
         val payload = try { gson.fromJson(decryptedJson, HandshakePayload::class.java) } catch (e: Exception) { null }
         val theirAlias = payload?.alias
+        // Every alias they announce is kept, not just this latest one - see PeerAliasStore.
+        theirAlias?.let { peerAliasStore.add(myAddress, sender, it) }
 
         val senderPubKeyHex = KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
         val existing = database.contactDao().getContact(sender, myAddress)
@@ -1095,6 +1098,63 @@ class ChatRepository @Inject constructor(
             )
         }
         return true
+    }
+
+    /** When each contact's transactions were last read for aliases - see [discoverPeerAliases]. */
+    private val aliasDiscoveryAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** Contacts whose stored handshakes have been read for aliases this process. */
+    private val aliasBackfilled = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+
+    /**
+     * Learns the aliases [contact] sends to us under, without having to be told.
+     *
+     * A 1:1 message is a self-stash: the sender pays to their own address with the payload
+     * `ciph_msg:1:comm:<alias>:<sealed>`, alias in the clear. So their recent transactions show
+     * every alias they are using, and the ones whose sealed part opens with OUR key are the ones
+     * meant for us - the same decrypt-first rule iOS applies to a contact's transactions. Any new
+     * alias found goes into [PeerAliasStore], and the sync that follows fetches its whole history.
+     *
+     * Also reads, once per contact per process, every handshake of theirs already stored here:
+     * those name aliases the single contact field has since forgotten.
+     *
+     * Throttled: the conversation on screen at most every 30 seconds, anyone else every 5 minutes.
+     */
+    private suspend fun discoverPeerAliases(myAddress: String, contact: ContactEntity, onScreen: Boolean) {
+        if (contact.id == myAddress) return
+        val key = "$myAddress|${contact.id}"
+        val privateKey = walletManager.getPrivateKeyBytes()
+
+        if (aliasBackfilled.add(key)) {
+            for (row in database.messageDao().getReceivedHandshakes(contact.id, myAddress)) {
+                val sealed = row.encryptedPayload?.let { runCatching { KasiaCipher.EncryptedMessage.fromBytes(it.hexToBytes()) }.getOrNull() } ?: continue
+                val alias = runCatching {
+                    gson.fromJson(MessageProtocol.decrypt(sealed, privateKey), HandshakePayload::class.java)?.alias
+                }.getOrNull() ?: continue
+                peerAliasStore.add(myAddress, contact.id, alias)
+            }
+        }
+
+        val now = System.currentTimeMillis()
+        val interval = if (onScreen) ALIAS_DISCOVERY_ON_SCREEN_MS else ALIAS_DISCOVERY_INTERVAL_MS
+        if (now - (aliasDiscoveryAt[key] ?: 0L) < interval) return
+        val restApi = networkService.kaspaRestApi.value ?: return
+        aliasDiscoveryAt[key] = now
+
+        val known = peerAliasStore.aliases(myAddress, contact.id) + listOfNotNull(contact.theirAlias)
+        val transactions = restApi.getTransactions(contact.id, limit = ALIAS_DISCOVERY_TX_LIMIT, resolvePreviousOutpoints = "no")
+        val tried = mutableSetOf<String>()
+        for (tx in transactions) {
+            val bytes = tx.payload?.takeIf { it.isNotEmpty() }?.let { runCatching { it.hexToBytes() }.getOrNull() } ?: continue
+            val (alias, sealed) = MessageProtocol.parseCommPayload(bytes) ?: continue
+            if (alias in known || !tried.add(alias)) continue
+            // Opens with our key: this alias carries messages to us.
+            if (runCatching { MessageProtocol.decrypt(sealed, privateKey) }.isSuccess) {
+                if (peerAliasStore.add(myAddress, contact.id, alias)) {
+                    Log.i("ChatRepository", "Learned a new alias for ${contact.id.takeLast(8)} from their transactions")
+                }
+            }
+        }
     }
 
     /**
@@ -1172,7 +1232,19 @@ class ChatRepository @Inject constructor(
                 null // Non-Schnorr/invalid address — skip the deterministic candidate for this contact.
             }
 
-            for (aliasHex in listOfNotNull(legacyAliasHex, deterministicAliasHex).distinct()) {
+            // Every other alias they have been seen sending to us under - older handshakes, and
+            // any found on their own transactions. iOS sends under the first of ALL its legacy
+            // aliases, which need not be the one its last handshake named; missing it meant not
+            // one of their messages ever arrived here, while ours reached them fine.
+            val knownAliasHexes = try {
+                discoverPeerAliases(myAddress, contact, onScreen = contact.id == notificationHelper.currentContactId)
+                peerAliasStore.aliases(myAddress, contact.id).map { hexEncodeAscii(it) }
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Alias discovery failed for ${contact.id.takeLast(8)}", e)
+                emptyList()
+            }
+
+            for (aliasHex in (listOfNotNull(legacyAliasHex, deterministicAliasHex) + knownAliasHexes).distinct()) {
                 // block_time cursor, tracked per (contact, alias) since each is its own independent
                 // stream on the indexer — see MessageSyncCursorEntity's doc comment.
                 //
@@ -1607,6 +1679,11 @@ class ChatRepository @Inject constructor(
 
         /** Cap for the double-per-consecutive-indexer-failure backoff in the poll loop. */
         private const val POLL_BACKOFF_CAP_MS = 60_000L
+
+        /** How often a contact's own transactions are read for aliases - see [discoverPeerAliases]. */
+        private const val ALIAS_DISCOVERY_ON_SCREEN_MS = 30_000L
+        private const val ALIAS_DISCOVERY_INTERVAL_MS = 5 * 60_000L
+        private const val ALIAS_DISCOVERY_TX_LIMIT = 25
 
         /** Poll-path payments cadence/page — see [syncMessages]; manual refresh keeps limit 50. */
         private const val PAYMENT_POLL_INTERVAL_MS = 20_000L

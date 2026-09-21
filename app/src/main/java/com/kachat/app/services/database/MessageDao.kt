@@ -164,6 +164,10 @@ interface MessageDao {
 
     /** Whether any message with [direction] ("sent"/"received") exists in this conversation —
      *  backs the payment pool feature's established-conversation check (one of each required). */
+    /** The handshakes a contact sent us, payload kept - each names an alias they send under. */
+    @Query("SELECT * FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND type = 'handshake' AND direction = 'received'")
+    suspend fun getReceivedHandshakes(contactId: String, walletAddress: String): List<MessageEntity>
+
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND direction = :direction)")
     suspend fun hasMessageWithDirection(contactId: String, walletAddress: String, direction: String): Boolean
 
