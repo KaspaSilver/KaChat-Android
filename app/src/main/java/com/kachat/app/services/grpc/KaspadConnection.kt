@@ -144,6 +144,10 @@ class KaspadConnection internal constructor(
 
     private var streamJob: Job? = null
 
+    /** Who wants block-added notifications on the current stream - see [unsubscribeFromBlockAdded]. */
+    private val blockSubscribers = mutableSetOf<String>()
+    private var blockSubscribersGeneration = -1L
+
     /** Consecutive auto-reconnect attempts since the last successful [connect] - drives backoff
      * so a node that's actively rejecting new streams (e.g. it logged "reached connection
      * capacity") gets breathing room instead of a retry every ~100ms-1s indefinitely, which
@@ -279,7 +283,17 @@ class KaspadConnection internal constructor(
      * [Rpc.RpcBlock] for as long as this connection stays open. The caller is responsible for
      * calling [unsubscribeFromBlockAdded] when scanning should stop.
      */
-    suspend fun subscribeToBlockAdded(): Flow<Rpc.RpcBlock> {
+    suspend fun subscribeToBlockAdded(owner: String): Flow<Rpc.RpcBlock> {
+        synchronized(blockSubscribers) {
+            if (blockSubscribersGeneration != generation.value) {
+                // A new stream: the node has no subscription from the old one to count.
+                blockSubscribers.clear()
+                blockSubscribersGeneration = generation.value
+            }
+            blockSubscribers.add(owner)
+        }
+        // Sent on every subscribe, not only the first: NOTIFY_START is idempotent on the node,
+        // and a second subscriber must not rely on a first one's START still in flight.
         val response = call(
             build = { id ->
                 kaspadRequest {
@@ -295,8 +309,25 @@ class KaspadConnection internal constructor(
         return blockAddedNotifications.asSharedFlow()
     }
 
-    /** Sends NOTIFY_STOP — must be called to actually halt block-added notifications; closing/dropping the Flow collector alone does not stop the node from sending them. */
-    suspend fun unsubscribeFromBlockAdded() {
+    /**
+     * [owner] no longer wants block-added notifications. The NOTIFY_STOP goes to the node only
+     * when nobody else on this connection still does: the notification is per CONNECTION, and the
+     * public-room and group scanners share one. Each used to send its own stop, so the room
+     * scanner going idle silenced the group scanner too (and the other way round), until some
+     * reconnect happened to restart it. Closing/dropping the Flow collector alone does not stop
+     * the node from sending them, so the last one out must still call this.
+     */
+    suspend fun unsubscribeFromBlockAdded(owner: String) {
+        val lastOut = synchronized(blockSubscribers) {
+            if (blockSubscribersGeneration != generation.value) {
+                // The stream this owner subscribed on is gone, and the node's state with it.
+                false
+            } else {
+                blockSubscribers.remove(owner)
+                blockSubscribers.isEmpty()
+            }
+        }
+        if (!lastOut) return
         call(
             build = { id ->
                 kaspadRequest {

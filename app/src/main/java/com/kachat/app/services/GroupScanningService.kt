@@ -134,7 +134,7 @@ class GroupScanningService @Inject constructor(
                     // Captured BEFORE subscribing: a death/reconnect racing the NOTIFY_START
                     // must read as "generation moved" below, not get swallowed.
                     val subscribedGeneration = conn.connectionGeneration.value
-                    val blocks = conn.subscribeToBlockAdded()
+                    val blocks = conn.subscribeToBlockAdded(owner = "groups")
                     subscribedConnection = conn
                     // Re-establishing after a gap: backfill from the indexer what the dead
                     // stream missed, then go live again - see hadLiveScan's doc comment.
@@ -176,7 +176,7 @@ class GroupScanningService @Inject constructor(
         if (conn != null) {
             scope.launch {
                 try {
-                    conn.unsubscribeFromBlockAdded()
+                    conn.unsubscribeFromBlockAdded(owner = "groups")
                 } catch (e: Exception) {
                     Log.w("GroupScanningService", "Failed to send NOTIFY_STOP", e)
                 }

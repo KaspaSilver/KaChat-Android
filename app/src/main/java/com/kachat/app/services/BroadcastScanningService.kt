@@ -255,7 +255,7 @@ class BroadcastScanningService @Inject constructor(
                     // Captured BEFORE subscribing: a death/reconnect racing the NOTIFY_START
                     // must read as "generation moved" below, not get swallowed.
                     val subscribedGeneration = conn.connectionGeneration.value
-                    val blocks = conn.subscribeToBlockAdded()
+                    val blocks = conn.subscribeToBlockAdded(owner = "public-rooms")
                     subscribedConnection = conn
                     coroutineScope {
                         val collector = launch { blocks.collect { block -> processBlock(block) } }
@@ -289,7 +289,7 @@ class BroadcastScanningService @Inject constructor(
         if (conn != null) {
             scope.launch {
                 try {
-                    conn.unsubscribeFromBlockAdded()
+                    conn.unsubscribeFromBlockAdded(owner = "public-rooms")
                 } catch (e: Exception) {
                     Log.w("BroadcastScanningService", "Failed to send NOTIFY_STOP", e)
                 }
