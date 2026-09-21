@@ -185,13 +185,6 @@ fun BroadcastListScreen(
     /** The room whose long-press sheet is up. */
     var roomActionTarget by remember { mutableStateOf<String?>(null) }
     val roomClipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-    // Collapsed by default: eleven language rooms would bury the two Popular rooms and the
-    // user's own channels under a wall of list.
-    var languagesExpanded by remember { mutableStateOf(false) }
-    val languagesRotation by animateFloatAsState(
-        targetValue = if (languagesExpanded) 0f else -90f,
-        label = "languagesChevron"
-    )
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -238,8 +231,9 @@ fun BroadcastListScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Rooms laid out like the Chats and Group Chats lists (iOS 83286b3): the two curated
-            // rooms pinned on top, every other joined room below by latest activity, language
-            // rooms not opened yet behind "Other Languages", and joining at the end. Keys carry a
+            // rooms pinned on top, every other joined room below by latest activity, then the
+            // default language rooms not opened yet - each its own row, no dropdown; any default
+            // room can be switched off in Public Chats settings. Keys carry a
             // ':' prefix, which a channel name can never contain, so nothing can collide.
             val summaries by broadcastViewModel.roomSummaries.collectAsState()
             val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
@@ -286,55 +280,21 @@ fun BroadcastListScreen(
                     )
                 }
 
-                if (unjoinedLanguages.isNotEmpty()) {
-                    item(key = "header:languages") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { languagesExpanded = !languagesExpanded }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .clip(CircleShape)
-                                    .background(KaspaTeal.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(Icons.Default.Language, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text("Other Languages", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("${unjoinedLanguages.size} rooms", color = LocalAppColors.current.textSecondary, fontSize = 14.sp)
-                            }
-                            Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = LocalAppColors.current.textSecondary,
-                                modifier = Modifier.size(20.dp).rotate(languagesRotation),
-                            )
-                        }
-                    }
-                    if (languagesExpanded) {
-                        items(unjoinedLanguages, key = { "language:$it" }) { name ->
-                            PublicChatRow(
-                                channelName = name,
-                                notifyOff = false,
-                                preview = null,
-                                emptyText = com.kachat.app.models.FeaturedBroadcastChannels.languageDisplayName(name)
-                                    ?.let { "$it · tap to open" } ?: "Tap to open",
-                                timeText = null,
-                                unread = 0,
-                                onClick = {
-                                    broadcastViewModel.ensureCuratedRoomJoined(name)
-                                    navController.navigate("broadcast_channel/$name")
-                                },
-                                onLongClick = null,
-                            )
-                        }
-                    }
+                items(unjoinedLanguages, key = { "language:$it" }) { name ->
+                    PublicChatRow(
+                        channelName = name,
+                        notifyOff = false,
+                        preview = null,
+                        emptyText = com.kachat.app.models.FeaturedBroadcastChannels.languageDisplayName(name)
+                            ?.let { "$it · tap to open" } ?: "Tap to open",
+                        timeText = null,
+                        unread = 0,
+                        onClick = {
+                            broadcastViewModel.ensureCuratedRoomJoined(name)
+                            navController.navigate("broadcast_channel/$name")
+                        },
+                        onLongClick = null,
+                    )
                 }
 
                 item(key = "footer:note") {
