@@ -1,12 +1,10 @@
 package com.kachat.app.viewmodels
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.kachat.app.services.GiftClaimState
 import com.kachat.app.services.GiftManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -24,9 +22,12 @@ class GiftViewModel @Inject constructor(
 
     fun checkEligibility() = giftManager.checkEligibility()
 
-    fun claim(walletAddress: String) {
-        viewModelScope.launch { giftManager.claimGift(walletAddress) }
-    }
+    /** The email to send, with [walletAddress] filled in. */
+    fun requestBody(walletAddress: String): String = GiftManager.requestBody(walletAddress)
 
-    fun resetForRetry() = giftManager.resetClaimStateForRetry()
+    /** The mail app was opened with the request: this device's one request is used. */
+    fun markRequested() = giftManager.markRequested()
+
+    /** No mail app could take it; the request text was copied instead. */
+    fun markNoMailApp() = giftManager.markNoMailApp()
 }

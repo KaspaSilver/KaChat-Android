@@ -1,5 +1,8 @@
 package com.kachat.app.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,7 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +59,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.R
 import com.kachat.app.services.GiftClaimState
+import com.kachat.app.services.GiftManager
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ChatViewModel
@@ -68,7 +73,7 @@ private val GiftErrorRed = Color(0xFFFF3B30)
 /**
  * Prominent full-width gift-claim button for the onboarding funding step. Mirrors iOS's
  * WelcomeGuideView.giftClaimSection: stays visible in every state and grays out when not claimable.
- * [walletAddress] is the chatting (identity) address the server funds.
+ * [walletAddress] is the chatting (identity) address the gift request carries.
  */
 @Composable
 fun GiftClaimWizardButton(walletAddress: String?, modifier: Modifier = Modifier) {
@@ -76,10 +81,11 @@ fun GiftClaimWizardButton(walletAddress: String?, modifier: Modifier = Modifier)
     val state by vm.state.collectAsState()
     LaunchedEffect(Unit) { vm.checkEligibility() }
     val claimable = state is GiftClaimState.Eligible && walletAddress != null
+    val request = rememberGiftRequest(vm)
 
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Button(
-            onClick = { if (claimable) walletAddress?.let { vm.claim(it) } },
+            onClick = { if (claimable) walletAddress?.let { request(it) } },
             enabled = claimable,
             colors = ButtonDefaults.buttonColors(
                 containerColor = KaspaTeal,
@@ -100,7 +106,7 @@ fun GiftClaimWizardButton(walletAddress: String?, modifier: Modifier = Modifier)
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                giftTitle(state, "Claim a Gift of 3 Kaspa to Get Started"),
+                giftTitle(state, "Claim a Gift of 2 Kaspa to Get Started"),
                 color = contentColor,
                 fontWeight = FontWeight.Bold
             )
@@ -109,26 +115,34 @@ fun GiftClaimWizardButton(walletAddress: String?, modifier: Modifier = Modifier)
             Spacer(Modifier.height(6.dp))
             Text(it.reason, color = GiftErrorRed, fontSize = 12.sp)
         }
+        if (state is GiftClaimState.Checking || state is GiftClaimState.Eligible) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Claim Gift opens an email with your chatting address filled in. Add a sentence or two on how you found Kaspa and KaChat, and send it. Gifts are sent by hand, so allow some time.",
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
 /**
- * Profile "Kaspa Gift" section - a single claim row. Mirrors iOS ProfileView.claimGiftSection,
- * including the hidden 10-tap reset gesture when the gift is already claimed.
+ * Profile / Settings gift section - a single claim row. Mirrors iOS ProfileView.claimGiftSection
+ * and Settings' gift page (whose footer explains the gift).
  */
 @Composable
 fun GiftClaimProfileSection(
     walletAddress: String?,
     /** Profile passes true: once the gift is settled either way there is nothing left to offer,
-     *  and a permanent "Gift already claimed" line answers a question nobody is still asking.
-     *  Settings passes false, so the state - and the reset gesture - stays reachable forever. */
+     *  and a permanent "Gift already requested" line answers a question nobody is still asking.
+     *  Settings passes false, so the state stays visible, with the explanation under it. */
     hideWhenSettled: Boolean = false,
 ) {
     val vm: GiftViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
     LaunchedEffect(Unit) { vm.checkEligibility() }
-    var resetTaps by remember { mutableIntStateOf(0) }
-    LaunchedEffect(state) { if (state !is GiftClaimState.AlreadyClaimed) resetTaps = 0 }
+    val request = rememberGiftRequest(vm)
     val claimable = state is GiftClaimState.Eligible
     val settled = state is GiftClaimState.Claimed || state is GiftClaimState.AlreadyClaimed
     if (hideWhenSettled && settled) return
@@ -138,14 +152,7 @@ fun GiftClaimProfileSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    when (state) {
-                        is GiftClaimState.Eligible -> walletAddress?.let { vm.claim(it) }
-                        is GiftClaimState.AlreadyClaimed -> {
-                            resetTaps += 1
-                            if (resetTaps >= 10) { resetTaps = 0; vm.resetForRetry() }
-                        }
-                        else -> {}
-                    }
+                    if (state is GiftClaimState.Eligible) walletAddress?.let { request(it) }
                 }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -174,8 +181,75 @@ fun GiftClaimProfileSection(
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
+        } ?: run {
+            if (!hideWhenSettled) {
+                Text(
+                    "A one-time gift of 2 Kaspa to get you started. Your chatting address must have 0 Kaspa and never have been used before. Claim Gift opens an email request with your address filled in.",
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                )
+            }
         }
     }
+}
+
+/**
+ * The gift request, as iOS sends it from a phone without its Mail app (GiftService.claimGift):
+ * ask first, because opening the mail app is what counts as this device's one request - Android
+ * cannot see whether the email was then actually sent. The email goes to
+ * [GiftManager.REQUEST_EMAIL] with the chatting address written in. With no mail app at all,
+ * the request text is copied and the row says where to send it.
+ *
+ * Returns the action to run with the chatting address; the dialog lives in the caller.
+ */
+@Composable
+private fun rememberGiftRequest(vm: GiftViewModel): (String) -> Unit {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    var pendingAddress by remember { mutableStateOf<String?>(null) }
+
+    pendingAddress?.let { address ->
+        AlertDialog(
+            onDismissRequest = { pendingAddress = null },
+            title = { Text("Send your gift request?") },
+            text = {
+                Text("This opens your mail app with the request written for you. You can request the gift once on this device, and opening it counts as that request.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingAddress = null
+                    val body = vm.requestBody(address)
+                    val intent = Intent(
+                        Intent.ACTION_SENDTO,
+                        // Also in the URI: some mail apps read only the mailto fields on SENDTO.
+                        Uri.parse(
+                            "mailto:${GiftManager.REQUEST_EMAIL}" +
+                                "?subject=${Uri.encode(GiftManager.REQUEST_SUBJECT)}" +
+                                "&body=${Uri.encode(body)}"
+                        )
+                    ).apply {
+                        putExtra(Intent.EXTRA_EMAIL, arrayOf(GiftManager.REQUEST_EMAIL))
+                        putExtra(Intent.EXTRA_SUBJECT, GiftManager.REQUEST_SUBJECT)
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    try {
+                        context.startActivity(intent)
+                        vm.markRequested()
+                    } catch (_: ActivityNotFoundException) {
+                        clipboard.setText(AnnotatedString(body))
+                        vm.markNoMailApp()
+                    }
+                }) { Text("Open Mail App", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingAddress = null }) {
+                    Text("Cancel", color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+    return { address -> pendingAddress = address }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -308,6 +382,6 @@ private fun giftTitle(state: GiftClaimState, claimLabel: String): String = when 
     is GiftClaimState.Checking, is GiftClaimState.Eligible -> claimLabel
     is GiftClaimState.Claiming -> "Claiming gift..."
     is GiftClaimState.Claimed -> "Gift claimed"
-    is GiftClaimState.AlreadyClaimed -> "Gift already claimed"
+    is GiftClaimState.AlreadyClaimed -> "Gift already requested"
     is GiftClaimState.Unavailable -> "Gift unavailable"
 }

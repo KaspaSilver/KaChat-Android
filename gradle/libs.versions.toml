@@ -30,7 +30,6 @@ kotlinBip39 = "1.0.9"
 zxing = "3.5.4"
 camerax = "1.5.3"
 coil = "2.7.0"
-playIntegrity = "1.4.0"
 mlkitLanguageId = "17.0.6"
 biometric = "1.1.0"
 appcompat = "1.7.0"
@@ -120,7 +119,6 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 # published to Maven Central by the webrtc-sdk project). The counterpart of iOS's WebRTC SPM package.
 webrtc = { group = "io.github.webrtc-sdk", name = "android", version.ref = "webrtc" }
 
-play-integrity = { group = "com.google.android.play", name = "integrity", version.ref = "playIntegrity" }
 
 # Language IDENTIFICATION for KaPosts, on device: it decides whether to OFFER a Translate link,
 # which is asked for every post that scrolls past, so it cannot be a server round trip. The

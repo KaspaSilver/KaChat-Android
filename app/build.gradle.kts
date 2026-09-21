@@ -233,7 +233,6 @@ dependencies {
 
     // Play Integrity - device attestation for the one-per-device Kaspa welcome-gift claim
     // (Android equivalent of iOS's DeviceCheck + App Attest).
-    implementation(libs.play.integrity)
 
     // ML Kit on-device translation for KaPosts (translate + source-language identification).
     // Both run locally against downloaded language packs; nothing is sent to a server.
