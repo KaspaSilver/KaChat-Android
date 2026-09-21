@@ -130,6 +130,38 @@ class BroadcastRepository @Inject constructor(
         }
     }
 
+    /**
+     * What the Public Chats list shows for one room: its newest message and how many messages
+     * from other people are newer than the read marker. [lastMessage] is null for a room with
+     * nothing in it yet. Counting stops at the bounded window it looks at, which is far more
+     * than a badge ever needs to say.
+     */
+    data class RoomSummary(
+        val lastMessage: BroadcastMessageEntity?,
+        val unreadCount: Int,
+    )
+
+    /**
+     * Newest message and unread count for [channelName], respecting the senders hidden in this
+     * room and never counting reactions - they are not messages anyone reads. [lastReadMs] null
+     * means the room has no marker yet, so nothing in it counts as unread.
+     */
+    fun roomSummary(channelName: String, myAddress: String?, lastReadMs: Long?): Flow<RoomSummary> {
+        return combine(
+            database.broadcastDao().getLatestMessagesForChannel(channelName, SUMMARY_WINDOW),
+            getHiddenSenders(),
+        ) { newestFirst, hidden ->
+            val hiddenHere = hiddenAddressesIn(channelName, hidden)
+            val readable = newestFirst.filterNot {
+                it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null
+            }
+            val unread = if (lastReadMs == null) 0 else readable.count {
+                it.blockTimestamp > lastReadMs && it.senderAddress != myAddress
+            }
+            RoomSummary(lastMessage = readable.firstOrNull(), unreadCount = unread)
+        }
+    }
+
     /** Never includes messages from a sender hidden IN THIS ROOM (or via a legacy every-room hide) — including ones already cached from before the hide (see BroadcastScanningService for the future-side enforcement). Reaction messages (see [getReactions]) never render as a message row, so they're filtered out here too. */
     fun getMessages(channelName: String): Flow<List<BroadcastMessageEntity>> {
         return combine(database.broadcastDao().getMessagesForChannel(channelName), getHiddenSenders()) { messages, hidden ->
@@ -198,6 +230,10 @@ class BroadcastRepository @Inject constructor(
     }
 
     companion object {
+        /** How far back the Public Chats list looks in each room. A badge past this reads the
+         *  same to anyone, and it keeps a busy curated room cheap to summarise. */
+        const val SUMMARY_WINDOW = 200
+
         /** Which senders are hidden in [channelName]: room-scoped rows plus legacy every-room ("") rows. */
         fun hiddenAddressesIn(channelName: String, rows: List<HiddenBroadcastSenderEntity>): Set<String> =
             rows.filter { it.channelName.isEmpty() || it.channelName == channelName }

@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.MarkEmailUnread
+import androidx.compose.material.icons.filled.Drafts
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -170,6 +174,9 @@ fun BroadcastListScreen(
     var showJoinDialog by remember { mutableStateOf(false) }
     var channelInput by remember { mutableStateOf("") }
     var channelToLeave by remember { mutableStateOf<String?>(null) }
+    /** The room whose long-press sheet is up. */
+    var roomActionTarget by remember { mutableStateOf<String?>(null) }
+    val roomClipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     var retentionSettingsChannelName by remember { mutableStateOf<String?>(null) }
     // Collapsed by default: eleven language rooms would bury the two Popular rooms and the
     // user's own channels under a wall of list.
@@ -206,289 +213,192 @@ fun BroadcastListScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // 4.0 (matches iOS BroadcastListView.combinedList): ONE page, no tabs, two sections —
-            // the curated Popular rooms pinned on top (permanent, auto-joined by the VM's init,
-            // bell-only), then everything the user joined under "Your Channels", whose header
-            // row carries the "+" join/create entry point. Item keys use ':' prefixes because
-            // a colon can never appear in a channel name (MessageProtocol.isValidChannelName),
-            // so a user-joined channel can't collide with a header/popular key.
-            // Every curated room (Popular and the language rooms) is rendered above, so a
-            // joined language room must not also appear here as one of "your" channels.
-            val ownChannels = channels.filter { it.channelName !in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES }
+            // Rooms laid out like the Chats and Group Chats lists (iOS 83286b3): the two curated
+            // rooms pinned on top, every other joined room below by latest activity, language
+            // rooms not opened yet behind "Other Languages", and joining at the end. Keys carry a
+            // ':' prefix, which a channel name can never contain, so nothing can collide.
+            val summaries by broadcastViewModel.roomSummaries.collectAsState()
+            val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
+            val contactAliases by broadcastViewModel.contactAliases.collectAsState()
+            val myAddressForRows = remember { runCatching { broadcastViewModel.myAddress() }.getOrNull() }
+            val featured = com.kachat.app.models.FeaturedBroadcastChannels.NAMES
+            fun lastActivity(channel: com.kachat.app.models.BroadcastChannelEntity): Long =
+                summaries[channel.channelName]?.lastMessage?.blockTimestamp ?: channel.joinedAt
+            val listed = featured.mapNotNull { name -> channels.firstOrNull { it.channelName == name } } +
+                channels.filter { it.channelName !in featured }.sortedByDescending(::lastActivity)
+            val joinedNames = channels.map { it.channelName }.toSet()
+            val unjoinedLanguages = com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES.filter { it !in joinedNames }
+            fun senderName(address: String): String = when {
+                address == myAddressForRows -> "You"
+                !contactAliases[address].isNullOrBlank() -> contactAliases[address]!!
+                !senderKnsNames[address].isNullOrBlank() -> senderKnsNames[address]!!
+                else -> address.takeLast(8)
+            }
+
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp),
             ) {
-                item(key = "header:popular") {
-                    // The retention note lives here since the in-room banner was removed to
-                    // keep the chat itself clean (matches iOS).
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Popular",
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            stringResource(R.string.broadcast_popular_retention_note),
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
+                items(listed, key = { "room:${it.channelName}" }) { channel ->
+                    val summary = summaries[channel.channelName]
+                    val last = summary?.lastMessage
+                    LaunchedEffect(last?.senderAddress) {
+                        last?.senderAddress?.let { broadcastViewModel.ensureSenderProfileFetched(it) }
                     }
+                    PublicChatRow(
+                        channelName = channel.channelName,
+                        notifyOff = !channel.notifyEnabled,
+                        preview = last?.let { "${senderName(it.senderAddress)}: ${publicRoomPreview(it.content)}" },
+                        emptyText = "No messages yet",
+                        timeText = last?.let { publicRoomTime(it.blockTimestamp) },
+                        unread = summary?.unreadCount ?: 0,
+                        onClick = { navController.navigate("broadcast_channel/${channel.channelName}") },
+                        onLongClick = { roomActionTarget = channel.channelName },
+                    )
                 }
-                items(FeaturedBroadcastChannels.NAMES, key = { "popular:$it" }) { name ->
-                    // Curated rooms are permanent (no Leave) with fixed 3-day retention (no
-                    // gear) and indexer-backed history (no listen toggle) — the bell is the
-                    // only control, same as iOS. They're auto-joined, so tapping always just
-                    // opens the room; the join call below only covers the brief first-launch
-                    // race before ensureFeaturedChannelsJoined has landed.
-                    val channel = channels.firstOrNull { it.channelName == name }
-                    Surface(
-                        color = LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (channel == null) broadcastViewModel.joinChannel(name)
-                                navController.navigate("broadcast_channel/$name")
-                            }
-                    ) {
+
+                if (unjoinedLanguages.isNotEmpty()) {
+                    item(key = "header:languages") {
                         Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { languagesExpanded = !languagesExpanded }
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("#$name", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(KaspaTeal.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Default.Language, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
                             }
-                            if (channel != null) IconButton(onClick = {
-                                val newValue = !channel.notifyEnabled
-                                broadcastViewModel.setNotifyEnabled(channel.channelName, newValue)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        if (newValue) {
-                                            "You'll get a notification for new messages in this broadcast as long as your app remains open"
-                                        } else {
-                                            "Notifications are off for this broadcast"
-                                        }
-                                    )
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = if (channel.notifyEnabled) Icons.Default.Notifications else Icons.Default.NotificationsNone,
-                                    contentDescription = if (channel.notifyEnabled) "Turn off notifications" else "Turn on notifications",
-                                    tint = if (channel.notifyEnabled) KaspaTeal else Color.Gray
-                                )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Other Languages", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("${unjoinedLanguages.size} rooms", color = LocalAppColors.current.textSecondary, fontSize = 14.sp)
                             }
-                        }
-                    }
-                }
-                // "Other Languages": a collapsed category inside Popular, so the section header's
-                // 30-day retention note covers these rooms too, which it correctly does — they
-                // are indexer-tracked exactly like the two above.
-                item(key = "header:languages") {
-                    Surface(
-                        color = LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { languagesExpanded = !languagesExpanded }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Language,
-                                contentDescription = null,
-                                tint = KaspaTeal,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Other Languages",
-                                color = LocalAppColors.current.textPrimary,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${FeaturedBroadcastChannels.LANGUAGE_NAMES.size}",
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 13.sp
-                            )
-                            Spacer(Modifier.width(6.dp))
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
                                 tint = LocalAppColors.current.textSecondary,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .rotate(languagesRotation)
+                                modifier = Modifier.size(20.dp).rotate(languagesRotation),
+                            )
+                        }
+                    }
+                    if (languagesExpanded) {
+                        items(unjoinedLanguages, key = { "language:$it" }) { name ->
+                            PublicChatRow(
+                                channelName = name,
+                                notifyOff = false,
+                                preview = null,
+                                emptyText = com.kachat.app.models.FeaturedBroadcastChannels.languageDisplayName(name)
+                                    ?.let { "$it · tap to open" } ?: "Tap to open",
+                                timeText = null,
+                                unread = 0,
+                                onClick = {
+                                    broadcastViewModel.ensureCuratedRoomJoined(name)
+                                    navController.navigate("broadcast_channel/$name")
+                                },
+                                onLongClick = null,
                             )
                         }
                     }
                 }
-                if (languagesExpanded) {
-                    items(FeaturedBroadcastChannels.LANGUAGE_NAMES, key = { "language:$it" }) { name ->
-                        val channel = channels.firstOrNull { it.channelName == name }
-                        val notifyOn = channel?.notifyEnabled == true
-                        Surface(
-                            color = LocalAppColors.current.surface,
-                            shape = RoundedCornerShape(16.dp),
-                            // Deeper start padding than the cards above: these read as children
-                            // of the "Other Languages" row they slid out from.
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp)
-                                .clickable {
-                                    broadcastViewModel.ensureCuratedRoomJoined(name)
-                                    navController.navigate("broadcast_channel/$name")
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        FeaturedBroadcastChannels.languageDisplayName(name) ?: "#$name",
-                                        color = LocalAppColors.current.textPrimary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        "#$name",
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                                IconButton(onClick = {
-                                    val newValue = !notifyOn
-                                    broadcastViewModel.setNotifyEnabledEnsuringJoined(name, newValue)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            if (newValue) {
-                                                "You'll get a notification for new messages in this broadcast as long as your app remains open"
-                                            } else {
-                                                "Notifications are off for this broadcast"
-                                            }
-                                        )
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = if (notifyOn) Icons.Default.Notifications else Icons.Default.NotificationsNone,
-                                        contentDescription = if (notifyOn) "Turn off notifications" else "Turn on notifications",
-                                        tint = if (notifyOn) KaspaTeal else Color.Gray
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                item(key = "header:own") {
-                    // iOS parity: the "+" sits on the same line as the section title and opens
-                    // the exact same join/create dialog the toolbar button used to.
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Your Channels",
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = {
+
+                item(key = "action:join") {
+                    TextButton(
+                        onClick = {
                             channelInput = ""
                             broadcastViewModel.resetJoinChannelState()
                             showJoinDialog = true
-                        }) {
-                            Icon(Icons.Default.AddCircle, "Join Channel", tint = KaspaTeal)
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ) {
+                        Icon(Icons.Default.AddCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Join or create a room", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                if (ownChannels.isEmpty()) {
-                    item(key = "own:empty") {
-                        Text(
-                            "No channels yet - tap + to join or create one.",
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                        )
-                    }
-                } else {
-                    items(ownChannels, key = { it.channelName }) { channel ->
-                        Surface(
-                            color = LocalAppColors.current.surface,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigate("broadcast_channel/${channel.channelName}") }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("#${channel.channelName}", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                                }
-                                IconButton(onClick = {
-                                    val newValue = !channel.alwaysListen
-                                    broadcastViewModel.setAlwaysListen(channel.channelName, newValue)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            if (newValue) {
-                                                "You will now listen for new chats as long as your app remains open"
-                                            } else {
-                                                "You will no longer see messages in this broadcast unless you are in the broadcast at the same time chats come in"
-                                            }
-                                        )
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = if (channel.alwaysListen) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                                        contentDescription = if (channel.alwaysListen) "Stop always listening" else "Always listen",
-                                        tint = if (channel.alwaysListen) KaspaTeal else Color.Gray
-                                    )
-                                }
-                                IconButton(onClick = {
-                                    val newValue = !channel.notifyEnabled
-                                    broadcastViewModel.setNotifyEnabled(channel.channelName, newValue)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            if (newValue) {
-                                                "You'll get a notification for new messages in this broadcast as long as your app remains open"
-                                            } else {
-                                                "Notifications are off for this broadcast"
-                                            }
-                                        )
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = if (channel.notifyEnabled) Icons.Default.Notifications else Icons.Default.NotificationsNone,
-                                        contentDescription = if (channel.notifyEnabled) "Turn off notifications" else "Turn on notifications",
-                                        tint = if (channel.notifyEnabled) KaspaTeal else Color.Gray
-                                    )
-                                }
-                                IconButton(onClick = { retentionSettingsChannelName = channel.channelName }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = stringResource(R.string.message_retention_settings),
-                                        tint = LocalAppColors.current.textSecondary
-                                    )
-                                }
-                                TextButton(onClick = { channelToLeave = channel.channelName }) {
-                                    Text(stringResource(R.string.leave), color = LocalAppColors.current.textSecondary)
-                                }
-                            }
-                        }
-                    }
+                item(key = "footer:note") {
+                    Text(
+                        "Public rooms are open to everyone. #kaspa, #kachat-bugs and the language rooms keep 30 days of history.",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 12.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 12.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    // The long-press sheet, the same shape as a group's: read state, notifications, the room
+    // link, and - for rooms you added yourself - listening, retention and delete. The curated
+    // rooms are permanent, so they offer no delete.
+    roomActionTarget?.let { name ->
+        val channel = channels.firstOrNull { it.channelName == name }
+        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
+        val notifyOn = channel?.notifyEnabled == true
+        val summaries by broadcastViewModel.roomSummaries.collectAsState()
+        val hasUnread = (summaries[name]?.unreadCount ?: 0) > 0
+        fun say(text: String) { coroutineScope.launch { snackbarHostState.showSnackbar(text) } }
+        ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = { roomActionTarget = null }) {
+            if (hasUnread) {
+                ActionSheetRow(icon = Icons.Default.Drafts, title = "Mark as Read", subtitle = "Clears the unread badge on this room.") {
+                    roomActionTarget = null
+                    broadcastViewModel.markRoomRead(name)
+                }
+            } else {
+                ActionSheetRow(icon = Icons.Default.MarkEmailUnread, title = "Mark as Unread", subtitle = "Puts the unread badge back so you come across it again.") {
+                    roomActionTarget = null
+                    broadcastViewModel.markRoomUnread(name)
+                }
+            }
+            if (channel != null) {
+                ActionSheetRow(
+                    icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                    title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
+                    subtitle = when {
+                        notifyOn -> "No notification for new messages in this room."
+                        isCurated -> "Notifies you of new messages, even when the app is closed."
+                        else -> "Notifies you of new messages while the app is open."
+                    },
+                ) {
+                    roomActionTarget = null
+                    broadcastViewModel.setNotifyEnabled(name, !notifyOn)
+                    say(if (notifyOn) "Notifications are off for this room" else "Notifications are on for this room")
+                }
+            }
+            ActionSheetRow(icon = Icons.Default.Link, title = "Copy Room Link", subtitle = "A kachat.app link that opens this room.") {
+                roomActionTarget = null
+                roomClipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
+                say("Room link copied")
+            }
+            if (channel != null && !isCurated) {
+                ActionSheetRow(
+                    icon = if (channel.alwaysListen) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                    title = if (channel.alwaysListen) "Stop Listening in the Background" else "Listen While the App Is Open",
+                    subtitle = if (channel.alwaysListen) "Messages arrive only while you are in the room."
+                        else "Collects this room's messages whenever the app is open.",
+                ) {
+                    roomActionTarget = null
+                    broadcastViewModel.setAlwaysListen(name, !channel.alwaysListen)
+                }
+                ActionSheetRow(icon = Icons.Default.Settings, title = "Message Retention", subtitle = "How long this room's messages stay on this device.") {
+                    roomActionTarget = null
+                    retentionSettingsChannelName = name
+                }
+                ActionSheetRow(
+                    icon = Icons.Default.Delete,
+                    title = "Delete",
+                    subtitle = "Removes this room and its messages from this device.",
+                    tint = Color(0xFFFF3B30),
+                ) {
+                    roomActionTarget = null
+                    channelToLeave = name
                 }
             }
         }
@@ -690,6 +600,110 @@ fun BroadcastListScreen(
 
 }
 
+/**
+ * One room, laid out like a chat in the Chats list: a # avatar, the room name, the newest message
+ * with who sent it and when, a bell-off mark, and the unread badge. Mirrors iOS's PublicChatRow.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PublicChatRow(
+    channelName: String,
+    notifyOff: Boolean,
+    preview: String?,
+    emptyText: String,
+    timeText: String?,
+    unread: Int,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(50.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("#", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "#$channelName",
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (notifyOff) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.NotificationsOff, contentDescription = "Notifications off", tint = colors.textSecondary, modifier = Modifier.size(13.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                if (timeText != null) Text(timeText, color = colors.textSecondary, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(3.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    preview ?: emptyText,
+                    color = colors.textSecondary,
+                    fontSize = 14.sp,
+                    fontStyle = if (preview == null) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (unread > 0) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (unread > 99) "99+" else unread.toString(),
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(KaspaTeal)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** One line of a room's newest message: replies, voice notes and links read as what they are,
+ *  never as their raw JSON or a tappable link (the same rules as the chat lists). */
+private fun publicRoomPreview(content: String): String {
+    com.kachat.app.util.MessageReply.parseOrNull(content)?.let { return "replied to \"${it.replyToPreview}\"" }
+    com.kachat.app.util.InlineMediaSniff.mimeType(content)?.let { mime ->
+        return when {
+            mime.startsWith("audio/") -> "🎤 Audio message"
+            mime.startsWith("image/") -> "📷 Photo"
+            mime.startsWith("video/") -> "🎬 Video"
+            else -> "📎 File"
+        }
+    }
+    return com.kachat.app.util.NextcloudShareSniff.linkSafePreview(content)
+}
+
+/** A clock time today, "Yesterday", or the month and day, the way the chat lists read it. */
+private fun publicRoomTime(ms: Long): String {
+    val now = System.currentTimeMillis()
+    return when {
+        com.kachat.app.util.ChatTimeFormat.isSameDay(ms, now) ->
+            java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date(ms))
+        com.kachat.app.util.ChatTimeFormat.isSameDay(ms, now - 24L * 60 * 60 * 1000) -> "Yesterday"
+        else -> java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault()).format(java.util.Date(ms))
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun BroadcastChannelScreen(
@@ -837,7 +851,11 @@ fun BroadcastChannelScreen(
     DisposableEffect(channelName) {
         broadcastViewModel.startLiveViewing(channelName)
         broadcastViewModel.startIndexerBackfill(channelName)
+        // Opening a room is reading it. Marked again on the way out, so what arrived while it
+        // was open does not come back as unread on the list behind it.
+        broadcastViewModel.markRoomRead(channelName)
         onDispose {
+            broadcastViewModel.markRoomRead(channelName)
             broadcastViewModel.stopLiveViewing()
             broadcastViewModel.stopIndexerBackfill()
         }

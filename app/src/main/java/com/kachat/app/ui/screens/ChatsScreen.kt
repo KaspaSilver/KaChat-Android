@@ -109,7 +109,8 @@ fun ChatsScreen(
     navController: NavController, 
     walletViewModel: WalletViewModel = hiltViewModel(),
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
-    chatViewModel: ChatViewModel = hiltViewModel()
+    chatViewModel: ChatViewModel = hiltViewModel(),
+    broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel = hiltViewModel(),
 ) {
     val balance by walletViewModel.fullBalance.collectAsState()
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
@@ -414,11 +415,15 @@ fun ChatsScreen(
                             if (!isSelectionMode) tabCoroutineScope.launch { pagerState.animateScrollToPage(2) }
                         },
                         text = {
-                            Text(
-                                stringResource(R.string.public_chats),
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelectionMode) LocalContentColor.current.copy(alpha = 0.25f) else LocalContentColor.current,
-                            )
+                            // The rooms' unread total, badged like the other two tabs.
+                            val publicUnread by broadcastViewModel.totalUnreadRooms.collectAsState()
+                            TabBadge(count = publicUnread) {
+                                Text(
+                                    stringResource(R.string.public_chats),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelectionMode) LocalContentColor.current.copy(alpha = 0.25f) else LocalContentColor.current,
+                                )
+                            }
                         }
                     )
                 }
@@ -514,6 +519,7 @@ fun ChatsScreen(
                 navController = navController,
                 onBack = {},
                 embeddedInChats = true,
+                broadcastViewModel = broadcastViewModel,
             )
             1 -> Box(
                 modifier = Modifier

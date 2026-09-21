@@ -60,6 +60,12 @@ interface BroadcastDao {
     @Query("SELECT * FROM broadcast_messages WHERE channelName = :channelName ORDER BY blockTimestamp ASC")
     fun getMessagesForChannel(channelName: String): Flow<List<BroadcastMessageEntity>>
 
+    /** The newest rows in a room, newest first - enough for the Public Chats list to show the last
+     *  message and count what is unread, without loading a curated room's thirty days of history
+     *  every time anything changes. Uses the (channelName, blockTimestamp) index. */
+    @Query("SELECT * FROM broadcast_messages WHERE channelName = :channelName ORDER BY blockTimestamp DESC LIMIT :limit")
+    fun getLatestMessagesForChannel(channelName: String, limit: Int): Flow<List<BroadcastMessageEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: BroadcastMessageEntity)
 

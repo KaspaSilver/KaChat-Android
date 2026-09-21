@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import com.kachat.app.models.FeaturedBroadcastChannels
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -55,7 +57,9 @@ class BroadcastViewModel @Inject constructor(
     private val knsService: KnsService,
     private val chatRepository: ChatRepository,
     private val notificationHelper: NotificationHelper,
-    private val nextcloudService: NextcloudService
+    private val nextcloudService: NextcloudService,
+    /** What has been read in each room, per wallet - the Public Chats list's unread counts. */
+    private val readState: com.kachat.app.services.BroadcastReadStateStore,
 ) : ViewModel() {
 
     // Address -> KNS avatar URL (or null if fetched but no avatar/domain exists) for whoever's
@@ -267,6 +271,50 @@ class BroadcastViewModel @Inject constructor(
     val joinedChannels: StateFlow<List<BroadcastChannelEntity>> = broadcastRepository.getJoinedChannels()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Each joined room's newest message and unread count, for the Public Chats list. Rebuilt when
+     * the joined set or the read markers change; each room's own flow then follows its messages.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val roomSummaries: StateFlow<Map<String, BroadcastRepository.RoomSummary>> =
+        kotlinx.coroutines.flow.combine(joinedChannels, readState.state) { channels, read -> channels to read }
+            .flatMapLatest { (channels, read) ->
+                val me = runCatching { walletManager.getAddress() }.getOrNull()
+                if (channels.isEmpty()) {
+                    kotlinx.coroutines.flow.flowOf(emptyMap())
+                } else {
+                    kotlinx.coroutines.flow.combine(
+                        channels.map { channel ->
+                            val name = channel.channelName
+                            broadcastRepository.roomSummary(name, me, read.lastReadByChannel[name])
+                                .map { summary ->
+                                    // A room marked unread by hand shows at least one.
+                                    val manual = name in read.manuallyUnread
+                                    name to summary.copy(unreadCount = maxOf(summary.unreadCount, if (manual) 1 else 0))
+                                }
+                        }
+                    ) { pairs -> pairs.toMap() }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** Everything unread across the rooms - the Public Chats tab's badge. */
+    val totalUnreadRooms: StateFlow<Int> = roomSummaries
+        .map { summaries -> summaries.values.sumOf { it.unreadCount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** This wallet's own address, for "You" on the rows it sent. Null while there is none. */
+    fun myAddress(): String? = runCatching { walletManager.getAddress() }.getOrNull()
+
+    /** Opening a room is reading it: everything up to now counts as seen. */
+    fun markRoomRead(channelName: String) {
+        readState.markRead(channelName, System.currentTimeMillis())
+    }
+
+    fun markRoomUnread(channelName: String) {
+        readState.markUnread(channelName)
+    }
+
     /** Whether the Popular tab shows at all — toggled from the gear icon next to the join button. */
     val popularTabEnabled: StateFlow<Boolean> = settings.broadcastPopularEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -317,6 +365,29 @@ class BroadcastViewModel @Inject constructor(
         // The curated #kaspa/#kachat-bugs rooms are always present (4.0): auto-joined with
         // fixed 3-day retention, backed by the broadcast indexer.
         viewModelScope.launch { broadcastRepository.ensureFeaturedChannelsJoined() }
+        // Read state follows the account, and every joined room gets a marker the first time it
+        // is seen, so it counts from now rather than from the start of its history.
+        viewModelScope.launch {
+            walletManager.activeAddressFlow.collect { readState.setCurrentWallet(it) }
+        }
+        viewModelScope.launch {
+            joinedChannels.collect { channels ->
+                readState.seedIfMissing(channels.map { it.channelName })
+                applyFeaturedNotifyDefaultIfNeeded(channels)
+            }
+        }
+    }
+
+    /**
+     * #kaspa and #kachat-bugs notify by default. Applied once per wallet, so a bell switched off
+     * later stays off, and only once both rooms exist, so it cannot be spent before they do.
+     */
+    private fun applyFeaturedNotifyDefaultIfNeeded(channels: List<BroadcastChannelEntity>) {
+        if (readState.featuredNotifyDefaultApplied()) return
+        val joined = channels.map { it.channelName }.toSet()
+        if (!FeaturedBroadcastChannels.NAMES.all { it in joined }) return
+        readState.markFeaturedNotifyDefaultApplied()
+        FeaturedBroadcastChannels.NAMES.forEach { setNotifyEnabled(it, true) }
     }
 
     private var indexerPollJob: kotlinx.coroutines.Job? = null
@@ -409,6 +480,8 @@ class BroadcastViewModel @Inject constructor(
 
     fun leaveChannel(channelName: String) {
         viewModelScope.launch { broadcastRepository.leaveChannel(channelName) }
+        // A room left takes its read state with it; rejoining starts counting from then.
+        readState.forget(channelName)
     }
 
     /** This room's own indexer, or "" when it follows the app-wide broadcast indexer. */
