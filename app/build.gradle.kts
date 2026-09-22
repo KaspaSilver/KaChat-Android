@@ -124,6 +124,20 @@ android {
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
             }
+            // The Play upload key, which is NOT the key the GitHub APK is signed with: Play
+            // knows the app by the certificate of its first upload, and an APK already installed
+            // from GitHub can only be updated by something signed the same way as itself. So the
+            // play flavour's release build is signed with this one (see androidComponents below)
+            // and everything else keeps the key above. Optional: a checkout without it still
+            // builds the GitHub APK.
+            if (keystoreProperties.getProperty("uploadStoreFile") != null) {
+                create("upload") {
+                    storeFile = rootProject.file(keystoreProperties.getProperty("uploadStoreFile"))
+                    storePassword = keystoreProperties.getProperty("uploadStorePassword")
+                    keyAlias = keystoreProperties.getProperty("uploadKeyAlias")
+                    keyPassword = keystoreProperties.getProperty("uploadKeyPassword")
+                }
+            }
         }
     }
 
@@ -177,6 +191,16 @@ android {
             excludes += "META-INF/INDEX.LIST"
             excludes += "META-INF/io.netty.versions.properties"
         }
+    }
+}
+
+
+// Only the Play release is signed with the upload key; the GitHub APK and every debug build
+// keep their own. A build type's signing config wins over a flavour's, so the swap is made per
+// variant rather than on the play flavour.
+androidComponents {
+    onVariants(selector().withFlavor("distribution" to "play").withBuildType("release")) { variant ->
+        android.signingConfigs.findByName("upload")?.let { variant.signingConfig.setConfig(it) }
     }
 }
 
