@@ -102,7 +102,7 @@ android {
         // moves, so it goes up with every handed-out build too, alongside the build number.
         val kachatBuildNumber = 1
         val kachatIsRelease = false
-        versionCode = 69
+        versionCode = 70
         versionName = "5.1"
         buildConfigField("int", "KACHAT_BUILD_NUMBER", kachatBuildNumber.toString())
         buildConfigField("boolean", "KACHAT_IS_RELEASE", kachatIsRelease.toString())
