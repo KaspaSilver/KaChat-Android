@@ -203,15 +203,31 @@ class ChessTournamentService @Inject constructor(
 
     /** Joins the public room taking players now. If that room fills before this join lands
      *  (someone else got the last seat), [reduce] notices and joins the next room. */
-    suspend fun joinPublicQueue() = joinQueue(currentPublicRoomId(_tournaments.value))
+    suspend fun joinPublicQueue() = joinPublicRoom(currentPublicRoomId(_tournaments.value))
 
     /** Joins the public 1v1 room taking players now; same race handling as the tournaments. */
-    suspend fun joinPublicDuelQueue() = joinQueue(currentDuelRoomId(_tournaments.value))
+    suspend fun joinPublicDuelQueue() = joinPublicRoom(currentDuelRoomId(_tournaments.value))
 
-    private suspend fun joinQueue(id: String) {
+    /**
+     * The seat that ran out is still in `players` until the next join drops it (the engine judges
+     * that at the join's block time) - so "already in" means seated NOW, never the stale list, or
+     * a returning player's tap would do nothing at all. Every refusal says why (iOS b552d7d).
+     */
+    private suspend fun joinPublicRoom(id: String) {
         val me = myAddress ?: return
-        if (myActiveTournament(_tournaments.value) != null) return
-        if (_tournaments.value[id]?.players?.contains(me) == true) return
+        val busy = myActiveTournament(_tournaments.value)
+        if (busy != null) {
+            _lastError.value = if (busy.status == ChessTournament.Status.OPEN) {
+                "You're already waiting in ${busy.name}."
+            } else {
+                "You're still playing in ${busy.name}."
+            }
+            return
+        }
+        if (_tournaments.value[id]?.isSeated(me, _now.value) == true) {
+            _lastError.value = "You're already in this room."
+            return
+        }
         queuedPublicRoomId = id
         send(ChessTournamentCodec.join(id))
     }
@@ -255,14 +271,27 @@ class ChessTournamentService @Inject constructor(
 
     suspend fun join(tournament: ChessTournament) {
         val me = myAddress ?: return
-        if (me in tournament.players || tournament.status != ChessTournament.Status.OPEN) return
+        if (tournament.status != ChessTournament.Status.OPEN) return
+        if (tournament.isSeated(me, _now.value)) {
+            _lastError.value = "You're already in this room."
+            return
+        }
+        val busy = myActiveTournament(_tournaments.value)
+        if (busy != null && busy.id != tournament.id) {
+            _lastError.value = if (busy.status == ChessTournament.Status.OPEN) {
+                "You're already waiting in ${busy.name}."
+            } else {
+                "You're still playing in ${busy.name}."
+            }
+            return
+        }
         send(ChessTournamentCodec.join(tournament.id))
     }
 
     /** Gives the seat back while the room is still waiting (one transaction). */
     suspend fun leave(tournament: ChessTournament) {
         val me = myAddress ?: return
-        if (tournament.status != ChessTournament.Status.OPEN || me !in tournament.players) return
+        if (tournament.status != ChessTournament.Status.OPEN || !tournament.isSeated(me, _now.value)) return
         queuedPublicRoomId = null
         send(ChessTournamentCodec.leave(tournament.id))
     }
