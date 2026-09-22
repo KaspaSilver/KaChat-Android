@@ -23,10 +23,16 @@ import javax.inject.Singleton
 
 /**
  * The ringing phone, as the system sees it: while a call is coming in KaChat posts a call
- * notification with a full-screen intent, so the call screen takes over a locked or busy phone
- * and Answer / Decline are there without opening the app first. This is Android's answer to
- * iOS's CallKit, and the reason a closed app can be rung at all - the push wakes the process,
- * [CallService] starts ringing, and this is what the user actually sees.
+ * notification - the caller's name, Answer and Decline - which the system shows over whatever is
+ * on screen and on the lock screen. This is Android's answer to iOS's CallKit, and the reason a
+ * closed app can be rung at all: the push wakes the process, [CallService] starts ringing, and
+ * this is what the user actually sees.
+ *
+ * It does NOT take the screen over with a full-screen intent. That needs USE_FULL_SCREEN_INTENT,
+ * which Google Play grants only to apps whose core purpose is calling or alarms; KaChat is a chat
+ * app that can also call, and a submission carrying the permission is rejected (policy notice,
+ * 2026-09-22). A call-style notification of the highest importance is what is left, and it still
+ * rings, still shows Answer and Decline, and still opens the call screen when tapped.
  *
  * Deliberately silent: the channel has no sound and no vibration because [CallService] plays the
  * ringtone and drives the vibrator itself, exactly as it does when the app is already open. One
@@ -95,11 +101,8 @@ class IncomingCallNotifier @Inject constructor(
             .setOngoing(true)
             .setAutoCancel(false)
             .setSilent(true)
+            // Tapping the notification (not Answer) opens the call screen without picking up.
             .setContentIntent(openCallIntent(null, REQUEST_OPEN))
-            // The whole point: a locked or busy phone shows the call screen rather than a banner.
-            // No call id on this one - the system opens it by itself, and that is the phone
-            // ringing in front of you, not you picking up.
-            .setFullScreenIntent(openCallIntent(null, REQUEST_FULL_SCREEN), true)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
         runCatching { manager.notify(NOTIFICATION_ID, builder.build()) }
             .onFailure { Log.w(TAG, "Could not post the incoming call notification", it) }
@@ -122,7 +125,6 @@ class IncomingCallNotifier @Inject constructor(
         private const val REQUEST_OPEN = 8100
         private const val REQUEST_ANSWER = 8101
         private const val REQUEST_DECLINE = 8102
-        private const val REQUEST_FULL_SCREEN = 8103
     }
 }
 
