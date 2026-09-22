@@ -303,7 +303,10 @@ class ColdStorageAddressDiscovery @Inject constructor(
         val txId: String,
         val sent: Boolean, // true = this address was a sender on this tx
         val amountSompi: Long, // net amount that left (sent) or arrived (received) — excludes change back to itself
-        val blockTimeMillis: Long?
+        val blockTimeMillis: Long?,
+        /** What this transaction paid the network, when the API resolved every input's amount.
+         *  On a received transaction it is what the sender paid (iOS 9839906). */
+        val feeSompi: Long? = null,
     )
 
     /**
@@ -359,7 +362,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
             } else {
                 tx.outputs.filter { it.scriptPublicKeyAddress == address }.sumOf { it.amount }
             }
-            AddressTransaction(tx.transactionId, sent, amount, tx.blockTime)
+            AddressTransaction(tx.transactionId, sent, amount, tx.blockTime, tx.feeSompi)
         }.sortedByDescending { it.blockTimeMillis ?: 0L }
     }
 
@@ -412,7 +415,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
                     } else {
                         tx.outputs.filter { it.scriptPublicKeyAddress == address }.sumOf { it.amount }
                     }
-                    AddressTransaction(tx.transactionId, sent, amount, tx.blockTime)
+                    AddressTransaction(tx.transactionId, sent, amount, tx.blockTime, tx.feeSompi)
                 }
             )
 

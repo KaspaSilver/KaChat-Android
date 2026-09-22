@@ -2423,6 +2423,16 @@ private fun ColdUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo, label: St
     }
 }
 
+/** "Fee 0.0001 KAS" for a history row, or null when the fee cannot be known (a coinbase, or an
+ *  input the API did not resolve). Every transaction pays one, whoever sent it; on a received
+ *  one it is what the sender paid. Mirrors iOS 9839906. */
+fun transactionFeeText(feeSompi: Long?): String? {
+    val fee = feeSompi ?: return null
+    val kas = fee / 100_000_000.0
+    val text = if (kas >= 0.001) "%.4f".format(kas) else "%.8f".format(kas)
+    return "Fee $text KAS"
+}
+
 @Composable
 private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction, onClick: () -> Unit) {
     val kas = tx.amountSompi / 100_000_000.0
@@ -2458,6 +2468,10 @@ private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction,
         Column(modifier = Modifier.weight(1f)) {
             Text(if (tx.sent) "Sent" else "Received", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             Text(dateStr, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+            // What this transaction paid the network (iOS 9839906).
+            transactionFeeText(tx.feeSompi)?.let {
+                Text(it, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+            }
             Text(
                 tx.txId,
                 color = LocalAppColors.current.textSecondary,

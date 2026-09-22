@@ -7397,6 +7397,10 @@ private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressT
         Column(modifier = Modifier.weight(1f)) {
             Text(if (tx.sent) "Sent" else "Received", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
             Text(dateStr, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+            // What this transaction paid the network (iOS 9839906).
+            transactionFeeText(tx.feeSompi)?.let {
+                Text(it, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+            }
             Text(
                 tx.txId,
                 color = LocalAppColors.current.textSecondary,

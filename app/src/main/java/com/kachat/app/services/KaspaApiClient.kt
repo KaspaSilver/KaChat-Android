@@ -48,7 +48,24 @@ data class TransactionResponse(
     val outputs: List<TransactionOutput>,
     @SerializedName("block_time") val blockTime: Long?,
     val payload: String?  // hex-encoded — contains ciph_msg:1:* for KaChat messages
-)
+) {
+    /**
+     * The fee this transaction paid: inputs minus outputs. Known only when the API resolved
+     * every input's amount (`resolve_previous_outpoints`, which the history fetches ask for);
+     * null for a coinbase, or when one input's amount is missing. Mirrors iOS 9839906.
+     */
+    val feeSompi: Long?
+        get() {
+            if (inputs.isEmpty()) return null
+            var totalIn = 0L
+            for (input in inputs) {
+                val amount = input.previousOutpointAmount ?: return null
+                totalIn += amount
+            }
+            val totalOut = outputs.sumOf { it.amount }
+            return if (totalIn >= totalOut) totalIn - totalOut else null
+        }
+}
 
 data class TransactionInput(
     @SerializedName("previous_outpoint_hash") val previousOutpointHash: String,
@@ -56,6 +73,9 @@ data class TransactionInput(
     // Only populated when the request passes resolve_previous_outpoints — the address
     // that owned the spent UTXO, i.e. the real sender of this transaction.
     @SerializedName("previous_outpoint_address") val previousOutpointAddress: String?,
+    // Also only with resolve_previous_outpoints - the spent UTXO's amount, which is what makes
+    // the fee knowable (inputs minus outputs). See TransactionResponse.feeSompi.
+    @SerializedName("previous_outpoint_amount") val previousOutpointAmount: Long?,
     @SerializedName("signature_script") val signatureScript: String
 )
 
