@@ -199,7 +199,9 @@ class KaChatApplication : Application(), Configuration.Provider {
                     // throw here (e.g. no active account yet on a cold start) would otherwise crash
                     // the whole process. Same non-fatal treatment as the FGS start in onStop above.
                     try {
-                        groupRepository.syncGroups()
+                        // Coalesced with the catch-up a group opened from a tapped notification
+                        // runs at the same moment.
+                        groupRepository.runGroupCatchUp()
                     } catch (e: Exception) {
                         android.util.Log.w("KaChatApplication", "Foreground group catch-up sync failed", e)
                     }

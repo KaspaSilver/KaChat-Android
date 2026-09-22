@@ -142,6 +142,15 @@ class ChatViewModel @Inject constructor(
             // guarded inside the service) — the Android equivalent of iOS's enterConversation
             // hook. Fire-and-forget on the service's own scope.
             paymentPoolService.onConversationOpened(contactId)
+            // What arrived while the app was away, straight away rather than on the poll's next
+            // tick (iOS 360e5d2).
+            viewModelScope.launch {
+                try {
+                    chatRepository.syncConversationNow(contactId)
+                } catch (e: Exception) {
+                    Log.w("ChatViewModel", "Sync on opening chat failed", e)
+                }
+            }
         }
     }
 
@@ -150,6 +159,17 @@ class ChatViewModel @Inject constructor(
      *  arriving while you're actively looking at it doesn't tick the unread badge up. */
     fun setActiveGroup(groupId: String?) {
         notificationHelper.setActiveGroup(groupId)
+        // What arrived while the app was away, now - through the coalesced catch-up, so a
+        // tapped push and this open never run two full syncs at once (iOS 360e5d2).
+        if (groupId != null) {
+            viewModelScope.launch {
+                try {
+                    groupRepository.runGroupCatchUp()
+                } catch (e: Exception) {
+                    Log.w("ChatViewModel", "Group catch-up on opening failed", e)
+                }
+            }
+        }
     }
 
     /** True only when the chatting (identity) address balance is a *confirmed* 0 KAS — never

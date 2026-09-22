@@ -836,6 +836,19 @@ class ChatRepository @Inject constructor(
      * small page). Manual refreshes and the resync flows pass false and keep the full,
      * unthrottled behavior.
      */
+    /**
+     * One conversation's new messages, now - run when a 1:1 chat is entered. The poll loop's
+     * next tick could be the idle one, so a chat opened from a tapped notification showed its
+     * stored history and nothing newer for up to its interval (iOS 360e5d2).
+     */
+    suspend fun syncConversationNow(contactId: String) {
+        if (onboardingGate.isHeld) return
+        val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
+        val api = networkService.indexerApi.value ?: return
+        liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
+        syncContextualMessages(myAddress, api, onlyContactIds = setOf(contactId))
+    }
+
     suspend fun syncMessages(fromPollLoop: Boolean = false) {
         // Every other caller (pull-to-refresh, the sync worker, push handling) is held too - the
         // wizard is exclusive. The post-wizard initial sync releases the gate before running.

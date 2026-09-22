@@ -1366,6 +1366,30 @@ class GroupRepository @Inject constructor(
      *    without needing to already know the admin. This replaced the indexer's old
      *    fan-out-to-every-device push fallback for that same case.
      */
+    private val catchUpMutex = kotlinx.coroutines.sync.Mutex()
+    @Volatile
+    private var catchUpQueued = false
+
+    /**
+     * [syncGroups], one at a time: a request during one queues exactly one more, and any further
+     * request while that one waits is already covered by it. Opening a group runs this at once
+     * (iOS 360e5d2 runGroupCatchUp), so a thread opened from a tapped notification shows what
+     * arrived while the app was away without two full syncs running side by side.
+     */
+    suspend fun runGroupCatchUp() {
+        if (catchUpMutex.isLocked) {
+            if (catchUpQueued) return
+            catchUpQueued = true
+        }
+        catchUpMutex.lock()
+        try {
+            catchUpQueued = false
+            syncGroups()
+        } finally {
+            catchUpMutex.unlock()
+        }
+    }
+
     suspend fun syncGroups() {
         val api = networkService.indexerApi.value ?: return
         // On a cold foreground before the user has logged in/imported a wallet there's no active
