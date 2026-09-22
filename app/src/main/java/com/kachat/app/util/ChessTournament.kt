@@ -43,6 +43,9 @@ object ChessTournamentCodec {
     const val ARENA_CHANNEL = "chess-arena"
     const val PLAYER_COUNT = 8
     const val CLOCK_MS = 5L * 60 * 1000
+    /** A seat in a waiting room lasts this long: if the room has not filled by then, the seat
+     *  expires and the player is out of the queue - with the app closed, on a walk, whatever. */
+    const val SEAT_TTL_MS = 5L * 60 * 1000
     const val NAME_MAX_LENGTH = 40
     const val CHAT_MAX_LENGTH = 280
 
@@ -242,6 +245,7 @@ object ChessTournamentCodec {
     fun createDuel(id: String, name: String) =
         ChessTournamentMessage(t = id, a = "create", name = graphemePrefix(name, NAME_MAX_LENGTH), p = 2)
     fun join(id: String) = ChessTournamentMessage(t = id, a = "join")
+    fun leave(id: String) = ChessTournamentMessage(t = id, a = "leave")
     fun cancel(id: String) = ChessTournamentMessage(t = id, a = "cancel")
     fun move(id: String, game: String, ply: Int, from: String, to: String, promotion: String?) =
         ChessTournamentMessage(t = id, a = "move", g = game, n = ply.toLong(), from = from, to = to, promo = promotion)
@@ -395,6 +399,8 @@ data class ChessTournament(
     val capacity: Int,
     /** Seat order: index 0 is seed 1 (the creator). */
     val players: List<String> = emptyList(),
+    /** Block time each seated player took their seat (for seat expiry while waiting). */
+    val joinedAt: Map<String, Long> = emptyMap(),
     val startedAt: Long? = null,
     val cancelled: Boolean = false,
     val games: Map<String, ChessTournamentGame> = emptyMap(),
@@ -416,6 +422,22 @@ data class ChessTournament(
         }
     val champion: String? get() = games[finalGameId]?.winner
     val seatsLeft: Int get() = maxOf(0, capacity - players.size)
+    /** The players whose seats are still good at [now] (chain or wall time): while a room waits,
+     *  a seat older than [ChessTournamentCodec.SEAT_TTL_MS] has expired. Once the room has
+     *  started every player stays. */
+    fun seatedPlayers(now: Long): List<String> {
+        if (status != Status.OPEN) return players
+        return players.filter { (joinedAt[it] ?: createdAt) + ChessTournamentCodec.SEAT_TTL_MS > now }
+    }
+
+    fun isSeated(address: String, now: Long): Boolean = address in seatedPlayers(now)
+
+    /** When [address]'s seat runs out, while waiting. */
+    fun seatExpiry(address: String): Long? {
+        if (status != Status.OPEN || address !in players) return null
+        return (joinedAt[address] ?: createdAt) + ChessTournamentCodec.SEAT_TTL_MS
+    }
+
     val isPublic: Boolean get() = ChessTournamentCodec.isPublic(id)
     val isFull: Boolean get() = players.size >= capacity
 
@@ -485,6 +507,7 @@ object ChessTournamentEngine {
                     createTxId = event.txId,
                     capacity = capacity,
                     players = listOf(event.sender),
+                    joinedAt = mapOf(event.sender to event.blockTime),
                 )
             }
             "join" -> {
@@ -512,12 +535,31 @@ object ChessTournamentEngine {
                     }
                 }
                 var tournament = tournaments[message.t] ?: return
-                if (tournament.status != ChessTournament.Status.OPEN || event.sender in tournament.players) return
-                tournament = tournament.copy(players = tournament.players + event.sender)
+                if (tournament.status != ChessTournament.Status.OPEN) return
+                // Seats that ran out while the room waited are given back first - so a room can
+                // never fill with players who left long ago, and a returning player takes a
+                // fresh seat. Deterministic: judged at this join's block time, the same on
+                // every phone.
+                tournament = expireSeats(tournament, event.blockTime)
+                if (event.sender in tournament.players) return
+                tournament = tournament.copy(
+                    players = tournament.players + event.sender,
+                    joinedAt = tournament.joinedAt + (event.sender to event.blockTime),
+                )
                 if (tournament.players.size == tournament.capacity) {
                     tournament = start(tournament, event.blockTime)
                 }
                 tournaments[message.t] = tournament
+            }
+            "leave" -> {
+                // A seat given back while the room is still waiting. Once it has started there
+                // is no leaving - only resigning the game.
+                val tournament = tournaments[message.t] ?: return
+                if (tournament.status != ChessTournament.Status.OPEN || event.sender !in tournament.players) return
+                tournaments[message.t] = tournament.copy(
+                    players = tournament.players - event.sender,
+                    joinedAt = tournament.joinedAt - event.sender,
+                )
             }
             "cancel" -> {
                 val tournament = tournaments[message.t] ?: return
@@ -619,6 +661,14 @@ object ChessTournamentEngine {
             }
             else -> return
         }
+    }
+
+    private fun expireSeats(tournament: ChessTournament, time: Long): ChessTournament {
+        val kept = tournament.players.filter {
+            (tournament.joinedAt[it] ?: tournament.createdAt) + ChessTournamentCodec.SEAT_TTL_MS > time
+        }
+        if (kept.size == tournament.players.size) return tournament
+        return tournament.copy(players = kept, joinedAt = tournament.joinedAt.filterKeys { it in kept })
     }
 
     // MARK: - Bracket

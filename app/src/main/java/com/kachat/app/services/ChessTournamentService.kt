@@ -182,11 +182,16 @@ class ChessTournamentService @Inject constructor(
     fun finishedTournaments(all: Map<String, ChessTournament>) =
         all.values.filter { it.status == ChessTournament.Status.FINISHED }.sortedByDescending { it.startedAt ?: 0 }
 
-    /** The tournament this player is in that is not over, if any. */
+    /** The tournament this player is in that is not over, if any. A waiting seat that has
+     *  expired does not count: the player is free to join elsewhere. */
     fun myActiveTournament(all: Map<String, ChessTournament>): ChessTournament? {
         val me = myAddress ?: return null
+        val now = _now.value
         return all.values
-            .filter { (it.status == ChessTournament.Status.OPEN || it.status == ChessTournament.Status.LIVE) && me in it.players }
+            .filter {
+                (it.status == ChessTournament.Status.LIVE && me in it.players) ||
+                    (it.status == ChessTournament.Status.OPEN && it.isSeated(me, now))
+            }
             .maxByOrNull { it.createdAt }
     }
 
@@ -252,6 +257,14 @@ class ChessTournamentService @Inject constructor(
         val me = myAddress ?: return
         if (me in tournament.players || tournament.status != ChessTournament.Status.OPEN) return
         send(ChessTournamentCodec.join(tournament.id))
+    }
+
+    /** Gives the seat back while the room is still waiting (one transaction). */
+    suspend fun leave(tournament: ChessTournament) {
+        val me = myAddress ?: return
+        if (tournament.status != ChessTournament.Status.OPEN || me !in tournament.players) return
+        queuedPublicRoomId = null
+        send(ChessTournamentCodec.leave(tournament.id))
     }
 
     suspend fun cancel(tournament: ChessTournament) {

@@ -160,6 +160,39 @@ class ChessTournamentEngineTest {
     }
 
     @Test
+    fun `a seat given back frees the room, and seats older than five minutes expire`() {
+        val room = ChessTournamentCodec.duelId(1)
+        post(players[0], ChessTournamentCodec.join(room))
+        post(players[0], ChessTournamentCodec.leave(room))
+        assertEquals(emptyList<String>(), rooms()[room]!!.players)
+        // A seat taken now is dropped by a join arriving more than five minutes later.
+        post(players[1], ChessTournamentCodec.join(room))
+        post(players[2], ChessTournamentCodec.join(room), advanceMs = ChessTournamentCodec.SEAT_TTL_MS + 1_000)
+        val afterExpiry = rooms()[room]!!
+        assertEquals(listOf(players[2]), afterExpiry.players)
+        assertEquals(ChessTournament.Status.OPEN, afterExpiry.status)
+        // A seat inside the window stays, and the second player fills the room.
+        post(players[3], ChessTournamentCodec.join(room), advanceMs = 60_000)
+        val started = rooms()[room]!!
+        assertEquals(listOf(players[2], players[3]), started.players)
+        assertEquals(ChessTournament.Status.LIVE, started.status)
+        // Once it has started, leaving does nothing - only resigning ends a game.
+        post(players[3], ChessTournamentCodec.leave(room))
+        assertEquals(listOf(players[2], players[3]), rooms()[room]!!.players)
+    }
+
+    @Test
+    fun `seatedPlayers counts only live seats while a room waits`() {
+        val room = ChessTournamentCodec.publicId(1)
+        post(players[0], ChessTournamentCodec.join(room))
+        val t = rooms()[room]!!
+        val joinTime = clock
+        assertTrue(t.isSeated(players[0], joinTime + 60_000))
+        assertTrue(!t.isSeated(players[0], joinTime + ChessTournamentCodec.SEAT_TTL_MS + 1))
+        assertEquals(joinTime + ChessTournamentCodec.SEAT_TTL_MS, t.seatExpiry(players[0]))
+    }
+
+    @Test
     fun `the leaderboard is most wins, then fewest losses`() {
         val a = ChessLeaderboardRow("a", wins = 3, losses = 2)
         val b = ChessLeaderboardRow("b", wins = 3, losses = 1)
