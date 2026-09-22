@@ -303,6 +303,32 @@ class ChessTournamentService @Inject constructor(
         send(ChessTournamentCodec.chat(tournament.id, game?.id, clean))
     }
 
+    // MARK: - Fees
+
+    /**
+     * What sending [message] costs right now, as "0.00170000 KAS", for a button label. An arena
+     * message is a fixed-size payload with one input, like every arena send, so this is the same
+     * local calculation the composers use - no network round trip (iOS 3076f66).
+     */
+    fun feeText(message: ChessTournamentMessage): String? = runCatching {
+        val payload = com.kachat.app.util.MessageProtocol.buildBcastPayload(
+            ChessTournamentCodec.ARENA_CHANNEL, ChessTournamentCodec.encode(message),
+        )
+        val mass = com.kachat.app.util.KaspaMass.calculateMass(
+            numInputs = 1, outputScriptLens = listOf(34), payloadSize = payload.size,
+        )
+        val sompi = com.kachat.app.util.KaspaMass.calculateFee(
+            mass, com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toLong(),
+        )
+        "%.8f KAS".format(sompi / 100_000_000.0)
+    }.getOrNull()
+
+    /** The join button's label: "Join (Fee: 0.00170000 KAS)". */
+    fun joinLabel(roomId: String): String {
+        val fee = feeText(ChessTournamentCodec.join(roomId)) ?: return "Join"
+        return "Join (Fee: $fee)"
+    }
+
     fun clearError() {
         _lastError.value = null
     }
