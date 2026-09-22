@@ -29,7 +29,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
@@ -180,9 +186,12 @@ private fun clockText(ms: Long): String {
 
 // MARK: - Lobby
 
+private enum class ChessLobbyMode(val label: String) { DUEL("1v1"), TOURNAMENT("Tournaments") }
+
 /**
- * The lobby: your tournament first (if you are in one), then open rooms waiting for players,
- * tournaments in play (anyone can watch), recent results, and the leaderboard.
+ * Kaspa Hub > Chess. Two tabs: 1v1 (a public room that pairs the next two joiners, plus private
+ * 1v1s by code) and Tournaments (eight-player knockouts: a public room that fills and starts,
+ * plus private ones behind the creator code). Mirrors iOS's ChessTournamentsView.
  */
 @Composable
 fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? = null) {
@@ -195,9 +204,16 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
     val contacts by vm.contacts.collectAsState()
     val me = service.myAddress
     val mine = service.myActiveTournament(all)
+    var mode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(ChessLobbyMode.DUEL) }
     var showCreate by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
+    var creatorCode by remember { mutableStateOf("") }
     var isCreating by remember { mutableStateOf(false) }
+    var showJoinPrivate by remember { mutableStateOf(false) }
+    var privateCode by remember { mutableStateOf("") }
+    var isJoining by remember { mutableStateOf(false) }
+
+    fun open(id: String) = navController.navigate("chess_tournament/$id")
 
     Scaffold(
         containerColor = colors.background,
@@ -208,63 +224,93 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
                 }
             }
         },
-        floatingActionButton = {
-            if (mine == null) {
-                FloatingActionButton(
-                    onClick = { newName = ""; showCreate = true },
-                    containerColor = KaspaTeal,
-                    contentColor = Color.Black,
-                    shape = CircleShape,
-                ) { Icon(Icons.Default.Add, contentDescription = "Start a tournament") }
-            }
-        },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 96.dp),
-        ) {
-            fun open(t: ChessTournament) = navController.navigate("chess_tournament/${t.id}")
-            if (mine != null) {
-                ChessSectionHeader("Your tournament")
-                ChessCard {
-                    TournamentRow(mine, if (mine.status == ChessTournament.Status.OPEN) "Waiting for players" else "In play", me, contacts) { open(mine) }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // The segmented control above the list, as on iOS.
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp)).background(colors.surfaceVariant).padding(2.dp),
+            ) {
+                ChessLobbyMode.entries.forEach { option ->
+                    val selected = option == mode
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                            .background(if (selected) colors.surface else Color.Transparent)
+                            .clickable { mode = option }.padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(option.label, color = colors.textPrimary, fontSize = 14.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                    }
                 }
             }
-            val openList = service.openTournaments(all).filter { it.id != mine?.id }
-            ChessSectionHeader("Open")
-            ChessCard {
-                if (openList.isEmpty()) {
-                    Text(
-                        "No one is waiting for players right now. Start a tournament and seven others can join.",
-                        color = colors.textSecondary,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(16.dp),
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+                val duel = mode == ChessLobbyMode.DUEL
+                val publicId = if (duel) service.currentDuelRoomId(all) else service.currentPublicRoomId(all)
+                val number = (if (duel) ChessTournamentCodec.duelNumber(publicId) else ChessTournamentCodec.publicNumber(publicId)) ?: 1
+                ChessSectionHeader("Public")
+                ChessCard {
+                    PublicRoomCard(
+                        room = all[publicId],
+                        title = if (duel) "Public 1v1 #$number" else "Public tournament #$number",
+                        capacity = if (duel) 2 else ChessTournamentCodec.PLAYER_COUNT,
+                        me = me,
+                        myActive = mine,
+                        isJoining = isJoining,
+                        onOpen = ::open,
+                        onJoin = {
+                            if (!isJoining) {
+                                isJoining = true
+                                vm.launch {
+                                    if (duel) service.joinPublicDuelQueue() else service.joinPublicQueue()
+                                    isJoining = false
+                                }
+                            }
+                        },
                     )
                 }
-                openList.forEach { t ->
-                    TournamentRow(t, "${t.seatsLeft} seat${if (t.seatsLeft == 1) "" else "s"} left", me, contacts) { open(t) }
-                }
-            }
-            Text(
-                "Eight players, single elimination, five minutes a side. Every move is a Kaspa transaction (about 0.0017 KAS each).",
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-            )
-            val live = service.liveTournaments(all).filter { it.id != mine?.id }
-            if (live.isNotEmpty()) {
-                ChessSectionHeader("In play")
-                ChessCard { live.forEach { t -> TournamentRow(t, "Watch", me, contacts) { open(t) } } }
-            }
-            val done = service.finishedTournaments(all).take(20)
-            if (done.isNotEmpty()) {
-                ChessSectionHeader("Finished")
+                Text(
+                    if (duel) "Join and you are paired with the next person who joins. When a room fills, the game starts and the next room opens. Five minutes a side; every move is a Kaspa transaction (about 0.0017 KAS each). Games here count on the leaderboard."
+                    else "There is always a public room waiting for players. When it fills, it starts and the next one opens. Eight players, single elimination, five minutes a side. Every move is a Kaspa transaction (about 0.0017 KAS each).",
+                    color = colors.textSecondary, fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                )
+
+                ChessSectionHeader("Private")
                 ChessCard {
-                    done.forEach { t ->
-                        TournamentRow(t, t.champion?.let { "Won by ${chessName(it, me, contacts)}" } ?: "Finished", me, contacts) { open(t) }
+                    val privates = if (duel) service.myPrivateDuels(all) else service.myPrivateTournaments(all)
+                    privates.forEach { t ->
+                        val action = when {
+                            t.status != ChessTournament.Status.OPEN -> "In play"
+                            duel -> "Waiting"
+                            else -> "${t.seatsLeft} seat${if (t.seatsLeft == 1) "" else "s"} left"
+                        }
+                        TournamentRow(t, action) { open(t.id) }
+                    }
+                    ChessActionRow(Icons.Default.Key, "Join with a code") { privateCode = ""; showJoinPrivate = true }
+                    ChessActionRow(Icons.Default.AddCircleOutline, if (duel) "Create a private 1v1" else "Create a private tournament") {
+                        newName = ""; creatorCode = ""; showCreate = true
+                    }
+                }
+                Text(
+                    if (duel) "Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too."
+                    else "A private tournament is for friends: the creator shares its eight-character code. Creating one needs the creator code.",
+                    color = colors.textSecondary, fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                )
+
+                val live = service.liveTournaments(all).filter { it.isDuel == duel && it.isPublic && it.id != mine?.id }
+                if (live.isNotEmpty()) {
+                    ChessSectionHeader("In play")
+                    ChessCard { live.forEach { t -> TournamentRow(t, "Watch") { open(t.id) } } }
+                }
+                val done = service.finishedTournaments(all).filter { it.isDuel == duel && it.isPublic }.take(20)
+                if (done.isNotEmpty()) {
+                    ChessSectionHeader("Finished")
+                    ChessCard {
+                        done.forEach { t ->
+                            TournamentRow(t, t.champion?.let { "Won by ${chessName(it, me, contacts)}" } ?: "Finished") { open(t.id) }
+                        }
                     }
                 }
             }
@@ -272,14 +318,22 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
     }
 
     if (showCreate) {
+        val duel = mode == ChessLobbyMode.DUEL
         AlertDialog(
             onDismissRequest = { if (!isCreating) showCreate = false },
-            title = { Text("Start a tournament") },
+            title = { Text(if (duel) "Create a private 1v1" else "Create a private tournament") },
             text = {
                 Column {
-                    Text("You take the first seat. The tournament starts the moment eight players have joined. Creating it is one transaction.")
+                    Text(
+                        if (duel) "You get a code to share with the person you want to play. The game starts when they join. Creating it is one transaction."
+                        else "You take the first seat and get a code to share. It starts when eight players have joined. Creating it is one transaction."
+                    )
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(value = newName, onValueChange = { newName = it }, singleLine = true, placeholder = { Text("Name") })
+                    if (!duel) {
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(value = creatorCode, onValueChange = { creatorCode = it }, singleLine = true, placeholder = { Text("Creator code") })
+                    }
                 }
             },
             confirmButton = {
@@ -287,35 +341,130 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
                     if (isCreating) return@TextButton
                     isCreating = true
                     vm.launch {
-                        val id = service.createTournament(newName)
+                        val id = if (duel) service.createPrivateDuel(newName) else service.createPrivateTournament(newName, creatorCode)
                         isCreating = false
                         showCreate = false
-                        if (id != null) navController.navigate("chess_tournament/$id")
+                        if (id != null) open(id)
                     }
-                }) { Text(if (isCreating) "Starting…" else "Start", color = KaspaTeal) }
+                }) { Text(if (isCreating) "Creating…" else "Create", color = KaspaTeal) }
             },
-            dismissButton = {
-                TextButton(onClick = { showCreate = false }, enabled = !isCreating) { Text("Cancel") }
+            dismissButton = { TextButton(onClick = { showCreate = false }, enabled = !isCreating) { Text("Cancel") } },
+        )
+    }
+
+    if (showJoinPrivate) {
+        AlertDialog(
+            onDismissRequest = { if (!isJoining) showJoinPrivate = false },
+            title = { Text("Join with a code") },
+            text = {
+                Column {
+                    Text("The eight-character code the creator shared. Joining is one transaction.")
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = privateCode, onValueChange = { privateCode = it }, singleLine = true, placeholder = { Text("Code") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.None, autoCorrect = false,
+                        ),
+                    )
+                }
             },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (isJoining) return@TextButton
+                    isJoining = true
+                    vm.launch {
+                        val code = privateCode
+                        val joined = service.joinPrivate(code)
+                        isJoining = false
+                        showJoinPrivate = false
+                        if (joined) open(code.trim().lowercase())
+                    }
+                }) { Text(if (isJoining) "Joining…" else "Join", color = KaspaTeal) }
+            },
+            dismissButton = { TextButton(onClick = { showJoinPrivate = false }, enabled = !isJoining) { Text("Cancel") } },
         )
     }
 }
 
+/** The one public room taking players: its seats, and Join - or where you already are. */
 @Composable
-private fun TournamentRow(
-    tournament: ChessTournament,
-    action: String,
+private fun PublicRoomCard(
+    room: ChessTournament?,
+    title: String,
+    capacity: Int,
     me: String?,
-    contacts: Map<String, ContactEntity>,
-    onClick: () -> Unit,
+    myActive: ChessTournament?,
+    isJoining: Boolean,
+    onOpen: (String) -> Unit,
+    onJoin: () -> Unit,
 ) {
+    val colors = LocalAppColors.current
+    val count = room?.players?.size ?: 0
+    val inThisRoom = me != null && room?.players?.contains(me) == true
+    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (capacity == 2) Icons.Default.People else Icons.Default.Groups, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Text("$count of $capacity player${if (capacity == 1) "" else "s"} waiting", color = colors.textSecondary, fontSize = 12.sp)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(capacity) { seat ->
+                Box(Modifier.size(12.dp).clip(CircleShape).background(if (seat < count) KaspaTeal else colors.textSecondary.copy(alpha = 0.25f)))
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        when {
+            inThisRoom && room != null ->
+                ChessPill("You're in. Waiting for ${room.seatsLeft} more…", filled = false) { onOpen(room.id) }
+            myActive != null ->
+                ChessPill(
+                    if (myActive.status == ChessTournament.Status.OPEN) "You're waiting in ${myActive.name}" else "You're playing in ${myActive.name}",
+                    filled = false,
+                ) { onOpen(myActive.id) }
+            else -> ChessPill(if (isJoining) "Joining…" else "Join (one transaction)", filled = true, onClick = onJoin)
+        }
+    }
+}
+
+@Composable
+private fun ChessPill(text: String, filled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(if (filled) KaspaTeal else KaspaTeal.copy(alpha = 0.15f))
+            .clickable(onClick = onClick).padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = if (filled) Color.Black else KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun ChessActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(title, color = KaspaTeal, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun TournamentRow(tournament: ChessTournament, action: String, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            if (tournament.status == ChessTournament.Status.FINISHED) Icons.Default.EmojiEvents else Icons.Default.GridOn,
+            when {
+                tournament.status == ChessTournament.Status.FINISHED -> Icons.Default.EmojiEvents
+                !tournament.isPublic -> Icons.Default.Lock
+                tournament.isDuel -> Icons.Default.People
+                else -> Icons.Default.Groups
+            },
             contentDescription = null,
             tint = KaspaTeal,
             modifier = Modifier.size(26.dp),
@@ -324,7 +473,7 @@ private fun TournamentRow(
         Column(Modifier.weight(1f)) {
             Text(tournament.name, color = colors.textPrimary, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                "${tournament.players.size} of ${ChessTournamentCodec.PLAYER_COUNT} players · by ${chessName(tournament.creator, me, contacts)}",
+                "${tournament.players.size} of ${tournament.capacity} players" + if (tournament.isPublic) "" else " · code ${tournament.id}",
                 color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
@@ -360,14 +509,12 @@ fun ChessLeaderboardScreen(navController: NavController) {
                     Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
                     ChessAvatar(row.address, contacts)
                     Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(chessName(row.address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text("${row.wins}W · ${row.losses}L · ${row.tournamentsPlayed} played", color = colors.textSecondary, fontSize = 12.sp)
-                    }
-                    if (row.tournamentsWon > 0) {
-                        Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(18.dp))
-                        Text("${row.tournamentsWon}", color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold)
-                    }
+                    Text(chessName(row.address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    // Wins and losses are the leaderboard (iOS 10f3926).
+                    Text("${row.wins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                    Spacer(Modifier.width(10.dp))
+                    Text("${row.losses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
                 }
             }
         }
@@ -399,6 +546,8 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
     var chatText by remember { mutableStateOf("") }
     var isJoining by remember { mutableStateOf(false) }
     var showCancelConfirm by remember { mutableStateOf(false) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
 
     fun openGame(gameId: String) = navController.navigate("chess_tournament_game/$tournamentId/$gameId")
 
@@ -433,7 +582,8 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                     when (tournament.status) {
                         ChessTournament.Status.OPEN -> {
                             Text(
-                                "Waiting for ${tournament.seatsLeft} more player${if (tournament.seatsLeft == 1) "" else "s"}. It starts by itself when the eighth joins.",
+                                if (tournament.isDuel) "Waiting for your opponent. The game starts by itself when they join."
+                                else "Waiting for ${tournament.seatsLeft} more player${if (tournament.seatsLeft == 1) "" else "s"}. It starts by itself when the eighth joins.",
                                 color = colors.textPrimary, fontSize = 14.sp,
                             )
                             if (me != null && me !in tournament.players) {
@@ -448,8 +598,33 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text(if (isJoining) "Joining…" else "Join (one transaction)", fontWeight = FontWeight.SemiBold) }
-                            } else if (tournament.creator == me) {
+                            } else if (tournament.creator == me && !tournament.isPublic) {
                                 TextButton(onClick = { showCancelConfirm = true }) { Text("Cancel tournament", color = colors.danger) }
+                            }
+                            if (!tournament.isPublic) {
+                                Spacer(Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Code: ${tournament.id}", color = colors.textPrimary, fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                                    TextButton(onClick = {
+                                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(tournament.id))
+                                        Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
+                                    }) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Copy", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    IconButton(onClick = {
+                                        val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(
+                                                android.content.Intent.EXTRA_TEXT,
+                                                "Join my KaChat chess tournament: open Kaspa Hub > Chess > Join with a code, and enter ${tournament.id}",
+                                            )
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(share, null))
+                                    }) { Icon(Icons.Default.Share, contentDescription = "Share", tint = KaspaTeal) }
+                                }
                             }
                         }
                         ChessTournament.Status.LIVE -> {
@@ -457,7 +632,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                             when {
                                 game == null -> Text("In play. Tap any game to watch it live.", color = colors.textPrimary, fontSize = 14.sp)
                                 game.isOver && game.winner == me -> Text(
-                                    "You won ${roundName(game.round)}. Waiting for your next opponent - watch the other game meanwhile.",
+                                    "You won ${if (tournament.isDuel) "the game" else roundName(game.round)}. Waiting for your next opponent - watch the other game meanwhile.",
                                     color = colors.textPrimary, fontSize = 14.sp,
                                 )
                                 game.isOver -> Text("You are out of this tournament. Watch the rest of the bracket.", color = colors.textPrimary, fontSize = 14.sp)
@@ -472,7 +647,10 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00))
                                 Spacer(Modifier.width(6.dp))
-                                Text("${chessName(champion, me, contacts)} won the tournament", color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (tournament.isDuel) "${chessName(champion, me, contacts)} won" else "${chessName(champion, me, contacts)} won the tournament",
+                                    color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold,
+                                )
                             }
                         }
                         ChessTournament.Status.CANCELLED -> Text("Cancelled by the creator.", color = colors.textSecondary, fontSize = 14.sp)
@@ -481,7 +659,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
             }
 
             if (tournament.status == ChessTournament.Status.OPEN) {
-                ChessSectionHeader("Players (${tournament.players.size} of ${ChessTournamentCodec.PLAYER_COUNT})")
+                ChessSectionHeader("Players (${tournament.players.size} of ${tournament.capacity})")
                 ChessCard {
                     tournament.players.forEachIndexed { index, address ->
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -500,10 +678,10 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                     }
                 }
             } else {
-                for (round in listOf(1, 2, 3)) {
+                for (round in 1..tournament.rounds) {
                     val games = tournament.gamesInRound(round)
                     if (games.isEmpty()) continue
-                    ChessSectionHeader(when (round) { 3 -> "Final"; 2 -> "Semifinals"; else -> "Round 1" })
+                    ChessSectionHeader(if (tournament.isDuel) "Game" else when (round) { 3 -> "Final"; 2 -> "Semifinals"; else -> "Round 1" })
                     ChessCard {
                         games.forEach { game ->
                             Row(
@@ -629,7 +807,7 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
     var showResignConfirm by remember { mutableStateOf(false) }
     var chatText by remember { mutableStateOf("") }
 
-    val title = game?.let { when (it.round) { 3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1" } } ?: "Game"
+    val title = game?.let { if (tournament?.isDuel == true) "1v1" else when (it.round) { 3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1" } } ?: "Game"
     Scaffold(
         containerColor = colors.background,
         topBar = { MainPageHeader(title = title, onBack = { navController.popBackStack() }) },

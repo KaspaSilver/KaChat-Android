@@ -27,7 +27,7 @@ class ChessTournamentEngineTest {
     private fun state() = ChessTournamentEngine.reduce(events)[id]!!
 
     private fun seatEight() {
-        post(players[0], ChessTournamentCodec.create(id, "Friday Blitz"))
+        post(players[0], ChessTournamentCodec.create(id, "Friday Blitz", ChessTournamentCodec.PRIVATE_CREATE_CODE))
         for (p in players.subList(1, 8)) post(p, ChessTournamentCodec.join(id))
     }
 
@@ -110,5 +110,64 @@ class ChessTournamentEngineTest {
         assertNull(ChessTournamentCodec.decode(good.replace("\"v\":1", "\"v\":2")))
         assertTrue(ChessTournamentCodec.encode(ChessTournamentCodec.join(id)) ==
             """{"a":"join","t":"$id","type":"chess_t","v":1}""")
+        // p and k decode, and a p of the wrong type rejects the message.
+        val create = ChessTournamentCodec.encode(ChessTournamentCodec.createDuel("abcd2345", "Game"))
+        assertEquals(2L, ChessTournamentCodec.decode(create)!!.p)
+        assertNull(ChessTournamentCodec.decode(create.replace("\"p\":2", "\"p\":\"2\"")))
+    }
+
+    private fun rooms() = ChessTournamentEngine.reduce(events)
+
+    @Test
+    fun `public 1v1 rooms queue in order, a third joiner is ignored and the next room opens`() {
+        // Room 2 before room 1 is full: ignored.
+        post(players[0], ChessTournamentCodec.join(ChessTournamentCodec.duelId(2)))
+        assertNull(rooms()[ChessTournamentCodec.duelId(2)])
+        post(players[0], ChessTournamentCodec.join(ChessTournamentCodec.duelId(1)))
+        post(players[1], ChessTournamentCodec.join(ChessTournamentCodec.duelId(1)))
+        post(players[2], ChessTournamentCodec.join(ChessTournamentCodec.duelId(1)))
+        val room1 = rooms()[ChessTournamentCodec.duelId(1)]!!
+        assertEquals(listOf(players[0], players[1]), room1.players)
+        assertEquals(ChessTournament.Status.LIVE, room1.status)
+        val game = room1.games["1-0"]!!
+        assertEquals(players[0], game.white)
+        assertEquals(players[1], game.black)
+        // The loser of the race re-joins the next room, which now opens.
+        post(players[2], ChessTournamentCodec.join(ChessTournamentCodec.duelId(2)))
+        assertEquals(listOf(players[2]), rooms()[ChessTournamentCodec.duelId(2)]!!.players)
+        // A resignation finishes a 1v1: it has one game and one round.
+        post(players[1], ChessTournamentCodec.resign(ChessTournamentCodec.duelId(1), "1-0"))
+        val done = rooms()[ChessTournamentCodec.duelId(1)]!!
+        assertEquals(ChessTournament.Status.FINISHED, done.status)
+        assertEquals(players[0], done.champion)
+        // Public rooms cannot be created or cancelled by message, and a non-ASCII room number is not a room.
+        post(players[3], ChessTournamentCodec.create(ChessTournamentCodec.publicId(1), "Mine", ChessTournamentCodec.PRIVATE_CREATE_CODE))
+        assertNull(rooms()[ChessTournamentCodec.publicId(1)])
+        post(players[3], ChessTournamentCodec.join("duel-\u0661"))
+        assertNull(rooms()["duel-\u0661"])
+    }
+
+    @Test
+    fun `a private 1v1 needs no code and a private tournament needs the creator key`() {
+        post(players[0], ChessTournamentCodec.createDuel("frnd2345", ""))
+        val duel = rooms()["frnd2345"]!!
+        assertEquals("1v1", duel.name)
+        assertEquals(2, duel.capacity)
+        post(players[1], ChessTournamentCodec.create("nokey234", "No key", "WRONG-CODE"))
+        assertNull(rooms()["nokey234"])
+        post(players[1], ChessTournamentCodec.create("haskey23", "Friends", "  kachat-chess "))
+        assertEquals(8, rooms()["haskey23"]!!.capacity)
+    }
+
+    @Test
+    fun `the leaderboard is most wins, then fewest losses`() {
+        val a = ChessLeaderboardRow("a", wins = 3, losses = 2)
+        val b = ChessLeaderboardRow("b", wins = 3, losses = 1)
+        val c = ChessLeaderboardRow("c", wins = 1, losses = 0)
+        // Exercised through a reduce instead of by hand would need 6 games; the order is the point.
+        val sorted = listOf(a, b, c).sortedWith(
+            compareByDescending<ChessLeaderboardRow> { it.wins }.thenBy { it.losses }.thenByDescending { it.lastPlayedAt }
+        )
+        assertEquals(listOf("b", "a", "c"), sorted.map { it.address })
     }
 }

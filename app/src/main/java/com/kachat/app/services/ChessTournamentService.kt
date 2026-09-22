@@ -117,6 +117,19 @@ class ChessTournamentService @Inject constructor(
         val reduced = ChessTournamentEngine.reduce(events)
         _tournaments.value = reduced
         _leaderboard.value = ChessTournamentEngine.leaderboard(reduced.values)
+        // Asked to join a public room that filled first: queue into the next one, once.
+        val queued = queuedPublicRoomId
+        val me = myAddress
+        if (queued != null && me != null) {
+            val room = reduced[queued]
+            if (room != null && room.isFull && me !in room.players) {
+                queuedPublicRoomId = null
+                val wasDuel = ChessTournamentCodec.duelNumber(queued) != null
+                scope.launch { if (wasDuel) joinPublicDuelQueue() else joinPublicQueue() }
+            } else if (room != null && me in room.players) {
+                queuedPublicRoomId = null
+            }
+        }
         // A move of ours that the chain now shows is no longer pending.
         val mine = myAddress
         _pendingMoveGames.value = _pendingMoveGames.value.filter { key ->
@@ -127,6 +140,38 @@ class ChessTournamentService @Inject constructor(
     }
 
     // MARK: - Lists
+
+    /** The public room taking players right now: the first numbered room that is not full. Its
+     *  id exists before anyone has joined it (the first join creates it), so the lobby can
+     *  always show "Public tournament #N" with its seats. */
+    fun currentPublicRoomId(all: Map<String, ChessTournament>): String {
+        var number = 1
+        while (all[ChessTournamentCodec.publicId(number)]?.isFull == true) number += 1
+        return ChessTournamentCodec.publicId(number)
+    }
+
+    /** The public 1v1 room taking players right now. */
+    fun currentDuelRoomId(all: Map<String, ChessTournament>): String {
+        var number = 1
+        while (all[ChessTournamentCodec.duelId(number)]?.isFull == true) number += 1
+        return ChessTournamentCodec.duelId(number)
+    }
+
+    /** Private 1v1s this player is in, still open or in play. */
+    fun myPrivateDuels(all: Map<String, ChessTournament>) = myPrivate(all, duel = true)
+
+    /** Private tournaments this player is in, still open or in play. */
+    fun myPrivateTournaments(all: Map<String, ChessTournament>) = myPrivate(all, duel = false)
+
+    private fun myPrivate(all: Map<String, ChessTournament>, duel: Boolean): List<ChessTournament> {
+        val me = myAddress ?: return emptyList()
+        return all.values
+            .filter {
+                !it.isPublic && it.isDuel == duel && me in it.players &&
+                    (it.status == ChessTournament.Status.OPEN || it.status == ChessTournament.Status.LIVE)
+            }
+            .sortedByDescending { it.createdAt }
+    }
 
     fun openTournaments(all: Map<String, ChessTournament>) =
         all.values.filter { it.status == ChessTournament.Status.OPEN }.sortedByDescending { it.createdAt }
@@ -147,11 +192,60 @@ class ChessTournamentService @Inject constructor(
 
     // MARK: - Actions (each one a broadcast transaction)
 
-    suspend fun createTournament(name: String): String? {
-        val id = java.util.UUID.randomUUID().toString().lowercase()
+    /** The room this player asked to join and is waiting to appear in. */
+    @Volatile
+    private var queuedPublicRoomId: String? = null
+
+    /** Joins the public room taking players now. If that room fills before this join lands
+     *  (someone else got the last seat), [reduce] notices and joins the next room. */
+    suspend fun joinPublicQueue() = joinQueue(currentPublicRoomId(_tournaments.value))
+
+    /** Joins the public 1v1 room taking players now; same race handling as the tournaments. */
+    suspend fun joinPublicDuelQueue() = joinQueue(currentDuelRoomId(_tournaments.value))
+
+    private suspend fun joinQueue(id: String) {
+        val me = myAddress ?: return
+        if (myActiveTournament(_tournaments.value) != null) return
+        if (_tournaments.value[id]?.players?.contains(me) == true) return
+        queuedPublicRoomId = id
+        send(ChessTournamentCodec.join(id))
+    }
+
+    /** A private 1v1 for a friend: no creator code, an eight-character code to share. */
+    suspend fun createPrivateDuel(name: String): String? {
+        val id = ChessTournamentCodec.newPrivateId()
         val clean = name.trim()
-        if (!send(ChessTournamentCodec.create(id, clean.ifEmpty { "Tournament" }))) return null
+        if (!send(ChessTournamentCodec.createDuel(id, clean.ifEmpty { "1v1" }))) return null
         return id
+    }
+
+    /** A private tournament for friends. Needs the creator code; returns null (with a message)
+     *  when it is wrong, without sending anything. */
+    suspend fun createPrivateTournament(name: String, code: String): String? {
+        if (!ChessTournamentCodec.isValidCreateKey(ChessTournamentCodec.createKey(code, "check"), "check")) {
+            _lastError.value = "That creator code is not right."
+            return null
+        }
+        val id = ChessTournamentCodec.newPrivateId()
+        val clean = name.trim()
+        if (!send(ChessTournamentCodec.create(id, clean.ifEmpty { "Private tournament" }, code))) return null
+        return id
+    }
+
+    /** Joins a friend's private tournament or 1v1 by its code (the id). */
+    suspend fun joinPrivate(rawCode: String): Boolean {
+        val id = rawCode.trim().lowercase()
+        val tournament = _tournaments.value[id]
+        if (tournament == null || tournament.isPublic) {
+            _lastError.value = "No open tournament with that code. Codes are eight characters; the tournament must exist and still have seats."
+            return false
+        }
+        if (tournament.status != ChessTournament.Status.OPEN) {
+            _lastError.value = "That tournament has already started."
+            return false
+        }
+        join(tournament)
+        return true
     }
 
     suspend fun join(tournament: ChessTournament) {

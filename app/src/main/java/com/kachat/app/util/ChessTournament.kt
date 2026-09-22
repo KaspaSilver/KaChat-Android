@@ -33,6 +33,10 @@ data class ChessTournamentMessage(
     /** Promotion piece letter: q r b n. */
     val promo: String? = null,
     val text: String? = null,
+    /** Private tournaments only: proof the creator holds the creator code (§2.1). */
+    val k: String? = null,
+    /** `create` only: how many players - 2 (a 1v1) or 8 (a tournament). Absent = 8. */
+    val p: Long? = null,
 )
 
 object ChessTournamentCodec {
@@ -41,6 +45,74 @@ object ChessTournamentCodec {
     const val CLOCK_MS = 5L * 60 * 1000
     const val NAME_MAX_LENGTH = 40
     const val CHAT_MAX_LENGTH = 280
+
+    // MARK: Public rooms and private tournaments (CHESS_TOURNAMENTS.md §2.1)
+
+    /** Public rooms are numbered: `public-1`, `public-2`, ... One is open at a time; a join to
+     *  room N is accepted only when room N-1 is full, so the queue never forks. Nobody creates
+     *  them - the first join is the creation. */
+    const val PUBLIC_ID_PREFIX = "public-"
+    /** Public 1v1 rooms: the same queue, two seats: `duel-1`, `duel-2`, ... */
+    const val DUEL_ID_PREFIX = "duel-"
+    fun publicId(number: Int) = "$PUBLIC_ID_PREFIX$number"
+    fun duelId(number: Int) = "$DUEL_ID_PREFIX$number"
+    fun publicNumber(id: String): Int? = number(id, PUBLIC_ID_PREFIX)
+    fun duelNumber(id: String): Int? = number(id, DUEL_ID_PREFIX)
+    private fun number(id: String, prefix: String): Int? {
+        if (!id.startsWith(prefix)) return null
+        val n = swiftInt(id.substring(prefix.length)) ?: return null
+        return n.takeIf { it >= 1 }
+    }
+
+    /**
+     * Swift's `Int(String)`: an optional sign and ASCII digits only, nil on overflow. Kotlin's
+     * toIntOrNull also takes Arabic-Indic and other Unicode digits, which would make a room id
+     * like "public-١" room 1 on Android and nothing on an iPhone.
+     */
+    private fun swiftInt(text: String): Int? {
+        if (text.isEmpty()) return null
+        var index = 0
+        var negative = false
+        if (text[0] == '+' || text[0] == '-') {
+            negative = text[0] == '-'
+            index = 1
+            if (text.length == 1) return null
+        }
+        var value = 0L
+        while (index < text.length) {
+            val c = text[index]
+            if (c !in '0'..'9') return null
+            value = value * 10 + (c - '0')
+            if (value > Int.MAX_VALUE.toLong() + 1) return null
+            index++
+        }
+        val signed = if (negative) -value else value
+        return if (signed in Int.MIN_VALUE..Int.MAX_VALUE) signed.toInt() else null
+    }
+
+    /** Public = a numbered room of either kind. */
+    fun isPublic(id: String): Boolean = publicNumber(id) != null || duelNumber(id) != null
+
+    /** The creator code for private tournaments - the same on every platform. The chain
+     *  carries only `k` = SHA-256(code:id), so the code never appears on chain and a key from one
+     *  tournament is no use for another. Change it here and in the other apps to rotate it. */
+    const val PRIVATE_CREATE_CODE = "KACHAT-CHESS"
+
+    fun createKey(code: String, id: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest((code.trim().uppercase() + ":" + id).toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }.take(24)
+    }
+
+    fun isValidCreateKey(key: String?, id: String): Boolean =
+        key != null && key == createKey(PRIVATE_CREATE_CODE, id)
+
+    /** Private ids are short and shareable: eight lowercase letters and digits, no confusables. */
+    fun newPrivateId(): String {
+        val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+        val random = java.security.SecureRandom()
+        return (0 until 8).map { alphabet[random.nextInt(alphabet.length)] }.joinToString("")
+    }
 
     /** Keys sorted, slashes unescaped, absent fields left out - what iOS's JSONEncoder writes. */
     fun encode(message: ChessTournamentMessage): String {
@@ -56,6 +128,8 @@ object ChessTournamentCodec {
         message.to?.let { fields["to"] = it }
         message.promo?.let { fields["promo"] = it }
         message.text?.let { fields["text"] = it }
+        message.k?.let { fields["k"] = it }
+        message.p?.let { fields["p"] = it }
         return fields.entries.joinToString(",", "{", "}") { (key, value) ->
             "${quote(key)}:${if (value is String) quote(value) else value.toString()}"
         }
@@ -116,6 +190,8 @@ object ChessTournamentCodec {
                 to = string("to").getOrThrow(),
                 promo = string("promo").getOrThrow(),
                 text = string("text").getOrThrow(),
+                k = string("k").getOrThrow(),
+                p = int("p").getOrThrow(),
             )
             if (message.type != "chess_t" || message.v != 1 || message.t.isEmpty() || graphemeCount(message.t) > 64) null else message
         } catch (e: Exception) {
@@ -159,7 +235,12 @@ object ChessTournamentCodec {
 
     private object OtherValue
 
-    fun create(id: String, name: String) = ChessTournamentMessage(t = id, a = "create", name = graphemePrefix(name, NAME_MAX_LENGTH))
+    fun create(id: String, name: String, code: String) = ChessTournamentMessage(
+        t = id, a = "create", name = graphemePrefix(name, NAME_MAX_LENGTH), k = createKey(code, id), p = PLAYER_COUNT.toLong(),
+    )
+    /** A private 1v1 needs no creator code: anyone can open one for a friend. */
+    fun createDuel(id: String, name: String) =
+        ChessTournamentMessage(t = id, a = "create", name = graphemePrefix(name, NAME_MAX_LENGTH), p = 2)
     fun join(id: String) = ChessTournamentMessage(t = id, a = "join")
     fun cancel(id: String) = ChessTournamentMessage(t = id, a = "cancel")
     fun move(id: String, game: String, ply: Int, from: String, to: String, promotion: String?) =
@@ -310,6 +391,8 @@ data class ChessTournament(
     val creator: String,
     val createdAt: Long,
     val createTxId: String,
+    /** 2 for a 1v1, 8 for a tournament. */
+    val capacity: Int,
     /** Seat order: index 0 is seed 1 (the creator). */
     val players: List<String> = emptyList(),
     val startedAt: Long? = null,
@@ -321,15 +404,20 @@ data class ChessTournament(
 ) {
     enum class Status { OPEN, LIVE, FINISHED, CANCELLED }
 
+    val isDuel: Boolean get() = capacity == 2
+    val rounds: Int get() = if (isDuel) 1 else 3
+    val finalGameId: String get() = "$rounds-0"
     val status: Status
         get() = when {
             cancelled -> Status.CANCELLED
             startedAt == null -> Status.OPEN
-            games["3-0"]?.isOver == true -> Status.FINISHED
+            games[finalGameId]?.isOver == true -> Status.FINISHED
             else -> Status.LIVE
         }
-    val champion: String? get() = games["3-0"]?.winner
-    val seatsLeft: Int get() = maxOf(0, ChessTournamentCodec.PLAYER_COUNT - players.size)
+    val champion: String? get() = games[finalGameId]?.winner
+    val seatsLeft: Int get() = maxOf(0, capacity - players.size)
+    val isPublic: Boolean get() = ChessTournamentCodec.isPublic(id)
+    val isFull: Boolean get() = players.size >= capacity
 
     fun seed(address: String): Int? = players.indexOf(address).takeIf { it >= 0 }?.plus(1)
 
@@ -337,7 +425,7 @@ data class ChessTournament(
 
     /** The games of a round, in bracket order. */
     fun gamesInRound(round: Int): List<ChessTournamentGame> {
-        val count = when (round) { 1 -> 4; 2 -> 2; else -> 1 }
+        val count = if (isDuel) 1 else when (round) { 1 -> 4; 2 -> 2; else -> 1 }
         return (0 until count).mapNotNull { games["$round-$it"] }
     }
 
@@ -382,29 +470,58 @@ object ChessTournamentEngine {
         val message = event.message
         when (message.a) {
             "create" -> {
-                if (tournaments[message.t] != null) return
-                val rawName = message.name.orEmpty()
+                // Public rooms are never created by message. A private tournament (8) needs the
+                // creator key; a private 1v1 (2) is open to anyone.
+                val capacity = if (message.p == 2L) 2 else ChessTournamentCodec.PLAYER_COUNT
+                if (tournaments[message.t] != null || ChessTournamentCodec.isPublic(message.t)) return
+                if (capacity != 2 && !ChessTournamentCodec.isValidCreateKey(message.k, message.t)) return
+                val cleanName = message.name.orEmpty().trim()
                 tournaments[message.t] = ChessTournament(
                     id = message.t,
-                    name = if (rawName.trim().isEmpty()) "Tournament" else ChessTournamentCodec.graphemePrefix(rawName, ChessTournamentCodec.NAME_MAX_LENGTH),
+                    name = if (cleanName.isEmpty()) (if (capacity == 2) "1v1" else "Tournament")
+                    else ChessTournamentCodec.graphemePrefix(cleanName, ChessTournamentCodec.NAME_MAX_LENGTH),
                     creator = event.sender,
                     createdAt = event.blockTime,
                     createTxId = event.txId,
+                    capacity = capacity,
                     players = listOf(event.sender),
                 )
             }
             "join" -> {
+                if (tournaments[message.t] == null) {
+                    // The first join opens a public room - but only the NEXT one in the
+                    // sequence, once the previous is full, so everyone queues into the same room.
+                    val publicNumber = ChessTournamentCodec.publicNumber(message.t)
+                    val duelNumber = ChessTournamentCodec.duelNumber(message.t)
+                    if (publicNumber != null) {
+                        val previousFull = publicNumber == 1 ||
+                            (tournaments[ChessTournamentCodec.publicId(publicNumber - 1)]?.isFull ?: false)
+                        if (!previousFull) return
+                        tournaments[message.t] = ChessTournament(
+                            id = message.t, name = "Public tournament #$publicNumber", creator = event.sender,
+                            createdAt = event.blockTime, createTxId = event.txId, capacity = ChessTournamentCodec.PLAYER_COUNT,
+                        )
+                    } else if (duelNumber != null) {
+                        val previousFull = duelNumber == 1 ||
+                            (tournaments[ChessTournamentCodec.duelId(duelNumber - 1)]?.isFull ?: false)
+                        if (!previousFull) return
+                        tournaments[message.t] = ChessTournament(
+                            id = message.t, name = "Public 1v1 #$duelNumber", creator = event.sender,
+                            createdAt = event.blockTime, createTxId = event.txId, capacity = 2,
+                        )
+                    }
+                }
                 var tournament = tournaments[message.t] ?: return
                 if (tournament.status != ChessTournament.Status.OPEN || event.sender in tournament.players) return
                 tournament = tournament.copy(players = tournament.players + event.sender)
-                if (tournament.players.size == ChessTournamentCodec.PLAYER_COUNT) {
+                if (tournament.players.size == tournament.capacity) {
                     tournament = start(tournament, event.blockTime)
                 }
                 tournaments[message.t] = tournament
             }
             "cancel" -> {
                 val tournament = tournaments[message.t] ?: return
-                if (tournament.status != ChessTournament.Status.OPEN || tournament.creator != event.sender) return
+                if (tournament.status != ChessTournament.Status.OPEN || tournament.isPublic || tournament.creator != event.sender) return
                 tournaments[message.t] = tournament.copy(cancelled = true)
             }
             "move" -> {
@@ -508,7 +625,7 @@ object ChessTournamentEngine {
 
     private fun start(tournament: ChessTournament, time: Long): ChessTournament {
         val seeds = tournament.players
-        val pairs = listOf(0 to 7, 1 to 6, 2 to 5, 3 to 4)
+        val pairs = if (tournament.isDuel) listOf(0 to 1) else listOf(0 to 7, 1 to 6, 2 to 5, 3 to 4)
         val games = tournament.games.toMutableMap()
         val whiteCount = tournament.whiteCount.toMutableMap()
         pairs.forEachIndexed { index, (w, b) ->
@@ -520,7 +637,7 @@ object ChessTournamentEngine {
     }
 
     private fun advance(tournament: ChessTournament, game: ChessTournamentGame): ChessTournament {
-        if (game.round >= 3) return tournament
+        if (game.round >= tournament.rounds) return tournament
         val time = game.endedAt ?: return tournament
         val nextRound = game.round + 1
         val nextIndex = game.index / 2
@@ -613,9 +730,10 @@ object ChessTournamentEngine {
                 rows[champion] = c.copy(tournamentsWon = c.tournamentsWon + 1)
             }
         }
+        // Wins and losses are the leaderboard: most wins first, fewest losses breaking ties.
         return rows.values.sortedWith(
-            compareByDescending<ChessLeaderboardRow> { it.tournamentsWon }
-                .thenByDescending { it.wins }
+            compareByDescending<ChessLeaderboardRow> { it.wins }
+                .thenBy { it.losses }
                 .thenByDescending { it.lastPlayedAt }
         )
     }
