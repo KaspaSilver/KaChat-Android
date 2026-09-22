@@ -12,17 +12,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Global notification center backing the bell on the Profile screen - ONE feed aggregating
- * KaPosts activity (likes/replies/quotes/follows/@mentions), group-chat @mentions of your own
- * KNS domain, and live broadcast messages. Direct port of iOS's GlobalNotificationCenter /
- * desktop's top-bar bell: entries are account-scoped, persisted, deduped by id, capped;
- * opening the list marks everything seen.
- *
- * Sources push in via [record]:
- *  - KaPosts: [KaPostsNotificationPoller] records every fresh notification (independent of the
- *    per-kind banner gates - the center always lists activity).
- *  - Group mentions: GroupRepository calls [recordGroupMentionIfNeeded] on incoming messages.
- *  - Broadcasts: BroadcastRepository records live (session-gated) incoming channel rows.
+ * The bell on the Profile screen: Kaspa arriving in one of your own wallets - the chatting
+ * wallet, a spending address, cold storage (fed by [AddressActivityNotifier]). Nothing else:
+ * KaPosts has its own bell, and group chats and public rooms carry their own unread counts in
+ * the Chats tab (iOS cda2715, 2010124). Entries are account-scoped, persisted, deduped by id and
+ * capped; opening the list marks everything seen.
  */
 @Singleton
 class GlobalNotificationCenterStore @Inject constructor(
@@ -32,7 +26,7 @@ class GlobalNotificationCenterStore @Inject constructor(
 ) {
     data class Entry(
         val id: String,
-        /** "kaposts" | "group" | "broadcast" */
+        /** "wallet" - older builds also stored "kaposts", "group" and "broadcast" rows. */
         val source: String,
         val title: String,
         val body: String,
@@ -50,9 +44,6 @@ class GlobalNotificationCenterStore @Inject constructor(
 
     private val _lastSeenAt = MutableStateFlow(0L)
     val lastSeenAt: StateFlow<Long> = _lastSeenAt.asStateFlow()
-
-    /** Broadcast rows older than app launch are history, not live arrivals - never listed. */
-    private val sessionStartMs = System.currentTimeMillis()
 
     private val maxEntries = 100
     private var loadedWallet: String? = null
@@ -76,9 +67,10 @@ class GlobalNotificationCenterStore @Inject constructor(
         val loaded = try {
             gson.fromJson(prefs.getString(entriesKey(wallet), null) ?: "[]", listType) ?: emptyList()
         } catch (_: Exception) { emptyList<Entry>() }
-        // Drops KaPosts rows an earlier build persisted. They live in KaPosts' own bell now, and
-        // leaving them would keep the profile bell double-counting until they aged out.
-        val kept = loaded.filter { it.source != "kaposts" }
+        // Wallet rows only. KaPosts rows live in KaPosts' own bell, group mentions and public
+        // rooms carry their own unread counts in the Chats tab; anything an older build saved
+        // for those is dropped here so the bell never double-counts.
+        val kept = loaded.filter { it.source == "wallet" }
         _entries.value = kept
         _lastSeenAt.value = prefs.getLong(seenKey(wallet), 0L)
         if (kept.size != loaded.size) persist()
@@ -91,10 +83,9 @@ class GlobalNotificationCenterStore @Inject constructor(
 
     @Synchronized
     fun record(id: String, source: String, title: String, body: String, timestampMs: Long, targetId: String?) {
-        // KaPosts activity is counted by KaPostsUnseenStore and listed by the KaPosts
-        // notifications screen. Refused here rather than merely left uncalled, so a future caller
-        // cannot quietly reintroduce the double-reporting.
-        if (source == "kaposts") return
+        // Wallet activity only. Refused here rather than merely left uncalled, so a future caller
+        // cannot quietly put KaPosts, group or room activity back in the bell.
+        if (source != "wallet") return
         reloadIfNeeded()
         if (loadedWallet == null) return
         if (id.isEmpty() || _entries.value.any { it.id == id }) return
@@ -114,9 +105,12 @@ class GlobalNotificationCenterStore @Inject constructor(
         persist()
     }
 
-    // MARK: - Group @mentions (called from GroupRepository on incoming messages)
+    // MARK: - Group @mentions
 
-    /** Records a center entry when `text` @mentions the current wallet's own KNS domain. */
+    /** Group chats carry their own unread counts and mention handling in the Chats tab, so
+     *  mentions no longer go through the bell (iOS cda2715). Kept as a no-op for the call site;
+     *  rows an older build recorded are dropped on load. */
+    @Suppress("UNUSED_PARAMETER")
     suspend fun recordGroupMentionIfNeeded(
         groupId: String,
         groupName: String,
@@ -125,19 +119,7 @@ class GlobalNotificationCenterStore @Inject constructor(
         text: String,
         txId: String?,
         timestampMs: Long,
-    ) {
-        val myAddress = walletAddressOrNull() ?: return
-        if (senderAddress == myAddress) return
-        if (!mentionsMyDomain(text)) return
-        record(
-            id = "group-mention-${txId ?: "$groupId-$timestampMs"}",
-            source = "group",
-            title = "$senderName mentioned you in $groupName",
-            body = text.take(90),
-            timestampMs = timestampMs,
-            targetId = groupId,
-        )
-    }
+    ) {}
 
     /**
      * Whether [text] @mentions the current wallet's own primary KNS domain, using the same
@@ -160,20 +142,13 @@ class GlobalNotificationCenterStore @Inject constructor(
         }
     }
 
-    // MARK: - Broadcasts (called from BroadcastRepository on merged rows)
+    // MARK: - Broadcasts
 
-    fun recordBroadcastIfLive(channel: String, senderAddress: String, senderName: String, content: String, txId: String, blockTimeMs: Long) {
-        if (blockTimeMs < sessionStartMs) return
-        if (senderAddress == walletAddressOrNull()) return
-        record(
-            id = "broadcast-$txId",
-            source = "broadcast",
-            title = "$senderName in #$channel",
-            body = content.take(90),
-            timestampMs = blockTimeMs,
-            targetId = channel,
-        )
-    }
+    /** Public rooms live in the Chats tab, with their own unread counts and long-press controls,
+     *  so their messages no longer go through the bell (iOS 2010124). Kept as a no-op for the
+     *  call site; rows an older build recorded are dropped on load. */
+    @Suppress("UNUSED_PARAMETER")
+    fun recordBroadcastIfLive(channel: String, senderAddress: String, senderName: String, content: String, txId: String, blockTimeMs: Long) {}
 
     companion object {
         private const val TAG = "GlobalNotifCenter"

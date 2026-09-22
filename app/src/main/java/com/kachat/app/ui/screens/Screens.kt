@@ -3637,7 +3637,7 @@ fun ProfileScreen(
                         text = {
                             if (notifEntries.isEmpty()) {
                                 Text(
-                                    "KaPosts activity, group @mentions, and live broadcast messages show up here.",
+                                    "Kaspa arriving in your wallets and cold storage shows up here.",
                                     color = LocalAppColors.current.textSecondary,
                                 )
                             } else {
