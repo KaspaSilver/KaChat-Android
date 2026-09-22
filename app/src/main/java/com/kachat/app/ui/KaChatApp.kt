@@ -757,11 +757,7 @@ fun MainShell(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Box {
                                             Icon(
-                                                painter = if (screen.usesKaspaLogo) {
-                                                    painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
-                                                } else {
-                                                    rememberVectorPainter(screen.icon)
-                                                },
+                                                painter = screen.tabIconPainter(),
                                                 contentDescription = screen.label,
                                                 tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
                                                 modifier = Modifier.size(24.dp)

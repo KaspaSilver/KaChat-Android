@@ -48,6 +48,7 @@ import androidx.navigation.NavController
 import com.kachat.app.ui.Screen
 import com.kachat.app.ui.hubTitle
 import com.kachat.app.ui.kaspaHubSections
+import com.kachat.app.ui.tabIconPainter
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ChatViewModel
@@ -188,8 +189,7 @@ private fun HubGrid(
             items(sections, key = { it.route }) { screen ->
                 HubTile(
                     label = screen.hubTitle,
-                    icon = screen.icon,
-                    useKaspaLogo = screen.usesKaspaLogo,
+                    painter = screen.tabIconPainter(),
                     colors = colors,
                     badgeCount = badgeCount(screen),
                     onClick = { onOpenSection(screen) }
@@ -209,11 +209,10 @@ private fun HubGrid(
 @Composable
 private fun HubTile(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    /** The section's icon - the Kaspa mark, the chess pieces, or its vector (see tabIconPainter). */
+    painter: androidx.compose.ui.graphics.painter.Painter,
     colors: com.kachat.app.ui.theme.AppColors,
     onClick: () -> Unit,
-    /** Draw the bundled Kaspa mark instead of [icon]. */
-    useKaspaLogo: Boolean = false,
     /** Unseen items this destination is holding. Zero draws nothing. */
     badgeCount: Int = 0,
 ) {
@@ -232,11 +231,7 @@ private fun HubTile(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                painter = if (useKaspaLogo) {
-                    androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
-                } else {
-                    androidx.compose.ui.graphics.vector.rememberVectorPainter(icon)
-                },
+                painter = painter,
                 contentDescription = null,
                 tint = KaspaTeal,
                 modifier = Modifier.size(28.dp)

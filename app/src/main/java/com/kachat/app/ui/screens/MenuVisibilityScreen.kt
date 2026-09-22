@@ -80,6 +80,7 @@ import com.kachat.app.ui.PINNED_DOCK_ROUTES
 import com.kachat.app.ui.Screen
 import com.kachat.app.ui.hubTitle
 import com.kachat.app.ui.kaspaHubSections
+import com.kachat.app.ui.tabIconPainter
 import com.kachat.app.ui.resolveDock
 import com.kachat.app.ui.theme.AppColors
 import com.kachat.app.ui.theme.KaspaTeal
@@ -486,11 +487,7 @@ private fun HubTile(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                painter = if (screen.usesKaspaLogo) {
-                    painterResource(R.drawable.ic_kaspa_logo)
-                } else {
-                    rememberVectorPainter(screen.icon)
-                },
+                painter = screen.tabIconPainter(),
                 contentDescription = null,
                 tint = KaspaTeal,
                 modifier = Modifier.size(28.dp)
@@ -719,11 +716,7 @@ private fun DockItem(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                painter = if (screen.usesKaspaLogo) {
-                    painterResource(R.drawable.ic_kaspa_logo)
-                } else {
-                    rememberVectorPainter(screen.icon)
-                },
+                painter = screen.tabIconPainter(),
                 contentDescription = screen.label,
                 tint = colors.textPrimary,
                 modifier = Modifier.size(24.dp)
