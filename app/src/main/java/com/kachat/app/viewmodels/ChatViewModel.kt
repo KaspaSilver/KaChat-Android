@@ -2856,6 +2856,34 @@ class ChatViewModel @Inject constructor(
         return try { job.await() } finally { olderPageJobs.remove(contactId) }
     }
 
+    private val historyPreloadJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
+
+    /**
+     * The chat was entered: its whole stored history comes into memory in the background, 500
+     * rows at a time with a beat between, so scrolling up only ever moves over messages already
+     * loaded instead of waiting on a store read at each trigger and visibly filling in as it
+     * goes (iOS d30cc0a). Scrolling's own page loads join an in-flight page, never double it.
+     */
+    fun preloadThreadHistory(contactId: String) {
+        if (historyPreloadJobs[contactId]?.isActive == true) return
+        historyPreloadJobs[contactId] = viewModelScope.launch {
+            // Let the thread's first frame land before the backlog starts.
+            delay(HISTORY_PRELOAD_START_DELAY_MS)
+            while (true) {
+                if (loadOlderMessages(contactId, pageSize = HISTORY_PRELOAD_PAGE_SIZE) == 0) break
+                delay(HISTORY_PRELOAD_PAGE_GAP_MS)
+            }
+        }
+    }
+
+    /** The chat was left: the load stops and its older history is let go, as iOS lets the normal
+     *  memory trim apply again. Re-entering loads it again in the background. */
+    fun releaseThreadHistory(contactId: String) {
+        historyPreloadJobs.remove(contactId)?.cancel()
+        _olderThreadPages.value = _olderThreadPages.value - contactId
+        _olderHistoryExhausted.value = _olderHistoryExhausted.value - contactId
+    }
+
     /**
      * Pulls every remaining page in, for "jump to the first message": scrolling first would land
      * on whatever the oldest LOADED row happened to be (iOS jumpToChatStart). Bounded so a store
@@ -2922,6 +2950,11 @@ class ChatViewModel @Inject constructor(
 
         /** Unsent (pending/failed) rows kept sticky in the window - iOS inMemoryUnsentStickyLimit. */
         const val THREAD_UNSENT_STICKY_LIMIT = 50
+
+        /** Whole-history load on entering a chat - iOS d30cc0a (500-row pages, a beat apart). */
+        const val HISTORY_PRELOAD_PAGE_SIZE = 500
+        const val HISTORY_PRELOAD_PAGE_GAP_MS = 150L
+        const val HISTORY_PRELOAD_START_DELAY_MS = 300L
 
         /** How close to the top of the loaded history counts as "nearing it", in rows - iOS
          *  nearTopPrefetchThresholdIndex. */
