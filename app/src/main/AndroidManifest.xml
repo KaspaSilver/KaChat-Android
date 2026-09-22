@@ -23,10 +23,10 @@
          foreground service that keeps the microphone and camera usable while a call is
          backgrounded (Android 14 cuts them off otherwise) - see CallForegroundService. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <!-- Rings a locked or busy phone with the call screen instead of a banner, the way the
-         phone's own dialler does. Granted without asking for an app that posts call-style
-         notifications (IncomingCallNotifier). -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- No USE_FULL_SCREEN_INTENT: Google Play grants it only to apps whose core purpose is
+         calling or alarms, and KaChat is a chat app that can also call, so a submission carrying
+         it is rejected (policy notice, 2026-09-22). An incoming call rings through the CallStyle
+         notification instead - see IncomingCallNotifier. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
