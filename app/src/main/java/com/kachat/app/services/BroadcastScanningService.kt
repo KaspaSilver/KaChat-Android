@@ -343,7 +343,9 @@ class BroadcastScanningService @Inject constructor(
             // background - see PushState. A room the push server does not index notifies
             // nothing; that is the trade, made on purpose and the same one iOS makes. Only a
             // device with no push at all banners from the scan.
-            if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive) {
+            // The chess arena is machinery, never a chat: it never notifies (iOS serviceChannels).
+            if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive &&
+                parsed.channel !in ChessTournamentService.SERVICE_CHANNELS) {
                 // A reaction's raw JSON must never surface in a notification — humanize it.
                 // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
                 // message" too, rather than showing the raw reply JSON (see MessageReply).

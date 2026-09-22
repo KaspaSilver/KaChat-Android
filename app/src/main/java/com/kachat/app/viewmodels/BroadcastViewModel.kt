@@ -285,7 +285,10 @@ class BroadcastViewModel @Inject constructor(
         }
     }
 
+    // Rooms the app uses as machinery (the chess arena) are never chats: out of the list, the
+    // unread counts and every room summary (iOS BroadcastService.serviceChannels).
     val joinedChannels: StateFlow<List<BroadcastChannelEntity>> = broadcastRepository.getJoinedChannels()
+        .map { channels -> channels.filter { it.channelName !in com.kachat.app.services.ChessTournamentService.SERVICE_CHANNELS } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**

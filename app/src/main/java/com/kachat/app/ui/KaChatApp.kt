@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
@@ -94,6 +95,8 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     // to the Hub grid with no Screen behind it, which is exactly why Customize Dock could not
     // see it. Labeled "Websites" in the dock (the bar truncates hard); "Kaspa Websites" in full.
     object KaspaWebsites : Screen("kaspa_websites", "Websites", Icons.Default.Public)
+    // Chess tournaments (5.1) - placeable like the others, in the Hub by default (iOS AppTab.chess).
+    object Chess       : Screen("chess",        "Chess",        Icons.Default.GridOn)
     // Holds whatever of the above is turned on but not in the dock - see [kaspaHubSections].
     // Route stays "kaspa_hub" once shipped: it is persisted in saved dock arrangements.
     object KaspaHub    : Screen("kaspa_hub",    "Kaspa Hub",    Icons.Default.BubbleChart)
@@ -111,6 +114,7 @@ val Screen.hubTitle: String
     get() = when (this) {
         Screen.Swap -> "ChangeNOW Swap"
         Screen.KaspaWebsites -> "Kaspa Websites"
+        Screen.Chess -> "Chess Tournaments"
         else -> label
     }
 
@@ -128,7 +132,7 @@ val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
 val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
     Screen.Swap.route, Screen.KaPosts.route,
-    Screen.KaspaWebsites.route
+    Screen.KaspaWebsites.route, Screen.Chess.route
 )
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
@@ -146,7 +150,8 @@ val bottomNavItems = listOf(
     Screen.Swap,
     Screen.KaPosts,
     Screen.Broadcasts,
-    Screen.KaspaWebsites
+    Screen.KaspaWebsites,
+    Screen.Chess
 )
 
 /** The dock renders at most this many items (matches iOS's AppTab.maxDockItems). */
@@ -164,7 +169,9 @@ const val MAX_DOCK_ITEMS = 5
 val CHILD_MODE_HIDDEN_ROUTES = setOf(
     Screen.Swap.route, Screen.KaPosts.route, Screen.Broadcasts.route,
     // A browser onto the open web - the one tab most obviously not for a child's phone.
-    Screen.KaspaWebsites.route
+    Screen.KaspaWebsites.route,
+    // Public tournaments with strangers, paid per move (iOS hides Chess in Child Mode too).
+    Screen.Chess.route
 )
 
 /**
@@ -1358,6 +1365,26 @@ fun MainShell(
             composable("quick_reaction_settings") {
                 QuickReactionSettingsScreen(
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            // Chess tournaments (5.1): the lobby as a dock tab, and the screens it opens.
+            composable(Screen.Chess.route) {
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.kachat.app.ui.screens.ChessTournamentsScreen(navController)
+                }
+            }
+            composable("chess_leaderboard") {
+                com.kachat.app.ui.screens.ChessLeaderboardScreen(navController)
+            }
+            composable("chess_tournament/{tournamentId}") { entry ->
+                com.kachat.app.ui.screens.ChessTournamentScreen(entry.arguments?.getString("tournamentId").orEmpty(), navController)
+            }
+            composable("chess_tournament_game/{tournamentId}/{gameId}") { entry ->
+                com.kachat.app.ui.screens.ChessTournamentGameScreen(
+                    entry.arguments?.getString("tournamentId").orEmpty(),
+                    entry.arguments?.getString("gameId").orEmpty(),
+                    navController,
                 )
             }
 
