@@ -48,6 +48,7 @@ import javax.inject.Inject
 @HiltViewModel
 class BroadcastViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
+    private val draftStore: com.kachat.app.services.DraftStore,
     private val broadcastRepository: BroadcastRepository,
     private val broadcastScanningService: BroadcastScanningService,
     private val voiceRecorderService: VoiceRecorderService,
@@ -144,8 +145,24 @@ class BroadcastViewModel @Inject constructor(
 
     private val _messageText = MutableStateFlow("")
     val messageText: StateFlow<String> = _messageText.asStateFlow()
+    /** The room whose draft the composer is editing - see [openDraft]. */
+    @Volatile
+    private var activeDraftRoom: String? = null
+
+    /** A room was entered: its composer shows what was typed there last time, and keeps it as it
+     *  changes (iOS 360e5d2, keyed "room:<name>"). Replaced outright, so nothing carries over. */
+    fun openDraft(channelName: String) {
+        activeDraftRoom = channelName
+        _messageText.value = draftStore.draft(com.kachat.app.services.DraftStore.roomKey(channelName))
+    }
+
+    fun closeDraft(channelName: String) {
+        if (activeDraftRoom == channelName) activeDraftRoom = null
+    }
+
     fun setMessageText(text: String) {
         _messageText.value = text
+        activeDraftRoom?.let { draftStore.setDraft(com.kachat.app.services.DraftStore.roomKey(it), text) }
         // The red failure line above the composer would otherwise sit there for the entire next
         // message being typed (it only cleared on the next send attempt). The failed bubble keeps
         // its own red icon + Retry, so once the user starts typing again the banner has done its

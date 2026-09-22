@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.flow
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
+    private val draftStore: com.kachat.app.services.DraftStore,
     private val chatRepository: com.kachat.app.repository.ChatRepository,
     private val networkService: com.kachat.app.services.NetworkService,
     private val walletManager: com.kachat.app.services.WalletManager,
@@ -990,7 +991,40 @@ class ChatViewModel @Inject constructor(
 
     fun setMessageText(text: String) {
         _messageText.value = text
+        activeDraftKey?.let { draftStore.setDraft(it, text) }
     }
+
+    /** The conversation whose draft the 1:1 composer is editing - see [openDraft]. */
+    @Volatile
+    private var activeDraftKey: String? = null
+
+    /**
+     * A 1:1 chat was entered: the composer shows what was typed there last time, and from now on
+     * keeps it as it changes (iOS: ChatService drafts keyed by the contact's address). Every chat
+     * shares this one composer, so it is always REPLACED - text left from another chat never
+     * carries over.
+     */
+    fun openDraft(contactId: String) {
+        activeDraftKey = contactId
+        _messageText.value = draftStore.draft(contactId)
+    }
+
+    /** The chat was left. Its draft stays saved; a different chat already opened is untouched. */
+    fun closeDraft(contactId: String) {
+        if (activeDraftKey == contactId) activeDraftKey = null
+    }
+
+    /** Puts [text] in [contactId]'s composer for when the chat opens - the share sheet's fallback. */
+    fun stageDraft(contactId: String, text: String) {
+        draftStore.setDraft(contactId, text)
+        if (activeDraftKey == contactId) _messageText.value = text
+    }
+
+    /** A group's saved draft, and saving it - see [com.kachat.app.services.DraftStore]. */
+    fun groupDraft(groupId: String): String = draftStore.draft(com.kachat.app.services.DraftStore.groupKey(groupId))
+
+    fun saveGroupDraft(groupId: String, text: String) =
+        draftStore.setDraft(com.kachat.app.services.DraftStore.groupKey(groupId), text)
 
     fun setPaymentAmount(amount: String) {
         _paymentAmount.value = amount

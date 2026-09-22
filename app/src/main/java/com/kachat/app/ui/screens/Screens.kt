@@ -224,6 +224,11 @@ fun ChatThreadScreen(
     val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
     val messageText by chatViewModel.messageText.collectAsState()
+    // What was typed here last time comes back, and is kept as it changes (iOS drafts).
+    DisposableEffect(contactId) {
+        chatViewModel.openDraft(contactId)
+        onDispose { chatViewModel.closeDraft(contactId) }
+    }
     val voiceRecordingState by chatViewModel.voiceRecordingState.collectAsState()
     val pendingPhotoUri by chatViewModel.pendingPhotoUri.collectAsState()
     val replyingTo by chatViewModel.replyingTo.collectAsState()

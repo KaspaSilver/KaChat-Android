@@ -208,7 +208,7 @@ fun ShareComposeSheet(
                             } else {
                                 // Nothing typed is ever lost: stage the text in that chat's
                                 // composer and drop the user there to retry manually.
-                                chatViewModel.setMessageText(payloadText)
+                                chatViewModel.stageDraft(share.contactId, payloadText)
                                 Toast.makeText(
                                     context,
                                     context.getString(R.string.couldnt_send_saved_as_draft),

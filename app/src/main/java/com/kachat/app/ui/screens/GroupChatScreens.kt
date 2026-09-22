@@ -253,7 +253,11 @@ fun GroupChatThreadScreen(
     val estimatedFee = if (showFeeEstimate) estimatedFeeRaw else null
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by chatViewModel.feeRateOverride.collectAsState()
-    var draft by remember { mutableStateOf(TextFieldValue("")) }
+    // What was typed here last time, exactly as 1:1 chats do (iOS 360e5d2).
+    var draft by remember(groupId) {
+        val saved = chatViewModel.groupDraft(groupId)
+        mutableStateOf(TextFieldValue(saved, TextRange(saved.length)))
+    }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showComposerMenu by remember { mutableStateOf(false) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
@@ -371,8 +375,9 @@ fun GroupChatThreadScreen(
         chatViewModel.setActiveGroup(groupId)
         onDispose { chatViewModel.setActiveGroup(null) }
     }
-    LaunchedEffect(draft.text) {
+    LaunchedEffect(groupId, draft.text) {
         chatViewModel.setGroupMessageText(draft.text)
+        chatViewModel.saveGroupDraft(groupId, draft.text)
     }
 
     val micContext = LocalContext.current

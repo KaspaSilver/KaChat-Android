@@ -661,6 +661,11 @@ fun BroadcastChannelScreen(
     val sendState by broadcastViewModel.sendBroadcastState.collectAsState()
     val voiceRecordingState by broadcastViewModel.voiceRecordingState.collectAsState()
     val messageText by broadcastViewModel.messageText.collectAsState()
+    // What was typed in this room last time comes back, as in 1:1 chats (iOS 360e5d2).
+    DisposableEffect(channelName) {
+        broadcastViewModel.openDraft(channelName)
+        onDispose { broadcastViewModel.closeDraft(channelName) }
+    }
     val estimatedFee by broadcastViewModel.estimatedFeeSompi.collectAsState()
     val senderProfiles by broadcastViewModel.senderProfiles.collectAsState()
     val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
