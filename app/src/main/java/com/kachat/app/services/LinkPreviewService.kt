@@ -176,7 +176,7 @@ object LinkPreviewService {
                 .build()
 
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
+                if (!response.isSuccessful) return if (host != null && host.contains("instagram")) instagramFallback(url, null) else null
                 val source = response.body?.source() ?: return null
 
                 val buffer = Buffer()
@@ -185,11 +185,43 @@ object LinkPreviewService {
                     if (read == -1L) break
                 }
                 val html = buffer.readString(Charsets.UTF_8)
-                parseHtml(html, url)
+                val parsed = parseHtml(html, url)
+                if (host != null && host.contains("instagram")) instagramFallback(url, parsed) else parsed
             }
         } catch (e: Exception) {
-            null
+            if (host != null && host.contains("instagram")) instagramFallback(url, null) else null
         }
+    }
+
+    /**
+     * Instagram stopped serving Open Graph data - title, description and above all `og:image` -
+     * to anyone not logged in, whatever the User-Agent (iOS checked 2026-09-22 with a browser UA,
+     * Meta's own crawler UA and Twitterbot: every post, reel and profile comes back as a bare
+     * "Instagram" shell, and the oEmbed endpoint now needs a Meta API token). So an Instagram
+     * link cannot show the post's picture. Rather than an empty image box, the card names what
+     * the link is from the URL itself: the account, and whether it is a post, a reel, a story or
+     * a profile. A scrape that did find an image is used as it is. Mirrors iOS 2010124.
+     */
+    private fun instagramFallback(url: String, scraped: LinkPreviewData?): LinkPreviewData {
+        if (scraped?.imageUrl != null) return scraped
+        val parts = runCatching { java.net.URI(url).path.orEmpty() }.getOrDefault("")
+            .split('/').filter { it.isNotEmpty() }
+        val first = parts.firstOrNull()?.lowercase()
+        val (title, description) = when {
+            first == "p" -> "Instagram post" to "Open in Instagram to see the post."
+            first == "reel" || first == "reels" -> "Instagram reel" to "Open in Instagram to watch the reel."
+            first == "stories" -> "Instagram story" to "Open in Instagram to see the story."
+            first != null && first !in setOf("explore", "accounts", "direct") ->
+                "@${parts.first()} on Instagram" to "Open in Instagram to see the profile."
+            else -> "Instagram" to "Open in Instagram."
+        }
+        return LinkPreviewData(
+            url = url,
+            title = scraped?.title?.takeIf { it != "Instagram" } ?: title,
+            description = scraped?.description ?: description,
+            imageUrl = null,
+            siteName = "Instagram",
+        )
     }
 
     private fun fetchYouTubeOEmbed(url: String): LinkPreviewData? {
