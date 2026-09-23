@@ -77,6 +77,7 @@ class ChessTournamentService @Inject constructor(
     private var refCount = 0
     private var liveViewing: AutoCloseable? = null
     private var clockJob: Job? = null
+    private var backfillJob: Job? = null
     /** Claims already posted for a game - one is enough; the chain confirms it. */
     private val claimedGames = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
@@ -101,6 +102,18 @@ class ChessTournamentService @Inject constructor(
                 .onFailure { Log.w(TAG, "Could not join the arena", it) }
         }
         liveViewing = scanningService.startLiveViewing(ChessTournamentCodec.ARENA_CHANNEL)
+        // The live block scan only ever sees what is mined while it runs, so on its own a phone
+        // opening Chess cannot see a seat taken a minute earlier - the two would never find each
+        // other in the same room. The broadcast indexer serves the arena's history like a
+        // curated room's, so it is read on open and kept fresh while a chess screen is up.
+        backfillJob?.cancel()
+        backfillJob = scope.launch {
+            while (isActive) {
+                runCatching { broadcastRepository.backfillFromIndexer(ChessTournamentCodec.ARENA_CHANNEL) }
+                    .onFailure { Log.w(TAG, "Arena backfill failed", it) }
+                delay(ARENA_BACKFILL_INTERVAL_MS)
+            }
+        }
         clockJob?.cancel()
         clockJob = scope.launch {
             while (isActive) {
@@ -116,6 +129,8 @@ class ChessTournamentService @Inject constructor(
         if (refCount != 0) return@synchronized
         liveViewing?.close()
         liveViewing = null
+        backfillJob?.cancel()
+        backfillJob = null
         clockJob?.cancel()
         clockJob = null
     }
@@ -458,6 +473,10 @@ class ChessTournamentService @Inject constructor(
 
     companion object {
         private const val TAG = "ChessTournament"
+
+        /** How often the arena's history is re-read while a chess screen is up - the same
+         *  cadence a public room's own indexer poll uses. */
+        private const val ARENA_BACKFILL_INTERVAL_MS = 8_000L
 
         /** Rooms the app uses as machinery, never shown as chats: the chess arena. Hidden from
          *  Public Chats, no unread, no banners (iOS BroadcastService.serviceChannels). */

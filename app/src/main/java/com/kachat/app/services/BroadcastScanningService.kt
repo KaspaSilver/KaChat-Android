@@ -381,7 +381,12 @@ class BroadcastScanningService @Inject constructor(
                 // Featured indexer-backed rooms keep the indexer's FULL 30-day window regardless
                 // of the stored per-channel value (their retention gear is hidden in the UI) —
                 // the 3-day cap was pruning history the backfill had just fetched.
-                val effective = if (retention.channelName in FeaturedBroadcastChannels.INDEXED_NAMES) {
+                // The chess arena is served by the indexer too and read back on every open
+                // (ChessTournamentService), so the 3-hour default would delete the history a
+                // backfill had just fetched - and with it the tournaments people are in.
+                val effective = if (retention.channelName in FeaturedBroadcastChannels.INDEXED_NAMES ||
+                    retention.channelName in ChessTournamentService.SERVICE_CHANNELS
+                ) {
                     BroadcastRetention.INDEXER_MILLIS
                 } else {
                     retention.retentionMillis
