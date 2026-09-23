@@ -729,13 +729,17 @@ fun MainShell(
                     )
                     // Drawn between the bar and its icons: a brighter pane of the same glass.
                     if (selectedDockIndex >= 0) {
+                        // An oval, not a rounded square: a slot is about as wide as it is tall,
+                        // so a corner radius alone left it looking like a tile. Shorter than the
+                        // bar and fully rounded - a stadium the width of one slot.
+                        val pillShape = RoundedCornerShape(percent = 50)
                         Box(
                             Modifier
                                 .offset(x = pillOffset)
-                                .padding(vertical = 8.dp)
+                                .padding(vertical = 18.dp)
                                 .width(dockItemWidth)
-                                .height(64.dp)
-                                .clip(RoundedCornerShape(32.dp))
+                                .height(44.dp)
+                                .clip(pillShape)
                                 .hazeChild(
                                     state = dockHaze,
                                     style = HazeStyle(
@@ -743,7 +747,7 @@ fun MainShell(
                                         blurRadius = 32.dp,
                                     ),
                                 )
-                                .border(1.dp, KaspaTeal.copy(alpha = 0.35f), RoundedCornerShape(32.dp)),
+                                .border(1.dp, KaspaTeal.copy(alpha = 0.35f), pillShape),
                         )
                     }
                     Row(
