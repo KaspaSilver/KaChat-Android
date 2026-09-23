@@ -291,6 +291,12 @@ dependencies {
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
 
+    // Frosted glass behind the floating dock: Compose cannot blur what is BEHIND a composable
+    // on its own (Modifier.blur blurs the composable's own content), so the backdrop is captured
+    // and blurred by this - RenderEffect on Android 12+, a translucent scrim below that. Pinned
+    // to the 0.7 line, which is built against Compose 1.6 like the rest of the app.
+    implementation(libs.haze)
+
     // Image loading (KNS avatars)
     implementation(libs.coil.compose)
 

@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -55,6 +56,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.navigation.navArgument
 import com.kachat.app.ui.screens.*
 import com.kachat.app.repository.AppSettingsRepository
@@ -644,6 +649,10 @@ fun MainShell(
         }
     }
 
+    // Frosted glass under the floating dock: the NavHost below is the backdrop, and the dock
+    // draws a blurred copy of whatever sits behind it (RenderEffect on Android 12+, a
+    // translucent scrim below that) - the way iOS's bar is a material rather than a colour.
+    val dockHaze = remember { HazeState() }
     Scaffold(
         containerColor = LocalAppColors.current.background,
         bottomBar = {
@@ -686,7 +695,17 @@ fun MainShell(
                         modifier = Modifier
                             .height(80.dp)
                             .fillMaxWidth()
-                            .background(LocalAppColors.current.surface, RoundedCornerShape(40.dp))
+                            .clip(RoundedCornerShape(40.dp))
+                            // The glass itself: the backdrop blurred, tinted with the surface
+                            // colour so the bar still reads as a bar in either theme.
+                            .hazeChild(
+                                state = dockHaze,
+                                style = HazeStyle(
+                                    tint = LocalAppColors.current.surface.copy(alpha = 0.62f),
+                                    blurRadius = 24.dp,
+                                ),
+                            )
+                            .border(1.dp, LocalAppColors.current.divider, RoundedCornerShape(40.dp))
                             .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceAround
@@ -842,6 +861,8 @@ fun MainShell(
         NavHost(
             navController = navController,
             startDestination = Screen.Chats.route,
+            // What the dock's glass samples.
+            modifier = Modifier.haze(state = dockHaze),
             // NavHost's own default is a 700ms crossfade — noticeably sluggish for something
             // that happens on every single tab switch/screen push. A short, snappy fade reads
             // as instant without the jarring hard-cut of no animation at all.
