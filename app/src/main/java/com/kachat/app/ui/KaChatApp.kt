@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.shape.CircleShape
@@ -383,12 +382,10 @@ fun MainShell(
             dest.route == "cold_storage_tx_history/{address}"
     } == true
 
-    // Press-and-hold a tab, then drag to reorder — the persisted order (WalletViewModel.tabOrder)
-    // is only written on drag end; localTabOrder is the live, possibly-mid-drag copy the Row
-    // actually renders from, reconciled back to the persisted order whenever it changes and no
-    // drag is in progress (so a fresh install / another device's order still applies normally).
-    // Also reconciled on hiddenTabs changes, so toggling a tab in Settings > Customization > Menu
-    // updates the bar immediately without needing to leave/reopen it.
+    // The dock renders straight from the persisted arrangement (WalletViewModel.tabOrder, via
+    // resolveDock): tabs are arranged in Settings > Customization, not by dragging them here.
+    // Reading it live means toggling a tab there updates the bar immediately, without needing to
+    // leave and reopen it.
     val persistedTabOrder by walletViewModel.tabOrder.collectAsState()
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
     val hideBottomBar by walletViewModel.hideBottomBar.collectAsState()
@@ -809,9 +806,10 @@ fun MainShell(
                             .height(80.dp)
                             .fillMaxWidth()
                             // Watched on the INITIAL pass, so a slide can take over from the
-                            // items underneath - but only a slide: a press that does not move is
-                            // left to their tap, and one that dwells is left to the long-press
-                            // reorder, which owns the same finger.
+                            // items underneath. A press that never moves is left to their tap;
+                            // anything that travels carries the lens, whether it slides straight
+                            // away or is held first, as on the iPhone. Nothing else on the bar
+                            // wants this finger - tabs are arranged in Settings, not by dragging.
                             .pointerInput(localTabOrder, dockItemWidth) {
                                 val slotPx = with(dockDensity) { dockItemWidth.toPx() }
                                 val startPadPx = with(dockDensity) { 8.dp.toPx() }
@@ -831,9 +829,6 @@ fun MainShell(
                                             break
                                         }
                                         val movedX = kotlin.math.abs(change.position.x - down.position.x)
-                                        val heldMs = change.uptimeMillis - down.uptimeMillis
-                                        // A finger that has dwelled is reordering, not sliding.
-                                        if (!sliding && heldMs > 350) break
                                         if (!sliding && movedX > viewConfiguration.touchSlop) sliding = true
                                         if (sliding) {
                                             change.consume()
@@ -848,9 +843,9 @@ fun MainShell(
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
                         localTabOrder.forEach { screen ->
-                            // Keyed by route (not position) so a tab's drag gesture/animation
-                            // state stays attached to the same logical tab as the list reorders,
-                            // rather than to whichever position happens to render it.
+                            // Keyed by route (not position), so a tab's own state stays with that
+                            // tab when the arrangement changes in Settings rather than with
+                            // whichever slot happens to render it.
                             key(screen.route) {
                                 // Standing ON this tab's own route, which is what the reselect
                                 // gesture below keys off.
@@ -870,11 +865,6 @@ fun MainShell(
                                         .height(64.dp)
                                         .weight(1f)
                                         .clip(RoundedCornerShape(32.dp))
-                                        // Long-press then drag to reorder. Keyed on the route (stable
-                                        // across reorders) so this gesture detector isn't restarted
-                                        // mid-drag when localTabOrder itself changes — every state read
-                                        // inside the callbacks below is a live Compose State read, so
-                                        // there's no stale-closure risk from not re-keying on the list.
                                         .clickable {
                                             // Already there — let that screen know it was re-tapped (so it can
                                             // dismiss its own transient UI, e.g. a full-screen QR overlay) rather
