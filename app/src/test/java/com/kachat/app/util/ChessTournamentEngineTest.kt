@@ -193,6 +193,30 @@ class ChessTournamentEngineTest {
     }
 
     @Test
+    fun `a 1v1 counts on the duel board only, a tournament on the tournament board only`() {
+        // A public 1v1, won by the first seat.
+        val duel = ChessTournamentCodec.duelId(1)
+        post(players[0], ChessTournamentCodec.join(duel))
+        post(players[1], ChessTournamentCodec.join(duel))
+        post(players[1], ChessTournamentCodec.resign(duel, "1-0"))
+        // A tournament, one round-1 game decided.
+        seatEight()
+        post(players[7], ChessTournamentCodec.resign(id, "1-0"))
+        val rows = ChessTournamentEngine.leaderboard(ChessTournamentEngine.reduce(events).values)
+        val winner = rows.first { it.address == players[0] }
+        assertEquals(1, winner.duelWins)
+        assertEquals(1, winner.tournamentGameWins)
+        assertEquals(2, winner.wins)
+        // The 1v1 does not make anyone a tournament player.
+        assertEquals(1, winner.tournamentsPlayed)
+        val duelBoard = ChessTournamentEngine.duelLeaderboard(rows).map { it.address }
+        assertEquals(listOf(players[0], players[1]), duelBoard)
+        val tournamentBoard = ChessTournamentEngine.tournamentLeaderboard(rows)
+        assertEquals(8, tournamentBoard.size)
+        assertEquals(players[0], tournamentBoard.first().address)
+    }
+
+    @Test
     fun `the leaderboard is most wins, then fewest losses`() {
         val a = ChessLeaderboardRow("a", wins = 3, losses = 2)
         val b = ChessLeaderboardRow("b", wins = 3, losses = 1)

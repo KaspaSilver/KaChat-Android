@@ -460,7 +460,12 @@ data class ChessTournament(
     }
 }
 
-/** A row of the leaderboard the phone computes from what it has read. */
+/**
+ * One player's record, computed from what the phone has read. Two boards read it: 1v1 (duel
+ * games, public and private) and Tournaments (tournaments won, then the games inside them).
+ * [wins]/[losses] are the totals over both, the figures the indexer's `/chess/leaderboard`
+ * serves.
+ */
 data class ChessLeaderboardRow(
     val address: String,
     val wins: Int = 0,
@@ -468,6 +473,12 @@ data class ChessLeaderboardRow(
     val tournamentsPlayed: Int = 0,
     val tournamentsWon: Int = 0,
     val lastPlayedAt: Long = 0,
+    /** 1v1 games (`duel-N` rooms and private 1v1s). */
+    val duelWins: Int = 0,
+    val duelLosses: Int = 0,
+    /** Games inside eight-player tournaments. */
+    val tournamentGameWins: Int = 0,
+    val tournamentGameLosses: Int = 0,
 )
 
 // MARK: - The rules
@@ -761,9 +772,12 @@ object ChessTournamentEngine {
         fun row(address: String) = rows[address] ?: ChessLeaderboardRow(address)
         for (tournament in tournaments) {
             val started = tournament.startedAt ?: continue
-            for (player in tournament.players) {
-                val r = row(player)
-                rows[player] = r.copy(tournamentsPlayed = r.tournamentsPlayed + 1, lastPlayedAt = maxOf(r.lastPlayedAt, started))
+            // A 1v1 is not a tournament: it counts on the 1v1 board only.
+            if (!tournament.isDuel) {
+                for (player in tournament.players) {
+                    val r = row(player)
+                    rows[player] = r.copy(tournamentsPlayed = r.tournamentsPlayed + 1, lastPlayedAt = maxOf(r.lastPlayedAt, started))
+                }
             }
             for (game in tournament.games.values) {
                 if (!game.isOver) continue
@@ -771,11 +785,21 @@ object ChessTournamentEngine {
                 val loser = if (winner == game.white) game.black else game.white
                 val ended = game.endedAt ?: 0L
                 val w = row(winner)
-                rows[winner] = w.copy(wins = w.wins + 1, lastPlayedAt = maxOf(w.lastPlayedAt, ended))
+                rows[winner] = w.copy(
+                    wins = w.wins + 1,
+                    duelWins = if (tournament.isDuel) w.duelWins + 1 else w.duelWins,
+                    tournamentGameWins = if (tournament.isDuel) w.tournamentGameWins else w.tournamentGameWins + 1,
+                    lastPlayedAt = maxOf(w.lastPlayedAt, ended),
+                )
                 val l = row(loser)
-                rows[loser] = l.copy(losses = l.losses + 1, lastPlayedAt = maxOf(l.lastPlayedAt, ended))
+                rows[loser] = l.copy(
+                    losses = l.losses + 1,
+                    duelLosses = if (tournament.isDuel) l.duelLosses + 1 else l.duelLosses,
+                    tournamentGameLosses = if (tournament.isDuel) l.tournamentGameLosses else l.tournamentGameLosses + 1,
+                    lastPlayedAt = maxOf(l.lastPlayedAt, ended),
+                )
             }
-            tournament.champion?.let { champion ->
+            if (!tournament.isDuel) tournament.champion?.let { champion ->
                 val c = row(champion)
                 rows[champion] = c.copy(tournamentsWon = c.tournamentsWon + 1)
             }
@@ -787,4 +811,22 @@ object ChessTournamentEngine {
                 .thenByDescending { it.lastPlayedAt }
         )
     }
+
+    /** The 1v1 board: players with a 1v1 game behind them, most wins first, fewest losses
+     *  breaking ties (iOS 784208f). */
+    fun duelLeaderboard(rows: List<ChessLeaderboardRow>): List<ChessLeaderboardRow> =
+        rows.filter { it.duelWins + it.duelLosses > 0 }.sortedWith(
+            compareByDescending<ChessLeaderboardRow> { it.duelWins }
+                .thenBy { it.duelLosses }
+                .thenByDescending { it.lastPlayedAt }
+        )
+
+    /** The tournament board: tournaments won first, then the record inside them. */
+    fun tournamentLeaderboard(rows: List<ChessLeaderboardRow>): List<ChessLeaderboardRow> =
+        rows.filter { it.tournamentsPlayed > 0 }.sortedWith(
+            compareByDescending<ChessLeaderboardRow> { it.tournamentsWon }
+                .thenByDescending { it.tournamentGameWins }
+                .thenBy { it.tournamentGameLosses }
+                .thenByDescending { it.lastPlayedAt }
+        )
 }

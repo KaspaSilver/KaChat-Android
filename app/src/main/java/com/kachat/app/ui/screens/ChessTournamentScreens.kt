@@ -547,43 +547,94 @@ private fun TournamentRow(tournament: ChessTournament, action: String, onClick: 
 
 // MARK: - Leaderboard
 
-/** Wins, losses and titles for every address seen in the arena - what the phone has read. */
+/**
+ * Two boards under the same tabs as the lobby: 1v1 (wins and losses in 1v1 games) and
+ * Tournaments (tournaments won, then the wins and losses inside them). Mirrors iOS 784208f.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ChessLeaderboardScreen(navController: NavController) {
     val vm: ChessTournamentViewModel = hiltViewModel()
     val service = vm.service
     HoldArena(service)
     val colors = LocalAppColors.current
-    val rows by service.leaderboard.collectAsState()
+    val board by service.leaderboard.collectAsState()
     val contacts by vm.contacts.collectAsState()
     val me = service.myAddress
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState { ChessLobbyMode.entries.size }
+    val tabScope = rememberCoroutineScope()
+
     Scaffold(
         containerColor = colors.background,
         topBar = { MainPageHeader(title = "Leaderboard", onBack = { navController.popBackStack() }) },
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 8.dp)) {
-            if (rows.isEmpty()) {
-                item {
-                    Text("No finished games yet.", color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(20.dp))
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            androidx.compose.material3.TabRow(
+                selectedTabIndex = pagerState.currentPage,
+                containerColor = colors.background,
+                contentColor = KaspaTeal,
+            ) {
+                ChessLobbyMode.entries.forEachIndexed { index, option ->
+                    androidx.compose.material3.Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = { tabScope.launch { pagerState.animateScrollToPage(index) } },
+                        text = { Text(option.label, fontWeight = FontWeight.Bold) },
+                    )
                 }
             }
-            itemsIndexed(rows, key = { _, row -> row.address }) { index, row ->
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
-                    ChessAvatar(row.address, contacts)
-                    Spacer(Modifier.width(12.dp))
-                    Text(chessName(row.address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    // Wins and losses are the leaderboard (iOS 10f3926).
-                    Text("${row.wins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                    Spacer(Modifier.width(10.dp))
-                    Text("${row.losses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+            androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                val duel = page == 0
+                val rows = if (duel) {
+                    com.kachat.app.util.ChessTournamentEngine.duelLeaderboard(board)
+                } else {
+                    com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(board)
+                }
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+                    if (rows.isEmpty()) {
+                        item {
+                            Text(
+                                if (duel) "No finished 1v1 games yet." else "No finished tournaments yet.",
+                                color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(20.dp),
+                            )
+                        }
+                    }
+                    itemsIndexed(rows, key = { _, row -> row.address }) { index, row ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
+                            ChessAvatar(row.address, contacts)
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                chessName(row.address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                            )
+                            if (duel) {
+                                Text("${row.duelWins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                                Spacer(Modifier.width(10.dp))
+                                Text("${row.duelLosses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                            } else {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("${row.tournamentsWon}", color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                                    }
+                                    Row {
+                                        Text("${row.tournamentGameWins} W", color = colors.success, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("${row.tournamentGameLosses} L", color = colors.danger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
-
 
 /**
  * The waiting room: covers the app from the moment a player joins a public 1v1 or tournament
