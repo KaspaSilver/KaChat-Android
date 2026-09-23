@@ -42,6 +42,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -694,6 +698,32 @@ fun MainShell(
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Sliding a finger along the bar carries the lens; releasing lands on the
+                    // tab under it, the way the glass follows a finger on iOS. Null while nobody
+                    // is dragging, so the lens follows the selection instead.
+                    var dockDragIndex by remember { mutableStateOf<Int?>(null) }
+
+                    /** What a tap on a dock tab does - shared so a drag lands in the same place. */
+                    fun goToDockTab(screen: Screen) {
+                        val onOwnRoute = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        if (onOwnRoute) {
+                            walletViewModel.notifyTabReselected(screen.route)
+                            return
+                        }
+                        val poppedToExisting = navController.popBackStack(
+                            route = screen.route,
+                            inclusive = false,
+                            saveState = true,
+                        )
+                        if (!poppedToExisting) {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+
                     // Which tab the glass pill sits under - the same test each item makes for
                     // itself below, so the pill and the lit icon can never disagree.
                     val selectedDockIndex = localTabOrder.indexOfFirst { screen ->
@@ -708,9 +738,11 @@ fun MainShell(
                     // The pill slides between tabs rather than appearing under the new one, the
                     // way iOS's glass tab bar moves: one piece of glass that travels.
                     val dockItemWidth = (maxWidth - 16.dp) / localTabOrder.size.coerceAtLeast(1)
+                    val pillIndex = dockDragIndex ?: selectedDockIndex
                     val pillOffset by animateDpAsState(
-                        targetValue = 8.dp + dockItemWidth * selectedDockIndex.coerceAtLeast(0),
-                        animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+                        targetValue = 8.dp + dockItemWidth * pillIndex.coerceAtLeast(0),
+                        // Under a finger it keeps up; left to itself it settles with a spring.
+                        animationSpec = if (dockDragIndex != null) tween(90) else spring(dampingRatio = 0.75f, stiffness = 420f),
                         label = "dockPill",
                     )
                     // The bar itself: the backdrop blurred, tinted with the surface colour so it
@@ -721,8 +753,12 @@ fun MainShell(
                             .height(80.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(40.dp))
+                            // The shape goes to hazeChild itself: it paints the blurred backdrop
+                            // to the shape it is given, and its default is a rectangle - which is
+                            // what put a square panel behind the rounded bar.
                             .hazeChild(
                                 state = dockHaze,
+                                shape = RoundedCornerShape(40.dp),
                                 style = HazeStyle(
                                     tint = LocalAppColors.current.surface.copy(alpha = 0.62f),
                                     blurRadius = 24.dp,
@@ -733,19 +769,20 @@ fun MainShell(
                     // Drawn between the bar and its icons: a brighter pane of the same glass.
                     if (selectedDockIndex >= 0) {
                         // A lens, not a tile: iOS's selection is a nearly clear bubble with a
-                        // bright rim, standing slightly PROUD of the bar - taller than it, so it
-                        // bleeds past the top and bottom edges and a little over its neighbours.
-                        // The interior barely tints; what marks the tab is the rim and the teal
-                        // icon inside it.
+                        // bright rim. It sits FLUSH inside the bar - an oval within the bar's own
+                        // height, not a shape hanging off its edges. The interior barely tints;
+                        // what marks the tab is the rim and the teal icon inside it.
                         val pillShape = RoundedCornerShape(percent = 50)
                         Box(
                             Modifier
-                                .offset(x = pillOffset - 5.dp, y = (-4).dp)
-                                .width(dockItemWidth + 10.dp)
-                                .height(88.dp)
+                                .offset(x = pillOffset - 3.dp)
+                                .padding(vertical = 6.dp)
+                                .width(dockItemWidth + 6.dp)
+                                .height(68.dp)
                                 .clip(pillShape)
                                 .hazeChild(
                                     state = dockHaze,
+                                    shape = pillShape,
                                     style = HazeStyle(
                                         tint = Color.White.copy(alpha = 0.06f),
                                         blurRadius = 30.dp,
@@ -766,10 +803,46 @@ fun MainShell(
                                 ),
                         )
                     }
+                    val dockDensity = LocalDensity.current
                     Row(
                         modifier = Modifier
                             .height(80.dp)
                             .fillMaxWidth()
+                            // Watched on the INITIAL pass, so a slide can take over from the
+                            // items underneath - but only a slide: a press that does not move is
+                            // left to their tap, and one that dwells is left to the long-press
+                            // reorder, which owns the same finger.
+                            .pointerInput(localTabOrder, dockItemWidth) {
+                                val slotPx = with(dockDensity) { dockItemWidth.toPx() }
+                                val startPadPx = with(dockDensity) { 8.dp.toPx() }
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    var sliding = false
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                        if (!change.pressed) {
+                                            if (sliding) {
+                                                dockDragIndex?.let { index ->
+                                                    localTabOrder.getOrNull(index)?.let { goToDockTab(it) }
+                                                }
+                                            }
+                                            dockDragIndex = null
+                                            break
+                                        }
+                                        val movedX = kotlin.math.abs(change.position.x - down.position.x)
+                                        val heldMs = change.uptimeMillis - down.uptimeMillis
+                                        // A finger that has dwelled is reordering, not sliding.
+                                        if (!sliding && heldMs > 350) break
+                                        if (!sliding && movedX > viewConfiguration.touchSlop) sliding = true
+                                        if (sliding) {
+                                            change.consume()
+                                            dockDragIndex = (((change.position.x - startPadPx) / slotPx).toInt())
+                                                .coerceIn(0, localTabOrder.lastIndex.coerceAtLeast(0))
+                                        }
+                                    }
+                                }
+                            }
                             .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceAround
