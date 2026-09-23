@@ -1562,11 +1562,21 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                     }
                 } else if (isPending) {
                     "Sending your move…"
-                } else if (myColor != null) {
-                    if (game.sideToMove == myColor && ChessEngine.isKingInCheck(game.sideToMove, game.board)) "Check. Your move."
-                    else if (game.sideToMove == myColor) "Your move" else "Their move"
                 } else {
-                    if (game.sideToMove == ChessColor.WHITE) "White to move" else "Black to move"
+                    // A side's first move has a minute before its clock runs (the gate on a
+                    // simultaneous join - see ChessTournamentCodec.FIRST_MOVE_GRACE_MS); say so.
+                    val grace = if (game.moves.size < 2) {
+                        val left = game.allowanceLeftMs(now)
+                        if (left > 0) " · clock starts in ${clockText(left)}" else ""
+                    } else {
+                        ""
+                    }
+                    if (myColor != null) {
+                        if (game.sideToMove == myColor && ChessEngine.isKingInCheck(game.sideToMove, game.board)) "Check. Your move.$grace"
+                        else if (game.sideToMove == myColor) "Your move$grace" else "Their move$grace"
+                    } else {
+                        (if (game.sideToMove == ChessColor.WHITE) "White to move" else "Black to move") + grace
+                    }
                 }
             }
             // Header: a player sees the opponent (their own name is on their clock chip); a

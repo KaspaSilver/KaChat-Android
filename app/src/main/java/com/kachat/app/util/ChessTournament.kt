@@ -46,6 +46,19 @@ object ChessTournamentCodec {
     /** A seat in a waiting room lasts this long: if the room has not filled by then, the seat
      *  expires and the player is out of the queue - with the app closed, on a walk, whatever. */
     const val SEAT_TTL_MS = 5L * 60 * 1000
+
+    /** Chain time is charged only past an allowance per move, so the seconds a move spends
+     *  reaching the other phone (a block, the indexer's poll) are nobody's thinking time. */
+    const val MOVE_DELAY_MS = 10L * 1000
+
+    /** A side's FIRST move gets a minute instead: the game starts at the second join's block
+     *  time, and a player must not lose clock before their phone has even shown the board. This
+     *  is the gate on a simultaneous join - the clock does not run for either side until they
+     *  have shown up with a move (or the minute is up). */
+    const val FIRST_MOVE_GRACE_MS = 60L * 1000
+
+    /** The allowance for the move at [ply] (1 = white's first, 2 = black's first). */
+    fun allowanceMs(ply: Int): Long = if (ply <= 2) FIRST_MOVE_GRACE_MS else MOVE_DELAY_MS
     const val NAME_MAX_LENGTH = 40
     const val CHAT_MAX_LENGTH = 280
 
@@ -396,8 +409,20 @@ data class ChessTournamentGame(
     /** Remaining clock for [color] at chain time [now] (or wall time, for display). */
     fun remainingMs(color: ChessColor, now: Long): Long {
         var used = usedMs(color)
-        if (!isOver && color == sideToMove) used += maxOf(0L, now - lastEventAt)
+        if (!isOver && color == sideToMove) used += chargedMs(now - lastEventAt)
         return maxOf(0L, ChessTournamentCodec.CLOCK_MS - used)
+    }
+
+    /** What the side to move is charged for [elapsed] ms of chain time since the last event:
+     *  the time past this ply's allowance (see [ChessTournamentCodec.allowanceMs]). */
+    fun chargedMs(elapsed: Long): Long =
+        maxOf(0L, elapsed - ChessTournamentCodec.allowanceMs(moves.size + 1))
+
+    /** The allowance still unspent on the current move, for the phone to show ("clock starts in
+     *  0:42"); zero once the clock is running. */
+    fun allowanceLeftMs(now: Long): Long {
+        if (isOver) return 0
+        return maxOf(0L, ChessTournamentCodec.allowanceMs(moves.size + 1) - maxOf(0L, now - lastEventAt))
     }
 }
 
@@ -599,7 +624,9 @@ object ChessTournamentEngine {
                 val from = message.from?.let { ChessTournamentCodec.square(it) } ?: return
                 val to = message.to?.let { ChessTournamentCodec.square(it) } ?: return
                 // A move after the mover's clock ran out is void: the opponent's claim decides.
-                val elapsed = maxOf(0L, event.blockTime - game.lastEventAt)
+                // Charged past the move's allowance (a minute for a side's first move, ten
+                // seconds after) - see ChessTournamentCodec.allowanceMs.
+                val elapsed = game.chargedMs(event.blockTime - game.lastEventAt)
                 val remaining = ChessTournamentCodec.CLOCK_MS - game.usedMs(game.sideToMove)
                 if (elapsed >= remaining) return
                 var move = ChessMove(from, to, ChessPieceType.fromPromotionLetter(message.promo))
@@ -658,8 +685,9 @@ object ChessTournamentEngine {
                 if (game.isOver) return
                 val claimant = game.color(event.sender) ?: return
                 if (claimant == game.sideToMove) return
-                // Valid only if, by chain time, the side to move had indeed run out.
-                val elapsed = maxOf(0L, event.blockTime - game.lastEventAt)
+                // Valid only if, by chain time, the side to move had indeed run out - past the
+                // same allowance a move gets.
+                val elapsed = game.chargedMs(event.blockTime - game.lastEventAt)
                 val remaining = ChessTournamentCodec.CLOCK_MS - game.usedMs(game.sideToMove)
                 if (elapsed < remaining) return
                 game = if (game.sideToMove == ChessColor.WHITE) {

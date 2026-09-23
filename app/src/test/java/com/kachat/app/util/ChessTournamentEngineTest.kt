@@ -81,6 +81,31 @@ class ChessTournamentEngineTest {
     }
 
     @Test
+    fun `a minute's grace on a first move, ten seconds after, and the rest is charged`() {
+        seatEight()
+        val game = "1-0"
+        val white = players[0]
+        val black = players[7]
+        // White's first move half a minute in: inside the minute, so nothing is charged.
+        post(white, ChessTournamentCodec.move(id, game, 1, "e2", "e4", null), advanceMs = 30_000)
+        assertEquals(0L, state().games[game]!!.whiteUsedMs)
+        // Black's first move 70s later: a minute is free, the last 10s are charged.
+        post(black, ChessTournamentCodec.move(id, game, 2, "e7", "e5", null), advanceMs = 70_000)
+        assertEquals(10_000L, state().games[game]!!.blackUsedMs)
+        // A later move inside ten seconds is free; past it, only the excess counts.
+        post(white, ChessTournamentCodec.move(id, game, 3, "g1", "f3", null), advanceMs = 8_000)
+        assertEquals(0L, state().games[game]!!.whiteUsedMs)
+        post(black, ChessTournamentCodec.move(id, game, 4, "b8", "c6", null), advanceMs = 25_000)
+        assertEquals(10_000L + 15_000L, state().games[game]!!.blackUsedMs)
+        // White is to move, so black is the one who can claim - and the claim is judged against
+        // the same allowance: five minutes of CHARGE, not of wall clock.
+        post(black, ChessTournamentCodec.claim(id, game), advanceMs = ChessTournamentCodec.CLOCK_MS)
+        assertNull(state().games[game]!!.winner)
+        post(black, ChessTournamentCodec.claim(id, game), advanceMs = ChessTournamentCodec.MOVE_DELAY_MS)
+        assertEquals(black, state().games[game]!!.winner)
+    }
+
+    @Test
     fun `winners meet in round two with colours by whites so far then seed, and the leaderboard counts`() {
         seatEight()
         // 1-0: seed 1 (white) beats seed 8 by resignation; 1-1: seed 7 (black) beats seed 2.
