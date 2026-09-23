@@ -167,7 +167,15 @@ android {
     flavorDimensions += "distribution"
     productFlavors {
         create("play") { dimension = "distribution" }
-        create("github") { dimension = "distribution" }
+        create("github") {
+            dimension = "distribution"
+            // The handed-out APK carries only the two ARM architectures: every phone is one of
+            // them, while x86/x86_64 are emulators and Chromebooks - and WebRTC alone ships a
+            // 12MB library per architecture, which made the APK 57MB, most of it unreachable
+            // code for the people downloading it. The Play bundle keeps all four, since Play
+            // serves each device only its own and x86 Chromebooks install from there.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        }
     }
 
     compileOptions {
