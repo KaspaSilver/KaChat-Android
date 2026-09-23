@@ -255,9 +255,8 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
     ) { padding ->
         // The same tab bar and swipe the Chats screen uses, so a tab is a tab wherever it
         // appears in the app (iOS 353f040).
-        // The 1v1 screen has an Active games tab (watch-only) between play and the leaderboard.
-        val tabs = if (mode == ChessLobbyMode.DUEL) listOf(mode.label, "Active games", "Leaderboard")
-        else listOf(mode.label, "Leaderboard")
+        // Both screens: play, Active (watch-only), Finished, Leaderboard (iOS 01f1c12, 8afa81a).
+        val tabs = listOf(mode.label, "Active", "Finished", "Leaderboard")
         val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
         val tabScope = rememberCoroutineScope()
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -275,13 +274,10 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                 }
             }
             androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-            if (page == tabs.lastIndex) {
-                ChessLeaderboardRows(mode)
-                return@HorizontalPager
-            }
-            if (mode == ChessLobbyMode.DUEL && page == 1) {
-                ChessActiveGames(navController)
-                return@HorizontalPager
+            when (page) {
+                1 -> { ChessActiveGames(mode, navController); return@HorizontalPager }
+                2 -> { ChessFinishedGames(mode, navController); return@HorizontalPager }
+                3 -> { ChessLeaderboardRows(mode); return@HorizontalPager }
             }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
                 val duel = mode == ChessLobbyMode.DUEL
@@ -348,23 +344,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                 )
 
-                // For 1v1 the games in play live on the Active games tab instead.
-                val live = if (duel) emptyList() else {
-                    service.liveTournaments(all).filter { !it.isDuel && it.isPublic && it.id != mine?.id }
-                }
-                if (live.isNotEmpty()) {
-                    ChessSectionHeader("In play")
-                    ChessCard { live.forEach { t -> TournamentRow(t, "Watch") { open(t.id) } } }
-                }
-                val done = service.finishedTournaments(all).filter { it.isDuel == duel && it.isPublic }.take(20)
-                if (done.isNotEmpty()) {
-                    ChessSectionHeader("Finished")
-                    ChessCard {
-                        done.forEach { t ->
-                            TournamentRow(t, t.champion?.let { "Won by ${chessName(it, contacts, knsNames)}" } ?: "Finished") { open(t.id) }
-                        }
-                    }
-                }
+                // Games in play and finished ones have their own tabs now.
             }
             }
         }
@@ -468,7 +448,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
  * nothing sent: the game screen gives its composer to the two players only (iOS 3e366a4).
  */
 @Composable
-private fun ChessActiveGames(navController: NavController) {
+private fun ChessActiveGames(mode: ChessLobbyMode, navController: NavController) {
     val vm: ChessTournamentViewModel = hiltViewModel()
     val service = vm.service
     val colors = LocalAppColors.current
@@ -476,45 +456,69 @@ private fun ChessActiveGames(navController: NavController) {
     val now by service.now.collectAsState()
     val contacts by vm.contacts.collectAsState()
     val knsNames by service.knsNames.collectAsState()
-    val live = service.liveTournaments(all).filter { it.isDuel && it.isPublic }
+    val duel = mode == ChessLobbyMode.DUEL
+    val live = service.liveTournaments(all).filter { it.isDuel == duel && it.isPublic }
+
+    @Composable
+    fun liveGameRow(game: ChessTournamentGame, tournament: ChessTournament) {
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable { navController.navigate("chess_tournament_game/${tournament.id}/${game.id}") }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.Visibility, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row {
+                    Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
+                    Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+                val where = if (tournament.isDuel) tournament.name else when (game.round) {
+                    3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1"
+                }
+                Text(
+                    "$where · move ${game.moves.size / 2 + 1} · ${if (game.sideToMove == ChessColor.WHITE) "white" else "black"} to move",
+                    color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(clockText(game.remainingMs(game.sideToMove, now)), color = colors.textSecondary,
+                fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Spacer(Modifier.width(8.dp))
+            Text("Watch", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+        }
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-        ChessSectionHeader("Live now")
-        ChessCard {
-            if (live.isEmpty()) {
+        if (live.isEmpty()) {
+            ChessSectionHeader("Live now")
+            ChessCard {
                 Text(
-                    "No 1v1 games are being played right now. When one starts, it shows up here to watch.",
+                    if (duel) "No 1v1 games are being played right now. When one starts, it shows up here to watch."
+                    else "No tournament is being played right now. When one starts, its games show up here to watch.",
                     color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                 )
             }
-            live.forEach { duel ->
-                val game = duel.games.values.firstOrNull() ?: return@forEach
-                Row(
-                    Modifier.fillMaxWidth()
-                        .clickable { navController.navigate("chess_tournament_game/${duel.id}/${game.id}") }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.Visibility, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Row {
-                            Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
-                            Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        }
-                        Text(
-                            "${duel.name} · move ${game.moves.size / 2 + 1} · ${if (game.sideToMove == ChessColor.WHITE) "white" else "black"} to move",
-                            color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Text(clockText(game.remainingMs(game.sideToMove, now)), color = colors.textSecondary,
-                        fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Watch", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+        } else if (duel) {
+            // One row per game.
+            ChessSectionHeader("Live now")
+            ChessCard {
+                live.forEach { room ->
+                    room.games.values.firstOrNull()?.let { liveGameRow(it, room) }
+                }
+            }
+        } else {
+            // A section per tournament, a row per game in play, and the bracket a tap away.
+            live.forEach { tournament ->
+                ChessSectionHeader(tournament.name)
+                ChessCard {
+                    tournament.games.values.filter { !it.isOver }.sortedWith(compareBy({ it.round }, { it.id }))
+                        .forEach { liveGameRow(it, tournament) }
+                    TournamentRow(tournament, "Bracket") { navController.navigate("chess_tournament/${tournament.id}") }
                 }
             }
         }
@@ -523,6 +527,39 @@ private fun ChessActiveGames(navController: NavController) {
             color = colors.textSecondary, fontSize = 12.sp,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
         )
+    }
+}
+
+/**
+ * Every public game of this kind that has ended, newest first - the result on the row, the board
+ * (and its chat) a tap away (iOS 8afa81a).
+ */
+@Composable
+private fun ChessFinishedGames(mode: ChessLobbyMode, navController: NavController) {
+    val vm: ChessTournamentViewModel = hiltViewModel()
+    val service = vm.service
+    val colors = LocalAppColors.current
+    val all by service.tournaments.collectAsState()
+    val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
+    val duel = mode == ChessLobbyMode.DUEL
+    val done = service.finishedTournaments(all).filter { it.isDuel == duel && it.isPublic }.take(100)
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+        ChessSectionHeader(if (duel) "Finished 1v1 games" else "Finished tournaments")
+        ChessCard {
+            if (done.isEmpty()) {
+                Text(
+                    if (duel) "No finished 1v1 games yet." else "No finished tournaments yet.",
+                    color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+                )
+            }
+            done.forEach { t ->
+                TournamentRow(t, t.champion?.let { "Won by ${chessName(it, contacts, knsNames)}" } ?: "Finished") {
+                    navController.navigate("chess_tournament/${t.id}")
+                }
+            }
+        }
     }
 }
 

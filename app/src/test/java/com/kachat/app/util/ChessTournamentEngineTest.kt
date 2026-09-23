@@ -11,7 +11,9 @@ class ChessTournamentEngineTest {
 
     private val id = "7c1e0000-0000-0000-0000-000000000001"
     private val players = (1..9).map { "kaspa:player$it" }
-    private var clock = 1_000_000L
+    // Past the instant the clock allowances start applying, so the games these tests play are
+    // judged by today's rules (see ChessTournamentCodec.ALLOWANCE_FROM_MS).
+    private var clock = ChessTournamentCodec.ALLOWANCE_FROM_MS + 1_000_000L
     private var tx = 0
     private val events = mutableListOf<ChessArenaEvent>()
 
@@ -103,6 +105,20 @@ class ChessTournamentEngineTest {
         assertNull(state().games[game]!!.winner)
         post(black, ChessTournamentCodec.claim(id, game), advanceMs = ChessTournamentCodec.MOVE_DELAY_MS)
         assertEquals(black, state().games[game]!!.winner)
+    }
+
+    @Test
+    fun `a game from before the allowances keeps the rules of its day`() {
+        // A game that started before the activation instant is charged from the first second.
+        clock = ChessTournamentCodec.ALLOWANCE_FROM_MS - 10 * 60 * 1000
+        seatEight()
+        val game = "1-0"
+        val old = state().games[game]!!
+        assertEquals(0L, ChessTournamentCodec.allowanceMs(1, old.startedAt))
+        assertEquals(30_000L, old.chargedMs(30_000L))
+        // And a claim five minutes in is valid, as it was under the rules of that day.
+        post(players[7], ChessTournamentCodec.claim(id, game), advanceMs = ChessTournamentCodec.CLOCK_MS)
+        assertEquals(players[7], state().games[game]!!.winner)
     }
 
     @Test

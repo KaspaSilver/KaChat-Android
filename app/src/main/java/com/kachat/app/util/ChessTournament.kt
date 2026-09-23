@@ -57,8 +57,21 @@ object ChessTournamentCodec {
      *  have shown up with a move (or the minute is up). */
     const val FIRST_MOVE_GRACE_MS = 60L * 1000
 
-    /** The allowance for the move at [ply] (1 = white's first, 2 = black's first). */
-    fun allowanceMs(ply: Int): Long = if (ply <= 2) FIRST_MOVE_GRACE_MS else MOVE_DELAY_MS
+    /**
+     * The allowances apply to games that STARTED at or after this block time (2026-09-24 00:00
+     * UTC). A rule change must never reach back: the games before it were decided under the
+     * rules of their day, and re-judging them re-opened games that had ended (a claim valid at
+     * 5:00 became "early" under the minute's grace) and let a player resign a finished game for
+     * a second loss. Every platform ships the same instant (iOS 2641f2e).
+     */
+    const val ALLOWANCE_FROM_MS = 1_790_208_000_000L
+
+    /** The allowance for the move at [ply] (1 = white's first, 2 = black's first) in a game
+     *  started at [startedAt]; zero for games from before [ALLOWANCE_FROM_MS]. */
+    fun allowanceMs(ply: Int, startedAt: Long): Long {
+        if (startedAt < ALLOWANCE_FROM_MS) return 0
+        return if (ply <= 2) FIRST_MOVE_GRACE_MS else MOVE_DELAY_MS
+    }
     const val NAME_MAX_LENGTH = 40
     const val CHAT_MAX_LENGTH = 280
 
@@ -416,13 +429,13 @@ data class ChessTournamentGame(
     /** What the side to move is charged for [elapsed] ms of chain time since the last event:
      *  the time past this ply's allowance (see [ChessTournamentCodec.allowanceMs]). */
     fun chargedMs(elapsed: Long): Long =
-        maxOf(0L, elapsed - ChessTournamentCodec.allowanceMs(moves.size + 1))
+        maxOf(0L, elapsed - ChessTournamentCodec.allowanceMs(moves.size + 1, startedAt))
 
     /** The allowance still unspent on the current move, for the phone to show ("clock starts in
      *  0:42"); zero once the clock is running. */
     fun allowanceLeftMs(now: Long): Long {
         if (isOver) return 0
-        return maxOf(0L, ChessTournamentCodec.allowanceMs(moves.size + 1) - maxOf(0L, now - lastEventAt))
+        return maxOf(0L, ChessTournamentCodec.allowanceMs(moves.size + 1, startedAt) - maxOf(0L, now - lastEventAt))
     }
 }
 
