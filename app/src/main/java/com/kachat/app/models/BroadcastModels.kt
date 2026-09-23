@@ -61,6 +61,7 @@ object FeaturedBroadcastChannels {
         "kaspa-portugues",
         "kaspa-romania",
         "kaspa-slovak",
+        "kaspa-russian",
         "kaspa-chinese",
         "kaspa-japanese",
         "kaspa-korean",
@@ -88,6 +89,7 @@ object FeaturedBroadcastChannels {
         "kaspa-portugues" -> "Português"
         "kaspa-romania" -> "Română"
         "kaspa-slovak" -> "Slovenčina"
+        "kaspa-russian" -> "Русский"
         "kaspa-chinese" -> "中文"
         "kaspa-japanese" -> "日本語"
         "kaspa-korean" -> "한국어"

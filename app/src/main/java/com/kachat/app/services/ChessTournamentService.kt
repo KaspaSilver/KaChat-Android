@@ -107,10 +107,15 @@ class ChessTournamentService @Inject constructor(
         // other in the same room. The broadcast indexer serves the arena's history like a
         // curated room's, so it is read on open and kept fresh while a chess screen is up.
         backfillJob?.cancel()
+        _historyReady.value = false
         backfillJob = scope.launch {
+            val deadline = System.currentTimeMillis() + HISTORY_WAIT_MS
             while (isActive) {
-                runCatching { broadcastRepository.backfillFromIndexer(ChessTournamentCodec.ARENA_CHANNEL) }
+                val fetched = runCatching { broadcastRepository.backfillFromIndexer(ChessTournamentCodec.ARENA_CHANNEL) }
                     .onFailure { Log.w(TAG, "Arena backfill failed", it) }
+                    .getOrDefault(-1)
+                // Answered (even with nothing), or the wait ran out: rooms can be picked.
+                if (fetched >= 0 || System.currentTimeMillis() > deadline) _historyReady.value = true
                 delay(ARENA_BACKFILL_INTERVAL_MS)
             }
         }
@@ -183,21 +188,43 @@ class ChessTournamentService @Inject constructor(
 
     // MARK: - Lists
 
-    /** The public room taking players right now: the first numbered room that is not full. Its
-     *  id exists before anyone has joined it (the first join creates it), so the lobby can
-     *  always show "Public tournament #N" with its seats. */
-    fun currentPublicRoomId(all: Map<String, ChessTournament>): String {
-        var number = 1
-        while (all[ChessTournamentCodec.publicId(number)]?.isFull == true) number += 1
-        return ChessTournamentCodec.publicId(number)
-    }
+    /** The public tournament room taking players right now - see [currentRoomNumber]. Its id
+     *  exists before anyone has joined it (the first join creates it), so the lobby can always
+     *  show "Public tournament #N" with its seats. */
+    fun currentPublicRoomId(all: Map<String, ChessTournament>): String =
+        ChessTournamentCodec.publicId(currentRoomNumber(all) { ChessTournamentCodec.publicNumber(it) })
 
     /** The public 1v1 room taking players right now. */
-    fun currentDuelRoomId(all: Map<String, ChessTournament>): String {
-        var number = 1
-        while (all[ChessTournamentCodec.duelId(number)]?.isFull == true) number += 1
-        return ChessTournamentCodec.duelId(number)
+    fun currentDuelRoomId(all: Map<String, ChessTournament>): String =
+        ChessTournamentCodec.duelId(currentRoomNumber(all) { ChessTournamentCodec.duelNumber(it) })
+
+    /**
+     * The room to queue into: the lowest-numbered public room of that kind still waiting for
+     * players; when none is, one past the highest room this phone knows. Every phone with the
+     * same recent history lands on the same number - and it does not need the history back to
+     * room 1, which is why the engine no longer requires the previous room to be full
+     * (iOS d2ab780).
+     */
+    private fun currentRoomNumber(all: Map<String, ChessTournament>, numberOf: (String) -> Int?): Int {
+        var open: Int? = null
+        var highest = 0
+        for (room in all.values) {
+            val number = numberOf(room.id) ?: continue
+            highest = maxOf(highest, number)
+            if (room.status == ChessTournament.Status.OPEN && !room.isFull) {
+                open = minOf(open ?: number, number)
+            }
+        }
+        return open ?: (highest + 1)
     }
+
+    /**
+     * True once the arena's history has come back from the indexer (or a few seconds have
+     * passed). A join before that would pick a room from an empty view - room 1 - which
+     * everyone else finished long ago.
+     */
+    private val _historyReady = MutableStateFlow(false)
+    val historyReady: StateFlow<Boolean> = _historyReady.asStateFlow()
 
     /** Private 1v1s this player is in, still open or in play. */
     fun myPrivateDuels(all: Map<String, ChessTournament>) = myPrivate(all, duel = true)
@@ -257,6 +284,10 @@ class ChessTournamentService @Inject constructor(
      */
     private suspend fun joinPublicRoom(id: String) {
         val me = myAddress ?: return
+        if (!_historyReady.value) {
+            _lastError.value = "Still loading the rooms - try again in a moment."
+            return
+        }
         val busy = myActiveTournament(_tournaments.value)
         if (busy != null) {
             _lastError.value = if (busy.status == ChessTournament.Status.OPEN) {
@@ -477,6 +508,9 @@ class ChessTournamentService @Inject constructor(
         /** How often the arena's history is re-read while a chess screen is up - the same
          *  cadence a public room's own indexer poll uses. */
         private const val ARENA_BACKFILL_INTERVAL_MS = 8_000L
+
+        /** How long a join waits for that history before going ahead anyway. */
+        private const val HISTORY_WAIT_MS = 8_000L
 
         /** Rooms the app uses as machinery, never shown as chats: the chess arena. Hidden from
          *  Public Chats, no unread, no banners (iOS BroadcastService.serviceChannels). */

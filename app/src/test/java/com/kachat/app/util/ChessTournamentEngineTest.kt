@@ -119,10 +119,11 @@ class ChessTournamentEngineTest {
     private fun rooms() = ChessTournamentEngine.reduce(events)
 
     @Test
-    fun `public 1v1 rooms queue in order, a third joiner is ignored and the next room opens`() {
-        // Room 2 before room 1 is full: ignored.
+    fun `a join opens whichever public room it names, a third joiner is ignored`() {
+        // Any join opens the room it names - a phone whose history starts at room 2 must not
+        // reject it (iOS d2ab780).
         post(players[0], ChessTournamentCodec.join(ChessTournamentCodec.duelId(2)))
-        assertNull(rooms()[ChessTournamentCodec.duelId(2)])
+        assertEquals(listOf(players[0]), rooms()[ChessTournamentCodec.duelId(2)]!!.players)
         post(players[0], ChessTournamentCodec.join(ChessTournamentCodec.duelId(1)))
         post(players[1], ChessTournamentCodec.join(ChessTournamentCodec.duelId(1)))
         post(players[2], ChessTournamentCodec.join(ChessTournamentCodec.duelId(1)))
@@ -132,9 +133,9 @@ class ChessTournamentEngineTest {
         val game = room1.games["1-0"]!!
         assertEquals(players[0], game.white)
         assertEquals(players[1], game.black)
-        // The loser of the race re-joins the next room, which now opens.
+        // The loser of the race joins room 2, which player 1 had already opened.
         post(players[2], ChessTournamentCodec.join(ChessTournamentCodec.duelId(2)))
-        assertEquals(listOf(players[2]), rooms()[ChessTournamentCodec.duelId(2)]!!.players)
+        assertEquals(listOf(players[0], players[2]), rooms()[ChessTournamentCodec.duelId(2)]!!.players)
         // A resignation finishes a 1v1: it has one game and one round.
         post(players[1], ChessTournamentCodec.resign(ChessTournamentCodec.duelId(1), "1-0"))
         val done = rooms()[ChessTournamentCodec.duelId(1)]!!

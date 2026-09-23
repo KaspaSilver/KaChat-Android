@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
@@ -199,16 +200,17 @@ private fun clockText(ms: Long): String {
 
 // MARK: - Lobby
 
-private enum class ChessLobbyMode(val label: String) { DUEL("1v1"), TOURNAMENT("Tournaments") }
+/** Which game: also the name of the play tab. */
+enum class ChessLobbyMode(val label: String) { DUEL("1v1"), TOURNAMENT("Tournaments") }
 
 /**
- * Kaspa Hub > Chess. Two tabs: 1v1 (a public room that pairs the next two joiners, plus private
- * 1v1s by code) and Tournaments (eight-player knockouts: a public room that fills and starts,
- * plus private ones behind the creator code). Mirrors iOS's ChessTournamentsView.
+ * Chess Online > 1v1 or Tournaments: one kind of game per screen, chosen on [ChessHomeScreen].
+ * Two tabs: the play tab (a public room that pairs the next joiners or fills to eight, plus
+ * private games by code) and that kind's leaderboard. Mirrors iOS's ChessTournamentsView.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? = null) {
+fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, onBack: (() -> Unit)? = null) {
     val vm: ChessTournamentViewModel = hiltViewModel()
     val service = vm.service
     HoldArena(service)
@@ -220,7 +222,6 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
     val knsNames by service.knsNames.collectAsState()
     val me = service.myAddress
     val mine = service.myActiveTournament(all)
-    var mode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(ChessLobbyMode.DUEL) }
     var showCreate by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var creatorCode by remember { mutableStateOf("") }
@@ -247,37 +248,35 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            MainPageHeader(title = "Chess", onBack = onBack) {
-                IconButton(onClick = { navController.navigate("chess_leaderboard") }) {
-                    Icon(Icons.Default.EmojiEvents, contentDescription = "Leaderboard", tint = KaspaTeal)
-                }
-            }
+            MainPageHeader(title = mode.label, onBack = onBack)
         },
     ) { padding ->
         // The same tab bar and swipe the Chats screen uses, so a tab is a tab wherever it
         // appears in the app (iOS 353f040).
-        val pagerState = androidx.compose.foundation.pager.rememberPagerState(
-            initialPage = ChessLobbyMode.entries.indexOf(mode),
-        ) { ChessLobbyMode.entries.size }
+        val tabs = listOf(mode.label, "Leaderboard")
+        val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
         val tabScope = rememberCoroutineScope()
-        LaunchedEffect(pagerState.currentPage) { mode = ChessLobbyMode.entries[pagerState.currentPage] }
         Column(Modifier.fillMaxSize().padding(padding)) {
             androidx.compose.material3.TabRow(
                 selectedTabIndex = pagerState.currentPage,
                 containerColor = colors.background,
                 contentColor = KaspaTeal,
             ) {
-                ChessLobbyMode.entries.forEachIndexed { index, option ->
+                tabs.forEachIndexed { index, label ->
                     androidx.compose.material3.Tab(
                         selected = pagerState.currentPage == index,
                         onClick = { tabScope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(option.label, fontWeight = FontWeight.Bold) },
+                        text = { Text(label, fontWeight = FontWeight.Bold) },
                     )
                 }
             }
             androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+            if (page == 1) {
+                ChessLeaderboardRows(mode)
+                return@HorizontalPager
+            }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-                val duel = page == 0
+                val duel = mode == ChessLobbyMode.DUEL
                 val publicId = if (duel) service.currentDuelRoomId(all) else service.currentPublicRoomId(all)
                 val number = (if (duel) ChessTournamentCodec.duelNumber(publicId) else ChessTournamentCodec.publicNumber(publicId)) ?: 1
                 ChessSectionHeader("Public")
@@ -561,92 +560,171 @@ private fun TournamentRow(tournament: ChessTournament, action: String, onClick: 
 // MARK: - Leaderboard
 
 /**
- * Two boards under the same tabs as the lobby: 1v1 (wins and losses in 1v1 games) and
- * Tournaments (tournaments won, then the wins and losses inside them). Mirrors iOS 784208f.
+ * One kind's leaderboard, as the second tab of its screen: 1v1 is wins and losses in 1v1 games;
+ * Tournaments is tournaments won, then the wins and losses inside them (iOS e86868e).
  */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun ChessLeaderboardScreen(navController: NavController) {
+private fun ChessLeaderboardRows(mode: ChessLobbyMode) {
     val vm: ChessTournamentViewModel = hiltViewModel()
     val service = vm.service
-    HoldArena(service)
     val colors = LocalAppColors.current
     val board by service.leaderboard.collectAsState()
     val contacts by vm.contacts.collectAsState()
     val knsNames by service.knsNames.collectAsState()
     val me = service.myAddress
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState { ChessLobbyMode.entries.size }
-    val tabScope = rememberCoroutineScope()
-
-    Scaffold(
-        containerColor = colors.background,
-        topBar = { MainPageHeader(title = "Leaderboard", onBack = { navController.popBackStack() }) },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            androidx.compose.material3.TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                containerColor = colors.background,
-                contentColor = KaspaTeal,
-            ) {
-                ChessLobbyMode.entries.forEachIndexed { index, option ->
-                    androidx.compose.material3.Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = { tabScope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(option.label, fontWeight = FontWeight.Bold) },
-                    )
-                }
+    val duel = mode == ChessLobbyMode.DUEL
+    val rows = if (duel) {
+        com.kachat.app.util.ChessTournamentEngine.duelLeaderboard(board)
+    } else {
+        com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(board)
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+        if (rows.isEmpty()) {
+            item {
+                Text(
+                    if (duel) "No finished 1v1 games yet." else "No finished tournaments yet.",
+                    color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(20.dp),
+                )
             }
-            androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                val duel = page == 0
-                val rows = if (duel) {
-                    com.kachat.app.util.ChessTournamentEngine.duelLeaderboard(board)
+        }
+        itemsIndexed(rows, key = { _, row -> row.address }) { index, row ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
+                ChessAvatar(row.address, contacts)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    chessName(row.address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
+                if (duel) {
+                    Text("${row.duelWins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                    Spacer(Modifier.width(10.dp))
+                    Text("${row.duelLosses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
                 } else {
-                    com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(board)
-                }
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
-                    if (rows.isEmpty()) {
-                        item {
-                            Text(
-                                if (duel) "No finished 1v1 games yet." else "No finished tournaments yet.",
-                                color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(20.dp),
-                            )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("${row.tournamentsWon}", color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
                         }
-                    }
-                    itemsIndexed(rows, key = { _, row -> row.address }) { index, row ->
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
-                            ChessAvatar(row.address, contacts)
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                chessName(row.address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
-                            )
-                            if (duel) {
-                                Text("${row.duelWins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                                Spacer(Modifier.width(10.dp))
-                                Text("${row.duelLosses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                            } else {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("${row.tournamentsWon}", color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                                    }
-                                    Row {
-                                        Text("${row.tournamentGameWins} W", color = colors.success, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("${row.tournamentGameLosses} L", color = colors.danger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                                    }
-                                }
-                            }
+                        Row {
+                            Text("${row.tournamentGameWins} W", color = colors.success, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                            Spacer(Modifier.width(8.dp))
+                            Text("${row.tournamentGameLosses} L", color = colors.danger, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Kaspa Hub > Chess Online: choose your game. 1v1 or a tournament, each its own screen with that
+ * kind's play tab and leaderboard. A room the player is already waiting or playing in is offered
+ * first. Mirrors iOS's ChessHomeView.
+ */
+@Composable
+fun ChessHomeScreen(navController: NavController, onBack: (() -> Unit)? = null) {
+    val vm: ChessTournamentViewModel = hiltViewModel()
+    val service = vm.service
+    HoldArena(service)
+    ChessErrorToast(service)
+    val colors = LocalAppColors.current
+    val all by service.tournaments.collectAsState()
+    val mine = service.myActiveTournament(all)
+
+    fun open(mode: ChessLobbyMode) = navController.navigate("chess_mode/${mode.name}")
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = { MainPageHeader(title = "Chess Online", onBack = onBack) },
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.height(24.dp))
+            Icon(
+                androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kachat_logo),
+                contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text("Choose your game", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Five minutes a side. Every move is a Kaspa transaction, so every game is on chain for good.",
+                color = colors.textSecondary, fontSize = 14.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp),
+            )
+            Spacer(Modifier.height(20.dp))
+            if (mine != null) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .background(KaspaTeal.copy(alpha = 0.12f))
+                        .clickable { open(if (mine.isDuel) ChessLobbyMode.DUEL else ChessLobbyMode.TOURNAMENT) }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        if (mine.status == ChessTournament.Status.OPEN) Icons.Default.HourglassEmpty else Icons.Default.PlayArrow,
+                        contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (mine.status == ChessTournament.Status.OPEN) "You're waiting in ${mine.name}" else "You're playing in ${mine.name}",
+                            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        )
+                        Text("Tap to go back to it", color = colors.textSecondary, fontSize = 12.sp)
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+            ChessGameCard(
+                icon = Icons.Default.People,
+                title = "1v1",
+                detail = "Play the next person who joins, or a friend by code. One game, winner takes the leaderboard point.",
+            ) { open(ChessLobbyMode.DUEL) }
+            Spacer(Modifier.height(16.dp))
+            ChessGameCard(
+                icon = Icons.Default.EmojiEvents,
+                title = "Tournament",
+                detail = "Eight players, single elimination: quarterfinals, semifinals, final. Public rooms fill as players arrive; private ones by code.",
+            ) { open(ChessLobbyMode.TOURNAMENT) }
+        }
+    }
+}
+
+@Composable
+private fun ChessGameCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    detail: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Row(
+        Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp))
+            .background(colors.surface).clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(60.dp).clip(RoundedCornerShape(16.dp)).background(KaspaTeal),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp)) }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(detail, color = colors.textSecondary, fontSize = 14.sp)
+        }
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
     }
 }
 

@@ -141,7 +141,7 @@ fun KaspaHubScreen(
         // for that, and this copy is what it leaves behind (see handlesDeepLinks).
         openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel, handlesDeepLinks = false)
         openSection == Screen.Swap -> SwapScreen(navController = navController)
-        openSection == Screen.Chess -> ChessTournamentsScreen(navController, onBack = { openSectionRoute = null })
+        openSection == Screen.Chess -> ChessHomeScreen(navController, onBack = { openSectionRoute = null })
         else -> HubGrid(
             sections = sections,
             onOpenSection = { openSectionRoute = it.route },

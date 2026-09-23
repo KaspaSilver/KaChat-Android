@@ -535,22 +535,21 @@ object ChessTournamentEngine {
             }
             "join" -> {
                 if (tournaments[message.t] == null) {
-                    // The first join opens a public room - but only the NEXT one in the
-                    // sequence, once the previous is full, so everyone queues into the same room.
+                    // The first join opens a public room - whichever number it names. There used
+                    // to be a rule that room N counts only once room N-1 is full; it made every
+                    // phone's view depend on holding the complete history back to room 1, and a
+                    // phone missing the early rooms (indexer window, retention, a late backfill)
+                    // then rejected every later room outright and queued into a room the others
+                    // had long finished. Which room is "current" is a client choice now
+                    // (ChessTournamentService.currentPublicRoomId: the lowest open room).
                     val publicNumber = ChessTournamentCodec.publicNumber(message.t)
                     val duelNumber = ChessTournamentCodec.duelNumber(message.t)
                     if (publicNumber != null) {
-                        val previousFull = publicNumber == 1 ||
-                            (tournaments[ChessTournamentCodec.publicId(publicNumber - 1)]?.isFull ?: false)
-                        if (!previousFull) return
                         tournaments[message.t] = ChessTournament(
                             id = message.t, name = "Public tournament #$publicNumber", creator = event.sender,
                             createdAt = event.blockTime, createTxId = event.txId, capacity = ChessTournamentCodec.PLAYER_COUNT,
                         )
                     } else if (duelNumber != null) {
-                        val previousFull = duelNumber == 1 ||
-                            (tournaments[ChessTournamentCodec.duelId(duelNumber - 1)]?.isFull ?: false)
-                        if (!previousFull) return
                         tournaments[message.t] = ChessTournament(
                             id = message.t, name = "Public 1v1 #$duelNumber", creator = event.sender,
                             createdAt = event.blockTime, createTxId = event.txId, capacity = 2,

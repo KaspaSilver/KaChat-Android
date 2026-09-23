@@ -114,7 +114,7 @@ val Screen.hubTitle: String
     get() = when (this) {
         Screen.Swap -> "ChangeNOW Swap"
         Screen.KaspaWebsites -> "Kaspa Websites"
-        Screen.Chess -> "Chess Tournaments"
+        Screen.Chess -> "Chess Online"
         else -> label
     }
 
@@ -1367,11 +1367,15 @@ fun MainShell(
             // Chess tournaments (5.1): the lobby as a dock tab, and the screens it opens.
             composable(Screen.Chess.route) {
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                    com.kachat.app.ui.screens.ChessTournamentsScreen(navController)
+                    com.kachat.app.ui.screens.ChessHomeScreen(navController)
                 }
             }
-            composable("chess_leaderboard") {
-                com.kachat.app.ui.screens.ChessLeaderboardScreen(navController)
+            // One screen per kind of game, chosen on the home screen.
+            composable("chess_mode/{mode}") { entry ->
+                val mode = runCatching {
+                    com.kachat.app.ui.screens.ChessLobbyMode.valueOf(entry.arguments?.getString("mode").orEmpty())
+                }.getOrDefault(com.kachat.app.ui.screens.ChessLobbyMode.DUEL)
+                com.kachat.app.ui.screens.ChessTournamentsScreen(mode, navController, onBack = { navController.popBackStack() })
             }
             composable("chess_tournament/{tournamentId}") { entry ->
                 com.kachat.app.ui.screens.ChessTournamentScreen(entry.arguments?.getString("tournamentId").orEmpty(), navController)
