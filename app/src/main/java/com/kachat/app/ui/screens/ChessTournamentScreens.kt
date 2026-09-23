@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Error
@@ -254,7 +255,9 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
     ) { padding ->
         // The same tab bar and swipe the Chats screen uses, so a tab is a tab wherever it
         // appears in the app (iOS 353f040).
-        val tabs = listOf(mode.label, "Leaderboard")
+        // The 1v1 screen has an Active games tab (watch-only) between play and the leaderboard.
+        val tabs = if (mode == ChessLobbyMode.DUEL) listOf(mode.label, "Active games", "Leaderboard")
+        else listOf(mode.label, "Leaderboard")
         val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
         val tabScope = rememberCoroutineScope()
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -272,8 +275,12 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                 }
             }
             androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-            if (page == 1) {
+            if (page == tabs.lastIndex) {
                 ChessLeaderboardRows(mode)
+                return@HorizontalPager
+            }
+            if (mode == ChessLobbyMode.DUEL && page == 1) {
+                ChessActiveGames(navController)
                 return@HorizontalPager
             }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
@@ -341,7 +348,10 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                 )
 
-                val live = service.liveTournaments(all).filter { it.isDuel == duel && it.isPublic && it.id != mine?.id }
+                // For 1v1 the games in play live on the Active games tab instead.
+                val live = if (duel) emptyList() else {
+                    service.liveTournaments(all).filter { !it.isDuel && it.isPublic && it.id != mine?.id }
+                }
                 if (live.isNotEmpty()) {
                     ChessSectionHeader("In play")
                     ChessCard { live.forEach { t -> TournamentRow(t, "Watch") { open(t.id) } } }
@@ -449,6 +459,69 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                 }) { Text(if (isJoining) "Joining…" else "Join", color = KaspaTeal) }
             },
             dismissButton = { TextButton(onClick = { showJoinPrivate = false }, enabled = !isJoining) { Text("Cancel") } },
+        )
+    }
+}
+
+/**
+ * Every public 1v1 being played right now, for anyone to watch - board and clocks live, and
+ * nothing sent: the game screen gives its composer to the two players only (iOS 3e366a4).
+ */
+@Composable
+private fun ChessActiveGames(navController: NavController) {
+    val vm: ChessTournamentViewModel = hiltViewModel()
+    val service = vm.service
+    val colors = LocalAppColors.current
+    val all by service.tournaments.collectAsState()
+    val now by service.now.collectAsState()
+    val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
+    val live = service.liveTournaments(all).filter { it.isDuel && it.isPublic }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+        ChessSectionHeader("Live now")
+        ChessCard {
+            if (live.isEmpty()) {
+                Text(
+                    "No 1v1 games are being played right now. When one starts, it shows up here to watch.",
+                    color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+                )
+            }
+            live.forEach { duel ->
+                val game = duel.games.values.firstOrNull() ?: return@forEach
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { navController.navigate("chess_tournament_game/${duel.id}/${game.id}") }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Visibility, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row {
+                            Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
+                            Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        }
+                        Text(
+                            "${duel.name} · move ${game.moves.size / 2 + 1} · ${if (game.sideToMove == ChessColor.WHITE) "white" else "black"} to move",
+                            color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(clockText(game.remainingMs(game.sideToMove, now)), color = colors.textSecondary,
+                        fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Watch", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+        Text(
+            "Watching is free - nothing is sent. Only the two players can move or chat.",
+            color = colors.textSecondary, fontSize = 12.sp,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
         )
     }
 }
@@ -1501,11 +1574,28 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
     }
 
     val title = game?.let { if (tournament?.isDuel == true) "1v1" else when (it.round) { 3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1" } } ?: "Game"
+    // A player in a game that is still on: no wandering off - back asks first, because leaving
+    // resigns. A spectator, or a game that is over, is free to leave (iOS 4152bf0).
+    val lockedIn = myColor != null && game?.isOver == false
+    var showLeaveWarning by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = lockedIn) { showLeaveWarning = true }
     Scaffold(
         containerColor = colors.background,
-        topBar = { MainPageHeader(title = title, onBack = { navController.popBackStack() }) },
+        topBar = {
+            MainPageHeader(
+                title = title,
+                onBack = { if (lockedIn) showLeaveWarning = true else navController.popBackStack() },
+            ) {
+                if (lockedIn) {
+                    TextButton(onClick = { showResignConfirm = true }) {
+                        Text("Resign", color = colors.danger, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        },
         bottomBar = {
-            if (tournament != null && game != null) {
+            // Watching is watching: only the two players get the composer (iOS 3e366a4).
+            if (tournament != null && game != null && myColor != null) {
                 Box(Modifier.background(colors.surface).navigationBarsPadding().imePadding()) {
                     ChessComposer(chatText, onChange = { chatText = it }) {
                         val text = chatText
@@ -1594,13 +1684,6 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                         color = if (game.isOver) colors.textSecondary else colors.textPrimary,
                         fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
                     )
-                    if (myColor != null && !game.isOver) {
-                        TextButton(onClick = { showResignConfirm = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                            Icon(Icons.Default.Flag, contentDescription = null, tint = colors.danger, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Resign", color = colors.danger, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                        }
-                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -1746,15 +1829,30 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
         }
     }
 
-    if (showResignConfirm && tournament != null && game != null) {
+    // One sheet behind Resign - and behind the back button while the game is on, where leaving
+    // means resigning.
+    if ((showResignConfirm || showLeaveWarning) && tournament != null && game != null) {
+        val leaving = showLeaveWarning
         val opponent = chessName(game.address(if (myColor == ChessColor.WHITE) ChessColor.BLACK else ChessColor.WHITE), contacts, knsNames)
-        ActionSheetContainer(title = "Resign this game?", subtitle = null, onDismiss = { showResignConfirm = false }) {
-            Icon(Icons.Default.Flag, contentDescription = null, tint = colors.danger,
-                modifier = Modifier.size(34.dp).align(Alignment.CenterHorizontally))
+        val consequence = if (tournament.isDuel) {
+            "$opponent wins, and it counts as a loss on the leaderboard. Resigning is one transaction."
+        } else {
+            "$opponent goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction."
+        }
+        val dismiss = { showResignConfirm = false; showLeaveWarning = false }
+        ActionSheetContainer(
+            title = if (leaving) "Leave the game?" else "Resign this game?",
+            subtitle = null,
+            onDismiss = dismiss,
+        ) {
+            Icon(
+                if (leaving) Icons.AutoMirrored.Filled.ExitToApp else Icons.Default.Flag,
+                contentDescription = null, tint = colors.danger,
+                modifier = Modifier.size(34.dp).align(Alignment.CenterHorizontally),
+            )
             Spacer(Modifier.height(10.dp))
             Text(
-                if (tournament.isDuel) "$opponent wins, and it counts as a loss on the leaderboard. Resigning is one transaction."
-                else "$opponent goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction.",
+                if (leaving) "If you leave, you resign the game. $consequence" else consequence,
                 color = colors.textSecondary, fontSize = 14.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -1762,14 +1860,20 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             Spacer(Modifier.height(16.dp))
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.danger)
-                    .clickable { showResignConfirm = false; vm.launch { service.resign(tournament, game) } }
+                    .clickable {
+                        dismiss()
+                        vm.launch {
+                            service.resign(tournament, game)
+                            if (leaving) navController.popBackStack()
+                        }
+                    }
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("Resign", color = Color.White, fontWeight = FontWeight.SemiBold) }
+            ) { Text(if (leaving) "Resign and leave" else "Resign", color = Color.White, fontWeight = FontWeight.SemiBold) }
             Spacer(Modifier.height(10.dp))
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceVariant)
-                    .clickable { showResignConfirm = false }.padding(vertical = 12.dp),
+                    .clickable { dismiss() }.padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center,
             ) { Text("Keep playing", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) }
             Spacer(Modifier.height(8.dp))
