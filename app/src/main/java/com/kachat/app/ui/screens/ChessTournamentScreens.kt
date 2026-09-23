@@ -37,7 +37,10 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.GridOn
@@ -66,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -120,11 +124,18 @@ class ChessTournamentViewModel @Inject constructor(
     }
 }
 
-/** "You", the contact's name, or the short address - iOS's ContactsManager.displayName. */
-private fun chessName(address: String, me: String?, contacts: Map<String, ContactEntity>): String = when {
-    address == me -> "You"
-    contacts[address] != null -> contacts[address]!!.displayName
-    else -> KaspaAddress.shortDisplay(address)
+/**
+ * The app's naming rule, in the arena too: the contact's name, then their KNS domain, then the
+ * shortened address - and the same for the player themselves, never "You" (iOS 30d0cca).
+ */
+private fun chessName(
+    address: String,
+    contacts: Map<String, ContactEntity>,
+    knsNames: Map<String, String> = emptyMap(),
+): String {
+    contacts[address]?.let { return it.displayName }
+    knsNames[address]?.takeIf { it.isNotBlank() }?.let { return it }
+    return KaspaAddress.shortDisplay(address)
 }
 
 @Composable
@@ -205,6 +216,7 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
     val all by service.tournaments.collectAsState()
     val now by service.now.collectAsState()
     val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
     val me = service.myAddress
     val mine = service.myActiveTournament(all)
     var mode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(ChessLobbyMode.DUEL) }
@@ -330,7 +342,7 @@ fun ChessTournamentsScreen(navController: NavController, onBack: (() -> Unit)? =
                     ChessSectionHeader("Finished")
                     ChessCard {
                         done.forEach { t ->
-                            TournamentRow(t, t.champion?.let { "Won by ${chessName(it, me, contacts)}" } ?: "Finished") { open(t.id) }
+                            TournamentRow(t, t.champion?.let { "Won by ${chessName(it, contacts, knsNames)}" } ?: "Finished") { open(t.id) }
                         }
                     }
                 }
@@ -560,6 +572,7 @@ fun ChessLeaderboardScreen(navController: NavController) {
     val colors = LocalAppColors.current
     val board by service.leaderboard.collectAsState()
     val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
     val me = service.myAddress
     val pagerState = androidx.compose.foundation.pager.rememberPagerState { ChessLobbyMode.entries.size }
     val tabScope = rememberCoroutineScope()
@@ -607,7 +620,7 @@ fun ChessLeaderboardScreen(navController: NavController) {
                             ChessAvatar(row.address, contacts)
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                chessName(row.address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
+                                chessName(row.address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                             )
                             if (duel) {
@@ -659,6 +672,7 @@ private fun ChessWaitingRoom(
     val all by service.tournaments.collectAsState()
     val now by service.now.collectAsState()
     val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
     val tournament = all[tournamentId]
     val me = service.myAddress
     val context = LocalContext.current
@@ -713,7 +727,7 @@ private fun ChessWaitingRoom(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         ChessAvatar(address, contacts, size = 64)
                         Spacer(Modifier.height(8.dp))
-                        Text(chessName(address, me, contacts), color = colors.textPrimary, fontSize = 12.sp,
+                        Text(chessName(address, contacts, knsNames), color = colors.textPrimary, fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -826,6 +840,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
     val all by service.tournaments.collectAsState()
     val now by service.now.collectAsState()
     val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
     val tournament = all[tournamentId]
     val me = service.myAddress
     // Saveable: backing out of the game recomposes this screen, and a plain remember would
@@ -937,7 +952,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                                 Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    if (tournament.isDuel) "${chessName(champion, me, contacts)} won" else "${chessName(champion, me, contacts)} won the tournament",
+                                    if (tournament.isDuel) "${chessName(champion, contacts, knsNames)} won" else "${chessName(champion, contacts, knsNames)} won the tournament",
                                     color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold,
                                 )
                             }
@@ -955,7 +970,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             ChessAvatar(address, contacts)
                             Spacer(Modifier.width(12.dp))
-                            Text(chessName(address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Text(chessName(address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                             Text("Seed ${index + 1}", color = colors.textSecondary, fontSize = 12.sp)
                         }
                     }
@@ -980,13 +995,13 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Row {
-                                        Text(chessName(game.white, me, contacts), color = colors.textPrimary, fontSize = 14.sp,
+                                        Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
                                             fontWeight = if (game.winner == game.white) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                                         Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
-                                        Text(chessName(game.black, me, contacts), color = colors.textPrimary, fontSize = 14.sp,
+                                        Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
                                             fontWeight = if (game.winner == game.black) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                                     }
-                                    Text(gameStatus(game, me, contacts), color = colors.textSecondary, fontSize = 12.sp)
+                                    Text(gameStatus(game, contacts, knsNames), color = colors.textSecondary, fontSize = 12.sp)
                                 }
                                 if (!game.isOver) {
                                     Text(clockText(game.remainingMs(game.sideToMove, now)), color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
@@ -1018,13 +1033,13 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
 
 private fun roundName(round: Int) = when (round) { 3 -> "the final"; 2 -> "the semifinal"; else -> "round 1" }
 
-private fun gameStatus(game: ChessTournamentGame, me: String?, contacts: Map<String, ContactEntity>): String {
+private fun gameStatus(game: ChessTournamentGame, contacts: Map<String, ContactEntity>, knsNames: Map<String, String>): String {
     val winner = game.winner
     val outcome = game.outcome
     if (winner == null || outcome == null) {
         return "Move ${game.moves.size / 2 + 1} · ${if (game.sideToMove == ChessColor.WHITE) "white" else "black"} to move"
     }
-    val who = chessName(winner, me, contacts)
+    val who = chessName(winner, contacts, knsNames)
     return when (outcome) {
         ChessTournamentOutcome.Checkmate -> "$who won by checkmate"
         ChessTournamentOutcome.Resignation -> "$who won by resignation"
@@ -1050,6 +1065,247 @@ private fun ChessComposer(text: String, onChange: (String) -> Unit, onSend: () -
     }
 }
 
+
+/** One bubble's delivery state - the three a 1:1 chat bubble has. */
+private enum class ChessLineStatus { SENT, PENDING, FAILED }
+
+/**
+ * The moment a game ends, over the board: a burst for the winner, a quiet card for the loser, a
+ * plain one for anyone watching. It stays about two seconds and the result screen follows.
+ * Mirrors iOS's ChessGameEndOverlay.
+ */
+@Composable
+private fun ChessGameEndOverlay(winnerName: String, outcome: ChessTournamentOutcome, iWon: Boolean?) {
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (appeared) 1f else 0.4f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f),
+        label = "endScale",
+    )
+    // Sparks flying out from the middle - a real burst, not a static badge.
+    val burst by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1_100, delayMillis = 150),
+        label = "endBurst",
+    )
+    val headline = when (iWon) {
+        true -> "You won!"
+        false -> "You lost"
+        null -> "$winnerName won"
+    }
+    val detail = when (outcome) {
+        ChessTournamentOutcome.Checkmate -> "Checkmate"
+        ChessTournamentOutcome.Resignation -> "By resignation"
+        ChessTournamentOutcome.Timeout -> "On time"
+        is ChessTournamentOutcome.DrawTiebreak -> "Draw by ${outcome.reason} - won on clock"
+    }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+        if (iWon == true) {
+            val sparks = listOf("✨", "🎉", "⭐", "🎊", "💫")
+            repeat(18) { i ->
+                val angle = i / 18.0 * 2 * Math.PI
+                Text(
+                    sparks[i % sparks.size],
+                    fontSize = if (i % 3 == 0) 26.sp else 18.sp,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            translationX = (kotlin.math.cos(angle) * 150f * burst).toFloat()
+                            translationY = (kotlin.math.sin(angle) * 150f * burst).toFloat()
+                            alpha = 1f - burst
+                        },
+                )
+            }
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (appeared) 1f else 0f },
+        ) {
+            Icon(
+                when (iWon) {
+                    true -> Icons.Default.EmojiEvents
+                    false -> Icons.Default.Flag
+                    null -> Icons.Default.CheckCircle
+                },
+                contentDescription = null,
+                tint = if (iWon == true) Color(0xFFFFCC00) else Color.White,
+                modifier = Modifier.size(54.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(headline, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+            Text(detail, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/**
+ * After a game: the player's record on the board this game counts on (1v1 or Tournaments), with
+ * the change this game made counted up from [before], and the top of that board around them.
+ * Mirrors iOS's ChessGameResultView.
+ */
+@Composable
+private fun ChessGameResultScreen(
+    tournamentId: String,
+    gameId: String,
+    /** The player's record before this game landed - what the screen counts up from. */
+    before: com.kachat.app.util.ChessLeaderboardRow?,
+    onDone: () -> Unit,
+) {
+    val vm: ChessTournamentViewModel = hiltViewModel()
+    val service = vm.service
+    HoldArena(service)
+    val colors = LocalAppColors.current
+    val all by service.tournaments.collectAsState()
+    val leaderboard by service.leaderboard.collectAsState()
+    val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
+    val me = service.myAddress
+    val tournament = all[tournamentId]
+    val game = tournament?.games?.get(gameId)
+    val isDuel = tournament?.isDuel ?: true
+    val board = if (isDuel) {
+        com.kachat.app.util.ChessTournamentEngine.duelLeaderboard(leaderboard)
+    } else {
+        com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(leaderboard)
+    }
+    val mine = board.firstOrNull { it.address == me }
+    val rank = board.indexOfFirst { it.address == me }.takeIf { it >= 0 }?.plus(1)
+    val iWon = game?.winner != null && game.winner == me
+    fun wins(row: com.kachat.app.util.ChessLeaderboardRow?) = if (isDuel) row?.duelWins ?: 0 else row?.tournamentGameWins ?: 0
+    fun losses(row: com.kachat.app.util.ChessLeaderboardRow?) = if (isDuel) row?.duelLosses ?: 0 else row?.tournamentGameLosses ?: 0
+    // The figures start where they stood and settle on the new ones a beat later.
+    var revealed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(500); revealed = true }
+
+    Dialog(
+        onDismissRequest = onDone,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Scaffold(
+            containerColor = colors.background,
+            topBar = {
+                MainPageHeader(title = if (isDuel) "1v1" else "Tournament") {
+                    TextButton(onClick = onDone) { Text("Done", color = KaspaTeal, fontWeight = FontWeight.SemiBold) }
+                }
+            },
+        ) { padding ->
+            Column(
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(Modifier.height(24.dp))
+                Icon(
+                    if (iWon) Icons.Default.EmojiEvents else Icons.Default.Flag,
+                    contentDescription = null,
+                    tint = if (iWon) Color(0xFFFFCC00) else colors.textSecondary,
+                    modifier = Modifier.size(44.dp),
+                )
+                Text(if (iWon) "Victory" else "Defeat", color = colors.textPrimary, fontSize = 32.sp, fontWeight = FontWeight.Black)
+                if (game != null) {
+                    Text(gameStatus(game, contacts, knsNames), color = colors.textSecondary, fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(20.dp))
+                // The record: before -> after, on the board this game counts on.
+                Column(
+                    Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                        .background(colors.surface).padding(vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        if (isDuel) "YOUR 1V1 RECORD" else "YOUR TOURNAMENT RECORD",
+                        color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val shownWins = if (revealed) wins(mine) else wins(before)
+                        val shownLosses = if (revealed) losses(mine) else losses(before)
+                        ChessResultStat("Wins", shownWins, if (iWon) 1 else 0, colors.success, revealed)
+                        val total = shownWins + shownLosses
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                if (total == 0) "-" else "%.0f%%".format(shownWins * 100.0 / total),
+                                color = colors.textPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                            Text("Win rate", color = colors.textSecondary, fontSize = 12.sp)
+                        }
+                        ChessResultStat("Losses", shownLosses, if (iWon) 0 else 1, colors.danger, revealed)
+                    }
+                    if (rank != null) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "#$rank on the ${if (isDuel) "1v1" else "tournament"} board",
+                            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        )
+                    }
+                }
+                if (tournament != null && !tournament.isDuel) {
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        when {
+                            iWon && tournament.status == ChessTournament.Status.FINISHED -> "You won the tournament."
+                            iWon -> "You go through to the next round. Your next game opens by itself when your opponent is decided."
+                            else -> "You are out of this tournament. You can watch the rest of the bracket."
+                        },
+                        color = colors.textSecondary, fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 28.dp),
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    if (isDuel) "1V1 LEADERBOARD" else "TOURNAMENT LEADERBOARD",
+                    color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.Start).padding(horizontal = 16.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                board.take(5).forEachIndexed { index, row ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .background(if (row.address == me) KaspaTeal.copy(alpha = 0.12f) else Color.Transparent)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(24.dp))
+                        ChessAvatar(row.address, contacts, size = 32)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            chessName(row.address, contacts, knsNames), color = colors.textPrimary,
+                            fontWeight = if (row.address == me) FontWeight.Bold else FontWeight.SemiBold,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                        )
+                        if (isDuel) {
+                            Text("${row.duelWins} W  ${row.duelLosses} L", color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                        } else {
+                            Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("${row.tournamentsWon}", color = Color(0xFFFFCC00), fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                            Spacer(Modifier.width(8.dp))
+                            Text("${row.tournamentGameWins} W  ${row.tournamentGameLosses} L", color = colors.textPrimary,
+                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChessResultStat(label: String, value: Int, delta: Int, color: Color, revealed: Boolean) {
+    val colors = LocalAppColors.current
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("$value", color = color, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        Text(label, color = colors.textSecondary, fontSize = 12.sp)
+        Text(
+            if (delta > 0) "+$delta" else " ",
+            color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace,
+            modifier = Modifier.graphicsLayer { alpha = if (revealed && delta > 0) 1f else 0f },
+        )
+    }
+}
+
 // MARK: - One game
 
 /**
@@ -1068,6 +1324,7 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
     val now by service.now.collectAsState()
     val pending by service.pendingMoveGames.collectAsState()
     val contacts by vm.contacts.collectAsState()
+    val knsNames by service.knsNames.collectAsState()
     val tournament = all[tournamentId]
     val game = tournament?.games?.get(gameId)
     val me = service.myAddress
@@ -1080,6 +1337,37 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
     var pendingPromotion by remember { mutableStateOf<ChessMove?>(null) }
     var showResignConfirm by remember { mutableStateOf(false) }
     var chatText by remember { mutableStateOf("") }
+    val pendingChat by service.pendingChat.collectAsState()
+    // End-of-game flow: the burst over the board, then the result screen (players only).
+    var showEndOverlay by remember { mutableStateOf(false) }
+    var showResult by remember { mutableStateOf(false) }
+    var endHandledForGame by remember { mutableStateOf<String?>(null) }
+    // The player's record as it stood while the game was on - the result screen counts up from it.
+    var recordBeforeEnd by remember { mutableStateOf<com.kachat.app.util.ChessLeaderboardRow?>(null) }
+    val leaderboard by service.leaderboard.collectAsState()
+
+    // Kept fresh while the game is on (the arena may still be loading when the screen opens);
+    // once the game is over it is left alone.
+    LaunchedEffect(leaderboard, game?.isOver) {
+        val address = me ?: return@LaunchedEffect
+        if (game?.isOver != false) return@LaunchedEffect
+        recordBeforeEnd = leaderboard.firstOrNull { it.address == address }
+            ?: com.kachat.app.util.ChessLeaderboardRow(address)
+    }
+
+    // The game just ended: the burst over the board for a couple of seconds, then - for the two
+    // players, not for someone watching - the result screen (iOS 759a2d3).
+    LaunchedEffect(game?.isOver, game?.id) {
+        val finished = game ?: return@LaunchedEffect
+        if (!finished.isOver || finished.winner == null || endHandledForGame == finished.id) return@LaunchedEffect
+        endHandledForGame = finished.id
+        // Opened on a game that was already over (watching a finished bracket): nothing to show.
+        if ((finished.endedAt ?: 0L) <= service.now.value - 60_000) return@LaunchedEffect
+        showEndOverlay = true
+        kotlinx.coroutines.delay(2_400)
+        showEndOverlay = false
+        if (myColor != null) showResult = true
+    }
 
     val title = game?.let { if (tournament?.isDuel == true) "1v1" else when (it.round) { 3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1" } } ?: "Game"
     Scaffold(
@@ -1127,7 +1415,7 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
         }
 
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 12.dp)) {
-            ClockRow(game, if (flipped) ChessColor.WHITE else ChessColor.BLACK, now, me, contacts)
+            ClockRow(game, if (flipped) ChessColor.WHITE else ChessColor.BLACK, now, contacts, knsNames)
             Spacer(Modifier.height(12.dp))
             BoxWithConstraints(Modifier.padding(horizontal = 12.dp).fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))) {
                 val size = maxWidth / 8
@@ -1160,15 +1448,30 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                         }
                     }
                 }
+                // The same "Waiting on opponent..." as the 1:1 board, while it is their move.
+                if (myColor != null && !game.isOver && game.sideToMove != myColor) {
+                    WaitingOnOpponentOverlay()
+                }
+                if (showEndOverlay) {
+                    val winner = game.winner
+                    val outcome = game.outcome
+                    if (winner != null && outcome != null) {
+                        ChessGameEndOverlay(
+                            winnerName = chessName(winner, contacts, knsNames),
+                            outcome = outcome,
+                            iWon = if (myColor == null) null else winner == me,
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(12.dp))
-            ClockRow(game, if (flipped) ChessColor.BLACK else ChessColor.WHITE, now, me, contacts)
+            ClockRow(game, if (flipped) ChessColor.BLACK else ChessColor.WHITE, now, contacts, knsNames)
             Spacer(Modifier.height(10.dp))
             val statusText = run {
                 val winner = game.winner
                 val outcome = game.outcome
                 if (winner != null && outcome != null) {
-                    val who = chessName(winner, me, contacts)
+                    val who = chessName(winner, contacts, knsNames)
                     when (outcome) {
                         ChessTournamentOutcome.Checkmate -> "Checkmate. $who won."
                         ChessTournamentOutcome.Resignation -> "$who won by resignation."
@@ -1199,22 +1502,50 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                 }
             }
             HorizontalDivider(color = colors.divider, modifier = Modifier.padding(vertical = 8.dp))
-            val lines = tournament.chat.filter { it.game == game.id }.takeLast(80)
+            // Lines the chain returned (green check on ours), then ours still on the way (clock)
+            // or failed (red) - the three states a 1:1 chat bubble has.
+            val lines = tournament.chat.filter { it.game == game.id }.takeLast(120).map { it to ChessLineStatus.SENT } +
+                pendingChat.filter { it.tournament == tournament.id && it.line.game == game.id }
+                    .map { it.line to if (it.failed) ChessLineStatus.FAILED else ChessLineStatus.PENDING }
             if (lines.isEmpty()) {
-                Text("No messages yet.", color = colors.textSecondary, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
+                Text(
+                    "No messages yet. Each message is one transaction.",
+                    color = colors.textSecondary, fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
-            lines.forEach { line ->
+            lines.forEach { (line, status) ->
                 val mine = line.sender == me
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-                    Column(
-                        Modifier
-                            .widthIn(max = 280.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (mine) KaspaTeal else colors.surfaceVariant)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        if (!mine) Text(chessName(line.sender, me, contacts), color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        Text(line.text, color = if (mine) Color.Black else colors.textPrimary, fontSize = 14.sp)
+                    Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+                        Column(
+                            Modifier
+                                .widthIn(max = 280.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (mine) KaspaTeal else colors.surfaceVariant)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        ) {
+                            if (!mine) Text(chessName(line.sender, contacts, knsNames), color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(line.text, color = if (mine) Color.Black else colors.textPrimary, fontSize = 14.sp)
+                        }
+                        if (mine) {
+                            // Under the bubble, as in a 1:1 chat: green check once the chain has it.
+                            Icon(
+                                when (status) {
+                                    ChessLineStatus.SENT -> Icons.Default.CheckCircle
+                                    ChessLineStatus.PENDING -> Icons.Default.Schedule
+                                    ChessLineStatus.FAILED -> Icons.Default.Error
+                                },
+                                contentDescription = null,
+                                tint = when (status) {
+                                    ChessLineStatus.SENT -> colors.success
+                                    ChessLineStatus.PENDING -> colors.textSecondary
+                                    ChessLineStatus.FAILED -> colors.danger
+                                },
+                                modifier = Modifier.size(12.dp).padding(top = 2.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -1245,21 +1576,47 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
     }
 
     if (showResignConfirm && tournament != null && game != null) {
-        AlertDialog(
-            onDismissRequest = { showResignConfirm = false },
-            title = { Text("Resign this game?") },
-            confirmButton = {
-                TextButton(onClick = { showResignConfirm = false; vm.launch { service.resign(tournament, game) } }) {
-                    Text("Resign", color = colors.danger)
-                }
-            },
-            dismissButton = { TextButton(onClick = { showResignConfirm = false }) { Text("Keep playing") } },
+        val opponent = chessName(game.address(if (myColor == ChessColor.WHITE) ChessColor.BLACK else ChessColor.WHITE), contacts, knsNames)
+        ActionSheetContainer(title = "Resign this game?", subtitle = null, onDismiss = { showResignConfirm = false }) {
+            Icon(Icons.Default.Flag, contentDescription = null, tint = colors.danger,
+                modifier = Modifier.size(34.dp).align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(10.dp))
+            Text(
+                if (tournament.isDuel) "$opponent wins, and it counts as a loss on the leaderboard. Resigning is one transaction."
+                else "$opponent goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction.",
+                color = colors.textSecondary, fontSize = 14.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.danger)
+                    .clickable { showResignConfirm = false; vm.launch { service.resign(tournament, game) } }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Resign", color = Color.White, fontWeight = FontWeight.SemiBold) }
+            Spacer(Modifier.height(10.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceVariant)
+                    .clickable { showResignConfirm = false }.padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Keep playing", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+
+    if (showResult && tournament != null && game != null) {
+        ChessGameResultScreen(
+            tournamentId = tournamentId,
+            gameId = gameId,
+            before = recordBeforeEnd,
+            onDone = { showResult = false },
         )
     }
 }
 
 @Composable
-private fun ClockRow(game: ChessTournamentGame, color: ChessColor, now: Long, me: String?, contacts: Map<String, ContactEntity>) {
+private fun ClockRow(game: ChessTournamentGame, color: ChessColor, now: Long, contacts: Map<String, ContactEntity>, knsNames: Map<String, String>) {
     val colors = LocalAppColors.current
     val address = game.address(color)
     val remaining = game.remainingMs(color, now)
@@ -1268,7 +1625,7 @@ private fun ClockRow(game: ChessTournamentGame, color: ChessColor, now: Long, me
         ChessAvatar(address, contacts)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(chessName(address, me, contacts), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(chessName(address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (color == ChessColor.WHITE) "White" else "Black", color = colors.textSecondary, fontSize = 12.sp)
         }
         val tenths = (remaining / 100).toInt()

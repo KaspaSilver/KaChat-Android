@@ -639,7 +639,7 @@ private fun formatChessClock(ms: Long): String {
  *  like a typing indicator rather than sitting static, so it reads as "still waiting" rather than
  *  looking frozen/stuck. */
 @Composable
-private fun WaitingOnOpponentOverlay() {
+internal fun WaitingOnOpponentOverlay() {
     var dotCount by remember { mutableStateOf(1) }
     LaunchedEffect(Unit) {
         while (true) {

@@ -7,6 +7,8 @@ import com.kachat.app.util.ChessEngine
 import com.kachat.app.util.ChessArenaEvent
 import com.kachat.app.util.ChessLeaderboardRow
 import com.kachat.app.util.ChessMove
+import com.kachat.app.util.ChessPendingChatLine
+import com.kachat.app.util.ChessTournamentChatLine
 import com.kachat.app.util.ChessTournament
 import com.kachat.app.util.ChessTournamentCodec
 import com.kachat.app.util.ChessTournamentEngine
@@ -40,6 +42,7 @@ class ChessTournamentService @Inject constructor(
     private val broadcastRepository: BroadcastRepository,
     private val scanningService: BroadcastScanningService,
     private val walletManager: WalletManager,
+    private val knsService: KnsService,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -55,6 +58,15 @@ class ChessTournamentService @Inject constructor(
 
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+    /** Chat of ours not yet returned by the chain, oldest first - shown under the board with a
+     *  clock (or a red mark when it failed), the same three states a 1:1 chat bubble has. */
+    private val _pendingChat = MutableStateFlow<List<ChessPendingChatLine>>(emptyList())
+    val pendingChat: StateFlow<List<ChessPendingChatLine>> = _pendingChat.asStateFlow()
+
+    /** KNS domains for arena players, so a name can fall back to one - see [resolveNames]. */
+    private val _knsNames = MutableStateFlow<Map<String, String>>(emptyMap())
+    val knsNames: StateFlow<Map<String, String>> = _knsNames.asStateFlow()
 
     /** Moves sent and not yet seen back from the chain ("<tournament>|<game>"), so the player
      *  cannot double-send. */
@@ -114,8 +126,23 @@ class ChessTournamentService @Inject constructor(
             val message = ChessTournamentCodec.decode(row.content) ?: return@mapNotNull null
             ChessArenaEvent(row.id, row.senderAddress, row.blockTimestamp, message)
         }
+        // Ours still on its way (or failed), which the chain has not returned yet.
+        val mineAddress = myAddress
+        _pendingChat.value = rows.mapNotNull { row ->
+            if (row.deliveryStatus == "sent" || row.senderAddress != mineAddress) return@mapNotNull null
+            val message = ChessTournamentCodec.decode(row.content) ?: return@mapNotNull null
+            if (message.a != "chat") return@mapNotNull null
+            val text = message.text?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            ChessPendingChatLine(
+                id = row.id,
+                tournament = message.t,
+                line = ChessTournamentChatLine(row.id, row.senderAddress, text, row.blockTimestamp, message.g ?: ""),
+                failed = row.deliveryStatus == "failed",
+            )
+        }
         val reduced = ChessTournamentEngine.reduce(events)
         _tournaments.value = reduced
+        resolveNames(reduced.values.flatMap { it.players }.toSet() + listOfNotNull(mineAddress))
         _leaderboard.value = ChessTournamentEngine.leaderboard(reduced.values)
         // Asked to join a public room that filled first: queue into the next one, once.
         val queued = queuedPublicRoomId
@@ -330,6 +357,27 @@ class ChessTournamentService @Inject constructor(
         val clean = text.trim()
         if (clean.isEmpty()) return
         send(ChessTournamentCodec.chat(tournament.id, game?.id, clean))
+    }
+
+    // MARK: - Names
+
+    /** Addresses whose KNS domain was asked for this session. */
+    private val resolvedNames = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * Names in the arena follow the app's rule - the contact's name, then their KNS domain, then
+     * the shortened address - and the domain part needs a lookup. Asked once per address per
+     * session; [knsNames] then answers, and the screens re-render when it lands (iOS 30d0cca).
+     */
+    private fun resolveNames(addresses: Set<String>) {
+        val fresh = addresses.filter { it.isNotEmpty() && resolvedNames.add(it) }
+        if (fresh.isEmpty()) return
+        scope.launch {
+            for (address in fresh) {
+                val domain = runCatching { knsService.reverseResolve(address) }.getOrNull()
+                if (!domain.isNullOrBlank()) _knsNames.value = _knsNames.value + (address to domain)
+            }
+        }
     }
 
     // MARK: - Fees

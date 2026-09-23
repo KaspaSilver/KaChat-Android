@@ -323,6 +323,18 @@ data class ChessTournamentChatLine(
     val game: String,
 )
 
+/**
+ * A chat line of this phone's that is still on its way (or failed): shown under the board with a
+ * clock (or a red mark) until the chain returns it, when it becomes a [ChessTournamentChatLine]
+ * with the green check - the same three states a 1:1 chat bubble has (iOS 759a2d3).
+ */
+data class ChessPendingChatLine(
+    val id: String,
+    val tournament: String,
+    val line: ChessTournamentChatLine,
+    val failed: Boolean,
+)
+
 data class ChessTournamentMove(
     val txId: String,
     val ply: Int,
