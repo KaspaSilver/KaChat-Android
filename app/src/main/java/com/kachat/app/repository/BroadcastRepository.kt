@@ -273,6 +273,46 @@ class BroadcastRepository @Inject constructor(
      *  loaded anywhere near what the indexer holds. Later calls fetch just the newest page.
      *  Returns the number of rows fetched, or -1 when the indexer is unreachable (callers treat
      *  that as "no backfill", nothing user-facing breaks). */
+    /** This wallet's own address, or null before there is one. */
+    fun myAddress(): String? = runCatching { walletManager.getAddress() }.getOrNull()
+
+    /**
+     * One small newest-page fetch for a room nobody is looking at, merged like any other indexer
+     * page. Returns the rows that were NEW to the store, so the caller can banner what just
+     * arrived (iOS 3c14b46). Reactions never render as rows, so they are left out.
+     */
+    suspend fun fetchNewestFromIndexer(channelName: String, limit: Int = 40): List<BroadcastMessageEntity> {
+        val override = settings.broadcastIndexerOverrides.first()[channelName.trim().lowercase()]
+        val api = (override?.let { networkService.broadcastIndexerApiFor(it) }
+            ?: networkService.broadcastIndexerApi.value) ?: return emptyList()
+        val hidden = hiddenAddressesIn(channelName, getHiddenSenders().first())
+        val page = try {
+            api.getBroadcasts(channel = channelName, limit = limit)
+        } catch (e: Exception) {
+            android.util.Log.w("BroadcastRepository", "Sweep fetch failed for $channelName", e)
+            return emptyList()
+        }
+        val fresh = mutableListOf<BroadcastMessageEntity>()
+        for (message in page.messages.orEmpty()) {
+            val txId = message.txId ?: continue
+            val sender = message.senderAddress ?: continue
+            val content = message.content ?: continue
+            if (sender in hidden) continue
+            if (MessageReaction.parseOrNull(content) != null) continue
+            if (database.broadcastDao().getMessage(txId) != null) continue
+            val row = BroadcastMessageEntity(
+                id = txId,
+                channelName = channelName,
+                senderAddress = sender,
+                content = content,
+                blockTimestamp = message.blockTime ?: System.currentTimeMillis(),
+            )
+            database.broadcastDao().insertMessage(row)
+            fresh += row
+        }
+        return fresh
+    }
+
     suspend fun backfillFromIndexer(channelName: String): Int {
         // This room's own indexer where it has one, the app-wide client otherwise. A broadcast is
         // on-chain, so any indexer watching the same network serves the same room.

@@ -426,31 +426,28 @@ fun BroadcastListScreen(
         }
     }
 
+    // Deleting a room asks on a sheet, like every other menu here (iOS eff5c09).
     channelToLeave?.let { channelName ->
-        AlertDialog(
-            onDismissRequest = { channelToLeave = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Leave #$channelName", color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    stringResource(R.string.leaving_this_broadcast_permanently_deletes_every),
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    broadcastViewModel.leaveChannel(channelName)
-                    channelToLeave = null
-                }) {
-                    Text(stringResource(R.string.leave_delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { channelToLeave = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
+        ActionSheetContainer(
+            title = "Delete #$channelName?",
+            subtitle = stringResource(R.string.leaving_this_broadcast_permanently_deletes_every),
+            onDismiss = { channelToLeave = null },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.Delete,
+                title = "Delete",
+                subtitle = "Removes this room and its messages from this device.",
+                tint = Color(0xFFFF3B30),
+            ) {
+                broadcastViewModel.leaveChannel(channelName)
+                channelToLeave = null
             }
-        )
+            ActionSheetRow(
+                icon = Icons.Default.Close,
+                title = "Keep",
+                subtitle = "Leave the room as it is.",
+            ) { channelToLeave = null }
+        }
     }
 
 }
@@ -624,6 +621,38 @@ fun BroadcastChannelScreen(
     // whoever is in it at the time, which the info button in the header says.
     val isCuratedRoom = channelName in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
     var showOwnRoomExplainer by remember { mutableStateOf(false) }
+    /** The bell in the top-right corner: this room's notifications, on a sheet. */
+    var showNotifySheet by remember { mutableStateOf(false) }
+    val joinedRooms by broadcastViewModel.joinedChannels.collectAsState()
+    val roomNotifyEnabled = joinedRooms.firstOrNull { it.channelName == channelName }?.notifyEnabled == true
+    // The bell's sheet: what notifications do in this room, and the switch (iOS eff5c09).
+    if (showNotifySheet) {
+        ActionSheetContainer(
+            title = "#$channelName",
+            subtitle = if (roomNotifyEnabled) {
+                if (isCuratedRoom) "You're notified of new messages here, even when the app is closed."
+                else "You're notified of new messages here while the app is open."
+            } else {
+                "New messages here don't notify you. The room still updates when you open it."
+            },
+            onDismiss = { showNotifySheet = false },
+        ) {
+            ActionSheetRow(
+                icon = if (roomNotifyEnabled) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                title = if (roomNotifyEnabled) "Turn Off Notifications" else "Turn On Notifications",
+                subtitle = if (roomNotifyEnabled) {
+                    "No notification for new messages in this room."
+                } else if (isCuratedRoom) {
+                    "Notifies you of new messages, even when the app is closed."
+                } else {
+                    "Notifies you of new messages while the app is open."
+                },
+            ) {
+                broadcastViewModel.setNotifyEnabled(channelName, !roomNotifyEnabled)
+                showNotifySheet = false
+            }
+        }
+    }
     if (showOwnRoomExplainer) {
         ActionSheetContainer(
             title = "About this room",
@@ -884,6 +913,15 @@ fun BroadcastChannelScreen(
                         IconButton(onClick = { showOwnRoomExplainer = true }) {
                             Icon(Icons.Default.Info, contentDescription = "About this room", tint = KaspaTeal)
                         }
+                    }
+                    // This room's notifications, one tap away - the same switch the Public Chats
+                    // list offers in its room menu (iOS eff5c09).
+                    IconButton(onClick = { showNotifySheet = true }) {
+                        Icon(
+                            if (roomNotifyEnabled) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                            contentDescription = if (roomNotifyEnabled) "Notifications on" else "Notifications off",
+                            tint = KaspaTeal,
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)

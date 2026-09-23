@@ -125,6 +125,12 @@ class BroadcastScanningService @Inject constructor(
         scope.launch {
             notificationHelper.appForegroundFlow.collect { reevaluate() }
         }
+        // The closed-room sweep, alive only while the app is on screen.
+        scope.launch {
+            notificationHelper.appForegroundFlow.collect { foreground ->
+                if (foreground) startForegroundSweep() else stopForegroundSweep()
+            }
+        }
         scope.launch {
             meteredNetwork.isMeteredFlow.collect { reevaluate() }
         }
@@ -149,6 +155,64 @@ class BroadcastScanningService @Inject constructor(
         hiddenSenderRows.any { it.senderAddress == address && (it.channelName.isEmpty() || it.channelName == channelName) }
 
     val isRunning: Boolean get() = scanJob?.isActive == true
+
+    // MARK: - Foreground sweep of closed rooms
+
+    private var sweepJob: kotlinx.coroutines.Job? = null
+    /** Rooms the sweep has asked about at least once this session: only rows found AFTER that
+     *  first pass are news worth a banner - the first pass is history catching up. */
+    private val sweptChannels = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * While the app is on screen, a room the user is NOT looking at used to be refreshed only by
+     * the live block scan - which misses blocks whenever the stream reconnects, and is off
+     * altogether on metered networks for the indexed rooms. So a message in #kaspa showed up only
+     * once the room was opened. Every 20s each joined room with its bell on that is not open asks
+     * the indexer for its newest rows instead (one small request per room, sequential); the open
+     * room keeps its own 8s poll and the block scan stays the fast path (iOS 3c14b46).
+     */
+    private fun startForegroundSweep() {
+        if (sweepJob?.isActive == true) return
+        sweepJob = scope.launch {
+            while (true) {
+                if (notificationHelper.isAppInForeground) sweepClosedRooms()
+                kotlinx.coroutines.delay(SWEEP_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopForegroundSweep() {
+        sweepJob?.cancel()
+        sweepJob = null
+    }
+
+    private fun myAddressOrNull(): String? = runCatching { broadcastRepository.myAddress() }.getOrNull()
+
+    private suspend fun sweepClosedRooms() {
+        val targets = synchronized(this) { notifyEnabledChannelNames.toList() }
+            .filter { it !in ChessTournamentService.SERVICE_CHANNELS && !notificationHelper.isViewingChannel(it) }
+        for (channel in targets) {
+            if (!notificationHelper.isAppInForeground) return
+            val fresh = runCatching { broadcastRepository.fetchNewestFromIndexer(channel) }.getOrDefault(emptyList())
+            val firstPass = sweptChannels.add(channel)
+            // Rows older than a few minutes are backlog, not a message that just arrived - and
+            // the first pass for a room is history catching up, so it stays quiet.
+            val cutoff = System.currentTimeMillis() - SWEEP_BANNER_WINDOW_MS
+            if (!firstPass && !pushState.isActive) {
+                for (row in fresh) {
+                    if (row.blockTimestamp <= cutoff) continue
+                    if (row.senderAddress == myAddressOrNull()) continue
+                    notificationHelper.showBroadcast(
+                        channelName = channel,
+                        title = "#$channel",
+                        text = com.kachat.app.util.BroadcastPushPreview.clean(row.content),
+                        dedupeTxId = row.id,
+                    )
+                }
+            }
+            kotlinx.coroutines.delay(SWEEP_SPACING_MS)
+        }
+    }
 
     @Synchronized
     private fun onAlwaysListenChannelsChanged(names: Set<String>) {
@@ -397,6 +461,13 @@ class BroadcastScanningService @Inject constructor(
     }
 
     companion object {
+        /** How often a room nobody is looking at is refreshed from the indexer - see the sweep. */
+        private const val SWEEP_INTERVAL_MS = 20_000L
+        /** A breath between rooms, so a sweep is a drizzle rather than a burst. */
+        private const val SWEEP_SPACING_MS = 150L
+        /** Rows older than this are backlog, not news, and never banner. */
+        private const val SWEEP_BANNER_WINDOW_MS = 3 * 60 * 1000L
+
         private const val RETRY_DELAY_MS = 5_000L
         // Floor: never sweep more often than this even if every channel is set to a tiny retention.
         private const val MIN_PRUNE_INTERVAL_MILLIS = 5_000L

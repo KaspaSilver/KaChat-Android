@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Error
@@ -1541,9 +1542,57 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             if (game.board.piece(sq)?.color == myColor) selectedSquare = sq
         }
 
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 12.dp)) {
-            ClockRow(game, if (flipped) ChessColor.WHITE else ChessColor.BLACK, now, contacts, knsNames)
-            Spacer(Modifier.height(12.dp))
+        // The same arrangement as the 1:1 chat's board: a header with the opponent and the
+        // status, the other side's clock chip, the board as large as the width allows, our clock
+        // chip, then the chat taking what is left with the composer pinned under it (iOS b27b4c8).
+        Column(Modifier.fillMaxSize().padding(padding).padding(top = 8.dp)) {
+            val statusText = run {
+                val winner = game.winner
+                val outcome = game.outcome
+                if (winner != null && outcome != null) {
+                    val who = chessName(winner, contacts, knsNames)
+                    when (outcome) {
+                        ChessTournamentOutcome.Checkmate -> "Checkmate. $who won."
+                        ChessTournamentOutcome.Resignation -> "$who won by resignation."
+                        ChessTournamentOutcome.Timeout -> "$who won on time."
+                        is ChessTournamentOutcome.DrawTiebreak -> "Draw by ${outcome.reason}. $who won on clock."
+                    }
+                } else if (isPending) {
+                    "Sending your move…"
+                } else if (myColor != null) {
+                    if (game.sideToMove == myColor && ChessEngine.isKingInCheck(game.sideToMove, game.board)) "Check. Your move."
+                    else if (game.sideToMove == myColor) "Your move" else "Their move"
+                } else {
+                    if (game.sideToMove == ChessColor.WHITE) "White to move" else "Black to move"
+                }
+            }
+            // Header: a player sees the opponent (their own name is on their clock chip); a
+            // spectator sees both.
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    if (myColor != null) chessName(game.address(myColor.opposite), contacts, knsNames)
+                    else "${chessName(game.white, contacts, knsNames)} vs ${chessName(game.black, contacts, knsNames)}",
+                    color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        statusText,
+                        color = if (game.isOver) colors.textSecondary else colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                    )
+                    if (myColor != null && !game.isOver) {
+                        TextButton(onClick = { showResignConfirm = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                            Icon(Icons.Default.Flag, contentDescription = null, tint = colors.danger, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Resign", color = colors.danger, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            ChessClockChip(game, if (flipped) ChessColor.WHITE else ChessColor.BLACK, now, myColor, contacts, knsNames)
+            Spacer(Modifier.height(8.dp))
             BoxWithConstraints(Modifier.padding(horizontal = 12.dp).fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))) {
                 val size = maxWidth / 8
                 val ranks = if (flipped) (0..7).toList() else (7 downTo 0).toList()
@@ -1591,58 +1640,34 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            ClockRow(game, if (flipped) ChessColor.BLACK else ChessColor.WHITE, now, contacts, knsNames)
-            Spacer(Modifier.height(10.dp))
-            val statusText = run {
-                val winner = game.winner
-                val outcome = game.outcome
-                if (winner != null && outcome != null) {
-                    val who = chessName(winner, contacts, knsNames)
-                    when (outcome) {
-                        ChessTournamentOutcome.Checkmate -> "Checkmate. $who won."
-                        ChessTournamentOutcome.Resignation -> "$who won by resignation."
-                        ChessTournamentOutcome.Timeout -> "$who won on time."
-                        is ChessTournamentOutcome.DrawTiebreak -> "Draw by ${outcome.reason}. $who won on clock."
-                    }
-                } else if (isPending) {
-                    "Sending your move…"
-                } else if (myColor != null) {
-                    if (game.sideToMove == myColor && ChessEngine.isKingInCheck(game.sideToMove, game.board)) "Check. Your move."
-                    else if (game.sideToMove == myColor) "Your move" else "Their move"
-                } else {
-                    if (game.sideToMove == ChessColor.WHITE) "White to move" else "Black to move"
-                }
-            }
-            Text(
-                statusText,
-                color = if (game.isOver) colors.textSecondary else colors.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-            if (myColor != null && !game.isOver) {
-                TextButton(onClick = { showResignConfirm = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                    Icon(Icons.Default.Flag, contentDescription = null, tint = colors.danger, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Resign", color = colors.danger, fontWeight = FontWeight.SemiBold)
-                }
-            }
+            Spacer(Modifier.height(8.dp))
+            ChessClockChip(game, if (flipped) ChessColor.BLACK else ChessColor.WHITE, now, myColor, contacts, knsNames)
             HorizontalDivider(color = colors.divider, modifier = Modifier.padding(vertical = 8.dp))
             // Lines the chain returned (green check on ours), then ours still on the way (clock)
-            // or failed (red) - the three states a 1:1 chat bubble has.
+            // or failed (red) - the three states a 1:1 chat bubble has. Its own scrolling area,
+            // so the board and clocks stay put.
             val lines = tournament.chat.filter { it.game == game.id }.takeLast(120).map { it to ChessLineStatus.SENT } +
                 pendingChat.filter { it.tournament == tournament.id && it.line.game == game.id }
                     .map { it.line to if (it.failed) ChessLineStatus.FAILED else ChessLineStatus.PENDING }
-            if (lines.isEmpty()) {
-                Text(
-                    "No messages yet. Each message is one transaction.",
-                    color = colors.textSecondary, fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-            }
-            lines.forEach { (line, status) ->
+            val chatListState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LaunchedEffect(lines.size) { if (lines.isNotEmpty()) chatListState.animateScrollToItem(lines.size - 1) }
+            LazyColumn(
+                state = chatListState,
+                modifier = Modifier.fillMaxWidth().weight(1f).heightIn(min = 96.dp),
+                contentPadding = PaddingValues(vertical = 6.dp),
+            ) {
+                if (lines.isEmpty()) {
+                    item {
+                        Text(
+                            "No messages yet. Each message is one transaction.",
+                            color = colors.textSecondary, fontSize = 12.sp,
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                }
+                items(lines.size, key = { lines[it].first.id }) { index ->
+                    val (line, status) = lines[index]
                 val mine = line.sender == me
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
                     Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
@@ -1674,6 +1699,7 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                             )
                         }
                     }
+                }
                 }
             }
         }
@@ -1743,31 +1769,71 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
 }
 
 @Composable
-private fun ClockRow(game: ChessTournamentGame, color: ChessColor, now: Long, contacts: Map<String, ContactEntity>, knsNames: Map<String, String>) {
+private fun ChessClockChip(
+    game: ChessTournamentGame,
+    color: ChessColor,
+    now: Long,
+    myColor: ChessColor?,
+    contacts: Map<String, ContactEntity>,
+    knsNames: Map<String, String>,
+) {
+    // The 1:1 board's clock chip: label, timer, time - lit while that side is to move, red under
+    // twenty seconds; the side's avatar and name sit at the leading edge (iOS b27b4c8).
     val colors = LocalAppColors.current
     val address = game.address(color)
     val remaining = game.remainingMs(color, now)
-    val running = !game.isOver && game.sideToMove == color
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        ChessAvatar(address, contacts)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(chessName(address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (color == ChessColor.WHITE) "White" else "Black", color = colors.textSecondary, fontSize = 12.sp)
-        }
-        val tenths = (remaining / 100).toInt()
-        val seconds = tenths / 10
-        val text = if (seconds < 10) "0:%02d.%d".format(seconds, tenths % 10) else "%d:%02d".format(seconds / 60, seconds % 60)
+    val isActive = !game.isOver && game.sideToMove == color
+    val isLow = remaining < 20_000
+    val label = when {
+        myColor == null -> if (color == ChessColor.WHITE) "White" else "Black"
+        color == myColor -> "You"
+        else -> "Them"
+    }
+    val tint = when {
+        isLow -> colors.danger.copy(alpha = 0.14f)
+        isActive -> KaspaTeal.copy(alpha = 0.12f)
+        else -> colors.surface
+    }
+    val stroke = when {
+        isLow -> colors.danger.copy(alpha = 0.55f)
+        isActive -> KaspaTeal.copy(alpha = 0.6f)
+        else -> colors.divider
+    }
+    val content = when {
+        isLow -> colors.danger
+        isActive -> colors.textPrimary
+        else -> colors.textSecondary
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ChessAvatar(address, contacts, size = 26)
+        Spacer(Modifier.width(8.dp))
         Text(
-            text,
-            color = if (remaining < 20_000 && running) colors.danger else colors.textPrimary,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(if (running) KaspaTeal.copy(alpha = 0.2f) else colors.textSecondary.copy(alpha = 0.12f))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+            chessName(address, contacts, knsNames), color = colors.textSecondary, fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
         )
+        Spacer(Modifier.weight(1f))
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(tint)
+                .border(if (isActive) 1.2.dp else 0.8.dp, stroke, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(label, color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Default.Timer, contentDescription = null, tint = content, modifier = Modifier.size(14.dp))
+            val tenths = (remaining / 100).toInt()
+            val seconds = tenths / 10
+            Text(
+                if (seconds < 10) "0:%02d.%d".format(seconds, tenths % 10) else "%d:%02d".format(seconds / 60, seconds % 60),
+                color = content, fontFamily = FontFamily.Monospace, fontSize = 15.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
+            )
+        }
     }
 }
