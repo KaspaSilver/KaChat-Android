@@ -294,9 +294,14 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                         onJoin = {
                             if (!isJoining) {
                                 isJoining = true
+                                // Straight into the waiting room: the seat only exists once the
+                                // transaction lands, and sitting on the lobby until then looks
+                                // like the button did nothing. Closed again if nothing was sent.
+                                waitingRoomId = publicId
                                 vm.launch {
-                                    if (duel) service.joinPublicDuelQueue() else service.joinPublicQueue()
+                                    val sent = if (duel) service.joinPublicDuelQueue() else service.joinPublicQueue()
                                     isJoining = false
+                                    if (!sent && waitingRoomId == publicId) waitingRoomId = null
                                 }
                             }
                         },
@@ -823,16 +828,19 @@ private fun ChessWaitingRoom(
                     }
                 }
             }
-            val expiry = me?.let { tournament?.seatExpiry(it) } ?: now
-            val left = maxOf(0L, (expiry - now) / 1000)
+            // The seat exists only once the join lands, which is a few seconds - until then the
+            // clock has nothing to count, and a hard 0:00 would read as "already out".
+            val expiry = me?.let { tournament?.seatExpiry(it) }
+            val left = expiry?.let { maxOf(0L, (it - now) / 1000) }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "%d:%02d".format(left / 60, left % 60),
-                    color = if (left < 30) colors.danger else colors.textPrimary,
+                    left?.let { "%d:%02d".format(it / 60, it % 60) } ?: "--:--",
+                    color = if (left != null && left < 30) colors.danger else colors.textPrimary,
                     fontSize = 44.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
                 )
                 Text(
-                    "Your seat is held this long. If no one joins in time, you leave the queue.",
+                    if (left == null) "Taking your seat - this is one transaction, so it takes a few seconds."
+                    else "Your seat is held this long. If no one joins in time, you leave the queue.",
                     color = colors.textSecondary, fontSize = 12.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 32.dp),

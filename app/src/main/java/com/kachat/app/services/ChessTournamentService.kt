@@ -272,21 +272,24 @@ class ChessTournamentService @Inject constructor(
 
     /** Joins the public room taking players now. If that room fills before this join lands
      *  (someone else got the last seat), [reduce] notices and joins the next room. */
-    suspend fun joinPublicQueue() = joinPublicRoom(currentPublicRoomId(_tournaments.value))
+    suspend fun joinPublicQueue(): Boolean = joinPublicRoom(currentPublicRoomId(_tournaments.value))
 
     /** Joins the public 1v1 room taking players now; same race handling as the tournaments. */
-    suspend fun joinPublicDuelQueue() = joinPublicRoom(currentDuelRoomId(_tournaments.value))
+    suspend fun joinPublicDuelQueue(): Boolean = joinPublicRoom(currentDuelRoomId(_tournaments.value))
 
     /**
      * The seat that ran out is still in `players` until the next join drops it (the engine judges
      * that at the join's block time) - so "already in" means seated NOW, never the stale list, or
      * a returning player's tap would do nothing at all. Every refusal says why (iOS b552d7d).
+     *
+     * Returns true when the join went out (or the player is already in that room), so the screen
+     * can open the waiting room and close it again when nothing was sent.
      */
-    private suspend fun joinPublicRoom(id: String) {
-        val me = myAddress ?: return
+    private suspend fun joinPublicRoom(id: String): Boolean {
+        val me = myAddress ?: return false
         if (!_historyReady.value) {
             _lastError.value = "Still loading the rooms - try again in a moment."
-            return
+            return false
         }
         val busy = myActiveTournament(_tournaments.value)
         if (busy != null) {
@@ -295,14 +298,12 @@ class ChessTournamentService @Inject constructor(
             } else {
                 "You're still playing in ${busy.name}."
             }
-            return
+            return false
         }
-        if (_tournaments.value[id]?.isSeated(me, _now.value) == true) {
-            _lastError.value = "You're already in this room."
-            return
-        }
+        // Already seated here: no transaction, but the room is still where this player belongs.
+        if (_tournaments.value[id]?.isSeated(me, _now.value) == true) return true
         queuedPublicRoomId = id
-        send(ChessTournamentCodec.join(id))
+        return send(ChessTournamentCodec.join(id))
     }
 
     /** A private 1v1 for a friend: no creator code, an eight-character code to share. */
