@@ -79,6 +79,7 @@ class ChessTournamentService @Inject constructor(
     private var liveViewing: AutoCloseable? = null
     private var clockJob: Job? = null
     private var backfillJob: Job? = null
+    private var fastPollJob: Job? = null
     /** Claims already posted for a game - one is enough; the chain confirms it. */
     private val claimedGames = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
@@ -120,6 +121,21 @@ class ChessTournamentService @Inject constructor(
                 delay(ARENA_BACKFILL_INTERVAL_MS)
             }
         }
+        // While this player is waiting in a room or playing, the arena is pulled every two
+        // seconds on top of the 8s backfill and the block scan - the other side's join or move
+        // should be on this phone in a couple of seconds, not ten, out of a five-minute clock
+        // (iOS 593620e).
+        fastPollJob?.cancel()
+        fastPollJob = scope.launch {
+            while (isActive) {
+                delay(FAST_POLL_INTERVAL_MS)
+                // Only while it matters: a seat held or a game on. Idle in the lobby, the
+                // ordinary backfill is plenty.
+                if (myActiveTournament(_tournaments.value) == null) continue
+                runCatching { broadcastRepository.fetchNewestFromIndexer(ChessTournamentCodec.ARENA_CHANNEL) }
+                    .onFailure { Log.w(TAG, "Arena fast poll failed", it) }
+            }
+        }
         clockJob?.cancel()
         clockJob = scope.launch {
             while (isActive) {
@@ -137,6 +153,8 @@ class ChessTournamentService @Inject constructor(
         liveViewing = null
         backfillJob?.cancel()
         backfillJob = null
+        fastPollJob?.cancel()
+        fastPollJob = null
         clockJob?.cancel()
         clockJob = null
     }
@@ -523,6 +541,9 @@ class ChessTournamentService @Inject constructor(
 
         /** How long a join waits for that history before going ahead anyway. */
         private const val HISTORY_WAIT_MS = 8_000L
+
+        /** The tighter pull while a seat is held or a game is on - see [acquire]. */
+        private const val FAST_POLL_INTERVAL_MS = 2_000L
 
         /** Rooms the app uses as machinery, never shown as chats: the chess arena. Hidden from
          *  Public Chats, no unread, no banners (iOS BroadcastService.serviceChannels). */

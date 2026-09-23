@@ -379,7 +379,12 @@ fun MainShell(
             // account and one of its addresses are still browsing your own holdings, not a
             // "pushed" screen you want the full height for.
             dest.route == "cold_storage_detail/{accountId}" ||
-            dest.route == "cold_storage_tx_history/{address}"
+            dest.route == "cold_storage_tx_history/{address}" ||
+            // Chess keeps its dock while you are choosing and watching - the game itself is the
+            // one place that takes the whole screen (and the waiting room covers everything on
+            // its own). Browsing rooms is browsing, one tap from anywhere else.
+            dest.route == "chess_mode/{mode}" ||
+            dest.route == "chess_tournament/{tournamentId}"
     } == true
 
     // The dock renders straight from the persisted arrangement (WalletViewModel.tabOrder, via
@@ -1524,10 +1529,15 @@ fun MainShell(
                 val mode = runCatching {
                     com.kachat.app.ui.screens.ChessLobbyMode.valueOf(entry.arguments?.getString("mode").orEmpty())
                 }.getOrDefault(com.kachat.app.ui.screens.ChessLobbyMode.DUEL)
-                com.kachat.app.ui.screens.ChessTournamentsScreen(mode, navController, onBack = { navController.popBackStack() })
+                // The floating dock stays on this screen, so leave room for it.
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.kachat.app.ui.screens.ChessTournamentsScreen(mode, navController, onBack = { navController.popBackStack() })
+                }
             }
             composable("chess_tournament/{tournamentId}") { entry ->
-                com.kachat.app.ui.screens.ChessTournamentScreen(entry.arguments?.getString("tournamentId").orEmpty(), navController)
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.kachat.app.ui.screens.ChessTournamentScreen(entry.arguments?.getString("tournamentId").orEmpty(), navController)
+                }
             }
             composable("chess_tournament_game/{tournamentId}/{gameId}") { entry ->
                 com.kachat.app.ui.screens.ChessTournamentGameScreen(
