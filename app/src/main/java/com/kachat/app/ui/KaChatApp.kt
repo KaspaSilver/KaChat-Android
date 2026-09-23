@@ -2,6 +2,8 @@ package com.kachat.app.ui
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -691,13 +693,31 @@ fun MainShell(
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(
-                        modifier = Modifier
+                    // Which tab the glass pill sits under - the same test each item makes for
+                    // itself below, so the pill and the lit icon can never disagree.
+                    val selectedDockIndex = localTabOrder.indexOfFirst { screen ->
+                        currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
+                            (screen.route == Screen.ColdStorage.route &&
+                                (currentTopRoute == "cold_storage_detail/{accountId}" ||
+                                    currentTopRoute == "cold_storage_tx_history/{address}"))
+                    }
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    // The pill slides between tabs rather than appearing under the new one, the
+                    // way iOS's glass tab bar moves: one piece of glass that travels.
+                    val dockItemWidth = (maxWidth - 16.dp) / localTabOrder.size.coerceAtLeast(1)
+                    val pillOffset by animateDpAsState(
+                        targetValue = 8.dp + dockItemWidth * selectedDockIndex.coerceAtLeast(0),
+                        animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
+                        label = "dockPill",
+                    )
+                    // The bar itself: the backdrop blurred, tinted with the surface colour so it
+                    // still reads as a bar in either theme. It holds no items - they are in the
+                    // Row below, over the pill.
+                    Box(
+                        Modifier
                             .height(80.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(40.dp))
-                            // The glass itself: the backdrop blurred, tinted with the surface
-                            // colour so the bar still reads as a bar in either theme.
                             .hazeChild(
                                 state = dockHaze,
                                 style = HazeStyle(
@@ -705,7 +725,31 @@ fun MainShell(
                                     blurRadius = 24.dp,
                                 ),
                             )
-                            .border(1.dp, LocalAppColors.current.divider, RoundedCornerShape(40.dp))
+                            .border(1.dp, LocalAppColors.current.divider, RoundedCornerShape(40.dp)),
+                    )
+                    // Drawn between the bar and its icons: a brighter pane of the same glass.
+                    if (selectedDockIndex >= 0) {
+                        Box(
+                            Modifier
+                                .offset(x = pillOffset)
+                                .padding(vertical = 8.dp)
+                                .width(dockItemWidth)
+                                .height(64.dp)
+                                .clip(RoundedCornerShape(32.dp))
+                                .hazeChild(
+                                    state = dockHaze,
+                                    style = HazeStyle(
+                                        tint = KaspaTeal.copy(alpha = 0.18f),
+                                        blurRadius = 32.dp,
+                                    ),
+                                )
+                                .border(1.dp, KaspaTeal.copy(alpha = 0.35f), RoundedCornerShape(32.dp)),
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .height(80.dp)
+                            .fillMaxWidth()
                             .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceAround
@@ -842,6 +886,7 @@ fun MainShell(
                                 }
                             }
                         }
+                    }
                     }
                     }
                 }
