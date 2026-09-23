@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.ContentCopy
@@ -799,27 +800,44 @@ private fun ChessWaitingRoom(
     }
 
     if (showLeaveWarning) {
-        AlertDialog(
-            onDismissRequest = { showLeaveWarning = false },
-            title = { Text("Leave the queue?") },
-            text = { Text("Leaving means you will no longer be searching for another player. It is one transaction.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    val room = tournament
-                    showLeaveWarning = false
-                    if (room != null && !isLeaving) {
-                        isLeaving = true
-                        vm.launch {
-                            service.leave(room)
-                            isLeaving = false
-                            handedOff = true
-                            onFinished(false)
+        // The same shape as the Resign sheet on the board (iOS 922b632).
+        ActionSheetContainer(title = "Leave the queue?", subtitle = null, onDismiss = { showLeaveWarning = false }) {
+            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = colors.danger,
+                modifier = Modifier.size(34.dp).align(Alignment.CenterHorizontally))
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Leaving means you will no longer be searching for another player. Leaving is one transaction; you can join again any time.",
+                color = colors.textSecondary, fontSize = 14.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.danger)
+                    .clickable {
+                        val room = tournament
+                        showLeaveWarning = false
+                        if (room != null && !isLeaving) {
+                            isLeaving = true
+                            vm.launch {
+                                service.leave(room)
+                                isLeaving = false
+                                handedOff = true
+                                onFinished(false)
+                            }
                         }
                     }
-                }) { Text("Leave", color = colors.danger) }
-            },
-            dismissButton = { TextButton(onClick = { showLeaveWarning = false }) { Text("Keep waiting") } },
-        )
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(if (isLeaving) "Leaving…" else "Leave", color = Color.White, fontWeight = FontWeight.SemiBold) }
+            Spacer(Modifier.height(10.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceVariant)
+                    .clickable { showLeaveWarning = false }.padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Keep waiting", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) }
+            Spacer(Modifier.height(8.dp))
+        }
     }
 }
 
