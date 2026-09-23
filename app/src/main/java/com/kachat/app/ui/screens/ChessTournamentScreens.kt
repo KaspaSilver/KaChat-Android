@@ -1596,12 +1596,17 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             Spacer(Modifier.height(8.dp))
             ChessClockChip(game, if (flipped) ChessColor.WHITE else ChessColor.BLACK, now, myColor, contacts, knsNames)
             Spacer(Modifier.height(8.dp))
-            BoxWithConstraints(Modifier.padding(horizontal = 12.dp).fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))) {
+            BoxWithConstraints(
+                Modifier.padding(horizontal = 12.dp).fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp)),
+                // Anything drawn over the board sits in its middle, as on the 1:1 board - the
+                // default would pin "Waiting on opponent..." to the top-left corner.
+                contentAlignment = Alignment.Center,
+            ) {
                 val size = maxWidth / 8
                 val ranks = if (flipped) (0..7).toList() else (7 downTo 0).toList()
                 val files = if (flipped) (7 downTo 0).toList() else (0..7).toList()
                 val last = game.moves.lastOrNull()
-                Column {
+                Column(Modifier.matchParentSize()) {
                     for (rank in ranks) {
                         Row {
                             for (file in files) {
