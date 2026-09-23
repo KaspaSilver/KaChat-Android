@@ -703,6 +703,8 @@ private fun ChessWaitingRoom(
             usePlatformDefaultWidth = false, dismissOnBackPress = false, dismissOnClickOutside = false,
         ),
     ) {
+        // One Box so the leave sheet below draws OVER the room rather than under it.
+        Box(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().background(colors.background).padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -797,46 +799,67 @@ private fun ChessWaitingRoom(
                 Text(if (isLeaving) "Leaving…" else "Leave", color = colors.danger, fontWeight = FontWeight.SemiBold)
             }
         }
-    }
 
-    if (showLeaveWarning) {
-        // The same shape as the Resign sheet on the board (iOS 922b632).
-        ActionSheetContainer(title = "Leave the queue?", subtitle = null, onDismiss = { showLeaveWarning = false }) {
-            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = colors.danger,
-                modifier = Modifier.size(34.dp).align(Alignment.CenterHorizontally))
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Leaving means you will no longer be searching for another player. Leaving is one transaction; you can join again any time.",
-                color = colors.textSecondary, fontSize = 14.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            )
-            Spacer(Modifier.height(16.dp))
+        // Drawn in the dialog's OWN window, deliberately: a ModalBottomSheet (ActionSheetContainer)
+        // opened from inside a Dialog goes to a window of its own behind this one and is never
+        // seen - so Leave looked like it did nothing at all. Same shape as the Resign sheet.
+        if (showLeaveWarning) {
             Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.danger)
-                    .clickable {
-                        val room = tournament
-                        showLeaveWarning = false
-                        if (room != null && !isLeaving) {
-                            isLeaving = true
-                            vm.launch {
-                                service.leave(room)
-                                isLeaving = false
-                                handedOff = true
-                                onFinished(false)
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    ) { showLeaveWarning = false },
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                        .background(colors.background)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        ) {}
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = colors.danger, modifier = Modifier.size(34.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Text("Leave the queue?", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Leaving means you will no longer be searching for another player. Leaving is one transaction; you can join again any time.",
+                        color = colors.textSecondary, fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.danger)
+                            .clickable {
+                                val room = tournament
+                                showLeaveWarning = false
+                                if (room != null && !isLeaving) {
+                                    isLeaving = true
+                                    vm.launch {
+                                        service.leave(room)
+                                        isLeaving = false
+                                        handedOff = true
+                                        onFinished(false)
+                                    }
+                                }
                             }
-                        }
-                    }
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text(if (isLeaving) "Leaving…" else "Leave", color = Color.White, fontWeight = FontWeight.SemiBold) }
-            Spacer(Modifier.height(10.dp))
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceVariant)
-                    .clickable { showLeaveWarning = false }.padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text("Keep waiting", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) }
-            Spacer(Modifier.height(8.dp))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(if (isLeaving) "Leaving…" else "Leave", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceVariant)
+                            .clickable { showLeaveWarning = false }.padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("Keep waiting", color = colors.textPrimary, fontWeight = FontWeight.SemiBold) }
+                }
+            }
+        }
         }
     }
 }
