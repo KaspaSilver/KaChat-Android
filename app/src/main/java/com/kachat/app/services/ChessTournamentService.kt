@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -272,25 +273,35 @@ class ChessTournamentService @Inject constructor(
 
     /** Joins the public room taking players now. If that room fills before this join lands
      *  (someone else got the last seat), [reduce] notices and joins the next room. */
-    suspend fun joinPublicQueue(): Boolean = joinPublicRoom(currentPublicRoomId(_tournaments.value))
+    suspend fun joinPublicQueue(): String? = joinPublicRoom(duel = false)
 
     /** Joins the public 1v1 room taking players now; same race handling as the tournaments. */
-    suspend fun joinPublicDuelQueue(): Boolean = joinPublicRoom(currentDuelRoomId(_tournaments.value))
+    suspend fun joinPublicDuelQueue(): String? = joinPublicRoom(duel = true)
 
     /**
      * The seat that ran out is still in `players` until the next join drops it (the engine judges
      * that at the join's block time) - so "already in" means seated NOW, never the stale list, or
      * a returning player's tap would do nothing at all. Every refusal says why (iOS b552d7d).
      *
-     * Returns true when the join went out (or the player is already in that room), so the screen
-     * can open the waiting room and close it again when nothing was sent.
+     * Returns the room joined (or the one the player is already in), so the screen can open its
+     * waiting room - and null when nothing was sent.
      */
-    private suspend fun joinPublicRoom(id: String): Boolean {
-        val me = myAddress ?: return false
+    private suspend fun joinPublicRoom(duel: Boolean): String? {
+        val me = myAddress ?: return null
         if (!_historyReady.value) {
             _lastError.value = "Still loading the rooms - try again in a moment."
-            return false
+            return null
         }
+        // The freshest shared view first: whatever the indexer holds this second is what every
+        // other phone is choosing from, and a phone choosing off its own stale view offers a room
+        // the others have moved past (iOS 29bf054). The DAO flow delivers the merge a beat later,
+        // so the rows are reduced here and now rather than read off the old state.
+        runCatching { broadcastRepository.fetchNewestFromIndexer(ChessTournamentCodec.ARENA_CHANNEL) }
+            .onFailure { Log.w(TAG, "Arena refresh before joining failed", it) }
+        runCatching {
+            reduce(database.broadcastDao().getMessagesForChannel(ChessTournamentCodec.ARENA_CHANNEL).first())
+        }.onFailure { Log.w(TAG, "Arena reduce before joining failed", it) }
+        val id = if (duel) currentDuelRoomId(_tournaments.value) else currentPublicRoomId(_tournaments.value)
         val busy = myActiveTournament(_tournaments.value)
         if (busy != null) {
             _lastError.value = if (busy.status == ChessTournament.Status.OPEN) {
@@ -298,12 +309,12 @@ class ChessTournamentService @Inject constructor(
             } else {
                 "You're still playing in ${busy.name}."
             }
-            return false
+            return null
         }
         // Already seated here: no transaction, but the room is still where this player belongs.
-        if (_tournaments.value[id]?.isSeated(me, _now.value) == true) return true
+        if (_tournaments.value[id]?.isSeated(me, _now.value) == true) return id
         queuedPublicRoomId = id
-        return send(ChessTournamentCodec.join(id))
+        return if (send(ChessTournamentCodec.join(id))) id else null
     }
 
     /** A private 1v1 for a friend: no creator code, an eight-character code to share. */

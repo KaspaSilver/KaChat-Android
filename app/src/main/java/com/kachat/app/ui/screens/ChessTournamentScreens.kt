@@ -300,9 +300,12 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                                 // like the button did nothing. Closed again if nothing was sent.
                                 waitingRoomId = publicId
                                 vm.launch {
-                                    val sent = if (duel) service.joinPublicDuelQueue() else service.joinPublicQueue()
+                                    // The service re-syncs with the indexer before choosing, so
+                                    // the room it joined is the one to wait in - not this screen's
+                                    // guess, which may be a room the others have moved past.
+                                    val joined = if (duel) service.joinPublicDuelQueue() else service.joinPublicQueue()
                                     isJoining = false
-                                    if (!sent && waitingRoomId == publicId) waitingRoomId = null
+                                    if (waitingRoomId == publicId) waitingRoomId = joined
                                 }
                             }
                         },

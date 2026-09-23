@@ -299,7 +299,18 @@ class BroadcastRepository @Inject constructor(
             val content = message.content ?: continue
             if (sender in hidden) continue
             if (MessageReaction.parseOrNull(content) != null) continue
-            if (database.broadcastDao().getMessage(txId) != null) continue
+            val existing = database.broadcastDao().getMessage(txId)
+            if (existing != null) {
+                // A row this phone sent carries its own clock until the chain's time reaches it,
+                // and the block scan may never have seen the block. The indexer's time is what
+                // every other phone holds, and the chess arena orders seats and runs its clocks
+                // by it, so take it (iOS 29bf054). Not "fresh": nothing to banner.
+                val chainTime = message.blockTime
+                if (chainTime != null && chainTime != existing.blockTimestamp) {
+                    database.broadcastDao().insertMessage(existing.copy(blockTimestamp = chainTime, deliveryStatus = "sent"))
+                }
+                continue
+            }
             val row = BroadcastMessageEntity(
                 id = txId,
                 channelName = channelName,
