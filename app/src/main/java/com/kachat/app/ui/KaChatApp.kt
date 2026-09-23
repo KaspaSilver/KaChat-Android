@@ -41,6 +41,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -701,7 +702,9 @@ fun MainShell(
                                 (currentTopRoute == "cold_storage_detail/{accountId}" ||
                                     currentTopRoute == "cold_storage_tx_history/{address}"))
                     }
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    // Fixed at the bar's own height so the lens can stand proud of it without
+                    // growing the dock or shifting it up the screen.
+                    BoxWithConstraints(Modifier.fillMaxWidth().height(80.dp)) {
                     // The pill slides between tabs rather than appearing under the new one, the
                     // way iOS's glass tab bar moves: one piece of glass that travels.
                     val dockItemWidth = (maxWidth - 16.dp) / localTabOrder.size.coerceAtLeast(1)
@@ -729,25 +732,38 @@ fun MainShell(
                     )
                     // Drawn between the bar and its icons: a brighter pane of the same glass.
                     if (selectedDockIndex >= 0) {
-                        // An oval, not a rounded square: a slot is about as wide as it is tall,
-                        // so a corner radius alone left it looking like a tile. Shorter than the
-                        // bar and fully rounded - a stadium the width of one slot.
+                        // A lens, not a tile: iOS's selection is a nearly clear bubble with a
+                        // bright rim, standing slightly PROUD of the bar - taller than it, so it
+                        // bleeds past the top and bottom edges and a little over its neighbours.
+                        // The interior barely tints; what marks the tab is the rim and the teal
+                        // icon inside it.
                         val pillShape = RoundedCornerShape(percent = 50)
                         Box(
                             Modifier
-                                .offset(x = pillOffset)
-                                .padding(vertical = 18.dp)
-                                .width(dockItemWidth)
-                                .height(44.dp)
+                                .offset(x = pillOffset - 5.dp, y = (-4).dp)
+                                .width(dockItemWidth + 10.dp)
+                                .height(88.dp)
                                 .clip(pillShape)
                                 .hazeChild(
                                     state = dockHaze,
                                     style = HazeStyle(
-                                        tint = KaspaTeal.copy(alpha = 0.18f),
-                                        blurRadius = 32.dp,
+                                        tint = Color.White.copy(alpha = 0.06f),
+                                        blurRadius = 30.dp,
                                     ),
                                 )
-                                .border(1.dp, KaspaTeal.copy(alpha = 0.35f), pillShape),
+                                // The rim catches the light round its edge rather than being one
+                                // flat stroke - iOS's is iridescent.
+                                .border(
+                                    width = 1.5.dp,
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.55f),
+                                            KaspaTeal.copy(alpha = 0.55f),
+                                            Color.White.copy(alpha = 0.30f),
+                                        ),
+                                    ),
+                                    shape = pillShape,
+                                ),
                         )
                     }
                     Row(
