@@ -566,16 +566,23 @@ private fun PublicChatRow(
                 )
                 if (unread > 0) {
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (unread > 99) "99+" else unread.toString(),
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
+                    // The same badge the Chats and Group Chats rows carry: a teal circle with the
+                    // count in white, the number itself uncapped (only the tab badges say 99+) -
+                    // iOS draws all three lists' badges from one piece of code.
+                    Box(
                         modifier = Modifier
-                            .clip(CircleShape)
-                            .background(KaspaTeal)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
+                            .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
+                            .background(KaspaTeal, CircleShape)
+                            .padding(horizontal = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            unread.toString(),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                        )
+                    }
                 }
             }
         }

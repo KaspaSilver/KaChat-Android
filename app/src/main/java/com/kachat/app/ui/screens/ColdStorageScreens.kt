@@ -1315,12 +1315,14 @@ private fun ColdSendFlow(
 
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
+    var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
     var knsError by remember { mutableStateOf<String?>(null) }
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
     LaunchedEffect(toAddress) {
         knsResolvedAddress = null
+        knsResolvedDomain = null
         knsError = null
         if (isCompoundMode) {
             isResolvingKns = false
@@ -1337,7 +1339,12 @@ private fun ColdSendFlow(
         kotlinx.coroutines.delay(500)
         val resolved = viewModel.resolveKnsDomain(trimmed)
         isResolvingKns = false
-        if (resolved != null) knsResolvedAddress = resolved else knsError = "KNS domain not found"
+        if (resolved != null) {
+            knsResolvedAddress = resolved
+            knsResolvedDomain = KnsService.normalizeDomain(trimmed)
+        } else {
+            knsError = "KNS domain not found"
+        }
     }
     // The actual address to use (resolved from a KNS domain, or the direct input) - same
     // precedence as Create Chat's own address field.
@@ -1464,10 +1471,25 @@ private fun ColdSendFlow(
                                     Text(knsError ?: "", color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
                                 }
                             } else if (knsResolvedAddress != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Resolved to ${knsResolvedAddress?.takeLast(12)}", color = Color(0xFF4CD964), style = MaterialTheme.typography.bodySmall)
+                                // The domain it resolved, then the address it resolved TO (iOS ColdStorageView).
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            "Resolved: ${knsResolvedDomain ?: KnsService.normalizeDomain(toAddress.trim())}",
+                                            color = Color(0xFF4CD964),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                    Text(
+                                        knsResolvedAddress ?: "",
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
                                 }
                             } else {
                                 Row(verticalAlignment = Alignment.CenterVertically) {

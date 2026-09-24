@@ -5831,12 +5831,14 @@ fun SpendingAddressSendFlow(
 
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
+    var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
     var knsError by remember { mutableStateOf<String?>(null) }
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
     LaunchedEffect(recipientInput) {
         knsResolvedAddress = null
+        knsResolvedDomain = null
         knsError = null
         if (isCompoundMode) {
             isResolvingKns = false
@@ -5853,7 +5855,12 @@ fun SpendingAddressSendFlow(
         kotlinx.coroutines.delay(500)
         val resolved = viewModel.resolveKnsDomain(trimmed)
         isResolvingKns = false
-        if (resolved != null) knsResolvedAddress = resolved else knsError = "KNS domain not found"
+        if (resolved != null) {
+            knsResolvedAddress = resolved
+            knsResolvedDomain = KnsService.normalizeDomain(trimmed)
+        } else {
+            knsError = "KNS domain not found"
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -6015,10 +6022,25 @@ fun SpendingAddressSendFlow(
                             Text(knsError ?: "", color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
                         }
                     } else if (knsResolvedAddress != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Resolved to ${knsResolvedAddress?.takeLast(12)}", color = Color(0xFF4CD964), style = MaterialTheme.typography.bodySmall)
+                        // The domain it resolved, then the address it resolved TO (iOS ColdStorageView).
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Resolved: ${knsResolvedDomain ?: KnsService.normalizeDomain(recipientInput.trim())}",
+                                    color = Color(0xFF4CD964),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            Text(
+                                knsResolvedAddress ?: "",
+                                color = LocalAppColors.current.textSecondary,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -11145,6 +11167,7 @@ fun CreateChatScreen(
     val looksLikeKnsDomain = remember(address) { com.kachat.app.services.KnsService.looksLikeDomain(address) }
 
     val knsResolvedAddress by chatViewModel.knsResolvedAddress.collectAsState()
+    val knsResolvedDomain by chatViewModel.knsResolvedDomain.collectAsState()
     // Backs the preview card below - refreshKnsProfile fills it for whatever address resolves.
     val knsProfilesForPreview by chatViewModel.knsProfiles.collectAsState()
     val isResolvingKns by chatViewModel.isResolvingKns.collectAsState()
@@ -11490,7 +11513,7 @@ fun CreateChatScreen(
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = if (looksLikeKnsDomain) "Resolved to ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
+                                text = if (looksLikeKnsDomain) "Resolved: ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
                                 color = Color(0xFF4CD964),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -11647,16 +11670,27 @@ fun CreateChatScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (looksLikeKnsDomain && knsResolvedAddress != null) {
+                    // The domain it resolved, then the address it resolved TO - reading the whole
+                    // address back is how you tell you typed the right name (iOS AddContactView).
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Resolved to ${knsResolvedAddress?.takeLast(12)}",
+                            text = "Resolved: ${knsResolvedDomain ?: com.kachat.app.services.KnsService.normalizeDomain(address.trim())}",
                             color = Color(0xFF4CD964),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = knsResolvedAddress ?: "",
+                        color = LocalAppColors.current.textSecondary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (isValidAddress) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -11679,6 +11713,69 @@ fun CreateChatScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
                 
+                // Who you are about to chat with, as they will appear once the chat exists. A raw
+                // address tells you nothing about whether you typed the right one; a face and a
+                // domain do. Only for an address the app is confident about - a card flickering
+                // through wrong faces while you type would be worse than no card. The same card
+                // the group flow's add-by-address already shows, and iOS's contactPreviewCard.
+                val previewAddress = effectiveAddress?.takeIf { isValidAddress && it.isNotBlank() }
+                if (previewAddress != null) {
+                    LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
+                    val preview = knsProfilesForPreview[previewAddress]
+                    // The domain the resolver already found beats waiting on the profile fetch: if
+                    // you typed one, that IS the name, and the card is useful from the moment the
+                    // address turns valid.
+                    val previewName = preview?.selectedDomain
+                        ?: knsResolvedDomain
+                        ?: address.trim().takeIf { looksLikeKnsDomain }
+                    val stillLoading = preview == null
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(LocalAppColors.current.surface)
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ContactAvatar(
+                            imageUrl = preview?.profile?.avatarUrl,
+                            fallbackText = previewName ?: previewAddress.takeLast(8),
+                            size = 44.dp,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                previewName ?: if (stillLoading) "Looking up..." else "No KNS domain",
+                                color = if (previewName != null) {
+                                    LocalAppColors.current.textPrimary
+                                } else {
+                                    LocalAppColors.current.textSecondary
+                                },
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                previewAddress,
+                                color = LocalAppColors.current.textSecondary,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (stillLoading) {
+                            CircularProgressIndicator(
+                                color = KaspaTeal,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceAround

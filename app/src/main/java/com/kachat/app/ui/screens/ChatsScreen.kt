@@ -401,6 +401,15 @@ fun ChatsScreen(
 
                 val chatsUnreadCount = conversations.sumOf { it.unreadCount }
                 val groupsUnreadCount = groupConversations.sumOf { it.unreadCount }
+                // Teal for the tab you are on, half-strength for the ones you are not, and
+                // quarter-strength for a tab selection mode has made inert - iOS's exact three
+                // states (chatsTabButton).
+                @Composable
+                fun tabLabelColor(index: Int): Color = when {
+                    isSelectionMode && pagerState.currentPage != index -> KaspaTeal.copy(alpha = 0.25f)
+                    pagerState.currentPage == index -> KaspaTeal
+                    else -> KaspaTeal.copy(alpha = 0.5f)
+                }
                 TabRow(
                     selectedTabIndex = pagerState.currentPage,
                     containerColor = LocalAppColors.current.background,
@@ -416,7 +425,7 @@ fun ChatsScreen(
                                 Text(
                                     stringResource(R.string.chats),
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelectionMode && isOnGroupsTab) LocalContentColor.current.copy(alpha = 0.25f) else LocalContentColor.current
+                                    color = tabLabelColor(0)
                                 )
                             }
                         }
@@ -431,7 +440,7 @@ fun ChatsScreen(
                                 Text(
                                     stringResource(R.string.group_chats),
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelectionMode && !isOnGroupsTab) LocalContentColor.current.copy(alpha = 0.25f) else LocalContentColor.current
+                                    color = tabLabelColor(1)
                                 )
                             }
                         }
@@ -448,7 +457,7 @@ fun ChatsScreen(
                                 Text(
                                     stringResource(R.string.public_chats),
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelectionMode) LocalContentColor.current.copy(alpha = 0.25f) else LocalContentColor.current,
+                                    color = tabLabelColor(2),
                                 )
                             }
                         }
@@ -1135,7 +1144,10 @@ fun GroupListBody(
                                 ) {
                                     Text(
                                         text = convo.unreadCount.toString(),
-                                        color = LocalAppColors.current.textPrimary,
+                                        // White on teal in either theme, as on iOS - not the
+                                        // theme's text colour, which turned the digit black on a
+                                        // light background.
+                                        color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1514,7 +1526,8 @@ private fun ConversationRow(
             ) {
                 Text(
                     text = convo.unreadCount.toString(),
-                    color = LocalAppColors.current.textPrimary,
+                    // See the group row's badge: white on teal in either theme, as on iOS.
+                    color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )

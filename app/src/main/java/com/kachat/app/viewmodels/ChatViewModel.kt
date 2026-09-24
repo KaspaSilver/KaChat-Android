@@ -2059,6 +2059,11 @@ class ChatViewModel @Inject constructor(
     private val _knsResolvedAddress = MutableStateFlow<String?>(null)
     val knsResolvedAddress: StateFlow<String?> = _knsResolvedAddress.asStateFlow()
 
+    /** The domain that resolved, as the lookup asked for it ("kaspasilver" typed bare becomes
+     *  "kaspasilver.kas") - what the Create Chat screen says it resolved, matching iOS. */
+    private val _knsResolvedDomain = MutableStateFlow<String?>(null)
+    val knsResolvedDomain: StateFlow<String?> = _knsResolvedDomain.asStateFlow()
+
     private val _isResolvingKns = MutableStateFlow(false)
     val isResolvingKns: StateFlow<Boolean> = _isResolvingKns.asStateFlow()
 
@@ -2071,6 +2076,7 @@ class ChatViewModel @Inject constructor(
     fun onCreateChatAddressChanged(input: String) {
         knsResolveJob?.cancel()
         _knsResolvedAddress.value = null
+        _knsResolvedDomain.value = null
         _knsError.value = null
 
         if (!KnsService.looksLikeDomain(input)) {
@@ -2080,11 +2086,13 @@ class ChatViewModel @Inject constructor(
 
         _isResolvingKns.value = true
         knsResolveJob = viewModelScope.launch {
-            delay(500)
+            // Same 300ms debounce iOS types against.
+            delay(300)
             val resolved = knsService.resolve(input)
             _isResolvingKns.value = false
             if (resolved != null) {
                 _knsResolvedAddress.value = resolved
+                _knsResolvedDomain.value = KnsService.normalizeDomain(input)
             } else {
                 _knsError.value = "KNS domain not found"
             }
