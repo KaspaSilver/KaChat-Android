@@ -885,12 +885,12 @@ object ChessTournamentEngine {
         )
     }
 
-    /** The 1v1 board: players with a 1v1 game behind them, most wins first, fewest losses
-     *  breaking ties (iOS 784208f). */
+    /** The 1v1 board: every game played here - 1v1 rooms and the games inside tournaments
+     *  alike - most wins first, fewest losses breaking ties (iOS 784208f, 1d32335). */
     fun duelLeaderboard(rows: List<ChessLeaderboardRow>): List<ChessLeaderboardRow> =
-        rows.filter { it.duelWins + it.duelLosses > 0 }.sortedWith(
-            compareByDescending<ChessLeaderboardRow> { it.duelWins }
-                .thenBy { it.duelLosses }
+        rows.filter { it.wins + it.losses > 0 }.sortedWith(
+            compareByDescending<ChessLeaderboardRow> { it.wins }
+                .thenBy { it.losses }
                 .thenByDescending { it.lastPlayedAt }
         )
 

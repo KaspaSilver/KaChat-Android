@@ -1090,10 +1090,18 @@ private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavControl
         com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(board)
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+        item {
+            // What this board counts, in its own words (iOS 1d32335).
+            Text(
+                if (duel) "Games won and lost - 1v1s and tournament games alike" else "Tournaments won and lost",
+                color = colors.textSecondary, fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+        }
         if (rows.isEmpty()) {
             item {
                 Text(
-                    if (duel) "No finished 1v1 games yet." else "No finished tournaments yet.",
+                    if (duel) "No finished games yet." else "No finished tournaments yet.",
                     color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(20.dp),
                 )
             }
@@ -1115,14 +1123,17 @@ private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavControl
                 Text("${index + 1}", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(28.dp))
                 ChessAvatar(row.address, contacts)
                 Spacer(Modifier.width(12.dp))
+                // The numbers keep their full width; a long name gives way, not the score.
                 Text(
                     chessName(row.address, contacts, knsNames), color = colors.textPrimary, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
                 if (duel) {
-                    Text("${row.duelWins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                    Text("${row.wins} W", color = colors.success, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, maxLines = 1)
                     Spacer(Modifier.width(10.dp))
-                    Text("${row.duelLosses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                    Text("${row.losses} L", color = colors.danger, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, maxLines = 1)
                 } else {
                     // Whole tournaments only: won (champion) and lost (knocked out). A game won
                     // inside one is not a score (iOS 7049e70).
@@ -1885,8 +1896,8 @@ private fun ChessGameResultScreen(
     // 1v1: games won and lost. Tournaments: whole tournaments won (champion) and lost (knocked
     // out) - a game won inside a tournament is not a score, and this screen is never shown for
     // one (the player goes to the bracket instead).
-    fun wins(row: com.kachat.app.util.ChessLeaderboardRow?) = if (isDuel) row?.duelWins ?: 0 else row?.tournamentsWon ?: 0
-    fun losses(row: com.kachat.app.util.ChessLeaderboardRow?) = if (isDuel) row?.duelLosses ?: 0 else row?.tournamentsLost ?: 0
+    fun wins(row: com.kachat.app.util.ChessLeaderboardRow?) = if (isDuel) row?.wins ?: 0 else row?.tournamentsWon ?: 0
+    fun losses(row: com.kachat.app.util.ChessLeaderboardRow?) = if (isDuel) row?.losses ?: 0 else row?.tournamentsLost ?: 0
     // The figures start where they stood and settle on the new ones a beat later.
     var revealed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(500); revealed = true }
@@ -1989,7 +2000,7 @@ private fun ChessGameResultScreen(
                             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                         )
                         if (isDuel) {
-                            Text("${row.duelWins} W  ${row.duelLosses} L", color = colors.textPrimary,
+                            Text("${row.wins} W  ${row.losses} L", color = colors.textPrimary,
                                 fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
                         } else {
                             Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(16.dp))

@@ -266,7 +266,7 @@ class ChessTournamentEngineTest {
     }
 
     @Test
-    fun `a 1v1 counts on the duel board only, a tournament on the tournament board only`() {
+    fun `the games board counts every game, the tournament board whole tournaments`() {
         // A public 1v1, won by the first seat.
         val duel = ChessTournamentCodec.duelId(1)
         post(players[0], ChessTournamentCodec.join(duel))
@@ -282,8 +282,13 @@ class ChessTournamentEngineTest {
         assertEquals(2, winner.wins)
         // The 1v1 does not make anyone a tournament player.
         assertEquals(1, winner.tournamentsPlayed)
+        // The games board counts every game played here - the 1v1 and the tournament game alike
+        // (iOS 1d32335). Most wins first; the two players on one loss each are ordered by who
+        // played last.
         val duelBoard = ChessTournamentEngine.duelLeaderboard(rows).map { it.address }
-        assertEquals(listOf(players[0], players[1]), duelBoard)
+        assertEquals(players[0], duelBoard.first())
+        assertEquals(setOf(players[1], players[7]), duelBoard.drop(1).toSet())
+        assertEquals(3, duelBoard.size)
         // The tournament board counts whole tournaments: the player knocked out is on it with a
         // loss; the one who advanced is on neither side of it until they win the whole thing or
         // go out themselves (iOS 7049e70).
