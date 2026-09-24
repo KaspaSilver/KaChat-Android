@@ -51,11 +51,11 @@ object ChessTournamentCodec {
      *  reaching the other phone (a block, the indexer's poll) are nobody's thinking time. */
     const val MOVE_DELAY_MS = 10L * 1000
 
-    /** A side's FIRST move gets a minute instead: the game starts at the second join's block
+    /** A side's FIRST move gets 25 seconds instead: the game starts at the second join's block
      *  time, and a player must not lose clock before their phone has even shown the board. This
      *  is the gate on a simultaneous join - the clock does not run for either side until they
-     *  have shown up with a move (or the minute is up). */
-    const val FIRST_MOVE_GRACE_MS = 60L * 1000
+     *  have shown up with a move (or the 25 seconds are up). */
+    const val FIRST_MOVE_GRACE_MS = 25L * 1000
 
     /**
      * The allowances apply to games that STARTED at or after this block time (2026-09-24 00:00

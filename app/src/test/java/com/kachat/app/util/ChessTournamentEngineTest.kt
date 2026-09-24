@@ -83,16 +83,16 @@ class ChessTournamentEngineTest {
     }
 
     @Test
-    fun `a minute's grace on a first move, ten seconds after, and the rest is charged`() {
+    fun `25 seconds' grace on a first move, ten seconds after, and the rest is charged`() {
         seatEight()
         val game = "1-0"
         val white = players[0]
         val black = players[7]
-        // White's first move half a minute in: inside the minute, so nothing is charged.
-        post(white, ChessTournamentCodec.move(id, game, 1, "e2", "e4", null), advanceMs = 30_000)
+        // White's first move 20s in: inside the 25s grace, so nothing is charged.
+        post(white, ChessTournamentCodec.move(id, game, 1, "e2", "e4", null), advanceMs = 20_000)
         assertEquals(0L, state().games[game]!!.whiteUsedMs)
-        // Black's first move 70s later: a minute is free, the last 10s are charged.
-        post(black, ChessTournamentCodec.move(id, game, 2, "e7", "e5", null), advanceMs = 70_000)
+        // Black's first move 35s later: 25s are free, the last 10s are charged.
+        post(black, ChessTournamentCodec.move(id, game, 2, "e7", "e5", null), advanceMs = 35_000)
         assertEquals(10_000L, state().games[game]!!.blackUsedMs)
         // A later move inside ten seconds is free; past it, only the excess counts.
         post(white, ChessTournamentCodec.move(id, game, 3, "g1", "f3", null), advanceMs = 8_000)

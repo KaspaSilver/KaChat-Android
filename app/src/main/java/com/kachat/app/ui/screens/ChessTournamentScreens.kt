@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddCircleOutline
@@ -567,18 +568,60 @@ private fun ChessFinishedGames(mode: ChessLobbyMode, navController: NavControlle
     val duel = mode == ChessLobbyMode.DUEL
     val done = service.finishedTournaments(all).filter { it.isDuel == duel && it.isPublic }.take(100)
 
+    @Composable
+    fun finishedGameRow(game: ChessTournamentGame, tournament: ChessTournament) {
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable { navController.navigate("chess_tournament_game/${tournament.id}/${game.id}") }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row {
+                    Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
+                        fontWeight = if (game.winner == game.white) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                    Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
+                    Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
+                        fontWeight = if (game.winner == game.black) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                }
+                val where = if (tournament.isDuel) tournament.name else when (game.round) {
+                    3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1"
+                }
+                Text(
+                    "$where · ${gameStatus(game, contacts, knsNames)}",
+                    color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+        }
+    }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-        ChessSectionHeader(if (duel) "Finished 1v1 games" else "Finished tournaments")
-        ChessCard {
-            if (done.isEmpty()) {
+        if (done.isEmpty()) {
+            ChessSectionHeader(if (duel) "Finished 1v1 games" else "Finished tournaments")
+            ChessCard {
                 Text(
                     if (duel) "No finished 1v1 games yet." else "No finished tournaments yet.",
                     color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
                 )
             }
-            done.forEach { t ->
-                TournamentRow(t, t.champion?.let { "Won by ${chessName(it, contacts, knsNames)}" } ?: "Finished") {
-                    navController.navigate("chess_tournament/${t.id}")
+        } else if (duel) {
+            // A finished 1v1 is one game: tap it and the board is there as it ended.
+            ChessSectionHeader("Finished 1v1 games")
+            ChessCard {
+                done.forEach { room -> room.games.values.firstOrNull()?.let { finishedGameRow(it, room) } }
+            }
+        } else {
+            // A finished tournament: its games, final first, each straight to its board.
+            done.forEach { tournament ->
+                ChessSectionHeader(
+                    tournament.name + (tournament.champion?.let { " · won by ${chessName(it, contacts, knsNames)}" } ?: ""),
+                )
+                ChessCard {
+                    tournament.games.values.sortedWith(compareByDescending<ChessTournamentGame> { it.round }.thenByDescending { it.id })
+                        .forEach { finishedGameRow(it, tournament) }
                 }
             }
         }
@@ -1676,8 +1719,9 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             }
         },
         bottomBar = {
-            // Watching is watching: only the two players get the composer (iOS 3e366a4).
-            if (tournament != null && game != null && myColor != null) {
+            // Watching is watching: only the two players get the composer - and only while the
+            // game is on.
+            if (tournament != null && game != null && myColor != null && !game.isOver) {
                 Box(Modifier.background(colors.surface).navigationBarsPadding().imePadding()) {
                     ChessComposer(chatText, onChange = { chatText = it }) {
                         val text = chatText
@@ -1826,6 +1870,19 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             Spacer(Modifier.height(8.dp))
             ChessClockChip(game, if (flipped) ChessColor.BLACK else ChessColor.WHITE, now, myColor, contacts, knsNames)
             HorizontalDivider(color = colors.divider, modifier = Modifier.padding(vertical = 8.dp))
+            if (game.isOver) {
+                // The chat was live only - the players and whoever watched saw it as it
+                // happened; a finished board is just the board.
+                Column(
+                    Modifier.fillMaxWidth().weight(1f).padding(top = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.height(6.dp))
+                    Text("Chat was live only.", color = colors.textSecondary, fontSize = 12.sp)
+                }
+                return@Column
+            }
             // Lines the chain returned (green check on ours), then ours still on the way (clock)
             // or failed (red) - the three states a 1:1 chat bubble has. Its own scrolling area,
             // so the board and clocks stay put.
@@ -1967,7 +2024,12 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             tournamentId = tournamentId,
             gameId = gameId,
             before = recordBeforeEnd,
-            onDone = { showResult = false },
+            // Done is not "back to the board": it goes back out to the 1v1 / Tournaments screen
+            // the player came from (iOS af865b4).
+            onDone = {
+                showResult = false
+                navController.popBackStack("chess_mode/{mode}", inclusive = false)
+            },
         )
     }
 }
