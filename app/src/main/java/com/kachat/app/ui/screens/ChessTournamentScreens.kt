@@ -1564,12 +1564,18 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
 
     fun openGame(gameId: String) = navController.navigate("chess_tournament_game/$tournamentId/$gameId")
 
-    // The player's game came into being: open it (once per game).
-    LaunchedEffect(tournament?.games?.size) {
-        val t = tournament ?: return@LaunchedEffect
-        val mine = me ?: return@LaunchedEffect
-        val game = t.currentGame(mine) ?: return@LaunchedEffect
-        if (game.isOver || autoOpenedGameId == game.id) return@LaunchedEffect
+    // The player's next game, waiting on its cool-down: it opens at its start block time plus
+    // MATCH_FOUND_DELAY_MS - ten seconds on the bracket, the same instant for both players - and
+    // immediately for a player who arrives after that (iOS 8e113c4).
+    val myNextGame = me?.let { tournament?.currentGame(it) }?.takeIf { !it.isOver }
+    val nextGameCountdownMs = myNextGame?.let {
+        (it.startedAt + com.kachat.app.util.ChessTournamentCodec.MATCH_FOUND_DELAY_MS - now).takeIf { left -> left > 0 }
+    }
+
+    // The player's game came into being: open it once its cool-down has run out.
+    LaunchedEffect(tournament?.games?.size, nextGameCountdownMs == null) {
+        val game = myNextGame ?: return@LaunchedEffect
+        if (autoOpenedGameId == game.id || nextGameCountdownMs != null) return@LaunchedEffect
         autoOpenedGameId = game.id
         openGame(game.id)
     }
@@ -1645,6 +1651,27 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                             val game = me?.let { tournament.currentGame(it) }
                             when {
                                 game == null -> Text("In play. Tap any game to watch it live.", color = colors.textPrimary, fontSize = 14.sp)
+                                nextGameCountdownMs != null && myNextGame != null -> {
+                                    // Cool-down on the bracket before the next round: who it is,
+                                    // and when (iOS 8e113c4).
+                                    val opponentColor = myNextGame.color(me)?.opposite ?: ChessColor.BLACK
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                "Next: ${roundName(myNextGame.round)} vs ${chessName(myNextGame.address(opponentColor), contacts, knsNames)}",
+                                                color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            )
+                                            Text("Your game starts in", color = colors.textSecondary, fontSize = 12.sp)
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(
+                                            "${(nextGameCountdownMs + 999) / 1000}",
+                                            color = KaspaTeal, fontSize = 34.sp, fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                        )
+                                    }
+                                }
                                 game.isOver && game.winner == me -> Text(
                                     "You won ${if (tournament.isDuel) "the game" else roundName(game.round)}. Waiting for your next opponent - watch the other game meanwhile.",
                                     color = colors.textPrimary, fontSize = 14.sp,
