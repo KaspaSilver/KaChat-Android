@@ -813,7 +813,7 @@ private fun ChessChatRow(message: MessageEntity, onRetry: () -> Unit) {
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isSent) Arrangement.End else Arrangement.Start) {
             Surface(
-                color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
+                color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .widthIn(max = 260.dp)
@@ -824,7 +824,7 @@ private fun ChessChatRow(message: MessageEntity, onRetry: () -> Unit) {
             ) {
                 Text(
                     chessChatPreviewText(message),
-                    color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                    color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )

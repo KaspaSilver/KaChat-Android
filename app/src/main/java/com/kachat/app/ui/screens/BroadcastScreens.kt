@@ -1378,25 +1378,25 @@ fun BroadcastChannelScreen(
                                     Column(
                                         modifier = Modifier
                                             .background(
-                                                if (isMine) KaspaTeal else LocalAppColors.current.surface,
-                                                RoundedCornerShape(20.dp)
+                                                if (isMine) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+                                                RoundedCornerShape(16.dp)
                                             )
                                             .combinedClickable(
                                                 onClick = { showFullText = true },
                                                 onLongClick = { showMenu = true },
                                                 onDoubleClick = { showQuickReactionBar = true }
                                             )
-                                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
                                             .widthIn(max = 280.dp)
                                     ) {
                                         Text(
                                             displayContent.take(MESSAGE_TEXT_PREVIEW_LENGTH) + "…",
-                                            color = if (isMine) Color.Black else LocalAppColors.current.textPrimary
+                                            color = if (isMine) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary
                                         )
                                         Spacer(Modifier.height(4.dp))
                                         Text(
                                             stringResource(R.string.show_more),
-                                            color = if (isMine) LocalAppColors.current.divider else KaspaTeal,
+                                            color = if (isMine) LocalAppColors.current.onOutgoingBubble.copy(alpha = 0.85f) else KaspaTeal,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 13.sp
                                         )
@@ -1460,7 +1460,7 @@ fun BroadcastChannelScreen(
                                     }
                                     // Sent bubbles are teal with black text/links for contrast —
                                     // matches 1:1/group chats' treatment of the same case.
-                                    val linkColor = if (isMine) Color.Black else KaspaTeal
+                                    val linkColor = if (isMine) LocalAppColors.current.onOutgoingBubble else KaspaTeal
                                     val annotatedBody = remember(displayContent, isMine) {
                                         buildAnnotatedString {
                                             append(displayContent)
@@ -1480,16 +1480,16 @@ fun BroadcastChannelScreen(
                                     Column(
                                         modifier = Modifier
                                             .background(
-                                                if (isMine) KaspaTeal else LocalAppColors.current.surface,
-                                                RoundedCornerShape(20.dp)
+                                                if (isMine) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+                                                RoundedCornerShape(16.dp)
                                             )
                                             .widthIn(max = 280.dp)
                                     ) {
                                         Text(
                                             annotatedBody,
-                                            color = if (isMine) Color.Black else LocalAppColors.current.textPrimary,
+                                            color = if (isMine) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                                             modifier = Modifier
-                                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
                                                 .pointerInput(annotatedBody) {
                                                     detectTapGestures(
                                                         onLongPress = { showMenu = true },

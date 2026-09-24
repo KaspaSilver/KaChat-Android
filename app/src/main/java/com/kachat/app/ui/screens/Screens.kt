@@ -2393,16 +2393,16 @@ fun MessageBubble(
                         }
 
                         Surface(
-                            color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+                            shape = RoundedCornerShape(16.dp),
                             // Same off-screen-avatar risk as the plain text bubble — a long payment memo
                             // needs the same cap.
                             modifier = Modifier.widthIn(max = 280.dp).combinedClickable(onClick = {}, onLongClick = { showMenu = true })
                         ) {
                             Text(
                                 text = message.plaintextBody ?: "Payment",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -2434,14 +2434,14 @@ fun MessageBubble(
                         )
                     }
                     Surface(
-                        color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { showMenu = true })
                     ) {
                         Text(
                             text = bodyText,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                            color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -2488,8 +2488,8 @@ fun MessageBubble(
                 if (bodyText.length > MESSAGE_TEXT_TRUNCATION_THRESHOLD) {
                     var showFullText by remember { mutableStateOf(false) }
                     Surface(
-                        color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .widthIn(max = 280.dp)
                             .combinedClickable(
@@ -2498,15 +2498,15 @@ fun MessageBubble(
                                 onDoubleClick = { showQuickReactionBar = true }
                             )
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                             Text(
                                 text = bodyText.take(MESSAGE_TEXT_PREVIEW_LENGTH) + "…",
-                                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary
+                                color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = stringResource(R.string.show_more),
-                                color = if (isSent) LocalAppColors.current.divider else KaspaTeal,
+                                color = if (isSent) LocalAppColors.current.onOutgoingBubble.copy(alpha = 0.85f) else KaspaTeal,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
                             )
@@ -2548,7 +2548,7 @@ fun MessageBubble(
                     var textLayoutResult by remember(bodyText) { mutableStateOf<TextLayoutResult?>(null) }
                     // Sent bubbles are teal (matching broadcast rooms' sent-message color) with black
                     // text/links for contrast — a teal link on a teal background would be unreadable.
-                    val linkColor = if (isSent) Color.Black else KaspaTeal
+                    val linkColor = if (isSent) LocalAppColors.current.onOutgoingBubble else KaspaTeal
                     val annotatedBody = remember(bodyText, isSent) {
                         buildAnnotatedString {
                             append(bodyText)
@@ -2566,8 +2566,8 @@ fun MessageBubble(
                         }
                     }
                     Surface(
-                        color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
-                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+                        shape = RoundedCornerShape(16.dp),
                         // Without a cap, a long message claims the outer Row's full width before the
                         // avatar sibling ever gets measured, pushing the avatar off-screen entirely —
                         // matches the same 280.dp cap broadcast rooms' equivalent bubble already uses.
@@ -2576,7 +2576,7 @@ fun MessageBubble(
                         Text(
                             text = annotatedBody,
                             modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                                 .pointerInput(annotatedBody) {
                                     detectTapGestures(
                                         onLongPress = { showMenu = true },
@@ -2596,7 +2596,7 @@ fun MessageBubble(
                                     )
                                 },
                             onTextLayout = { textLayoutResult = it },
-                            color = if (isSent) Color.Black else LocalAppColors.current.textPrimary
+                            color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary
                         )
                     }
                 }
@@ -3175,8 +3175,8 @@ fun AudioBubble(voiceContent: VoiceMessageContent, isSent: Boolean, onLongPress:
     }
 
     Surface(
-        color = if (isSent) LocalAppColors.current.surfaceVariant else LocalAppColors.current.surface,
-        shape = RoundedCornerShape(20.dp),
+        color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
     ) {
         Row(
@@ -3270,8 +3270,8 @@ fun AudioFileBubble(file: java.io.File, isSent: Boolean, onLongPress: () -> Unit
     }
 
     Surface(
-        color = if (isSent) LocalAppColors.current.surfaceVariant else LocalAppColors.current.surface,
-        shape = RoundedCornerShape(20.dp),
+        color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
     ) {
         Row(
@@ -3434,7 +3434,7 @@ fun ImageBubble(
 
     if (isDecoding) {
         Surface(
-            color = if (isSent) LocalAppColors.current.surfaceVariant else LocalAppColors.current.surface,
+            color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.size(width = 220.dp, height = 160.dp)
         ) {
@@ -3452,14 +3452,14 @@ fun ImageBubble(
     val resolvedBitmap = bitmap
     if (resolvedBitmap == null) {
         Surface(
-            color = if (isSent) LocalAppColors.current.surfaceVariant else LocalAppColors.current.surface,
-            shape = RoundedCornerShape(20.dp),
+            color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
         ) {
             Text(
                 text = stringResource(R.string.photo_unavailable),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                 fontWeight = FontWeight.Bold
             )
         }

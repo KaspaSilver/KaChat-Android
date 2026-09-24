@@ -703,7 +703,7 @@ fun CallBubble(envelope: CallEnvelope, isSent: Boolean, onLongPress: () -> Unit 
         else -> Icons.Default.Phone
     }
     Surface(
-        color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
+        color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
         shape = RoundedCornerShape(16.dp),
     ) {
         Row(
@@ -713,7 +713,7 @@ fun CallBubble(envelope: CallEnvelope, isSent: Boolean, onLongPress: () -> Unit 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val color = if (isSent) Color.Black else LocalAppColors.current.textPrimary
+            val color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary
             Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
             Text(text, color = color, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }

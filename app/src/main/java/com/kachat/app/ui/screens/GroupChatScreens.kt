@@ -1428,7 +1428,7 @@ private fun GroupMessageBubble(
                     var groupTextLayoutResult by remember(displayContent) { mutableStateOf<TextLayoutResult?>(null) }
                     // Sent bubbles are teal with black text/links for contrast - matches 1:1 chat's
                     // MessageBubble (Screens.kt) treatment of the same case.
-                    val groupLinkColor = if (isSent) Color.Black else KaspaTeal
+                    val groupLinkColor = if (isSent) LocalAppColors.current.onOutgoingBubble else KaspaTeal
                     // A link back into KaChat (shared KaPosts post / broadcast-room invite) is
                     // claimed before the generic link path, exactly as in 1:1 and broadcast
                     // rooms: the universal-link form is an ordinary https URL, so without this a
@@ -1437,7 +1437,7 @@ private fun GroupMessageBubble(
                     // The card is the WHOLE message wherever a KaChat link appears - see 1:1's
                     // identical rule. Copy keeps the full text.
                     val isEntirelyInternalLinkGroup = groupInternalLink != null
-                    val annotatedGroupBody = remember(displayContent, isSent, groupMembersForMentions, mentionDomains) {
+                    val annotatedGroupBody = remember(displayContent, isSent, groupLinkColor, groupMembersForMentions, mentionDomains) {
                         buildAnnotatedString {
                             append(displayContent)
                             // Clickable @mentions: link each member's @label run to their address (tap opens a 1:1).
@@ -1448,7 +1448,7 @@ private fun GroupMessageBubble(
                                 val token = "@$label"
                                 var idx = displayContent.indexOf(token)
                                 while (idx >= 0) {
-                                    addStyle(SpanStyle(color = if (isSent) Color.Black else KaspaTeal), idx, idx + token.length)
+                                    addStyle(SpanStyle(color = groupLinkColor), idx, idx + token.length)
                                     addStringAnnotation("MENTION", member.address, idx, idx + token.length)
                                     idx = displayContent.indexOf(token, idx + token.length)
                                 }
@@ -1483,13 +1483,13 @@ private fun GroupMessageBubble(
                         )
                     } else {
                         Surface(
-                            color = if (isSent) KaspaTeal else LocalAppColors.current.surface,
+                            color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.widthIn(max = 280.dp)
                         ) {
                             Text(
                                 text = annotatedGroupBody,
-                                color = if (isSent) Color.Black else LocalAppColors.current.textPrimary,
+                                color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                                 modifier = Modifier
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
                                     .pointerInput(annotatedGroupBody) {

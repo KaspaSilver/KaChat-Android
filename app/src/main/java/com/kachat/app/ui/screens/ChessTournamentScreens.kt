@@ -1937,11 +1937,11 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                             Modifier
                                 .widthIn(max = 280.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(if (mine) KaspaTeal else colors.surfaceVariant)
+                                .background(if (mine) colors.outgoingBubble else colors.incomingBubble)
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
                             if (!mine) Text(chessName(line.sender, contacts, knsNames), color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            Text(line.text, color = if (mine) Color.Black else colors.textPrimary, fontSize = 14.sp)
+                            Text(line.text, color = if (mine) colors.onOutgoingBubble else colors.textPrimary, fontSize = 14.sp)
                         }
                         if (mine) {
                             // Under the bubble, as in a 1:1 chat: green check once the chain has it.

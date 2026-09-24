@@ -73,7 +73,15 @@ data class AppColors(
     val textOnAccent: Color,
     val success: Color,
     val warning: Color,
-    val danger: Color
+    val danger: Color,
+    /** Your own chat bubble. Deliberately NOT [accent]: iOS darkens it in dark mode (a bright
+     *  teal block behind white text is a glare on a black screen) and uses the light teal only in
+     *  light mode - see iOS's `OutgoingBubble.color`, which these two values copy exactly. */
+    val outgoingBubble: Color,
+    /** Text and icons drawn on [outgoingBubble] - white in both themes, as on iOS. */
+    val onOutgoingBubble: Color,
+    /** The other person's chat bubble - iOS's `systemGray5` in each theme. */
+    val incomingBubble: Color
 )
 
 val DarkAppColors = AppColors(
@@ -87,7 +95,10 @@ val DarkAppColors = AppColors(
     textOnAccent   = Color.Black,
     success        = Color(0xFF4CD964),
     warning        = Color(0xFFF39C12),
-    danger         = Color(0xFFFF3B30)
+    danger         = Color(0xFFFF3B30),
+    outgoingBubble = Color(0xFF167368),
+    onOutgoingBubble = Color.White,
+    incomingBubble = Color(0xFF2C2C2E)
 )
 
 val LightAppColors = AppColors(
@@ -101,7 +112,10 @@ val LightAppColors = AppColors(
     textOnAccent   = Color.Black,
     success        = Color(0xFF2E9E4F),
     warning        = Color(0xFFB9740A),
-    danger         = Color(0xFFD32F2F)
+    danger         = Color(0xFFD32F2F),
+    outgoingBubble = Color(0xFF70C7BA),
+    onOutgoingBubble = Color.White,
+    incomingBubble = Color(0xFFE5E5EA)
 )
 
 val LocalAppColors = staticCompositionLocalOf { DarkAppColors }
