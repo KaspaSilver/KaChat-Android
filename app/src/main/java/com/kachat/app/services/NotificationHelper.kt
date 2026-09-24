@@ -439,6 +439,7 @@ class NotificationHelper @Inject constructor(
          */
         fun broadcastNotificationText(content: String): String {
             com.kachat.app.util.MessageReaction.parseOrNull(content)?.let { return "Reacted ${it.emoji}" }
+            if (com.kachat.app.util.MessageEdit.parseOrNull(content) != null) return "Edited a message"
             val unwrapped = com.kachat.app.util.MessageReply.parseOrNull(content)?.text ?: content
             if (com.kachat.app.util.VoiceMessage.parseOrNull(unwrapped) != null) return "🎤 Audio message"
             if (com.kachat.app.util.ImageMessage.parseOrNull(unwrapped) != null) return "📷 Photo"

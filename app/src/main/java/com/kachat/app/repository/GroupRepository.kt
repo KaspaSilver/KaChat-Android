@@ -411,6 +411,14 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /** The newest edit per message in this group - see [com.kachat.app.util.MessageEdit]. */
+    fun getEdits(groupId: String): Flow<List<com.kachat.app.models.MessageEditEntity>> {
+        return walletManager.activeAddressFlow.flatMapLatest { address ->
+            if (address == null) flowOf(emptyList())
+            else database.messageEditDao().getEditsForGroup(groupId, address)
+        }
+    }
+
     private fun decryptEntity(entity: GroupMessageEntity, bag: GroupBag, groupIdBytes: ByteArray): GroupMessage? {
         // Imported-from-backup rows carry decrypted plaintext (hex of UTF-8) under a negative
         // epoch sentinel — no group key or ciphertext involved. Preserves message history that
@@ -701,6 +709,7 @@ class GroupRepository @Inject constructor(
         groupSecretStore.deleteBag(walletAddress, groupId)
         database.groupDao().deleteMessagesForGroup(groupId, walletAddress)
         database.reactionDao().deleteAllForGroup(groupId, walletAddress)
+        database.messageEditDao().deleteAllForGroup(groupId, walletAddress)
         database.groupDao().deleteGroup(groupId, walletAddress)
         // Tombstone it so discovery/recovery never re-adds it, and publish an on-chain delete
         // marker (best-effort; the sync backfill retries) so the delete survives a seedless
@@ -893,6 +902,60 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /**
+     * Edits one of this wallet's own text messages in a group: applied locally at once (pending),
+     * then sent as an edit envelope in a group-encrypted message exactly like a reaction - one
+     * transaction, no new bubble. Sent or failed follow.
+     */
+    suspend fun sendGroupEdit(targetTxId: String, groupId: String, text: String) {
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        val walletAddress = walletManager.getAddress()
+        database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: throw IllegalStateException("Missing group secrets - try rejoining this group.")
+
+        val groupIdBytes = groupId.hexToByteArray()
+        val groupRootEpoch = bag.groupRootEpoch.hexToByteArray()
+        val blindingKey = bag.blindingKey.hexToByteArray()
+        val deviceId = bag.deviceId.hexToByteArray()
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val senderXOnlyPub = Schnorr.publicKeyXOnly(privateKey)
+        val senderId = GroupCipher.deriveSenderId(walletAddress)
+        val payload = com.kachat.app.util.MessageEdit.encode(targetTxId, clean)
+        val now = System.currentTimeMillis()
+
+        suspend fun storeEdit(editTxId: String?, deliveryStatus: String) {
+            database.messageEditDao().upsertEdit(
+                com.kachat.app.models.MessageEditEntity(
+                    targetTxId = targetTxId, walletAddress = walletAddress, editorAddress = walletAddress,
+                    text = clean.take(com.kachat.app.util.MessageEdit.MAX_LENGTH), editTxId = editTxId,
+                    blockTimestamp = now, groupId = groupId, deliveryStatus = deliveryStatus
+                )
+            )
+        }
+        storeEdit(null, "pending")
+
+        // Persist the incremented counter BEFORE building/sending - a msg_id must never be
+        // reused even if the send itself later fails.
+        val counter = bag.msgCounter + 1
+        groupSecretStore.saveBag(walletAddress, bag.copy(msgCounter = counter))
+
+        val msgId = GroupCipher.buildMsgId(deviceId, counter)
+        val ciphertext = GroupCipher.encryptMessage(payload, groupRootEpoch, groupIdBytes, bag.currentEpoch, senderId, msgId)
+        val aad = GroupCipher.buildMessageAAD(groupIdBytes, bag.currentEpoch, senderId, msgId)
+        val signature = GroupCipher.sign(GroupCipher.buildMessageSigningPayload(aad, ciphertext), privateKey)
+        val blindedGroupId = GroupCipher.deriveBlindedGroupId(blindingKey, senderXOnlyPub)
+        val payloadString = GroupCipher.buildGroupMessagePayload(blindedGroupId, bag.currentEpoch, senderId, senderXOnlyPub, msgId, ciphertext, signature)
+
+        try {
+            val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+            storeEdit(txId, "sent")
+        } catch (e: Exception) {
+            storeEdit(null, "failed")
+            throw e
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Control message send (gctl_root / gctl_epoch)
     // -------------------------------------------------------------------------
@@ -1015,6 +1078,29 @@ class GroupRepository @Inject constructor(
             // handler knows this tx was ingested locally (and can skip its generic fallback
             // banner) — see isGroupTxIngested.
             markGroupTxHandled(txId)
+
+            // An edit is never a bubble either: it changes the message it names - if the editor
+            // sent that message - and is otherwise dropped. Checked before reactions, exactly
+            // like iOS's handleIncomingGroupMessage.
+            val edit = com.kachat.app.util.MessageEdit.parseOrNull(plaintext)
+            if (edit != null) {
+                val target = database.groupDao().getMessage(edit.targetTxId, walletAddress)
+                if (target != null && target.groupId == group.groupId && target.senderAddress == senderAddress) {
+                    val existing = database.messageEditDao().getEdit(edit.targetTxId, walletAddress)
+                    // Newest by block time wins; our own in-flight edit is replaced by its outcome.
+                    if (existing == null || existing.deliveryStatus != "sent" ||
+                        existing.blockTimestamp <= blockTimestamp || existing.editTxId == txId) {
+                        database.messageEditDao().upsertEdit(
+                            com.kachat.app.models.MessageEditEntity(
+                                targetTxId = edit.targetTxId, walletAddress = walletAddress, editorAddress = senderAddress,
+                                text = edit.text.take(com.kachat.app.util.MessageEdit.MAX_LENGTH), editTxId = txId,
+                                blockTimestamp = blockTimestamp, groupId = group.groupId
+                            )
+                        )
+                    }
+                }
+                return
+            }
 
             // Reactions are never shown as their own chat bubble - just attached to the message
             // they target - so intercept and route to the reactions table before this ever

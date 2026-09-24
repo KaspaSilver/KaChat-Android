@@ -239,6 +239,10 @@ fun GroupChatThreadScreen(
     val groupReactions by chatViewModel.getGroupReactions(groupId).collectAsState(initial = emptyList())
     val groupReactionsByTxId = remember(groupReactions) { groupReactions.groupBy { it.targetTxId } }
     val groupReplyingTo by chatViewModel.groupReplyingTo.collectAsState()
+    // The newest edit per message (see MessageEdit) - applied to the bubble as it is drawn.
+    val groupEdits by chatViewModel.getGroupEdits(groupId).collectAsState(initial = emptyList())
+    val groupEditsByTxId = remember(groupEdits) { groupEdits.associateBy { it.targetTxId } }
+    val groupEditingMessage by chatViewModel.groupEditingMessage.collectAsState()
     // Merged contact+KNS maps: group members are usually not saved contacts, so their avatar/KNS
     // name come from the address-keyed KNS cache, not just contact rows (see the VM's
     // groupMemberAvatarsByAddress/groupMemberNamesByAddress). This is what makes group chats show
@@ -575,7 +579,46 @@ fun GroupChatThreadScreen(
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                        groupReplyingTo?.let { reply ->
+                        // Editing and replying are mutually exclusive - the banner says which one
+                        // is in progress (iOS GroupChatDetailView's inputBar).
+                        groupEditingMessage?.let { editing ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                                    .background(LocalAppColors.current.surface, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Editing message", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        GroupMentionCodec.decodeForDisplay(
+                                            groupEditsByTxId[editing.txId]?.text
+                                                ?: com.kachat.app.util.MessageEdit.unwrappedText(editing.content),
+                                            groupMembers,
+                                            resolveDisplayName
+                                        ),
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        chatViewModel.cancelGroupEditing()
+                                        draft = TextFieldValue("")
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Cancel editing", tint = LocalAppColors.current.textSecondary)
+                                }
+                            }
+                        }
+                        if (groupEditingMessage == null) groupReplyingTo?.let { reply ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -780,9 +823,16 @@ fun GroupChatThreadScreen(
                                             primaryKnsByAddress[address] ?: ""
                                         }
                                         if (text.isEmpty()) return@IconButton
+                                        // Editing: the composer's text replaces the message being
+                                        // edited - one edit transaction, no new bubble.
+                                        val editing = groupEditingMessage
                                         draft = TextFieldValue("")
                                         errorMessage = null
-                                        chatViewModel.sendGroupMessage(text, groupId) { error -> errorMessage = error }
+                                        if (editing != null) {
+                                            chatViewModel.sendGroupEdit(groupId, editing.txId, text) { error -> errorMessage = error }
+                                        } else {
+                                            chatViewModel.sendGroupMessage(text, groupId) { error -> errorMessage = error }
+                                        }
                                     },
                                     modifier = Modifier
                                         .size(40.dp)
@@ -858,6 +908,16 @@ fun GroupChatThreadScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(messages, key = { _, msg -> msg.txId }) { index, message ->
+                    // An edited message reads with its newest text; the stored row is untouched.
+                    // The editor-sent-it check happens at ingest; whether the original was text at
+                    // all can only be judged here, where the content is decrypted.
+                    val editForRow = groupEditsByTxId[message.txId]
+                        ?.takeIf { com.kachat.app.util.MessageEdit.isEditable(message.content) }
+                    @Suppress("NAME_SHADOWING")
+                    val message = remember(message, editForRow) {
+                        if (editForRow == null) message
+                        else message.copy(content = com.kachat.app.util.MessageEdit.apply(editForRow.text, message.content))
+                    }
                     if (index == 0 || !ChatTimeFormat.isSameDay(messages[index - 1].blockTimestamp, message.blockTimestamp)) {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                             Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(12.dp)) {
@@ -895,6 +955,23 @@ fun GroupChatThreadScreen(
                             navController = navController,
                             onRetry = { chatViewModel.retryGroupMessage(groupId, message.content, failedTxId = message.txId) },
                             onReply = { chatViewModel.startGroupReplyTo(message) },
+                            isEdited = editForRow != null,
+                            // Your own delivered text messages only - the same gate 1:1 uses.
+                            onEdit = if (message.isOutgoing && message.deliveryStatus == "sent" &&
+                                com.kachat.app.util.MessageEdit.isEditable(message.content)) {
+                                {
+                                    chatViewModel.startGroupEditing(message)
+                                    // Mentions read as names while editing, exactly as they are
+                                    // typed - encodeForSending puts the wire form back on send.
+                                    draft = TextFieldValue(
+                                        GroupMentionCodec.decodeForDisplay(
+                                            com.kachat.app.util.MessageEdit.unwrappedText(message.content),
+                                            groupMembers,
+                                            resolveDisplayName
+                                        )
+                                    ).let { TextFieldValue(it.text, TextRange(it.text.length)) }
+                                }
+                            } else null,
                             reactions = groupReactionsByTxId[message.txId] ?: emptyList(),
                             onReact = { emoji ->
                                 val existing = groupReactionsByTxId[message.txId]?.find { it.reactorAddress == myAddress }
@@ -1190,6 +1267,11 @@ private fun GroupMessageBubble(
     navController: NavController,
     onRetry: () -> Unit,
     onReply: () -> Unit = {},
+    /** The text shown is an edit of what was sent (the caller already swapped `content`); a small
+     *  "edited" sits under the bubble. [onEdit] opens the composer on this message's text - passed
+     *  only for the local user's own editable text messages. Mirrors [MessageBubble]'s pair. */
+    isEdited: Boolean = false,
+    onEdit: (() -> Unit)? = null,
     reactions: List<com.kachat.app.models.ReactionEntity> = emptyList(),
     onReact: (String) -> Unit = {},
     /** Retries the local user's failed reaction on this message (see its `failedAction`). */
@@ -1460,6 +1542,20 @@ private fun GroupMessageBubble(
                 }
             }
 
+            // "edited" under the bubble - the mark every platform shows on an edited message.
+            if (isEdited) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "edited",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .align(if (isSent) Alignment.CenterStart else Alignment.CenterEnd)
+                            .padding(top = 2.dp)
+                    )
+                }
+            }
+
             if (isSent) {
                 Row(
                     modifier = Modifier.padding(top = 4.dp),
@@ -1492,6 +1588,13 @@ private fun GroupMessageBubble(
                     PopupMenuRow(Icons.AutoMirrored.Filled.Reply, stringResource(R.string.reply)) {
                         onReply()
                         showMenu = false
+                    }
+                    if (onEdit != null) {
+                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        PopupMenuRow(Icons.Default.Edit, "Edit") {
+                            onEdit()
+                            showMenu = false
+                        }
                     }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                     PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_message)) {

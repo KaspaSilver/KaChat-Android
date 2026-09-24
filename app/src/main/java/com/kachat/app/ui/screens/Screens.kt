@@ -201,6 +201,11 @@ fun ChatThreadScreen(
     val messages = remember(allMessages) { allMessages.filterNot { it.isSentPlaceholder } }
     val reactions by chatViewModel.getReactions(contactId).collectAsState(initial = emptyList())
     val reactionsByTxId = remember(reactions) { reactions.groupBy { it.targetTxId } }
+    // The newest edit per message (see MessageEdit) - applied to the bubble as it is drawn, the
+    // stored row is never rewritten.
+    val edits by chatViewModel.getEdits(contactId).collectAsState(initial = emptyList())
+    val editsByTxId = remember(edits) { edits.associateBy { it.targetTxId } }
+    val editingMessage by chatViewModel.editingMessage.collectAsState()
     val handshakeSendInFlight by chatViewModel.handshakeSendInFlight.collectAsState()
     val revealedPhotoTxIds by chatViewModel.revealedPhotoTxIds.collectAsState()
 
@@ -1019,7 +1024,48 @@ fun ChatThreadScreen(
                     }
                 } else {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        replyingTo?.let { reply ->
+                        // Editing and replying are mutually exclusive - the banner above the
+                        // composer says which one is in progress (iOS ChatDetailView.inputBar).
+                        editingMessage?.let { editing ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                                    .background(LocalAppColors.current.surface, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Editing message", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    // What the user sees (and is editing) is the message's newest
+                                    // text, not the row as it was originally sent.
+                                    val editingPreview = remember(editing, editsByTxId[editing.id]) {
+                                        val current = editsByTxId[editing.id]?.text
+                                            ?: com.kachat.app.util.MessageEdit.unwrappedText(editing.plaintextBody)
+                                        current
+                                    }
+                                    Text(
+                                        editingPreview,
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        chatViewModel.cancelEditing()
+                                        chatViewModel.setMessageText("")
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Cancel editing", tint = LocalAppColors.current.textSecondary)
+                                }
+                            }
+                        }
+                        if (editingMessage == null) replyingTo?.let { reply ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1290,7 +1336,16 @@ fun ChatThreadScreen(
                             } else {
                                 IconButton(
                                     onClick = {
-                                        chatViewModel.sendMessage(contactId, messageText)
+                                        // Editing: the composer's text replaces the message being
+                                        // edited - one edit transaction, no new bubble.
+                                        val editing = editingMessage
+                                        if (editing != null) {
+                                            chatViewModel.sendEdit(contactId, editing, messageText) { reason ->
+                                                Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            chatViewModel.sendMessage(contactId, messageText)
+                                        }
                                         chatViewModel.setMessageText("")
                                     },
                                     modifier = Modifier
@@ -1577,6 +1632,13 @@ fun ChatThreadScreen(
                                 }
                             }
                         }
+                        // An edited message reads with its newest text; the row itself is untouched.
+                        val editForRow = editsByTxId[msg.id]
+                        @Suppress("NAME_SHADOWING")
+                        val msg = remember(msg, editForRow) {
+                            if (editForRow == null) msg
+                            else msg.copy(plaintextBody = com.kachat.app.util.MessageEdit.apply(editForRow.text, msg.plaintextBody))
+                        }
                         val chessEnvelopeForRow = remember(msg.plaintextBody) {
                             com.kachat.app.util.ChessMessage.parseOrNull(
                                 MessageReply.parseOrNull(msg.plaintextBody)?.text ?: msg.plaintextBody
@@ -1628,6 +1690,17 @@ fun ChatThreadScreen(
                                 onDecline = { chatViewModel.declineHandshake(contactId) },
                                 onRetry = { chatViewModel.retrySendMessage(msg) },
                                 onReply = { chatViewModel.startReplyTo(msg) },
+                                isEdited = editForRow != null,
+                                // Offered on your own delivered text messages only - never on a
+                                // photo, voice note, chess move, call line or payment (iOS's
+                                // MessageEditCodec.isEditable gate, same conditions).
+                                onEdit = if (msg.direction == "sent" && msg.type == MessageProtocol.TYPE_COMM &&
+                                    msg.deliveryStatus == "sent" && com.kachat.app.util.MessageEdit.isEditable(msg.plaintextBody)) {
+                                    {
+                                        chatViewModel.startEditing(msg)
+                                        chatViewModel.setMessageText(com.kachat.app.util.MessageEdit.unwrappedText(msg.plaintextBody))
+                                    }
+                                } else null,
                                 reactions = reactionsByTxId[msg.id] ?: emptyList(),
                                 myReactorAddress = myAddress,
                                 onReact = { emoji ->
@@ -2063,6 +2136,11 @@ fun MessageBubble(
     onDecline: () -> Unit = {},
     onRetry: () -> Unit = {},
     onReply: () -> Unit = {},
+    /** The text shown is an edit of what was sent (the caller already swapped `plaintextBody`); a
+     *  small "edited" sits under the bubble. [onEdit] opens the composer on this message's text -
+     *  passed only for the local user's own editable text messages (null everywhere else). */
+    isEdited: Boolean = false,
+    onEdit: (() -> Unit)? = null,
     /** This message's current reactions (one per reactor - see [ReactionEntity]), for the pill
      *  rendered on its corner and to know whether tapping an emoji in the quick-reaction bar
      *  should add/replace or remove the caller's own reaction. */
@@ -2535,6 +2613,13 @@ fun MessageBubble(
                         onReply()
                         showMenu = false
                     }
+                    if (onEdit != null) {
+                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                        PopupMenuRow(Icons.Default.Edit, "Edit") {
+                            onEdit()
+                            showMenu = false
+                        }
+                    }
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                     PopupMenuRow(Icons.Default.Public, stringResource(R.string.view_in_explorer)) {
                         uriHandler.openUri(kaspaExplorer.txUrl(message.id))
@@ -2615,6 +2700,16 @@ fun MessageBubble(
         // link can still want a card down here.
         separateLinkPreviewUrl?.takeIf { internalLinkMatch == null }?.let { url ->
             LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent, autoFetch = linkPreviewAutoFetch)
+        }
+
+        // "edited" under the bubble - the mark every platform shows on an edited message.
+        if (isEdited) {
+            Text(
+                text = "edited",
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
 
         if (isSent) {

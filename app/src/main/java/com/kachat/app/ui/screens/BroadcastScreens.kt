@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
@@ -700,6 +701,10 @@ fun BroadcastChannelScreen(
     val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
     val contactAliases by broadcastViewModel.contactAliases.collectAsState()
     val replyingTo by broadcastViewModel.replyingTo.collectAsState()
+    // The newest edit per message (see MessageEdit), applied as each bubble is drawn - the
+    // envelope itself is never a message row.
+    val editsByTxId by broadcastViewModel.getEdits(channelName).collectAsState(initial = emptyMap())
+    val editingMessage by broadcastViewModel.editingMessage.collectAsState()
     val kaspaExplorer by broadcastViewModel.kaspaExplorer.collectAsState()
     val networkFeeRate by broadcastViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by broadcastViewModel.feeRateOverride.collectAsState()
@@ -940,7 +945,42 @@ fun BroadcastChannelScreen(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-                replyingTo?.let { reply ->
+                // Editing and replying are mutually exclusive - the banner says which one is in
+                // progress (iOS BroadcastChannelView).
+                editingMessage?.let { editing ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                            .background(LocalAppColors.current.surface, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Editing message", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                editsByTxId[editing.id]?.text
+                                    ?: com.kachat.app.util.MessageEdit.unwrappedText(editing.content),
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                broadcastViewModel.cancelEditing()
+                                broadcastViewModel.setMessageText("")
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancel editing", tint = LocalAppColors.current.textSecondary)
+                        }
+                    }
+                }
+                if (editingMessage == null) replyingTo?.let { reply ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1074,7 +1114,14 @@ fun BroadcastChannelScreen(
                             IconButton(
                                 onClick = {
                                     if (!sending && messageText.isNotBlank()) {
-                                        broadcastViewModel.sendBroadcast(channelName, messageText)
+                                        // Editing: the composer's text replaces the message being
+                                        // edited - one edit broadcast, no new bubble.
+                                        val editing = editingMessage
+                                        if (editing != null) {
+                                            broadcastViewModel.sendEdit(channelName, editing.id, messageText)
+                                        } else {
+                                            broadcastViewModel.sendBroadcast(channelName, messageText)
+                                        }
                                         broadcastViewModel.setMessageText("")
                                     }
                                 },
@@ -1167,6 +1214,13 @@ fun BroadcastChannelScreen(
                                 )
                             }
                         }
+                    }
+                    // An edited message reads with its newest text; the stored row is untouched.
+                    val editForRow = editsByTxId[message.id]
+                    @Suppress("NAME_SHADOWING")
+                    val message = remember(message, editForRow) {
+                        if (editForRow == null) message
+                        else message.copy(content = com.kachat.app.util.MessageEdit.apply(editForRow.text, message.content))
                     }
                     val isMine = message.senderAddress == myAddress
                     val replyContent = remember(message.content) { MessageReply.parseOrNull(message.content) }
@@ -1454,6 +1508,19 @@ fun BroadcastChannelScreen(
                                             broadcastViewModel.startReplyTo(message)
                                             showMenu = false
                                         }
+                                        // Your own delivered text messages only - the same gate
+                                        // 1:1 and group chats use.
+                                        if (isMine && message.deliveryStatus == "sent" &&
+                                            com.kachat.app.util.MessageEdit.isEditable(message.content)) {
+                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                                            PopupMenuRow(Icons.Default.Edit, "Edit") {
+                                                broadcastViewModel.startEditing(message)
+                                                broadcastViewModel.setMessageText(
+                                                    com.kachat.app.util.MessageEdit.unwrappedText(message.content)
+                                                )
+                                                showMenu = false
+                                            }
+                                        }
                                         HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
                                         PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_message)) {
                                             clipboardManager.setText(AnnotatedString(displayContent))
@@ -1564,6 +1631,21 @@ fun BroadcastChannelScreen(
                             // link preview card / next message below it.
                             if (messageReactions.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(14.dp))
+                            }
+
+                            // "edited" under the bubble - the mark every platform shows on an
+                            // edited message.
+                            if (editForRow != null) {
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "edited",
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier
+                                            .align(if (isMine) Alignment.CenterEnd else Alignment.CenterStart)
+                                            .padding(top = 2.dp)
+                                    )
+                                }
                             }
 
                             // A link mixed with other text keeps the bubble above and stacks the

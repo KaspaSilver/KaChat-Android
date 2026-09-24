@@ -25,6 +25,7 @@ object BroadcastPushPreview {
         if (!text.startsWith("{")) return text.ifEmpty { body }
 
         MessageReaction.parseOrNull(text)?.let { return "Reacted ${it.emoji}" }
+        if (MessageEdit.parseOrNull(text) != null) return "Edited a message"
         if (ChessMessage.parseOrNull(text) != null) return "♟️ Chess game"
         CallCodec.parseOrNull(text)?.let { return CallCodec.notificationPreview(it) }
         MessageReply.parseOrNull(text)?.let { return it.text }

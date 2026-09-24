@@ -1455,6 +1455,37 @@ class ChatViewModel @Inject constructor(
 
     fun getGroupReactions(groupId: String) = groupRepository.getReactions(groupId)
 
+    fun getGroupEdits(groupId: String) = groupRepository.getEdits(groupId)
+
+    // The group message whose text the composer is editing (one of your own), shown as a banner
+    // above the compose field. Mutually exclusive with [_groupReplyingTo], as on iOS.
+    private val _groupEditingMessage = MutableStateFlow<com.kachat.app.repository.GroupMessage?>(null)
+    val groupEditingMessage: StateFlow<com.kachat.app.repository.GroupMessage?> = _groupEditingMessage.asStateFlow()
+
+    fun startGroupEditing(message: com.kachat.app.repository.GroupMessage) {
+        _groupReplyingTo.value = null
+        _groupEditingMessage.value = message
+    }
+
+    fun cancelGroupEditing() {
+        _groupEditingMessage.value = null
+    }
+
+    /** Edits one of this wallet's own group messages - see [GroupRepository.sendGroupEdit]. */
+    fun sendGroupEdit(groupId: String, targetTxId: String, text: String, onError: (String) -> Unit = {}) {
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        _groupEditingMessage.value = null
+        viewModelScope.launch {
+            try {
+                groupRepository.sendGroupEdit(targetTxId, groupId, clean)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error sending group edit", e)
+                onError(e.message ?: "Edit failed")
+            }
+        }
+    }
+
     /**
      * Reacts to [targetTxId] with [emoji] ("add"), or removes this wallet's existing reaction on
      * it ("remove"). Mirrors [sendReaction] for 1:1 chats - see [GroupRepository.sendGroupReaction].
@@ -2078,6 +2109,52 @@ class ChatViewModel @Inject constructor(
 
     fun cancelReply() {
         _replyingTo.value = null
+    }
+
+    // The message currently being edited (long-press > Edit on one of your own text bubbles),
+    // shown as a banner above the compose field with the message's current text already in it.
+    // Mirrors [_replyingTo]'s shape; the two are mutually exclusive, exactly like iOS's inputBar.
+    private val _editingMessage = MutableStateFlow<MessageEntity?>(null)
+    val editingMessage: StateFlow<MessageEntity?> = _editingMessage.asStateFlow()
+
+    fun startEditing(message: MessageEntity) {
+        _replyingTo.value = null
+        _editingMessage.value = message
+    }
+
+    fun cancelEditing() {
+        _editingMessage.value = null
+    }
+
+    /**
+     * Edits one of this wallet's own text messages: applied locally at once (pending), then sent
+     * as an edit envelope through the same [WalletService.sendKasiaMessage] pipeline a reaction
+     * uses - never a visible bubble of its own. Sent (green check) or failed (red) follow, and
+     * [onError] gets the failure's reason for the same toast a failed send shows.
+     */
+    fun sendEdit(contactId: String, target: MessageEntity, text: String, onError: (String) -> Unit = {}) {
+        val clean = text.trim()
+        if (clean.isEmpty() || target.direction != "sent" ||
+            !com.kachat.app.util.MessageEdit.isEditable(target.plaintextBody)) return
+        _editingMessage.value = null
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            chatRepository.upsertOwnEdit(target.id, contactId, clean, null, now, deliveryStatus = "pending")
+            try {
+                val payload = com.kachat.app.util.MessageEdit.encode(target.id, clean)
+                val result = walletService.sendKasiaMessage(contactId, payload)
+                chatRepository.upsertOwnEdit(target.id, contactId, clean, result.txId, now, deliveryStatus = "sent")
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Edit of ${target.id.take(12)} failed: ${e.message}", e)
+                chatRepository.upsertOwnEdit(target.id, contactId, clean, null, now, deliveryStatus = "failed")
+                onError(e.message ?: "Edit failed")
+            }
+        }
+    }
+
+    /** Retries an edit whose send previously failed - re-sends the stored text. */
+    fun retryEdit(contactId: String, target: MessageEntity, text: String, onError: (String) -> Unit = {}) {
+        sendEdit(contactId, target, text, onError)
     }
 
     fun sendMessage(contactId: String, text: String) {
@@ -2935,6 +3012,11 @@ class ChatViewModel @Inject constructor(
 
     fun getReactions(contactId: String): Flow<List<ReactionEntity>> {
         return chatRepository.getReactionsForContact(contactId)
+    }
+
+    /** The newest edit per message in this conversation - applied when the bubble is drawn. */
+    fun getEdits(contactId: String): Flow<List<com.kachat.app.models.MessageEditEntity>> {
+        return chatRepository.getEditsForContact(contactId)
     }
 
     /** One sweep at a time - see [refreshKnsNamesForAllContacts]. */

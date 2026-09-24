@@ -343,6 +343,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             val sompi = notice.content.amountSompi
             return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f KAS", sompi / 100_000_000.0) else "Received payment"
         }
+        // An edit envelope reads as what it is rather than its JSON (iOS editPreviewText).
+        if (com.kachat.app.util.MessageEdit.parseOrNull(plaintext) != null) return "Edited a message"
         com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
         MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
         if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"

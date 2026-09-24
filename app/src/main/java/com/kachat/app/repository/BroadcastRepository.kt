@@ -153,7 +153,8 @@ class BroadcastRepository @Inject constructor(
         ) { newestFirst, hidden ->
             val hiddenHere = hiddenAddressesIn(channelName, hidden)
             val readable = newestFirst.filterNot {
-                it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null
+                it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null ||
+                    com.kachat.app.util.MessageEdit.parseOrNull(it.content) != null
             }
             val unread = if (lastReadMs == null) 0 else readable.count {
                 it.blockTimestamp > lastReadMs && it.senderAddress != myAddress
@@ -166,7 +167,10 @@ class BroadcastRepository @Inject constructor(
     fun getMessages(channelName: String): Flow<List<BroadcastMessageEntity>> {
         return combine(database.broadcastDao().getMessagesForChannel(channelName), getHiddenSenders()) { messages, hidden ->
             val hiddenHere = hiddenAddressesIn(channelName, hidden)
-            messages.filterNot { it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null }
+            messages.filterNot {
+                it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null ||
+                    com.kachat.app.util.MessageEdit.parseOrNull(it.content) != null
+            }
         }
     }
 
@@ -215,6 +219,53 @@ class BroadcastRepository @Inject constructor(
             }
         }
     }
+
+    /**
+     * The newest edit per message in [channelName], derived from the cached broadcast rows the
+     * same way [getReactions] derives reactions: an edit is just a broadcast whose content is the
+     * [com.kachat.app.util.MessageEdit] JSON, so the stored rows ARE the storage — they survive
+     * restarts, load with the room's history and dedupe by txId.
+     *
+     * An edit counts only if its sender sent the message it names and that message is text; the
+     * newest by block time wins. Keyed by the target's txId, ready for the screen to apply as it
+     * draws each bubble.
+     */
+    fun getEdits(channelName: String): Flow<Map<String, BroadcastEdit>> {
+        return combine(database.broadcastDao().getMessagesForChannel(channelName), getHiddenSenders()) { messages, hidden ->
+            val hiddenHere = hiddenAddressesIn(channelName, hidden)
+            val senders = HashMap<String, BroadcastMessageEntity>(messages.size)
+            for (row in messages) senders[row.id] = row
+            val newestPerTarget = LinkedHashMap<String, BroadcastEdit>()
+            for (row in messages) {
+                if (row.senderAddress in hiddenHere) continue
+                val parsed = com.kachat.app.util.MessageEdit.parseOrNull(row.content) ?: continue
+                val target = senders[parsed.targetTxId] ?: continue
+                if (target.senderAddress != row.senderAddress) continue
+                if (!com.kachat.app.util.MessageEdit.isEditable(target.content)) continue
+                val existing = newestPerTarget[parsed.targetTxId]
+                // >= so a tie is broken by row order (DAO orders by blockTimestamp ASC).
+                if (existing == null || row.blockTimestamp >= existing.blockTimestamp) {
+                    newestPerTarget[parsed.targetTxId] = BroadcastEdit(
+                        targetTxId = parsed.targetTxId,
+                        text = parsed.text,
+                        editMessageId = row.id,
+                        blockTimestamp = row.blockTimestamp,
+                        deliveryStatus = row.deliveryStatus
+                    )
+                }
+            }
+            newestPerTarget
+        }
+    }
+
+    /** One message's newest edit in a room — see [getEdits]. */
+    data class BroadcastEdit(
+        val targetTxId: String,
+        val text: String,
+        val editMessageId: String,
+        val blockTimestamp: Long,
+        val deliveryStatus: String
+    )
 
     /** Re-attempts a reaction message whose send previously failed — [reactionMessageId] is the reaction's own broadcast message row id (see [getReactions]'s `reactionTxId`). */
     suspend fun retryReactionMessage(reactionMessageId: String?) {
@@ -298,7 +349,10 @@ class BroadcastRepository @Inject constructor(
             val sender = message.senderAddress ?: continue
             val content = message.content ?: continue
             if (sender in hidden) continue
+            // Neither a reaction nor an edit is a message anyone reads; the room's own
+            // backfill is what persists them.
             if (MessageReaction.parseOrNull(content) != null) continue
+            if (com.kachat.app.util.MessageEdit.parseOrNull(content) != null) continue
             val existing = database.broadcastDao().getMessage(txId)
             if (existing != null) {
                 // A row this phone sent carries its own clock until the chain's time reaches it,

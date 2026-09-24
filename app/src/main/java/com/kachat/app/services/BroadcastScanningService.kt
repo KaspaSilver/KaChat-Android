@@ -391,8 +391,10 @@ class BroadcastScanningService @Inject constructor(
                 )
             )
 
-            // Global notification center (Profile bell): reactions never surface as rows.
-            if (MessageReaction.parseOrNull(parsed.content) == null) {
+            // Global notification center (Profile bell): neither a reaction nor an edit ever
+            // surfaces as a row.
+            if (MessageReaction.parseOrNull(parsed.content) == null &&
+                com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) == null) {
                 notificationCenter.recordBroadcastIfLive(
                     channel = parsed.channel,
                     senderAddress = senderAddress,
@@ -417,6 +419,7 @@ class BroadcastScanningService @Inject constructor(
                 val displayContent = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content
                 val notificationText = when {
                     reaction != null -> "Reacted ${reaction.emoji}"
+                    com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) != null -> "Edited a message"
                     VoiceMessage.parseOrNull(displayContent) != null -> "🎤 Audio message"
                     else -> displayContent
                 }

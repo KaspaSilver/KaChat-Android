@@ -557,6 +557,49 @@ class BroadcastViewModel @Inject constructor(
         _replyingTo.value = null
     }
 
+    // The message whose text the composer is editing (one of your own), shown as a banner above
+    // the compose field. Mutually exclusive with [_replyingTo], as on iOS.
+    private val _editingMessage = MutableStateFlow<BroadcastMessageEntity?>(null)
+    val editingMessage: StateFlow<BroadcastMessageEntity?> = _editingMessage.asStateFlow()
+
+    fun startEditing(message: BroadcastMessageEntity) {
+        _replyingTo.value = null
+        _editingMessage.value = message
+    }
+
+    fun cancelEditing() {
+        _editingMessage.value = null
+    }
+
+    /** The newest edit per message in [channelName], keyed by the edited message's txId - see
+     *  [BroadcastRepository.getEdits]. */
+    fun getEdits(channelName: String) = broadcastRepository.getEdits(channelName)
+
+    /**
+     * Edits one of this wallet's own text messages in a room: sent as an edit envelope exactly
+     * like a reaction - one broadcast, no message row of its own (the envelope is filtered out of
+     * the room's messages and applied to the message it names).
+     */
+    fun sendEdit(channelName: String, targetTxId: String, text: String) {
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        // A still-pending target has no real txId yet - an edit naming it could never be resolved
+        // by anyone else (same guard as [sendReaction]).
+        if (targetTxId.startsWith("pending_")) return
+        _editingMessage.value = null
+        viewModelScope.launch {
+            try {
+                broadcastRepository.sendBroadcast(channelName, com.kachat.app.util.MessageEdit.encode(targetTxId, clean))
+            } catch (e: Exception) {
+                Log.e("BroadcastViewModel", "Error sending broadcast edit", e)
+                _sendBroadcastState.value = SendBroadcastUiState(
+                    status = SendBroadcastStatus.FAILED,
+                    message = humanizeSendError(e)
+                )
+            }
+        }
+    }
+
     enum class SendBroadcastStatus { IDLE, SENDING, FAILED }
     data class SendBroadcastUiState(val status: SendBroadcastStatus = SendBroadcastStatus.IDLE, val message: String? = null)
 

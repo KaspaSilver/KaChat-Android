@@ -105,6 +105,32 @@ data class ReactionEntity(
 )
 
 /**
+ * The newest edit on one message — see [com.kachat.app.util.MessageEditContent]. The message row
+ * itself is never rewritten: the edit is stored beside it and applied when the bubble is drawn, so
+ * the original transaction's plaintext stays exactly what went on chain. One row per (message,
+ * wallet): only the original sender's edits count, so there is never more than one editor, and the
+ * newest by [blockTimestamp] wins. [editorAddress] is kept so an edit whose target arrives later
+ * can still be checked against who sent that message. [deliveryStatus] is the local user's own
+ * edit's send state ("sent" — also the value for every received edit — "pending" or "failed").
+ */
+@Entity(
+    tableName = "message_edits",
+    primaryKeys = ["targetTxId", "walletAddress"],
+    indices = [Index(value = ["walletAddress", "contactId"]), Index(value = ["walletAddress", "groupId"])]
+)
+data class MessageEditEntity(
+    val targetTxId: String,
+    val walletAddress: String,
+    val editorAddress: String,
+    val text: String,
+    val editTxId: String? = null,
+    val blockTimestamp: Long,
+    val contactId: String? = null,
+    val groupId: String? = null,
+    val deliveryStatus: String = "sent"
+)
+
+/**
  * Tracks how far into one contact's `contextual-messages/by-sender` stream this wallet has
  * already synced, per alias (a contact may be messaging under more than one — see
  * `ChatRepository.syncContextualMessages`'s legacy/deterministic alias loop). The indexer's

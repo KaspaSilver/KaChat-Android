@@ -12,6 +12,7 @@ import com.kachat.app.models.GroupEntity
 import com.kachat.app.models.GroupMessageEntity
 import com.kachat.app.models.GroupSyncCursorEntity
 import com.kachat.app.models.HiddenBroadcastSenderEntity
+import com.kachat.app.models.MessageEditEntity
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.MessageSyncCursorEntity
 import com.kachat.app.models.PortfolioEntity
@@ -42,8 +43,9 @@ import com.kachat.app.models.SwapTransactionEntity
         GroupMessageEntity::class,
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
+        MessageEditEntity::class,
     ],
-    version = 39,
+    version = 40,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -55,6 +57,7 @@ abstract class KaChatDatabase : RoomDatabase() {
     abstract fun swapDao(): SwapDao
     abstract fun groupDao(): GroupDao
     abstract fun reactionDao(): ReactionDao
+    abstract fun messageEditDao(): MessageEditDao
 
     companion object {
         /**
@@ -455,6 +458,25 @@ abstract class KaChatDatabase : RoomDatabase() {
          * Index names must match what Room generates for the `indices` on each @Entity, or the
          * post-migration schema validation fails.
          */
+        /**
+         * v39 -> v40: adds `message_edits` — the newest edit per 1:1/group message (see
+         * [com.kachat.app.models.MessageEditEntity]). Purely additive, nothing to backfill: a
+         * message with no row here simply reads as it was sent.
+         */
+        val MIGRATION_39_40 = object : Migration(39, 40) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `message_edits` (
+                        `targetTxId` TEXT NOT NULL, `walletAddress` TEXT NOT NULL, `editorAddress` TEXT NOT NULL,
+                        `text` TEXT NOT NULL, `editTxId` TEXT, `blockTimestamp` INTEGER NOT NULL,
+                        `contactId` TEXT, `groupId` TEXT, `deliveryStatus` TEXT NOT NULL,
+                        PRIMARY KEY(`targetTxId`, `walletAddress`))"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_message_edits_walletAddress_contactId` ON `message_edits` (`walletAddress`, `contactId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_message_edits_walletAddress_groupId` ON `message_edits` (`walletAddress`, `groupId`)")
+            }
+        }
+
         /** v38 -> v39: `contacts.callsEnabled` (nullable, null = calls OFF). Calls became opt-in
          *  per contact; the old callsDisabled column is left in place and ignored. */
         val MIGRATION_38_39 = object : Migration(38, 39) {

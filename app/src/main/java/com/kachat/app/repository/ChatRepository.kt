@@ -256,6 +256,7 @@ class ChatRepository @Inject constructor(
         )
         database.messageDao().deleteAllForContact(contactId, myAddress)
         database.reactionDao().deleteAllForContact(contactId, myAddress)
+        database.messageEditDao().deleteAllForContact(contactId, myAddress)
         // So a later re-handshake with this same address starts its indexer sync clean instead of
         // resuming from a stale per-contact cursor left over from before the deletion.
         database.messageDao().deleteSyncCursorsForContact(contactId, myAddress)
@@ -714,6 +715,79 @@ class ChatRepository @Inject constructor(
         return database.reactionDao().getReactionsForContact(contactId, walletManager.getAddress())
     }
 
+    // -------------------------------------------------------------------------
+    // Message edits — see MessageEdit / MessageEditEntity. An edit never touches the message row:
+    // it is stored here and applied when the bubble is drawn, so the original transaction's
+    // plaintext stays exactly what went on chain.
+    // -------------------------------------------------------------------------
+
+    fun getEditsForContact(contactId: String): Flow<List<com.kachat.app.models.MessageEditEntity>> {
+        return scopedToActiveAccount(
+            { address -> database.messageEditDao().getEditsForContact(contactId, address) },
+            emptyList(),
+        )
+    }
+
+    /** The local user's own edit, applied at once (pending) and updated with its outcome — the
+     *  sibling of [upsertReaction]'s optimistic path. */
+    suspend fun upsertOwnEdit(
+        targetTxId: String,
+        contactId: String,
+        text: String,
+        editTxId: String?,
+        blockTimestamp: Long,
+        deliveryStatus: String
+    ) {
+        val myAddress = walletManager.getAddress()
+        database.messageEditDao().upsertEdit(
+            com.kachat.app.models.MessageEditEntity(
+                targetTxId = targetTxId,
+                walletAddress = myAddress,
+                editorAddress = myAddress,
+                text = text.take(com.kachat.app.util.MessageEdit.MAX_LENGTH),
+                editTxId = editTxId,
+                blockTimestamp = blockTimestamp,
+                contactId = contactId,
+                deliveryStatus = deliveryStatus
+            )
+        )
+    }
+
+    /**
+     * An edit envelope that arrived as a message (the contact's, or our own echoed back). It
+     * counts only if the editor sent the message it names: the contact may edit the contact's
+     * messages, this wallet its own — never the other way round. Newest by block time wins,
+     * except that the local user's own in-flight edit is always replaced by its own outcome.
+     */
+    suspend fun applyIncomingEdit(
+        edit: com.kachat.app.util.MessageEditContent,
+        editorIsMe: Boolean,
+        contactId: String,
+        editTxId: String,
+        blockTime: Long,
+        walletAddress: String? = null
+    ) {
+        val myAddress = walletAddress ?: walletManager.getAddress()
+        val target = database.messageDao().getById(edit.targetTxId, myAddress) ?: return
+        if ((target.direction == "sent") != editorIsMe) return
+        if (!com.kachat.app.util.MessageEdit.isEditable(target.plaintextBody)) return
+        val existing = database.messageEditDao().getEdit(edit.targetTxId, myAddress)
+        if (existing != null && existing.deliveryStatus == "sent" &&
+            existing.blockTimestamp > blockTime && existing.editTxId != editTxId) return
+        database.messageEditDao().upsertEdit(
+            com.kachat.app.models.MessageEditEntity(
+                targetTxId = edit.targetTxId,
+                walletAddress = myAddress,
+                editorAddress = if (editorIsMe) myAddress else contactId,
+                text = edit.text.take(com.kachat.app.util.MessageEdit.MAX_LENGTH),
+                editTxId = editTxId,
+                blockTimestamp = blockTime,
+                contactId = contactId,
+                deliveryStatus = "sent"
+            )
+        )
+    }
+
     /** Chats re-fetched + how many received messages exist for the scope once the resync lands — the success summary of a wipe-and-resync. */
     data class IncomingResyncResult(val chatCount: Int, val messageCount: Int)
 
@@ -802,6 +876,7 @@ class ChatRepository @Inject constructor(
     suspend fun wipeAllLocalDataForAddress(address: String) {
         database.messageDao().deleteAllForWallet(address)
         database.reactionDao().deleteAllForWallet(address)
+        database.messageEditDao().deleteAllForWallet(address)
         database.messageDao().deleteSyncCursorsForWallet(address)
         database.contactDao().deleteAllForWallet(address)
         database.contactDao().deleteTombstonesForWallet(address)
@@ -1370,6 +1445,23 @@ class ChatRepository @Inject constructor(
         // Decryption only needs our own private key + the ephemeral key embedded in the
         // message itself (ECDH) — the sender's static pubkey is never required here.
         val plaintext = MessageProtocol.decrypt(encryptedMessage, walletManager.getPrivateKeyBytes())
+
+        // An edit is never a bubble either: it changes the message it names (if the editor sent
+        // that message) and is otherwise dropped - see [applyIncomingEdit]. Checked before the
+        // reaction intercept, exactly like iOS's addMessageToConversation.
+        val edit = com.kachat.app.util.MessageEdit.parseOrNull(plaintext)
+        if (edit != null) {
+            applyIncomingEdit(
+                edit = edit,
+                // Self-chat aside, an edit arriving on this stream was sent by the contact.
+                editorIsMe = contact.id == myAddress,
+                contactId = contact.id,
+                editTxId = message.txId,
+                blockTime = message.blockTime,
+                walletAddress = myAddress
+            )
+            return
+        }
 
         // Reactions are never shown as their own chat bubble - just attached to the message they
         // target - so intercept and route to the reactions table before a MessageEntity is ever
