@@ -2169,20 +2169,8 @@ fun KaPostCell(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        // Remembered per timestamp: the >7d branch allocates a SimpleDateFormat,
-                        // which is not something to redo on every cell recomposition mid-scroll
-                        // (same pattern as the chat thread's remembered ChatTimeFormat call).
-                        text = remember(post.timestamp) { relativePostTime(post.timestamp) },
-                        color = colors.textSecondary,
-                        fontSize = 13.sp,
-                    )
-                    // A post whose text was changed says so, as on iOS.
-                    if (post.editedAt != null) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("· edited", color = colors.textSecondary, fontSize = 13.sp)
-                    }
+                    // When the post was made, and whether it was edited, sit in their own row
+                    // under the actions now - this line carries only Follow / Following (iOS).
                     if (!isMine) {
                         Spacer(modifier = Modifier.width(8.dp))
                         val isFollowing = isFollowingPoster
@@ -2456,6 +2444,18 @@ fun KaPostCell(
                     onRetry = { lightHaptic(); viewModel.retryPost(post) },
                     onHaptic = { lightHaptic() },
                 )
+                // When the post was made - the full date and time, in its own row under the
+                // actions, with "· edited" after it when the text was changed (iOS b31ff59).
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    // Remembered per timestamp: formatting allocates a SimpleDateFormat, which is
+                    // not something to redo on every cell recomposition mid-scroll.
+                    text = remember(post.timestamp, post.editedAt) {
+                        postTimestampLabel(post.timestamp) + if (post.editedAt != null) " · edited" else ""
+                    },
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                )
             }
         }
     }
@@ -2526,14 +2526,8 @@ private fun QuotedEmbedCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            quoted.timestamp?.let { ts ->
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = remember(ts) { relativePostTime(ts) },
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                )
-            }
+            // No time on a quoted card's name line - the quote is context, and its own card
+            // carries the moment it was written (iOS b31ff59).
         }
         Spacer(modifier = Modifier.height(3.dp))
         Text(
@@ -2732,40 +2726,23 @@ private fun EngagementRow(
             }
         }
         Spacer(modifier = Modifier.weight(1f))
-        // Bottom-right: when the post was made - the clock time today, the date beyond that
-        // (the header keeps its "13h ago"), then the on-chain delivery state.
-        Text(
-            postTimestampLabel(post.timestamp),
-            color = LocalAppColors.current.textSecondary,
-            fontSize = 11.sp,
-            maxLines = 1,
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        // On-chain delivery state, mirroring chat bubbles - green check once the K transaction is
-        // on the network (for a minute), spinner while submitting, red Retry when it didn't go
-        // through (iOS).
+        // Bottom-right: on-chain delivery state, mirroring chat bubbles - green check once the K
+        // transaction is on the network (for a minute), spinner while submitting, red Retry when
+        // it didn't go through (iOS).
         DeliveryState(post = post, onRetry = onRetry)
     }
 }
 
 /**
- * When a post was made, as the card's bottom right shows it: the clock time for one made today,
- * the month and day as well for one from this year, the year too beyond that - in the reader's
- * own locale and 12/24-hour setting (iOS's postTimestamp).
+ * The full date and time a post was made, e.g. "24 Sept 2026, 09:27" - in the reader's own
+ * locale and 12/24-hour setting (iOS's fullTimestamp: medium date, short time).
  */
 private fun postTimestampLabel(timestampMs: Long): String {
-    val now = java.util.Calendar.getInstance()
-    val then = java.util.Calendar.getInstance().apply { timeInMillis = timestampMs }
-    val sameYear = now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR)
-    val sameDay = sameYear && now.get(java.util.Calendar.DAY_OF_YEAR) == then.get(java.util.Calendar.DAY_OF_YEAR)
     val locale = java.util.Locale.getDefault()
-    val skeleton = when {
-        sameDay -> "jmm"
-        sameYear -> "MMMd jmm"
-        else -> "MMMd y jmm"
-    }
-    val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton)
-    return java.text.SimpleDateFormat(pattern, locale).format(java.util.Date(timestampMs))
+    val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale)
+    val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, locale)
+    val moment = java.util.Date(timestampMs)
+    return "${date.format(moment)}, ${time.format(moment)}"
 }
 
 @Composable
