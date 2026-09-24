@@ -238,12 +238,24 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
     fun open(id: String) = navController.navigate("chess_tournament/$id")
 
     // Seated in a room that is still filling - a fresh join, a relaunch, or coming back here:
-    // the waiting room is the only place to be.
-    LaunchedEffect(mine?.id, mine?.status) {
+    // the waiting room is the only place to be. And once it starts, the game is: a room that
+    // filled while this screen was up (or while the app was away) must not leave the player on
+    // the lobby being told they are already playing somewhere.
+    var openedGameForRoom by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(mine?.id, mine?.status, mine?.games?.size) {
         val room = mine ?: return@LaunchedEffect
         val address = me ?: return@LaunchedEffect
-        if (room.status == ChessTournament.Status.OPEN && room.isSeated(address, service.now.value)) {
-            waitingRoomId = room.id
+        when {
+            room.status == ChessTournament.Status.OPEN && room.isSeated(address, service.now.value) -> {
+                waitingRoomId = room.id
+            }
+            room.status == ChessTournament.Status.LIVE && address in room.players -> {
+                val game = room.currentGame(address) ?: return@LaunchedEffect
+                if (game.isOver || openedGameForRoom == room.id) return@LaunchedEffect
+                openedGameForRoom = room.id
+                waitingRoomId = null
+                open(room.id)
+            }
         }
     }
 
@@ -888,18 +900,37 @@ private fun ChessWaitingRoom(
     var showLeaveWarning by remember { mutableStateOf(false) }
     var isLeaving by remember { mutableStateOf(false) }
     var handedOff by remember { mutableStateOf(false) }
+    // Whether this player has actually been seen in the room. A join takes a few seconds to land,
+    // and a room someone else is already waiting in EXISTS before then - so "not seated" on its
+    // own meant "your seat expired" the instant the room opened, which closed the room with that
+    // notice and left the player outside the game that followed.
+    var everSeated by remember { mutableStateOf(false) }
+    val iAmSeated = me != null && tournament?.isSeated(me, now) == true
+    LaunchedEffect(iAmSeated) { if (iAmSeated) everSeated = true }
 
     // Filled, or the seat ran out: hand the screen over. Runs on every tick.
-    LaunchedEffect(tournament?.status, now, handedOff) {
+    LaunchedEffect(tournament?.status, now, handedOff, everSeated) {
         if (handedOff || tournament == null || me == null) return@LaunchedEffect
+        val started = tournament.status == ChessTournament.Status.LIVE ||
+            tournament.status == ChessTournament.Status.FINISHED
         when {
-            tournament.status == ChessTournament.Status.LIVE || tournament.status == ChessTournament.Status.FINISHED -> {
+            // The room started and this player is in it: their game is waiting.
+            started && me in tournament.players -> {
                 handedOff = true
                 onStarted(tournament.id)
             }
-            tournament.status == ChessTournament.Status.CANCELLED || !tournament.isSeated(me, now) -> {
+            // It filled before this player's join landed. The service queues them into the next
+            // room by itself, and the lobby moves this screen there - so hold, rather than
+            // closing with a notice about a seat that was never taken.
+            started -> Unit
+            tournament.status == ChessTournament.Status.CANCELLED -> {
                 handedOff = true
-                onFinished(tournament.status != ChessTournament.Status.CANCELLED)
+                onFinished(false)
+            }
+            // Seated once and no longer: that is the five minutes running out.
+            everSeated && !iAmSeated -> {
+                handedOff = true
+                onFinished(true)
             }
         }
     }
@@ -963,8 +994,12 @@ private fun ChessWaitingRoom(
                     fontSize = 44.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
                 )
                 Text(
-                    if (left == null) "Taking your seat - this is one transaction, so it takes a few seconds."
-                    else "Your seat is held this long. If no one joins in time, you leave the queue.",
+                    when {
+                        tournament != null && tournament.isFull && !iAmSeated ->
+                            "That room filled first - finding you the next one."
+                        left == null -> "Taking your seat - this is one transaction, so it takes a few seconds."
+                        else -> "Your seat is held this long. If no one joins in time, you leave the queue."
+                    },
                     color = colors.textSecondary, fontSize = 12.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 32.dp),
