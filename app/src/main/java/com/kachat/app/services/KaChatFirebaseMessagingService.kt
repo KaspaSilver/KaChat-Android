@@ -71,6 +71,14 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                 when (type) {
                     "broadcast" -> {
                         val channel = data["channel"] ?: return@runBlocking
+                        // An edit changes an earlier message in place - nothing to announce. The
+                        // push service is asked not to send these at all (BROADCAST_INDEXER.md);
+                        // this is the backstop for one that arrives anyway.
+                        if (com.kachat.app.util.BroadcastPushPreview.isEditEnvelope(body)) {
+                            Log.i(TAG, "Edit push dropped: an edit is never announced")
+                            data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                            return@runBlocking
+                        }
                         notificationHelper.showBroadcast(
                             channelName = channel,
                             title = title.ifEmpty { "#$channel" },
@@ -259,6 +267,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             // Reactions are never shown as their own notification (matches ChatRepository).
             return
         }
+        // Nor is an edit: it changes an earlier bubble in place (MESSAGING.md "Message Edits").
+        if (plaintext != null && com.kachat.app.util.BroadcastPushPreview.isEditEnvelope(plaintext)) {
+            data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+            return
+        }
         // Chats Payment Privacy's fresh-address pool control envelopes (addr_pool /
         // addr_pool_request) are invisible protocol traffic - the app processes them under the
         // hood when it syncs, and nothing about them is for the reader. No banner at all, as on
@@ -343,8 +356,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             val sompi = notice.content.amountSompi
             return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f KAS", sompi / 100_000_000.0) else "Received payment"
         }
-        // An edit envelope reads as what it is rather than its JSON (iOS editPreviewText).
-        if (com.kachat.app.util.MessageEdit.parseOrNull(plaintext) != null) return "Edited a message"
         com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
         MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
         if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"

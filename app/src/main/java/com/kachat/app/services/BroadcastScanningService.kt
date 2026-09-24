@@ -405,12 +405,17 @@ class BroadcastScanningService @Inject constructor(
                 )
             }
 
-            // The remote push is the only banner source while push is active, foreground or
-            // background - see PushState. A room the push server does not index notifies
-            // nothing; that is the trade, made on purpose and the same one iOS makes. Only a
-            // device with no push at all banners from the scan.
-            // The chess arena is machinery, never a chat: it never notifies (iOS serviceChannels).
-            if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive &&
+            // An edit is never announced - it changes an earlier message in place. Claim the
+            // txId so a racing push cannot banner what this deliberately did not.
+            //
+            // Otherwise: the remote push is the only banner source while push is active,
+            // foreground or background - see PushState. A room the push server does not index
+            // notifies nothing; that is the trade, made on purpose and the same one iOS makes.
+            // Only a device with no push at all banners from the scan. The chess arena is
+            // machinery, never a chat: it never notifies (iOS serviceChannels).
+            if (com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) != null) {
+                notificationHelper.claimWithoutNotifying(txId)
+            } else if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive &&
                 parsed.channel !in ChessTournamentService.SERVICE_CHANNELS) {
                 // A reaction's raw JSON must never surface in a notification — humanize it.
                 // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
@@ -419,7 +424,6 @@ class BroadcastScanningService @Inject constructor(
                 val displayContent = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content
                 val notificationText = when {
                     reaction != null -> "Reacted ${reaction.emoji}"
-                    com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) != null -> "Edited a message"
                     VoiceMessage.parseOrNull(displayContent) != null -> "🎤 Audio message"
                     else -> displayContent
                 }
