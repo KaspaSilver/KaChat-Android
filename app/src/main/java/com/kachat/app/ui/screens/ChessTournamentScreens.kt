@@ -2050,7 +2050,15 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
             // the player came from (iOS af865b4).
             onDone = {
                 showResult = false
-                navController.popBackStack("chess_mode/{mode}", inclusive = false)
+                // The whole way out in one animation: a bracket and the board can both sit above
+                // the 1v1 / Tournaments screen, and Done means that screen, not one level back.
+                // A game opened from a link or a notification has no such screen behind it, so
+                // Chess Online's home is the fallback, then plain back (iOS 1a26ba0's popToRoot).
+                if (!navController.popBackStack("chess_mode/{mode}", inclusive = false) &&
+                    !navController.popBackStack("chess", inclusive = false)
+                ) {
+                    navController.popBackStack()
+                }
             },
         )
     }
