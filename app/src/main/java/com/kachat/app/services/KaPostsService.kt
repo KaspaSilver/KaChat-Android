@@ -47,9 +47,39 @@ data class KPost(
     /** Set by the indexer when the text shown is an accepted edit (ms). [postContent] is then
      *  the edited text; [timestamp] stays the original's. */
     val editedAt: Long? = null,
+    /** Present when this post is a poll (KAPOSTS_INDEXER.md section 5.9): the options, the
+     *  counts so far, this reader's own vote and when voting closes. */
+    val poll: KPoll? = null,
 ) {
     /** Base64 -> plain text (K encodes all content fields). */
     val decodedContent: String? get() = KaPostsProtocol.decodeB64(postContent)
+}
+
+/**
+ * The indexer's poll object (KAPOSTS_INDEXER.md section 5.9). [options] are base64, like every
+ * content field the API returns. [myVote] is the requesting pubkey's own option index, or null.
+ */
+data class KPoll(
+    val options: List<String>?,
+    val counts: List<Int>?,
+    val total: Int?,
+    val closesAt: Long?,
+    val myVote: Int?,
+) {
+    val decodedOptions: List<String>
+        get() = options.orEmpty().map { KaPostsProtocol.decodeB64(it) ?: "" }
+}
+
+/** `GET /get-poll` - one poll's current numbers, without reloading a feed. */
+data class KPollResponse(
+    val id: String?,
+    val options: List<String>?,
+    val counts: List<Int>?,
+    val total: Int?,
+    val closesAt: Long?,
+    val myVote: Int?,
+) {
+    fun toPoll() = KPoll(options = options, counts = counts, total = total, closesAt = closesAt, myVote = myVote)
 }
 
 data class KPagination(val hasMore: Boolean?, val nextCursor: String?, val prevCursor: String?)
@@ -171,6 +201,13 @@ interface KaPostApi {
         @Query("requesterPubkey") requesterPubkey: String,
     ): KPostResponse
 
+    /** One poll's options, counts and the requester's own vote (section 5.9). */
+    @GET("get-poll")
+    suspend fun getPoll(
+        @Query("postId") postId: String,
+        @Query("requesterPubkey") requesterPubkey: String,
+    ): KPollResponse
+
     /** A post plus its ancestor chain, root first, done server-side in one request. */
     @GET("get-thread")
     suspend fun getThread(
@@ -252,6 +289,16 @@ class KaPostsService @Inject constructor(
         /** How long after posting a post, reply or quote can still be edited. The indexer
          *  enforces the same window on chain time; after it the text is permanent. */
         const val EDIT_WINDOW_MS = 2 * 60 * 60 * 1000L
+
+        /** A poll carries two to four options (KAPOSTS_INDEXER.md section 5.9). */
+        const val POLL_MIN_OPTIONS = 2
+        const val POLL_MAX_OPTIONS = 4
+
+        /** Each option is 1-40 characters, and no two may be the same. */
+        const val POLL_OPTION_MAX_LENGTH = 40
+
+        /** Voting closes at most seven days out; the indexer rejects anything further. */
+        const val POLL_MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000L
 
         /**
          * Compressed (02/03 + x) or raw x-only pubkey hex -> Kaspa address. THE bridge that
@@ -400,6 +447,11 @@ class KaPostsService @Inject constructor(
         api().getPost(id, requesterPubkey()).post
     }
 
+    /** One poll's current numbers, for refreshing a card without reloading the feed. */
+    suspend fun fetchPoll(postId: String): KPoll? = rethrowingApiError {
+        api().getPoll(postId, requesterPubkey()).toPoll()
+    }
+
     /** A post's whole ancestor chain, root first - one request instead of one per level. */
     suspend fun fetchThread(id: String): List<KPost> = rethrowingApiError {
         api().getThread(id, requesterPubkey()).ancestors.orEmpty()
@@ -528,6 +580,40 @@ class KaPostsService @Inject constructor(
         val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
         val signature = sign(KaPostsProtocol.editSigningString(postId, b64, mentions))
         return submitPayloadTx(KaPostsProtocol.editPayload(pubkey, signature, postId, b64, mentions))
+    }
+
+    /**
+     * Publishes a poll: the question IS the post's text (marker inside, exactly like any post,
+     * so a client that knows no polls still reads the question), while the options and the
+     * closing time ride in the payload (KAPOSTS_INDEXER.md section 5.9). Returns the poll's id.
+     */
+    suspend fun submitPoll(
+        question: String,
+        options: List<String>,
+        closesAtMs: Long,
+        mentionedPubkeys: List<String> = emptyList(),
+    ): String {
+        val b64 = KaPostsProtocol.b64(KaPostsProtocol.KACHAT_MARKER + question)
+        val csv = KaPostsProtocol.pollOptionsCsv(options)
+        val pubkey = requesterPubkey()
+        val me = pubkey.lowercase()
+        val clean = mentionedPubkeys
+            .map { it.lowercase() }
+            .filter { it.matches(Regex("^0[23][0-9a-f]{64}$")) && it != me }
+            .distinct()
+        val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
+        val signature = sign(KaPostsProtocol.pollSigningString(b64, csv, closesAtMs, mentions))
+        return submitPayloadTx(KaPostsProtocol.pollPayload(pubkey, signature, b64, csv, closesAtMs, mentions))
+    }
+
+    /**
+     * Votes in a poll. One vote per pubkey - a later one replaces the earlier - and the indexer
+     * ignores anything cast after the poll closed (section 5.9).
+     */
+    suspend fun submitPollVote(pollId: String, optionIndex: Int): String {
+        val pubkey = requesterPubkey()
+        val signature = sign(KaPostsProtocol.pollVoteSigningString(pollId, optionIndex))
+        return submitPayloadTx(KaPostsProtocol.pollVotePayload(pubkey, signature, pollId, optionIndex))
     }
 
     /**

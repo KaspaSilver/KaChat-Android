@@ -66,6 +66,30 @@ object KaPostsProtocol {
     fun deleteSigningString(postId: String) = "delete:$postId"
 
     /**
+     * Polls (KAPOSTS_INDEXER.md section 5.9): the question is the post's own message, the options
+     * ride as base64 joined by commas, and the closing time is unix ms. Both strings carry the
+     * action name, as edits and deletes do.
+     */
+    fun pollSigningString(b64Question: String, optionsCsv: String, closesAtMs: Long, mentionsJson: String) =
+        "poll:$b64Question:$optionsCsv:$closesAtMs:$mentionsJson"
+
+    fun pollVoteSigningString(pollId: String, optionIndex: Int) = "pollvote:$pollId:$optionIndex"
+
+    /**
+     * Scheduled posts (section 5.10): what the phone signs to hand a signed transaction to the
+     * indexer for submission later, and to take it back before then.
+     */
+    fun scheduleSigningString(txId: String, notBeforeMs: Long) = "schedule:$txId:$notBeforeMs"
+
+    fun cancelScheduleSigningString(txId: String) = "cancel-schedule:$txId"
+
+    /** The options field: each option base64 (whose alphabet has no `,` or `:`), comma-joined. */
+    fun pollOptionsCsv(options: List<String>) = options.joinToString(",") { b64(it) }
+
+    fun pollOptionsFromCsv(csv: String): List<String> =
+        csv.split(",").filter { it.isNotEmpty() }.map { decodeB64(it) ?: "" }
+
+    /**
      * The on-chain record behind one post id, read straight off the transaction payload.
      *
      * The K indexer has no single-post lookup (`get-post?id=` is still a NEEDED item in
@@ -102,7 +126,9 @@ object KaPostsProtocol {
         // reply: <pubkey>:<signature>:<postId>:<b64message>:<mentions>
         // quote: <pubkey>:<signature>:<contentId>:<b64message>:<quotedAuthorPubkey>
         val messageIndex = when (action) {
-            "post" -> 3
+            // A poll's question sits where a post's message does - an older client that knows
+            // nothing of polls reads one as a plain post, which is the point.
+            "post", "poll" -> 3
             "reply", "quote" -> 4
             else -> return null
         }
@@ -113,7 +139,7 @@ object KaPostsProtocol {
             authorPubkey = fields[1],
             message = stripMarker(decoded).trim(),
             // Field 2 for both shapes that have one; a plain post references nothing.
-            referencedId = if (action == "post") null else fields[3].ifEmpty { null },
+            referencedId = if (action == "post" || action == "poll") null else fields[3].ifEmpty { null },
         )
     }
 
@@ -145,4 +171,12 @@ object KaPostsProtocol {
      *  keeps the bytes; the indexer stops serving it (KAPOSTS_INDEXER.md section 5.8). */
     fun deletePayload(pubkey: String, signature: String, postId: String) =
         "${PREFIX}delete:$pubkey:$signature:$postId"
+
+    /** A poll: the question is the post, the options and closing time ride alongside it (5.9). */
+    fun pollPayload(pubkey: String, signature: String, b64Question: String, optionsCsv: String, closesAtMs: Long, mentionsJson: String) =
+        "${PREFIX}poll:$pubkey:$signature:$b64Question:$optionsCsv:$closesAtMs:$mentionsJson"
+
+    /** One vote in a poll. One per pubkey: a later vote replaces the earlier one (5.9). */
+    fun pollVotePayload(pubkey: String, signature: String, pollId: String, optionIndex: Int) =
+        "${PREFIX}pollvote:$pubkey:$signature:$pollId:$optionIndex"
 }

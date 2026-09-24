@@ -73,4 +73,42 @@ class KaPostsProtocolTest {
         assertEquals("CID:B64:QAUTHOR", KaPostsProtocol.quoteSigningString("CID", "B64", "QAUTHOR"))
         assertEquals("CID", KaPostsProtocol.unquoteSigningString("CID"))
     }
+
+    @Test
+    fun `a poll's payload and signing string carry the question, options and closing time`() {
+        val csv = KaPostsProtocol.pollOptionsCsv(listOf("Yes", "No"))
+        assertEquals("WWVz,Tm8=", csv)
+        assertEquals(listOf("Yes", "No"), KaPostsProtocol.pollOptionsFromCsv(csv))
+        assertEquals(
+            "poll:B64:$csv:1790300000000:[]",
+            KaPostsProtocol.pollSigningString("B64", csv, 1_790_300_000_000L, "[]"),
+        )
+        assertEquals(
+            "kchat:1:poll:PK:SIG:B64:$csv:1790300000000:[]",
+            KaPostsProtocol.pollPayload("PK", "SIG", "B64", csv, 1_790_300_000_000L, "[]"),
+        )
+        assertEquals("pollvote:POLLID:2", KaPostsProtocol.pollVoteSigningString("POLLID", 2))
+        assertEquals(
+            "kchat:1:pollvote:PK:SIG:POLLID:2",
+            KaPostsProtocol.pollVotePayload("PK", "SIG", "POLLID", 2),
+        )
+    }
+
+    @Test
+    fun `a poll read off the chain is its question, like any post`() {
+        val question = KaPostsProtocol.b64(KaPostsProtocol.KACHAT_MARKER + "Which one?")
+        val csv = KaPostsProtocol.pollOptionsCsv(listOf("A", "B"))
+        val parsed = KaPostsProtocol.parseChainPayload(
+            KaPostsProtocol.pollPayload("PK", "SIG", question, csv, 1_790_300_000_000L, "[]")
+        )
+        assertEquals("poll", parsed?.action)
+        assertEquals("Which one?", parsed?.message)
+        assertEquals(null, parsed?.referencedId)
+    }
+
+    @Test
+    fun `scheduling signs the transaction it hands over, and the cancellation names it`() {
+        assertEquals("schedule:TXID:1790300000000", KaPostsProtocol.scheduleSigningString("TXID", 1_790_300_000_000L))
+        assertEquals("cancel-schedule:TXID", KaPostsProtocol.cancelScheduleSigningString("TXID"))
+    }
 }

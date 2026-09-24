@@ -62,6 +62,9 @@ data class KaPostDraft(
     /** Deleted, behind the five seconds Undo can lift it: the card dims until the countdown
      *  ends and the delete goes on chain. */
     val pendingDeletion: Boolean = false,
+    /** Set when this post is a poll: its options, the counts so far, our own vote and when
+     *  voting closes (KAPOSTS_INDEXER.md section 5.9). */
+    val poll: KaPostPoll? = null,
 ) {
     enum class Delivery { PENDING, SENT, FAILED }
 
@@ -73,6 +76,21 @@ data class KaPostDraft(
             val left = timestamp + com.kachat.app.services.KaPostsService.EDIT_WINDOW_MS - System.currentTimeMillis()
             return left.takeIf { it > 0 }
         }
+
+    /**
+     * A poll as a post carries it. [counts] runs parallel to [options]; [myVote] is our own
+     * option index, or null while we have not voted. Mirrors iOS's `KaPostPoll`.
+     */
+    @Immutable
+    data class KaPostPoll(
+        val options: List<String>,
+        val counts: List<Int>,
+        val closesAtMs: Long,
+        val myVote: Int? = null,
+    ) {
+        val total: Int get() = counts.sum()
+        val isClosed: Boolean get() = closesAtMs <= System.currentTimeMillis()
+    }
 
     @Immutable
     data class QuotedRef(

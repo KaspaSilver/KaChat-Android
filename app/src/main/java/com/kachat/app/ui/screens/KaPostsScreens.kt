@@ -95,6 +95,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -1135,6 +1140,12 @@ fun KaPostsScreen(
                 restoredComposerSegments = emptyList()
                 viewModel.scheduleThread(segments)
             },
+            onSubmitPoll = { question, options, closesAtMs ->
+                showComposer = false
+                restoredComposerText = ""
+                restoredComposerSegments = emptyList()
+                viewModel.createPoll(question, options, closesAtMs)
+            },
             onSaveDraft = { draftText, segments ->
                 KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments)
                 reloadDrafts()
@@ -1627,6 +1638,142 @@ private fun FeedEmptyState(
     }
 }
 
+// MARK: - Polls
+
+/** How long a poll can stay open, exactly the choices iOS offers. */
+private val POLL_LENGTHS = listOf(
+    "1 hour" to 1,
+    "6 hours" to 6,
+    "12 hours" to 12,
+    "1 day" to 24,
+    "3 days" to 72,
+    "7 days" to 168,
+)
+
+/**
+ * The poll under a post's question. While it is open and you have not voted, the options are
+ * buttons; once you have voted, or once it closes, they are bars with percentages, your own
+ * choice marked. Voting goes through the same five-second undo as every other action, so the
+ * card shows a clock until the vote is actually on its way. Mirrors iOS's `KaPostPollCard`.
+ */
+@Composable
+private fun KaPostPollCard(
+    poll: KaPostDraft.KaPostPoll,
+    onVote: ((Int) -> Unit)?,
+    votePending: Boolean,
+) {
+    val colors = LocalAppColors.current
+    val showsResults = poll.myVote != null || poll.isClosed || onVote == null
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.textPrimary.copy(alpha = 0.05f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        poll.options.forEachIndexed { index, option ->
+            if (showsResults) {
+                val count = poll.counts.getOrElse(index) { 0 }
+                val share = if (poll.total > 0) count.toFloat() / poll.total.toFloat() else 0f
+                val mine = poll.myVote == index
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(share.coerceIn(0.02f, 1f))
+                            .background(
+                                if (mine) KaspaTeal.copy(alpha = 0.35f) else colors.textPrimary.copy(alpha = 0.1f),
+                                RoundedCornerShape(10.dp),
+                            ),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            option,
+                            color = colors.textPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = if (mine) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (mine) {
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Your vote",
+                                tint = KaspaTeal,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "${kotlin.math.round(share * 100).toInt()}%",
+                            color = colors.textPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.2.dp, KaspaTeal.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                        .clickable(enabled = !votePending) { onVote?.invoke(index) }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        option,
+                        color = KaspaTeal,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (votePending) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
+            }
+        }
+        Text(
+            kaPostPollFooter(poll),
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+        )
+    }
+}
+
+/** "12 votes · 2d left", or "· Final results" once voting has closed (iOS's footer, word for word). */
+private fun kaPostPollFooter(poll: KaPostDraft.KaPostPoll): String {
+    val votes = if (poll.total == 1) "1 vote" else "${poll.total} votes"
+    if (poll.isClosed) return "$votes · Final results"
+    val left = poll.closesAtMs - System.currentTimeMillis()
+    val remaining = when {
+        left >= 86_400_000L -> "${left / 86_400_000L}d left"
+        left >= 3_600_000L -> "${left / 3_600_000L}h left"
+        else -> "${kotlin.math.max(1L, left / 60_000L)}m left"
+    }
+    return "$votes · $remaining"
+}
+
 // MARK: - Post cell
 
 @Composable
@@ -1667,6 +1814,10 @@ fun KaPostCell(
     fun lightHaptic() { hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP) }
     val cellDeadlines by viewModel.undoDeadlines.collectSelectedAsState(post.id) {
         Triple(it["repost:${post.id}"], it["like:${post.id}"], it["dislike:${post.id}"])
+    }
+    // A poll vote rides the same five-second countdown; the card shows a clock until it goes.
+    val cellPollVoteDeadline by viewModel.undoDeadlines.collectSelectedAsState(post.id) {
+        it["pollvote:${post.id}"]
     }
     var showOverflow by remember { mutableStateOf(false) }
     // The edit composer is opened from the cell itself, so editing works wherever a post is
@@ -1980,6 +2131,18 @@ fun KaPostCell(
                     onShowOriginal = { viewModel.showOriginal(post) },
                     onShowTranslation = { viewModel.showTranslation(post) },
                 )
+                post.poll?.let { poll ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    KaPostPollCard(
+                        poll = poll,
+                        // A poll of someone else's is votable; a closed one, or one still on its
+                        // way to the chain, only shows its numbers.
+                        onVote = if (post.remoteId != null && !poll.isClosed) {
+                            { index -> lightHaptic(); viewModel.votePoll(post, index) }
+                        } else null,
+                        votePending = cellPollVoteDeadline != null,
+                    )
+                }
                 post.quoted?.let { quoted ->
                     Spacer(modifier = Modifier.height(8.dp))
                     // Same per-address slices for the quoted author as for the cell's own.
@@ -2547,12 +2710,20 @@ fun KaPostComposerDialog(
     initialThreadSegments: List<String> = emptyList(),
     /** Called with the composer's contents when the user chooses Save Draft on close. */
     onSaveDraft: ((String, List<String>) -> Unit)? = null,
+    /** Posts a poll instead of a plain post: the question, its options, and when voting closes
+     *  (unix ms). Only passed by the new-post composer - a reply, quote, edit or thread has no
+     *  poll (iOS's `extrasAvailable`). */
+    onSubmitPoll: ((String, List<String>, Long) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     // TextFieldValue rather than String: the caret offset is what [KeepCaretVisible] below needs
     // to scroll the editor to, and the String overload never exposes it.
     var text by remember { mutableStateOf(TextFieldValue(initialText)) }
     var threadSegments by remember { mutableStateOf(initialThreadSegments) }
+    // Poll: two to four options and how long voting stays open (iOS's composer state).
+    var pollEnabled by remember { mutableStateOf(false) }
+    var pollOptions by remember { mutableStateOf(listOf("", "")) }
+    var pollDurationHours by remember { mutableIntStateOf(24) }
     // Closing with something written used to throw it away silently, which is the whole reason
     // drafts exist.
     var showCloseOptions by remember { mutableStateOf(false) }
@@ -2560,8 +2731,18 @@ fun KaPostComposerDialog(
     // Counted in grapheme clusters, as iOS counts Characters: an emoji is one, not two.
     val charCount = remember(text.text) { graphemeCount(text.text) }
     val totalSegments = threadSegments.size + (if (text.text.isNotBlank()) 1 else 0)
-    val canPost = totalSegments > 0 && charCount <= limit
-    val threadingEnabled = onSubmitThread != null && quoted == null
+    // A poll is offered on a fresh post only - never a reply, a quote, an edit or a thread.
+    val pollAvailable = onSubmitPoll != null && quoted == null && !isReply && threadSegments.isEmpty()
+    val validPollOptions = pollOptions.map { it.trim() }.filter { it.isNotEmpty() }
+    val pollIsValid = validPollOptions.size in com.kachat.app.services.KaPostsService.POLL_MIN_OPTIONS..com.kachat.app.services.KaPostsService.POLL_MAX_OPTIONS &&
+        validPollOptions.toSet().size == validPollOptions.size &&
+        validPollOptions.all { it.length <= com.kachat.app.services.KaPostsService.POLL_OPTION_MAX_LENGTH }
+    val canPost = if (pollEnabled) {
+        text.text.isNotBlank() && charCount <= limit && pollIsValid
+    } else {
+        totalSegments > 0 && charCount <= limit
+    }
+    val threadingEnabled = onSubmitThread != null && quoted == null && !pollEnabled
     val editorFocus = remember { FocusRequester() }
     var editorFocused by remember { mutableStateOf(false) }
     val hapticView = LocalView.current
@@ -2686,7 +2867,11 @@ fun KaPostComposerDialog(
                 KaPostCharacterMeter(count = charCount)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    if (totalSegments > 1) "Post All ($totalSegments)" else (submitLabel ?: "Post"),
+                    when {
+                        pollEnabled -> "Post Poll"
+                        totalSegments > 1 -> "Post All ($totalSegments)"
+                        else -> submitLabel ?: "Post"
+                    },
                     color = if (canPost) Color.Black else colors.textSecondary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
@@ -2695,6 +2880,15 @@ fun KaPostComposerDialog(
                         .background(if (canPost) KaspaTeal else colors.surface)
                         .clickable(enabled = canPost) {
                             val trimmed = text.text.trim()
+                            if (pollEnabled && onSubmitPoll != null) {
+                                if (trimmed.isEmpty() || !pollIsValid) return@clickable
+                                onSubmitPoll(
+                                    trimmed,
+                                    validPollOptions,
+                                    System.currentTimeMillis() + pollDurationHours * 60L * 60L * 1000L,
+                                )
+                                return@clickable
+                            }
                             val segments = threadSegments + (if (trimmed.isNotEmpty()) listOf(trimmed) else emptyList())
                             if (segments.isEmpty()) return@clickable
                             if (segments.size > 1 && onSubmitThread != null) onSubmitThread(segments)
@@ -2848,6 +3042,132 @@ fun KaPostComposerDialog(
                             }
                             inner()
                         },
+                    )
+                }
+            }
+            // Poll, as a chip under the editor - only on a fresh post (iOS's extrasRow).
+            if (pollAvailable) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (pollEnabled) KaspaTeal else KaspaTeal.copy(alpha = 0.15f))
+                            .clickable {
+                                pollEnabled = !pollEnabled
+                                if (pollEnabled) pollOptions = listOf("", "")
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Default.BarChart,
+                            contentDescription = null,
+                            tint = if (pollEnabled) Color.Black else KaspaTeal,
+                            modifier = Modifier.size(17.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            if (pollEnabled) "Remove poll" else "Poll",
+                            color = if (pollEnabled) Color.Black else KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+            }
+            // The poll's options and how long it stays open, under the question.
+            if (pollEnabled) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    pollOptions.forEachIndexed { index, option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            BasicTextField(
+                                value = option,
+                                onValueChange = { fresh ->
+                                    pollOptions = pollOptions.toMutableList().also {
+                                        it[index] = fresh.take(com.kachat.app.services.KaPostsService.POLL_OPTION_MAX_LENGTH)
+                                    }
+                                },
+                                textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),
+                                cursorBrush = SolidColor(KaspaTeal),
+                                singleLine = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, colors.textPrimary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                decorationBox = { inner ->
+                                    if (option.isEmpty()) {
+                                        Text("Option ${index + 1}", color = colors.textSecondary, fontSize = 15.sp)
+                                    }
+                                    inner()
+                                },
+                            )
+                            if (pollOptions.size > com.kachat.app.services.KaPostsService.POLL_MIN_OPTIONS) {
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Default.RemoveCircleOutline,
+                                    contentDescription = "Remove option",
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clickable {
+                                            pollOptions = pollOptions.toMutableList().also { it.removeAt(index) }
+                                        },
+                                )
+                            }
+                        }
+                    }
+                    if (pollOptions.size < com.kachat.app.services.KaPostsService.POLL_MAX_OPTIONS) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { pollOptions = pollOptions + "" },
+                        ) {
+                            Icon(Icons.Default.AddCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add option", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Poll length", color = colors.textPrimary, fontSize = 14.sp)
+                        Spacer(Modifier.weight(1f))
+                        var showLengths by remember { mutableStateOf(false) }
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(colors.surface)
+                                    .clickable { showLengths = true }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    POLL_LENGTHS.first { it.second == pollDurationHours }.first,
+                                    color = KaspaTeal,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                )
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                            }
+                            DropdownMenu(expanded = showLengths, onDismissRequest = { showLengths = false }) {
+                                POLL_LENGTHS.forEach { (label, hours) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label, color = colors.textPrimary) },
+                                        onClick = { pollDurationHours = hours; showLengths = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        "Voting is one transaction per vote. The question is the post; the options go out with it. Two to four options, 40 characters each.",
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
                     )
                 }
             }

@@ -1306,6 +1306,15 @@ class KaPostsViewModel @Inject constructor(
             quoted = quoted,
             parentRemoteId = post.parentPostId,
             editedAt = post.editedAt,
+            poll = post.poll?.let { remote ->
+                val options = remote.decodedOptions
+                if (options.isEmpty()) null else KaPostDraft.KaPostPoll(
+                    options = options,
+                    counts = List(options.size) { index -> remote.counts?.getOrNull(index) ?: 0 },
+                    closesAtMs = remote.closesAt ?: 0L,
+                    myVote = remote.myVote,
+                )
+            },
         )
     }
 
@@ -1530,6 +1539,101 @@ class KaPostsViewModel @Inject constructor(
         } catch (e: Exception) {
             mutateEverywhere(localId) { it.copy(deliveryStatus = KaPostDraft.Delivery.FAILED) }
             Log.w(TAG, "Post submit failed", e)
+        }
+    }
+
+    // MARK: - Polls (KAPOSTS_INDEXER.md section 5.9)
+
+    /**
+     * Posts a poll: the question is the post itself, the options and the closing time ride
+     * alongside it. Optimistic card first, behind the same five-second undo every other compose
+     * action gets, then one transaction.
+     */
+    fun createPoll(question: String, options: List<String>, closesAtMs: Long) {
+        val myAddress = myAddress() ?: return
+        val clean = options.map { it.trim() }.filter { it.isNotEmpty() }
+        if (clean.size < KaPostsService.POLL_MIN_OPTIONS || clean.size > KaPostsService.POLL_MAX_OPTIONS) return
+        val newPost = KaPostDraft(
+            text = question,
+            timestamp = System.currentTimeMillis(),
+            posterAddress = myAddress,
+            posterPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null },
+            deliveryStatus = KaPostDraft.Delivery.PENDING,
+            poll = KaPostDraft.KaPostPoll(
+                options = clean,
+                counts = List(clean.size) { 0 },
+                closesAtMs = closesAtMs,
+                myVote = null,
+            ),
+        )
+        _localPosts.value = listOf(newPost) + _localPosts.value
+        val key = "post:${newPost.id}"
+        _undoToast.value = UndoToast(key, newPost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting poll", draftText = question)
+        scheduleUndoable(key) {
+            clearUndoToast(key)
+            try {
+                val txId = kaPostsService.submitPoll(question, clean, closesAtMs, mentionedPubkeys(question))
+                mutateEverywhere(newPost.id) { it.copy(remoteId = txId, deliveryStatus = KaPostDraft.Delivery.SENT) }
+            } catch (e: Exception) {
+                mutateEverywhere(newPost.id) { it.copy(deliveryStatus = KaPostDraft.Delivery.FAILED) }
+                Log.w(TAG, "Poll submit failed", e)
+            }
+        }
+    }
+
+    /**
+     * Votes in a poll. The card takes the choice at once (one vote per person, so a second vote
+     * moves the first), behind the usual five seconds, and then one transaction carries it. The
+     * indexer's own numbers replace the optimistic ones as soon as it has counted the vote.
+     */
+    fun votePoll(post: KaPostDraft, optionIndex: Int) {
+        val poll = post.poll ?: return
+        val remoteId = post.remoteId ?: return
+        if (poll.isClosed || optionIndex !in poll.options.indices) return
+        val previous = poll.myVote
+        if (previous == optionIndex) return
+        mutateEverywhere(post.id) { current ->
+            val live = current.poll ?: return@mutateEverywhere current
+            val counts = live.counts.toMutableList()
+            if (previous != null && previous in counts.indices) counts[previous] = (counts[previous] - 1).coerceAtLeast(0)
+            if (optionIndex in counts.indices) counts[optionIndex] = counts[optionIndex] + 1
+            current.copy(poll = live.copy(counts = counts, myVote = optionIndex))
+        }
+        val key = "pollvote:${post.id}"
+        scheduleUndoable(key) {
+            try {
+                kaPostsService.submitPollVote(remoteId, optionIndex)
+                refreshPoll(post.id, remoteId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Poll vote failed", e)
+                // Put the card back the way it was: the vote never reached the chain.
+                mutateEverywhere(post.id) { current ->
+                    val live = current.poll ?: return@mutateEverywhere current
+                    val counts = live.counts.toMutableList()
+                    if (optionIndex in counts.indices) counts[optionIndex] = (counts[optionIndex] - 1).coerceAtLeast(0)
+                    if (previous != null && previous in counts.indices) counts[previous] = counts[previous] + 1
+                    current.copy(poll = live.copy(counts = counts, myVote = previous))
+                }
+            }
+        }
+    }
+
+    /** Takes one poll's numbers from the indexer, without reloading a feed. */
+    fun refreshPoll(localId: String, remoteId: String) {
+        viewModelScope.launch {
+            val remote = try { kaPostsService.fetchPoll(remoteId) } catch (_: Exception) { null } ?: return@launch
+            val options = remote.decodedOptions
+            if (options.isEmpty()) return@launch
+            mutateEverywhere(localId) { current ->
+                current.copy(
+                    poll = KaPostDraft.KaPostPoll(
+                        options = options,
+                        counts = List(options.size) { index -> remote.counts?.getOrNull(index) ?: 0 },
+                        closesAtMs = remote.closesAt ?: current.poll?.closesAtMs ?: 0L,
+                        myVote = remote.myVote ?: current.poll?.myVote,
+                    )
+                )
+            }
         }
     }
 
