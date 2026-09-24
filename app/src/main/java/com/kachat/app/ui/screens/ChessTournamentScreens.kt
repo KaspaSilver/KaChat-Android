@@ -654,14 +654,28 @@ private fun ChessFinishedGames(mode: ChessLobbyMode, navController: NavControlle
                 done.forEach { room -> room.games.values.firstOrNull()?.let { finishedGameRow(it, room) } }
             }
         } else {
-            // A finished tournament: its games, final first, each straight to its board.
-            done.forEach { tournament ->
-                ChessSectionHeader(
-                    tournament.name + (tournament.champion?.let { " · won by ${chessName(it, contacts, knsNames)}" } ?: ""),
-                )
-                ChessCard {
-                    tournament.games.values.sortedWith(compareByDescending<ChessTournamentGame> { it.round }.thenByDescending { it.id })
-                        .forEach { finishedGameRow(it, tournament) }
+            // Finished tournaments as a list; each opens its bracket - the champion at the end of
+            // it, every game a tap away to see the board as it was left (iOS 4317bcc).
+            ChessSectionHeader("Finished tournaments")
+            ChessCard {
+                done.forEach { tournament ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { navController.navigate("chess_tournament/${tournament.id}") }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFFFFCC00), modifier = Modifier.size(26.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(tournament.name, color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(
+                                tournament.champion?.let { "Won by ${chessName(it, contacts, knsNames)}" } ?: "Finished",
+                                color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }
