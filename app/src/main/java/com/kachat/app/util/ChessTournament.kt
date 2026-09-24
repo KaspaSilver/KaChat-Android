@@ -51,6 +51,12 @@ object ChessTournamentCodec {
      *  reaching the other phone (a block, the indexer's poll) are nobody's thinking time. */
     const val MOVE_DELAY_MS = 10L * 1000
 
+    /** The room filled: every phone shows "Match found" and opens the board at the game's start
+     *  block time plus this - the same instant everywhere, so the players arrive together. It
+     *  sits inside [FIRST_MOVE_GRACE_MS], so it costs nobody clock, and it is display only
+     *  (nothing about it goes on chain). ONLINE_CHESS.md section 5. */
+    const val MATCH_FOUND_DELAY_MS = 10L * 1000
+
     /** A side's FIRST move gets 25 seconds instead: the game starts at the second join's block
      *  time, and a player must not lose clock before their phone has even shown the board. This
      *  is the gate on a simultaneous join - the clock does not run for either side until they

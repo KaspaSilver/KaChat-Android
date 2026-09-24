@@ -243,20 +243,31 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
     // filled while this screen was up (or while the app was away) must not leave the player on
     // the lobby being told they are already playing somewhere.
     var openedGameForRoom by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
-    LaunchedEffect(mine?.id, mine?.status, mine?.games?.size) {
+    LaunchedEffect(mine?.id, mine?.status, mine?.games?.size, now) {
         val room = mine ?: return@LaunchedEffect
         val address = me ?: return@LaunchedEffect
-        when {
-            room.status == ChessTournament.Status.OPEN && room.isSeated(address, service.now.value) -> {
-                waitingRoomId = room.id
+        when (room.status) {
+            // Still filling and holding a seat: the waiting room is the only place to be.
+            ChessTournament.Status.OPEN -> {
+                if (room.isSeated(address, now)) waitingRoomId = room.id
             }
-            room.status == ChessTournament.Status.LIVE && address in room.players -> {
-                val game = room.currentGame(address) ?: return@LaunchedEffect
-                if (game.isOver || openedGameForRoom == room.id) return@LaunchedEffect
-                openedGameForRoom = room.id
-                waitingRoomId = null
-                open(room.id)
+            ChessTournament.Status.LIVE -> {
+                // Just filled: the waiting room's "Match found" countdown. A join that took the
+                // last seat lands here too - the room is live before this screen ever sees it
+                // open, and without this the player sat on the lobby being told they are already
+                // playing somewhere (iOS 36bb3de).
+                if (now < (room.startedAt ?: 0L) + com.kachat.app.util.ChessTournamentCodec.MATCH_FOUND_DELAY_MS) {
+                    if (waitingRoomId != room.id) waitingRoomId = room.id
+                } else if (address in room.players) {
+                    // Past the countdown: straight onto the board, the bracket a tap away from it.
+                    val game = room.currentGame(address) ?: return@LaunchedEffect
+                    if (game.isOver || openedGameForRoom == room.id) return@LaunchedEffect
+                    openedGameForRoom = room.id
+                    waitingRoomId = null
+                    navController.navigate("chess_tournament_game/${room.id}/${game.id}")
+                }
             }
+            else -> Unit
         }
     }
 
@@ -372,7 +383,15 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
             tournamentId = id,
             onStarted = { started ->
                 waitingRoomId = null
-                open(started)
+                // Straight to the board the player is in; the bracket only when there is no game
+                // of theirs to open (a room they are watching rather than playing in).
+                val game = me?.let { all[started]?.currentGame(it) }?.takeIf { !it.isOver }
+                if (game != null) {
+                    openedGameForRoom = started
+                    navController.navigate("chess_tournament_game/$started/${game.id}")
+                } else {
+                    open(started)
+                }
             },
             onFinished = { seatExpired ->
                 waitingRoomId = null
@@ -973,14 +992,25 @@ private fun ChessWaitingRoom(
     val iAmSeated = me != null && tournament?.isSeated(me, now) == true
     LaunchedEffect(iAmSeated) { if (iAmSeated) everSeated = true }
 
+    // The room has filled and the ten seconds of "Match found" are still running. Chain time,
+    // so it ends at the same instant on every phone and both players reach the board together.
+    val matchFound = tournament?.status == ChessTournament.Status.LIVE &&
+        now < (tournament?.startedAt ?: 0L) + com.kachat.app.util.ChessTournamentCodec.MATCH_FOUND_DELAY_MS
+    val matchFoundSecondsLeft = if (!matchFound) 0 else {
+        val left = (tournament?.startedAt ?: 0L) + com.kachat.app.util.ChessTournamentCodec.MATCH_FOUND_DELAY_MS - now
+        maxOf(0L, (left + 999) / 1000).toInt()
+    }
+
     // Filled, or the seat ran out: hand the screen over. Runs on every tick.
-    LaunchedEffect(tournament?.status, now, handedOff, everSeated) {
+    LaunchedEffect(tournament?.status, now, handedOff, everSeated, matchFound) {
         if (handedOff || tournament == null || me == null) return@LaunchedEffect
         val started = tournament.status == ChessTournament.Status.LIVE ||
             tournament.status == ChessTournament.Status.FINISHED
         when {
-            // The room started and this player is in it: their game is waiting.
+            // The room started and this player is in it: their game is waiting - after the
+            // match-found countdown, which every phone is watching end together.
             started && me in tournament.players -> {
+                if (matchFound) return@LaunchedEffect
                 handedOff = true
                 onStarted(tournament.id)
             }
@@ -1015,8 +1045,15 @@ private fun ChessWaitingRoom(
         ) {
             val duel = tournament?.isDuel == true
             Text(
-                if (duel) "Looking for an opponent" else "Waiting for players",
-                color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp,
+                when {
+                    matchFound && duel -> "Match found!"
+                    matchFound -> "Tournament full!"
+                    duel -> "Looking for an opponent"
+                    else -> "Waiting for players"
+                },
+                color = colors.textPrimary,
+                fontWeight = if (matchFound) FontWeight.Black else FontWeight.Bold,
+                fontSize = 22.sp,
             )
             // You first, then whoever else is here, then a question mark for each empty seat.
             val capacity = tournament?.capacity ?: 2
@@ -1047,6 +1084,27 @@ private fun ChessWaitingRoom(
                         Text("Waiting", color = colors.textSecondary, fontSize = 12.sp)
                     }
                 }
+            }
+            if (matchFound) {
+                // The same ten seconds of chain time on every phone, then every board opens.
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$matchFoundSecondsLeft",
+                        color = colors.textPrimary,
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    Text(
+                        if (duel) "Taking both of you to the board" else "Taking everyone to their boards",
+                        color = colors.textSecondary, fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                }
+                // Nothing else belongs on the screen now: no seat clock, no code to share, no
+                // Leave - the game exists on chain.
+                return@Column
             }
             // The seat exists only once the join lands, which is a few seconds - until then the
             // clock has nothing to count, and a hard 0:00 would read as "already out".
