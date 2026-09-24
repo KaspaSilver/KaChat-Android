@@ -94,8 +94,9 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TimeInput
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
@@ -1778,9 +1779,10 @@ internal fun formatScheduledTime(ms: Long): String =
     java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
 
 /**
- * Picks when a post goes out: a date, then a time, between five minutes and thirty days from now
- * (the window the indexer accepts, KAPOSTS_INDEXER.md section 5.10). Android's own date and time
- * dialogs, where iOS uses a graphical DatePicker.
+ * Picks when a post goes out: one sheet with the date and the time together, and one button that
+ * says the moment it will be sent - iOS's schedule sheet, which never asks you to press Next.
+ * The window is five minutes to thirty days from now, which is what the indexer accepts
+ * (KAPOSTS_INDEXER.md section 5.10).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1788,63 +1790,107 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
     val colors = LocalAppColors.current
     val earliest = System.currentTimeMillis() + 5 * 60 * 1000L
     val latest = System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000L
-    var pickedDateMs by remember { mutableStateOf<Long?>(null) }
-    val dateState = rememberDatePickerState(initialSelectedDateMillis = initialMs.coerceIn(earliest, latest))
+    val start = initialMs.coerceIn(earliest, latest)
+    val startCalendar = remember(start) { java.util.Calendar.getInstance().apply { timeInMillis = start } }
+    // The calendar works in UTC midnights; the time is the phone's own, and they are put back
+    // together in [chosenMs] below.
+    val dateState = rememberDatePickerState(
+        initialSelectedDateMillis = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(
+                startCalendar.get(java.util.Calendar.YEAR),
+                startCalendar.get(java.util.Calendar.MONTH),
+                startCalendar.get(java.util.Calendar.DAY_OF_MONTH),
+            )
+        }.timeInMillis,
+    )
+    val timeState = rememberTimePickerState(
+        initialHour = startCalendar.get(java.util.Calendar.HOUR_OF_DAY),
+        initialMinute = startCalendar.get(java.util.Calendar.MINUTE),
+        is24Hour = android.text.format.DateFormat.is24HourFormat(LocalContext.current),
+    )
+    val chosenMs = remember(dateState.selectedDateMillis, timeState.hour, timeState.minute) {
+        val day = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = dateState.selectedDateMillis ?: start
+        }
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.YEAR, day.get(java.util.Calendar.YEAR))
+            set(java.util.Calendar.MONTH, day.get(java.util.Calendar.MONTH))
+            set(java.util.Calendar.DAY_OF_MONTH, day.get(java.util.Calendar.DAY_OF_MONTH))
+            set(java.util.Calendar.HOUR_OF_DAY, timeState.hour)
+            set(java.util.Calendar.MINUTE, timeState.minute)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+    val tooSoon = chosenMs < earliest
+    val tooFar = chosenMs > latest
 
-    if (pickedDateMs == null) {
-        DatePickerDialog(
-            onDismissRequest = onDismiss,
-            confirmButton = {
-                TextButton(onClick = { pickedDateMs = dateState.selectedDateMillis ?: initialMs }) {
-                    Text("Next", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) } },
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = colors.surface,
+            modifier = Modifier.fillMaxWidth(0.94f).heightIn(max = 640.dp),
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("Schedule post", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Spacer(Modifier.height(6.dp))
                 Text(
                     "Signed now, posted then - by the indexer, or by this phone if the indexer cannot be reached.",
                     color = colors.textSecondary,
                     fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    textAlign = TextAlign.Center,
                 )
-                DatePicker(state = dateState)
+                Spacer(Modifier.height(8.dp))
+                DatePicker(
+                    state = dateState,
+                    title = null,
+                    headline = null,
+                    showModeToggle = false,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Time",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.Start),
+                )
+                Spacer(Modifier.height(8.dp))
+                // The compact clock input rather than the dial: it sits under the calendar
+                // without a second step, which is the whole point of one sheet.
+                TimeInput(state = timeState)
+                if (tooSoon || tooFar) {
+                    Text(
+                        if (tooSoon) "Pick a time at least five minutes from now." else "A post can be scheduled up to thirty days ahead.",
+                        color = colors.danger,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                Text(
+                    "Schedule for ${formatScheduledTime(chosenMs)}",
+                    color = if (tooSoon || tooFar) colors.textSecondary else Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (tooSoon || tooFar) colors.surfaceVariant else KaspaTeal)
+                        .clickable(enabled = !tooSoon && !tooFar) { onPicked(chosenMs) }
+                        .padding(vertical = 13.dp),
+                )
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) }
             }
         }
-    } else {
-        val calendar = java.util.Calendar.getInstance().apply { timeInMillis = initialMs }
-        val timeState = rememberTimePickerState(
-            initialHour = calendar.get(java.util.Calendar.HOUR_OF_DAY),
-            initialMinute = calendar.get(java.util.Calendar.MINUTE),
-            is24Hour = android.text.format.DateFormat.is24HourFormat(LocalContext.current),
-        )
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            containerColor = colors.surface,
-            title = { Text("What time?", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-            text = { TimePicker(state = timeState) },
-            confirmButton = {
-                TextButton(onClick = {
-                    // The date dialog hands back UTC midnight; the time is the user's own.
-                    val day = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
-                        timeInMillis = pickedDateMs ?: initialMs
-                    }
-                    val chosen = java.util.Calendar.getInstance().apply {
-                        set(java.util.Calendar.YEAR, day.get(java.util.Calendar.YEAR))
-                        set(java.util.Calendar.MONTH, day.get(java.util.Calendar.MONTH))
-                        set(java.util.Calendar.DAY_OF_MONTH, day.get(java.util.Calendar.DAY_OF_MONTH))
-                        set(java.util.Calendar.HOUR_OF_DAY, timeState.hour)
-                        set(java.util.Calendar.MINUTE, timeState.minute)
-                        set(java.util.Calendar.SECOND, 0)
-                        set(java.util.Calendar.MILLISECOND, 0)
-                    }.timeInMillis
-                    onPicked(chosen.coerceIn(earliest, latest))
-                }) {
-                    Text("Schedule", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) } },
-        )
     }
 }
 
