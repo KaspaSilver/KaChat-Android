@@ -3191,7 +3191,7 @@ fun KaPostThreadOverlay(
         ) {
             Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(KaPostsOverlayInsets)) {
                 KaPostsOverlayStatusBar()
-                KaPostsOverlayHeader(title = "Post", closeLabel = "Back", onClose = onClose)
+                KaPostsOverlayHeader(title = "Post")
                 Column(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -3301,7 +3301,7 @@ fun KaPostThreadOverlay(
             KaPostsOverlayStatusBar()
             // ONE control, and it always means back: up a level while the thread has history,
             // out of it at the root (iOS).
-            KaPostsOverlayHeader(title = "Post", closeLabel = "Back", onClose = onClose)
+            KaPostsOverlayHeader(title = "Post")
             LazyColumn(state = threadListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
                 // The chain above this post, oldest first, each rung tappable to jump straight
                 // to that level - X stacks these over the focal post. Full post cells, not
@@ -3901,7 +3901,7 @@ fun KaPostsProfileOverlay(
         ) {
             KaPostsOverlayStatusBar()
             // Inline "Profile" title with a trailing Back, the banner starting BELOW the bar (iOS).
-            KaPostsOverlayHeader(title = "Profile", closeLabel = "Back", onClose = onClose)
+            KaPostsOverlayHeader(title = "Profile")
             val repliesPage = selectedTab == 1
             val pageItems = if (repliesPage) repliesList else myPostsList
             val pagePaging = pagingStateOf(
@@ -4285,7 +4285,7 @@ fun KaPostsSearchOverlay(
     LaunchedEffect(Unit) { if (scannedCount == 0) viewModel.searchLoadMore() }
 
     // The one KaPosts screen that says Done rather than Back (iOS).
-    KaPostsOverlayScaffold(title = "Search", onClose = onClose, closeLabel = "Done") {
+    KaPostsOverlayScaffold(title = "Search", onClose = onClose) {
         Column(Modifier.fillMaxSize()) {
             OutlinedTextField(
                 value = query,
@@ -5848,7 +5848,7 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
  * control that closes the screen - "Back" everywhere, "Done" on Search.
  */
 @Composable
-internal fun KaPostsOverlayHeader(title: String, closeLabel: String, onClose: () -> Unit) {
+internal fun KaPostsOverlayHeader(title: String) {
     val colors = LocalAppColors.current
     Box(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(44.dp),
@@ -5860,9 +5860,6 @@ internal fun KaPostsOverlayHeader(title: String, closeLabel: String, onClose: ()
             fontSize = 17.sp,
             modifier = Modifier.align(Alignment.Center),
         )
-        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) {
-            Text(closeLabel, color = KaspaTeal, fontSize = 16.sp)
-        }
     }
     HorizontalDivider(color = colors.surfaceVariant)
 }
@@ -5871,7 +5868,6 @@ internal fun KaPostsOverlayHeader(title: String, closeLabel: String, onClose: ()
 private fun KaPostsOverlayScaffold(
     title: String,
     onClose: () -> Unit,
-    closeLabel: String = "Back",
     content: @Composable () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -5888,7 +5884,7 @@ private fun KaPostsOverlayScaffold(
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
             KaPostsOverlayStatusBar()
-            KaPostsOverlayHeader(title = title, closeLabel = closeLabel, onClose = onClose)
+            KaPostsOverlayHeader(title = title)
             Box(modifier = Modifier.weight(1f)) { content() }
         }
     }
