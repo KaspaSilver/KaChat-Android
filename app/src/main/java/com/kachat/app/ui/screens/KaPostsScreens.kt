@@ -41,6 +41,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -163,6 +166,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -5756,8 +5760,25 @@ internal fun rememberKaPostsCoverSlide(onClose: () -> Unit): Modifier {
     LaunchedEffect(widthPx) {
         if (!leaving) offsetX.animateTo(0f, animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing))
     }
+    val shadowWidthPx = with(density) { 14.dp.toPx() }
     return Modifier
         .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+        // The edge shadow is a 14dp gradient strip along the leading edge, drawn only while the
+        // screen is off its resting place - never a shadow on the whole cover, which would
+        // re-rasterize the entire list on every frame of the drag (iOS 646398a).
+        .drawWithContent {
+            drawContent()
+            if (offsetX.value > 0.5f) {
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(Color.Black.copy(alpha = 0.22f), Color.Transparent),
+                        startX = 0f,
+                        endX = shadowWidthPx,
+                    ),
+                    size = Size(shadowWidthPx, size.height),
+                )
+            }
+        }
         .pointerInput(widthPx) {
             val edge = with(density) { 24.dp.toPx() }
             val slop = viewConfiguration.touchSlop
@@ -5766,12 +5787,14 @@ internal fun rememberKaPostsCoverSlide(onClose: () -> Unit): Modifier {
                 if (down.position.x > edge) return@awaitEachGesture
                 var dragging = false
                 var travelled = 0f
+                val velocity = VelocityTracker()
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
                     val change = event.changes.firstOrNull { it.id == down.id } ?: break
                     if (!change.pressed) break
                     val delta = change.position.x - change.previousPosition.x
                     travelled += delta
+                    velocity.addPosition(change.uptimeMillis, change.position)
                     if (!dragging && kotlin.math.abs(travelled) > slop) dragging = true
                     if (dragging) {
                         change.consume()
@@ -5780,8 +5803,12 @@ internal fun rememberKaPostsCoverSlide(onClose: () -> Unit): Modifier {
                 }
                 if (!dragging) return@awaitEachGesture
                 val pulled = offsetX.value
+                // Where the finger was headed, not only where it let go: a quick flick from the
+                // edge leaves even though it never travelled a third of the way (iOS's
+                // predictedEndTranslation test).
+                val projected = pulled + velocity.calculateVelocity().x * 0.3f
                 scope.launch {
-                    if (pulled > widthPx / 3f) {
+                    if (pulled > widthPx / 3f || projected > widthPx * 0.6f) {
                         leaving = true
                         offsetX.animateTo(widthPx, animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
                         onClose()
