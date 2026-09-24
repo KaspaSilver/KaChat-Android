@@ -1198,7 +1198,7 @@ class ChatRepository @Inject constructor(
      * Learns the aliases [contact] sends to us under, without having to be told.
      *
      * A 1:1 message is a self-stash: the sender pays to their own address with the payload
-     * `ciph_msg:1:comm:<alias>:<sealed>`, alias in the clear. So their recent transactions show
+     * `kchat:1:comm:<alias>:<sealed>`, alias in the clear. So their recent transactions show
      * every alias they are using, and the ones whose sealed part opens with OUR key are the ones
      * meant for us - the same decrypt-first rule iOS applies to a contact's transactions. Any new
      * alias found goes into [PeerAliasStore], and the sync that follows fetches its whole history.
@@ -1738,13 +1738,13 @@ class ChatRepository @Inject constructor(
 
         /**
          * Unlike handshake payloads (raw binary on-chain), comm payloads are base64 text
-         * on-chain ("ciph_msg:1:comm:<alias>:<base64>") — the indexer's message_payload
+         * on-chain ("kchat:1:comm:<alias>:<base64>", or the legacy `ciph_msg:1:` root) — the indexer's message_payload
          * for a contextual message is hex(base64 ascii text), not hex(raw bytes) like a
          * handshake's. Decode both layers to get back to the actual encrypted bytes.
          */
         /**
          * The sealed bytes of a contextual message read straight OFF CHAIN, where the payload is
-         * the whole "ciph_msg:1:comm:<alias>:<base64>" string rather than the indexer's already
+         * the whole "kchat:1:comm:<alias>:<base64>" string rather than the indexer's already
          * stripped `message_payload`. Null when it is not a contextual message at all.
          */
         internal fun decodeOnChainContextualPayload(hexPayload: String): ByteArray? {

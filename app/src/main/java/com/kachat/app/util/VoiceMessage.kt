@@ -4,7 +4,7 @@ import com.google.gson.Gson
 
 /**
  * A voice message's on-chain representation — the entire encoded audio is embedded as base64
- * directly in the same encrypted `ciph_msg:1:comm:` payload used for plain text (no upload
+ * directly in the same encrypted `kchat:1:comm:` payload used for plain text (no upload
  * endpoint, no separate wire type). Field shape matches iOS's `MediaFile`/inline JSON exactly
  * (`ChatService+Conversations.swift:942-972`, `MessageBubbleView.swift:630-738`), so a voice
  * message recorded on one platform decodes and plays on the other.
@@ -99,7 +99,7 @@ object VoiceMessage {
      * never used for anything that determines a real fee). Calibrated against a real sent voice
      * message: a recording close to the app's 10-second cap at its fixed 6000bps/48kHz Opus
      * settings produced a 28,729-byte final wire payload (JSON wrapper + base64 audio, encrypted,
-     * then base64'd again for the comm payload, plus the "ciph_msg:1:comm:<alias>:" prefix) —
+     * then base64'd again for the comm payload, plus the "kchat:1:comm:<alias>:" prefix) —
      * roughly 2870 bytes of final payload per second of recording.
      */
     fun estimatedWirePayloadSize(elapsedMs: Long): Int {

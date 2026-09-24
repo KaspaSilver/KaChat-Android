@@ -106,7 +106,7 @@
     <string name="kapost_indexer">KaPost Indexer</string>
     <string name="broadcast_popular_retention_note">All messages persist for 30 days</string>
     <string name="help">Help</string>
-    <string name="broadcast_indexer">Broadcast Indexer</string>
+    <string name="broadcast_indexer">Public Chats Indexer</string>
     <string name="broadcast_indexer_footer">KaChat broadcast history indexer for #kaspa and #kachat-bugs</string>
     <string name="kapost_indexer_footer">K social network indexer that powers KaPosts feeds</string>
     <string name="coinbase">Coinbase</string>

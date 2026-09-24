@@ -47,7 +47,7 @@ data class TransactionResponse(
     val inputs: List<TransactionInput>,
     val outputs: List<TransactionOutput>,
     @SerializedName("block_time") val blockTime: Long?,
-    val payload: String?  // hex-encoded — contains ciph_msg:1:* for KaChat messages
+    val payload: String?  // hex-encoded — contains kchat:1:* (or legacy ciph_msg:1:*) for KaChat messages
 ) {
     /**
      * The fee this transaction paid: inputs minus outputs. Known only when the API resolved

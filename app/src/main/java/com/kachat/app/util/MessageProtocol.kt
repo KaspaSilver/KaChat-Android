@@ -3,7 +3,8 @@ package com.kachat.app.util
 import java.util.Base64
 
 /**
- * KaChat/Kasia "ciph_msg" wire protocol — encode/decode of transaction payloads.
+ * KaChat wire protocol — encode/decode of transaction payloads. The root written is
+ * `kchat:1:`; the legacy `ciph_msg:1:` root is still read (see PREFIX/LEGACY_PREFIX below).
  *
  * Verified against the actual iOS KaChat implementation (`KaChatTransactionBuilder.swift`,
  * `ChatService+Decryption.swift`), NOT the stale MESSAGING.md doc: real tags are
@@ -37,7 +38,7 @@ object MessageProtocol {
     }
 
     /**
-     * Builds "ciph_msg:1:comm:<alias>:<base64>" — alias is plaintext, colon-delimited
+     * Builds "kchat:1:comm:<alias>:<base64>" — alias is plaintext, colon-delimited
      * ahead of the base64-encoded [KasiaCipher.EncryptedMessage] bytes.
      */
     fun buildCommPayload(alias: String, encrypted: KasiaCipher.EncryptedMessage): ByteArray {
@@ -47,7 +48,7 @@ object MessageProtocol {
     }
 
     /**
-     * Builds "ciph_msg:1:handshake:<raw bytes>" — the encrypted bytes are appended
+     * Builds "kchat:1:handshake:<raw bytes>" — the encrypted bytes are appended
      * directly (NOT base64-encoded) after the ASCII prefix, matching iOS exactly.
      * The result must be treated as opaque binary end-to-end (hex-encode it directly
      * for the transaction payload field — never round-trip it through a UTF-8 String).
@@ -73,7 +74,7 @@ object MessageProtocol {
      */
     fun parseCommPayload(rawBytes: ByteArray): Pair<String, KasiaCipher.EncryptedMessage>? {
         val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return null }
-        // ["ciph_msg", "1", "comm", alias, base64] — Kotlin limit=5 matches Swift's maxSplits:4
+        // ["kchat", "1", "comm", alias, base64] (or the legacy "ciph_msg" root) — Kotlin limit=5 matches Swift's maxSplits:4
         val parts = text.split(":", limit = 5)
         if (parts.size != 5 || (parts[0] != PREFIX && parts[0] != LEGACY_PREFIX) || parts[1] != VERSION || parts[2] != TYPE_COMM) return null
 
@@ -105,7 +106,7 @@ object MessageProtocol {
     data class BroadcastMessage(val channel: String, val content: String)
 
     /**
-     * Builds "ciph_msg:1:bcast:<channel>:<content>" — broadcasts are never encrypted (matches
+     * Builds "kchat:1:bcast:<channel>:<content>" — broadcasts are never encrypted (matches
      * Kasia: a broadcast is a public, one-to-many channel, so pairwise ECDH encryption doesn't
      * apply the same way it does to a 1:1 message). [channel] should already be normalized via
      * [normalizeChannelName]/[isValidChannelName] before calling this.
@@ -116,7 +117,7 @@ object MessageProtocol {
     /** Parses a "bcast" payload, returning the channel name and plaintext content. */
     fun parseBcastPayload(rawBytes: ByteArray): BroadcastMessage? {
         val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return null }
-        // ["ciph_msg", "1", "bcast", channel, content] — same shape as parseCommPayload.
+        // ["kchat", "1", "bcast", channel, content] (or the legacy root) — same shape as parseCommPayload.
         val parts = text.split(":", limit = 5)
         if (parts.size != 5 || (parts[0] != PREFIX && parts[0] != LEGACY_PREFIX) || parts[1] != VERSION || parts[2] != TYPE_BCAST) return null
         return BroadcastMessage(channel = parts[3], content = parts[4])

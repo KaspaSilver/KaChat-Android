@@ -324,7 +324,7 @@ object GroupCipher {
         val signature: ByteArray
     )
 
-    /** ciph_msg:1:gcomm:{blinded_group_id}:{epoch}:{sender_id}:{sender_pub}:{msg_id}:{ciphertext}:{signature} */
+    /** kchat:1:gcomm:{blinded_group_id}:{epoch}:{sender_id}:{sender_pub}:{msg_id}:{ciphertext}:{signature} */
     fun buildGroupMessagePayload(
         blindedGroupId: ByteArray,
         epoch: Long,
@@ -364,12 +364,12 @@ object GroupCipher {
     }
 
     /**
-     * Recipient-addressed gctl (`ciph_msg:1:gctl:{recipient_xonly_pubkey}:{encrypted}`) is only
+     * Recipient-addressed gctl (`kchat:1:gctl:{recipient_xonly_pubkey}:{encrypted}`) is only
      * relevant to the live block-scan path - the indexer already strips this routing prefix from
      * `message_payload` in REST catch-up responses (see docs/GROUP_CHAT_API.md), so catch-up
      * never needs this. Detects and strips an addressed-format recipient prefix, if present, so
      * the rest of the parse/decrypt path (shared with legacy gctl) always sees the uniform
-     * `ciph_msg:1:gctl:{encrypted}` shape. No recipient-address filtering happens here - same as
+     * `kchat:1:gctl:{encrypted}` shape. No recipient-address filtering happens here - same as
      * legacy gctl already relied on, a mismatched recipient's ECIES decrypt just fails silently.
      */
     fun normalizeControlPayload(payloadString: String): String {

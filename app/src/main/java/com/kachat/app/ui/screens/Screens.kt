@@ -10651,7 +10651,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             }
 
             SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
-                ConnectionUrlField(label = "Broadcast Indexer URL", value = broadcastIndexerUrl)
+                ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
                 SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
             }
 

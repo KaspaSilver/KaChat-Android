@@ -72,7 +72,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     "broadcast" -> {
                         val channel = data["channel"] ?: return@runBlocking
                         // An edit changes an earlier message in place - nothing to announce. The
-                        // push service is asked not to send these at all (BROADCAST_INDEXER.md);
+                        // push service is asked not to send these at all (PUBLIC_CHATS_INDEXER.md);
                         // this is the backstop for one that arrives anyway.
                         if (com.kachat.app.util.BroadcastPushPreview.isEditEnvelope(body)) {
                             Log.i(TAG, "Edit push dropped: an edit is never announced")

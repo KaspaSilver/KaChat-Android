@@ -98,8 +98,8 @@ data class GroupConversation(
  *
  * Two on-chain payload types, both self-stash (sender spends their own identity-address UTXOs,
  * output returns to their own identity address):
- *  - `ciph_msg:1:gcomm:...` - a group message.
- *  - `ciph_msg:1:gctl:...` - a control message (`gctl_root`/`gctl_epoch`), ECIES-encrypted (via
+ *  - `kchat:1:gcomm:...` - a group message (the legacy `ciph_msg:1:` root is read too).
+ *  - `kchat:1:gctl:...` - a control message (`gctl_root`/`gctl_epoch`), ECIES-encrypted (via
  *    [KasiaCipher], the same crypto 1:1 messages use) to one specific recipient.
  *
  * Deliberately no invite-link/beacon join path: every member is added directly by the admin, who
@@ -998,7 +998,7 @@ class GroupRepository @Inject constructor(
     }
 
     /**
-     * Wire format is recipient-addressed (`ciph_msg:1:gctl:{recipient_xonly}:{encrypted}`), not
+     * Wire format is recipient-addressed (`kchat:1:gctl:{recipient_xonly}:{encrypted}`), not
      * the legacy unaddressed shape - see docs/GROUP_CHAT_API.md. This lets a brand-new member
      * discover a "you were added" control via `GET /group-control/by-recipient` before it knows
      * the admin's address at all, and lets push route it to their device even with zero
@@ -1788,7 +1788,7 @@ class GroupRepository @Inject constructor(
 
     /**
      * Reverses the indexer's double-hex-encoding of `message_payload` (it hex-encodes the raw
-     * on-chain sealed hex text as stored) back into the original `ciph_msg:1:<type>:<hex>`
+     * on-chain sealed hex text as stored) back into the original `kchat:1:<type>:<hex>`
      * on-chain payload string, so it can feed straight into the same parse/decrypt path the live
      * block-scan uses.
      */

@@ -7,12 +7,12 @@ import java.text.BreakIterator
 
 // Chess tournaments (5.1) - eight-player knockout in the public #chess-arena room, every move a
 // Kaspa transaction, no referee. A byte-for-byte port of iOS's ChessTournamentModels.swift and
-// ChessTournamentEngine.swift (CHESS_TOURNAMENTS.md in the iOS repo is the protocol). Every phone
+// ChessTournamentEngine.swift (ONLINE_CHESS.md in the iOS repo is the protocol). Every phone
 // runs the same rules over the same rows and lands on the same bracket, boards, clocks and
 // results, so nothing here may be "improved" on its own: a rule that differs by one line from
 // iOS is a tournament the two platforms disagree about.
 
-// MARK: - Wire protocol (CHESS_TOURNAMENTS.md §2)
+// MARK: - Wire protocol (ONLINE_CHESS.md §2)
 
 /** One tournament message as it travels in the arena. `decode` returns null for anything that
  *  is not a well-formed tournament message, so the arena can carry other content harmlessly. */
@@ -75,7 +75,7 @@ object ChessTournamentCodec {
     const val NAME_MAX_LENGTH = 40
     const val CHAT_MAX_LENGTH = 280
 
-    // MARK: Public rooms and private tournaments (CHESS_TOURNAMENTS.md §2.1)
+    // MARK: Public rooms and private tournaments (ONLINE_CHESS.md §2.1)
 
     /** Public rooms are numbered: `public-1`, `public-2`, ... One is open at a time; a join to
      *  room N is accepted only when room N-1 is full, so the queue never forks. Nobody creates
@@ -335,7 +335,7 @@ object ChessTournamentCodec {
     }
 }
 
-// MARK: - Derived state (CHESS_TOURNAMENTS.md §3-4)
+// MARK: - Derived state (ONLINE_CHESS.md §3-4)
 
 /** The rules' input: one arena row, already known to be a tournament message. */
 data class ChessArenaEvent(val txId: String, val sender: String, val blockTime: Long, val message: ChessTournamentMessage)
@@ -534,7 +534,7 @@ data class ChessLeaderboardRow(
 // MARK: - The rules
 
 /**
- * CHESS_TOURNAMENTS.md §3-4 as one pure function: the arena's tournament messages, in chain
+ * ONLINE_CHESS.md §3-4 as one pure function: the arena's tournament messages, in chain
  * order, in; every tournament's bracket, boards, clocks and results out. Line for line
  * iOS's ChessTournamentEngine - keep it self-contained, and change it only together with iOS.
  */

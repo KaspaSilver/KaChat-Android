@@ -4,9 +4,9 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 /**
- * KaChat broadcast indexer (BROADCAST_INDEXER.md): 24/7 chain watcher for the featured
+ * KaChat broadcast indexer (PUBLIC_CHATS_INDEXER.md): 24/7 chain watcher for the featured
  * #kaspa/#kachat-bugs rooms, serving their history over REST so clients can backfill what was
- * sent while the app was closed. Base URL: Settings > Connection Settings > Broadcast Indexer
+ * sent while the app was closed. Base URL: Settings > Connection Settings > Public Chats Indexer
  * (shares the KaPosts indexer's domain). The app merges rows with its own live scanning and
  * dedupes by txId - the server only needs to be honest and reasonably complete, not realtime.
  */
