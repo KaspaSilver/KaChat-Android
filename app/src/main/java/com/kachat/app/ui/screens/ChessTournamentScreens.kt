@@ -279,21 +279,15 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                 contentColor = KaspaTeal,
             ) {
                 tabs.forEachIndexed { index, label ->
+                    // The content slot, not `text =`: that one reserves 16dp of padding on each
+                    // side of the label, and four tabs on a phone leave about 90dp each - which
+                    // is what cut "Leaderboard" off mid-word.
                     androidx.compose.material3.Tab(
                         selected = pagerState.currentPage == index,
                         onClick = { tabScope.launch { pagerState.animateScrollToPage(index) } },
-                        // Four tabs on a phone leave each one narrow: "Leaderboard" wrapped to
-                        // two lines at the default size.
-                        text = {
-                            Text(
-                                label,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        },
-                    )
+                    ) {
+                        ChessTabLabel(label = label, selected = pagerState.currentPage == index)
+                    }
                 }
             }
             androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
@@ -739,6 +733,34 @@ private fun TournamentRow(tournament: ChessTournament, action: String, onClick: 
         Text(action, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
     }
+}
+
+/**
+ * One chess tab's label: bold, on one line, teal for the tab you are on and half-strength for
+ * the ones you are not (iOS's tabButton). A label too long for its quarter of the screen shrinks
+ * to fit rather than being cut off, down to 80% of its size - iOS's `minimumScaleFactor(0.8)`,
+ * which is what keeps "Leaderboard" whole.
+ */
+@Composable
+private fun ChessTabLabel(label: String, selected: Boolean) {
+    val maxSize = 13.sp
+    val minSize = maxSize * 0.8f
+    var fontSize by remember(label) { mutableStateOf(maxSize) }
+    Text(
+        label,
+        fontWeight = FontWeight.Bold,
+        fontSize = fontSize,
+        maxLines = 1,
+        softWrap = false,
+        color = if (selected) KaspaTeal else KaspaTeal.copy(alpha = 0.5f),
+        modifier = Modifier.padding(horizontal = 2.dp),
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && fontSize.value > minSize.value) {
+                val next = fontSize * 0.94f
+                fontSize = if (next.value < minSize.value) minSize else next
+            }
+        },
+    )
 }
 
 // MARK: - Leaderboard
