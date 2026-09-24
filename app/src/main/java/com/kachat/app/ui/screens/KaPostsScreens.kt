@@ -2732,11 +2732,40 @@ private fun EngagementRow(
             }
         }
         Spacer(modifier = Modifier.weight(1f))
-        // Bottom-right: on-chain delivery state, mirroring chat bubbles - green check once the K
-        // transaction is on the network (for a minute), spinner while submitting, red Retry when
-        // it didn't go through (iOS).
+        // Bottom-right: when the post was made - the clock time today, the date beyond that
+        // (the header keeps its "13h ago"), then the on-chain delivery state.
+        Text(
+            postTimestampLabel(post.timestamp),
+            color = LocalAppColors.current.textSecondary,
+            fontSize = 11.sp,
+            maxLines = 1,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        // On-chain delivery state, mirroring chat bubbles - green check once the K transaction is
+        // on the network (for a minute), spinner while submitting, red Retry when it didn't go
+        // through (iOS).
         DeliveryState(post = post, onRetry = onRetry)
     }
+}
+
+/**
+ * When a post was made, as the card's bottom right shows it: the clock time for one made today,
+ * the month and day as well for one from this year, the year too beyond that - in the reader's
+ * own locale and 12/24-hour setting (iOS's postTimestamp).
+ */
+private fun postTimestampLabel(timestampMs: Long): String {
+    val now = java.util.Calendar.getInstance()
+    val then = java.util.Calendar.getInstance().apply { timeInMillis = timestampMs }
+    val sameYear = now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR)
+    val sameDay = sameYear && now.get(java.util.Calendar.DAY_OF_YEAR) == then.get(java.util.Calendar.DAY_OF_YEAR)
+    val locale = java.util.Locale.getDefault()
+    val skeleton = when {
+        sameDay -> "jmm"
+        sameYear -> "MMMd jmm"
+        else -> "MMMd y jmm"
+    }
+    val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton)
+    return java.text.SimpleDateFormat(pattern, locale).format(java.util.Date(timestampMs))
 }
 
 @Composable
