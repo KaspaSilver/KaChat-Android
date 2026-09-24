@@ -33,6 +33,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -3262,6 +3270,8 @@ fun KaPostThreadOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // Slides in from the right and pulls out with the finger, like every other cover.
+            .then(rememberKaPostsCoverSlide(onClose))
             .background(colors.background)
             // Claim ONLY horizontal drags (which the ancestor feed pager would otherwise read
             // as a tab swipe). The previous blanket every-unconsumed-change consumer here also
@@ -3881,6 +3891,7 @@ fun KaPostsProfileOverlay(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .then(rememberKaPostsCoverSlide(onClose))
                 .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
@@ -5723,6 +5734,65 @@ fun KaPostsBookmarksOverlay(
     }
 }
 
+/**
+ * A KaPosts cover, presented the way a pushed screen behaves: it slides in from the right, and a
+ * drag from the left edge follows the finger - past a third of the way it leaves (calling
+ * [onClose] once it is off screen), otherwise it settles back. Matches iOS's `kaPostsSlideCover`
+ * (iOS 34c53da/08af09c), which gave posts, profiles and the menu screens this same expression.
+ *
+ * Applied as a modifier on the cover's own root, before its background, so the whole screen
+ * travels. The edge gesture is watched on the Initial pass and only consumes once it has passed
+ * touch slop, so a tap that starts near the left edge - the Back control lives there - still
+ * reaches the content underneath.
+ */
+@Composable
+internal fun rememberKaPostsCoverSlide(onClose: () -> Unit): Modifier {
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val widthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val offsetX = remember { Animatable(widthPx) }
+    val scope = rememberCoroutineScope()
+    var leaving by remember { mutableStateOf(false) }
+    LaunchedEffect(widthPx) {
+        if (!leaving) offsetX.animateTo(0f, animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing))
+    }
+    return Modifier
+        .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+        .pointerInput(widthPx) {
+            val edge = with(density) { 24.dp.toPx() }
+            val slop = viewConfiguration.touchSlop
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (down.position.x > edge) return@awaitEachGesture
+                var dragging = false
+                var travelled = 0f
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
+                    val delta = change.position.x - change.previousPosition.x
+                    travelled += delta
+                    if (!dragging && kotlin.math.abs(travelled) > slop) dragging = true
+                    if (dragging) {
+                        change.consume()
+                        scope.launch { offsetX.snapTo((offsetX.value + delta).coerceAtLeast(0f)) }
+                    }
+                }
+                if (!dragging) return@awaitEachGesture
+                val pulled = offsetX.value
+                scope.launch {
+                    if (pulled > widthPx / 3f) {
+                        leaving = true
+                        offsetX.animateTo(widthPx, animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+                        onClose()
+                    } else {
+                        offsetX.animateTo(0f, animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+                    }
+                }
+            }
+        }
+}
+
 /** Shared full-screen overlay chrome: back arrow + bold title over the app background. */
 /**
  * The feed's own header indicators - clickable connection dot leading, chatting balance centred -
@@ -5786,6 +5856,7 @@ private fun KaPostsOverlayScaffold(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .then(rememberKaPostsCoverSlide(onClose))
                 .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
