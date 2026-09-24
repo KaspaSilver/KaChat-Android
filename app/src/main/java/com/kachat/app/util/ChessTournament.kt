@@ -52,29 +52,38 @@ object ChessTournamentCodec {
     const val MOVE_DELAY_MS = 10L * 1000
 
     /** The room filled: every phone shows "Match found" and opens the board at the game's start
-     *  block time plus this - the same instant everywhere, so the players arrive together. It
-     *  sits inside [FIRST_MOVE_GRACE_MS], so it costs nobody clock, and it is display only
-     *  (nothing about it goes on chain). ONLINE_CHESS.md section 5. */
+     *  block time plus this - the same instant everywhere, so the players arrive together.
+     *  Equal to [MOVE_DELAY_MS], so white's first move is charged from the moment the board
+     *  opens and not a second before: the clock runs the instant you are playing. Display only;
+     *  nothing about it goes on chain. ONLINE_CHESS.md section 5. */
     const val MATCH_FOUND_DELAY_MS = 10L * 1000
 
-    /** A side's FIRST move gets 25 seconds instead: the game starts at the second join's block
-     *  time, and a player must not lose clock before their phone has even shown the board. This
-     *  is the gate on a simultaneous join - the clock does not run for either side until they
-     *  have shown up with a move (or the 25 seconds are up). */
+    /** Games from the first allowance window only (see [allowanceMs]): a side's first move had
+     *  25 seconds before its clock ran - the gate on a simultaneous join, from before the
+     *  match-found countdown existed. Kept so those games are judged as they were played. */
     const val FIRST_MOVE_GRACE_MS = 25L * 1000
 
     /**
-     * The allowances apply to games that STARTED at or after this block time (2026-09-24 00:00
-     * UTC). A rule change must never reach back: the games before it were decided under the
-     * rules of their day, and re-judging them re-opened games that had ended (a claim valid at
-     * 5:00 became "early" under the minute's grace) and let a player resign a finished game for
-     * a second loss. Every platform ships the same instant (iOS 2641f2e).
+     * Rule windows, by the game's start block time. A rule change must never reach back: the
+     * games before it were decided under the rules of their day, and re-judging them re-opened
+     * games that had ended (a claim valid at 5:00 became "early" under the minute's grace) and
+     * let a player resign a finished game for a second loss. Every platform ships the same
+     * instants (iOS 2641f2e, 11ac2b7).
+     *
+     * - before [ALLOWANCE_FROM_MS] (2026-09-24 00:00 UTC): no allowances at all;
+     * - from [ALLOWANCE_FROM_MS] to [ALLOWANCE_V2_FROM_MS] (2026-09-24 20:00 UTC): 25s on a
+     *   side's first move, 10s on every move after;
+     * - from [ALLOWANCE_V2_FROM_MS]: 10s on every move, the first included - the match-found
+     *   countdown covers the start, so no separate grace holds the clock.
      */
     const val ALLOWANCE_FROM_MS = 1_790_208_000_000L
 
+    const val ALLOWANCE_V2_FROM_MS = 1_790_280_000_000L
+
     /** The allowance for the move at [ply] (1 = white's first, 2 = black's first) in a game
-     *  started at [startedAt]; zero for games from before [ALLOWANCE_FROM_MS]. */
+     *  started at [startedAt] - see the windows above. */
     fun allowanceMs(ply: Int, startedAt: Long): Long {
+        if (startedAt >= ALLOWANCE_V2_FROM_MS) return MOVE_DELAY_MS
         if (startedAt < ALLOWANCE_FROM_MS) return 0
         return if (ply <= 2) FIRST_MOVE_GRACE_MS else MOVE_DELAY_MS
     }
@@ -527,7 +536,11 @@ data class ChessLeaderboardRow(
     val wins: Int = 0,
     val losses: Int = 0,
     val tournamentsPlayed: Int = 0,
+    /** Won the whole bracket. The only way a tournament counts as a win. */
     val tournamentsWon: Int = 0,
+    /** Knocked out - a lost game inside a tournament is one tournament loss, counted the moment
+     *  it happens (iOS 7049e70). */
+    val tournamentsLost: Int = 0,
     val lastPlayedAt: Long = 0,
     /** 1v1 games (`duel-N` rooms and private 1v1s). */
     val duelWins: Int = 0,
@@ -854,6 +867,8 @@ object ChessTournamentEngine {
                     losses = l.losses + 1,
                     duelLosses = if (tournament.isDuel) l.duelLosses + 1 else l.duelLosses,
                     tournamentGameLosses = if (tournament.isDuel) l.tournamentGameLosses else l.tournamentGameLosses + 1,
+                    // A lost game inside a tournament IS the tournament lost: you are out.
+                    tournamentsLost = if (tournament.isDuel) l.tournamentsLost else l.tournamentsLost + 1,
                     lastPlayedAt = maxOf(l.lastPlayedAt, ended),
                 )
             }
@@ -879,12 +894,13 @@ object ChessTournamentEngine {
                 .thenByDescending { it.lastPlayedAt }
         )
 
-    /** The tournament board: tournaments won first, then the record inside them. */
+    /** The tournament board: whole tournaments only - won (champion) and lost (knocked out).
+     *  Most won first, fewest lost breaking ties. Games inside a tournament are not a score
+     *  there (iOS 7049e70). */
     fun tournamentLeaderboard(rows: List<ChessLeaderboardRow>): List<ChessLeaderboardRow> =
-        rows.filter { it.tournamentsPlayed > 0 }.sortedWith(
+        rows.filter { it.tournamentsWon + it.tournamentsLost > 0 }.sortedWith(
             compareByDescending<ChessLeaderboardRow> { it.tournamentsWon }
-                .thenByDescending { it.tournamentGameWins }
-                .thenBy { it.tournamentGameLosses }
+                .thenBy { it.tournamentsLost }
                 .thenByDescending { it.lastPlayedAt }
         )
 }

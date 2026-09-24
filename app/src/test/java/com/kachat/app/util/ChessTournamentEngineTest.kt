@@ -122,6 +122,37 @@ class ChessTournamentEngineTest {
     }
 
     @Test
+    fun `each rule window charges the first move the way its games were played`() {
+        // Before the allowances: charged from the first second.
+        assertEquals(0L, ChessTournamentCodec.allowanceMs(1, ChessTournamentCodec.ALLOWANCE_FROM_MS - 1))
+        // The first window: 25 seconds on a side's first move, 10 on every move after.
+        assertEquals(
+            ChessTournamentCodec.FIRST_MOVE_GRACE_MS,
+            ChessTournamentCodec.allowanceMs(1, ChessTournamentCodec.ALLOWANCE_FROM_MS),
+        )
+        assertEquals(
+            ChessTournamentCodec.FIRST_MOVE_GRACE_MS,
+            ChessTournamentCodec.allowanceMs(2, ChessTournamentCodec.ALLOWANCE_V2_FROM_MS - 1),
+        )
+        assertEquals(
+            ChessTournamentCodec.MOVE_DELAY_MS,
+            ChessTournamentCodec.allowanceMs(3, ChessTournamentCodec.ALLOWANCE_FROM_MS),
+        )
+        // From the second window the match-found countdown covers the start, so the first move
+        // gets the ordinary allowance and nothing more - the clock runs as the board opens.
+        assertEquals(
+            ChessTournamentCodec.MOVE_DELAY_MS,
+            ChessTournamentCodec.allowanceMs(1, ChessTournamentCodec.ALLOWANCE_V2_FROM_MS),
+        )
+        assertEquals(
+            ChessTournamentCodec.MOVE_DELAY_MS,
+            ChessTournamentCodec.allowanceMs(2, ChessTournamentCodec.ALLOWANCE_V2_FROM_MS + 60_000L),
+        )
+        // The countdown is exactly the allowance it is covered by.
+        assertEquals(ChessTournamentCodec.MOVE_DELAY_MS, ChessTournamentCodec.MATCH_FOUND_DELAY_MS)
+    }
+
+    @Test
     fun `winners meet in round two with colours by whites so far then seed, and the leaderboard counts`() {
         seatEight()
         // 1-0: seed 1 (white) beats seed 8 by resignation; 1-1: seed 7 (black) beats seed 2.
@@ -253,9 +284,14 @@ class ChessTournamentEngineTest {
         assertEquals(1, winner.tournamentsPlayed)
         val duelBoard = ChessTournamentEngine.duelLeaderboard(rows).map { it.address }
         assertEquals(listOf(players[0], players[1]), duelBoard)
+        // The tournament board counts whole tournaments: the player knocked out is on it with a
+        // loss; the one who advanced is on neither side of it until they win the whole thing or
+        // go out themselves (iOS 7049e70).
+        assertEquals(1, winner.tournamentGameWins)
+        assertEquals(0, winner.tournamentsLost)
+        assertEquals(1, rows.first { it.address == players[7] }.tournamentsLost)
         val tournamentBoard = ChessTournamentEngine.tournamentLeaderboard(rows)
-        assertEquals(8, tournamentBoard.size)
-        assertEquals(players[0], tournamentBoard.first().address)
+        assertEquals(listOf(players[7]), tournamentBoard.map { it.address })
     }
 
     @Test
