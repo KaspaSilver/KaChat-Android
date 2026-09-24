@@ -61,6 +61,13 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var pushRegistrationManager: com.kachat.app.services.PushRegistrationManager
 
+    // A scheduled KaPost holds the coins its signed transaction spends. Those coins must be off
+    // limits from the moment the app starts - not from whenever KaPosts happens to be opened -
+    // or an ordinary send could spend one underneath it and the post would be invalid when its
+    // time came. Field-injected (and loaded in onCreate) for exactly that reason.
+    @Inject
+    lateinit var kaPostsScheduledStore: com.kachat.app.services.KaPostsScheduledStore
+
     @Inject
     lateinit var nodePoolManager: com.kachat.app.services.NodePoolManager
 
@@ -115,6 +122,10 @@ class KaChatApplication : Application(), Configuration.Provider {
         // How did the previous process end? A native crash or an OS kill never reaches the
         // exception handler installed in attachBaseContext; the system's own exit history does.
         CrashRecorder.noteProcessExits(this)
+
+        // Reserve the coins every still-waiting scheduled post is going to spend, before any
+        // send can pick them (see the field above).
+        runCatching { kaPostsScheduledStore.reloadIfNeeded() }
 
         // Background catch-up for GROUP chat only (see SyncWorker's doc comment): groups have no
         // remote push (the push registration is the LegacyV1 shape with no watched_group_ids), so

@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -93,6 +94,11 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.filled.AddCircle
@@ -638,6 +644,7 @@ fun KaPostsScreen(
     var showBookmarks by remember { mutableStateOf(false) }
     var showKaPostsSettings by remember { mutableStateOf(false) }
     var showDrafts by remember { mutableStateOf(false) }
+    var showScheduled by remember { mutableStateOf(false) }
     var editingDraft by remember { mutableStateOf<KaPostSavedDraft?>(null) }
     val draftContext = LocalContext.current
     val myAddressForDrafts = viewModel.myAddress()
@@ -776,6 +783,9 @@ fun KaPostsScreen(
         // (iOS's KaPostsView is kept alive by its tab view and loads in a one-shot task).
         viewModel.loadFeedIfNeeded()
         viewModel.refreshTranslationLanguages()
+        // A post scheduled for a moment that has already passed, which the indexer never took,
+        // goes out now - opening KaPosts is what sends it (iOS sends these on becoming active).
+        viewModel.refreshScheduledPosts()
     }
     LaunchedEffect(deepLinkTxId, handlesDeepLinks) {
         if (!handlesDeepLinks) return@LaunchedEffect
@@ -863,6 +873,10 @@ fun KaPostsScreen(
                     KaPostsMenuIcon(Icons.Default.EditNote, "Drafts") {
                         drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty())
                         showDrafts = true
+                    }
+                    KaPostsMenuIcon(Icons.Default.Schedule, "Scheduled") {
+                        viewModel.refreshScheduledPosts()
+                        showScheduled = true
                     }
                     KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
                     KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
@@ -1146,6 +1160,12 @@ fun KaPostsScreen(
                 restoredComposerSegments = emptyList()
                 viewModel.createPoll(question, options, closesAtMs)
             },
+            onSchedulePost = { text, notBeforeMs ->
+                showComposer = false
+                restoredComposerText = ""
+                restoredComposerSegments = emptyList()
+                viewModel.schedulePostForLater(text, notBeforeMs)
+            },
             onSaveDraft = { draftText, segments ->
                 KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments)
                 reloadDrafts()
@@ -1209,6 +1229,10 @@ fun KaPostsScreen(
                 reloadDrafts()
             },
         )
+    }
+
+    if (showScheduled) {
+        KaPostsScheduledOverlay(viewModel = viewModel, onClose = { showScheduled = false })
     }
 
     if (showDrafts) {
@@ -1635,6 +1659,192 @@ private fun FeedEmptyState(
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(onClick = onAction) { Text(actionLabel, color = KaspaTeal, fontWeight = FontWeight.Bold) }
         }
+    }
+}
+
+// MARK: - Scheduled posts
+
+/**
+ * What is waiting to go out, what went out and what failed. A post still waiting can be
+ * cancelled, which releases the coins it was holding; one that has gone out or failed can be
+ * cleared off the list. Mirrors iOS's Scheduled screen.
+ */
+@Composable
+private fun KaPostsScheduledOverlay(viewModel: KaPostsViewModel, onClose: () -> Unit) {
+    val colors = LocalAppColors.current
+    val entries by viewModel.scheduledPosts.collectAsState()
+    LaunchedEffect(Unit) { viewModel.refreshScheduledPosts() }
+    KaPostsOverlayScaffold(title = "Scheduled", onClose = onClose) {
+        if (entries.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(Icons.Default.Schedule, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
+                Spacer(Modifier.height(10.dp))
+                Text("No scheduled posts", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Write a post, tap Schedule in the composer and pick a time. It is signed now and goes out then.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            return@KaPostsOverlayScaffold
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 8.dp),
+        ) {
+            items(entries, key = { it.txId }) { entry ->
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Text(
+                        entry.text,
+                        color = colors.textPrimary,
+                        fontSize = 15.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            when (entry.status) {
+                                com.kachat.app.services.KaPostScheduledEntry.STATUS_SUBMITTED -> Icons.Default.CheckCircle
+                                com.kachat.app.services.KaPostScheduledEntry.STATUS_FAILED -> Icons.Default.Error
+                                else -> Icons.Default.Schedule
+                            },
+                            contentDescription = null,
+                            tint = when (entry.status) {
+                                com.kachat.app.services.KaPostScheduledEntry.STATUS_SUBMITTED -> colors.success
+                                com.kachat.app.services.KaPostScheduledEntry.STATUS_FAILED -> colors.danger
+                                else -> KaspaTeal
+                            },
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            scheduledStatusLine(entry),
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (entry.status == com.kachat.app.services.KaPostScheduledEntry.STATUS_SCHEDULED) {
+                            Text(
+                                "Cancel",
+                                color = colors.danger,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.clickable { viewModel.cancelScheduledPost(entry) },
+                            )
+                        } else {
+                            Text(
+                                "Clear",
+                                color = colors.textSecondary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.clickable { viewModel.dismissScheduledPost(entry) },
+                            )
+                        }
+                    }
+                    entry.error?.takeIf { it.isNotBlank() }?.let { error ->
+                        Spacer(Modifier.height(4.dp))
+                        Text(error, color = colors.danger, fontSize = 12.sp)
+                    }
+                }
+                HorizontalDivider(color = colors.surfaceVariant)
+            }
+        }
+    }
+}
+
+/** "Goes out 24 Sep 2026, 14:30 · from this phone" and the outcomes that follow. */
+private fun scheduledStatusLine(entry: com.kachat.app.services.KaPostScheduledEntry): String = when (entry.status) {
+    com.kachat.app.services.KaPostScheduledEntry.STATUS_SUBMITTED ->
+        "Posted ${formatScheduledTime(entry.submittedAtMs ?: entry.notBeforeMs)}"
+    com.kachat.app.services.KaPostScheduledEntry.STATUS_FAILED ->
+        "Failed ${formatScheduledTime(entry.notBeforeMs)}"
+    com.kachat.app.services.KaPostScheduledEntry.STATUS_CANCELLED -> "Cancelled"
+    else -> {
+        val where = if (entry.onServer) "the indexer sends it" else "from this phone"
+        "Goes out ${formatScheduledTime(entry.notBeforeMs)} · $where"
+    }
+}
+
+
+/** "24 Sep 2026, 14:30" - how a scheduled time reads wherever one is shown. */
+internal fun formatScheduledTime(ms: Long): String =
+    java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
+
+/**
+ * Picks when a post goes out: a date, then a time, between five minutes and thirty days from now
+ * (the window the indexer accepts, KAPOSTS_INDEXER.md section 5.10). Android's own date and time
+ * dialogs, where iOS uses a graphical DatePicker.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicked: (Long) -> Unit) {
+    val colors = LocalAppColors.current
+    val earliest = System.currentTimeMillis() + 5 * 60 * 1000L
+    val latest = System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000L
+    var pickedDateMs by remember { mutableStateOf<Long?>(null) }
+    val dateState = rememberDatePickerState(initialSelectedDateMillis = initialMs.coerceIn(earliest, latest))
+
+    if (pickedDateMs == null) {
+        DatePickerDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(onClick = { pickedDateMs = dateState.selectedDateMillis ?: initialMs }) {
+                    Text("Next", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) } },
+        ) {
+            Column {
+                Text(
+                    "Signed now, posted then - by the indexer, or by this phone if the indexer cannot be reached.",
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+                DatePicker(state = dateState)
+            }
+        }
+    } else {
+        val calendar = java.util.Calendar.getInstance().apply { timeInMillis = initialMs }
+        val timeState = rememberTimePickerState(
+            initialHour = calendar.get(java.util.Calendar.HOUR_OF_DAY),
+            initialMinute = calendar.get(java.util.Calendar.MINUTE),
+            is24Hour = android.text.format.DateFormat.is24HourFormat(LocalContext.current),
+        )
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = colors.surface,
+            title = { Text("What time?", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+            text = { TimePicker(state = timeState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    // The date dialog hands back UTC midnight; the time is the user's own.
+                    val day = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                        timeInMillis = pickedDateMs ?: initialMs
+                    }
+                    val chosen = java.util.Calendar.getInstance().apply {
+                        set(java.util.Calendar.YEAR, day.get(java.util.Calendar.YEAR))
+                        set(java.util.Calendar.MONTH, day.get(java.util.Calendar.MONTH))
+                        set(java.util.Calendar.DAY_OF_MONTH, day.get(java.util.Calendar.DAY_OF_MONTH))
+                        set(java.util.Calendar.HOUR_OF_DAY, timeState.hour)
+                        set(java.util.Calendar.MINUTE, timeState.minute)
+                        set(java.util.Calendar.SECOND, 0)
+                        set(java.util.Calendar.MILLISECOND, 0)
+                    }.timeInMillis
+                    onPicked(chosen.coerceIn(earliest, latest))
+                }) {
+                    Text("Schedule", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) } },
+        )
     }
 }
 
@@ -2714,6 +2924,9 @@ fun KaPostComposerDialog(
      *  (unix ms). Only passed by the new-post composer - a reply, quote, edit or thread has no
      *  poll (iOS's `extrasAvailable`). */
     onSubmitPoll: ((String, List<String>, Long) -> Unit)? = null,
+    /** Sends the post later instead of now: the text and when it goes out (unix ms). Same
+     *  fresh-post-only rule as the poll. */
+    onSchedulePost: ((String, Long) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     // TextFieldValue rather than String: the caret offset is what [KeepCaretVisible] below needs
@@ -2724,6 +2937,9 @@ fun KaPostComposerDialog(
     var pollEnabled by remember { mutableStateOf(false) }
     var pollOptions by remember { mutableStateOf(listOf("", "")) }
     var pollDurationHours by remember { mutableIntStateOf(24) }
+    // Scheduling: when this post goes out instead of now, and the picker that sets it.
+    var scheduledAtMs by remember { mutableStateOf<Long?>(null) }
+    var showSchedulePicker by remember { mutableStateOf(false) }
     // Closing with something written used to throw it away silently, which is the whole reason
     // drafts exist.
     var showCloseOptions by remember { mutableStateOf(false) }
@@ -2733,6 +2949,7 @@ fun KaPostComposerDialog(
     val totalSegments = threadSegments.size + (if (text.text.isNotBlank()) 1 else 0)
     // A poll is offered on a fresh post only - never a reply, a quote, an edit or a thread.
     val pollAvailable = onSubmitPoll != null && quoted == null && !isReply && threadSegments.isEmpty()
+    val scheduleAvailable = onSchedulePost != null && quoted == null && !isReply && threadSegments.isEmpty()
     val validPollOptions = pollOptions.map { it.trim() }.filter { it.isNotEmpty() }
     val pollIsValid = validPollOptions.size in com.kachat.app.services.KaPostsService.POLL_MIN_OPTIONS..com.kachat.app.services.KaPostsService.POLL_MAX_OPTIONS &&
         validPollOptions.toSet().size == validPollOptions.size &&
@@ -2869,6 +3086,7 @@ fun KaPostComposerDialog(
                 Text(
                     when {
                         pollEnabled -> "Post Poll"
+                        scheduledAtMs != null -> "Schedule"
                         totalSegments > 1 -> "Post All ($totalSegments)"
                         else -> submitLabel ?: "Post"
                     },
@@ -2887,6 +3105,12 @@ fun KaPostComposerDialog(
                                     validPollOptions,
                                     System.currentTimeMillis() + pollDurationHours * 60L * 60L * 1000L,
                                 )
+                                return@clickable
+                            }
+                            val whenMs = scheduledAtMs
+                            if (whenMs != null && onSchedulePost != null) {
+                                if (trimmed.isEmpty()) return@clickable
+                                onSchedulePost(trimmed, whenMs)
                                 return@clickable
                             }
                             val segments = threadSegments + (if (trimmed.isNotEmpty()) listOf(trimmed) else emptyList())
@@ -3045,10 +3269,11 @@ fun KaPostComposerDialog(
                     )
                 }
             }
-            // Poll, as a chip under the editor - only on a fresh post (iOS's extrasRow).
-            if (pollAvailable) {
+            // Poll and Schedule, as chips under the editor - only on a fresh post (iOS's extrasRow).
+            if (pollAvailable || scheduleAvailable) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
@@ -3076,7 +3301,66 @@ fun KaPostComposerDialog(
                             fontSize = 14.sp,
                         )
                     }
+                    if (scheduleAvailable) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(if (scheduledAtMs != null) KaspaTeal else KaspaTeal.copy(alpha = 0.15f))
+                                .then(if (pollEnabled) Modifier else Modifier.clickable { showSchedulePicker = true })
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                                .alpha(if (pollEnabled) 0.4f else 1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = if (scheduledAtMs != null) Color.Black else KaspaTeal,
+                                modifier = Modifier.size(17.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                if (scheduledAtMs == null) "Schedule" else "Reschedule",
+                                color = if (scheduledAtMs != null) Color.Black else KaspaTeal,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                            )
+                        }
+                    }
                 }
+            }
+            // "Scheduled for ...", with a way to take it back.
+            scheduledAtMs?.let { whenMs ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Scheduled for ${formatScheduledTime(whenMs)}",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Post now instead",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(18.dp).clickable { scheduledAtMs = null },
+                    )
+                }
+            }
+            if (showSchedulePicker) {
+                KaPostSchedulePicker(
+                    initialMs = scheduledAtMs ?: (System.currentTimeMillis() + 60 * 60 * 1000L),
+                    onDismiss = { showSchedulePicker = false },
+                    onPicked = { picked ->
+                        scheduledAtMs = picked
+                        pollEnabled = false
+                        showSchedulePicker = false
+                    },
+                )
             }
             // The poll's options and how long it stays open, under the question.
             if (pollEnabled) {

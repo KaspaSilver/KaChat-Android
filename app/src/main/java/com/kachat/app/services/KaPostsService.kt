@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
 import java.math.BigInteger
 import javax.inject.Inject
@@ -266,7 +268,47 @@ interface KaPostApi {
         @Query("user") user: String,
         @Query("requesterPubkey") requesterPubkey: String,
     ): KUserDetails
+
+    /** Hands a signed transaction to the indexer to submit at its time (section 5.10). */
+    @POST("schedule-post")
+    suspend fun schedulePost(@Body body: KSchedulePostRequest): KScheduleResponse
+
+    /** This wallet's scheduled posts, as the indexer sees them. */
+    @GET("scheduled-posts")
+    suspend fun getScheduledPosts(@Query("pubkey") pubkey: String): KScheduledPostsResponse
+
+    /** Takes back a post the indexer has not submitted yet. */
+    @POST("cancel-scheduled-post")
+    suspend fun cancelScheduledPost(@Body body: KCancelScheduledRequest): KScheduleResponse
 }
+
+/** `POST /schedule-post` (section 5.10). [transaction] is the Kaspa REST `POST /transactions`
+ *  body verbatim, which is what the indexer submits on the phone's behalf. */
+data class KSchedulePostRequest(
+    val pubkey: String,
+    val txId: String,
+    val notBefore: Long,
+    val signature: String,
+    val transaction: KRestTransactionEnvelope,
+)
+
+data class KRestTransactionEnvelope(val transaction: RawTransaction)
+
+data class KCancelScheduledRequest(val pubkey: String, val txId: String, val signature: String)
+
+data class KScheduleResponse(val txId: String?, val notBefore: Long?, val status: String?)
+
+/** One row of `GET /scheduled-posts`. */
+data class KScheduledPost(
+    val txId: String,
+    val notBefore: Long?,
+    val status: String?,
+    val submittedAt: Long?,
+    val error: String?,
+    val postContent: String?,
+)
+
+data class KScheduledPostsResponse(val posts: List<KScheduledPost>?)
 
 /**
  * KaPosts client - mirrors iOS KaPostsAPIClient. Reads come from the K indexer REST API
@@ -614,6 +656,79 @@ class KaPostsService @Inject constructor(
         val pubkey = requesterPubkey()
         val signature = sign(KaPostsProtocol.pollVoteSigningString(pollId, optionIndex))
         return submitPayloadTx(KaPostsProtocol.pollVotePayload(pubkey, signature, pollId, optionIndex))
+    }
+
+    // MARK: - Scheduled posts (KAPOSTS_INDEXER.md section 5.10)
+
+    /** A post signed now for later: the id it will have on chain, its bytes, and what it spends. */
+    data class ScheduledTransaction(
+        val txId: String,
+        val transaction: RawTransaction,
+        val spentOutpoints: List<String>,
+    )
+
+    /**
+     * Builds and signs the transaction for [text] without submitting it - the post goes out at
+     * the chosen time, sent by the indexer or, failing that, by this phone.
+     */
+    suspend fun buildScheduledPost(text: String, mentionedPubkeys: List<String> = emptyList()): ScheduledTransaction {
+        val b64 = KaPostsProtocol.b64(KaPostsProtocol.KACHAT_MARKER + text)
+        val pubkey = requesterPubkey()
+        val me = pubkey.lowercase()
+        val clean = mentionedPubkeys
+            .map { it.lowercase() }
+            .filter { it.matches(Regex("^0[23][0-9a-f]{64}$")) && it != me }
+            .distinct()
+        val mentions = "[" + clean.joinToString(",") { "\"$it\"" } + "]"
+        val signature = sign(KaPostsProtocol.postSigningString(b64, mentions))
+        val payload = KaPostsProtocol.postPayload(pubkey, signature, b64, mentions)
+        val built = walletService.buildSignedPayloadSelfSend(payload.toByteArray(Charsets.UTF_8)).getOrThrow()
+        return ScheduledTransaction(
+            txId = built.txId,
+            transaction = built.transaction,
+            spentOutpoints = built.spentOutpoints,
+        )
+    }
+
+    /** Hands a signed post to the indexer to submit at [notBeforeMs]. */
+    suspend fun scheduleOnServer(txId: String, transaction: RawTransaction, notBeforeMs: Long) {
+        val pubkey = requesterPubkey()
+        val signature = sign(KaPostsProtocol.scheduleSigningString(txId, notBeforeMs))
+        rethrowingApiError {
+            api().schedulePost(
+                KSchedulePostRequest(
+                    pubkey = pubkey,
+                    txId = txId,
+                    notBefore = notBeforeMs,
+                    signature = signature,
+                    transaction = KRestTransactionEnvelope(transaction),
+                )
+            )
+        }
+    }
+
+    /** Takes back a post the indexer has not submitted yet. */
+    suspend fun cancelScheduledOnServer(txId: String) {
+        val pubkey = requesterPubkey()
+        val signature = sign(KaPostsProtocol.cancelScheduleSigningString(txId))
+        rethrowingApiError {
+            api().cancelScheduledPost(KCancelScheduledRequest(pubkey = pubkey, txId = txId, signature = signature))
+        }
+    }
+
+    /** What the indexer is holding for this wallet, and how each one went. */
+    suspend fun fetchScheduledPosts(): List<KScheduledPost> = rethrowingApiError {
+        api().getScheduledPosts(requesterPubkey()).posts.orEmpty()
+    }
+
+    /** Submits a scheduled post from this phone, when the indexer never took it. */
+    suspend fun submitScheduledLocally(transaction: RawTransaction): String {
+        val txId = walletService.submitSignedTransaction(transaction)
+        settleScope.launch {
+            kotlinx.coroutines.delay(2_000)
+            try { walletService.refreshBalance() } catch (_: Exception) {}
+        }
+        return txId
     }
 
     /**

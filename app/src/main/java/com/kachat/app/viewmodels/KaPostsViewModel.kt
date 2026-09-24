@@ -57,7 +57,65 @@ class KaPostsViewModel @Inject constructor(
     private val notificationPoller: com.kachat.app.services.KaPostsNotificationPoller,
     /** Which posts were already probed for being thread roots, across launches. */
     private val threadProbeStore: com.kachat.app.services.KaPostsThreadProbeStore,
+    /** Posts signed now and waiting for their time - see [com.kachat.app.services.KaPostsScheduledStore]. */
+    private val scheduledStore: com.kachat.app.services.KaPostsScheduledStore,
 ) : ViewModel() {
+
+    // MARK: - Scheduled posts (KAPOSTS_INDEXER.md section 5.10)
+
+    /** What this wallet has waiting, and how the ones that have gone out went. */
+    val scheduledPosts: kotlinx.coroutines.flow.StateFlow<List<com.kachat.app.services.KaPostScheduledEntry>> =
+        scheduledStore.entries
+
+    private val _schedulingError = MutableStateFlow<String?>(null)
+    val schedulingError: StateFlow<String?> = _schedulingError.asStateFlow()
+
+    fun clearSchedulingError() { _schedulingError.value = null }
+
+    /**
+     * Signs [text] now and hands it to the indexer to post at [notBeforeMs]. The coins it spends
+     * are reserved until it goes out; if the indexer cannot be reached, this phone sends it the
+     * next time KaPosts opens after that time.
+     */
+    fun schedulePostForLater(text: String, notBeforeMs: Long) {
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val built = kaPostsService.buildScheduledPost(clean, mentionedPubkeys(clean))
+                val entry = scheduledStore.add(built, clean, notBeforeMs)
+                _actionToast.value = ActionToast(
+                    message = if (entry.onServer) "Scheduled" else "Scheduled on this phone",
+                    txId = entry.txId,
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not schedule a post", e)
+                _schedulingError.value = e.message ?: "Could not schedule this post"
+            }
+        }
+    }
+
+    /** Cancels a scheduled post and releases the coins it was holding. */
+    fun cancelScheduledPost(entry: com.kachat.app.services.KaPostScheduledEntry) {
+        viewModelScope.launch { runCatching { scheduledStore.cancel(entry) } }
+    }
+
+    /** Forgets a scheduled post that has already gone out, or failed. */
+    fun dismissScheduledPost(entry: com.kachat.app.services.KaPostScheduledEntry) {
+        scheduledStore.remove(entry)
+    }
+
+    /**
+     * On opening KaPosts: load this wallet's scheduled posts, send any the indexer never took
+     * whose time has passed, and take the indexer's word on the rest.
+     */
+    fun refreshScheduledPosts() {
+        viewModelScope.launch {
+            scheduledStore.reloadIfNeeded()
+            runCatching { scheduledStore.sendDueLocally() }
+            runCatching { scheduledStore.refreshFromServer() }
+        }
+    }
 
     /** How many KaPosts notifications have arrived since the bell was last opened. */
     val unseenNotifications: kotlinx.coroutines.flow.StateFlow<Int> = unseenStore.unseenCount
