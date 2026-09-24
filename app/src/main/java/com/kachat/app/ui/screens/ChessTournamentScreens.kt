@@ -269,7 +269,17 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                     androidx.compose.material3.Tab(
                         selected = pagerState.currentPage == index,
                         onClick = { tabScope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(label, fontWeight = FontWeight.Bold) },
+                        // Four tabs on a phone leave each one narrow: "Leaderboard" wrapped to
+                        // two lines at the default size.
+                        text = {
+                            Text(
+                                label,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        },
                     )
                 }
             }

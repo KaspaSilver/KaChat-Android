@@ -900,7 +900,11 @@ fun ChatsScreen(
 @Composable
 private fun TabBadge(count: Int, content: @Composable () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        content()
+        // The label yields to the badge rather than the other way round: a Row measures its
+        // unweighted children first, so on the narrowest tab ("Public Chats") the label used to
+        // take the whole width and leave the badge a few pixels - a red sliver instead of a
+        // number. Weighted with fill = false, the label takes what is left of its own accord.
+        Box(Modifier.weight(1f, fill = false)) { content() }
         if (count > 0) {
             Surface(color = Color(0xFFFF3B30), shape = RoundedCornerShape(50)) {
                 Text(
