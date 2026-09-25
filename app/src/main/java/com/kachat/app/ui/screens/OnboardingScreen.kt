@@ -832,6 +832,57 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                     color = LocalAppColors.current.textSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
+                // A phrase on the clipboard fills the slots in one tap, and the word-count
+                // follows whatever was pasted (iOS f9beba1).
+                val pasteContext = LocalContext.current
+                val pasteClipboard = pasteContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                TextButton(
+                    onClick = {
+                        val raw = pasteClipboard?.primaryClip?.getItemAt(0)?.coerceToText(pasteContext)?.toString()
+                        if (raw.isNullOrBlank()) {
+                            android.widget.Toast.makeText(pasteContext, "Nothing to paste.", android.widget.Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+                        val pasted = raw.lowercase()
+                            .split(Regex("[\\s,]+"))
+                            .map { it.trim('.', ')') }
+                            .filter { it.isNotEmpty() && !it.all { c -> c.isDigit() } }
+                        when {
+                            pasted.size != 12 && pasted.size != 24 ->
+                                android.widget.Toast.makeText(
+                                    pasteContext,
+                                    "A recovery phrase is 12 or 24 words - the clipboard holds ${pasted.size}.",
+                                    android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                            else -> {
+                                val unknown = pasted.filterNot { wordList.contains(it) }
+                                if (unknown.isNotEmpty()) {
+                                    android.widget.Toast.makeText(
+                                        pasteContext,
+                                        "Not a recovery phrase word: ${unknown.take(3).joinToString(", ")}.",
+                                        android.widget.Toast.LENGTH_LONG,
+                                    ).show()
+                                } else {
+                                    wordCount = pasted.size
+                                    words = List(24) { index -> pasted.getOrElse(index) { "" } }
+                                    activeSlot = (pasted.size - 1).coerceAtLeast(0)
+                                    // A seed does not belong on the clipboard a moment longer
+                                    // than it takes to get it in here.
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                        pasteClipboard?.clearPrimaryClip()
+                                    } else {
+                                        pasteClipboard?.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+                                    }
+                                    android.widget.Toast.makeText(pasteContext, "Phrase pasted - clipboard cleared.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    },
+                ) {
+                    Icon(Icons.Default.ContentPaste, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Paste", color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
                 Text(
                     text = "$filled/$wordCount",
                     color = if (allValid) Color(0xFF4CD964) else LocalAppColors.current.textSecondary,

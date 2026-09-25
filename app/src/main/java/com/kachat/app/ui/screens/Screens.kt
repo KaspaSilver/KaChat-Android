@@ -8677,10 +8677,24 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
 
             if (revealed) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Seed-phrase copy is intentionally NOT offered — the recovery phrase must be
-                    // transcribed by hand, never placed on the clipboard (other apps and clipboard
-                    // history can read it). The private key hex may still be copied, but the
-                    // clipboard is auto-wiped 30s later (see copyPrivateKeyWithAutoWipe).
+                    // Both copies go through the sensitive path: marked secret for the system
+                    // clipboard and wiped 30 seconds later (copyPrivateKeyWithAutoWipe). Copying
+                    // the phrase is how it reaches a password manager, which is a safer home for
+                    // it than a photograph of a notebook (iOS f9beba1).
+                    TextButton(onClick = {
+                        copyPrivateKeyWithAutoWipe(context, mnemonic, label = "recovery phrase")
+                        android.widget.Toast.makeText(
+                            context,
+                            "Seed phrase copied. The clipboard clears in 30s.",
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Copy Seed Phrase", color = KaspaTeal)
+                        }
+                    }
                     TextButton(onClick = {
                         copyPrivateKeyWithAutoWipe(context, privateKey)
                     }) {

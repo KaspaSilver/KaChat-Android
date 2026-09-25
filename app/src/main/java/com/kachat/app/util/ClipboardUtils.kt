@@ -16,8 +16,8 @@ import com.kachat.app.R
  * coroutine so the wipe still fires after the user navigates away from the screen that copied it.
  * Mirrors the iOS 30-second clipboard clear for private-key material.
  *
- * Seed phrases are deliberately NOT copyable anywhere and must never be passed to this helper —
- * they can only be transcribed by hand.
+ * The recovery phrase goes through here too (iOS f9beba1): copying it is how it reaches a
+ * password manager, and the same sensitive marking and 30-second wipe apply.
  */
 /**
  * The one standardized confirmation toast for copying an address to the clipboard, shared by
