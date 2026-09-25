@@ -1510,8 +1510,17 @@ fun BroadcastChannelScreen(
                                 }
 
                                 if (showMenu) {
-                                    CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-                                        PopupMenuRow(Icons.AutoMirrored.Filled.Reply, stringResource(R.string.reply)) {
+                                    // The app's half sheet, as everywhere else (iOS 1bc6ba6).
+                                    MessageActionsSheet(
+                                        title = if (voiceContent != null) "Voice Message" else "Message",
+                                        preview = displayContent.takeIf { voiceContent == null },
+                                        onDismiss = { showMenu = false },
+                                    ) {
+                                        ActionSheetRow(
+                                            icon = Icons.AutoMirrored.Filled.Reply,
+                                            title = stringResource(R.string.reply),
+                                            subtitle = "Quotes this message above your reply.",
+                                        ) {
                                             broadcastViewModel.startReplyTo(message)
                                             showMenu = false
                                         }
@@ -1519,8 +1528,11 @@ fun BroadcastChannelScreen(
                                         // 1:1 and group chats use.
                                         if (isMine && message.deliveryStatus == "sent" &&
                                             com.kachat.app.util.MessageEdit.isEditable(message.content)) {
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                            PopupMenuRow(Icons.Default.Edit, "Edit") {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Edit,
+                                                title = "Edit",
+                                                subtitle = "Changes the text. Everyone sees the new version.",
+                                            ) {
                                                 broadcastViewModel.startEditing(message)
                                                 broadcastViewModel.setMessageText(
                                                     com.kachat.app.util.MessageEdit.unwrappedText(message.content)
@@ -1528,31 +1540,40 @@ fun BroadcastChannelScreen(
                                                 showMenu = false
                                             }
                                         }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_message)) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.ContentCopy,
+                                            title = stringResource(R.string.copy_message),
+                                            subtitle = "Copies the text to your clipboard.",
+                                        ) {
                                             clipboardManager.setText(AnnotatedString(displayContent))
                                             showMenu = false
                                         }
-                                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                        PopupMenuRow(Icons.Default.Public, stringResource(R.string.view_in_explorer)) {
+                                        ActionSheetRow(
+                                            icon = Icons.Default.Public,
+                                            title = stringResource(R.string.view_in_explorer),
+                                            subtitle = "Opens this transaction in the block explorer.",
+                                        ) {
                                             uriHandler.openUri(kaspaExplorer.txUrl(message.id))
                                             showMenu = false
                                         }
                                         // The pill on the bubble shows WHICH emoji; it has no
                                         // room to say how many or from whom. This does.
                                         if (messageReactions.isNotEmpty()) {
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                            PopupMenuRow(
-                                                Icons.Default.Favorite,
-                                                "Reactions (${messageReactions.size})"
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Favorite,
+                                                title = "Reactions (${messageReactions.size})",
+                                                subtitle = "Who reacted, and with what.",
                                             ) {
                                                 showMenu = false
                                                 showReactions = true
                                             }
                                         }
                                         if (isMine && message.deliveryStatus == "failed") {
-                                            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                                            PopupMenuRow(Icons.Default.Refresh, stringResource(R.string.retry_send)) {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Refresh,
+                                                title = stringResource(R.string.retry_send),
+                                                subtitle = "Sends this message again.",
+                                            ) {
                                                 broadcastViewModel.retryBroadcast(message)
                                                 showMenu = false
                                             }

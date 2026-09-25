@@ -1584,47 +1584,79 @@ private fun GroupMessageBubble(
             }
 
             if (showMenu) {
-                CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-                    PopupMenuRow(Icons.AutoMirrored.Filled.Reply, stringResource(R.string.reply)) {
+                // The app's half sheet, as everywhere else: what the message is, then a row
+                // per action with a line on what it does (iOS 1bc6ba6).
+                MessageActionsSheet(
+                    title = when {
+                        imageContent != null -> "Photo"
+                        voiceContent != null -> "Voice Message"
+                        else -> "Message"
+                    },
+                    preview = displayContent.takeIf { imageContent == null && voiceContent == null },
+                    onDismiss = { showMenu = false },
+                ) {
+                    ActionSheetRow(
+                        icon = Icons.AutoMirrored.Filled.Reply,
+                        title = stringResource(R.string.reply),
+                        subtitle = "Quotes this message above your reply.",
+                    ) {
                         onReply()
                         showMenu = false
                     }
                     if (onEdit != null) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Edit, "Edit") {
+                        ActionSheetRow(
+                            icon = Icons.Default.Edit,
+                            title = "Edit",
+                            subtitle = "Changes the text. Everyone sees the new version.",
+                        ) {
                             onEdit()
                             showMenu = false
                         }
                     }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_message)) {
+                    ActionSheetRow(
+                        icon = Icons.Default.ContentCopy,
+                        title = stringResource(R.string.copy_message),
+                        subtitle = "Copies the text to your clipboard.",
+                    ) {
                         clipboardManager.setText(AnnotatedString(displayContent))
                         showMenu = false
                     }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.Default.Public, stringResource(R.string.view_in_explorer)) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Public,
+                        title = stringResource(R.string.view_in_explorer),
+                        subtitle = "Opens this transaction in the block explorer.",
+                    ) {
                         uriHandler.openUri(com.kachat.app.models.KaspaExplorer.default.txUrl(message.txId))
                         showMenu = false
                     }
                     // The pill shows WHICH emoji are on the bubble; it has no room to say how
                     // many or from whom. In a group that is the interesting question.
                     if (reactions.isNotEmpty()) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Favorite, "Reactions (${reactions.size})") {
+                        ActionSheetRow(
+                            icon = Icons.Default.Favorite,
+                            title = "Reactions (${reactions.size})",
+                            subtitle = "Who reacted, and with what.",
+                        ) {
                             showMenu = false
                             showReactions = true
                         }
                     }
                     if (canRetry) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Refresh, stringResource(R.string.retry_send)) {
+                        ActionSheetRow(
+                            icon = Icons.Default.Refresh,
+                            title = stringResource(R.string.retry_send),
+                            subtitle = "Sends this message again.",
+                        ) {
                             onRetry()
                             showMenu = false
                         }
                     }
                     if (onSelect != null) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                        ActionSheetRow(
+                            icon = Icons.Default.CheckCircle,
+                            title = "Select",
+                            subtitle = "Pick several messages at once.",
+                        ) {
                             onSelect()
                             showMenu = false
                         }

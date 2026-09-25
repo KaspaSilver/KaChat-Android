@@ -2604,40 +2604,73 @@ fun MessageBubble(
             }
 
             if (showMenu) {
-                CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-                    PopupMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_message)) {
+                // The same half sheet every other menu in the app uses: what the message is at
+                // the top, then a row per action with a line saying what it does. The system-style
+                // popup of bare verbs was the one hold-out (iOS 1bc6ba6).
+                MessageActionsSheet(
+                    title = when {
+                        imageContent != null -> "Photo"
+                        voiceContent != null -> "Voice Message"
+                        chessEnvelope != null -> "Chess"
+                        callEnvelope != null -> "Call"
+                        message.type == "pay" -> "Payment"
+                        else -> "Message"
+                    },
+                    preview = displayBody?.takeIf { imageContent == null && voiceContent == null },
+                    onDismiss = { showMenu = false },
+                ) {
+                    ActionSheetRow(
+                        icon = Icons.Default.ContentCopy,
+                        title = stringResource(R.string.copy_message),
+                        subtitle = "Copies the text to your clipboard.",
+                    ) {
                         clipboardManager.setText(AnnotatedString(displayBody ?: ""))
                         showMenu = false
                     }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.AutoMirrored.Filled.Reply, stringResource(R.string.reply)) {
+                    ActionSheetRow(
+                        icon = Icons.AutoMirrored.Filled.Reply,
+                        title = stringResource(R.string.reply),
+                        subtitle = "Quotes this message above your reply.",
+                    ) {
                         onReply()
                         showMenu = false
                     }
                     if (onEdit != null) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Edit, "Edit") {
+                        ActionSheetRow(
+                            icon = Icons.Default.Edit,
+                            title = "Edit",
+                            subtitle = "Changes the text. Everyone sees the new version.",
+                        ) {
                             onEdit()
                             showMenu = false
                         }
                     }
-                    HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                    PopupMenuRow(Icons.Default.Public, stringResource(R.string.view_in_explorer)) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Public,
+                        title = stringResource(R.string.view_in_explorer),
+                        subtitle = "Opens this transaction in the block explorer.",
+                    ) {
                         uriHandler.openUri(kaspaExplorer.txUrl(message.id))
                         showMenu = false
                     }
                     // The pill on the bubble shows WHICH emoji are on it; it has no room to say
-                    // how many or from whom. Same option broadcast rooms already carry.
+                    // how many or from whom.
                     if (reactions.isNotEmpty()) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Favorite, "Reactions (${reactions.size})") {
+                        ActionSheetRow(
+                            icon = Icons.Default.Favorite,
+                            title = "Reactions (${reactions.size})",
+                            subtitle = "Who reacted, and with what.",
+                        ) {
                             showMenu = false
                             showReactions = true
                         }
                     }
                     if (imageContent != null) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Download, stringResource(R.string.save_photo)) {
+                        ActionSheetRow(
+                            icon = Icons.Default.Download,
+                            title = stringResource(R.string.save_photo),
+                            subtitle = "Saves the photo to your gallery.",
+                        ) {
                             try {
                                 val bytes = android.util.Base64.decode(ImageMessage.base64Payload(imageContent), android.util.Base64.DEFAULT)
                                 onSavePhoto(bytes, "kachat_${message.id}.jpg")
@@ -2648,15 +2681,21 @@ fun MessageBubble(
                         }
                     }
                     if (ChatViewModel.shouldShowRetryOption(message)) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.Refresh, stringResource(R.string.retry_send)) {
+                        ActionSheetRow(
+                            icon = Icons.Default.Refresh,
+                            title = stringResource(R.string.retry_send),
+                            subtitle = "Sends this message again.",
+                        ) {
                             onRetry()
                             showMenu = false
                         }
                     }
                     if (onSelect != null) {
-                        HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                        ActionSheetRow(
+                            icon = Icons.Default.CheckCircle,
+                            title = "Select",
+                            subtitle = "Pick several messages at once.",
+                        ) {
                             onSelect()
                             showMenu = false
                         }

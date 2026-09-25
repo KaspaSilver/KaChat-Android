@@ -81,6 +81,29 @@ import androidx.compose.material.icons.filled.FormatQuote
  * room for each option to say what it does, and it keeps the thing being acted on on screen while
  * you choose. Mirrors iOS's `.sheet(item:)` menus.
  */
+/**
+ * A message's long-press menu, as a half sheet: what the message is at the top, the message
+ * itself under it when there is text to show, then a row per action with a line saying what it
+ * does. Every bubble in every kind of chat opens this - text, payment, call, chess, photo, file,
+ * voice note and link card alike - so a Reply reads the same wherever it is offered. The
+ * system-style popup of bare verbs was the one hold-out (iOS 1bc6ba6).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MessageActionsSheet(
+    title: String,
+    preview: String?,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    ActionSheetContainer(
+        title = title,
+        subtitle = preview?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("{") },
+        onDismiss = onDismiss,
+        content = content,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActionSheetContainer(
