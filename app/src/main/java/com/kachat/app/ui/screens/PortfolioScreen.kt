@@ -103,6 +103,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -2434,29 +2435,44 @@ private fun HashrateSparkline(points: List<Pair<Long, Double>>, modifier: Modifi
  * A pickaxe, drawn rather than borrowed.
  *
  * The nearest Material icon for mining was `Hardware`, which is a computer chip. The figure it sits
- * beside is network hashrate, and the shorthand every miner already reads is a pick. Material has no
- * pickaxe, so it is two strokes: the curved head, and the handle passing through it. Same geometry
- * as the iOS and desktop marks, so all three agree.
+ * beside is network hashrate, and the shorthand every miner already reads is a pick. Material has
+ * none, so it is drawn on a 24x24 grid: a filled, bowed, double-pointed head over a tapered handle
+ * with a rounded grip, the whole thing turned 45 degrees so the handle runs bottom-left to
+ * top-right - the tilt is what makes a reader see a pick rather than an anchor. Two strokes read
+ * as a hook; a filled head reads as a tool. Same geometry as the iOS and desktop marks, so all
+ * three agree (iOS 62288c2).
  */
 @Composable
 private fun PickaxeIcon(iconSize: Dp = 24.dp, tint: Color = KaspaTeal) {
     Canvas(modifier = Modifier.size(iconSize)) {
-        // Laid out on the same 24x24 grid the desktop SVG uses, scaled to whatever we are handed.
         val unit = minOf(size.width, size.height) / 24f
-        // The head, arcing up and to the right, then the handle running down through it. Both are
-        // drawn on the diagonal: upright, a curved head over a straight shaft is an anchor, and it
-        // is the tilt that makes a reader see a pick.
+        fun x(value: Float) = value * unit
         val path = Path().apply {
-            moveTo(6.37f * unit, 17.9f * unit)
-            cubicTo(1.86f * unit, 11.11f * unit, 12.89f * unit, 1.86f * unit, 18.78f * unit, 7.48f * unit)
-            moveTo(8.3f * unit, 7.59f * unit)
-            lineTo(17.21f * unit, 18.2f * unit)
+            // Head: outer arc up and over, inner arc back, meeting at the two tips.
+            moveTo(x(1.2f), x(9.6f))
+            cubicTo(x(6f), x(1f), x(18f), x(1f), x(22.8f), x(9.6f))
+            cubicTo(x(18f), x(6.6f), x(6f), x(6.6f), x(1.2f), x(9.6f))
+            close()
+            // Handle: from under the head down to a rounded grip, tapering slightly.
+            moveTo(x(10.5f), x(5.4f))
+            lineTo(x(13.5f), x(5.4f))
+            lineTo(x(13.1f), x(21.4f))
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(
+                    left = x(12f) - x(1.1f), top = x(21.4f) - x(1.1f),
+                    right = x(12f) + x(1.1f), bottom = x(21.4f) + x(1.1f),
+                ),
+                startAngleDegrees = 0f,
+                sweepAngleDegrees = 180f,
+                forceMoveTo = false,
+            )
+            lineTo(x(10.9f), x(21.4f))
+            close()
         }
-        drawPath(
-            path,
-            color = tint,
-            style = Stroke(width = 2f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
+        // Turned about the centre of the grid, then placed in the icon's box.
+        rotate(degrees = 45f, pivot = androidx.compose.ui.geometry.Offset(x(12f), x(12f))) {
+            drawPath(path, color = tint)
+        }
     }
 }
 

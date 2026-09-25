@@ -137,6 +137,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1363,6 +1364,13 @@ fun KaPostsScreen(
     // Thread stack - the topmost id renders; back pops. The overlay resolves the id against the
     // live post tree itself (it must recompose as replies land), so only the id is handed over.
     val fetchedAncestorChains by viewModel.fetchedAncestors.collectAsState()
+    // Which way the thread stack last moved: opening a comment from inside a thread slides the
+    // new level in over the one beneath, while backing out simply reveals the level below rather
+    // than sliding it in from the right again (iOS 5e1da72).
+    var lastThreadDepth by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val openingDeeper = threadStack.size > lastThreadDepth
+    LaunchedEffect(threadStack.size) { lastThreadDepth = threadStack.size }
+
     threadStack.lastOrNull()?.let { topId ->
         val topPost = viewModel.findPost(topId)
         // The chain get-thread returns, which is every level above this post - exact whether
@@ -1378,8 +1386,10 @@ fun KaPostsScreen(
                 ?: topPost?.let { ancestorsFromMemory(viewModel, it, threadStack) }
                 ?: emptyList()
         }
+        key(topId) {
         KaPostThreadOverlay(
             postId = topId,
+            slidesIn = openingDeeper,
             viewModel = viewModel,
             ancestors = ancestors,
             onJumpToAncestor = { ancestor -> jumpToAncestor(ancestor) },
@@ -1395,6 +1405,7 @@ fun KaPostsScreen(
             replyText = threadReplyText,
             onReplyTextChange = { threadReplyText = it },
         )
+        }
     }
 
     if (showMyProfile) {
@@ -3784,6 +3795,9 @@ fun KaPostCharacterMeter(count: Int) {
 @Composable
 fun KaPostThreadOverlay(
     postId: String,
+    /** Whether this level slides in from the right: true when it was opened from the level
+     *  beneath, false when it was revealed by backing out of a deeper one (iOS 5e1da72). */
+    slidesIn: Boolean = true,
     /** The chain above this post, oldest first - see the call site. */
     ancestors: List<KaPostDraft> = emptyList(),
     onJumpToAncestor: (KaPostDraft) -> Unit = {},
@@ -3931,7 +3945,7 @@ fun KaPostThreadOverlay(
         modifier = Modifier
             .fillMaxSize()
             // Slides in from the right and pulls out with the finger, like every other cover.
-            .then(rememberKaPostsCoverSlide(onClose))
+            .then(rememberKaPostsCoverSlide(onClose, slidesIn = slidesIn))
             .background(colors.background)
             // Claim ONLY horizontal drags (which the ancestor feed pager would otherwise read
             // as a tab swipe). The previous blanket every-unconsumed-change consumer here also
@@ -6406,11 +6420,13 @@ fun KaPostsBookmarksOverlay(
  * reaches the content underneath.
  */
 @Composable
-internal fun rememberKaPostsCoverSlide(onClose: () -> Unit): Modifier {
+internal fun rememberKaPostsCoverSlide(onClose: () -> Unit, slidesIn: Boolean = true): Modifier {
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val widthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
-    val offsetX = remember { Animatable(widthPx) }
+    // A level revealed by backing out of a deeper one is already where it belongs; only a level
+    // opened from the one beneath travels.
+    val offsetX = remember { Animatable(if (slidesIn) widthPx else 0f) }
     val scope = rememberCoroutineScope()
     var leaving by remember { mutableStateOf(false) }
     LaunchedEffect(widthPx) {
