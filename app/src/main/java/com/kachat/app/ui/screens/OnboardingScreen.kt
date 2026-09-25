@@ -836,12 +836,16 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                 // follows whatever was pasted (iOS f9beba1).
                 val pasteContext = LocalContext.current
                 val pasteClipboard = pasteContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                TextButton(
+                // A bordered button, small, as on iOS - not a bare text link.
+                OutlinedButton(
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, KaspaTeal.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(50),
                     onClick = {
                         val raw = pasteClipboard?.primaryClip?.getItemAt(0)?.coerceToText(pasteContext)?.toString()
                         if (raw.isNullOrBlank()) {
                             android.widget.Toast.makeText(pasteContext, "Nothing to paste.", android.widget.Toast.LENGTH_SHORT).show()
-                            return@TextButton
+                            return@OutlinedButton
                         }
                         val pasted = raw.lowercase()
                             .split(Regex("[\\s,]+"))

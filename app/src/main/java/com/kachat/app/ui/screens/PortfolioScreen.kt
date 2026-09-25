@@ -38,6 +38,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CurrencyBitcoin
+import androidx.compose.material.icons.filled.Hexagon
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -63,6 +66,10 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -1538,7 +1545,32 @@ internal fun formatChartAmount(value: Double, unitCode: String, pair: com.kachat
     return String.format(Locale.US, "%,.${decimals}f", value).trimEnd('0').trimEnd('.') + suffix
 }
 
-/** The "Compare Against" sheet behind the gear on a chart screen (iOS 39adefe). */
+/**
+ * Beside the big number on a chart: what it and the chart count in, and that a tap flips it.
+ * Lit up while flipped to the pair; absent when no pair is picked (iOS ChartCurrencyChip).
+ */
+@Composable
+internal fun ChartUnitChip(unitCode: String, flipped: Boolean) {
+    val colors = LocalAppColors.current
+    val tint = if (flipped) Color(0xFFFF9500) else colors.textSecondary
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(tint.copy(alpha = 0.14f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(unitCode.uppercase(), color = tint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))
+    }
+}
+
+/**
+ * What a tap on the big number flips the chart to: bitcoin, VOO, gold or silver. One at a time -
+ * turning one on turns the others off - or none, and then the number is just a number. A row per
+ * pair with its own switch, as on iOS (39adefe).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChartPairSheet(
@@ -1547,32 +1579,73 @@ internal fun ChartPairSheet(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ActionSheetContainer(
-        title = "Compare Against",
-        subtitle = "Tap the price or your value to see it in the pair you pick here. One at a time.",
-        onDismiss = onDismiss,
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colors.background,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
-        com.kachat.app.services.ChartPair.entries.forEach { pair ->
-            ActionSheetRow(
-                icon = if (pair == selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                title = pair.title,
-                subtitle = pair.subtitle,
-                tint = if (pair == selected) KaspaTeal else colors.textSecondary,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text("Compare Against", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(
+                "Tap the price or your value to see it in the pair you pick here. One at a time.",
+                color = colors.textSecondary,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.surface),
             ) {
-                onSelect(pair)
-                onDismiss()
+                com.kachat.app.services.ChartPair.entries.forEachIndexed { index, pair ->
+                    if (index > 0) {
+                        HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 56.dp))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            chartPairIcon(pair),
+                            contentDescription = null,
+                            tint = chartPairTint(pair),
+                            modifier = Modifier.size(32.dp).padding(end = 6.dp),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(pair.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                            Text(pair.subtitle, color = colors.textSecondary, fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = selected == pair,
+                            onCheckedChange = { on -> onSelect(if (on) pair else null) },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                        )
+                    }
+                }
             }
         }
-        ActionSheetRow(
-            icon = if (selected == null) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-            title = "None",
-            subtitle = "The chart stays in your own currency.",
-            tint = if (selected == null) KaspaTeal else colors.textSecondary,
-        ) {
-            onSelect(null)
-            onDismiss()
-        }
     }
+}
+
+private fun chartPairIcon(pair: com.kachat.app.services.ChartPair) = when (pair) {
+    com.kachat.app.services.ChartPair.BITCOIN -> Icons.Default.CurrencyBitcoin
+    com.kachat.app.services.ChartPair.VOO -> Icons.Default.TrendingUp
+    com.kachat.app.services.ChartPair.GOLD, com.kachat.app.services.ChartPair.SILVER -> Icons.Default.Hexagon
+}
+
+private fun chartPairTint(pair: com.kachat.app.services.ChartPair) = when (pair) {
+    com.kachat.app.services.ChartPair.BITCOIN -> Color(0xFFFF9500)
+    com.kachat.app.services.ChartPair.VOO -> KaspaTeal
+    com.kachat.app.services.ChartPair.GOLD -> Color(0xFFFFCC00)
+    com.kachat.app.services.ChartPair.SILVER -> Color(0xFFB0B7BF)
 }
 
 @Composable
@@ -1703,22 +1776,29 @@ fun PortfolioPriceChartScreen(
                 // long change figure on one line had no room left at larger text sizes or in a
                 // currency with a wordy symbol, and something had to shrink or clip. Stacked,
                 // neither constrains the other whatever they say.
-                Text(
-                    text = when {
-                        selectedSpan != null -> formatChartAmount(selectedSpan!!.second.second, shownUnit, chartPair)
-                        scrubbed != null -> formatChartAmount(scrubbed!!.second, shownUnit, chartPair)
-                        shownPrice != null -> formatChartAmount(shownPrice!!, shownUnit, chartPair)
-                        else -> "—"
-                    },
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp,
-                    // A tap flips between your currency and the pair - the series is rebuilt in
-                    // that unit, so the percent below is the move against it (iOS c42e9a3).
+                // The number and, beside it, what it counts in - a tap of either flips the
+                // chart into the pair (iOS c42e9a3's chip + tap gesture).
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() }
-                )
+                        .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() },
+                ) {
+                    Text(
+                        text = when {
+                            selectedSpan != null -> formatChartAmount(selectedSpan!!.second.second, shownUnit, chartPair)
+                            scrubbed != null -> formatChartAmount(scrubbed!!.second, shownUnit, chartPair)
+                            shownPrice != null -> formatChartAmount(shownPrice!!, shownUnit, chartPair)
+                            else -> "—"
+                        },
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
+                        maxLines = 1,
+                    )
+                    if (chartPair != null) ChartUnitChip(unitCode = shownUnit, flipped = flipped)
+                }
                 // What the two fingers are actually asking: how the price moved between them.
                 selectedSpan?.let { (from, to) ->
                     val pct = if (from.second != 0.0) (to.second - from.second) / from.second * 100 else 0.0
@@ -1895,15 +1975,22 @@ fun PortfolioValueChartScreen(
                     ?: scrubbed?.second
                     ?: (if (flipped) shownValueHistory.lastOrNull()?.second else null)
                     ?: summary.currentValue
-                Text(
-                    if (flipped) formatChartAmount(shownValue, shownUnit, chartPair) else money(shownValue, currencyCode),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() }
-                )
+                        .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() },
+                ) {
+                    Text(
+                        if (flipped) formatChartAmount(shownValue, shownUnit, chartPair) else money(shownValue, currencyCode),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
+                        maxLines = 1,
+                    )
+                    if (chartPair != null) ChartUnitChip(unitCode = shownUnit, flipped = flipped)
+                }
                 // The return across the span the two fingers mark: the percentage, and what it
                 // came to in money - masked with everything else when the eye is on.
                 selectedSpan?.let { (from, to) ->
