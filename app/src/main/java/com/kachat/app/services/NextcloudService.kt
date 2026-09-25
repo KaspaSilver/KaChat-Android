@@ -7,6 +7,7 @@ import android.util.Xml
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -118,6 +119,9 @@ class NextcloudService @Inject constructor(
 ) {
     companion object {
         private const val TAG = "NextcloudService"
+
+        /** Pauses between PUT attempts while the archive is locked - half a minute in all. */
+        private val LOCK_RETRY_DELAYS_SECONDS = listOf(1L, 2L, 4L, 8L, 15L)
         private const val SECURE_PREFS_NAME = "nextcloud_secure_prefs"
         // Base names only: the active wallet's hash suffix is appended via `scopedKey`. The bare
         // names are the LEGACY pre-per-account entries, read once by the migration then deleted.
@@ -897,13 +901,13 @@ class NextcloudService @Inject constructor(
      * [NextcloudSyncService] records it so its remote change watcher never mistakes this
      * device's own write for another device's change.
      */
-    suspend fun runBackup(buildJson: suspend (String?) -> String): String? {
+    suspend fun runBackup(buildJson: suspend (String?) -> String): String? = backupMutex.withLock {
         // Snapshot the account/folder so a wallet switch mid-backup can't redirect the upload.
         val account = requireAccount()
         val folder = backupFolderPath
         val existingRemoteJson = downloadExistingBackup(account, folder)
         val putEtag = uploadBackup(buildJson(existingRemoteJson), account, folder)
-        return putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
+        return@withLock putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
     }
 
     /**
@@ -914,12 +918,20 @@ class NextcloudService @Inject constructor(
      * [runBackup] — the merge-on-upload rule is what guarantees no device can erase another's
      * history. Same ETag return contract as [runBackup].
      */
-    suspend fun runBackupWithoutDownload(buildJson: suspend () -> String): String? {
+    suspend fun runBackupWithoutDownload(buildJson: suspend () -> String): String? = backupMutex.withLock {
         val account = requireAccount()
         val folder = backupFolderPath
         val putEtag = uploadBackup(buildJson(), account, folder)
-        return putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
+        return@withLock putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
     }
+
+    /**
+     * Backups run one at a time on this device. Back Up Now and the automatic sync both come
+     * through here, and two uploads of the same file at once had Nextcloud answering the second
+     * with HTTP 423 - its write lock on the file. A caller arriving while one runs waits for it,
+     * then does its own read-merge-upload on top of what that one wrote (iOS 6551904).
+     */
+    private val backupMutex = kotlinx.coroutines.sync.Mutex()
 
     /**
      * The backup file's current contents, or null when there is none yet (404 — file or folder).
@@ -970,11 +982,31 @@ class NextcloudService @Inject constructor(
             .put(archiveJson.toRequestBody("application/json".toMediaType()))
             .header("Authorization", basicAuth(account))
             .build()
-        client.newCall(put).execute().use { response ->
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
-            if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
-            normalizeEtag(response.header("ETag") ?: response.header("OC-ETag"))
+        var attempt = 0
+        while (true) {
+            val outcome = client.newCall(put).execute().use { response ->
+                if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                // 423 Locked: another device, or this one's own sync, is reading or writing the
+                // archive. The lock clears in seconds, so wait it out rather than failing the
+                // backup - only a lock that never clears is worth telling the user about.
+                if (response.code == 423) return@use null
+                if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
+                normalizeEtag(response.header("ETag") ?: response.header("OC-ETag")) to true
+            }
+            if (outcome != null) return@withContext outcome.first
+            if (attempt >= LOCK_RETRY_DELAYS_SECONDS.size) {
+                throw IOException(
+                    "Nextcloud has the backup file locked (HTTP 423): another device or sync is reading " +
+                        "or writing it right now. Try again in a minute. If it keeps happening, the lock is " +
+                        "stale on the server - clear it with occ (maintenance mode on, empty the file locks, off).",
+                )
+            }
+            android.util.Log.i(TAG, "Backup file locked (HTTP 423), retrying in ${LOCK_RETRY_DELAYS_SECONDS[attempt]}s")
+            kotlinx.coroutines.delay(LOCK_RETRY_DELAYS_SECONDS[attempt] * 1000L)
+            attempt++
         }
+        @Suppress("UNREACHABLE_CODE")
+        null
     }
 
     /**
