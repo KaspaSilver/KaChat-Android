@@ -363,6 +363,17 @@ class PortfolioViewModel @Inject constructor(
      */
     private fun fetchSevenDayPriceHistoryForCards(force: Boolean = false) {
         val currencyCode = currency.value
+        // The cards' week comes out of the 90-day base when that is already on hand - one fewer
+        // request against a tier that throttles bursts (iOS 39adefe).
+        if (!force) {
+            priceHistoryCache[90]?.let { base ->
+                val week = cutToRange(base, 7)
+                if (week.size >= 2) {
+                    _sevenDayPriceHistory.value = week
+                    return
+                }
+            }
+        }
         repository.readPersistedPriceHistory(7, currencyCode)?.let { persisted ->
             _sevenDayPriceHistory.value = persisted.points
             if (!force && System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
@@ -441,40 +452,65 @@ class PortfolioViewModel @Inject constructor(
      * instead of blanking it, and the range simply retried on its next selection since nothing
      * was cached.
      */
+    /**
+     * Which fetch a range is served from. Seven buttons, three requests: a day of 5-minute
+     * points, 90 days hourly (1W, 1M and 3M are cuts of it), 365 days daily (YTD and 1Y), and
+     * All, which is its own thing. Every range used to be its own CoinGecko call, and the
+     * keyless tier throttles bursts - so tapping along the picker parked ranges on retries with
+     * nothing to show. Cutting a base is local and instant (iOS 39adefe).
+     */
+    private fun baseDaysFor(days: Int): Int = when {
+        days == PortfolioRepository.ALL_TIME_DAYS -> PortfolioRepository.ALL_TIME_DAYS
+        days <= 1 -> 1
+        days <= 90 -> 90
+        else -> 365
+    }
+
+    /** The last [days] of a base series - the cut that makes a range tap cost nothing. */
+    private fun cutToRange(base: List<Pair<Long, Double>>, days: Int): List<Pair<Long, Double>> {
+        if (days == PortfolioRepository.ALL_TIME_DAYS || base.isEmpty()) return base
+        val cutoff = System.currentTimeMillis() - days * 86_400_000L
+        val cut = base.filter { it.first >= cutoff }
+        // A base that does not reach back far enough (a young listing, a short response) is
+        // better shown whole than as two points.
+        return if (cut.size >= 2) cut else base
+    }
+
     private fun fetchPriceHistory(days: Int, force: Boolean = false) {
         val currencyCode = currency.value
+        val baseDays = baseDaysFor(days)
         if (!force) {
-            priceHistoryCache[days]?.let { cached ->
-                _priceHistory.value = cached
+            priceHistoryCache[baseDays]?.let { cached ->
+                _priceHistory.value = cutToRange(cached, days)
                 return
             }
-            repository.readPersistedPriceHistory(days, currencyCode)?.let { persisted ->
+            repository.readPersistedPriceHistory(baseDays, currencyCode)?.let { persisted ->
                 if (System.currentTimeMillis() - persisted.fetchedAtMillis < PortfolioRepository.PRICE_HISTORY_CACHE_TTL_MILLIS) {
-                    priceHistoryCache[days] = persisted.points
-                    _priceHistory.value = persisted.points
+                    priceHistoryCache[baseDays] = persisted.points
+                    _priceHistory.value = cutToRange(persisted.points, days)
                     return
                 }
             }
         }
         priceHistoryJob?.cancel()
         priceHistoryJob = viewModelScope.launch {
-            var result = repository.getPriceHistory(days, currencyCode)
+            var result = repository.getPriceHistory(baseDays, currencyCode)
             if (result.isEmpty() && repository.throttledUntilMillis == null) {
                 // One paced retry — worth it only when we're not inside a known throttle window
                 // (a recorded Retry-After means this retry is guaranteed to 429 too; let
                 // scheduleRetry below wait the window out instead).
                 delay(3_000)
-                result = repository.getPriceHistory(days, currencyCode)
+                result = repository.getPriceHistory(baseDays, currencyCode)
             }
             val networkFailed = result.isEmpty()
             if (result.isNotEmpty()) {
-                repository.persistPriceHistory(result, days, currencyCode)
+                repository.persistPriceHistory(result, baseDays, currencyCode)
             } else {
-                result = repository.readPersistedPriceHistory(days, currencyCode)?.points ?: emptyList()
+                result = repository.readPersistedPriceHistory(baseDays, currencyCode)?.points ?: emptyList()
             }
             if (result.isNotEmpty()) {
-                priceHistoryCache[days] = result
-                _priceHistory.value = result
+                priceHistoryCache[baseDays] = result
+                _priceHistory.value = cutToRange(result, days)
             }
             if (networkFailed) {
                 // The stale fallback (if any) is on screen; get fresh data once the throttle
