@@ -133,6 +133,9 @@ class AppSettingsRepository @Inject constructor(
         /** Receive notifications for the wallet's own spending addresses (Manage Addresses) -
          *  the counterpart of a cold account's `notifyOnReceive`. Default on (iOS ba352a2). */
         val KEY_SPENDING_RECEIVE_NOTIFICATIONS = booleanPreferencesKey("spending_receive_notifications_enabled")
+        /** Which pair the portfolio charts flip to on a tap of the price: bitcoin, VOO, gold,
+         *  silver - or "" for none. Absent means bitcoin, the default (iOS 39adefe). */
+        val KEY_CHART_PAIR = stringPreferencesKey("portfolio_chart_pair")
 
         // Settings > Notifications > KaPosts. Which KaPosts activity kinds post a notification —
         // filtered at the poll source (KaPostsNotificationPoller), all default ON, mirroring
@@ -507,6 +510,12 @@ class AppSettingsRepository @Inject constructor(
     /** See [KEY_SPENDING_RECEIVE_NOTIFICATIONS]. */
     val spendingReceiveNotifications: Flow<Boolean> = dataStore.data.map {
         it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] ?: true
+    }
+
+    /** See [KEY_CHART_PAIR]: null means no comparison, absent means bitcoin. */
+    val chartPair: Flow<com.kachat.app.services.ChartPair?> = dataStore.data.map { prefs ->
+        val raw = prefs[KEY_CHART_PAIR] ?: return@map com.kachat.app.services.ChartPair.BITCOIN
+        com.kachat.app.services.ChartPair.fromId(raw)
     }
 
     val kaPostsNotifyLikes: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_LIKES] ?: true }
@@ -912,6 +921,9 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setSyncSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_SYNC_SYSTEM_CONTACTS] = value }
     suspend fun setAddressActivityNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] = value }
     suspend fun setSpendingReceiveNotifications(value: Boolean) = dataStore.edit { it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] = value }
+    suspend fun setChartPair(value: com.kachat.app.services.ChartPair?) = dataStore.edit {
+        it[KEY_CHART_PAIR] = value?.id ?: ""
+    }
     suspend fun setKaPostsNotifyLikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_LIKES] = value }
     suspend fun setKaPostsNotifyReposts(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_REPOSTS] = value }
     suspend fun setKaPostsNotifyFollows(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_FOLLOWS] = value }

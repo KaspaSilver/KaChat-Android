@@ -13,6 +13,7 @@ import com.kachat.app.services.KaspaNetworkStatsService
 import com.kachat.app.services.KnsService
 import com.kachat.app.services.PortfolioManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,8 +62,122 @@ class PortfolioViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     private val portfolioManager: PortfolioManager,
     private val knsService: KnsService,
-    private val networkStats: KaspaNetworkStatsService
+    private val networkStats: KaspaNetworkStatsService,
+    private val marketPairs: com.kachat.app.services.MarketPairService,
 ) : ViewModel() {
+
+    // MARK: - Charts against a pair (iOS 39adefe, c42e9a3)
+    //
+    // Tapping the price (or the portfolio's value) flips the chart into the pair picked under the
+    // gear: bitcoin - or US dollars when the app already counts in bitcoin - VOO, gold or silver.
+    // The series is built in that unit for the selected range, so the percent is the move against
+    // the pair across that range rather than a fiat figure re-labelled. Nothing else moves: the
+    // cards, the stats and the converter stay in the app currency.
+
+    private val _chartPair = MutableStateFlow<com.kachat.app.services.ChartPair?>(com.kachat.app.services.ChartPair.BITCOIN)
+    val chartPair: StateFlow<com.kachat.app.services.ChartPair?> = _chartPair.asStateFlow()
+
+    init {
+        // Whatever was picked last time, from disk.
+        viewModelScope.launch { settings.chartPair.collect { _chartPair.value = it } }
+    }
+
+    private val _chartFlipped = MutableStateFlow(false)
+    val chartFlipped: StateFlow<Boolean> = _chartFlipped.asStateFlow()
+
+    /** The flipped series and price; empty/null while they are still on their way. */
+    private val _alternatePriceHistory = MutableStateFlow<List<Pair<Long, Double>>>(emptyList())
+    val alternatePriceHistory: StateFlow<List<Pair<Long, Double>>> = _alternatePriceHistory.asStateFlow()
+
+    private val _alternatePrice = MutableStateFlow<Double?>(null)
+    val alternatePrice: StateFlow<Double?> = _alternatePrice.asStateFlow()
+
+    private val alternateHistoryCache = mutableMapOf<Int, List<Pair<Long, Double>>>()
+    private var alternateJob: Job? = null
+
+    /** What a flip shows, given the pick and the app currency: a currency code, or a pair. */
+    private fun alternateUnitCode(): String? {
+        val pair = _chartPair.value ?: return null
+        return if (pair == com.kachat.app.services.ChartPair.BITCOIN) {
+            if (currency.value == "btc") "usd" else "btc"
+        } else {
+            pair.code
+        }
+    }
+
+    /** The unit the chart is counting in right now - the app currency unless it is flipped. */
+    fun chartUnitCode(): String = if (_chartFlipped.value) alternateUnitCode() ?: currency.value else currency.value
+
+    fun flipChart() {
+        if (_chartFlipped.value) {
+            _chartFlipped.value = false
+            return
+        }
+        if (_chartPair.value == null) return
+        _chartFlipped.value = true
+        loadAlternateChart()
+    }
+
+    /** The gear on a chart screen: which pair a tap flips to. One at a time, or none. */
+    fun setChartPair(pair: com.kachat.app.services.ChartPair?) {
+        if (pair == _chartPair.value) return
+        _chartPair.value = pair
+        viewModelScope.launch { settings.setChartPair(pair) }
+        alternateJob?.cancel()
+        alternateJob = null
+        _alternatePrice.value = null
+        _alternatePriceHistory.value = emptyList()
+        alternateHistoryCache.clear()
+        if (pair == null) {
+            _chartFlipped.value = false
+        } else if (_chartFlipped.value) {
+            loadAlternateChart()
+        }
+    }
+
+    /**
+     * The flipped series for the selected range: the base fetched once per unit and cut like the
+     * app-currency one. Bitcoin comes from CoinGecko like any currency; the other pairs are
+     * KAS/USD over the pair's own USD price, point by point.
+     */
+    private fun loadAlternateChart() {
+        val pair = _chartPair.value ?: return
+        val days = _priceRangeDays.value
+        val base = baseDaysFor(days)
+        alternateHistoryCache[base]?.let { cached ->
+            _alternatePriceHistory.value = cutToRange(cached, days)
+        }
+        alternateJob?.cancel()
+        alternateJob = viewModelScope.launch {
+            val isBitcoinPair = pair == com.kachat.app.services.ChartPair.BITCOIN
+            if (isBitcoinPair) {
+                val code = alternateUnitCode() ?: return@launch
+                val history = if (alternateHistoryCache[base] == null) repository.getPriceHistory(base, code) else alternateHistoryCache[base].orEmpty()
+                val latest = repository.getCurrentPriceUsd(code)?.price
+                coroutineContext.ensureActive()
+                if (history.isNotEmpty()) {
+                    alternateHistoryCache[base] = history
+                    if (_priceRangeDays.value == days) _alternatePriceHistory.value = cutToRange(history, days)
+                }
+                if (latest != null) _alternatePrice.value = latest
+                return@launch
+            }
+            // KAS in dollars over the pair in dollars, at the same moments.
+            val kas = alternateHistoryCache[base]?.let { null } ?: run {
+                priceHistoryCache[base]?.takeIf { currency.value == "usd" } ?: repository.getPriceHistory(base, "usd")
+            }
+            val pairHistory = marketPairs.history(pair, base)
+            coroutineContext.ensureActive()
+            val spot = if (currency.value == "usd") currentPriceUsd.value else repository.getCurrentPriceUsd("usd")?.price
+            val pairLatest = pairHistory.latest
+            if (spot != null && pairLatest != null && pairLatest > 0) _alternatePrice.value = spot / pairLatest
+            val divided = com.kachat.app.services.MarketPairService.divide(kas.orEmpty(), pairHistory.points)
+            if (divided.isNotEmpty()) {
+                alternateHistoryCache[base] = divided
+                if (_priceRangeDays.value == days) _alternatePriceHistory.value = cutToRange(divided, days)
+            }
+        }
+    }
 
     /** Network hashrate for the portfolio card and its chart screen - see [KaspaNetworkStatsService]. */
     val hashrateHistory = networkStats.hashrateHistory
@@ -431,6 +546,9 @@ class PortfolioViewModel @Inject constructor(
         if (_priceRangeDays.value == days) return
         _priceRangeDays.value = days
         fetchPriceHistory(days)
+        // A flipped chart follows the range too - the percent is the move against the pair
+        // across the range being looked at.
+        if (_chartFlipped.value) loadAlternateChart()
     }
 
     /**

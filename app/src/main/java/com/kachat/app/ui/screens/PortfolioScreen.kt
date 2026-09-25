@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -1515,6 +1516,66 @@ private fun kas(value: Double, grouped: Boolean = false): String = when {
 }
 
 @Composable
+/**
+ * A price in whatever the chart is counting in. Bitcoin and the pairs are written out in full -
+ * eight decimals at the least for bitcoin, more for a per-KAS figure, and enough significant
+ * digits for an ounce of gold - because a KAS priced in bitcoin rounded to two decimals is zero
+ * (iOS c42e9a3).
+ */
+internal fun formatChartAmount(value: Double, unitCode: String, pair: com.kachat.app.services.ChartPair?): String {
+    val fiat = unitCode.length == 3 && pair?.code != unitCode
+    if (fiat && unitCode != "btc") return formatUsdPrice(value, unitCode)
+    val suffix = when {
+        unitCode == "btc" -> " BTC"
+        else -> pair?.unitSuffix ?: " ${unitCode.uppercase()}"
+    }
+    val magnitude = kotlin.math.abs(value)
+    val decimals = when {
+        magnitude == 0.0 -> 8
+        magnitude >= 1 -> 4
+        else -> (kotlin.math.ceil(-kotlin.math.log10(magnitude)).toInt() + 4).coerceIn(8, 12)
+    }
+    return String.format(Locale.US, "%,.${decimals}f", value).trimEnd('0').trimEnd('.') + suffix
+}
+
+/** The "Compare Against" sheet behind the gear on a chart screen (iOS 39adefe). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ChartPairSheet(
+    selected: com.kachat.app.services.ChartPair?,
+    onSelect: (com.kachat.app.services.ChartPair?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ActionSheetContainer(
+        title = "Compare Against",
+        subtitle = "Tap the price or your value to see it in the pair you pick here. One at a time.",
+        onDismiss = onDismiss,
+    ) {
+        com.kachat.app.services.ChartPair.entries.forEach { pair ->
+            ActionSheetRow(
+                icon = if (pair == selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                title = pair.title,
+                subtitle = pair.subtitle,
+                tint = if (pair == selected) KaspaTeal else colors.textSecondary,
+            ) {
+                onSelect(pair)
+                onDismiss()
+            }
+        }
+        ActionSheetRow(
+            icon = if (selected == null) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+            title = "None",
+            subtitle = "The chart stays in your own currency.",
+            tint = if (selected == null) KaspaTeal else colors.textSecondary,
+        ) {
+            onSelect(null)
+            onDismiss()
+        }
+    }
+}
+
+@Composable
 private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit, ytdDays: Int = 1) {
     // YTD is computed when the picker is drawn, so it is right the moment midnight passes, and
     // All is everything there is - CoinGecko's year over Gate.io's history (iOS 20be932, 650b0f7).
@@ -1564,6 +1625,16 @@ fun PortfolioPriceChartScreen(
     val currencyCode by viewModel.currency.collectAsState()
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
     var selectedSpan by remember { mutableStateOf<Pair<Pair<Long, Double>, Pair<Long, Double>>?>(null) }
+    // Tap the price to see it in the pair picked under the gear (iOS c42e9a3).
+    val chartPair by viewModel.chartPair.collectAsState()
+    val chartFlipped by viewModel.chartFlipped.collectAsState()
+    val alternateHistory by viewModel.alternatePriceHistory.collectAsState()
+    val alternatePrice by viewModel.alternatePrice.collectAsState()
+    var showPairSheet by remember { mutableStateOf(false) }
+    val flipped = chartFlipped && chartPair != null
+    val shownHistory = if (flipped) alternateHistory else priceHistory
+    val shownPrice = if (flipped) alternatePrice else currentPriceUsd
+    val shownUnit = viewModel.chartUnitCode()
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -1573,6 +1644,11 @@ fun PortfolioPriceChartScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showPairSheet = true }) {
+                        Icon(Icons.Default.Settings, "Compare against", tint = KaspaTeal)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -1629,14 +1705,19 @@ fun PortfolioPriceChartScreen(
                 // neither constrains the other whatever they say.
                 Text(
                     text = when {
-                        selectedSpan != null -> formatUsdPrice(selectedSpan!!.second.second, currencyCode)
-                        scrubbed != null -> formatUsdPrice(scrubbed!!.second, currencyCode)
-                        currentPriceUsd != null -> formatUsdPrice(currentPriceUsd!!, currencyCode)
+                        selectedSpan != null -> formatChartAmount(selectedSpan!!.second.second, shownUnit, chartPair)
+                        scrubbed != null -> formatChartAmount(scrubbed!!.second, shownUnit, chartPair)
+                        shownPrice != null -> formatChartAmount(shownPrice!!, shownUnit, chartPair)
                         else -> "—"
                     },
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp
+                    fontSize = 32.sp,
+                    // A tap flips between your currency and the pair - the series is rebuilt in
+                    // that unit, so the percent below is the move against it (iOS c42e9a3).
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() }
                 )
                 // What the two fingers are actually asking: how the price moved between them.
                 selectedSpan?.let { (from, to) ->
@@ -1654,7 +1735,7 @@ fun PortfolioPriceChartScreen(
                 // repeating the 24h figure under every one of them. Percent only: the move in
                 // currency is the price above minus itself a moment ago, which the chart already
                 // draws, and a per-KAS amount at four decimal places says very little.
-                val rangeChange = PortfolioViewModel.computeRangeChange(priceHistory)
+                val rangeChange = PortfolioViewModel.computeRangeChange(shownHistory)
                 if (scrubbed == null && rangeChange != null) {
                     val positive = rangeChange.first >= 0
                     val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
@@ -1683,9 +1764,9 @@ fun PortfolioPriceChartScreen(
                 }
             }
 
-            if (priceHistory.size >= 2) {
+            if (shownHistory.size >= 2) {
                 PortfolioBigChart(
-                    points = priceHistory,
+                    points = shownHistory,
                     lineColor = KaspaTeal,
                     onScrub = { scrubbed = it },
                     onRange = { selectedSpan = it },
@@ -1701,6 +1782,13 @@ fun PortfolioPriceChartScreen(
                 onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) },
                 ytdDays = viewModel.yearToDateDays(),
             )
+            if (showPairSheet) {
+                ChartPairSheet(
+                    selected = chartPair,
+                    onSelect = { viewModel.setChartPair(it) },
+                    onDismiss = { showPairSheet = false },
+                )
+            }
 
             KasConverterCard(price = currentPriceUsd, currencyCode = currencyCode)
             MarketStatsCard(marketCap = marketCap, rank = marketCapRank, currencyCode = currencyCode)
@@ -1720,6 +1808,25 @@ fun PortfolioValueChartScreen(
     val summary by viewModel.summary.collectAsState()
     val priceRangeDays by viewModel.priceRangeDays.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
+    // Tap the value to see it in the pair picked under the gear: the holdings are the same, the
+    // unit changes (iOS c42e9a3).
+    val chartPair by viewModel.chartPair.collectAsState()
+    val chartFlipped by viewModel.chartFlipped.collectAsState()
+    val alternateHistory by viewModel.alternatePriceHistory.collectAsState()
+    val priceHistoryForValue by viewModel.priceHistory.collectAsState()
+    var showPairSheet by remember { mutableStateOf(false) }
+    val flipped = chartFlipped && chartPair != null
+    val shownUnit = viewModel.chartUnitCode()
+    // The holdings priced in the flipped unit: the same KAS, valued point by point against the
+    // alternate series rather than the app currency's.
+    val shownValueHistory = if (!flipped) valueHistory else {
+        val byTime = alternateHistory.toMap()
+        valueHistory.mapNotNull { (time, value) ->
+            val ownPrice = priceHistoryForValue.lastOrNull { it.first <= time }?.second ?: return@mapNotNull null
+            val alternate = byTime[time] ?: alternateHistory.lastOrNull { it.first <= time }?.second ?: return@mapNotNull null
+            if (ownPrice <= 0) null else time to value / ownPrice * alternate
+        }
+    }
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
     var selectedSpan by remember { mutableStateOf<Pair<Pair<Long, Double>, Pair<Long, Double>>?>(null) }
     // Today's change, not all-time P&L - the same figure the portfolio cards show, computed off
@@ -1737,6 +1844,11 @@ fun PortfolioValueChartScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Value Over Time", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = { showPairSheet = true }) {
+                        Icon(Icons.Default.Settings, "Compare against", tint = KaspaTeal)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
@@ -1779,11 +1891,18 @@ fun PortfolioValueChartScreen(
                 // The change sits UNDER the value rather than beside it - see the note on the
                 // price header. A six-figure portfolio and its change had nowhere to go on one
                 // line.
+                val shownValue = selectedSpan?.second?.second
+                    ?: scrubbed?.second
+                    ?: (if (flipped) shownValueHistory.lastOrNull()?.second else null)
+                    ?: summary.currentValue
                 Text(
-                    money(selectedSpan?.second?.second ?: scrubbed?.second ?: summary.currentValue, currencyCode),
+                    if (flipped) formatChartAmount(shownValue, shownUnit, chartPair) else money(shownValue, currencyCode),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp
+                    fontSize = 32.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() }
                 )
                 // The return across the span the two fingers mark: the percentage, and what it
                 // came to in money - masked with everything else when the eye is on.
@@ -1803,7 +1922,7 @@ fun PortfolioValueChartScreen(
                 // this week" rather than repeating the 24h figure under every button. Hidden
                 // while scrubbing: the big number is then a past value, and a range figure under
                 // it would read as that point's own move.
-                val rangeChange = PortfolioViewModel.computeRangeChange(valueHistory)
+                val rangeChange = PortfolioViewModel.computeRangeChange(shownValueHistory)
                 val changeAmount = rangeChange?.first
                 val changePercent = rangeChange?.second
                 if (scrubbed == null && changeAmount != null && changePercent != null) {
@@ -1836,9 +1955,9 @@ fun PortfolioValueChartScreen(
                 }
             }
 
-            if (valueHistory.size >= 2) {
+            if (shownValueHistory.size >= 2) {
                 PortfolioBigChart(
-                    points = valueHistory,
+                    points = shownValueHistory,
                     lineColor = KaspaTeal,
                     onScrub = { scrubbed = it },
                     onRange = { selectedSpan = it },
@@ -1858,7 +1977,16 @@ fun PortfolioValueChartScreen(
                 onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) },
                 ytdDays = viewModel.yearToDateDays(),
             )
+            if (showPairSheet) {
+                ChartPairSheet(
+                    selected = chartPair,
+                    onSelect = { viewModel.setChartPair(it) },
+                    onDismiss = { showPairSheet = false },
+                )
+            }
 
+            // The stats stay in the app currency whatever the chart is counting in - they are
+            // what was paid and what it is worth, not a comparison (iOS keeps them put too).
             PortfolioValueStatsCard(summary = summary, currencyCode = currencyCode)
         }
             PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
