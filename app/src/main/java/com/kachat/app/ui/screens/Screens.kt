@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.layout.ContentScale
@@ -7950,6 +7951,10 @@ fun QuickReactionBar(
     CenteredOptionsMenu(onDismissRequest = onDismissRequest, anchor = anchor) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(
+                // Six emoji at 26sp plus the picker button run past a 320dp screen once the
+                // reader's font scale is up, and a popup clips rather than shrinks - so the row
+                // scrolls sideways instead of losing its last emoji.
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -8024,7 +8029,12 @@ fun ReactionPill(reactions: List<ReactionEntity>, modifier: Modifier = Modifier,
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            // A message with many different reactions would otherwise grow a pill wider than the
+            // screen; it scrolls instead, so every reaction stays reachable.
+            modifier = Modifier
+                .widthIn(max = 240.dp)
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

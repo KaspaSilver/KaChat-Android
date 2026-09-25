@@ -2555,6 +2555,7 @@ private fun QuotedEmbedCard(
 
 // MARK: - Engagement row with in-icon undo countdowns
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun EngagementRow(
     post: KaPostDraft,
@@ -2601,11 +2602,24 @@ private fun EngagementRow(
         }
         previousLiked = post.likedByMe
     }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
+    // Seven actions - comment, like, dislike, repost, bookmark, share, Tip - plus the delivery
+    // mark, on screens from 320dp up and at whatever font scale the reader has set. iOS spaces
+    // them 18pt on a width it can count on; here the gap gives way first (18 -> 12 -> 8dp by
+    // available width), and only if that is still not enough does the row wrap to a second line,
+    // so nothing is ever clipped off the end. Tip keeps its intrinsic width throughout - iOS
+    // gives its label layoutPriority for the same reason.
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+        val gap = when {
+            maxWidth >= 330.dp -> 18.dp
+            maxWidth >= 290.dp -> 12.dp
+            else -> 8.dp
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.foundation.layout.FlowRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
         if (onComment != null) {
             EngagementAction(
                 countdownKey = null,
@@ -2736,11 +2750,13 @@ private fun EngagementRow(
                 Text("Tip", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
             }
         }
-        Spacer(modifier = Modifier.weight(1f))
-        // Bottom-right: on-chain delivery state, mirroring chat bubbles - green check once the K
-        // transaction is on the network (for a minute), spinner while submitting, red Retry when
-        // it didn't go through (iOS).
-        DeliveryState(post = post, onRetry = onRetry)
+            }
+            Spacer(modifier = Modifier.width(gap))
+            // The trailing edge: on-chain delivery state, mirroring chat bubbles - green check
+            // once the K transaction is on the network (for a minute), spinner while submitting,
+            // red Retry when it didn't go through (iOS).
+            DeliveryState(post = post, onRetry = onRetry)
+        }
     }
 }
 
