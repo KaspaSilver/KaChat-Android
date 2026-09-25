@@ -6094,6 +6094,10 @@ fun SpendingAddressSendFlow(
                             )
                         }
                     }
+                    // Who the coins are going to - the card Create chat shows, here too
+                    // (iOS ac0ef19).
+                    Spacer(Modifier.height(8.dp))
+                    AddressResolutionCard(input = recipientInput)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { clipboardManager.getText()?.text?.let { recipientInput = it.trim() } }, enabled = !isSending) {
