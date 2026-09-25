@@ -5,6 +5,7 @@ import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -133,6 +134,11 @@ object CrashRecorder {
         ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
     )
 
+    // ApplicationExitInfo's getters are API 30. noteProcessExits returns early below R, so this
+    // is never reached on an older device — but lint cannot follow that guard across the call, and
+    // without the annotation it reports every getter here as an unguarded NewApi error, which
+    // buries the report's real findings.
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun writeExitRecord(context: Context, exit: ApplicationExitInfo) {
         val dir = File(context.filesDir, DIR).apply { mkdirs() }
         val stamp = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(exit.timestamp)).replace(":", "-")

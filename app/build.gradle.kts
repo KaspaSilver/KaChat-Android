@@ -91,21 +91,24 @@ android {
         // 4.1 shipped on 2026-09-15; every build from here is 5.0, the same train iOS runs.
         //
         // KACHAT_BUILD_NUMBER is the number people see: the About row and the crash and
-        // diagnostics reports read "5.0 (1)", "5.0 (2)", ... through the betas, and plain "5.0"
-        // once KACHAT_IS_RELEASE is flipped for the store build. Bump it for every build that
-        // is handed out (the GitHub APK, a Play beta) - the counterpart of iOS's
-        // Version.xcconfig KACHAT_BUILD_NUMBER, so the two apps report the same shape.
+        // diagnostics reports read "5.1 (1)", "5.1 (2)", ... on a handed-out GitHub build, and
+        // plain "5.1" on the Play build (see KACHAT_IS_RELEASE per flavour below). Bump it for
+        // every build that is handed out - the counterpart of iOS's Version.xcconfig
+        // KACHAT_BUILD_NUMBER, so the two apps report the same shape.
         //
         // versionCode is a separate thing and only ever goes up: Play's high-water mark is
         // permanent and per app, and unlike iOS it does NOT reset when versionName changes
         // (4.1's builds ran 35..47). A device will not treat a rebuild as an update unless it
         // moves, so it goes up with every handed-out build too, alongside the build number.
         val kachatBuildNumber = 23
-        val kachatIsRelease = false
         versionCode = 92
         versionName = "5.1"
         buildConfigField("int", "KACHAT_BUILD_NUMBER", kachatBuildNumber.toString())
-        buildConfigField("boolean", "KACHAT_IS_RELEASE", kachatIsRelease.toString())
+        // KACHAT_IS_RELEASE is set per flavour below rather than once here, because on Android the
+        // two channels ARE the two answers iOS's single flag flips between: what goes to the Play
+        // Store is the release and reports plain "5.1", while a handed-out GitHub build is a beta
+        // and reports "5.1 (23)". One flag for both meant remembering to flip it at submission and
+        // flip it back afterwards, and a forgotten flip ships a store build labelled like a beta.
 
         buildConfigField(
             "String",
@@ -166,9 +169,15 @@ android {
     // Play builds: bundlePlayRelease. GitHub APK: assembleGithubRelease.
     flavorDimensions += "distribution"
     productFlavors {
-        create("play") { dimension = "distribution" }
+        create("play") {
+            dimension = "distribution"
+            // The store build is the release: About and the crash/diagnostics reports read "5.1".
+            buildConfigField("boolean", "KACHAT_IS_RELEASE", "true")
+        }
         create("github") {
             dimension = "distribution"
+            // A handed-out APK is a beta and keeps its build number: "5.1 (23)".
+            buildConfigField("boolean", "KACHAT_IS_RELEASE", "false")
             // The handed-out APK carries arm64 alone: every phone sold for years is 64-bit ARM,
             // while x86/x86_64 are emulators and Chromebooks and armeabi-v7a is 32-bit hardware
             // long out of production - and WebRTC alone ships a 12MB library per architecture,
@@ -191,6 +200,31 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        // Compose 1.6's ComposableCoroutineCreationDetector throws "null cannot be cast to
+        // non-null type UParameter" on ChatsScreen.kt and takes the entire lint run down with it,
+        // so no report is produced at all. A bug in the detector rather than in the code — lint's
+        // own crash output prints this exact disable as the workaround. Every other check still
+        // runs, and the pattern it looks for (launch/async called straight from a composable
+        // body) is one the codebase does not use: coroutines start from LaunchedEffect or a
+        // view-model scope.
+        disable += "CoroutineCreationDuringComposition"
+
+        // MissingTranslation is an error by default, and the 18 locale files are deliberately
+        // partial - a key with no translation falls back to the English string, which is correct
+        // behaviour, not a broken build. Downgraded so the 280-odd untranslated keys read as the
+        // backlog they are instead of burying the report's real errors.
+        warning += "MissingTranslation"
+
+        // Records today's findings so a run reports only what is NEW. Everything baselined was
+        // read through first: the remaining errors are all patterns lint cannot see through -
+        // getBackStackEntry already inside remember(), a StateFlow .value read only to seed
+        // collectAsState's initial value, produceState assigning `value` from a nested lambda, and
+        // NotificationManagerCompat.notify already wrapped in runCatching. Delete this file and
+        // re-run to re-inspect them from scratch.
+        baseline = file("lint-baseline.xml")
     }
 
     packaging {
