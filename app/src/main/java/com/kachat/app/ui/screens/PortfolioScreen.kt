@@ -1515,17 +1515,28 @@ private fun kas(value: Double, grouped: Boolean = false): String = when {
 }
 
 @Composable
-private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit) {
-    val ranges = listOf(1 to "1D", 7 to "1W", 30 to "1M", 90 to "3M", 365 to "1Y")
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit, ytdDays: Int = 1) {
+    // YTD is computed when the picker is drawn, so it is right the moment midnight passes, and
+    // All is everything there is - CoinGecko's year over Gate.io's history (iOS 20be932, 650b0f7).
+    val ranges = listOf(
+        1 to "1D",
+        7 to "1W",
+        30 to "1M",
+        90 to "3M",
+        ytdDays to "YTD",
+        365 to "1Y",
+        com.kachat.app.repository.PortfolioRepository.ALL_TIME_DAYS to "All",
+    )
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         ranges.forEach { (days, label) ->
             val active = days == selectedDays
             Text(
                 text = label,
                 color = if (active) KaspaTeal else LocalAppColors.current.textSecondary,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 textAlign = TextAlign.Center,
+                maxLines = 1,
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(10.dp))
@@ -1685,7 +1696,11 @@ fun PortfolioPriceChartScreen(
                 }
             }
 
-            PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
+            PortfolioRangeSelector(
+                selectedDays = priceRangeDays,
+                onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) },
+                ytdDays = viewModel.yearToDateDays(),
+            )
 
             KasConverterCard(price = currentPriceUsd, currencyCode = currencyCode)
             MarketStatsCard(marketCap = marketCap, rank = marketCapRank, currencyCode = currencyCode)
@@ -1838,7 +1853,11 @@ fun PortfolioValueChartScreen(
                 }
             }
 
-            PortfolioRangeSelector(selectedDays = priceRangeDays, onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) })
+            PortfolioRangeSelector(
+                selectedDays = priceRangeDays,
+                onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) },
+                ytdDays = viewModel.yearToDateDays(),
+            )
 
             PortfolioValueStatsCard(summary = summary, currencyCode = currencyCode)
         }

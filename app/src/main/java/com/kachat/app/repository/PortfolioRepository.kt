@@ -11,8 +11,9 @@ import com.kachat.app.services.PortfolioManager
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.database.KaChatDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -226,7 +227,71 @@ class PortfolioRepository @Inject constructor(
      * 429/5xx here gets one in-place retry when Retry-After fits [MAX_INLINE_RETRY_SECONDS];
      * a longer window is recorded in [throttledUntilMillis] for a deferred retry instead.
      */
+    /**
+     * All-time history. CoinGecko's keyless tier refuses anything past 365 days (error 10012),
+     * so [days] = [ALL_TIME_DAYS] draws the older part from Gate.io's daily KAS_USDT closes -
+     * public, no key, trading there since 2023-03-21 - with CoinGecko's own last 365 days sitting
+     * on top unchanged. Gate quotes USDT: the older points are scaled into the chosen currency by
+     * the ratio at the seam (CoinGecko's first point over Gate's close for that day), exact for
+     * dollars and a constant-rate approximation for anything else. Daily granularity throughout
+     * (iOS be477d1).
+     */
+    private suspend fun getAllTimeHistory(currency: String): List<Pair<Long, Double>> {
+        val recent = getPriceHistory(365, currency)
+        val gate = fetchGateDailyCloses()
+        if (gate.isEmpty()) return recent
+        val firstRecent = recent.firstOrNull() ?: return if (currency == "usd") gate else emptyList()
+        val anchor = gate.lastOrNull { it.first <= firstRecent.first } ?: gate.last()
+        val ratio = if (anchor.second > 0) firstRecent.second / anchor.second else 1.0
+        val older = gate.filter { it.first < firstRecent.first }.map { it.first to it.second * ratio }
+        return older + recent
+    }
+
+    /** Gate.io daily closes for KAS_USDT, oldest first, paged backwards 1000 days at a time until
+     *  the listing. Row shape: [time, quote volume, close, high, low, open, ...]. */
+    private suspend fun fetchGateDailyCloses(): List<Pair<Long, Double>> = withContext(Dispatchers.IO) {
+        val closes = sortedMapOf<Long, Double>()
+        var to = System.currentTimeMillis() / 1000
+        repeat(6) {
+            val url = "https://api.gateio.ws/api/v4/spot/candlesticks" +
+                "?currency_pair=KAS_USDT&interval=1d&limit=1000&to=$to"
+            val body = try {
+                val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 20_000
+                connection.useCaches = false
+                try {
+                    if (connection.responseCode != 200) return@repeat
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (e: Exception) {
+                return@withContext closes.map { it.key * 1000 to it.value }
+            }
+            val rows = try {
+                com.google.gson.Gson().fromJson(body, Array<Array<String>>::class.java)
+            } catch (e: Exception) {
+                null
+            } ?: return@withContext closes.map { it.key * 1000 to it.value }
+            if (rows.isEmpty()) return@withContext closes.map { it.key * 1000 to it.value }
+            var earliest = to
+            for (row in rows) {
+                if (row.size < 3) continue
+                val time = row[0].toLongOrNull() ?: continue
+                val close = row[2].toDoubleOrNull() ?: continue
+                closes[time] = close
+                earliest = minOf(earliest, time)
+            }
+            if (rows.size < 1000 || earliest >= to) return@withContext closes.map { it.key * 1000 to it.value }
+            to = earliest - 86_400
+        }
+        closes.map { it.key * 1000 to it.value }
+    }
+
     suspend fun getPriceHistory(days: Int = 30, currency: String = "usd"): List<Pair<Long, Double>> {
+        // All-time is not a CoinGecko range - it is Gate.io's history with CoinGecko's year on top.
+        if (days == ALL_TIME_DAYS) return getAllTimeHistory(currency)
         repeat(2) { attempt ->
             try {
                 return coinGeckoApi.getMarketChart(vsCurrency = currency, days = days).prices.mapNotNull { point ->
@@ -756,6 +821,10 @@ class PortfolioRepository @Inject constructor(
          *  anything longer (CoinGecko's real throttle window is ~59s) is recorded in
          *  [throttledUntilMillis] for a deferred, non-blocking retry instead. */
         const val MAX_INLINE_RETRY_SECONDS = 10.0
+
+        /** The "All" range: everything there is, drawn from Gate.io's listing onwards with
+         *  CoinGecko's last year on top (see getAllTimeHistory). Not a day count - a marker. */
+        const val ALL_TIME_DAYS = 0
 
         /** Spacing between sequential historical-price fetches during an import's backfill. */
         const val PRICE_REQUEST_SPACING_MILLIS = 1_200L

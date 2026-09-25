@@ -131,7 +131,9 @@ class PortfolioViewModel @Inject constructor(
     private val _priceHistory = MutableStateFlow<List<Pair<Long, Double>>>(emptyList())
     val priceHistory: StateFlow<List<Pair<Long, Double>>> = _priceHistory.asStateFlow()
 
-    /** Backs the tappable "Price (Xd)" range switcher — 1, 7, or 30 days. */
+    /** Backs the range switcher: 1D / 1W / 1M / 3M / YTD / 1Y / All. YTD is not a fixed number
+     *  of days - it is computed when read, so it is right the moment midnight passes - and All is
+     *  [PortfolioRepository.ALL_TIME_DAYS], everything there is (iOS 20be932, 650b0f7). */
     private val _priceRangeDays = MutableStateFlow(30)
     val priceRangeDays: StateFlow<Int> = _priceRangeDays.asStateFlow()
 
@@ -140,9 +142,18 @@ class PortfolioViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), computeSummary(emptyList(), 0.0))
 
     /** Holdings' USD value at each price-history point — not the price itself, see [computeValueHistory]. */
-    val valueHistory: StateFlow<List<Pair<Long, Double>>> = combine(transactions, priceHistory) { txs, prices ->
-        computeValueHistory(txs, prices)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val valueHistory: StateFlow<List<Pair<Long, Double>>> =
+        combine(transactions, priceHistory, priceRangeDays) { txs, prices, range ->
+            val series = computeValueHistory(txs, prices)
+            // All: from the first transaction to today. The price history reaches back to 2023,
+            // and before anything was bought the value is a flat zero - not the portfolio's story
+            // (iOS 00a2b88).
+            if (range != PortfolioRepository.ALL_TIME_DAYS) return@combine series
+            val firstTransaction = txs.minOfOrNull { it.timestampMillis } ?: return@combine series
+            val start = firstTransaction - 86_400_000L
+            val trimmed = series.filter { it.first >= start }
+            if (trimmed.size >= 2) trimmed else series
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var priceHistoryJob: Job? = null
 
@@ -389,6 +400,22 @@ class PortfolioViewModel @Inject constructor(
     private var lastSevenDayCurrency: String? = null
 
     /** Switches the price chart's window (1/7/30 days) and refetches history for it. */
+    /** Days since 1 January, at least one - the YTD button's range, computed at the moment it is
+     *  used rather than stored, so it is right after midnight (iOS 20be932). */
+    fun yearToDateDays(): Int {
+        val now = java.util.Calendar.getInstance()
+        val startOfYear = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.MONTH, java.util.Calendar.JANUARY)
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val days = ((now.timeInMillis - startOfYear.timeInMillis) / 86_400_000L).toInt()
+        return days.coerceAtLeast(1)
+    }
+
     fun setPriceRangeDays(days: Int) {
         if (_priceRangeDays.value == days) return
         _priceRangeDays.value = days
