@@ -2031,9 +2031,10 @@ private fun TransactionDialog(
     var timestampMillis by remember { mutableStateOf(existing?.timestampMillis ?: prefillTimestampMillis ?: System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    val quantity = quantityText.toDoubleOrNull()
-    val pricePerCoin = priceText.toDoubleOrNull()
-    val fee = feeText.toDoubleOrNull() ?: 0.0
+    // Pasted amounts keep their commas and symbols - see parseAmount.
+    val quantity = parseAmount(quantityText)
+    val pricePerCoin = parseAmount(priceText)
+    val fee = parseAmount(feeText) ?: 0.0
     val total = if (quantity != null && pricePerCoin != null) {
         val base = quantity * pricePerCoin
         if (isBuy) base + fee else base - fee
@@ -2373,13 +2374,39 @@ private fun formatFullPrecision(value: Double): String {
 }
 
 /**
- * Accepts either separator: a decimal keypad emits the device locale's, which is a comma in much
- * of the world, and parsing that as an integer silently multiplied the amount.
+ * Reads a number the way a person typed or pasted it: "1,234.56" (grouping commas), "1.234,56"
+ * or "1,5" (decimal-comma locales), "$ 9.60", " 12 " - every shape a copied amount arrives in.
+ * A decimal keypad emits the device locale's separator, and `toDoubleOrNull` refuses most of the
+ * rest, which made a pasted amount silently fail to add. Mirrors iOS's PortfolioNumber (266131a).
  */
-private fun parseAmount(text: String): Double? {
-    val normalized = text.replace(',', '.')
-    if (normalized.isBlank()) return null
-    return normalized.toDoubleOrNull()
+internal fun parseAmount(text: String): Double? {
+    var cleaned = text.filter { it.isDigit() || it == ',' || it == '.' || it == '-' }
+    if (cleaned.isEmpty()) return null
+    val commas = cleaned.count { it == ',' }
+    val dots = cleaned.count { it == '.' }
+    when {
+        commas > 0 && dots > 0 -> {
+            // Both present: whichever comes last is the decimal mark, the other is grouping.
+            cleaned = if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
+                cleaned.replace(".", "").replace(',', '.')
+            } else {
+                cleaned.replace(",", "")
+            }
+        }
+        commas > 0 -> {
+            // Commas only: one comma followed by anything but exactly three digits is a decimal
+            // comma ("1,5"); otherwise they are thousands separators ("1,234,567").
+            val parts = cleaned.split(",")
+            cleaned = if (commas == 1 && parts.size == 2 && parts[1].length != 3) {
+                cleaned.replace(',', '.')
+            } else {
+                cleaned.replace(",", "")
+            }
+        }
+        // "1.234.567" - dots as grouping.
+        dots > 1 -> cleaned = cleaned.replace(".", "")
+    }
+    return cleaned.toDoubleOrNull()
 }
 
 // MARK: network hashrate card + chart

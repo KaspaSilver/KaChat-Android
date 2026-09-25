@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.DonutLarge
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -502,43 +503,32 @@ fun SwapScreen(
     }
 
     portfolioPickerAction?.let { pendingNavigate ->
-        AlertDialog(
-            onDismissRequest = { portfolioPickerAction = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.add_to_portfolio), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    // Portfolios that already hold this swap say so on their own row, so the
-                    // duplicate is visible while the choice is being made rather than after.
-                    val duplicateIds = selectedSwap?.let {
-                        portfolioViewModel.portfolioIdsContaining(
-                            com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(it.id)
-                        )
-                    } ?: emptySet()
-                    allPortfolios.forEach { portfolio ->
-                        val isDuplicate = portfolio.id in duplicateIds
-                        Text(
-                            if (isDuplicate) "${portfolio.name} (already added)" else portfolio.name,
-                            color = if (isDuplicate) LocalAppColors.current.textSecondary else KaspaTeal,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    portfolioViewModel.setActivePortfolio(portfolio.id)
-                                    portfolioPickerAction = null
-                                    pendingNavigate()
-                                }
-                                .padding(vertical = 12.dp)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { portfolioPickerAction = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+        // A half sheet, like every other chooser in the app: each portfolio gets a row with room
+        // to say when this swap is already in it (iOS 9df2847).
+        val duplicateIds = selectedSwap?.let {
+            portfolioViewModel.portfolioIdsContaining(
+                com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(it.id)
+            )
+        } ?: emptySet()
+        ActionSheetContainer(
+            title = stringResource(R.string.add_to_portfolio),
+            subtitle = "Which portfolio should this swap go into?",
+            onDismiss = { portfolioPickerAction = null },
+        ) {
+            allPortfolios.forEach { portfolio ->
+                val isDuplicate = portfolio.id in duplicateIds
+                ActionSheetRow(
+                    icon = Icons.Default.DonutLarge,
+                    title = portfolio.name,
+                    subtitle = if (isDuplicate) "Already added to this one" else "Add the swap here",
+                    tint = if (isDuplicate) LocalAppColors.current.textSecondary else KaspaTeal,
+                ) {
+                    portfolioViewModel.setActivePortfolio(portfolio.id)
+                    portfolioPickerAction = null
+                    pendingNavigate()
                 }
             }
-        )
+        }
     }
 
     if (showCoinPicker) {

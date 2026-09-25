@@ -417,23 +417,13 @@ class BroadcastViewModel @Inject constructor(
         viewModelScope.launch {
             joinedChannels.collect { channels ->
                 readState.seedIfMissing(channels.map { it.channelName })
-                applyFeaturedNotifyDefaultIfNeeded(channels)
             }
         }
     }
 
-    /**
-     * #kaspa and #kachat-bugs notify by default. Applied once per wallet, so a bell switched off
-     * later stays off, and only once both rooms exist, so it cannot be spent before they do.
-     */
-    private fun applyFeaturedNotifyDefaultIfNeeded(channels: List<BroadcastChannelEntity>) {
-        if (readState.featuredNotifyDefaultApplied()) return
-        val joined = channels.map { it.channelName }.toSet()
-        if (!FeaturedBroadcastChannels.NAMES.all { it in joined }) return
-        readState.markFeaturedNotifyDefaultApplied()
-        val hidden = readState.state.value.hiddenCurated
-        FeaturedBroadcastChannels.NAMES.filter { it !in hidden }.forEach { setNotifyEnabled(it, true) }
-    }
+    // Rooms join with notifications OFF and stay off until the user turns a bell on - the
+    // curated rooms included. (#kaspa and #kachat-bugs used to be switched on once per wallet
+    // here; iOS 1ea3c45.)
 
     private var indexerPollJob: kotlinx.coroutines.Job? = null
 
