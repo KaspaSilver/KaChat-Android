@@ -45,7 +45,12 @@ class ColdStorageManager @Inject constructor(
         // the Manage-style address list the same way WalletManager.Account.maxSpendingAddressIndex
         // bounds the spending-chain list. "Generate More Addresses" bumps this directly, ahead of
         // whatever the gap-limit scan itself would have stopped at.
-        val maxDerivedIndex: Int = 0
+        val maxDerivedIndex: Int = 0,
+        // Whether a receipt on this account's addresses raises a notification. Per account: one
+        // cold account can be watched closely while another stays quiet, and an account switched
+        // off is still ours for the self-send check, just silent (iOS ba352a2). Default on, so
+        // accounts saved before this field keep the behaviour they had.
+        val notifyOnReceive: Boolean = true,
     )
 
     /** A user-given label for one specific derived address — flat list keyed by (accountId, index) rather than nested in [ColdAccount], so labeling is independent of the gap-limit-scanned address list's own lifecycle. */
@@ -119,6 +124,11 @@ class ColdStorageManager @Inject constructor(
 
     fun renameAccount(id: String, newName: String) {
         saveAccounts(getAllAccounts().map { if (it.id == id) it.copy(name = newName) else it })
+    }
+
+    /** Turns receive notifications for one cold account on or off (iOS ba352a2). */
+    fun setNotifyOnReceive(id: String, enabled: Boolean) {
+        saveAccounts(getAllAccounts().map { if (it.id == id) it.copy(notifyOnReceive = enabled) else it })
     }
 
     fun deleteAccount(id: String) {

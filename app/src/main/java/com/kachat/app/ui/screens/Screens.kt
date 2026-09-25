@@ -4873,7 +4873,8 @@ fun ManageAddressesScreen(
     onNavigateToTxHistory: (Int) -> Unit = {},
     onNavigateToHidden: () -> Unit = {},
     onNavigateToVisibility: () -> Unit = {},
-    onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null
+    onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null,
+    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     val loading by viewModel.manageAddressesLoading.collectAsState()
@@ -5065,6 +5066,41 @@ fun ManageAddressesScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (!showingChatPrivacyTab) {
+                // This account's own switch (a cold-storage account has one in its own menu):
+                // the spending addresses' receives, not every address the wallet watches
+                // (iOS ba352a2).
+                item {
+                    val spendingNotify by settingsViewModel.spendingReceiveNotifications.collectAsState()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(LocalAppColors.current.surface)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Notify on receive",
+                                color = LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                            )
+                            Text(
+                                "When a spending address receives Kaspa from someone else.",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 12.sp,
+                            )
+                        }
+                        Switch(
+                            checked = spendingNotify,
+                            onCheckedChange = { settingsViewModel.setSpendingReceiveNotifications(it) },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                        )
+                    }
+                }
+            }
             if (showingChatPrivacyTab) {
                 // Read-only viewer for addresses currently offered to contacts in LIVE Chats
                 // Payment Privacy pools. Rows expose only Copy Address and Show QR Code; the

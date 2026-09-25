@@ -130,6 +130,9 @@ class AppSettingsRepository @Inject constructor(
         // cold storage addresses receives Kaspa from an external source — see
         // AddressActivityNotifier. Default ON, mirrors iOS's addressActivityNotificationsEnabled.
         val KEY_ADDRESS_ACTIVITY_NOTIFICATIONS = booleanPreferencesKey("address_activity_notifications_enabled")
+        /** Receive notifications for the wallet's own spending addresses (Manage Addresses) -
+         *  the counterpart of a cold account's `notifyOnReceive`. Default on (iOS ba352a2). */
+        val KEY_SPENDING_RECEIVE_NOTIFICATIONS = booleanPreferencesKey("spending_receive_notifications_enabled")
 
         // Settings > Notifications > KaPosts. Which KaPosts activity kinds post a notification —
         // filtered at the poll source (KaPostsNotificationPoller), all default ON, mirroring
@@ -499,6 +502,11 @@ class AppSettingsRepository @Inject constructor(
 
     val addressActivityNotificationsEnabled: Flow<Boolean> = dataStore.data.map {
         it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] ?: true
+    }
+
+    /** See [KEY_SPENDING_RECEIVE_NOTIFICATIONS]. */
+    val spendingReceiveNotifications: Flow<Boolean> = dataStore.data.map {
+        it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] ?: true
     }
 
     val kaPostsNotifyLikes: Flow<Boolean> = dataStore.data.map { it[KEY_KAPOSTS_NOTIFY_LIKES] ?: true }
@@ -903,6 +911,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setNotificationVibrationEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_VIBRATION] = value }
     suspend fun setSyncSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_SYNC_SYSTEM_CONTACTS] = value }
     suspend fun setAddressActivityNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] = value }
+    suspend fun setSpendingReceiveNotifications(value: Boolean) = dataStore.edit { it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] = value }
     suspend fun setKaPostsNotifyLikes(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_LIKES] = value }
     suspend fun setKaPostsNotifyReposts(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_REPOSTS] = value }
     suspend fun setKaPostsNotifyFollows(value: Boolean) = dataStore.edit { it[KEY_KAPOSTS_NOTIFY_FOLLOWS] = value }

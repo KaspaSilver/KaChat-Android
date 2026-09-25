@@ -77,6 +77,12 @@ class ColdStorageViewModel @Inject constructor(
         _accounts.value = coldStorageManager.getAccounts()
     }
 
+    /** Receive notifications for one cold account, on or off - the others keep theirs. */
+    fun setNotifyOnReceive(id: String, enabled: Boolean) {
+        coldStorageManager.setNotifyOnReceive(id, enabled)
+        _accounts.value = coldStorageManager.getAccounts()
+    }
+
     fun deleteAccount(id: String) {
         coldStorageManager.deleteAccount(id)
         _accounts.value = coldStorageManager.getAccounts()

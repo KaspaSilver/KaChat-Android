@@ -78,6 +78,15 @@ class SettingsViewModel @Inject constructor(
     val kaPostsNotifyMentions = settings.kaPostsNotifyMentions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
+    /** Receive notifications for the wallet's own spending addresses - a cold-storage account
+     *  has its own switch in its menu (iOS ba352a2). */
+    val spendingReceiveNotifications = settings.spendingReceiveNotifications
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setSpendingReceiveNotifications(enabled: Boolean) {
+        viewModelScope.launch { settings.setSpendingReceiveNotifications(enabled) }
+    }
+
     /** The amount a tap on Tip sends at once, in sompi; null while it asks every time. */
     val kaPostsDefaultTipSompi = settings.kaPostsDefaultTipSompi
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

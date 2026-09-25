@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircleOutline
@@ -288,6 +290,20 @@ fun ColdStorageListScreen(
                                 ) {
                                     renameInput = account.name
                                     isRenaming = true
+                                }
+                                // Per account, not all of cold storage at once: this account's
+                                // receives alone (iOS ba352a2).
+                                ActionSheetRow(
+                                    icon = if (account.notifyOnReceive) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                                    title = if (account.notifyOnReceive) "Turn Off Receive Notifications" else "Turn On Receive Notifications",
+                                    subtitle = if (account.notifyOnReceive) {
+                                        "Stops notifying when this account receives Kaspa. Other accounts keep theirs."
+                                    } else {
+                                        "Notifies you when this account receives Kaspa."
+                                    },
+                                ) {
+                                    viewModel.setNotifyOnReceive(account.id, !account.notifyOnReceive)
+                                    showMenu = false
                                 }
                             }
                         }

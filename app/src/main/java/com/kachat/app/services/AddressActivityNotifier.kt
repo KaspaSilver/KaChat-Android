@@ -117,9 +117,16 @@ class AddressActivityNotifier @Inject constructor(
 
     private fun walletAddressOrNull(): String? = try { walletManager.getAddress() } catch (e: Exception) { null }
 
-    /** address -> cold account label, for every derived cold address of the active wallet. */
+    /** Cold-storage addresses whose account has receive notifications switched off. Still ours
+     *  for the self-send check, and still watched for the UI refresh; never notified. */
+    @Volatile
+    private var coldMutedAddresses: Set<String> = emptySet()
+
+    /** address -> cold account label, for every derived cold address of the active wallet. Also
+     *  records which of them belong to an account that has been switched off. */
     private fun coldLabelByAddress(): Map<String, String> {
         val result = mutableMapOf<String, String>()
+        val muted = mutableSetOf<String>()
         val accounts = try { coldStorageManager.getAccounts() } catch (e: Exception) { return result }
         for (account in accounts) {
             val parsed = KaspaExtendedPublicKey.parse(account.kpub).getOrNull() ?: continue
@@ -131,8 +138,10 @@ class AddressActivityNotifier @Inject constructor(
                     continue
                 }
                 result[address] = account.name
+                if (!account.notifyOnReceive) muted.add(address)
             }
         }
+        coldMutedAddresses = muted
         return result
     }
 
@@ -152,7 +161,11 @@ class AddressActivityNotifier @Inject constructor(
         // mapping (not the active offered set): a payment racing a revoke/supersession still
         // arrives with a payment_notice, so it must stay suppressed here too.
         val poolReserved = paymentPoolStore.allReservationAddresses(walletAddress).toSet()
-        val notifiable = watched - walletAddress - poolReserved
+        // Per account: each cold-storage account has its own switch, and the spending chain has
+        // one of its own. An account switched off is still ours - still watched, still counted
+        // for the self-send test - just quiet (iOS ba352a2).
+        val spendingMuted = if (settingsRepository.spendingReceiveNotifications.first()) emptySet() else spending
+        val notifiable = watched - walletAddress - poolReserved - coldMutedAddresses - spendingMuted
         // "Ours" for the self-send input test includes the chatting address too.
         val ownAll = watched + walletAddress
 
