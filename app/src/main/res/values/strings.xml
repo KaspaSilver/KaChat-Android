@@ -42,7 +42,7 @@
     <string name="balance">Balance</string>
     <string name="before_you_swap">Before You Swap</string>
     <string name="broadcasting">Broadcasting...</string>
-    <string name="broadcasts">Broadcasts</string>
+    <string name="broadcasts">Public Chats</string>
     <string name="build_unsigned_transaction">Build Unsigned Transaction</string>
     <string name="building_transaction">Building transaction...</string>
     <string name="camera_permission_is_needed_to_scan">Camera permission is needed to scan a QR code</string>
@@ -56,8 +56,8 @@
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="who_will_use_kachat">Who will use KaChat?</string>
-    <string name="child_mode_is_on_guide_info">Child Mode is on. Chats, Group Chats, Portfolio and Cold Storage are available; Swaps, KaPosts and Broadcasts are hidden. Manage this in Settings > Security > Child Mode.</string>
-    <string name="a_child_gets_a_simpler_safer">A child gets a simpler, safer KaChat: just Chats, Group Chats, Portfolio and Cold Storage. Swaps, KaPosts and Broadcasts stay hidden until an adult unlocks them.</string>
+    <string name="child_mode_is_on_guide_info">Child Mode is on. Chats, Group Chats, Portfolio and Cold Storage are available; Swaps, KaPosts and Public Chats are hidden. Manage this in Settings > Security > Child Mode.</string>
+    <string name="a_child_gets_a_simpler_safer">A child gets a simpler, safer KaChat: just Chats, Group Chats, Portfolio and Cold Storage. Swaps, KaPosts and Public Chats stay hidden until an adult unlocks them.</string>
     <string name="adult">Adult</string>
     <string name="the_full_app_everything_available">The full app, everything available.</string>
     <string name="child">Child</string>
@@ -89,7 +89,7 @@
     <string name="wrong_password_nothing_changed">Wrong password. Nothing changed.</string>
     <string name="what_stays_available">What stays available</string>
     <string name="chats_and_group_chats">Chats &amp; Group Chats</string>
-    <string name="child_mode_about_footer">While Child Mode is on, Swaps, KaPosts and Broadcasts are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Child Mode; only the password does.</string>
+    <string name="child_mode_about_footer">While Child Mode is on, Swaps, KaPosts and Public Chats are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Child Mode; only the password does.</string>
     <string name="show_password">Show password</string>
     <string name="hide_password">Hide password</string>
     <string name="coin_control">Coin Control</string>
@@ -107,7 +107,7 @@
     <string name="broadcast_popular_retention_note">All messages persist for 30 days</string>
     <string name="help">Help</string>
     <string name="broadcast_indexer">Public Chats Indexer</string>
-    <string name="broadcast_indexer_footer">KaChat broadcast history indexer for #kaspa and #kachat-bugs</string>
+    <string name="broadcast_indexer_footer">KaChat public chat history indexer for #kaspa and #kachat-bugs</string>
     <string name="kapost_indexer_footer">K social network indexer that powers KaPosts feeds</string>
     <string name="coinbase">Coinbase</string>
     <string name="chatting_address">Chatting Address</string>
@@ -184,7 +184,7 @@
     <string name="hidden_addresses">Hidden Addresses</string>
     <string name="hidden_users">Hidden Users</string>
     <string name="holdings">Holdings</string>
-    <string name="how_long_messages_in_this_broadcast">How long messages in this broadcast stay cached on this device, up to a maximum of 3 days.</string>
+    <string name="how_long_messages_in_this_broadcast">How long messages in this public chat stay cached on this device, up to a maximum of 3 days.</string>
     <string name="i_agree">I Agree</string>
     <string name="i_ve_backed_it_up">I\'ve backed it up</string>
     <string name="if_the_network_is_busy_a">If the network is busy, a higher fee can help your transaction confirm faster.</string>
@@ -216,7 +216,7 @@
     <string name="last_message">Last Message</string>
     <string name="leave">Leave</string>
     <string name="leave_delete">Leave &amp; Delete</string>
-    <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this broadcast permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
+    <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this public chat permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
     <string name="let_s_add_more_details_about">Let\'s add more details about yourself</string>
     <string name="let_s_fund_your_chatting_address">50 Kaspa is recommended to get started to be able to create a KNS profile and chat for a while. 5 Kaspa is enough for about 2500 messages</string>
     <string name="link_from_contacts">Link from Contacts</string>

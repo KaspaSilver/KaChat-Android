@@ -215,7 +215,7 @@ fun BroadcastRoomInfoScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     // The honest explanation of why this is per room at all.
-                    "A broadcast lives on the Kaspa blockDAG, so any indexer watching the same " +
+                    "A public chat lives on the Kaspa blockDAG, so any indexer watching the same " +
                         "network serves the same room. Point this one wherever you like - your own, " +
                         "or someone else's - without changing the indexer every other room uses. " +
                         "Leave it blank to follow $appWideIndexer.",

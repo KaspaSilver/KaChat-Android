@@ -990,7 +990,7 @@ fun KaChatInternalLinkCard(
         ?: (post?.takeIf { it.action == "quote" }?.let { "Reposted a post." })
         ?: when (ref) {
             is KaChatLinkRef.KaPost -> "Tap to open this post in KaChat"
-            is KaChatLinkRef.BroadcastRoom -> "Tap to join this broadcast room"
+            is KaChatLinkRef.BroadcastRoom -> "Tap to join this KaChat public chat room."
         }
     val caption = when (ref) {
         // A reply or a quote is still a KaPosts post, but saying which one it is explains why

@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,7 +101,10 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     // no longer a separate opt-in reached through Portfolio's old "Cold Storage Devices" row.
     object ColdStorage : Screen("cold_storage", "Storage",      Icons.Default.Security)
     object KaPosts     : Screen("kaposts",      "KaPosts",      Icons.Default.NoteAlt)
-    object Broadcasts  : Screen("broadcasts",   "Broadcasts",   Icons.Default.Sensors)
+    // Named "Public Chats" everywhere a person reads it, matching iOS's AppTab.publicChats title.
+    // The route stays "broadcasts": it is persisted in saved dock arrangements, and the thread id,
+    // the share links and the on-chain subtype are all still broadcast-named on the wire.
+    object Broadcasts  : Screen("broadcasts",   "Public Chats", Icons.Default.Sensors)
     // A placeable tab like any other, matching iOS's AppTab.apps - it can sit in the dock or in
     // the Kaspa Hub, and it can be reordered in either. It used to be a hardcoded tile appended
     // to the Hub grid with no Screen behind it, which is exactly why Customize Dock could not
@@ -961,13 +965,20 @@ fun MainShell(
                                         Text(
                                             text = screen.label,
                                             color = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
-                                            // Longer labels ("Broadcasts") don't fit at 10sp once there are
+                                            // Longer labels ("Public Chats") don't fit at 10sp once there are
                                             // enough tabs that each weight(1f) slot narrows below their natural
                                             // width — shrink just those instead of letting them clip/wrap and
-                                            // get cut off by the fixed-height Box.
-                                            fontSize = if (screen.label.length > 9) 8.sp else 10.sp,
+                                            // get cut off by the fixed-height Box. Twelve characters need a third
+                                            // step: at six tabs on a 320dp screen a slot is ~53dp, which 8sp
+                                            // would run past, and softWrap = false clips rather than wraps.
+                                            fontSize = when {
+                                                screen.label.length > 11 -> 7.sp
+                                                screen.label.length > 9 -> 8.sp
+                                                else -> 10.sp
+                                            },
                                             maxLines = 1,
                                             softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
                                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
