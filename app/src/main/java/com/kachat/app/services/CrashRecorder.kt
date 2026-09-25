@@ -169,6 +169,18 @@ object CrashRecorder {
                 appendLine("description: ${exit.description ?: "(none)"}")
                 appendLine("importance: ${exit.importance}, pss: ${exit.pss} kB, rss: ${exit.rss} kB")
                 appendLine("process: ${exit.processName} (pid ${exit.pid})")
+                // A Java crash reaching this record at all means the app's own handler never
+                // wrote one (this file is only written when it did not - see noteProcessExits),
+                // and the system keeps no stack trace for a Java crash. Say both, rather than
+                // leaving the reader of the report to infer them from what is missing.
+                if (exit.reason == ApplicationExitInfo.REASON_CRASH) {
+                    appendLine()
+                    appendLine("NO JAVA TRACE CAPTURED - the app's uncaught-exception handler did not record this crash,")
+                    appendLine("so it happened before the handler was installed, on a thread or in a process it does not")
+                    appendLine("cover, or the process died before the file was written. The system keeps no stack trace")
+                    appendLine("for a Java crash either. The full trace is in Play Console > Android vitals for a Play")
+                    appendLine("build, or in `adb logcat -b crash` if it can be reproduced with the device at hand.")
+                }
                 if (!trace.isNullOrBlank()) {
                     appendLine()
                     appendLine("---- system trace ----")
