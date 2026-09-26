@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -730,6 +731,15 @@ fun MainShell(
                         }
                     }
 
+                    // The slide handler below is keyed only on the tab order and the slot width,
+                    // so it is created once and outlives every navigation. Calling goToDockTab
+                    // from it directly used the closure from THAT first composition, whose
+                    // currentDestination was the tab you started on: sliding back onto that tab
+                    // later read as "already here" and did nothing. This always holds the current one.
+                    val latestGoToDockTab by androidx.compose.runtime.rememberUpdatedState<(Screen) -> Unit> {
+                        goToDockTab(it)
+                    }
+
                     // Which tab the glass pill sits under - the same test each item makes for
                     // itself below, so the pill and the lit icon can never disagree.
                     val selectedDockIndex = localTabOrder.indexOfFirst { screen ->
@@ -773,7 +783,10 @@ fun MainShell(
                             .border(1.dp, LocalAppColors.current.divider, RoundedCornerShape(40.dp)),
                     )
                     // Drawn between the bar and its icons: a brighter pane of the same glass.
-                    if (selectedDockIndex >= 0) {
+                    // Also while a finger is sliding: on a screen that is not a dock tab nothing is
+                    // lit, and the slide used to carry no lens at all - it looked like it had not
+                    // registered, though releasing still went to the tab.
+                    if (selectedDockIndex >= 0 || dockDragIndex != null) {
                         // A lens, not a tile: iOS's selection is a nearly clear bubble with a
                         // bright rim. It sits FLUSH inside the bar - an oval within the bar's own
                         // height, not a shape hanging off its edges. The interior barely tints;
@@ -819,19 +832,24 @@ fun MainShell(
                             // anything that travels carries the lens, whether it slides straight
                             // away or is held first, as on the iPhone. Nothing else on the bar
                             // wants this finger - tabs are arranged in Settings, not by dragging.
+                            // Gesture navigation reserves a strip at each screen edge for Back,
+                            // wider than the dock's side margin at higher Back sensitivity. A slide
+                            // starting on the outermost tab began inside it, and Android took it.
+                            .systemGestureExclusion()
                             .pointerInput(localTabOrder, dockItemWidth) {
                                 val slotPx = with(dockDensity) { dockItemWidth.toPx() }
                                 val startPadPx = with(dockDensity) { 8.dp.toPx() }
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                                     var sliding = false
+                                    try {
                                     while (true) {
                                         val event = awaitPointerEvent(PointerEventPass.Initial)
                                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                                         if (!change.pressed) {
                                             if (sliding) {
                                                 dockDragIndex?.let { index ->
-                                                    localTabOrder.getOrNull(index)?.let { goToDockTab(it) }
+                                                    localTabOrder.getOrNull(index)?.let { latestGoToDockTab(it) }
                                                 }
                                             }
                                             dockDragIndex = null
@@ -844,6 +862,13 @@ fun MainShell(
                                             dockDragIndex = (((change.position.x - startPadPx) / slotPx).toInt())
                                                 .coerceIn(0, localTabOrder.lastIndex.coerceAtLeast(0))
                                         }
+                                    }
+                                    } finally {
+                                        // A slide the system takes away - the back gesture, an
+                                        // incoming call - cancels this rather than delivering a
+                                        // release, and the lens used to stay stranded wherever the
+                                        // finger was until the next touch.
+                                        dockDragIndex = null
                                     }
                                 }
                             }
