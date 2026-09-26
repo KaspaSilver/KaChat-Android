@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.UserFacingError
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.Ringtone
@@ -290,7 +291,7 @@ class CallService @Inject constructor(
                     if (plumbing === pipes && _session.value?.phase == Phase.RingingOut) pipes.ringback.start()
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    _lastError.value = e.message ?: "Call failed"
+                    _lastError.value = UserFacingError.message(e, "Call failed")
                     finish("failed")
                     return@launch
                 }
@@ -330,7 +331,7 @@ class CallService @Inject constructor(
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Starting call failed", e)
                 CallDiagnostics.log(TAG, "start failed: ${e.message}")
-                _lastError.value = e.message ?: "Call failed"
+                _lastError.value = UserFacingError.message(e, "Call failed")
                 finish("failed")
             }
         }
@@ -501,7 +502,7 @@ class CallService @Inject constructor(
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Hosting a requested call failed", e)
                 CallDiagnostics.log(TAG, "hosting failed: ${e.message}")
-                _lastError.value = e.message ?: "Call failed"
+                _lastError.value = UserFacingError.message(e, "Call failed")
                 finish("failed")
             }
         }
@@ -528,7 +529,7 @@ class CallService @Inject constructor(
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Joining the hosted call failed", e)
                 CallDiagnostics.log(TAG, "joining hosted call failed: ${e.message}")
-                _lastError.value = e.message ?: "Call failed"
+                _lastError.value = UserFacingError.message(e, "Call failed")
                 finish("failed")
             }
             return null
@@ -591,7 +592,7 @@ class CallService @Inject constructor(
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Joining call failed", e)
                 CallDiagnostics.log(TAG, "join failed: ${e.message}")
-                _lastError.value = e.message ?: "Call failed"
+                _lastError.value = UserFacingError.message(e, "Call failed")
                 finish("failed")
             }
         }

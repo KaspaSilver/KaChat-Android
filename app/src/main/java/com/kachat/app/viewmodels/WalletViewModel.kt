@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.UserFacingError
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -927,7 +928,7 @@ class WalletViewModel @Inject constructor(
                 refreshSpendingAddress()
                 loadManageAddresses()
             } catch (e: Exception) {
-                _consolidateState.value = ConsolidateUiState(status = ConsolidateStatus.FAILED, errorMessage = e.message ?: "Consolidation failed")
+                _consolidateState.value = ConsolidateUiState(status = ConsolidateStatus.FAILED, errorMessage = UserFacingError.message(e, "Consolidation failed"))
             }
         }
     }
@@ -1476,7 +1477,7 @@ class WalletViewModel @Inject constructor(
                 refreshUntilPrimarySettles(assetId)
                 _setPrimaryState.value = SetPrimaryDomainUiState()
             } catch (e: Exception) {
-                _setPrimaryState.value = SetPrimaryDomainUiState(assetId = assetId, inFlight = false, errorMessage = e.message ?: "Failed to set primary domain")
+                _setPrimaryState.value = SetPrimaryDomainUiState(assetId = assetId, inFlight = false, errorMessage = UserFacingError.message(e, "Failed to set primary domain"))
             }
         }
     }
@@ -1551,7 +1552,7 @@ class WalletViewModel @Inject constructor(
                 }
                 _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, resolvedAddress = resolved)
             } catch (e: Exception) {
-                _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, errorMessage = e.message ?: "Invalid recipient")
+                _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, errorMessage = UserFacingError.message(e, "Invalid recipient"))
             }
         }
     }
@@ -1586,7 +1587,7 @@ class WalletViewModel @Inject constructor(
                 _transferDomainState.value = TransferDomainUiState(status = KnsInscribeUiStatus.SUCCESS, result = result)
                 refreshOwnedDomains()
             } catch (e: Exception) {
-                _transferDomainState.value = TransferDomainUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = e.message ?: "Transfer failed")
+                _transferDomainState.value = TransferDomainUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = UserFacingError.message(e, "Transfer failed"))
             }
         }
     }
@@ -2015,7 +2016,7 @@ class WalletViewModel @Inject constructor(
                     commitKas = commitKas
                 )
             } catch (e: Exception) {
-                _domainPreview.value = DomainAvailabilityPreview(label = label, checking = false, errorMessage = e.message ?: "Check failed")
+                _domainPreview.value = DomainAvailabilityPreview(label = label, checking = false, errorMessage = UserFacingError.message(e, "Check failed"))
             }
         }
     }
@@ -2037,7 +2038,7 @@ class WalletViewModel @Inject constructor(
                 _knsInscribeState.value = KnsInscribeUiState(status = KnsInscribeUiStatus.SUCCESS, result = result)
                 refreshOwnedDomains()
             } catch (e: Exception) {
-                _knsInscribeState.value = KnsInscribeUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = e.message ?: "Inscription failed")
+                _knsInscribeState.value = KnsInscribeUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = UserFacingError.message(e, "Inscription failed"))
             }
         }
     }
@@ -2055,7 +2056,7 @@ class WalletViewModel @Inject constructor(
                 walletService.retryPendingKnsReveal(pending)
                 _knsInscribeState.value = KnsInscribeUiState(status = KnsInscribeUiStatus.SUCCESS)
             } catch (e: Exception) {
-                _knsInscribeState.value = KnsInscribeUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = e.message ?: "Retry failed")
+                _knsInscribeState.value = KnsInscribeUiState(status = KnsInscribeUiStatus.FAILED, errorMessage = UserFacingError.message(e, "Retry failed"))
             }
         }
     }

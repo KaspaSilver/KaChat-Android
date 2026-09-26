@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.UserFacingError
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kachat.app.repository.AppSettingsRepository
@@ -62,7 +63,7 @@ class ColdStorageViewModel @Inject constructor(
             onFailure = { e ->
                 _importState.value = ImportUiState(
                     status = ImportStatus.INVALID_KPUB,
-                    errorMessage = e.message ?: "Not a valid kpub"
+                    errorMessage = UserFacingError.message(e, "Not a valid kpub")
                 )
             }
         )
@@ -694,7 +695,7 @@ class ColdStorageViewModel @Inject constructor(
                     )
                 },
                 onFailure = { e ->
-                    _sendState.value = ColdSendUiState(step = ColdSendStep.FAILED, errorMessage = e.message ?: "Failed to build transaction")
+                    _sendState.value = ColdSendUiState(step = ColdSendStep.FAILED, errorMessage = UserFacingError.message(e, "Failed to build transaction"))
                 }
             )
         }
@@ -708,7 +709,7 @@ class ColdStorageViewModel @Inject constructor(
             val decoded = KsptCodec.decode(scannedBytes).getOrElse { e ->
                 _sendState.value = _sendState.value.copy(
                     step = ColdSendStep.FAILED,
-                    errorMessage = e.message ?: "Couldn't read the signed transaction"
+                    errorMessage = UserFacingError.message(e, "Couldn't read the signed transaction")
                 )
                 return@launch
             }
@@ -718,7 +719,7 @@ class ColdStorageViewModel @Inject constructor(
                     _sendState.value = ColdSendUiState(step = ColdSendStep.SUCCESS, txId = txId)
                 },
                 onFailure = { e ->
-                    _sendState.value = _sendState.value.copy(step = ColdSendStep.FAILED, errorMessage = e.message ?: "Broadcast failed")
+                    _sendState.value = _sendState.value.copy(step = ColdSendStep.FAILED, errorMessage = UserFacingError.message(e, "Broadcast failed"))
                 }
             )
         }

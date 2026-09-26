@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.UserFacingError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -175,7 +176,7 @@ class BackupRestoreCoordinator @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _phase.value = Phase.Failure(e.message ?: "Something went wrong. Please try again.")
+            _phase.value = Phase.Failure(UserFacingError.message(e, "Something went wrong. Please try again."))
         }
     }
 
@@ -208,7 +209,7 @@ class BackupRestoreCoordinator @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _phase.value = Phase.Failure(e.message ?: "Something went wrong. Please try again.")
+            _phase.value = Phase.Failure(UserFacingError.message(e, "Something went wrong. Please try again."))
         }
     }
 

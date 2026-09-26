@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.UserFacingError
 import com.kachat.app.R
 import android.Manifest
 import android.content.pm.PackageManager
@@ -1868,7 +1869,7 @@ fun GroupChatInfoScreen(
                     // Stash it and confirm (with the estimated fee) before sending.
                     pendingPhotoHex = hex
                 } catch (e: Exception) {
-                    groupPhotoError = e.message ?: "Could not set group photo"
+                    groupPhotoError = UserFacingError.message(e, "Could not set group photo")
                 }
             }
         }

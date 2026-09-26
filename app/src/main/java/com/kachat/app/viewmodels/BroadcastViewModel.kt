@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.kachat.app.util.redactedForLog
 import android.content.Context
 import android.util.Log
@@ -534,6 +535,31 @@ class BroadcastViewModel @Inject constructor(
     }
 
     fun getMessages(channelName: String) = broadcastRepository.getMessages(channelName)
+
+    // ------------------------------------------------------------------
+    // Room window — "Load earlier messages"
+    // ------------------------------------------------------------------
+    //
+    // A curated room holds thirty days of history and the thread screen read all of it, on open
+    // and again on every change (iOS 02a4f58). It reads the newest ROOM_WINDOW_SIZE now, and the
+    // control at the top of the room adds another window's worth. Per channel, and deliberately
+    // NOT persisted: reopening a room starts from the newest again, as iOS does.
+    private val roomWindows = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getMessageWindow(channelName: String): Flow<BroadcastRepository.RoomWindow> =
+        roomWindows
+            .map { it[channelName] ?: BroadcastRepository.ROOM_WINDOW_SIZE }
+            .distinctUntilChanged()
+            .flatMapLatest { limit -> broadcastRepository.getMessageWindow(channelName, limit) }
+
+    /** Widens [channelName]'s window by another [BroadcastRepository.ROOM_WINDOW_SIZE]. */
+    fun loadEarlier(channelName: String) {
+        roomWindows.value = roomWindows.value.toMutableMap().apply {
+            this[channelName] = (this[channelName] ?: BroadcastRepository.ROOM_WINDOW_SIZE) +
+                BroadcastRepository.ROOM_WINDOW_SIZE
+        }
+    }
 
     // The message currently being replied to (double-tap on its bubble to set this), shown as a
     // banner above the compose field — cleared automatically once the reply actually sends.

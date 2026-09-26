@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.UserFacingError
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent

@@ -2545,7 +2545,22 @@ private fun ChessClockChip(
         ) {
             Text(label, color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             Icon(Icons.Default.Timer, contentDescription = null, tint = content, modifier = Modifier.size(14.dp))
-            val tenths = (remaining / 100).toInt()
+            // `remaining` moves once a second now. In the last ten seconds this chip shows
+            // tenths, so it counts them down itself from the last published value rather than
+            // making every chess screen recompose five times a second for a digit only it draws
+            // (iOS cbf7f26 does this with a TimelineView). Re-anchors on each new publish.
+            val drawsTenths = isActive && remaining < 10_000
+            var ticked by remember(remaining) { mutableStateOf(remaining) }
+            LaunchedEffect(remaining, drawsTenths) {
+                if (!drawsTenths) return@LaunchedEffect
+                val anchoredAt = System.currentTimeMillis()
+                while (true) {
+                    kotlinx.coroutines.delay(100)
+                    ticked = (remaining - (System.currentTimeMillis() - anchoredAt)).coerceAtLeast(0L)
+                }
+            }
+            val shown = if (drawsTenths) ticked else remaining
+            val tenths = (shown / 100).toInt()
             val seconds = tenths / 10
             Text(
                 if (seconds < 10) "0:%02d.%d".format(seconds, tenths % 10) else "%d:%02d".format(seconds / 60, seconds % 60),

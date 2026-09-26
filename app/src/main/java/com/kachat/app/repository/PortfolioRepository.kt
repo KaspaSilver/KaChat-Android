@@ -327,9 +327,21 @@ class PortfolioRepository @Inject constructor(
     // which range was selected. Persisting each (currency, days) history for 10 minutes makes
     // range cycling free after the first fetch (and across relaunches), and on a failed fetch the
     // stale copy for the *requested* range still beats showing the wrong range. Storage is a
-    // SharedPreferences JSON payload per (currency, days) key, same prefs+Gson pattern as
-    // GiftManager; the freshness policy (TTL check, stale fallback) lives with the caller —
-    // see PortfolioViewModel's fetchPriceHistory.
+    // One JSON file per (currency, days) series, NOT a SharedPreferences entry. Seven ranges
+    // across the app currency and up to four comparison pairs, at up to 6000 points each, all
+    // used to live in one prefs file - and SharedPreferences loads the whole file on first
+    // access and rewrites the whole file on every apply(), so reading one day of prices meant
+    // parsing every series ever cached, and writing one meant serialising them all again
+    // (iOS 584e6eb). A file per series reads and writes only what was asked for.
+    //
+    // Reads stay synchronous because the callers are not suspend functions, so the first read of
+    // a series still touches disk on the calling thread - but it is one small file rather than
+    // the whole multi-megabyte blob, and every read after it is served from memory. Writes go
+    // out on an IO scope and land atomically via a temp file and a rename, so a kill mid-write
+    // leaves the previous series intact rather than a half-written one.
+    //
+    // The freshness policy (TTL check, stale fallback) lives with the caller - see
+    // PortfolioViewModel's fetchPriceHistory.
 
     /** Gson payload persisted per (currency, days) — [t] = timestampMillis, [p] = price, kept short since a 365-day history is thousands of points. */
     private data class StoredPricePoint(val t: Long, val p: Double)
@@ -341,16 +353,40 @@ class PortfolioRepository @Inject constructor(
     private val priceHistoryPrefs = context.getSharedPreferences(PRICE_HISTORY_PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
 
+    /** Under noBackupFilesDir: the counterpart of iOS putting these in Application Support with
+     *  the backup flag cleared. Nothing here is worth restoring - it is all refetchable. */
+    private val priceHistoryDir: File by lazy {
+        File(context.noBackupFilesDir, "price_history").apply { mkdirs() }
+    }
+
+    /** Parsed series held in memory, so only the first read of each touches disk. */
+    private val priceHistoryMemory = java.util.concurrent.ConcurrentHashMap<String, PersistedPriceHistory>()
+
+    private val priceHistoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        priceHistoryScope.launch { runCatching { migrateLegacyPriceHistoryEntries() } }
+    }
+
     private fun priceHistoryCacheKey(days: Int, currency: String) = "kachat_price_history_${currency}_$days"
+
+    private fun priceHistoryFile(days: Int, currency: String) =
+        File(priceHistoryDir, priceHistoryCacheKey(days, currency) + ".json")
 
     /** Null when nothing was ever persisted for this (currency, days) — or the payload is corrupt/empty, which callers treat the same way. */
     fun readPersistedPriceHistory(days: Int, currency: String): PersistedPriceHistory? {
-        val json = priceHistoryPrefs.getString(priceHistoryCacheKey(days, currency), null) ?: return null
+        val key = priceHistoryCacheKey(days, currency)
+        priceHistoryMemory[key]?.let { return it }
+        val file = priceHistoryFile(days, currency)
+        if (!file.exists()) return null
         return try {
-            val stored = gson.fromJson(json, StoredPriceHistory::class.java) ?: return null
+            val stored = gson.fromJson(file.readText(), StoredPriceHistory::class.java) ?: return null
             if (stored.points.isNullOrEmpty()) return null
             PersistedPriceHistory(stored.fetchedAt, stored.points.map { it.t to it.p })
+                .also { priceHistoryMemory[key] = it }
         } catch (e: Exception) {
+            // A corrupt series is not worth keeping around to fail again on the next launch.
+            runCatching { file.delete() }
             null
         }
     }
@@ -358,7 +394,32 @@ class PortfolioRepository @Inject constructor(
     fun persistPriceHistory(points: List<Pair<Long, Double>>, days: Int, currency: String) {
         if (points.isEmpty()) return
         val stored = StoredPriceHistory(System.currentTimeMillis(), points.map { StoredPricePoint(it.first, it.second) })
-        priceHistoryPrefs.edit().putString(priceHistoryCacheKey(days, currency), gson.toJson(stored)).apply()
+        val key = priceHistoryCacheKey(days, currency)
+        priceHistoryMemory[key] = PersistedPriceHistory(stored.fetchedAt, points)
+        val json = gson.toJson(stored)
+        priceHistoryScope.launch {
+            runCatching {
+                val target = priceHistoryFile(days, currency)
+                val temp = File(target.parentFile, target.name + ".tmp")
+                temp.writeText(json)
+                if (!temp.renameTo(target)) {
+                    target.delete()
+                    temp.renameTo(target)
+                }
+            }
+        }
+    }
+
+    /** The series used to live in [PRICE_HISTORY_PREFS_NAME] alongside the current-price and
+     *  per-day caches, which stay there - they are a handful of short strings. Dropped once so an
+     *  updating install stops carrying megabytes it will never read again. */
+    private fun migrateLegacyPriceHistoryEntries() {
+        if (priceHistoryPrefs.getBoolean(PREF_SERIES_MIGRATED_TO_FILES, false)) return
+        val stale = priceHistoryPrefs.all.keys.filter { it.startsWith("kachat_price_history_") }
+        priceHistoryPrefs.edit().apply {
+            stale.forEach { remove(it) }
+            putBoolean(PREF_SERIES_MIGRATED_TO_FILES, true)
+        }.apply()
     }
 
     // -------------------------------------------------------------------------
@@ -805,6 +866,7 @@ class PortfolioRepository @Inject constructor(
 
     companion object {
         private const val PRICE_HISTORY_PREFS_NAME = "kachat_price_history_cache"
+        private const val PREF_SERIES_MIGRATED_TO_FILES = "series_moved_to_files"
 
         /** How long a persisted (currency, days) history counts as fresh — long enough to make range cycling and relaunches free, short enough that the chart never looks meaningfully out of date. */
         const val PRICE_HISTORY_CACHE_TTL_MILLIS = 10 * 60 * 1000L

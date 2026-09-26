@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.UserFacingError
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Context
@@ -293,7 +294,7 @@ class ChatViewModel @Inject constructor(
                 onReady(uri)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Chat history export failed", e)
-                _exportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Export failed")
+                _exportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = UserFacingError.message(e, "Export failed"))
             }
         }
     }
@@ -313,7 +314,7 @@ class ChatViewModel @Inject constructor(
                 onReady(uri)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Diagnostics export failed", e)
-                _diagnosticsExportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Export failed")
+                _diagnosticsExportState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = UserFacingError.message(e, "Export failed"))
             }
         }
     }
@@ -332,7 +333,7 @@ class ChatViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Chat history import failed", e)
-                _importState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Import failed")
+                _importState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = UserFacingError.message(e, "Import failed"))
             }
         }
     }
@@ -390,7 +391,7 @@ class ChatViewModel @Inject constructor(
                 refreshNextcloudBackupInfo()
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Nextcloud connect failed", e)
-                _nextcloudConnectState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Could not connect")
+                _nextcloudConnectState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = UserFacingError.message(e, "Could not connect"))
             }
         }
     }
@@ -421,7 +422,7 @@ class ChatViewModel @Inject constructor(
                 refreshNextcloudBackupInfo()
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Nextcloud backup failed", e)
-                _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = e.message ?: "Backup failed")
+                _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = UserFacingError.message(e, "Backup failed"))
             }
         }
     }
@@ -510,7 +511,7 @@ class ChatViewModel @Inject constructor(
                 onLocalWipeComplete()
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Wipe account failed", e)
-                _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.FAILED, message = e.message ?: "Failed")
+                _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.FAILED, message = UserFacingError.message(e, "Failed"))
             }
         }
     }
@@ -1407,7 +1408,7 @@ class ChatViewModel @Inject constructor(
                 onCreated(group.groupId)
             } catch (e: Exception) {
                 _isCreatingGroup.value = false
-                _createGroupError.value = e.message ?: "Failed to create group"
+                _createGroupError.value = UserFacingError.message(e, "Failed to create group")
             }
         }
     }
@@ -1481,7 +1482,7 @@ class ChatViewModel @Inject constructor(
                 groupRepository.sendGroupEdit(targetTxId, groupId, clean)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending group edit", e)
-                onError(e.message ?: "Edit failed")
+                onError(UserFacingError.message(e, "Edit failed"))
             }
         }
     }
@@ -1631,7 +1632,7 @@ class ChatViewModel @Inject constructor(
                 groupRepository.sendGroupMessage(payload, groupId)
                 _groupReplyingTo.value = null
             } catch (e: Exception) {
-                onError(e.message ?: "Failed to send")
+                onError(UserFacingError.message(e, "Failed to send"))
             }
         }
     }
@@ -1735,7 +1736,7 @@ class ChatViewModel @Inject constructor(
             try {
                 groupRepository.renameGroup(groupId, newName)
             } catch (e: Exception) {
-                onError(e.message ?: "Failed to rename group")
+                onError(UserFacingError.message(e, "Failed to rename group"))
             }
         }
     }
@@ -1744,7 +1745,7 @@ class ChatViewModel @Inject constructor(
     fun resendGroupInvites(groupId: String, onResult: (String) -> Unit = {}) {
         viewModelScope.launch {
             try { groupRepository.resendInvites(groupId); onResult("Invites resent to all members.") }
-            catch (e: Exception) { onResult(e.message ?: "Failed to resend invites") }
+            catch (e: Exception) { onResult(UserFacingError.message(e, "Failed to resend invites")) }
         }
     }
 
@@ -1752,7 +1753,7 @@ class ChatViewModel @Inject constructor(
     fun setGroupPhoto(groupId: String, photoHex: String, onResult: (String?) -> Unit = {}) {
         viewModelScope.launch {
             try { groupRepository.setGroupPhoto(groupId, photoHex); onResult(null) }
-            catch (e: Exception) { onResult(e.message ?: "Failed to update group photo") }
+            catch (e: Exception) { onResult(UserFacingError.message(e, "Failed to update group photo")) }
         }
     }
 
@@ -1760,7 +1761,7 @@ class ChatViewModel @Inject constructor(
     fun resendGroupInviteToMember(groupId: String, address: String, onResult: (String) -> Unit = {}) {
         viewModelScope.launch {
             try { groupRepository.resendInviteToMember(groupId, address); onResult("Invite resent.") }
-            catch (e: Exception) { onResult(e.message ?: "Failed to resend invite") }
+            catch (e: Exception) { onResult(UserFacingError.message(e, "Failed to resend invite")) }
         }
     }
 
@@ -2155,7 +2156,7 @@ class ChatViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Edit of ${target.id.take(12)} failed: ${e.message}", e)
                 chatRepository.upsertOwnEdit(target.id, contactId, clean, null, now, deliveryStatus = "failed")
-                onError(e.message ?: "Edit failed")
+                onError(UserFacingError.message(e, "Edit failed"))
             }
         }
     }
@@ -2330,7 +2331,7 @@ class ChatViewModel @Inject constructor(
                 // message. A failed "remove" restores the optimistically-deleted reaction (marked
                 // failed) so it isn't silently lost; Retry re-attempts the change.
                 chatRepository.upsertReaction(targetTxId, myAddress, contactId, emoji, null, System.currentTimeMillis(), deliveryStatus = "failed", failedAction = action)
-                onError(e.message ?: "Reaction failed")
+                onError(UserFacingError.message(e, "Reaction failed"))
             }
         }
     }

@@ -91,6 +91,7 @@
     <string name="what_stays_available">What stays available</string>
     <string name="chats_and_group_chats">Chats &amp; Group Chats</string>
     <string name="child_mode_about_footer">While Simple Mode is on, Swaps, KaPosts and Public Chats are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Simple Mode; only the password does.</string>
+    <string name="load_earlier_messages">Load earlier messages</string>
     <string name="delivery_sent">Sent</string>
     <string name="delivery_sending">Sending</string>
     <string name="delivery_failed">Failed</string>

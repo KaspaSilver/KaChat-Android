@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.UserFacingError
 import com.kachat.app.util.redactedForLog
 import android.Manifest
 import android.app.Activity
@@ -6228,7 +6229,7 @@ fun SpendingAddressSendFlow(
                                             Log.w("SendFlow", "Max estimate failed for ${fromAddress.redactedForLog()}", e)
                                             Toast.makeText(
                                                 context,
-                                                e.message ?: "Could not work out the maximum.",
+                                                UserFacingError.message(e, "Could not work out the maximum."),
                                                 Toast.LENGTH_SHORT,
                                             ).show()
                                         } finally {

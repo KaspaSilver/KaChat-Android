@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.UserFacingError
 import com.kachat.app.util.redactedForLog
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -91,7 +92,7 @@ class KaPostsViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "Could not schedule a post", e)
-                _schedulingError.value = e.message ?: "Could not schedule this post"
+                _schedulingError.value = UserFacingError.message(e, "Could not schedule this post")
             }
         }
     }
@@ -303,7 +304,7 @@ class KaPostsViewModel @Inject constructor(
                 fetch(cursor)
             } catch (e: Exception) {
                 Log.w(TAG, "Page fetch failed", e)
-                error = e.message ?: "Could not load more"
+                error = UserFacingError.message(e, "Could not load more")
                 break
             }
             val fresh = page.rawIds.filterNot { it in seen }.toSet()

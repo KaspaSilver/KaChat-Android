@@ -163,14 +163,40 @@ class BroadcastRepository @Inject constructor(
         }
     }
 
+    /** A room's newest [ROOM_WINDOW_SIZE] rows (widened by "Load earlier messages"), and whether
+     *  the read filled the window — which is the only way to know there is more behind it. */
+    data class RoomWindow(val messages: List<BroadcastMessageEntity>, val hasMore: Boolean)
+
     /** Never includes messages from a sender hidden IN THIS ROOM (or via a legacy every-room hide) — including ones already cached from before the hide (see BroadcastScanningService for the future-side enforcement). Reaction messages (see [getReactions]) never render as a message row, so they're filtered out here too. */
-    fun getMessages(channelName: String): Flow<List<BroadcastMessageEntity>> {
-        return combine(database.broadcastDao().getMessagesForChannel(channelName), getHiddenSenders()) { messages, hidden ->
+    fun getMessages(channelName: String): Flow<List<BroadcastMessageEntity>> =
+        getMessageWindow(channelName, limit = null).map { it.messages }
+
+    /**
+     * The room read as a window. A curated room keeps thirty days of history, and the screen used
+     * to load every row of it on open and again on every change (iOS 02a4f58). [limit] null reads
+     * the whole room, which is what the summary paths and the chess arena's reducer need.
+     *
+     * `hasMore` is measured on the RAW rows, before reactions and edits are filtered out: those
+     * are rows in the same table, so a window of N raw rows renders fewer than N bubbles, and
+     * counting the rendered ones would call a full window exhausted.
+     */
+    fun getMessageWindow(channelName: String, limit: Int?): Flow<RoomWindow> {
+        val rows = if (limit == null) {
+            database.broadcastDao().getMessagesForChannel(channelName)
+        } else {
+            // DESC + LIMIT takes the NEWEST n off the (channelName, blockTimestamp) index; the
+            // screen wants them oldest-first, as the unwindowed query already returns them.
+            database.broadcastDao().getLatestMessagesForChannel(channelName, limit).map { it.asReversed() }
+        }
+        return combine(rows, getHiddenSenders()) { messages, hidden ->
             val hiddenHere = hiddenAddressesIn(channelName, hidden)
-            messages.filterNot {
-                it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null ||
-                    com.kachat.app.util.MessageEdit.parseOrNull(it.content) != null
-            }
+            RoomWindow(
+                messages = messages.filterNot {
+                    it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null ||
+                        com.kachat.app.util.MessageEdit.parseOrNull(it.content) != null
+                },
+                hasMore = limit != null && messages.size >= limit,
+            )
         }
     }
 
@@ -284,6 +310,10 @@ class BroadcastRepository @Inject constructor(
         /** How far back the Public Chats list looks in each room. A badge past this reads the
          *  same to anyone, and it keeps a busy curated room cheap to summarise. */
         const val SUMMARY_WINDOW = 200
+
+        /** How much of a room the thread screen reads at once, and how much each "Load earlier
+         *  messages" adds. iOS's `roomWindowSize`. */
+        const val ROOM_WINDOW_SIZE = 400
 
         /** Which senders are hidden in [channelName]: room-scoped rows plus legacy every-room ("") rows. */
         fun hiddenAddressesIn(channelName: String, rows: List<HiddenBroadcastSenderEntity>): Set<String> =

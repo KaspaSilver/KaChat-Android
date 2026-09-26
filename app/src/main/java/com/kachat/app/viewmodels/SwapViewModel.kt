@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.UserFacingError
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kachat.app.models.CURATED_SWAP_COINS
@@ -333,7 +334,7 @@ class SwapViewModel @Inject constructor(
                 onFailure = { e ->
                     _createSwapState.value = CreateSwapUiState(
                         status = CreateSwapStatus.FAILED,
-                        errorMessage = e.message ?: "Something went wrong"
+                        errorMessage = UserFacingError.message(e, "Something went wrong")
                     )
                 }
             )

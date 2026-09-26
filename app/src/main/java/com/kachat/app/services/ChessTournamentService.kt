@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.UserFacingError
 import android.util.Log
 import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.services.database.KaChatDatabase
@@ -139,7 +140,12 @@ class ChessTournamentService @Inject constructor(
         clockJob?.cancel()
         clockJob = scope.launch {
             while (isActive) {
-                delay(200)
+                // Once a second. Five chess composables collect `now`, so a 5 Hz publish
+                // re-rendered every chess screen five times a second for a digit only the board's
+                // clock chip draws - and that chip runs its own 100 ms timeline in the last ten
+                // seconds instead (iOS cbf7f26). A timeout claim does not need 200 ms precision:
+                // the clock it reads is chain time, and the claim is idempotent.
+                delay(1_000)
                 _now.value = System.currentTimeMillis()
                 claimTimeoutsIfDue()
             }
@@ -523,7 +529,7 @@ class ChessTournamentService @Inject constructor(
             } catch (e: Exception) {
                 attempt += 1
                 if (attempt > 5) {
-                    _lastError.value = e.message ?: "Could not send"
+                    _lastError.value = UserFacingError.message(e, "Could not send")
                     Log.w(TAG, "Send failed after retries", e)
                     return false
                 }

@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.UserFacingError
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -128,7 +129,7 @@ fun NextcloudPickerDialog(
         entries = try {
             service.listFolder(currentPath)
         } catch (e: Exception) {
-            errorMessage = e.message ?: "Could not load this folder."
+            errorMessage = UserFacingError.message(e, "Could not load this folder.")
             emptyList()
         }
         isLoading = false
@@ -152,7 +153,7 @@ fun NextcloudPickerDialog(
                     onPick(url)
                 } catch (e: Exception) {
                     sharingPath = null
-                    errorMessage = e.message ?: "Could not create a share link."
+                    errorMessage = UserFacingError.message(e, "Could not create a share link.")
                 }
             }
         }
@@ -410,7 +411,7 @@ fun NextcloudFolderSelectDialog(
             // Newest-first comes from listFolder; this only drops the non-folder entries.
             service.listFolder(currentPath).filter { it.isDirectory }
         } catch (e: Exception) {
-            errorMessage = e.message ?: "Could not load this folder."
+            errorMessage = UserFacingError.message(e, "Could not load this folder.")
             emptyList()
         }
         isLoading = false

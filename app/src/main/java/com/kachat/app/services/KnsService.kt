@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.UserFacingError
 import android.util.Log
 import com.kachat.app.util.KaspaMessageSigner
 import kotlinx.coroutines.async

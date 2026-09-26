@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.UserFacingError
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
@@ -686,7 +687,9 @@ fun BroadcastChannelScreen(
     }
 
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
-    val messages by broadcastViewModel.getMessages(channelName).collectAsState(initial = emptyList())
+    val messageWindow by broadcastViewModel.getMessageWindow(channelName)
+        .collectAsState(initial = com.kachat.app.repository.BroadcastRepository.RoomWindow(emptyList(), false))
+    val messages = messageWindow.messages
     // Reactions aggregated per message txId — same shape as GroupChatScreen's groupReactionsByTxId.
     val channelReactions by broadcastViewModel.getReactions(channelName).collectAsState(initial = emptyList())
     val reactionsByTxId = remember(channelReactions) { channelReactions.groupBy { it.targetTxId } }
@@ -1207,6 +1210,30 @@ fun BroadcastChannelScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
+                // At the top of the room, above the oldest message the window reaches, exactly
+                // where iOS puts it (02a4f58).
+                if (messageWindow.hasMore) {
+                    item(key = "load_earlier") {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Surface(
+                                color = LocalAppColors.current.surface,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.clickable { broadcastViewModel.loadEarlier(channelName) },
+                            ) {
+                                Text(
+                                    stringResource(R.string.load_earlier_messages),
+                                    color = KaspaTeal,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                }
                 itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
                     val showDateDivider = index == 0 || !ChatTimeFormat.isSameDay(messages[index - 1].blockTimestamp, message.blockTimestamp)
                     if (showDateDivider) {
