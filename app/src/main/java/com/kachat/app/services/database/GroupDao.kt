@@ -35,6 +35,14 @@ interface GroupDao {
     @Query("DELETE FROM groups WHERE groupId = :groupId AND walletAddress = :walletAddress")
     suspend fun deleteGroup(groupId: String, walletAddress: String)
 
+    /** Every group this wallet holds, for an account deletion — see ChatRepository.wipeAllLocalDataForAddress. */
+    @Query("DELETE FROM groups WHERE walletAddress = :walletAddress")
+    suspend fun deleteAllGroupsForWallet(walletAddress: String)
+
+    /** Every group message this wallet holds, for the same. */
+    @Query("DELETE FROM group_messages WHERE walletAddress = :walletAddress")
+    suspend fun deleteAllGroupMessagesForWallet(walletAddress: String)
+
     @Query("DELETE FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress")
     suspend fun deleteMessagesForGroup(groupId: String, walletAddress: String)
 

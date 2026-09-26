@@ -880,6 +880,11 @@ class ChatRepository @Inject constructor(
         database.messageDao().deleteSyncCursorsForWallet(address)
         database.contactDao().deleteAllForWallet(address)
         database.contactDao().deleteTombstonesForWallet(address)
+        // Groups too. They are keyed by walletAddress like everything above, and leaving them
+        // meant a deleted account's group threads and their messages stayed on the device and
+        // came back the moment that account was re-imported (iOS 78152d3).
+        database.groupDao().deleteAllGroupMessagesForWallet(address)
+        database.groupDao().deleteAllGroupsForWallet(address)
         // The DataStore sync cursors MUST reset with the data: they survived account deletion,
         // so re-importing an account previously held on this device resumed the handshake scan
         // at the old cursor — ZERO historical handshakes came back and no contacts were

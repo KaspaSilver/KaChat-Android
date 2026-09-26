@@ -509,7 +509,10 @@ fun SavedAccountCard(
         ConfirmActionSheet(
             title = stringResource(R.string.delete_account),
             confirmTitle = stringResource(R.string.delete),
-            confirmSubtitle = "Removes \"${account.name}\" from this device. Without its seed phrase written down, any remaining balance is unrecoverable.",
+            confirmSubtitle = "Removes \"${account.name}\" and everything it holds on this device - its " +
+                "chats, contacts, groups and keys. Messages and posts already on the Kaspa blockDAG " +
+                "stay there and cannot be deleted. Without its seed phrase written down, any " +
+                "remaining balance is unrecoverable.",
             confirmIcon = Icons.Default.Delete,
             onConfirm = onDelete,
             onDismiss = { showDeleteConfirm = false },

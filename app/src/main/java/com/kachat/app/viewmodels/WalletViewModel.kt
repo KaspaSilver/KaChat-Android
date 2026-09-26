@@ -54,7 +54,8 @@ class WalletViewModel @Inject constructor(
     private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
     private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
-    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter
+    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter,
+    private val chatRepository: com.kachat.app.repository.ChatRepository
 ) : ViewModel() {
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
@@ -1154,6 +1155,15 @@ class WalletViewModel @Inject constructor(
             // The phone's contact cards must not keep offering "KaChat call" for chats whose
             // keys are about to be destroyed.
             viewModelScope.launch(Dispatchers.IO) { runCatching { callableContactsExporter.removeAll() } }
+        }
+        // Everything this account held locally goes with it. wipeAllLocalDataForAddress has been
+        // here the whole time and nothing called it on deletion, so a deleted account's messages,
+        // contacts, reactions, edits, groups and sync cursors all stayed on the device - and came
+        // back the moment the account was re-imported (iOS 78152d3). Runs before the record is
+        // removed so the address is still resolvable, and on IO because it is a pile of DELETEs.
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { chatRepository.wipeAllLocalDataForAddress(address) }
+                .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
         }
         walletManager.deleteAccount(address)
         _accounts.value = walletManager.getAllAccounts()
