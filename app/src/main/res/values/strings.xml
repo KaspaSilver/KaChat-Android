@@ -98,6 +98,11 @@
     <string name="delivery_failed_tap_to_retry">Failed \u00b7 Tap to retry</string>
     <string name="delivery_needs_attention">Needs attention</string>
     <string name="delivery_failed_retry_accessibility">Failed to send. Tap to retry.</string>
+    <string name="battery_rationale_title">Get notified while KaChat is closed</string>
+    <string name="battery_rationale_body">Your messages are end-to-end encrypted, so KaChat\'s server can\'t read them to write your notifications. It sends a quiet wake-up instead, and KaChat decrypts the message here on your phone. Some phones shut apps down to save battery, and then that wake-up goes nowhere. Android will ask next whether KaChat can run in the background - allowing it keeps your notifications arriving.</string>
+    <string name="battery_rationale_allow">Allow</string>
+    <string name="battery_rationale_allow_detail">Opens Android\'s prompt. KaChat doesn\'t sync or poll in the background because of this - it only lets a new message wake it up.</string>
+    <string name="battery_rationale_not_now_detail">KaChat works the same while it\'s open; notifications may be late while it\'s closed. You can change this later in Settings &gt; Apps &gt; KaChat &gt; Battery.</string>
     <string name="open_source_licenses">Open Source Licenses</string>
     <string name="screen_lock_required">Screen Lock Required</string>
     <string name="screen_lock_required_message">Set a screen lock on this phone (Settings &gt; Security) to view or unlock secret keys in KaChat.</string>

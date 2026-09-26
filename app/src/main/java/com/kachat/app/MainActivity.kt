@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.setContent
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Close
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
@@ -61,6 +63,11 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     @Inject lateinit var callService: CallService
+    @Inject lateinit var onboardingGate: com.kachat.app.services.OnboardingGate
+
+    // The KaChat sheet that explains the battery exemption before Android's own dialog. Re-derived
+    // on every resume (see refreshBatteryRationale), so it follows the notification answer.
+    private var batteryRationaleDue by mutableStateOf(false)
 
     private var pendingContactId by mutableStateOf<String?>(null)
     private var pendingChannelName by mutableStateOf<String?>(null)
@@ -73,7 +80,11 @@ class MainActivity : AppCompatActivity() {
     // Android 13+ requires an explicit runtime grant before ANY notification (local or FCM push)
     // can be shown. Registered here (during construction, as required) and requested in onCreate.
     private val requestNotificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* result ignored */ }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // The battery sheet waits for this answer: notifications off means there is nothing
+            // for the exemption to deliver, so it is not worth asking.
+            if (granted) refreshBatteryRationale()
+        }
 
     private fun maybeRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
@@ -84,27 +95,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * One-time nudge to exempt KaChat from battery optimization — the OS "Allow to run in the
-     * background?" dialog (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS). Encrypted DM/group push is
-     * delivered data-only so the app can decrypt it; a force-closed app under aggressive OEM
-     * battery management may otherwise never wake to receive it. Only shown once, only after
-     * notifications are enabled (so it doesn't stack on the notification-permission dialog), and
-     * only if not already exempt.
+     * The battery-optimization exemption - Android's "Let KaChat always run in background?"
+     * dialog (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS). Encrypted DM/group push is delivered
+     * data-only so the app can decrypt it on the phone; an app frozen by aggressive OEM battery
+     * management never wakes to receive it, and the notification never appears.
+     *
+     * It used to fire the system dialog straight from onCreate with no word of explanation - on
+     * Android 13+ a launch AFTER notifications were granted, seemingly at random; below 13, the
+     * first launch, over whatever was on screen. Now [BatteryExemptionRationale] says why first,
+     * and Android's dialog only opens from its Allow. Asked once either way, as before.
      */
-    private fun maybeRequestBatteryExemption() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        // Premature before the user has notifications on — wait until they do.
+    private fun batteryExemptionDue(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            return
+            return false
         }
         val prefs = getSharedPreferences("kachat_prefs", Context.MODE_PRIVATE)
-        if (prefs.getBoolean("battery_exemption_asked", false)) return
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
-        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return
-        prefs.edit().putBoolean("battery_exemption_asked", true).apply()
+        if (prefs.getBoolean("battery_exemption_asked", false)) return false
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return false
+        return !powerManager.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    private fun refreshBatteryRationale() {
+        batteryRationaleDue = batteryExemptionDue()
+    }
+
+    private fun markBatteryExemptionAsked() {
+        getSharedPreferences("kachat_prefs", Context.MODE_PRIVATE)
+            .edit().putBoolean("battery_exemption_asked", true).apply()
+        batteryRationaleDue = false
+    }
+
+    private fun acceptBatteryExemption() {
+        markBatteryExemptionAsked()
         try {
             startActivity(
                 Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
@@ -114,6 +140,12 @@ class MainActivity : AppCompatActivity() {
             // A few OEMs don't implement the direct dialog — fall back to the battery-optimization list.
             runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Covers returning from the notification-permission dialog, and from system Settings.
+        refreshBatteryRationale()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,7 +168,7 @@ class MainActivity : AppCompatActivity() {
         }
         enableEdgeToEdge()
         maybeRequestNotificationPermission()
-        maybeRequestBatteryExemption()
+        refreshBatteryRationale()
         intent?.let(::consumeNotificationTarget)
         intent?.let(::handleBroadcastDeepLink)
         intent?.let(::handleShareIntent)
@@ -146,6 +178,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
             val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
+            val isLoggedIn by walletViewModel.isLoggedIn.collectAsState()
             KaChatTheme(darkTheme = darkModeEnabled) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -164,6 +197,7 @@ class MainActivity : AppCompatActivity() {
                         onPendingWalletActivityHandled = { pendingWalletActivityKind = null }
                     )
                     CrashNotice()
+                    BatteryExemptionRationale(isLoggedIn = isLoggedIn)
                     // The call screen (ringing in, ringing out, connected) sits over the whole
                     // app, whichever screen is showing - a call is not a page of the chat it
                     // started from.
@@ -179,6 +213,36 @@ class MainActivity : AppCompatActivity() {
      * Share sends the newest report to a share sheet (mail, Telegram, anything); Not now keeps
      * it for the diagnostics archive under Settings > Diagnostics.
      */
+    /**
+     * Says why before Android asks. Only inside the app proper - logged in, no onboarding wizard
+     * running - and never on the same launch as the crash notice, so two sheets never stack.
+     * Dismissing it counts as "Not now": asked once, as the system dialog always was.
+     */
+    @androidx.compose.runtime.Composable
+    private fun BatteryExemptionRationale(isLoggedIn: Boolean) {
+        val onboardingHeld by onboardingGate.held.collectAsState()
+        val crashNoticePending = remember { CrashRecorder.unseenCrash(this) != null }
+        if (!batteryRationaleDue || !isLoggedIn || onboardingHeld || crashNoticePending) return
+        com.kachat.app.ui.screens.ActionSheetContainer(
+            title = androidx.compose.ui.res.stringResource(R.string.battery_rationale_title),
+            subtitle = androidx.compose.ui.res.stringResource(R.string.battery_rationale_body),
+            onDismiss = { markBatteryExemptionAsked() },
+        ) {
+            com.kachat.app.ui.screens.ActionSheetRow(
+                icon = androidx.compose.material.icons.Icons.Default.NotificationsActive,
+                title = androidx.compose.ui.res.stringResource(R.string.battery_rationale_allow),
+                subtitle = androidx.compose.ui.res.stringResource(R.string.battery_rationale_allow_detail),
+                onClick = { acceptBatteryExemption() },
+            )
+            com.kachat.app.ui.screens.ActionSheetRow(
+                icon = androidx.compose.material.icons.Icons.Default.Close,
+                title = androidx.compose.ui.res.stringResource(R.string.not_now),
+                subtitle = androidx.compose.ui.res.stringResource(R.string.battery_rationale_not_now_detail),
+                onClick = { markBatteryExemptionAsked() },
+            )
+        }
+    }
+
     @androidx.compose.runtime.Composable
     private fun CrashNotice() {
         val crashFile = remember { CrashRecorder.unseenCrash(this) }
