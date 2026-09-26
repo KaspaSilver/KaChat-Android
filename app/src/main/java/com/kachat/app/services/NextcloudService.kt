@@ -956,6 +956,41 @@ class NextcloudService @Inject constructor(
     }
 
     /**
+     * Deletes the encrypted archive from the user's Nextcloud.
+     *
+     * Only ever on the user's say-so - the "Delete and Remove Nextcloud Backup" choice when an
+     * account is deleted names it outright - because that archive is what carries their history to
+     * their other devices, and a deletion here is not recoverable from the app. Mirrors iOS's
+     * `deleteRemoteBackup` (78152d3).
+     *
+     * Takes [backupMutex] like the two backup entry points: a delete racing an upload would leave
+     * either the file or the caller confused about which won. A 404 is the state being asked for,
+     * not a failure.
+     */
+    suspend fun deleteRemoteBackup(): Unit = backupMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val account = requireAccount()
+            val request = Request.Builder()
+                .url(davUrl(account, "$backupFolderPath/$BACKUP_FILE_NAME"))
+                .delete()
+                .header("Authorization", basicAuth(account))
+                .build()
+            client.newCall(request).execute().use { response ->
+                when {
+                    response.code == 404 -> Log.i(TAG, "Remote archive was already gone")
+                    response.code == 401 -> throw IOException(
+                        "Nextcloud rejected the username or app password - the backup was left in place."
+                    )
+                    !response.isSuccessful -> throw IOException(
+                        "Could not delete the backup on the server (HTTP ${response.code}) - it was left in place."
+                    )
+                    else -> Log.i(TAG, "Remote archive deleted")
+                }
+            }
+        }
+    }
+
+    /**
      * Uploads the archive to `<backup folder>/kachat-backup.json`, creating the folder first
      * (MKCOL answers 405 when it already exists — fine; a user-picked folder always already
      * exists since it was chosen through the folder browser). Overwrites in place: callers that

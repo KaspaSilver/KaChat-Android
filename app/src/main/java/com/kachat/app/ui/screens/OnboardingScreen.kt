@@ -266,6 +266,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             val biometricAccountLoginEnabled by viewModel.biometricAccountLoginEnabled.collectAsState()
+            val deleteAccountError by viewModel.deleteAccountError.collectAsState()
 
             if (hasWallet) {
                 Column(
@@ -299,8 +300,29 @@ fun WelcomeScreen(
                                 requireBiometricLogin = biometricAccountLoginEnabled,
                                 onLogin = { viewModel.login(account.address) },
                                 onRename = { newName -> viewModel.renameAccount(account.address, newName) },
-                                onDelete = { viewModel.deleteWallet(account.address) }
+                                onDelete = { alsoRemoveBackup -> viewModel.deleteWallet(account.address, alsoRemoveBackup) },
+                                nextcloudConnected = viewModel.nextcloudConnected()
                             )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                        // The account is already gone by the time this can be known, so this row is
+                        // the only place it can be said: the archive is still on their Nextcloud and
+                        // they have to remove it there.
+                        deleteAccountError?.let { failure ->
+                            Surface(
+                                color = Color(0xFFFF3B30).copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.clearDeleteAccountError() },
+                            ) {
+                                Text(
+                                    failure,
+                                    color = Color(0xFFFF3B30),
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(12.dp),
+                                )
+                            }
                             Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
@@ -371,7 +393,10 @@ fun SavedAccountCard(
     requireBiometricLogin: Boolean = false,
     onLogin: () -> Unit,
     onRename: (String) -> Unit,
-    onDelete: () -> Unit
+    /** True also removes the encrypted Nextcloud archive - the second destructive choice. */
+    onDelete: (Boolean) -> Unit,
+    /** Whether that second choice is offered at all. */
+    nextcloudConnected: Boolean = false
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -511,11 +536,19 @@ fun SavedAccountCard(
             confirmTitle = stringResource(R.string.delete),
             confirmSubtitle = "Removes \"${account.name}\" and everything it holds on this device - its " +
                 "chats, contacts, groups and keys. Messages and posts already on the Kaspa blockDAG " +
-                "stay there and cannot be deleted. Without its seed phrase written down, any " +
-                "remaining balance is unrecoverable.",
+                "stay there and cannot be deleted. " +
+                (if (nextcloudConnected) "Your encrypted Nextcloud backup stays. " else "") +
+                "Without its seed phrase written down, any remaining balance is unrecoverable.",
             confirmIcon = Icons.Default.Delete,
-            onConfirm = onDelete,
+            onConfirm = { onDelete(false) },
             onDismiss = { showDeleteConfirm = false },
+            secondaryTitle = if (nextcloudConnected) "Delete and Remove Nextcloud Backup" else null,
+            secondarySubtitle = if (nextcloudConnected) {
+                "The same, and deletes the encrypted archive from your Nextcloud. Your other " +
+                    "devices lose it too, and it cannot be brought back from here."
+            } else null,
+            secondaryIcon = if (nextcloudConnected) Icons.Default.CloudOff else null,
+            onSecondary = if (nextcloudConnected) ({ onDelete(true) }) else null,
         )
     }
 }

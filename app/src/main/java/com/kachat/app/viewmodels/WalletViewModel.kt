@@ -55,7 +55,8 @@ class WalletViewModel @Inject constructor(
     private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter,
-    private val chatRepository: com.kachat.app.repository.ChatRepository
+    private val chatRepository: com.kachat.app.repository.ChatRepository,
+    private val nextcloudService: com.kachat.app.services.NextcloudService
 ) : ViewModel() {
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
@@ -1145,7 +1146,16 @@ class WalletViewModel @Inject constructor(
      * "next" would leave the user unsure which account they're now using, right after a
      * destructive action. An explicit re-login/account tap is clearer.
      */
-    fun deleteWallet(address: String) {
+    /** Whether the "Delete and Remove Nextcloud Backup" choice should be offered at all. */
+    fun nextcloudConnected(): Boolean = nextcloudService.isConnected
+
+    /**
+     * [removeRemoteBackup] also deletes the encrypted archive from the person's Nextcloud. Off by
+     * default and only ever true because they picked the choice that says so: the archive is what
+     * carries their history to their other devices, so deleting this account's copy of the app must
+     * not quietly take it (iOS 78152d3).
+     */
+    fun deleteWallet(address: String, removeRemoteBackup: Boolean = false) {
         // Unregister push BEFORE the keys are destroyed (iOS's deleteWallet does the same) — a
         // signed unregister needs the wallet's key, and unregisterAsync snapshots it
         // synchronously right here. Only when deleting the account push is registered FOR:
@@ -1162,6 +1172,19 @@ class WalletViewModel @Inject constructor(
         // back the moment the account was re-imported (iOS 78152d3). Runs before the record is
         // removed so the address is still resolvable, and on IO because it is a pile of DELETEs.
         viewModelScope.launch(Dispatchers.IO) {
+            // The archive first, while the Nextcloud credentials are still around to authenticate
+            // it. A failure is reported rather than swallowed - the person asked for the backup to
+            // go, and it staying is something they need to know so they can remove it themselves.
+            if (removeRemoteBackup) {
+                runCatching { nextcloudService.deleteRemoteBackup() }
+                    .onFailure { failure ->
+                        android.util.Log.w("WalletViewModel", "Nextcloud archive delete failed", failure)
+                        _deleteAccountError.value = UserFacingError.message(
+                            failure,
+                            "The account was deleted but its Nextcloud backup could not be removed.",
+                        )
+                    }
+            }
             runCatching { chatRepository.wipeAllLocalDataForAddress(address) }
                 .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
         }
@@ -1172,6 +1195,13 @@ class WalletViewModel @Inject constructor(
         _address.value = null
         _accountName.value = null
     }
+
+    /** Set when a deletion went through but its Nextcloud archive could not be removed. The
+     *  account is already gone at that point, so this is the only place it can be said. */
+    private val _deleteAccountError = MutableStateFlow<String?>(null)
+    val deleteAccountError: StateFlow<String?> = _deleteAccountError.asStateFlow()
+
+    fun clearDeleteAccountError() { _deleteAccountError.value = null }
 
     enum class ImportWalletStatus { IDLE, IMPORTING, SUCCESS, FAILED }
 

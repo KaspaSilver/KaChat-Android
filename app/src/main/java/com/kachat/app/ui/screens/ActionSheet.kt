@@ -602,6 +602,13 @@ fun ConfirmActionSheet(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     isDestructive: Boolean = true,
+    /** An optional SECOND way to go ahead that takes more with it - iOS's "Delete and Remove
+     *  Nextcloud Backup" beside a plain Delete. All four are needed for the row to appear, so
+     *  every existing caller is unchanged. */
+    secondaryTitle: String? = null,
+    secondarySubtitle: String? = null,
+    secondaryIcon: ImageVector? = null,
+    onSecondary: (() -> Unit)? = null,
 ) {
     ActionSheetContainer(title = title, subtitle = null, onDismiss = onDismiss) {
         ActionSheetRow(
@@ -611,6 +618,15 @@ fun ConfirmActionSheet(
             tint = if (isDestructive) Color(0xFFFF3B30) else KaspaTeal,
             onClick = { onDismiss(); onConfirm() },
         )
+        if (secondaryTitle != null && secondarySubtitle != null && secondaryIcon != null && onSecondary != null) {
+            ActionSheetRow(
+                icon = secondaryIcon,
+                title = secondaryTitle,
+                subtitle = secondarySubtitle,
+                tint = Color(0xFFFF3B30),
+                onClick = { onDismiss(); onSecondary() },
+            )
+        }
         ActionSheetRow(
             icon = Icons.Default.Close,
             title = "Cancel",
