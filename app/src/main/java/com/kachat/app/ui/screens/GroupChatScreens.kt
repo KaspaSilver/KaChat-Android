@@ -1557,30 +1557,11 @@ private fun GroupMessageBubble(
             }
 
             if (isSent) {
-                Row(
+                DeliveryStatusLabel(
+                    status = deliveryStatusOf(message.deliveryStatus),
+                    onRetry = if (canRetry) onRetry else null,
                     modifier = Modifier.padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    when (message.deliveryStatus) {
-                        "failed" -> {
-                            Icon(Icons.Default.Error, contentDescription = stringResource(R.string.failed_to_send), tint = Color(0xFFFF3B30), modifier = Modifier.size(12.dp))
-                            // Tappable "Retry" next to the red error icon (also in the long-press
-                            // menu) so a failed send can be resent with one tap.
-                            if (canRetry) {
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.retry),
-                                    color = Color(0xFFFF3B30),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.clickable { onRetry() }
-                                )
-                            }
-                        }
-                        "pending" -> Icon(Icons.Default.Schedule, contentDescription = stringResource(R.string.sending), tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(12.dp))
-                        else -> Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(12.dp))
-                    }
-                }
+                )
             }
 
             if (showMenu) {

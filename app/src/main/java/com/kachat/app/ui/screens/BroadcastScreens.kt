@@ -1603,34 +1603,22 @@ fun BroadcastChannelScreen(
                                 // in the outer Row (the exact bug the old always-visible timestamp
                                 // row caused, see git history).
                                 if (isMine) {
+                                    // The circle became a capsule so the word fits beside the
+                                    // icon, exactly as iOS's deliveryBadge did (bb1f9f5).
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
                                             .offset(x = 4.dp, y = 4.dp)
-                                            .size(14.dp)
-                                            .background(Color.Black, CircleShape),
+                                            .background(Color.Black.copy(alpha = 0.75f), CircleShape)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        when (message.deliveryStatus) {
-                                            "failed" -> Icon(
-                                                imageVector = Icons.Default.Error,
-                                                contentDescription = stringResource(R.string.failed_to_send),
-                                                tint = Color(0xFFFF3B30),
-                                                modifier = Modifier.size(12.dp)
-                                            )
-                                            "pending" -> Icon(
-                                                imageVector = Icons.Default.Schedule,
-                                                contentDescription = stringResource(R.string.sending),
-                                                tint = LocalAppColors.current.textSecondary,
-                                                modifier = Modifier.size(12.dp)
-                                            )
-                                            else -> Icon(
-                                                imageVector = Icons.Default.CheckCircle,
-                                                contentDescription = null,
-                                                tint = Color(0xFF4CD964),
-                                                modifier = Modifier.size(12.dp)
-                                            )
-                                        }
+                                        DeliveryStatusLabel(
+                                            status = deliveryStatusOf(message.deliveryStatus),
+                                            onRetry = if (message.deliveryStatus == "failed") {
+                                                { broadcastViewModel.retryBroadcast(message) }
+                                            } else null,
+                                        )
                                     }
                                 }
 

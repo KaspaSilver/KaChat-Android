@@ -1,5 +1,10 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -743,4 +748,71 @@ private fun trimmedKasAmount(sompi: Long): String {
     while (text.endsWith("0")) text = text.dropLast(1)
     if (text.endsWith(".")) text = text.dropLast(1)
     return "$text KAS"
+}
+
+/** What a sent message's delivery row is reporting. Mirrors iOS's `DeliveryStatusLabel.Status`. */
+enum class DeliveryStatus { PENDING, SENT, FAILED, WARNING }
+
+/** Maps the persisted `deliveryStatus` string onto [DeliveryStatus]; anything unknown reads as sent,
+ *  which is what the old `else ->` branch did. */
+fun deliveryStatusOf(raw: String?): DeliveryStatus = when (raw) {
+    "pending" -> DeliveryStatus.PENDING
+    "failed" -> DeliveryStatus.FAILED
+    "warning" -> DeliveryStatus.WARNING
+    else -> DeliveryStatus.SENT
+}
+
+/**
+ * The delivery row under a sent message: an icon and, now, the word for it — "Sending", "Sent",
+ * "Failed · Tap to retry", "Needs attention". Direct port of iOS's `DeliveryStatusLabel`
+ * (bb1f9f5): a green check, a clock and a red mark alone left people guessing, and a colour-only
+ * glyph tells a screen reader nothing.
+ *
+ * [onRetry] non-null on [DeliveryStatus.FAILED] makes the whole row the retry button.
+ * [compact] is the chat list's smaller, secondary rendering.
+ */
+@Composable
+fun DeliveryStatusLabel(
+    status: DeliveryStatus,
+    onRetry: (() -> Unit)? = null,
+    compact: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    val tint = when (status) {
+        DeliveryStatus.SENT -> if (compact) colors.textSecondary else Color(0xFF4CD964)
+        DeliveryStatus.PENDING -> colors.textSecondary
+        DeliveryStatus.FAILED -> Color(0xFFFF3B30)
+        DeliveryStatus.WARNING -> Color(0xFFFF9500)
+    }
+    val icon = when (status) {
+        DeliveryStatus.SENT -> if (compact) Icons.Default.Check else Icons.Default.CheckCircle
+        DeliveryStatus.PENDING -> Icons.Default.Schedule
+        DeliveryStatus.FAILED, DeliveryStatus.WARNING -> Icons.Default.Error
+    }
+    val retryable = status == DeliveryStatus.FAILED && onRetry != null
+    val label = when (status) {
+        DeliveryStatus.SENT -> stringResource(R.string.delivery_sent)
+        DeliveryStatus.PENDING -> stringResource(R.string.delivery_sending)
+        DeliveryStatus.FAILED ->
+            if (retryable) stringResource(R.string.delivery_failed_tap_to_retry)
+            else stringResource(R.string.delivery_failed)
+        DeliveryStatus.WARNING -> stringResource(R.string.delivery_needs_attention)
+    }
+    val spoken = if (retryable) stringResource(R.string.delivery_failed_retry_accessibility) else label
+    Row(
+        modifier = modifier
+            .then(if (retryable) Modifier.clickable { onRetry?.invoke() } else Modifier)
+            .semantics { contentDescription = spoken },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(12.dp))
+        Text(
+            label,
+            color = tint,
+            fontSize = 11.sp,
+            fontWeight = if (retryable) FontWeight.Bold else FontWeight.Normal,
+        )
+    }
 }

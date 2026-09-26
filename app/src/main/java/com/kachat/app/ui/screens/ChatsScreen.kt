@@ -1502,17 +1502,30 @@ private fun ConversationRow(
             val preview = remember(convo.lastMessage?.id, contactLabel) {
                 messagePreviewText(convo.lastMessage, contactLabel)
             }
-            Text(
-                text = when {
-                    reactionPreview != null -> reactionPreview
-                    convo.contact.conversationStatus == "pending" -> "🤝 ${preview ?: "Wants to connect"}"
-                    else -> preview ?: "No messages yet"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (convo.contact.conversationStatus == "pending") KaspaTeal else Color.Gray,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The row said nothing about whether your own last message went out. iOS's list
+                // has carried this since bb1f9f5; Android's never had it at all. Compact
+                // rendering: a bare check in the secondary colour, not the bubble's green circle.
+                val lastMessage = convo.lastMessage
+                if (lastMessage != null && (lastMessage.direction == "sent" || lastMessage.deliveryStatus == "warning")) {
+                    DeliveryStatusLabel(
+                        status = deliveryStatusOf(lastMessage.deliveryStatus),
+                        compact = true,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(
+                    text = when {
+                        reactionPreview != null -> reactionPreview
+                        convo.contact.conversationStatus == "pending" -> "🤝 ${preview ?: "Wants to connect"}"
+                        else -> preview ?: "No messages yet"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (convo.contact.conversationStatus == "pending") KaspaTeal else Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         if (convo.unreadCount > 0) {

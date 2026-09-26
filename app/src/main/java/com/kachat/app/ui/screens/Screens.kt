@@ -2754,45 +2754,13 @@ fun MessageBubble(
         }
 
         if (isSent) {
-            Row(
+            // The icon carries the word for it now, and a failed row IS the retry button
+            // (iOS bb1f9f5). "warning" used to fall through to the green check.
+            DeliveryStatusLabel(
+                status = deliveryStatusOf(message.deliveryStatus),
+                onRetry = if (ChatViewModel.shouldShowRetryOption(message)) onRetry else null,
                 modifier = Modifier.padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                when (message.deliveryStatus) {
-                    "failed" -> {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = stringResource(R.string.failed_to_send),
-                            tint = Color(0xFFFF3B30),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        // Tappable "Retry" next to the red error icon (also reachable via the
-                        // long-press menu) so a failed send can be resent with one tap.
-                        if (ChatViewModel.shouldShowRetryOption(message)) {
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.retry),
-                                color = Color(0xFFFF3B30),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.clickable { onRetry() }
-                            )
-                        }
-                    }
-                    "pending" -> Icon(
-                        imageVector = Icons.Default.Schedule,
-                        contentDescription = stringResource(R.string.sending),
-                        tint = LocalAppColors.current.textSecondary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    else -> Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF4CD964),
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
-            }
+            )
         }
 
         // A reaction (not the message) that failed to send: red "Retry" under the message, paired
