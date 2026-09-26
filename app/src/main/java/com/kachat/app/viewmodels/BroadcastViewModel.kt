@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.redactedForLog
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -126,7 +127,7 @@ class BroadcastViewModel @Inject constructor(
                     _senderProfiles.value = _senderProfiles.value + (address to avatarUrl)
                 }
             } catch (e: Exception) {
-                Log.w("BroadcastViewModel", "Could not fetch KNS profile for $address", e)
+                Log.w("BroadcastViewModel", "Could not fetch KNS profile for ${address.redactedForLog()}", e)
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.redactedForLog
 import android.util.Log
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -234,7 +235,7 @@ class SpendingAddressDiscovery @Inject constructor(
             val balance = try {
                 api.getBalance(address).balance
             } catch (e: Exception) {
-                Log.w("SpendingAddressDiscovery", "Reservation balance lookup failed for $address", e)
+                Log.w("SpendingAddressDiscovery", "Reservation balance lookup failed for ${address.redactedForLog()}", e)
                 continue
             }
             if (balance > 0) funded.add(address)

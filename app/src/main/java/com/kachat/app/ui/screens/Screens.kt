@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.redactedForLog
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -4154,6 +4155,15 @@ fun ProfileScreen(
                     }
                 )
                 SettingsDivider()
+                // The notices WebRTC, Opus and Protocol Buffers require to ship with the binary,
+                // and the attribution the Apache/MIT libraries ask for. Same row as iOS's About.
+                SettingsInfoItem(
+                    stringResource(R.string.open_source_licenses),
+                    "",
+                    KaspaTeal,
+                    onClick = { navController.navigate("open_source_licenses") }
+                )
+                SettingsDivider()
                 SettingsInfoItem(
                     stringResource(R.string.support_email),
                     "kaspasilver@gmail.com",
@@ -6247,7 +6257,7 @@ fun SpendingAddressSendFlow(
                                             // indistinguishable from a button that does nothing,
                                             // which is exactly how this was reported - and it left
                                             // no trace in the log to diagnose it from either.
-                                            Log.w("SendFlow", "Max estimate failed for $fromAddress", e)
+                                            Log.w("SendFlow", "Max estimate failed for ${fromAddress.redactedForLog()}", e)
                                             Toast.makeText(
                                                 context,
                                                 e.message ?: "Could not work out the maximum.",

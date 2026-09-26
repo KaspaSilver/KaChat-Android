@@ -50,18 +50,18 @@ import com.kachat.app.viewmodels.SettingsViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Settings > Security > Child Mode — direct port of iOS's `ChildModeSettingsView`.
+ * Settings > Security > Simple Mode — direct port of iOS's `ChildModeSettingsView`.
  *
- * - No password yet: set one (enter + confirm) and Child Mode turns on in the same stroke.
+ * - No password yet: set one (enter + confirm) and Simple Mode turns on in the same stroke.
  * - Password set: the ON/OFF toggle lives here. Turning OFF demands the password via a dialog
  *   (wrong password = error + stays on); turning back ON needs nothing. Plus a traditional
  *   change-password flow (current -> new -> confirm; wrong current = error, nothing changes),
  *   and a destructive "Clear Password" action (password-gated; deletes the stored record and
- *   turns Child Mode off, returning the screen to its first-time state).
+ *   turns Simple Mode off, returning the screen to its first-time state).
  *
  * Deliberately NO biometrics anywhere in this flow — the device owner (the child) can pass
  * fingerprint/face unlock, so only manual password entry counts. See `ChildModeService` for the
- * storage design (salted SHA-256 in EncryptedSharedPreferences, never plaintext).
+ * storage design (salted PBKDF2-HMAC-SHA256 in EncryptedSharedPreferences, never plaintext).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,6 +104,9 @@ fun ChildModeSettingsScreen(
     val newPasswordsDontMatch = stringResource(R.string.new_passwords_dont_match)
     val wrongCurrentPassword = stringResource(R.string.wrong_current_password_nothing_changed)
     val wrongPasswordNothingChanged = stringResource(R.string.wrong_password_nothing_changed)
+    // Parameterised, so it is read off the Context rather than hoisted like the others.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lockoutText: (Int) -> String = { context.getString(R.string.too_many_wrong_passwords, it) }
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -172,8 +175,14 @@ fun ChildModeSettingsScreen(
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = {
+                                // Each branch that checks the password suspends: PBKDF2 at 120,000
+                                // rounds is slow on purpose, and on a phone that is long enough to
+                                // freeze the field mid-tap if it ran here.
+                                scope.launch {
+                                val waiting = settingsViewModel.childModeLockoutSeconds()
                                 when {
                                     newPassword != newPasswordConfirm -> changeError = newPasswordsDontMatch
+                                    waiting != null -> changeError = lockoutText(waiting)
                                     !settingsViewModel.changeChildModePassword(currentPassword, newPassword) -> {
                                         changeError = wrongCurrentPassword
                                         currentPassword = ""
@@ -185,6 +194,7 @@ fun ChildModeSettingsScreen(
                                         changeError = null
                                         changeSucceeded = true
                                     }
+                                }
                                 }
                             },
                             enabled = currentPassword.isNotEmpty() && newPassword.isNotEmpty() && newPasswordConfirm.isNotEmpty(),
@@ -226,16 +236,18 @@ fun ChildModeSettingsScreen(
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = {
-                                when {
-                                    setupPassword.isEmpty() -> setupError = enterPasswordFirst
-                                    setupPassword != setupConfirm -> setupError = passwordsDontMatch
-                                    !settingsViewModel.setChildModePassword(setupPassword) -> setupError = couldntSavePassword
-                                    else -> {
-                                        settingsViewModel.enableChildMode()
-                                        setupPassword = ""
-                                        setupConfirm = ""
-                                        setupError = null
-                                        hasPassword = true
+                                scope.launch {
+                                    when {
+                                        setupPassword.isEmpty() -> setupError = enterPasswordFirst
+                                        setupPassword != setupConfirm -> setupError = passwordsDontMatch
+                                        !settingsViewModel.setChildModePassword(setupPassword) -> setupError = couldntSavePassword
+                                        else -> {
+                                            settingsViewModel.enableChildMode()
+                                            setupPassword = ""
+                                            setupConfirm = ""
+                                            setupError = null
+                                            hasPassword = true
+                                        }
                                     }
                                 }
                             },
@@ -265,7 +277,7 @@ fun ChildModeSettingsScreen(
         }
     }
 
-    // Manual password entry dialog for switching Child Mode off. Wrong password = error, the
+    // Manual password entry dialog for switching Simple Mode off. Wrong password = error, the
     // toggle stays on. Never biometrics.
     if (showTurnOffPrompt) {
         ChildModePasswordDialog(
@@ -278,12 +290,17 @@ fun ChildModeSettingsScreen(
             onPasswordChange = { turnOffPassword = it; turnOffError = null },
             onDismiss = { showTurnOffPrompt = false },
             onConfirm = {
-                if (settingsViewModel.turnOffChildMode(turnOffPassword)) {
-                    turnOffPassword = ""
-                    showTurnOffPrompt = false
-                } else {
-                    turnOffError = wrongPasswordStaysOn
-                    turnOffPassword = ""
+                scope.launch {
+                    val waiting = settingsViewModel.childModeLockoutSeconds()
+                    if (waiting != null) {
+                        turnOffError = lockoutText(waiting)
+                    } else if (settingsViewModel.turnOffChildMode(turnOffPassword)) {
+                        turnOffPassword = ""
+                        showTurnOffPrompt = false
+                    } else {
+                        turnOffError = wrongPasswordStaysOn
+                        turnOffPassword = ""
+                    }
                 }
             }
         )
@@ -303,6 +320,11 @@ fun ChildModeSettingsScreen(
             onDismiss = { showClearPrompt = false },
             onConfirm = {
                 scope.launch {
+                    val waiting = settingsViewModel.childModeLockoutSeconds()
+                    if (waiting != null) {
+                        clearError = lockoutText(waiting)
+                        return@launch
+                    }
                     if (settingsViewModel.clearChildModeConfiguration(clearPassword)) {
                         // Reset every flow's scratch state - the screen drops back to
                         // first-time setup (the service already flipped the flag off).

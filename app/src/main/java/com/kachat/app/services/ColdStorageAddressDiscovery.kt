@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.redactedForLog
 import android.util.Log
 import com.kachat.app.util.KaspaExtendedPublicKey
 import kotlinx.coroutines.async
@@ -294,7 +295,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
         return try {
             api.getTransactions(address, limit = 1).isNotEmpty()
         } catch (e: Exception) {
-            Log.w("ColdStorageAddressDiscovery", "History probe failed for $address", e)
+            Log.w("ColdStorageAddressDiscovery", "History probe failed for ${address.redactedForLog()}", e)
             null
         }
     }
@@ -346,7 +347,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
                 transactions = api.getTransactions(address, limit = limit)
                 break
             } catch (e: Exception) {
-                Log.w("ColdStorageAddressDiscovery", "History attempt ${attempt + 1} failed for $address", e)
+                Log.w("ColdStorageAddressDiscovery", "History attempt ${attempt + 1} failed for ${address.redactedForLog()}", e)
             }
         }
         val fetched = transactions
@@ -397,11 +398,11 @@ class ColdStorageAddressDiscovery @Inject constructor(
                 // retries for this page are exhausted.
                 if (pageRetries < MAX_PAGE_RETRIES) {
                     pageRetries++
-                    Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for $address at offset $offset (retry $pageRetries/$MAX_PAGE_RETRIES)", e)
+                    Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for ${address.redactedForLog()} at offset $offset (retry $pageRetries/$MAX_PAGE_RETRIES)", e)
                     delay(PAGE_RETRY_BASE_DELAY_MILLIS * (1L shl (pageRetries - 1)))
                     continue
                 }
-                Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for $address at offset $offset after $MAX_PAGE_RETRIES retries; returning partial history", e)
+                Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for ${address.redactedForLog()} at offset $offset after $MAX_PAGE_RETRIES retries; returning partial history", e)
                 break
             }
             pageRetries = 0
@@ -459,7 +460,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
                 AddressUtxo(it.outpoint.transactionId, it.outpoint.index, it.utxoEntry.amount, it.utxoEntry.isCoinbase)
             }
         } catch (e: Exception) {
-            Log.w("ColdStorageAddressDiscovery", "Failed to fetch UTXOs for $address", e)
+            Log.w("ColdStorageAddressDiscovery", "Failed to fetch UTXOs for ${address.redactedForLog()}", e)
             emptyList()
         }
     }

@@ -125,6 +125,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityInfo.SCREEN_ORIENTATION_FULL_USER
         }
+        // Balances, chats and the seed screen used to sit in the task switcher's thumbnail of the
+        // app in plain view. This is Android's own switch for exactly that, and unlike FLAG_SECURE
+        // it does not also block screenshots and screen recording, which people legitimately use
+        // on a chat - and it cannot fight the FLAG_SECURE the seed and private-key screens set and
+        // clear for themselves. Below API 33 there is no equivalent that leaves screenshots alone,
+        // so those devices keep the thumbnail. iOS covers the same exposure with a blur (7e39943).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            setRecentsScreenshotEnabled(false)
+        }
         enableEdgeToEdge()
         maybeRequestNotificationPermission()
         maybeRequestBatteryExemption()

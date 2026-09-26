@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import com.kachat.app.util.redactedForLog
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -906,7 +907,7 @@ class KaPostsViewModel @Inject constructor(
                     bio = _senderBios.value[address],
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "Could not fetch KNS profile for $address", e)
+                Log.w(TAG, "Could not fetch KNS profile for ${address.redactedForLog()}", e)
             }
             }
         }

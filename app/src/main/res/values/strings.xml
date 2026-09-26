@@ -51,30 +51,30 @@
     <!-- App-wide settings reachable from the accounts screen's gear (no active account) -->
     <string name="app_settings">App Settings</string>
 
-    <!-- Child Mode (Settings > Security > Child Mode + the Welcome Guide's "Who will use KaChat?" step) -->
-    <string name="child_mode">Child Mode</string>
+    <!-- Simple Mode (Settings > Security > Simple Mode + the Welcome Guide's "How do you want KaChat?" step) -->
+    <string name="child_mode">Simple Mode</string>
     <string name="on">On</string>
     <string name="off">Off</string>
-    <string name="who_will_use_kachat">Who will use KaChat?</string>
-    <string name="child_mode_is_on_guide_info">Child Mode is on. Chats, Group Chats, Portfolio and Cold Storage are available; Swaps, KaPosts and Public Chats are hidden. Manage this in Settings > Security > Child Mode.</string>
-    <string name="a_child_gets_a_simpler_safer">A child gets a simpler, safer KaChat: just Chats, Group Chats, Portfolio and Cold Storage. Swaps, KaPosts and Public Chats stay hidden until an adult unlocks them.</string>
-    <string name="adult">Adult</string>
+    <string name="who_will_use_kachat">How do you want KaChat?</string>
+    <string name="child_mode_is_on_guide_info">Simple Mode is on. Chats, Group Chats, Portfolio and Cold Storage are available; Swaps, KaPosts and Public Chats are hidden. Manage this in Settings > Security > Simple Mode.</string>
+    <string name="a_child_gets_a_simpler_safer">Simple Mode is a smaller KaChat: just Chats, Group Chats, Portfolio and Cold Storage. Swaps, KaPosts and Public Chats stay hidden until the password unlocks them.</string>
+    <string name="adult">Full</string>
     <string name="the_full_app_everything_available">The full app, everything available.</string>
-    <string name="child">Child</string>
-    <string name="chats_portfolio_and_cold_storage_only">Chats, Portfolio and Cold Storage only. An adult sets a password to unlock the rest later.</string>
+    <string name="child">Simple</string>
+    <string name="chats_portfolio_and_cold_storage_only">Chats, Portfolio and Cold Storage only. A password unlocks the rest later.</string>
     <string name="password">Password</string>
     <string name="confirm_password">Confirm password</string>
-    <string name="child_mode_password_helper">4 digits, 8 digits, or anything you like - just don\'t forget it. It\'s needed to turn Child Mode off later.</string>
+    <string name="child_mode_password_helper">4 digits, 8 digits, or anything you like - just don\'t forget it. It\'s needed to turn Simple Mode off later.</string>
     <string name="enter_a_password_first">Enter a password first.</string>
     <string name="passwords_dont_match">Passwords don\'t match.</string>
     <string name="couldnt_save_the_password">Couldn\'t save the password. Please try again.</string>
     <string name="set_a_password">Set a Password</string>
     <string name="set_password_and_turn_on">Set Password &amp; Turn On</string>
-    <string name="child_mode_is_on_footer">Child Mode is on. Turning it off requires the password.</string>
-    <string name="child_mode_password_set_footer">A password is already set - turning Child Mode on doesn\'t ask for it.</string>
-    <string name="turn_off_child_mode">Turn Off Child Mode</string>
-    <string name="enter_the_child_mode_password_off">Enter the Child Mode password to turn it off.</string>
-    <string name="wrong_password_child_mode_stays_on">Wrong password. Child Mode stays on.</string>
+    <string name="child_mode_is_on_footer">Simple Mode is on. Turning it off requires the password.</string>
+    <string name="child_mode_password_set_footer">A password is already set - turning Simple Mode on doesn\'t ask for it.</string>
+    <string name="turn_off_child_mode">Turn Off Simple Mode</string>
+    <string name="enter_the_child_mode_password_off">Enter the Simple Mode password to turn it off.</string>
+    <string name="wrong_password_child_mode_stays_on">Wrong password. Simple Mode stays on.</string>
     <string name="turn_off">Turn Off</string>
     <string name="change_password">Change Password</string>
     <string name="current_password">Current password</string>
@@ -84,12 +84,16 @@
     <string name="wrong_current_password_nothing_changed">Wrong current password. Nothing changed.</string>
     <string name="password_changed">Password changed.</string>
     <string name="clear_password">Clear Password</string>
-    <string name="clear_password_footer">Deletes the Child Mode password and turns Child Mode off, returning it to a never-set-up state. Requires the current password.</string>
-    <string name="enter_the_child_mode_password_clear">Enter the Child Mode password to delete it and turn Child Mode off.</string>
+    <string name="clear_password_footer">Deletes the Simple Mode password and turns Simple Mode off, returning it to a never-set-up state. Requires the current password.</string>
+    <string name="enter_the_child_mode_password_clear">Enter the Simple Mode password to delete it and turn Simple Mode off.</string>
+    <string name="too_many_wrong_passwords">Too many wrong passwords. Try again in %1$ds.</string>
     <string name="wrong_password_nothing_changed">Wrong password. Nothing changed.</string>
     <string name="what_stays_available">What stays available</string>
     <string name="chats_and_group_chats">Chats &amp; Group Chats</string>
-    <string name="child_mode_about_footer">While Child Mode is on, Swaps, KaPosts and Public Chats are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Child Mode; only the password does.</string>
+    <string name="child_mode_about_footer">While Simple Mode is on, Swaps, KaPosts and Public Chats are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Simple Mode; only the password does.</string>
+    <string name="open_source_licenses">Open Source Licenses</string>
+    <string name="screen_lock_required">Screen Lock Required</string>
+    <string name="screen_lock_required_message">Set a screen lock on this phone (Settings &gt; Security) to view or unlock secret keys in KaChat.</string>
     <string name="show_password">Show password</string>
     <string name="hide_password">Hide password</string>
     <string name="coin_control">Coin Control</string>

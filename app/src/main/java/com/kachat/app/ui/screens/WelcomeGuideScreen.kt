@@ -20,7 +20,9 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
@@ -41,6 +43,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -470,6 +473,7 @@ private fun WelcomeGuideUserTypeStep(
     val enterPasswordFirst = stringResource(R.string.enter_a_password_first)
     val passwordsDontMatch = stringResource(R.string.passwords_dont_match)
     val couldntSavePassword = stringResource(R.string.couldnt_save_the_password)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -483,7 +487,8 @@ private fun WelcomeGuideUserTypeStep(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            Icons.Default.FamilyRestroom,
+            // iOS's lock.shield - the step is about a password now, not about who holds the phone.
+            Icons.Default.Security,
             contentDescription = null,
             tint = KaspaTeal,
             modifier = Modifier.size(56.dp)
@@ -499,8 +504,8 @@ private fun WelcomeGuideUserTypeStep(
         Spacer(Modifier.height(12.dp))
 
         if (childModeEnabled) {
-            // Replay with Child Mode already on: purely informational, just continue. Still
-            // counts as answered - Child Mode being on IS the standing choice.
+            // Replay with Simple Mode already on: purely informational, just continue. Still
+            // counts as answered - Simple Mode being on IS the standing choice.
             Text(
                 stringResource(R.string.child_mode_is_on_guide_info),
                 color = LocalAppColors.current.textSecondary,
@@ -519,7 +524,8 @@ private fun WelcomeGuideUserTypeStep(
                 title = stringResource(R.string.adult),
                 badge = null,
                 subtitle = stringResource(R.string.the_full_app_everything_available),
-                onClick = { choice = UserTypeChoice.ADULT; setupError = null }
+                onClick = { choice = UserTypeChoice.ADULT; setupError = null },
+                leadingIcon = Icons.Default.Person
             )
             Spacer(Modifier.height(10.dp))
             NodeChoiceRow(
@@ -527,7 +533,8 @@ private fun WelcomeGuideUserTypeStep(
                 title = stringResource(R.string.child),
                 badge = null,
                 subtitle = stringResource(R.string.chats_portfolio_and_cold_storage_only),
-                onClick = { choice = UserTypeChoice.CHILD; setupError = null }
+                onClick = { choice = UserTypeChoice.CHILD; setupError = null },
+                leadingIcon = Icons.Default.GridView
             )
 
             if (choice == UserTypeChoice.CHILD) {
@@ -563,16 +570,19 @@ private fun WelcomeGuideUserTypeStep(
             onPrevious = onPrevious,
             onNext = {
                 when {
-                    // Informational replay - Child Mode being on is the standing choice.
+                    // Informational replay - Simple Mode being on is the standing choice.
                     childModeEnabled -> onAnswered()
                     choice == UserTypeChoice.ADULT -> onAnswered()
                     else -> {
+                        // setChildModePassword suspends: PBKDF2 at 120,000 rounds would otherwise
+                        // freeze the wizard's Next button mid-tap.
+                        scope.launch {
                         when {
                             password.isEmpty() -> setupError = enterPasswordFirst
                             password != confirm -> setupError = passwordsDontMatch
                             !settingsViewModel.setChildModePassword(password) -> setupError = couldntSavePassword
                             else -> {
-                                // Persisted at this step, not wizard end - Child Mode is on from
+                                // Persisted at this step, not wizard end - Simple Mode is on from
                                 // first launch no matter what happens to the rest of the guide.
                                 settingsViewModel.enableChildMode()
                                 password = ""
@@ -580,6 +590,7 @@ private fun WelcomeGuideUserTypeStep(
                                 setupError = null
                                 onAnswered()
                             }
+                        }
                         }
                     }
                 }
@@ -932,7 +943,16 @@ private fun WelcomeGuideNodeConnectionStep(
 }
 
 @Composable
-private fun NodeChoiceRow(selected: Boolean, title: String, badge: String?, subtitle: String, onClick: () -> Unit) {
+private fun NodeChoiceRow(
+    selected: Boolean,
+    title: String,
+    badge: String?,
+    subtitle: String,
+    onClick: () -> Unit,
+    /** Drawn between the radio and the text, as iOS's `userTypeRow` does. Null for the node rows,
+     *  which have never had one on either platform. */
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -949,6 +969,15 @@ private fun NodeChoiceRow(selected: Boolean, title: String, badge: String?, subt
             modifier = Modifier.size(20.dp)
         )
         Spacer(Modifier.width(12.dp))
+        if (leadingIcon != null) {
+            Icon(
+                leadingIcon,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+        }
         Column {
             Row {
                 Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)

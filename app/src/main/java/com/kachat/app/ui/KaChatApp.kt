@@ -1487,6 +1487,10 @@ fun MainShell(
                 )
             }
 
+            composable("open_source_licenses") {
+                OpenSourceLicensesScreen(onBack = { navController.popBackStack() })
+            }
+
             composable("connection_settings") {
                 ConnectionSettingsScreen(
                     onBack = { navController.popBackStack() }
