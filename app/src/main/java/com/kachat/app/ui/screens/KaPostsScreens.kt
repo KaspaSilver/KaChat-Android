@@ -542,7 +542,7 @@ fun KaPostsScreen(
     var restoredComposerSegments by remember { mutableStateOf(emptyList<String>()) }
     // Zero-balance funding gate — tapping "New post" while the chatting balance is a confirmed
     // 0 KAS opens the shared funding card as a dialog instead of the post composer (replies get
-    // the same treatment inside KaPostThreadOverlay). See GiftClaimUi.kt.
+    // the same treatment inside KaPostThreadOverlay). See ZeroBalanceFundingUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
     var showFundingGate by remember { mutableStateOf(false) }
     /** Thread stack: each entry is a post's LOCAL id; tapping nested comments pushes deeper. */
@@ -1124,7 +1124,7 @@ fun KaPostsScreen(
     }
 
     // Also conditioned on the gate itself so the dialog vanishes reactively the moment the
-    // chatting balance confirms as funded (e.g. the gift claim lands while it's open).
+    // chatting balance confirms as funded (funds land while it's open).
     if (showFundingGate && fundingGate.active) {
         ZeroBalanceFundingDialog(
             walletAddress = fundingGate.chattingAddress,
@@ -4197,7 +4197,7 @@ fun KaPostThreadOverlay(
     }
 
     // Also conditioned on the gate itself so the dialog vanishes reactively the moment the
-    // chatting balance confirms as funded (e.g. the gift claim lands while it's open).
+    // chatting balance confirms as funded (funds land while it's open).
     if (showFundingGate && fundingGate.active) {
         ZeroBalanceFundingDialog(
             walletAddress = fundingGate.chattingAddress,

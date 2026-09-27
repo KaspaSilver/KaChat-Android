@@ -696,7 +696,7 @@ fun BroadcastChannelScreen(
     val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     // Zero-balance funding gate — same behavior as the 1:1/group chat threads (confirmed 0 KAS
-    // only, on-entry refresh + 10s re-poll while gated); see GiftClaimUi.kt.
+    // only, on-entry refresh + 10s re-poll while gated); see ZeroBalanceFundingUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
     val sendState by broadcastViewModel.sendBroadcastState.collectAsState()
     val voiceRecordingState by broadcastViewModel.voiceRecordingState.collectAsState()
@@ -945,7 +945,7 @@ fun BroadcastChannelScreen(
         },
         bottomBar = {
             // Composer dims and goes inert while the zero-balance funding gate is up — see
-            // Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            // Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
             Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().imePadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
                 if (sendState.status == BroadcastViewModel.SendBroadcastStatus.FAILED) {
                     Text(
@@ -1624,31 +1624,6 @@ fun BroadcastChannelScreen(
                                     )
                                 }
 
-                                // A small corner badge rather than a row below the bubble —
-                                // stacking it as a separate row would grow the Column past the
-                                // bubble's own height, throwing off the avatar's bottom-alignment
-                                // in the outer Row (the exact bug the old always-visible timestamp
-                                // row caused, see git history).
-                                if (isMine) {
-                                    // The circle became a capsule so the word fits beside the
-                                    // icon, exactly as iOS's deliveryBadge did (bb1f9f5).
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomEnd)
-                                            .offset(x = 4.dp, y = 4.dp)
-                                            .background(Color.Black.copy(alpha = 0.75f), CircleShape)
-                                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        DeliveryStatusLabel(
-                                            status = deliveryStatusOf(message.deliveryStatus),
-                                            onRetry = if (message.deliveryStatus == "failed") {
-                                                { broadcastViewModel.retryBroadcast(message) }
-                                            } else null,
-                                        )
-                                    }
-                                }
-
                                 // Anchored INSIDE the bubble's own wrap-content Box, exactly like
                                 // 1:1's MessageBubble - so BottomStart/BottomEnd resolve against
                                 // the bubble itself. It used to live below this Box inside a
@@ -1715,6 +1690,19 @@ fun BroadcastChannelScreen(
                                     },
                                     onReply = { broadcastViewModel.startReplyTo(message) },
                                     emojis = quickReactionEmojis
+                                )
+                            }
+
+                            // Under your own message, exactly as in a 1:1 chat: "Sending", "Sent" with the
+                            // green check, "Failed · Tap to retry". It was a badge pinned to the bubble's
+                            // corner, which read as a different thing from the 1:1 one (iOS 21baa36).
+                            if (isMine) {
+                                DeliveryStatusLabel(
+                                    status = deliveryStatusOf(message.deliveryStatus),
+                                    onRetry = if (message.deliveryStatus == "failed") {
+                                        { broadcastViewModel.retryBroadcast(message) }
+                                    } else null,
+                                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
                                 )
                             }
 

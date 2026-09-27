@@ -184,7 +184,7 @@ class ChatViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** Re-fetches the chatting-address balance backing [chattingBalanceGateActive] — fired when
-     *  a 1:1 thread opens, and polled while the funding gate is showing so a gift claim or an
+     *  a 1:1 thread opens, and polled while the funding gate is showing so an
      *  external deposit dismisses the gate without leaving the screen (nothing else pushes a
      *  balance update into WalletService while the user just sits on the thread). */
     fun refreshChattingBalance() {
@@ -722,6 +722,11 @@ class ChatViewModel @Inject constructor(
     fun ensureContactExists(contactId: String) {
         viewModelScope.launch { getOrCreateContact(contactId) }
     }
+
+    /** Whether [address] is saved as a contact on this account - a profile link opens their chat
+     *  when it is, and the new-chat screen otherwise (iOS 863b0e9). */
+    suspend fun hasContact(address: String): Boolean =
+        chatRepository.getContacts().first().any { it.id.equals(address, ignoreCase = true) }
 
     private suspend fun getOrCreateContact(contactId: String): ContactEntity {
         return chatRepository.getContact(contactId) ?: ContactEntity(

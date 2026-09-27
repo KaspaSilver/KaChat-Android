@@ -171,6 +171,7 @@ class MainActivity : AppCompatActivity() {
         refreshBatteryRationale()
         intent?.let(::consumeNotificationTarget)
         intent?.let(::handleBroadcastDeepLink)
+        intent?.let(::handleProfileDeepLink)
         intent?.let(::handleShareIntent)
         intent?.let(::clearConsumedIntentPayload)
         intent?.let(::consumeCallAnswer)
@@ -283,6 +284,7 @@ class MainActivity : AppCompatActivity() {
         setIntent(intent)
         consumeNotificationTarget(intent)
         handleBroadcastDeepLink(intent)
+        handleProfileDeepLink(intent)
         handleShareIntent(intent)
         clearConsumedIntentPayload(intent)
         consumeCallAnswer(intent)
@@ -511,6 +513,22 @@ class MainActivity : AppCompatActivity() {
     private fun isKaChatWebHost(host: String?): Boolean {
         val clean = host?.lowercase()?.removePrefix("www.") ?: return false
         return clean == KaChatLink.WEB_HOST || clean in KaChatLink.LEGACY_WEB_HOSTS
+    }
+
+    /** kachat://profile/<address> or https://kachat.app/u/<address> - someone's shared profile
+     *  (iOS 863b0e9). The address is validated, checksum and all, before anything routes. */
+    private fun handleProfileDeepLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        val raw = when {
+            uri.scheme.equals("kachat", ignoreCase = true) &&
+                uri.host.equals("profile", ignoreCase = true) -> uri.lastPathSegment
+            uri.scheme.equals("https", ignoreCase = true) &&
+                isKaChatWebHost(uri.host) &&
+                uri.pathSegments.firstOrNull() == "u" -> uri.pathSegments.getOrNull(1)
+            else -> null
+        } ?: return
+        com.kachat.app.ui.screens.ProfileDeepLink.request(raw)
     }
 
     private fun handleBroadcastDeepLink(intent: Intent) {

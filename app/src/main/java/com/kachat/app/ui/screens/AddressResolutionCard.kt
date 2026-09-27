@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import com.kachat.app.services.KnsService
+import kotlinx.coroutines.flow.first
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaAddress
@@ -126,7 +127,13 @@ fun AddressResolutionCard(
 @HiltViewModel
 class AddressResolutionViewModel @Inject constructor(
     private val knsService: KnsService,
+    private val chatRepository: com.kachat.app.repository.ChatRepository,
 ) : ViewModel() {
+
+    /** The contact saved for [address] on this account, if there is one. */
+    suspend fun contactFor(address: String): com.kachat.app.models.ContactEntity? = runCatching {
+        chatRepository.getContacts().first().firstOrNull { it.id.equals(address, ignoreCase = true) }
+    }.getOrNull()
 
     suspend fun resolveDomain(domain: String): String? = runCatching { knsService.resolve(domain) }.getOrNull()
 

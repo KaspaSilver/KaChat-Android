@@ -829,9 +829,6 @@ private fun WelcomeGuideFundingStep(
                 Text(stringResource(R.string.change_chatting_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(Modifier.height(24.dp))
-        // Optional community-funded welcome gift to fund this chatting address (matches iPhone).
-        GiftClaimWizardButton(walletAddress = chattingAddress)
     }
         Spacer(Modifier.height(16.dp))
         WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)

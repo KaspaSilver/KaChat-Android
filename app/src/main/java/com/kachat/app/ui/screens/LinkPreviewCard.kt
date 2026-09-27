@@ -1,5 +1,10 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -836,6 +841,11 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
  * Wire forms (identical on iOS):
  *   KaPosts post   kachat://kapost/<txid>       https://kachat.app/post/<txid>
  *   Broadcast room kachat://broadcast/<channel> https://kachat.app/broadcast/<channel>
+ *   Profile        kachat://profile/<address>   https://kachat.app/u/<address>
+ *
+ * A profile's `<address>` is a full Kaspa address; in the web form a mainnet address drops its
+ * `kaspa:` prefix (the app writes it without, so the link reads cleanly) and a missing prefix
+ * means mainnet.
  *
  * Links written before kachat.app used kachat.duckdns.org. Those are still opened; they are
  * never written.
@@ -846,6 +856,9 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
 sealed class KaChatLinkRef {
     data class KaPost(val txId: String) : KaChatLinkRef()
     data class BroadcastRoom(val channel: String) : KaChatLinkRef()
+    /** Someone's KaChat profile: opens their chat, or the new-chat screen prefilled with the
+     *  address when they are not a contact yet (iOS 863b0e9). Always a full, valid address. */
+    data class Profile(val address: String) : KaChatLinkRef()
 }
 
 /** [raw] is the exact link substring as it appears in the message, [range] where it sits in it. */
@@ -864,11 +877,20 @@ object KaChatLink {
     fun kaPostWebUrl(txId: String) = "https://$WEB_HOST/post/$txId"
     fun broadcastUrl(channel: String) = "kachat://broadcast/$channel"
     fun broadcastWebUrl(channel: String) = "https://$WEB_HOST/broadcast/$channel"
+    fun profileUrl(address: String) = "kachat://profile/$address"
+    fun profileWebUrl(address: String) = "https://$WEB_HOST/u/${address.removePrefix("kaspa:")}"
+
+    /** The line that goes with a shared profile link - iOS's `profileShareMessage`, word for word.
+     *  The link itself previews with the name and avatar in any chat app, opens a chat in KaChat,
+     *  and offers the download to someone who does not have it yet. */
+    fun profileShareMessage(name: String?): String =
+        if (name.isNullOrEmpty()) "Chat with me on KaChat."
+        else "Chat with ${name.replace(".kas", "")} on KaChat."
 
     // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
     // second path component, a query string or a fragment into the app.
     private val LINK_REGEX = Regex(
-        """(?:kachat://(kapost|broadcast)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(post|broadcast)/)([^\s/?#]+)""",
+        """(?:kachat://(kapost|broadcast|profile)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(post|broadcast|u)/)([^\s/?#]+)""",
         RegexOption.IGNORE_CASE
     )
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')
@@ -924,8 +946,18 @@ object KaChatLink {
                 segment.takeIf { TX_ID_REGEX.matches(it) }?.lowercase()?.let(KaChatLinkRef::KaPost)
             "broadcast" ->
                 sanitizeChannelName(segment)?.let(KaChatLinkRef::BroadcastRoom)
+            "profile", "u" -> profileAddress(segment)?.let(KaChatLinkRef::Profile)
             else -> null
         }
+    }
+
+    /** A linked address is attacker-controlled like everything else in a link: it has to be a
+     *  valid Kaspa address, checksum and all, or the link is not ours. */
+    fun profileAddress(raw: String): String? {
+        var address = raw.trim().lowercase()
+        if (':' !in address) address = "kaspa:$address"
+        if (address.length > 100) return null
+        return address.takeIf { runCatching { com.kachat.app.util.KaspaAddress.isValid(it) }.getOrDefault(false) }
     }
 }
 
@@ -942,6 +974,26 @@ fun openKaChatLink(ref: KaChatLinkRef) {
             KaPostsDeepLink.pendingPostTxId.value = ref.txId
         }
         is KaChatLinkRef.BroadcastRoom -> BroadcastDeepLink.request(ref.channel)
+        is KaChatLinkRef.Profile -> ProfileDeepLink.request(ref.address)
+    }
+}
+
+/**
+ * A profile link waiting to be opened - from a tapped card, a system intent or a kachat.app link.
+ * MainShell routes it: your own link lands on the chat list, a contact's opens their chat, anyone
+ * else's opens the new-chat screen with the address filled in (iOS 863b0e9 openProfile). The
+ * address is always one [KaChatLink.profileAddress] already validated, checksum and all.
+ */
+object ProfileDeepLink {
+    private val _pendingAddress = MutableStateFlow<String?>(null)
+    val pendingAddress: StateFlow<String?> = _pendingAddress.asStateFlow()
+
+    fun request(address: String) {
+        _pendingAddress.value = KaChatLink.profileAddress(address) ?: return
+    }
+
+    fun consumePending() {
+        _pendingAddress.value = null
     }
 }
 
@@ -976,13 +1028,30 @@ fun KaChatInternalLinkCard(
     // Idempotent - the service drops a repeat call, an in-flight one and a known-bad id.
     LaunchedEffect(postId) { postId?.let { KaPostLinkPreviewService.load(it) } }
 
+    // A profile card names the person the way iOS does - their KNS name, else what you saved
+    // them as - and says whether a tap opens your chat or starts one.
+    val profileAddress = (ref as? KaChatLinkRef.Profile)?.address
+    var profileName by remember(profileAddress) { mutableStateOf<String?>(null) }
+    var profileIsContact by remember(profileAddress) { mutableStateOf(false) }
+    if (profileAddress != null) {
+        val resolver: AddressResolutionViewModel = hiltViewModel()
+        LaunchedEffect(profileAddress) {
+            val contact = resolver.contactFor(profileAddress)
+            profileIsContact = contact != null
+            profileName = resolver.profileFor(profileAddress)?.first
+                ?: contact?.alias?.takeIf { it.isNotBlank() }
+        }
+    }
+
     val icon = when (ref) {
         is KaChatLinkRef.KaPost -> Icons.Default.NoteAlt
         is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
+        is KaChatLinkRef.Profile -> Icons.Default.AccountCircle
     }
     val title = when (ref) {
         is KaChatLinkRef.KaPost -> post?.authorName ?: "KaPosts post"
         is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
+        is KaChatLinkRef.Profile -> profileName ?: com.kachat.app.util.KaspaAddress.shortDisplay(ref.address)
     }
     val body = post?.snippet?.takeIf { it.isNotBlank() }
         // A quote with no added comment is a repost: there is no text to show, so say what it is
@@ -991,6 +1060,8 @@ fun KaChatInternalLinkCard(
         ?: when (ref) {
             is KaChatLinkRef.KaPost -> "Tap to open this post in KaChat"
             is KaChatLinkRef.BroadcastRoom -> "Tap to join this KaChat public chat room."
+            is KaChatLinkRef.Profile ->
+                if (profileIsContact) "Tap to open your chat." else "Tap to start a chat on KaChat."
         }
     val caption = when (ref) {
         // A reply or a quote is still a KaPosts post, but saying which one it is explains why
@@ -1001,6 +1072,7 @@ fun KaChatInternalLinkCard(
             else -> "KAPOSTS"
         }
         is KaChatLinkRef.BroadcastRoom -> "BROADCAST ROOM"
+        is KaChatLinkRef.Profile -> "KACHAT PROFILE"
     }
     // The text of a real post deserves more than the placeholder's two lines.
     val bodyMaxLines = if (post?.snippet?.isNotBlank() == true) 6 else 2

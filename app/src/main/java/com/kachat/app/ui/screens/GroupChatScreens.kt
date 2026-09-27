@@ -232,7 +232,7 @@ fun GroupChatThreadScreen(
     val myAddress by walletViewModel.address.collectAsState()
     val myKnsProfile by walletViewModel.knsProfile.collectAsState()
     // Zero-balance funding gate — same behavior as the 1:1 chat thread (confirmed 0 KAS only,
-    // on-entry refresh + 10s re-poll while gated); see GiftClaimUi.kt.
+    // on-entry refresh + 10s re-poll while gated); see ZeroBalanceFundingUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
     val groups by chatViewModel.groups.collectAsState()
     val group = groups.firstOrNull { it.groupId == groupId }
@@ -545,7 +545,7 @@ fun GroupChatThreadScreen(
         },
         bottomBar = {
             // Composer dims and goes inert while the zero-balance funding gate is up — see
-            // Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            // Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
             Column(modifier = Modifier.background(LocalAppColors.current.background).imePadding().navigationBarsPadding().zeroBalanceComposerGate(fundingGate.active)) {
                 errorMessage?.let { message ->
                     Text(

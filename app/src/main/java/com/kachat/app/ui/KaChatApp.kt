@@ -486,6 +486,8 @@ fun MainShell(
     // a remote push that raced the re-registration) must not route into the hidden feature -
     // land on the main Chats screen instead. Read race-free (suspend, not the StateFlow's `false`
     // initial value) so a cold-start tap can't slip through before DataStore loads.
+    // Activity-scoped, only to start the notification prefetch; the room keeps its own instance.
+    val notificationBroadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel = hiltViewModel()
     LaunchedEffect(pendingChannelName) {
         if (pendingChannelName != null) {
             // The name can come straight off a server push payload (see MainActivity's
@@ -496,6 +498,8 @@ fun MainShell(
             if (channel == null || walletViewModel.isChildModeEnabled()) {
                 navController.popBackStack(Screen.Chats.route, false)
             } else {
+                // Newest rows first, alongside the navigation rather than after it.
+                notificationBroadcastViewModel.prefetchNewest(channel)
                 navController.navigate("broadcast_channel/$channel")
             }
             onPendingChannelHandled()
@@ -599,6 +603,23 @@ fun MainShell(
     // already been normalized and validated by BroadcastDeepLink.request; a room that isn't one of
     // the curated ones carries a join request that BroadcastChannelScreen consumes on open, so it
     // lands in the user's own channel list rather than disappearing when they navigate away.
+    // Someone's profile link (kachat://profile/<address>, https://kachat.app/u/<address>, or a
+    // tapped KaChat Profile card). Your own lands on the chat list; a contact's opens your chat;
+    // anyone else's opens the new-chat screen with the address filled in, one tap from starting -
+    // iOS 863b0e9 openProfile. Chats are not hidden by Simple Mode, so no gate here.
+    val pendingProfileAddress by com.kachat.app.ui.screens.ProfileDeepLink.pendingAddress.collectAsState()
+    LaunchedEffect(pendingProfileAddress) {
+        val address = pendingProfileAddress ?: return@LaunchedEffect
+        com.kachat.app.ui.screens.ProfileDeepLink.consumePending()
+        val mine = walletViewModel.address.value
+        when {
+            mine != null && mine.equals(address, ignoreCase = true) ->
+                navController.popBackStack(Screen.Chats.route, false)
+            chatViewModel.hasContact(address) -> navController.navigate("chat/$address")
+            else -> navController.navigate("create_chat?address=${android.net.Uri.encode(address)}")
+        }
+    }
+
     val pendingBroadcastLinkChannel by BroadcastDeepLink.pendingChannel.collectAsState()
     LaunchedEffect(pendingBroadcastLinkChannel) {
         val channel = pendingBroadcastLinkChannel ?: return@LaunchedEffect
@@ -1663,10 +1684,16 @@ fun MainShell(
             // `group` is an optional query-style arg (defaults false) so the tab-aware create
             // button can open this screen straight into group-builder mode from the Group Chats tab.
             composable(
-                "create_chat?group={group}",
-                arguments = listOf(navArgument("group") { type = NavType.BoolType; defaultValue = false })
+                "create_chat?group={group}&address={address}",
+                arguments = listOf(
+                    navArgument("group") { type = NavType.BoolType; defaultValue = false },
+                    // From a profile link: the address to start with, resolved as if typed.
+                    navArgument("address") { type = NavType.StringType; defaultValue = "" },
+                )
             ) { backStackEntry ->
-                val startInGroupMode = backStackEntry.arguments?.getBoolean("group") ?: false
+                val initialAddress = backStackEntry.arguments?.getString("address")?.takeIf { it.isNotBlank() }
+                // A profile link always means a 1:1, even from the Group Chats tab.
+                val startInGroupMode = (backStackEntry.arguments?.getBoolean("group") ?: false) && initialAddress == null
                 CreateChatScreen(
                     onBack = { navController.popBackStack() },
                     onChatCreated = { address ->
@@ -1680,6 +1707,7 @@ fun MainShell(
                         }
                     },
                     startInGroupMode = startInGroupMode,
+                    initialAddress = initialAddress,
                     chatViewModel = chatViewModel
                 )
             }

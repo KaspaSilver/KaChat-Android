@@ -1305,6 +1305,14 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
             else -> "📎 File"
         }
     }
+    // A message that is nothing but a link back into KaChat previews as what it OPENS rather than
+    // as a raw link - matching the card the bubble itself draws for it (iOS formatPreview).
+    when (val link = KaChatLink.parse(body)) {
+        is KaChatLinkRef.KaPost -> return "Shared a KaPosts post"
+        is KaChatLinkRef.BroadcastRoom -> return "Public chat room #${link.channel}"
+        is KaChatLinkRef.Profile -> return "Shared a KaChat profile"
+        null -> {}
+    }
     if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
     com.kachat.app.util.CallCodec.parseOrNull(body)?.let { return com.kachat.app.util.CallCodec.listPreview(it) }
     // Never a link in the row - see NextcloudShareSniff.linkSafePreview.

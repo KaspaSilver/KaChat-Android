@@ -536,6 +536,21 @@ class BroadcastViewModel @Inject constructor(
 
     fun getMessages(channelName: String) = broadcastRepository.getMessages(channelName)
 
+    /**
+     * A tapped public-chat notification asks the indexer for the room's newest rows at once, in
+     * parallel with the navigation, instead of waiting for the room to appear and start its own
+     * backfill - so the message the notification announced is already there when the room opens
+     * (iOS 609ade0). Runs in this view model's scope, not the caller's effect, so clearing the
+     * pending channel as the navigation completes does not cancel it. The rows land in Room and
+     * the room's own Flow picks them up.
+     */
+    fun prefetchNewest(channelName: String) {
+        viewModelScope.launch {
+            runCatching { broadcastRepository.fetchNewestFromIndexer(channelName) }
+                .onFailure { android.util.Log.w("BroadcastViewModel", "Notification prefetch failed", it) }
+        }
+    }
+
     // ------------------------------------------------------------------
     // Room window — "Load earlier messages"
     // ------------------------------------------------------------------

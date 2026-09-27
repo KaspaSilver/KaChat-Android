@@ -107,6 +107,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kachat" android:host="broadcast" />
             </intent-filter>
+            <!-- Profile links: kachat://profile/<address> opens a chat with that person, or the
+                 new-chat screen with the address filled in when they are not a contact yet
+                 (iOS 863b0e9). The address is checksum-validated before anything routes. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kachat" android:host="profile" />
+            </intent-filter>
             <!-- Universal-link form. autoVerify needs /.well-known/assetlinks.json served at
                  the domain (mirrors iOS's AASA file - see KACHAT_APP_LINKS.md). kachat.app is
                  the host the app writes; the duckdns one is only ever read, for links shared
@@ -118,6 +127,8 @@
                 <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/post/" />
                 <!-- Broadcast rooms share the same universal-link host/verification. -->
                 <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/broadcast/" />
+                <!-- The share button beside the Profile title writes these (/u/<address>). -->
+                <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/u/" />
                 <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/post/" />
                 <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/broadcast/" />
             </intent-filter>

@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.filled.IosShare
 import com.kachat.app.util.UserFacingError
 import com.kachat.app.util.redactedForLog
 import android.Manifest
@@ -252,7 +253,7 @@ fun ChatThreadScreen(
     // Zero-balance funding gate — active only for a *confirmed* 0 KAS chatting balance
     // (unknown/still-loading never trips it); the helper also owns the on-entry refresh and
     // the 10s re-poll that dismisses the gate once funds arrive. Shared with group chat,
-    // broadcast rooms and KaPosts — see GiftClaimUi.kt.
+    // broadcast rooms and KaPosts — see ZeroBalanceFundingUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
 
     // rememberSaveable (not remember) so payment mode survives a push to Manage Spending
@@ -658,7 +659,7 @@ fun ChatThreadScreen(
             // phone. imePadding() on the Scaffold above already handles the keyboard-open case.
             // Zero-balance funding gate: the whole composer (text field, camera, "+" menu, send,
             // mic, payment entry) dims and stops responding until the chatting address is funded
-            // — see Modifier.zeroBalanceComposerGate in GiftClaimUi.kt.
+            // — see Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
             Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
                 // Above everything else in the composer stack (including payment mode's fee /
                 // available pills) so it never collides with them, and visible the instant the
@@ -3730,13 +3731,50 @@ fun ProfileScreen(
                         }
                     },
                 )
-                Text(
-                    stringResource(R.string.profile),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(bottom = 6.dp),
-                )
+                ) {
+                    Text(
+                        stringResource(R.string.profile),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                    )
+                    // Beside the title: a kachat.app link to you (iOS 863b0e9). Pasted anywhere it
+                    // previews with your KNS name and avatar; tapped with KaChat installed it opens a
+                    // chat with you, or the new-chat screen for someone who has not got you as a
+                    // contact; without KaChat the page offers the download.
+                    address?.let { myAddress ->
+                        val shareContext = LocalContext.current
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(LocalAppColors.current.textSecondary.copy(alpha = 0.15f))
+                                .clickable {
+                                    val link = KaChatLink.profileWebUrl(myAddress)
+                                    val message = KaChatLink.profileShareMessage(activeProfileDomainName)
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "KaChat")
+                                        putExtra(Intent.EXTRA_TEXT, "$message\n$link")
+                                    }
+                                    runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
+                                }
+                                .semantics { contentDescription = "Share your profile" },
+                        ) {
+                            Icon(
+                                Icons.Default.IosShare,
+                                contentDescription = null,
+                                tint = KaspaTeal,
+                                modifier = Modifier.size(19.dp),
+                            )
+                        }
+                    }
+                }
                 if (showNotifCenter) {
                     AlertDialog(
                         onDismissRequest = {
@@ -4084,8 +4122,6 @@ fun ProfileScreen(
                     navController.navigate("help")
                 })
             }
-
-            GiftClaimProfileSection(walletAddress = address, hideWhenSettled = true)
 
             // Bottom-most section on Profile - merges what used to be a separate "Info" section
             // (just "Created") with Settings' old "About" section (Version/Website/Support
@@ -8923,11 +8959,6 @@ fun SettingsScreen(
                     HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
                     HorizontalDivider(color = LocalAppColors.current.divider)
-                    // Its own section, always here: Profile only offers the gift while there is
-                    // something to claim, so once claimed this is the one place its state - and
-                    // the reset gesture - stays reachable.
-                    SettingsNavigationItem("Gift", Icons.Default.CardGiftcard, onClick = { navController.navigate("settings_section/gift") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
                     SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, Color.Red, labelColor = Color.Red) {
                         if (biometricSeedPhraseEnabled) {
                             context.authenticateWithDeviceCredential(
@@ -8944,12 +8975,6 @@ fun SettingsScreen(
                     }
                     }
                 }
-            }
-
-            if (sectionKey == "gift") {
-            // The same row Profile shows, minus the hide-once-settled rule - this page is where
-            // the gift lives permanently, whatever its state.
-            GiftClaimProfileSection(walletAddress = walletViewModel.address.collectAsState().value)
             }
 
             if (sectionKey == "customization") {
@@ -11226,9 +11251,12 @@ fun CreateChatScreen(
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit = {},
     startInGroupMode: Boolean = false,
+    /** From a profile link: the address the field opens with. Set as the field's initial text, so
+     *  it is validated and resolved exactly as a typed one would be (iOS AddContactView). */
+    initialAddress: String? = null,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
-    var address by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf(initialAddress ?: "") }
     var showScanner by remember { mutableStateOf(false) }
 
     // Group chat mode. The create button is tab-aware (Chats vs Group Chats), so the screen
