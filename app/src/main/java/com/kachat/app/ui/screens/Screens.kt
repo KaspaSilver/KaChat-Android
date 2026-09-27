@@ -3755,12 +3755,14 @@ fun ProfileScreen(
                                 .clip(CircleShape)
                                 .background(LocalAppColors.current.textSecondary.copy(alpha = 0.15f))
                                 .clickable {
+                                    // The link and nothing else: it previews with your name and
+                                    // avatar on its own (iOS 7ce35ef). EXTRA_TITLE only titles the
+                                    // share sheet's preview; it is not part of what gets pasted.
                                     val link = KaChatLink.profileWebUrl(myAddress)
-                                    val message = KaChatLink.profileShareMessage(activeProfileDomainName)
                                     val send = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/plain"
-                                        putExtra(Intent.EXTRA_SUBJECT, "KaChat")
-                                        putExtra(Intent.EXTRA_TEXT, "$message\n$link")
+                                        putExtra(Intent.EXTRA_TEXT, link)
+                                        putExtra(Intent.EXTRA_TITLE, activeProfileDomainName ?: "My KaChat profile")
                                     }
                                     runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
                                 }

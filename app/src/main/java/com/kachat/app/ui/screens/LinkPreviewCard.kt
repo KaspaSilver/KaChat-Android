@@ -880,13 +880,6 @@ object KaChatLink {
     fun profileUrl(address: String) = "kachat://profile/$address"
     fun profileWebUrl(address: String) = "https://$WEB_HOST/u/${address.removePrefix("kaspa:")}"
 
-    /** The line that goes with a shared profile link - iOS's `profileShareMessage`, word for word.
-     *  The link itself previews with the name and avatar in any chat app, opens a chat in KaChat,
-     *  and offers the download to someone who does not have it yet. */
-    fun profileShareMessage(name: String?): String =
-        if (name.isNullOrEmpty()) "Chat with me on KaChat."
-        else "Chat with ${name.replace(".kas", "")} on KaChat."
-
     // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
     // second path component, a query string or a fragment into the app.
     private val LINK_REGEX = Regex(
