@@ -2,6 +2,8 @@
 
 package com.kachat.app.repository
 
+import com.kachat.app.services.GroupControlSinceBody
+import com.kachat.app.services.GroupMessagesSinceBody
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -238,6 +240,9 @@ class GroupRepository @Inject constructor(
 
     /** True whenever a wallet is active, regardless of group state - see [com.kachat.app.services.GroupScanningService] for why `gctl` scanning must key off this instead of group count. */
     val hasActiveWallet: Flow<Boolean> = walletManager.activeAddressFlow.map { it != null }
+
+    /** The active account's address - the live group poll keys its cursors to it. */
+    val activeWalletAddress: Flow<String?> = walletManager.activeAddressFlow
 
     /** "kaspa" or "kaspatest", read off the active wallet's own address - used to reconstruct a sender's address from a raw pubkey/script for the active network instead of assuming mainnet. */
     fun addressPrefix(): String = walletManager.getAddress().substringBefore(":")
@@ -1476,6 +1481,83 @@ class GroupRepository @Inject constructor(
         }
     }
 
+    /** What one live pass against the indexer's `since` reads learned. */
+    sealed class LiveGroupPoll {
+        /** The indexer has no `since` reads (404/405/501): stop asking this session, keep the stream. */
+        object Unsupported : LiveGroupPoll()
+        /** Answered; [newest] is where the next pass on this cursor reads from. */
+        data class Answered(val newest: Long) : LiveGroupPoll()
+        /** Nothing learned (no indexer yet, a network error): the cursor stays where it was. */
+        object Failed : LiveGroupPoll()
+    }
+
+    /**
+     * One pass of live group delivery (iOS a56fb98 pollIndexerForLiveGroupTraffic): the messages of
+     * [onlyGroupId] - or of every group when null - newer than [cursor], and control too when
+     * [includeControl]. Rows go through the same ingest as the catch-up sync and the block scan,
+     * which dedupe by txId, so the deliberate overlap between passes is harmless.
+     *
+     * Each pass starts [LIVE_POLL_REWIND_MS] before its cursor: the indexer's clock and a reorg both
+     * move. A full page is followed straight away from its `latestBlockTime`.
+     */
+    suspend fun pollLiveGroupTraffic(onlyGroupId: String?, includeControl: Boolean, cursor: Long): LiveGroupPoll {
+        val api = networkService.indexerApi.value ?: return LiveGroupPoll.Failed
+        val walletAddress = walletManager.getActiveAccount()?.address ?: return LiveGroupPoll.Failed
+        val since = if (cursor > LIVE_POLL_REWIND_MS) cursor - LIVE_POLL_REWIND_MS else 0L
+        val groups = database.groupDao().getGroupsOnce(walletAddress)
+            .filter { onlyGroupId == null || it.groupId == onlyGroupId }
+        val blindedIds = buildList {
+            for (group in groups) {
+                val bag = groupSecretStore.loadBag(walletAddress, group.groupId) ?: continue
+                val blindingKey = try { bag.blindingKey.hexToByteArray() } catch (e: Exception) { continue }
+                for (member in membersOf(group)) {
+                    val memberPub = try { member.xOnlyPubKeyHex.hexToByteArray() } catch (e: Exception) { continue }
+                    add(GroupCipher.deriveBlindedGroupId(blindingKey, memberPub).toHexString())
+                }
+            }
+        }
+        if (blindedIds.isEmpty()) return LiveGroupPoll.Answered(cursor)
+        var newest = cursor
+        return try {
+            var page = since
+            for (pass in 0 until 10) {
+                val response = api.getGroupMessagesSince(
+                    GroupMessagesSinceBody(blindedIds.take(256), page, LIVE_POLL_PAGE)
+                )
+                val rows = response.messages.orEmpty()
+                for (msg in rows) {
+                    val payloadString = reconstructPayloadString("kchat:1:gcomm:", msg.messagePayload) ?: continue
+                    val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
+                    handleIncomingGroupMessage(parsed, msg.txId, msg.blockTime)
+                    newest = maxOf(newest, msg.blockTime)
+                }
+                val latest = response.latestBlockTime ?: rows.maxOfOrNull { it.blockTime } ?: page
+                newest = maxOf(newest, latest)
+                if (rows.size < LIVE_POLL_PAGE || latest <= page) break
+                page = latest
+            }
+            if (includeControl) {
+                val senders = groups.map { it.adminAddress }.filter { it.isNotEmpty() }.distinct()
+                val response = api.getGroupControlSince(
+                    GroupControlSinceBody(senders, walletAddress, since, LIVE_POLL_PAGE)
+                )
+                for (msg in response.controls.orEmpty()) {
+                    val payloadString = reconstructPayloadString("kchat:1:gctl:", msg.messagePayload) ?: continue
+                    handleIncomingControlMessage(payloadString, msg.sender, msg.blockTime)
+                    newest = maxOf(newest, msg.blockTime)
+                }
+            }
+            LiveGroupPoll.Answered(newest)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 404 || e.code() == 405 || e.code() == 501) LiveGroupPoll.Unsupported else LiveGroupPoll.Failed
+        } catch (e: Exception) {
+            Log.w("GroupRepository", "Live group poll failed", e)
+            LiveGroupPoll.Failed
+        }
+    }
+
     suspend fun syncGroups() {
         val api = networkService.indexerApi.value ?: return
         // On a cold foreground before the user has logged in/imported a wallet there's no active
@@ -1948,3 +2030,9 @@ class GroupRepository @Inject constructor(
         database.groupDao().deleteGroupSyncCursorsForWallet(walletAddress)
     }
 }
+
+/** A live group pass starts this far before its cursor, for indexer clock skew and reorgs (iOS). */
+private const val LIVE_POLL_REWIND_MS = 10_000L
+
+/** Rows per `since` page; a full page is followed straight away. */
+private const val LIVE_POLL_PAGE = 200

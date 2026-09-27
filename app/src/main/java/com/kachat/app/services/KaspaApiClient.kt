@@ -363,7 +363,49 @@ interface KasiaIndexerApi {
         @Query("limit") limit: Int = 50,
         @Query("cursor") cursor: String? = null
     ): List<GroupControlIndexerResponse>
+
+    /**
+     * Everything newer than `sinceBlockTime` across up to 256 blinded group ids, oldest first -
+     * GROUP_MESSAGES_INDEXER.md §2, the read behind live group delivery while the app is open
+     * (iOS a56fb98). 404/405/501 mean the indexer does not serve it; the caller keeps the block
+     * stream then.
+     */
+    @POST("group-messages/since")
+    suspend fun getGroupMessagesSince(@Body body: GroupMessagesSinceBody): GroupMessagesSinceResponse
+
+    /** Control newer than `sinceBlockTime` from any of `senders` (admins) OR addressed to
+     *  `recipient`, the union, oldest first (`POST /group-control/since`). */
+    @POST("group-control/since")
+    suspend fun getGroupControlSince(@Body body: GroupControlSinceBody): GroupControlSinceResponse
 }
+
+// Request bodies are camelCase, exactly as iOS encodes them and the indexer reads them.
+data class GroupMessagesSinceBody(
+    val blindedGroupIds: List<String>,
+    val sinceBlockTime: Long,
+    val limit: Int = 200,
+)
+
+data class GroupControlSinceBody(
+    val senders: List<String>,
+    val recipient: String,
+    val sinceBlockTime: Long,
+    val limit: Int = 200,
+)
+
+/** Rows in the same shape as `GET /group-messages/by-blinded-group-id`; `latestBlockTime` is the
+ *  newest row's time, or the `sinceBlockTime` asked with when there is none. */
+data class GroupMessagesSinceResponse(
+    val messages: List<GroupMessageIndexerResponse>? = null,
+    @SerializedName(value = "latestBlockTime", alternate = ["latest_block_time"])
+    val latestBlockTime: Long? = null,
+)
+
+data class GroupControlSinceResponse(
+    val controls: List<GroupControlIndexerResponse>? = null,
+    @SerializedName(value = "latestBlockTime", alternate = ["latest_block_time"])
+    val latestBlockTime: Long? = null,
+)
 
 data class HandshakeIndexerResponse(
     @SerializedName("tx_id") val txId: String,

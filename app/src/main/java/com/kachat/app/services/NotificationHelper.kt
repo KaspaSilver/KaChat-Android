@@ -155,6 +155,10 @@ class NotificationHelper @Inject constructor(
      *  a group marked read in real time while its thread is on screen, not just once on open. */
     fun isViewingGroup(groupId: String): Boolean = activeGroupId.value == groupId
 
+    /** The group whose thread is on screen, if any - the live group poll reads it every few
+     *  seconds (see GroupScanningService). */
+    val viewingGroupId: String? get() = activeGroupId.value
+
     /** Same for 1:1 threads: a message that lands WHILE its conversation is on screen inserts as
      *  already-read, so leaving the chat doesn't show an unread badge for messages you watched arrive. */
     fun isViewingContact(contactId: String): Boolean = activeContactId.value == contactId

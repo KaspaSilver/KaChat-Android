@@ -71,6 +71,25 @@ class GroupScanningService @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
+
+    // ---- Live delivery from the indexer (iOS a56fb98) -------------------------------------
+    //
+    // While the app is open and the wallet has groups, the indexer's `since` reads are asked for
+    // the open group every 5 s and for every group plus control every 30 s (slower on a metered
+    // network). From the first answer on, the block stream is NOT registered for groups - it was
+    // the largest data and battery cost in the app, for a few seconds' immediacy that a poll gives
+    // up nothing anyone notices. An indexer without the reads (404/405/501) puts the stream back
+    // for the session. The push server still covers the closed app, and catch-up still runs.
+
+    /** The indexer answered a `since` read this session: the block stream stands down. */
+    private val indexerLiveDelivery = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** The indexer said it has no `since` reads: asked no more this session. */
+    @Volatile private var sinceUnsupported = false
+    private var livePollJob: Job? = null
+    /** Two cursors: the open group's fast poll must not move the one the all-groups pass reads
+     *  from, or messages in other groups between the two would be skipped. */
+    private var openGroupCursor = 0L
+    private var allGroupsCursor = 0L
     // True once a live block scan has ever been established this process. Any scan started
     // after that point follows a gap (stream error, node failover, empty-pool window) during
     // which group txs may have been mined unseen - the block scan is purely live, so without
@@ -98,17 +117,83 @@ class GroupScanningService @Inject constructor(
         // doc for why each is safe for invite and message delivery.
         scope.launch {
             combine(
-                groupRepository.hasActiveWallet,
-                nodePoolManager.activeNodes,
-                groupRepository.getGroupCount(),
-                notificationHelper.appForegroundFlow,
-                meteredNetwork.isMeteredFlow
-            ) { active, nodes, groupCount, foreground, metered ->
-                active && nodes.isNotEmpty() && groupCount > 0 && foreground && !metered
+                combine(
+                    groupRepository.hasActiveWallet,
+                    nodePoolManager.activeNodes,
+                    groupRepository.getGroupCount(),
+                    notificationHelper.appForegroundFlow,
+                    meteredNetwork.isMeteredFlow
+                ) { active, nodes, groupCount, foreground, metered ->
+                    active && nodes.isNotEmpty() && groupCount > 0 && foreground && !metered
+                },
+                indexerLiveDelivery,
+            ) { streamWanted, indexerLive ->
+                // The stream is the fallback for an indexer without the `since` reads, not the
+                // primary path.
+                streamWanted && !indexerLive
             }.distinctUntilChanged().collectLatest { shouldRun ->
                 onWalletActiveChanged(shouldRun)
             }
         }
+        // The live poll runs while the app is in front with an account that has groups. Keyed on
+        // the account too: a switch starts the new account's cursors from scratch.
+        scope.launch {
+            combine(
+                groupRepository.activeWalletAddress,
+                groupRepository.getGroupCount(),
+                notificationHelper.appForegroundFlow,
+            ) { address, groupCount, foreground ->
+                if (address != null && groupCount > 0 && foreground) address else null
+            }.distinctUntilChanged().collectLatest { address ->
+                livePollJob?.cancel()
+                if (address == null || sinceUnsupported) return@collectLatest
+                openGroupCursor = 0L
+                allGroupsCursor = 0L
+                livePollJob = scope.launch { runLivePoll() }
+            }
+        }
+    }
+
+    private suspend fun runLivePoll() {
+        var lastFullPass = 0L
+        while (true) {
+            val metered = meteredNetwork.isMetered
+            val fullEvery = LIVE_POLL_ALL_GROUPS_MS * (if (metered) 2 else 1)
+            val now = System.currentTimeMillis()
+            if (now - lastFullPass >= fullEvery) {
+                lastFullPass = now
+                if (!applyLivePoll(onlyGroupId = null, includeControl = true, openGroup = false)) return
+            } else {
+                val open = notificationHelper.viewingGroupId
+                if (open != null && !applyLivePoll(onlyGroupId = open, includeControl = false, openGroup = true)) return
+            }
+            delay(LIVE_POLL_OPEN_GROUP_MS * (if (metered) 3 else 1))
+        }
+    }
+
+    /** One pass on the right cursor. False once the indexer turns out not to serve the reads. */
+    private suspend fun applyLivePoll(onlyGroupId: String?, includeControl: Boolean, openGroup: Boolean): Boolean {
+        val nowMs = System.currentTimeMillis()
+        val cursor = (if (openGroup) openGroupCursor else allGroupsCursor)
+            .takeIf { it > 0 } ?: (nowMs - LIVE_POLL_START_LOOKBACK_MS)
+        when (val result = groupRepository.pollLiveGroupTraffic(onlyGroupId, includeControl, cursor)) {
+            is GroupRepository.LiveGroupPoll.Answered -> {
+                if (openGroup) openGroupCursor = result.newest else allGroupsCursor = result.newest
+                if (!indexerLiveDelivery.value) {
+                    Log.i("GroupScanningService", "Indexer serves group 'since' reads; live delivery moves off the block stream")
+                    indexerLiveDelivery.value = true
+                }
+            }
+            GroupRepository.LiveGroupPoll.Unsupported -> {
+                Log.i("GroupScanningService", "Indexer has no group 'since' reads; groups stay on the block stream")
+                sinceUnsupported = true
+                indexerLiveDelivery.value = false
+                return false
+            }
+            // The next tick tries again; the cursor stays where it was.
+            GroupRepository.LiveGroupPoll.Failed -> Unit
+        }
+        return true
     }
 
     val isRunning: Boolean get() = scanJob?.isActive == true
@@ -221,3 +306,12 @@ class GroupScanningService @Inject constructor(
         private const val RETRY_DELAY_MS = 5_000L
     }
 }
+
+/** The open group's live poll interval (tripled on a metered network) - iOS livePollOpenGroupSeconds. */
+private const val LIVE_POLL_OPEN_GROUP_MS = 5_000L
+
+/** Every group plus control (doubled on a metered network) - iOS livePollAllGroupsSeconds. */
+private const val LIVE_POLL_ALL_GROUPS_MS = 30_000L
+
+/** A cursor's first pass looks back this far - iOS livePollStartLookbackMs. */
+private const val LIVE_POLL_START_LOOKBACK_MS = 2 * 60 * 1000L
