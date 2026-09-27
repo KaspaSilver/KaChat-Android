@@ -452,6 +452,26 @@ data class ChessTournamentGame(
         if (isOver) return 0
         return maxOf(0L, ChessTournamentCodec.allowanceMs(moves.size + 1, startedAt) - maxOf(0L, now - lastEventAt))
     }
+
+    /**
+     * The side whose clock has run out at [now], before anyone has posted the claim. The reducer
+     * ends a game on the clock only when the opponent's phone posts that claim; when the winner
+     * has already left, nobody ever does, and the game used to read as in play forever on every
+     * phone - including the loser's, which then counted as busy and could not join another room.
+     * Three seconds of margin so a move in flight is not beaten to it. Mirrors iOS a94f0e8.
+     */
+    fun flaggedSide(now: Long): ChessColor? =
+        if (!isOver && remainingMs(sideToMove, now - 3_000) == 0L) sideToMove else null
+
+    /** Over on the board, or on the clock with the claim still to come. */
+    fun isDecided(now: Long): Boolean = isOver || flaggedSide(now) != null
+
+    /** The winner as it stands at [now]: the one the chain recorded, or the flagged side's opponent. */
+    fun decidedWinner(now: Long): String? {
+        winner?.let { return it }
+        val flagged = flaggedSide(now) ?: return null
+        return if (flagged == ChessColor.WHITE) black else white
+    }
 }
 
 data class ChessTournament(
@@ -496,6 +516,20 @@ data class ChessTournament(
     }
 
     fun isSeated(address: String, now: Long): Boolean = address in seatedPlayers(now)
+
+    /** In play as anyone can see it at [now]: live, with at least one game still undecided. A live
+     *  room whose games have all run out of clock without a claim reads as finished. */
+    fun isInPlay(now: Long): Boolean =
+        status == Status.LIVE && games.values.any { !it.isDecided(now) }
+
+    /** Whether [address] still has something to play here at [now]: a player who has lost a game -
+     *  on the board, or on the clock with the claim still to come - is out. */
+    fun isStillPlaying(address: String, now: Long): Boolean {
+        if (!isInPlay(now) || address !in players) return false
+        return games.values.none { game ->
+            game.color(address) != null && game.decidedWinner(now).let { it != null && it != address }
+        }
+    }
 
     /** When [address]'s seat runs out, while waiting. */
     fun seatExpiry(address: String): Long? {

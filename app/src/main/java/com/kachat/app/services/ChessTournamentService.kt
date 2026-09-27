@@ -259,10 +259,11 @@ class ChessTournamentService @Inject constructor(
 
     private fun myPrivate(all: Map<String, ChessTournament>, duel: Boolean): List<ChessTournament> {
         val me = myAddress ?: return emptyList()
+        val now = _now.value
         return all.values
             .filter {
                 !it.isPublic && it.isDuel == duel && me in it.players &&
-                    (it.status == ChessTournament.Status.OPEN || it.status == ChessTournament.Status.LIVE)
+                    (it.status == ChessTournament.Status.OPEN || it.isInPlay(now))
             }
             .sortedByDescending { it.createdAt }
     }
@@ -270,11 +271,23 @@ class ChessTournamentService @Inject constructor(
     fun openTournaments(all: Map<String, ChessTournament>) =
         all.values.filter { it.status == ChessTournament.Status.OPEN }.sortedByDescending { it.createdAt }
 
-    fun liveTournaments(all: Map<String, ChessTournament>) =
-        all.values.filter { it.status == ChessTournament.Status.LIVE }.sortedByDescending { it.startedAt ?: 0 }
+    /** Rooms with a game still being played. A live room whose clocks have all run out with no
+     *  claim posted is not one of them (see [ChessTournamentGame.flaggedSide]). */
+    fun liveTournaments(all: Map<String, ChessTournament>): List<ChessTournament> {
+        val now = _now.value
+        return all.values.filter { it.isInPlay(now) }.sortedByDescending { it.startedAt ?: 0 }
+    }
 
-    fun finishedTournaments(all: Map<String, ChessTournament>) =
-        all.values.filter { it.status == ChessTournament.Status.FINISHED }.sortedByDescending { it.startedAt ?: 0 }
+    /** Finished on the chain, or finished on the clock with the claim still to come. */
+    fun finishedTournaments(all: Map<String, ChessTournament>): List<ChessTournament> {
+        val now = _now.value
+        return all.values
+            .filter {
+                it.status == ChessTournament.Status.FINISHED ||
+                    (it.status == ChessTournament.Status.LIVE && !it.isInPlay(now))
+            }
+            .sortedByDescending { it.startedAt ?: 0 }
+    }
 
     /** The tournament this player is in that is not over, if any. A waiting seat that has
      *  expired does not count: the player is free to join elsewhere. */
@@ -283,7 +296,10 @@ class ChessTournamentService @Inject constructor(
         val now = _now.value
         return all.values
             .filter {
-                (it.status == ChessTournament.Status.LIVE && me in it.players) ||
+                // Out of a live room once you have lost a game in it, on the board or on the
+                // clock with the claim still to come - otherwise a winner who had left kept the
+                // loser "busy" forever and unable to join another room (iOS a94f0e8).
+                it.isStillPlaying(me, now) ||
                     (it.status == ChessTournament.Status.OPEN && it.isSeated(me, now))
             }
             .maxByOrNull { it.createdAt }

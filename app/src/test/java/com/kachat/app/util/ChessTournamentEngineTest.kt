@@ -3,6 +3,7 @@ package com.kachat.app.util
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -80,6 +81,44 @@ class ChessTournamentEngineTest {
         // A move after one's own flag would have been void too.
         post(white, ChessTournamentCodec.move(id, game, 1, "e2", "e4", null))
         assertEquals(0, state().games[game]!!.moves.size)
+    }
+
+    @Test
+    fun `a game out of clock with no claim posted reads as decided`() {
+        seatEight()
+        val game = "1-1"
+        val white = players[1]
+        val black = players[6]
+        val t = state()
+        val g = t.games[game]!!
+        // Nobody has moved and nobody has claimed: in play, white is still playing.
+        assertNull(g.flaggedSide(clock))
+        assertFalse(g.isDecided(clock))
+        assertTrue(t.isStillPlaying(white, clock))
+        // Past white's whole clock plus every allowance, with black gone and no claim posted.
+        val later = clock + ChessTournamentCodec.CLOCK_MS + 10 * 60_000L
+        assertEquals(ChessColor.WHITE, g.flaggedSide(later))
+        assertTrue(g.isDecided(later))
+        assertEquals(black, g.decidedWinner(later))
+        assertNull("the chain has recorded nothing", g.winner)
+        // White lost on the clock, so is no longer busy in this room. Nobody moved in ANY of the
+        // four round-one games, so every one of them has flagged by now: the room has no game
+        // left undecided and reads as finished, which frees the winner too.
+        assertFalse(t.isStillPlaying(white, later))
+        assertFalse(t.isInPlay(later))
+        assertFalse(t.isStillPlaying(black, later))
+    }
+
+    @Test
+    fun `a live room whose games have all flagged unclaimed reads as finished`() {
+        post(players[0], ChessTournamentCodec.createDuel(id, "Duel"))
+        post(players[1], ChessTournamentCodec.join(id))
+        val t = state()
+        assertEquals(ChessTournament.Status.LIVE, t.status)
+        assertTrue(t.isInPlay(clock))
+        val later = clock + ChessTournamentCodec.CLOCK_MS + 10 * 60_000L
+        assertFalse("no undecided game left", t.isInPlay(later))
+        assertEquals("the status the chain records is unchanged", ChessTournament.Status.LIVE, t.status)
     }
 
     @Test

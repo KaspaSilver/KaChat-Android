@@ -579,7 +579,7 @@ private fun ChessActiveGames(mode: ChessLobbyMode, navController: NavController)
             live.forEach { tournament ->
                 ChessSectionHeader(tournament.name)
                 ChessCard {
-                    tournament.games.values.filter { !it.isOver }.sortedWith(compareBy({ it.round }, { it.id }))
+                    tournament.games.values.filter { !it.isDecided(now) }.sortedWith(compareBy({ it.round }, { it.id }))
                         .forEach { liveGameRow(it, tournament) }
                     TournamentRow(tournament, "Bracket") { navController.navigate("chess_tournament/${tournament.id}") }
                 }
@@ -606,6 +606,7 @@ private fun ChessFinishedGames(mode: ChessLobbyMode, navController: NavControlle
     val contacts by vm.contacts.collectAsState()
     val knsNames by service.knsNames.collectAsState()
     val duel = mode == ChessLobbyMode.DUEL
+    val now by service.now.collectAsState()
     val done = service.finishedTournaments(all).filter { it.isDuel == duel && it.isPublic }.take(100)
 
     @Composable
@@ -621,16 +622,16 @@ private fun ChessFinishedGames(mode: ChessLobbyMode, navController: NavControlle
             Column(Modifier.weight(1f)) {
                 Row {
                     Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
-                        fontWeight = if (game.winner == game.white) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                        fontWeight = if (game.decidedWinner(now) == game.white) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                     Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
                     Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
-                        fontWeight = if (game.winner == game.black) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                        fontWeight = if (game.decidedWinner(now) == game.black) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                 }
                 val where = if (tournament.isDuel) tournament.name else when (game.round) {
                     3 -> "Final"; 2 -> "Semifinal"; else -> "Round 1"
                 }
                 Text(
-                    "$where · ${gameStatus(game, contacts, knsNames)}",
+                    "$where · ${gameStatus(game, now, contacts, knsNames)}",
                     color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -1745,14 +1746,14 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                                 Column(Modifier.weight(1f)) {
                                     Row {
                                         Text(chessName(game.white, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
-                                            fontWeight = if (game.winner == game.white) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                                            fontWeight = if (game.decidedWinner(now) == game.white) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                                         Text("  vs  ", color = colors.textSecondary, fontSize = 14.sp)
                                         Text(chessName(game.black, contacts, knsNames), color = colors.textPrimary, fontSize = 14.sp,
-                                            fontWeight = if (game.winner == game.black) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                                            fontWeight = if (game.decidedWinner(now) == game.black) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
                                     }
-                                    Text(gameStatus(game, contacts, knsNames), color = colors.textSecondary, fontSize = 12.sp)
+                                    Text(gameStatus(game, now, contacts, knsNames), color = colors.textSecondary, fontSize = 12.sp)
                                 }
-                                if (!game.isOver) {
+                                if (!game.isDecided(now)) {
                                     Text(clockText(game.remainingMs(game.sideToMove, now)), color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                                 }
                                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
@@ -1782,10 +1783,12 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
 
 private fun roundName(round: Int) = when (round) { 3 -> "the final"; 2 -> "the semifinal"; else -> "round 1" }
 
-private fun gameStatus(game: ChessTournamentGame, contacts: Map<String, ContactEntity>, knsNames: Map<String, String>): String {
+private fun gameStatus(game: ChessTournamentGame, now: Long, contacts: Map<String, ContactEntity>, knsNames: Map<String, String>): String {
     val winner = game.winner
     val outcome = game.outcome
     if (winner == null || outcome == null) {
+        // Out of clock, claim not posted: the same result, said the same way (iOS a94f0e8).
+        game.decidedWinner(now)?.let { return "${chessName(it, contacts, knsNames)} won on time" }
         return "Move ${game.moves.size / 2 + 1} · ${if (game.sideToMove == ChessColor.WHITE) "white" else "black"} to move"
     }
     val who = chessName(winner, contacts, knsNames)
@@ -1954,7 +1957,7 @@ private fun ChessGameResultScreen(
                 )
                 Text(if (iWon) "Victory" else "Defeat", color = colors.textPrimary, fontSize = 32.sp, fontWeight = FontWeight.Black)
                 if (game != null) {
-                    Text(gameStatus(game, contacts, knsNames), color = colors.textSecondary, fontSize = 14.sp)
+                    Text(gameStatus(game, service.now.value, contacts, knsNames), color = colors.textSecondary, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(20.dp))
                 // The record: before -> after, on the board this game counts on.
@@ -2225,6 +2228,9 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                         ChessTournamentOutcome.Timeout -> "$who won on time."
                         is ChessTournamentOutcome.DrawTiebreak -> "Draw by ${outcome.reason}. $who won on clock."
                     }
+                } else if (game.decidedWinner(now) != null) {
+                    // Out of clock, claim not posted yet: the result is already fixed.
+                    "Time ran out. ${chessName(game.decidedWinner(now)!!, contacts, knsNames)} won on time."
                 } else if (isPending) {
                     "Sending your move…"
                 } else {
@@ -2251,7 +2257,7 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
                         statusText,
-                        color = if (game.isOver) colors.textSecondary else colors.textPrimary,
+                        color = if (game.isDecided(now)) colors.textSecondary else colors.textPrimary,
                         fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
                     )
                 }
