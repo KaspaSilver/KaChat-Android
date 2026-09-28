@@ -472,21 +472,18 @@ fun GroupChatThreadScreen(
             // Box takes the taller child's height and the photo rides level with the back button.
             // The bar's own title slot has a fixed height and clipped a photo this size, which is
             // why the group header was stuck with a smaller one than 1:1.
+            val headerTapBand = remember { ChatHeaderTapBandState() }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Tapping the header row beside the name jumps to the very first message in
-                    // the group. On the PARENT, so the header card (Group Info), the back button
-                    // and the connection dot all keep their own taps - a child that handles the
-                    // press consumes it and never reaches here. No ripple: this is the bar's
-                    // empty space, not a button drawn on it.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        coroutineScope.launch { listState.scrollToItem(0) }
-                    }
+                    // Photo and name open Group Info - and so does the 24dp either side of them;
+                    // the space further out jumps to the very first message (iOS 1d5a555). The
+                    // back button, the connection dot and the card keep their own taps.
+                    .chatHeaderTapBand(
+                        headerTapBand,
+                        onChip = { navController.navigate("group_chat_info/$groupId") },
+                        onBand = { coroutineScope.launch { listState.scrollToItem(0) } },
+                    )
             ) {
             CenterAlignedTopAppBar(
                 // Empty: the header card rides in the SAME row (see the Box above), so the bar
@@ -539,6 +536,7 @@ fun GroupChatThreadScreen(
                 // not sit inside it - without this the photo draws up behind the camera cutout.
                 modifier = Modifier
                     .align(Alignment.TopCenter)
+                    .chatHeaderChip(headerTapBand)
                     .statusBarsPadding(),
             )
             }

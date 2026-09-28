@@ -485,30 +485,30 @@ fun ChatThreadScreen(
             // height, so the back button and the connection dot sit at the top of it and the
             // avatar rides level with them. The bar's own title slot has a fixed height and
             // would clip an avatar this size, which is what it was doing before.
+            val headerTapBand = remember { ChatHeaderTapBandState() }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Tapping the header row beside the name jumps to the very first message in
-                    // the conversation. On the PARENT, so the avatar card (Chat Info), the back
-                    // button and the connection dot all keep their own taps - a child that
-                    // handles the press consumes it and never reaches here. No ripple: this is
-                    // the bar's empty space, not a button drawn on it.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        // Not while the list is moving: tapping the screen to arrest a fling is
-                        // an ordinary reflex, not "take me to the beginning" (iOS). Every
-                        // remaining page is pulled in FIRST - scrolling first would land on
-                        // whatever the oldest LOADED row happened to be, not message one.
-                        if (!scrollState.isScrollInProgress) {
-                            coroutineScope.launch {
-                                chatViewModel.loadAllOlderMessages(contactId)
-                                scrollState.scrollToItem(0)
+                    // Avatar and name open User Info - and so does the 24dp either side of them;
+                    // the space further out jumps to the very first message (iOS 1d5a555). The
+                    // back button, the connection dot and the card keep their own taps. No
+                    // ripple: this is the bar's empty space, not a button drawn on it.
+                    .chatHeaderTapBand(
+                        headerTapBand,
+                        onChip = { navController.navigate("chat_info/$contactId") },
+                        onBand = {
+                            // Not while the list is moving: tapping the screen to arrest a fling
+                            // is an ordinary reflex, not "take me to the beginning" (iOS). Every
+                            // remaining page is pulled in FIRST - scrolling first would land on
+                            // whatever the oldest LOADED row happened to be, not message one.
+                            if (!scrollState.isScrollInProgress) {
+                                coroutineScope.launch {
+                                    chatViewModel.loadAllOlderMessages(contactId)
+                                    scrollState.scrollToItem(0)
+                                }
                             }
-                        }
-                    }
+                        },
+                    )
             ) {
             CenterAlignedTopAppBar(
                 // Empty: the header rides in the SAME row (see the Box above), so the bar itself
@@ -648,6 +648,7 @@ fun ChatThreadScreen(
                 // through this inset, so it is right on all of them rather than tuned to one.
                 modifier = Modifier
                     .align(Alignment.TopCenter)
+                    .chatHeaderChip(headerTapBand)
                     .statusBarsPadding(),
             )
             }

@@ -1,5 +1,15 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.ui.composed
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.getValue
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Schedule
@@ -831,4 +841,59 @@ fun DeliveryStatusLabel(
             fontWeight = if (retryable) FontWeight.Bold else FontWeight.Normal,
         )
     }
+}
+
+// MARK: - Chat header tap band
+
+/** Where the header chip (avatar and name) sits on screen, recorded by [chatHeaderChip]. Plain
+ *  fields rather than state: they are read only at the moment of a tap, never drawn from. */
+class ChatHeaderTapBandState {
+    internal var chipLeft = 0f
+    internal var chipRight = 0f
+    internal var hasChip = false
+    internal var bandLeft = 0f
+}
+
+/** Marks the header chip, so [chatHeaderTapBand] knows where it is. */
+fun Modifier.chatHeaderChip(state: ChatHeaderTapBandState): Modifier =
+    onGloballyPositioned {
+        val bounds = it.boundsInRoot()
+        state.chipLeft = bounds.left
+        state.chipRight = bounds.right
+        state.hasChip = true
+    }
+
+/**
+ * The header row over a 1:1, group or public chat thread, as iOS's `chatHeaderTapBand` (1d5a555):
+ * taps over the chip and within 24dp either side of it open the info screen - User Info, Group
+ * Info, Room Info - and taps on the dead space further out jump to the first message.
+ *
+ * The chip, the back button and the header's actions keep their own taps: a child that handles a
+ * press consumes it, and this only ever sees what nothing above it claimed, so the margin can
+ * never take a tap from Back. It decides by position rather than by enlarging the chip, which
+ * would have done exactly that on a narrow screen. Positions are in screen coordinates, so the
+ * chip may be a child of the band (1:1, group) or sit in the app bar's title slot (public chat).
+ */
+fun Modifier.chatHeaderTapBand(
+    state: ChatHeaderTapBandState,
+    onChip: () -> Unit,
+    onBand: () -> Unit,
+): Modifier = composed {
+    val latestOnChip by rememberUpdatedState(onChip)
+    val latestOnBand by rememberUpdatedState(onBand)
+    val haptics = LocalHapticFeedback.current
+    this
+        .onGloballyPositioned { state.bandLeft = it.positionInRoot().x }
+        .pointerInput(state) {
+            val margin = 24.dp.toPx()
+            detectTapGestures { offset ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                val x = state.bandLeft + offset.x
+                if (state.hasChip && x >= state.chipLeft - margin && x <= state.chipRight + margin) {
+                    latestOnChip()
+                } else {
+                    latestOnBand()
+                }
+            }
+        }
 }

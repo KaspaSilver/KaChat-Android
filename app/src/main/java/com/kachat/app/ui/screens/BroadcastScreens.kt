@@ -864,21 +864,18 @@ fun BroadcastChannelScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
+            val headerTapBand = remember { ChatHeaderTapBandState() }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Tapping the header row beside the name jumps to the very first message in
-                    // the room. On the PARENT, so the room name (Room Info), the back button and
-                    // the connection dot all keep their own taps - a child that handles the press
-                    // consumes it and never reaches here. No ripple: this is the bar's empty
-                    // space, not a button drawn on it.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        coroutineScope.launch { listState.scrollToItem(0) }
-                    }
+                    // Icon and name open Room Info - and so does the 24dp either side of them;
+                    // the space further out jumps to the very first message (iOS 1d5a555). The
+                    // back button, the connection dot and the name keep their own taps.
+                    .chatHeaderTapBand(
+                        headerTapBand,
+                        onChip = { navController.navigate("broadcast_room_info/$channelName") },
+                        onBand = { coroutineScope.launch { listState.scrollToItem(0) } },
+                    )
             ) {
             CenterAlignedTopAppBar(
                 title = {
@@ -889,6 +886,7 @@ fun BroadcastChannelScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
+                            .chatHeaderChip(headerTapBand)
                             .clickable { navController.navigate("broadcast_room_info/$channelName") }
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
