@@ -1,5 +1,7 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Translate
 import com.kachat.app.util.UserFacingError
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -692,6 +694,11 @@ fun BroadcastChannelScreen(
     val messages = messageWindow.messages
     // Reactions aggregated per message txId — same shape as GroupChatScreen's groupReactionsByTxId.
     val channelReactions by broadcastViewModel.getReactions(channelName).collectAsState(initial = emptyList())
+    // Translate from the long-press menu (iOS 03e5128) - read once here, not per row.
+    val translationStates by broadcastViewModel.translations.collectAsState()
+    val translationOriginals by broadcastViewModel.showingOriginal.collectAsState()
+    val translatableKeys by broadcastViewModel.translatable.collectAsState()
+    LaunchedEffect(Unit) { broadcastViewModel.refreshTranslationLanguages() }
     val reactionsByTxId = remember(channelReactions) { channelReactions.groupBy { it.targetTxId } }
     val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
@@ -1280,6 +1287,21 @@ fun BroadcastChannelScreen(
                             KaChatLink.findFirst(displayContent)
                         } else null
                     }
+                    // Worth considering for Translate: someone else's plain text. Voice notes, KaChat
+                    // link cards and structured payloads have nothing to translate.
+                    val translationKey = remember(message.id, displayContent) {
+                        broadcastViewModel.translationKey(message.id, displayContent)
+                    }
+                    val considersTranslation = !isMine && voiceContent == null &&
+                        !displayContent.trimStart().startsWith("{") && internalLinkMatch == null
+                    LaunchedEffect(translationKey, considersTranslation) {
+                        if (considersTranslation) broadcastViewModel.considerTranslation(translationKey, displayContent)
+                    }
+                    val translationState = translationStates[translationKey]
+                    // The text the bubble draws: the translation while one is showing, otherwise the
+                    // message. Everything that decides WHAT the message is still reads displayContent.
+                    val shownText = (translationState as? com.kachat.app.services.PostTranslationService.TranslationState.Translated)
+                        ?.takeIf { translationKey !in translationOriginals }?.text ?: displayContent
                     val isEntirelyInternalLinkMessage =
                         // The card is the WHOLE message wherever a KaChat link appears - see
                         // 1:1's identical rule. Copy and the full-text dialog keep everything.
@@ -1463,7 +1485,7 @@ fun BroadcastChannelScreen(
                                         autoFetch = false
                                     )
                                 } else {
-                                    var textLayoutResult by remember(displayContent) { mutableStateOf<TextLayoutResult?>(null) }
+                                    var textLayoutResult by remember(shownText) { mutableStateOf<TextLayoutResult?>(null) }
                                     // Tapping a link here asks first rather than opening straight
                                     // away: a room's senders are anonymous, so opening one of
                                     // their links should be a decision, not a stray tap. iOS has
@@ -1486,17 +1508,17 @@ fun BroadcastChannelScreen(
                                     // Sent bubbles are teal with black text/links for contrast —
                                     // matches 1:1/group chats' treatment of the same case.
                                     val linkColor = if (isMine) LocalAppColors.current.onOutgoingBubble else KaspaTeal
-                                    val annotatedBody = remember(displayContent, isMine) {
+                                    val annotatedBody = remember(shownText, isMine) {
                                         buildAnnotatedString {
-                                            append(displayContent)
-                                            for (match in TextLinkify.findUrls(displayContent)) {
+                                            append(shownText)
+                                            for (match in TextLinkify.findUrls(shownText)) {
                                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), match.range.first, match.range.last + 1)
                                                 addStringAnnotation("URL", match.uri, match.range.first, match.range.last + 1)
                                             }
                                             // kachat:// isn't a web URL, so TextLinkify never
                                             // sees it - style/annotate it here so it's tappable
                                             // inline too.
-                                            KaChatLink.findFirst(displayContent)?.let { internal ->
+                                            KaChatLink.findFirst(shownText)?.let { internal ->
                                                 addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), internal.range.first, internal.range.last + 1)
                                                 addStringAnnotation("URL", internal.raw, internal.range.first, internal.range.last + 1)
                                             }
@@ -1572,6 +1594,41 @@ fun BroadcastChannelScreen(
                                         ) {
                                             clipboardManager.setText(AnnotatedString(displayContent))
                                             showMenu = false
+                                        }
+                                        when (translationState) {
+                                            is com.kachat.app.services.PostTranslationService.TranslationState.Translated ->
+                                                if (translationKey in translationOriginals) {
+                                                    ActionSheetRow(
+                                                        icon = Icons.Default.Translate,
+                                                        title = "Show Translation",
+                                                        subtitle = "The translated text again.",
+                                                    ) {
+                                                        broadcastViewModel.showTranslation(translationKey)
+                                                        showMenu = false
+                                                    }
+                                                } else {
+                                                    ActionSheetRow(
+                                                        icon = Icons.AutoMirrored.Filled.Undo,
+                                                        title = "Show Original",
+                                                        subtitle = "Back to the text as it was sent.",
+                                                    ) {
+                                                        broadcastViewModel.showOriginal(translationKey)
+                                                        showMenu = false
+                                                    }
+                                                }
+                                            com.kachat.app.services.PostTranslationService.TranslationState.Translating,
+                                            is com.kachat.app.services.PostTranslationService.TranslationState.Unavailable -> Unit
+                                            null, com.kachat.app.services.PostTranslationService.TranslationState.Failed ->
+                                                if (considersTranslation && translationKey in translatableKeys) {
+                                                    ActionSheetRow(
+                                                        icon = Icons.Default.Translate,
+                                                        title = "Translate",
+                                                        subtitle = "Shows this message in ${broadcastViewModel.readerLanguageName()}.",
+                                                    ) {
+                                                        broadcastViewModel.translateMessage(translationKey, displayContent)
+                                                        showMenu = false
+                                                    }
+                                                }
                                         }
                                         ActionSheetRow(
                                             icon = Icons.Default.Public,
@@ -1662,6 +1719,21 @@ fun BroadcastChannelScreen(
                                             .padding(top = 2.dp)
                                     )
                                 }
+                            }
+
+                            // "Translating...", "Translated from Spanish - Show original", or why it
+                            // could not be - the same line and words KaPosts uses, under the bubble
+                            // rather than inside its Box, so the reaction pill stays on the bubble.
+                            // Nothing at all until Translate is picked from the long-press menu.
+                            if (translationState != null) {
+                                TranslateAffordance(
+                                    state = translationState,
+                                    canTranslate = false,
+                                    showingOriginal = translationKey in translationOriginals,
+                                    onTranslate = { broadcastViewModel.translateMessage(translationKey, displayContent) },
+                                    onShowOriginal = { broadcastViewModel.showOriginal(translationKey) },
+                                    onShowTranslation = { broadcastViewModel.showTranslation(translationKey) },
+                                )
                             }
 
                             // A link mixed with other text keeps the bubble above and stacks the

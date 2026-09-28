@@ -5660,7 +5660,7 @@ const val LINK_ANNOTATION_TAG = "link"
  * language, so ordinary same-language feeds look exactly as they did.
  */
 @Composable
-private fun TranslateAffordance(
+internal fun TranslateAffordance(
     state: PostTranslationService.TranslationState?,
     canTranslate: Boolean,
     showingOriginal: Boolean,
@@ -5727,7 +5727,7 @@ private fun TranslateAffordance(
 }
 
 @Composable
-private fun TranslateLink(title: String, onClick: () -> Unit) {
+internal fun TranslateLink(title: String, onClick: () -> Unit) {
     Spacer(modifier = Modifier.height(4.dp))
     Text(
         title,

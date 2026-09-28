@@ -63,6 +63,8 @@ class BroadcastViewModel @Inject constructor(
     private val nextcloudService: NextcloudService,
     /** What has been read in each room, per wallet - the Public Chats list's unread counts. */
     private val readState: com.kachat.app.services.BroadcastReadStateStore,
+    /** The KaPosts translation service, reused as-is for public chat messages (iOS 03e5128). */
+    private val translationService: com.kachat.app.services.PostTranslationService,
 ) : ViewModel() {
 
     // Address -> KNS avatar URL (or null if fetched but no avatar/domain exists) for whoever's
@@ -535,6 +537,82 @@ class BroadcastViewModel @Inject constructor(
     }
 
     fun getMessages(channelName: String) = broadcastRepository.getMessages(channelName)
+
+    // ------------------------------------------------------------------
+    // Translation - someone else's text in another language, from its long-press menu (iOS 03e5128)
+    // ------------------------------------------------------------------
+    //
+    // The same service, language detection and states KaPosts uses. Public chats only: 1:1 and
+    // group messages are encrypted, and translating one would hand its plaintext to a server. A
+    // message goes as bare text with no txid - the server caches by KaPost id and checks the text
+    // against its own copy of the post, which a public chat message is not - so it is translated
+    // and not cached. Nothing shows until Translate is picked; states live in memory only.
+
+    private val _translations = MutableStateFlow<Map<String, com.kachat.app.services.PostTranslationService.TranslationState>>(emptyMap())
+    val translations: StateFlow<Map<String, com.kachat.app.services.PostTranslationService.TranslationState>> = _translations.asStateFlow()
+    private val _showingOriginal = MutableStateFlow<Set<String>>(emptySet())
+    val showingOriginal: StateFlow<Set<String>> = _showingOriginal.asStateFlow()
+    /** Messages worth offering Translate for: someone else's text, in a pair the service serves. */
+    private val _translatable = MutableStateFlow<Set<String>>(emptySet())
+    val translatable: StateFlow<Set<String>> = _translatable.asStateFlow()
+    private val consideredTranslations = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    private var consideredLanguage: String? = null
+
+    /** Per message AND per text: an edit changes the text, and a translation of the old text must
+     *  not show over the new one. */
+    fun translationKey(messageId: String, text: String): String = "publicchat:$messageId:${text.hashCode()}"
+
+    /** What the service can serve, so Translate is offered only for a pair that can succeed. */
+    fun refreshTranslationLanguages() {
+        viewModelScope.launch { runCatching { translationService.refreshSupportedLanguages() } }
+    }
+
+    /** The reader's language by name ("English"), for "Shows this message in English." */
+    fun readerLanguageName(): String =
+        translationService.targetLanguage()?.let { translationService.displayName(it) } ?: "your language"
+
+    /** Identifies the message's language once and records whether Translate is worth offering. */
+    fun considerTranslation(key: String, text: String) {
+        val language = translationService.targetLanguage()
+        if (language != consideredLanguage) {
+            consideredLanguage = language
+            consideredTranslations.clear()
+            _translatable.value = emptySet()
+        }
+        if (!consideredTranslations.add(key)) return
+        viewModelScope.launch {
+            val source = translationService.detectLanguage(text) ?: return@launch
+            if (!translationService.canOfferTranslation(text, source)) return@launch
+            _translatable.value = _translatable.value + key
+        }
+    }
+
+    fun translateMessage(key: String, text: String) {
+        _showingOriginal.value = _showingOriginal.value - key
+        if (_translations.value[key] == com.kachat.app.services.PostTranslationService.TranslationState.Translating) return
+        _translations.value = _translations.value + (key to com.kachat.app.services.PostTranslationService.TranslationState.Translating)
+        viewModelScope.launch {
+            val next = try {
+                val result = translationService.translate(text, postId = null)
+                com.kachat.app.services.PostTranslationService.TranslationState.Translated(
+                    text = result.text,
+                    sourceName = result.sourceLanguage?.let { translationService.displayName(it) } ?: "another language",
+                )
+            } catch (e: com.kachat.app.services.PostTranslationService.TranslationException) {
+                if (e.terminal) com.kachat.app.services.PostTranslationService.TranslationState.Unavailable(e.readerMessage)
+                else com.kachat.app.services.PostTranslationService.TranslationState.Failed
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("BroadcastViewModel", "Translation failed", e)
+                com.kachat.app.services.PostTranslationService.TranslationState.Failed
+            }
+            _translations.value = _translations.value + (key to next)
+        }
+    }
+
+    fun showOriginal(key: String) { _showingOriginal.value = _showingOriginal.value + key }
+    fun showTranslation(key: String) { _showingOriginal.value = _showingOriginal.value - key }
 
     /**
      * A tapped public-chat notification asks the indexer for the room's newest rows at once, in
