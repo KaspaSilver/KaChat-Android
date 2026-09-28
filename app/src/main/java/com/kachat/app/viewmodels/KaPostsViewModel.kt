@@ -128,6 +128,9 @@ class KaPostsViewModel @Inject constructor(
     }
 
     companion object {
+        /** When a poster whose lookup failed is asked again: quickly at first, then backing off to
+         *  the 60 s cooldown iOS uses for a failed avatar. */
+        private val SENDER_PROBE_BACKOFF_MS = longArrayOf(5_000L, 20_000L, 60_000L)
         private const val TAG = "KaPostsViewModel"
         const val UNDO_DELAY_MS = 5_000L
 
@@ -829,7 +832,43 @@ class KaPostsViewModel @Inject constructor(
      * and every visible KaPostCell collects that map - so each new row scrolled in recomposed all
      * visible rows (feed scroll jank). Now the map only ticks when a real avatar URL arrives.
      */
-    private val probedSenderProfiles = mutableSetOf<String>()
+    private val probedSenderProfiles = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * When a poster's lookup last failed to complete. A probe used to claim its address for the
+     * whole session BEFORE running, so one dropped connection or busy KNS answer left that poster
+     * as a shortened address with no avatar until the app restarted - the "some users never
+     * resolve" symptom. A failed probe now gives its claim back and may run again after a short
+     * back-off - the negative-cache-with-cooldown iOS's KNSProfileImageCache uses
+     * for the same reason, so a dead lookup is not re-sent on every scroll.
+     */
+    private val senderProbeFailedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    /** Failures in a row per poster, for the back-off below. Cleared by any completed lookup. */
+    private val senderProbeFailures = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    private fun senderProbeRetryDelay(address: String): Long =
+        SENDER_PROBE_BACKOFF_MS[((senderProbeFailures[address] ?: 1) - 1).coerceIn(0, SENDER_PROBE_BACKOFF_MS.lastIndex)]
+
+    private fun senderProbeFailed(address: String) {
+        senderProbeFailedAt[address] = System.currentTimeMillis()
+        val failures = (senderProbeFailures[address] ?: 0) + 1
+        senderProbeFailures[address] = failures
+        probedSenderProfiles.remove(address)
+        // A row that stays on screen never asks again by itself, so the retry is scheduled here:
+        // a dropped request resolves within seconds instead of on the next scroll or restart.
+        // Three tries, then it waits for the row to come back.
+        if (failures <= SENDER_PROBE_BACKOFF_MS.size) {
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(senderProbeRetryDelay(address))
+                ensureSenderProfileFetched(address)
+            }
+        }
+    }
+
+    private fun senderProbeSettled(address: String) {
+        senderProbeFailedAt.remove(address)
+        senderProbeFailures.remove(address)
+    }
 
     /**
      * Caps how many identity probes run at once.
@@ -865,18 +904,23 @@ class KaPostsViewModel @Inject constructor(
         if (_senderProfiles.value.containsKey(address) && knsProfileCache.entry(address) == null) return
         // Same unbounded-growth guard as cappedForSenders - a reset just re-allows a probe.
         if (probedSenderProfiles.size > 4000) probedSenderProfiles.clear()
+        senderProbeFailedAt[address]?.let { failedAt ->
+            if (System.currentTimeMillis() - failedAt < senderProbeRetryDelay(address)) return
+        }
         if (!probedSenderProfiles.add(address)) return
         viewModelScope.launch {
             senderProbeLimit.withPermit {
             try {
                 // A lookup that could not be completed caches nothing: "no KNS" below is a real
                 // answer, and a dropped connection must not be written down as one.
-                val ownedAssets = knsService.getOwnedDomainsOrNull(address) ?: return@withPermit
+                val ownedAssets = knsService.getOwnedDomainsOrNull(address)
+                    ?: return@withPermit senderProbeFailed(address)
                 if (ownedAssets.isEmpty()) {
                     // "This address has no KNS" is a real answer, and re-asking for it on every
                     // launch was the most common wasted call of the lot. Cached, with a shorter
                     // life than a positive one since a domain can be inscribed at any time.
                     knsProfileCache.put(address, null, null, null, null)
+                    senderProbeSettled(address)
                     return@withPermit
                 }
                 val ownedNames = ownedAssets.mapNotNull { it.asset }
@@ -907,8 +951,14 @@ class KaPostsViewModel @Inject constructor(
                     bannerUrl = _senderBanners.value[address],
                     bio = _senderBios.value[address],
                 )
+                senderProbeSettled(address)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // The screen went away mid-lookup: nothing failed, but nothing finished either.
+                probedSenderProfiles.remove(address)
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Could not fetch KNS profile for ${address.redactedForLog()}", e)
+                senderProbeFailed(address)
             }
             }
         }
