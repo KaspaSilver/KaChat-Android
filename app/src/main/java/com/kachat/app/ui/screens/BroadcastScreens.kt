@@ -1187,7 +1187,7 @@ fun BroadcastChannelScreen(
                     // Broadcast senders are usually strangers: openSenderProfile creates the
                     // contact row first, then hands back the address to navigate with.
                     onViewProfile = {
-                        broadcastViewModel.openSenderProfile(address) { navController.navigate("chat_info/$it?fromBroadcast=true") }
+                        broadcastViewModel.openSenderProfile(address) { navController.navigate("chat_info/$it") }
                     },
                     onOpenChat = {
                         broadcastViewModel.openSenderProfile(address) { navController.navigate("chat/$it") }

@@ -590,4 +590,6 @@
     <string name="contacts_call_contact_missing">That contact is no longer in KaChat.</string>
     <string name="contacts_call_not_enabled">Calls are turned off for this contact in KaChat.</string>
     <string name="public_chats">Public Chats</string>
+    <string name="user_info">User Info</string>
+    <string name="share">Share</string>
 </resources>

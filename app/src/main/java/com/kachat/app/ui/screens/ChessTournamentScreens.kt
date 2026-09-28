@@ -1115,7 +1115,7 @@ private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavControl
                     // avatar's View Profile (iOS 035f2fa).
                     .then(
                         if (navController == null) Modifier else Modifier.clickable {
-                            vm.openPlayerProfile(row.address) { navController.navigate("chat_info/$it?fromBroadcast=true") }
+                            vm.openPlayerProfile(row.address) { navController.navigate("chat_info/$it") }
                         }
                     )
                     .padding(horizontal = 16.dp, vertical = 8.dp),

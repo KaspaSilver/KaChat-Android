@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">Kurtarma kelimelerimi yazdim ve guvenli bir sekilde sakladim</string>
     <string name="i_already_have_a_domain_somewhere">Baska bir yerde zaten bir alan adim var</string>
     <string name="transfer_your_domain_to_this_address">Kimliginizin KaChat\'e baglanmasi icin alan adinizi bu adrese transfer edin.</string>
+    <string name="user_info">Kullanıcı Bilgisi</string>
 </resources>

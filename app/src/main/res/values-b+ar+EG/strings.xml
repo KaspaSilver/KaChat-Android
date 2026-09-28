@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">لقد كتبت عبارتي الاسترجاعية وحفظتها في مكان آمن</string>
     <string name="i_already_have_a_domain_somewhere">لدي بالفعل نطاق في مكان آخر</string>
     <string name="transfer_your_domain_to_this_address">انقل نطاقك إلى هذا العنوان حتى تتصل هويتك بـ KaChat.</string>
+    <string name="user_info">معلومات المستخدم</string>
 </resources>

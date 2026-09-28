@@ -452,4 +452,5 @@
     <string name="i_have_written_down_my_seed_phrase">عبارت بازیابی خود را نوشته‌ام و آن را به‌طور امن نگهداری کرده‌ام</string>
     <string name="i_already_have_a_domain_somewhere">من قبلاً یک دامنه در جای دیگری دارم</string>
     <string name="transfer_your_domain_to_this_address">دامنه خود را به این آدرس منتقل کنید تا هویت شما به KaChat متصل شود.</string>
+    <string name="user_info">اطلاعات کاربر</string>
 </resources>

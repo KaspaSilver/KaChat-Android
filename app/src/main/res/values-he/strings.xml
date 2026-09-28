@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">רשמתי את משפט השחזור שלי ושמרתי אותו במקום בטוח</string>
     <string name="i_already_have_a_domain_somewhere">כבר יש לי דומיין במקום אחר</string>
     <string name="transfer_your_domain_to_this_address">העבר את הדומיין שלך לכתובת זו כדי שהזהות שלך תתחבר ל-KaChat.</string>
+    <string name="user_info">פרטי משתמש</string>
 </resources>

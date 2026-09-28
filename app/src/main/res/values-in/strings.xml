@@ -282,4 +282,5 @@
     <string name="transfer_your_domain_to_this_address">Transfer domain Anda ke alamat ini agar identitas Anda terhubung ke KaChat.</string>
     <string name="default_label">Default</string>
     <string name="continue_label">Lanjutkan</string>
+    <string name="user_info">Info Pengguna</string>
 </resources>

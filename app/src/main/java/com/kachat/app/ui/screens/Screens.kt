@@ -585,7 +585,7 @@ fun ChatThreadScreen(
                 val who = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
                 ActionSheetContainer(
                     title = "Enable calls and video calls with $who?",
-                    subtitle = "They will be able to call you too. You can turn this off any time in Chat Info.",
+                    subtitle = "They will be able to call you too. You can turn this off any time in User Info.",
                     onDismiss = { showEnableCalls = false },
                 ) {
                     ActionSheetRow(
@@ -11253,12 +11253,9 @@ fun CreateChatScreen(
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit = {},
     startInGroupMode: Boolean = false,
-    /** From a profile link: the address the field opens with. Set as the field's initial text, so
-     *  it is validated and resolved exactly as a typed one would be (iOS AddContactView). */
-    initialAddress: String? = null,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
-    var address by remember { mutableStateOf(initialAddress ?: "") }
+    var address by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
 
     // Group chat mode. The create button is tab-aware (Chats vs Group Chats), so the screen
@@ -12406,7 +12403,6 @@ fun ChatInfoScreen(
     onBack: () -> Unit,
     chatViewModel: ChatViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),
-    fromBroadcast: Boolean = false,
     /** Straight into this person's 1:1 thread - see the "Open Chat" row. */
     onOpenChat: (String) -> Unit = {},
     onNavigateToPhotoSettings: (String) -> Unit = {},
@@ -12543,7 +12539,10 @@ fun ChatInfoScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (fromBroadcast) "User Info" else "Chat Info", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                // One screen for anyone's profile - a chat header, a group roster row, a public
+                // chat sender, a chess player or a profile link all open it, with the same title
+                // and the same rows (iOS 95c3760, 49cb2b6).
+                title = { Text(stringResource(R.string.user_info), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
                         Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
@@ -12766,30 +12765,44 @@ fun ChatInfoScreen(
                 InfoSectionCard(
                     title = stringResource(R.string.system_contact),
                     icon = Icons.Default.AccountCircle,
-                    showDivider = !fromBroadcast,
                 ) { infoSheet = "systemContact" }
 
-                if (!fromBroadcast) {
-                    InfoSectionCard(
-                        title = stringResource(R.string.incoming_notifications),
-                        icon = Icons.Default.NotificationsNone,
-                    ) { infoSheet = "notifications" }
+                InfoSectionCard(
+                    title = stringResource(R.string.incoming_notifications),
+                    icon = Icons.Default.NotificationsNone,
+                ) { infoSheet = "notifications" }
 
-                    InfoSectionCard(
-                        title = stringResource(R.string.photos),
-                        icon = Icons.Default.Photo,
-                    ) { infoSheet = "photos" }
+                InfoSectionCard(
+                    title = stringResource(R.string.photos),
+                    icon = Icons.Default.Photo,
+                ) { infoSheet = "photos" }
 
-                    InfoSectionCard(
-                        title = "Calls",
-                        icon = if (conversation?.contact?.callsEnabled == true) Icons.Default.Phone else Icons.Default.PhoneDisabled,
-                    ) { infoSheet = "calls" }
+                InfoSectionCard(
+                    title = "Calls",
+                    icon = if (conversation?.contact?.callsEnabled == true) Icons.Default.Phone else Icons.Default.PhoneDisabled,
+                ) { infoSheet = "calls" }
 
-                    InfoSectionCard(
-                        title = stringResource(R.string.info),
-                        icon = Icons.Default.Info,
-                        showDivider = false,
-                    ) { infoSheet = "info" }
+                InfoSectionCard(
+                    title = stringResource(R.string.info),
+                    icon = Icons.Default.Info,
+                ) { infoSheet = "info" }
+
+                // This person's kachat.app profile link, the same link-only share your own
+                // Profile uses: it previews with their name and avatar, opens a chat with them
+                // in KaChat, and offers the download to anyone without the app. Last, as on iOS.
+                val shareContext = LocalContext.current
+                InfoSectionCard(
+                    title = stringResource(R.string.share),
+                    icon = Icons.Default.IosShare,
+                    showDivider = false,
+                ) {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, KaChatLink.profileWebUrl(contactId))
+                        // Titles the share sheet only, as iOS's SharePreview does; not pasted.
+                        putExtra(Intent.EXTRA_TITLE, conversation?.contact?.displayName ?: KaspaAddress.shortDisplay(contactId))
+                    }
+                    runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
                 }
             }
 

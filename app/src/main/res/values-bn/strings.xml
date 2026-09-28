@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">আমি আমার সিড ফ্রেজ লিখে নিরাপদে সংরক্ষণ করেছি</string>
     <string name="i_already_have_a_domain_somewhere">আমার ইতিমধ্যে অন্য কোথাও একটি ডোমেইন আছে</string>
     <string name="transfer_your_domain_to_this_address">আপনার পরিচয় KaChat-এর সাথে সংযুক্ত করতে আপনার ডোমেইন এই ঠিকানায় স্থানান্তর করুন।</string>
+    <string name="user_info">ব্যবহারকারীর তথ্য</string>
 </resources>

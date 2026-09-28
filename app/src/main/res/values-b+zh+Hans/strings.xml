@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">我已经写下我的助记词并妥善保存</string>
     <string name="i_already_have_a_domain_somewhere">我已经在其他地方拥有域名</string>
     <string name="transfer_your_domain_to_this_address">将您的域名转移到此地址，以便将您的身份与 KaChat 关联。</string>
+    <string name="user_info">用户信息</string>
 </resources>

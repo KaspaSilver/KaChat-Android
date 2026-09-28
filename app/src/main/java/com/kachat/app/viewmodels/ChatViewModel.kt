@@ -723,10 +723,18 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { getOrCreateContact(contactId) }
     }
 
-    /** Whether [address] is saved as a contact on this account - a profile link opens their chat
-     *  when it is, and the new-chat screen otherwise (iOS 863b0e9). */
-    suspend fun hasContact(address: String): Boolean =
-        chatRepository.getContacts().first().any { it.id.equals(address, ignoreCase = true) }
+    /** A profile link's person: their contact, auto-added exactly as a tapped public chat sender's
+     *  is when there is none yet, so the name and settings saved on User Info stick (iOS 81df734). */
+    fun openProfile(address: String, onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            if (chatRepository.getContact(address) == null) {
+                chatRepository.addContact(
+                    ContactEntity(id = address, walletAddress = walletManager.getAddress(), alias = null, knsName = null, publicKeyHex = null)
+                )
+            }
+            onReady(address)
+        }
+    }
 
     private suspend fun getOrCreateContact(contactId: String): ContactEntity {
         return chatRepository.getContact(contactId) ?: ContactEntity(

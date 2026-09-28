@@ -885,7 +885,7 @@ fun GroupChatThreadScreen(
                     // Group members are always saved contacts, so these navigate straight to the
                     // existing chat/chat_info routes - no "create a contact first" step as in
                     // broadcast rooms.
-                    onViewProfile = { navController.navigate("chat_info/$address?fromBroadcast=true") },
+                    onViewProfile = { navController.navigate("chat_info/$address") },
                     onOpenChat = { navController.navigate("chat/$address") },
                     onPayInKaspa = { navController.navigate("chat/$address?paymentMode=true") },
                     onCopyAddress = {
@@ -1986,7 +1986,7 @@ fun GroupChatInfoScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { navController.navigate("chat_info/${member.address}?fromBroadcast=true") }
+                                .clickable { navController.navigate("chat_info/${member.address}") }
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically

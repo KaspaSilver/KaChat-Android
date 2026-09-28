@@ -604,9 +604,10 @@ fun MainShell(
     // the curated ones carries a join request that BroadcastChannelScreen consumes on open, so it
     // lands in the user's own channel list rather than disappearing when they navigate away.
     // Someone's profile link (kachat://profile/<address>, https://kachat.app/u/<address>, or a
-    // tapped KaChat Profile card). Your own lands on the chat list; a contact's opens your chat;
-    // anyone else's opens the new-chat screen with the address filled in, one tap from starting -
-    // iOS 863b0e9 openProfile. Chats are not hidden by Simple Mode, so no gate here.
+    // tapped KaChat Profile card). Your own lands on the chat list; anyone else's opens their User
+    // Info - contact or not - with Open Chat one tap away and their name and avatar to check who
+    // the link is for before writing to them (iOS 81df734). Someone new gets the same auto-added
+    // contact a tapped public chat sender does. Chats are not hidden by Simple Mode: no gate.
     val pendingProfileAddress by com.kachat.app.ui.screens.ProfileDeepLink.pendingAddress.collectAsState()
     LaunchedEffect(pendingProfileAddress) {
         val address = pendingProfileAddress ?: return@LaunchedEffect
@@ -615,8 +616,7 @@ fun MainShell(
         when {
             mine != null && mine.equals(address, ignoreCase = true) ->
                 navController.popBackStack(Screen.Chats.route, false)
-            chatViewModel.hasContact(address) -> navController.navigate("chat/$address")
-            else -> navController.navigate("create_chat?address=${android.net.Uri.encode(address)}")
+            else -> chatViewModel.openProfile(address) { navController.navigate("chat_info/$it") }
         }
     }
 
@@ -1684,16 +1684,10 @@ fun MainShell(
             // `group` is an optional query-style arg (defaults false) so the tab-aware create
             // button can open this screen straight into group-builder mode from the Group Chats tab.
             composable(
-                "create_chat?group={group}&address={address}",
-                arguments = listOf(
-                    navArgument("group") { type = NavType.BoolType; defaultValue = false },
-                    // From a profile link: the address to start with, resolved as if typed.
-                    navArgument("address") { type = NavType.StringType; defaultValue = "" },
-                )
+                "create_chat?group={group}",
+                arguments = listOf(navArgument("group") { type = NavType.BoolType; defaultValue = false })
             ) { backStackEntry ->
-                val initialAddress = backStackEntry.arguments?.getString("address")?.takeIf { it.isNotBlank() }
-                // A profile link always means a 1:1, even from the Group Chats tab.
-                val startInGroupMode = (backStackEntry.arguments?.getBoolean("group") ?: false) && initialAddress == null
+                val startInGroupMode = backStackEntry.arguments?.getBoolean("group") ?: false
                 CreateChatScreen(
                     onBack = { navController.popBackStack() },
                     onChatCreated = { address ->
@@ -1707,7 +1701,6 @@ fun MainShell(
                         }
                     },
                     startInGroupMode = startInGroupMode,
-                    initialAddress = initialAddress,
                     chatViewModel = chatViewModel
                 )
             }
@@ -1751,16 +1744,11 @@ fun MainShell(
                 )
             }
 
-            composable(
-                "chat_info/{contactId}?fromBroadcast={fromBroadcast}",
-                arguments = listOf(navArgument("fromBroadcast") { type = NavType.BoolType; defaultValue = false })
-            ) { backStackEntry ->
+            composable("chat_info/{contactId}") { backStackEntry ->
                 val contactId = backStackEntry.arguments?.getString("contactId") ?: return@composable
-                val fromBroadcast = backStackEntry.arguments?.getBoolean("fromBroadcast") ?: false
                 ChatInfoScreen(
                     contactId = contactId,
                     onBack = { navController.popBackStack() },
-                    fromBroadcast = fromBroadcast,
                     // Replaces this screen rather than stacking on it, so Back from the chat
                     // returns where User Info was opened from instead of to User Info again.
                     onOpenChat = { id ->

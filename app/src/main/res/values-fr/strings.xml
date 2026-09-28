@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">J\'ai note ma phrase de recuperation et je l\'ai rangee en lieu sur</string>
     <string name="i_already_have_a_domain_somewhere">J\'ai deja un domaine ailleurs</string>
     <string name="transfer_your_domain_to_this_address">Transferez votre domaine vers cette adresse afin que votre identite soit connectee a KaChat.</string>
+    <string name="user_info">Infos sur l\'utilisateur</string>
 </resources>

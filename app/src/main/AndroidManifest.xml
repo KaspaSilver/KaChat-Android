@@ -107,9 +107,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kachat" android:host="broadcast" />
             </intent-filter>
-            <!-- Profile links: kachat://profile/<address> opens a chat with that person, or the
-                 new-chat screen with the address filled in when they are not a contact yet
-                 (iOS 863b0e9). The address is checksum-validated before anything routes. -->
+            <!-- Profile links: kachat://profile/<address> opens that person's User Info, contact
+                 or not (iOS 81df734). The address is checksum-validated before anything routes. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

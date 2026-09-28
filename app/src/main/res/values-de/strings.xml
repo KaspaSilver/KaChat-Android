@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">Ich habe meine Seed-Phrase aufgeschrieben und sicher aufbewahrt</string>
     <string name="i_already_have_a_domain_somewhere">Ich habe bereits eine Domain woanders</string>
     <string name="transfer_your_domain_to_this_address">Übertrage deine Domain an diese Adresse, damit deine Identität mit KaChat verbunden ist.</string>
+    <string name="user_info">Benutzerinfo</string>
 </resources>

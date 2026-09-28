@@ -413,4 +413,5 @@
     <string name="i_have_written_down_my_seed_phrase">Toi da ghi lai cum tu khoi phuc va cat giu no an toan</string>
     <string name="i_already_have_a_domain_somewhere">Toi da co ten mien o noi khac</string>
     <string name="transfer_your_domain_to_this_address">Chuyen ten mien cua ban den dia chi nay de danh tinh cua ban duoc ket noi voi KaChat.</string>
+    <string name="user_info">Thông tin người dùng</string>
 </resources>

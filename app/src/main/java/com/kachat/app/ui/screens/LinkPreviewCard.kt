@@ -856,8 +856,8 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
 sealed class KaChatLinkRef {
     data class KaPost(val txId: String) : KaChatLinkRef()
     data class BroadcastRoom(val channel: String) : KaChatLinkRef()
-    /** Someone's KaChat profile: opens their chat, or the new-chat screen prefilled with the
-     *  address when they are not a contact yet (iOS 863b0e9). Always a full, valid address. */
+    /** Someone's KaChat profile: opens their User Info, contact or not (iOS 81df734). Always a
+     *  full, valid address. */
     data class Profile(val address: String) : KaChatLinkRef()
 }
 
@@ -973,9 +973,8 @@ fun openKaChatLink(ref: KaChatLinkRef) {
 
 /**
  * A profile link waiting to be opened - from a tapped card, a system intent or a kachat.app link.
- * MainShell routes it: your own link lands on the chat list, a contact's opens their chat, anyone
- * else's opens the new-chat screen with the address filled in (iOS 863b0e9 openProfile). The
- * address is always one [KaChatLink.profileAddress] already validated, checksum and all.
+ * MainShell routes it: your own link lands on the chat list, anyone else's opens their User Info
+ * (iOS 81df734). The address is always one [KaChatLink.profileAddress] already validated.
  */
 object ProfileDeepLink {
     private val _pendingAddress = MutableStateFlow<String?>(null)
