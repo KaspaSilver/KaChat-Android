@@ -757,40 +757,64 @@ class ChatViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    /**
+     * Pull-to-refresh on the Chats tab. The wheel waits for the 1:1 fetch alone - what the list
+     * shows - exactly as iOS's `.refreshable` awaits only `fetchNewMessages()`. It used to wait for
+     * that, then a full group sync, then the balance, one after another: the group sync is every
+     * member of every group, up to 40 pages each, each request allowed 30 s, so on a wallet with a
+     * few groups the wheel spun for minutes and looked stuck for good.
+     *
+     * The group catch-up and the balance still run, alongside, without holding the wheel - group
+     * invites (gctl_root) otherwise only surface via the 15-min SyncWorker or the live delivery, and
+     * "just got invited, opened the app to check" should work. They go through runGroupCatchUp, so
+     * repeated pulls queue rather than pile up full syncs side by side.
+     *
+     * And the wheel stops after [REFRESH_SPINNER_CAP_MS] whatever happens: the fetch keeps going
+     * and its rows still land, but a slow node or indexer cannot pin the control on screen.
+     */
     fun refreshChats() {
+        if (_isRefreshing.value) return
         viewModelScope.launch {
             _isRefreshing.value = true
-            try {
-                chatRepository.syncMessages()
-                // Group invites (gctl_root) otherwise only surface via the 15-min SyncWorker
-                // periodic job or the live block-scan - neither fires reliably for "just got
-                // invited, opened the app to check", unlike 1:1's syncMessages() above which
-                // already had this same on-demand path. Mirrors iOS's performCatchUpSync(),
-                // which always includes its group-control catch-up too.
-                groupRepository.syncGroups()
-                walletService.refreshBalance()
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error refreshing chats", e)
-            } finally {
-                _isRefreshing.value = false
+            val fetch = launch {
+                try {
+                    chatRepository.syncMessages()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Error refreshing chats", e)
+                }
             }
+            launch {
+                runCatching { groupRepository.runGroupCatchUp() }
+                    .onFailure { Log.w("ChatViewModel", "Group catch-up after a pull failed", it) }
+                runCatching { walletService.refreshBalance() }
+            }
+            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) { fetch.join() }
+            _isRefreshing.value = false
         }
     }
 
     /**
      * Pull-to-refresh on the Group Chats tab: groups only, not the 1:1 sync and the balance the
-     * Chats tab's refresh also does. Pulling on a list of groups should ask about groups.
+     * Chats tab's refresh also does. Pulling on a list of groups should ask about groups - and,
+     * as on iOS, the wheel waits for that catch-up, up to the same cap.
      */
     fun refreshGroups() {
+        if (_isRefreshing.value) return
         viewModelScope.launch {
             _isRefreshing.value = true
-            try {
-                groupRepository.syncGroups()
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error refreshing groups", e)
-            } finally {
-                _isRefreshing.value = false
+            val sync = launch {
+                try {
+                    groupRepository.runGroupCatchUp()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Error refreshing groups", e)
+                }
             }
+            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) { sync.join() }
+            _isRefreshing.value = false
         }
     }
 
@@ -3045,6 +3069,8 @@ class ChatViewModel @Inject constructor(
     private val knsNameSweepRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
     companion object {
+        /** The longest a pull-to-refresh wheel stays up; the work itself keeps going. */
+        private const val REFRESH_SPINNER_CAP_MS = 15_000L
         /** Newest rows the open thread keeps live from the store - iOS
          *  ChatService.inMemoryConversationWindowSize. Older history pages in on scroll. */
         const val THREAD_WINDOW_SIZE = 160
