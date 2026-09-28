@@ -878,7 +878,10 @@ object KaChatLink {
     fun broadcastUrl(channel: String) = "kachat://broadcast/$channel"
     fun broadcastWebUrl(channel: String) = "https://$WEB_HOST/broadcast/$channel"
     fun profileUrl(address: String) = "kachat://profile/$address"
-    fun profileWebUrl(address: String) = "https://$WEB_HOST/u/${address.removePrefix("kaspa:")}"
+    /** The one builder both share buttons use - your own Profile and anyone's User Info - so the
+     *  two links cannot drift apart: kachat.app/u/<address>, trimmed and lowercased (iOS 44d5fa4). */
+    fun profileWebUrl(address: String) =
+        "https://$WEB_HOST/u/${address.trim().lowercase().removePrefix("kaspa:")}"
 
     // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
     // second path component, a query string or a fragment into the app.
