@@ -122,6 +122,21 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 }
 
 /**
+ * The placeable tab a route belongs to, for the dock to light while you are on it: the route
+ * itself when it is one of the tabs, the tab that opens it when it is a screen further in. Null
+ * for a route the dock is not shown over, or one no tab owns.
+ */
+private fun dockOwnerRoute(route: String?): String? = when (route) {
+    null -> null
+    "chess_mode/{mode}", "chess_tournament/{tournamentId}" -> Screen.Chess.route
+    "broadcast_channel/{channelName}" -> Screen.Broadcasts.route
+    "cold_storage_detail/{accountId}", "cold_storage_tx_history/{address}" -> Screen.ColdStorage.route
+    Screen.Chess.route, Screen.Broadcasts.route, Screen.KaPosts.route, Screen.Portfolio.route,
+    Screen.Swap.route, Screen.ColdStorage.route, Screen.KaspaWebsites.route -> route
+    else -> null
+}
+
+/**
  * The name shown inside the Kaspa Hub grid and at the top of the section it opens. Differs from
  * [Screen.label] only where a dock label has to stay short - the bar truncates hard, so the full
  * names live here. Matches iOS's `AppTab.ecosystemTitle`.
@@ -763,11 +778,21 @@ fun MainShell(
 
                     // Which tab the glass pill sits under - the same test each item makes for
                     // itself below, so the pill and the lit icon can never disagree.
-                    val selectedDockIndex = localTabOrder.indexOfFirst { screen ->
-                        currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
-                            (screen.route == Screen.ColdStorage.route &&
-                                (currentTopRoute == "cold_storage_detail/{accountId}" ||
-                                    currentTopRoute == "cold_storage_tx_history/{address}"))
+                    // The tab you are IN, the way iOS's tab bar keeps the tab that pushed a screen
+                    // lit. A dock tab's own route lights itself. A screen that is not a dock tab
+                    // lights the tab it belongs to (chess lobbies and tournaments belong to Chess,
+                    // a public chat room to Public Chats, an account to Cold Storage) - and when
+                    // that tab is not in the dock it lives in the Kaspa Hub, which is always there,
+                    // so the Hub stays lit. It used to light nothing on any of those screens, so the
+                    // glass pill vanished the moment you opened 1v1 or Tournaments from the Hub.
+                    val selectedDockIndex = run {
+                        val direct = localTabOrder.indexOfFirst { screen ->
+                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        }
+                        if (direct >= 0) return@run direct
+                        val owner = dockOwnerRoute(currentTopRoute) ?: return@run -1
+                        localTabOrder.indexOfFirst { it.route == owner }.takeIf { it >= 0 }
+                            ?: localTabOrder.indexOfFirst { it.route == Screen.KaspaHub.route }
                     }
                     // Fixed at the bar's own height so the lens can stand proud of it without
                     // growing the dock or shifting it up the screen.
@@ -911,10 +936,11 @@ fun MainShell(
                                 // rather than the bar going blank - iOS's tab bar does. Lit only:
                                 // a tap from down there still has to pop back up to the list, so
                                 // this must not feed the reselect check.
-                                val selected = onOwnRoute ||
-                                    (screen.route == Screen.ColdStorage.route &&
-                                        (currentTopRoute == "cold_storage_detail/{accountId}" ||
-                                            currentTopRoute == "cold_storage_tx_history/{address}"))
+                                // Lit by the same answer the glass pill sits under - see
+                                // selectedDockIndex - so the two can never disagree. Lit only: a
+                                // tap from a screen below the tab still has to pop back up to it,
+                                // so this must not feed the reselect check (onOwnRoute does).
+                                val selected = localTabOrder.getOrNull(selectedDockIndex) == screen
                                 Box(
                                     modifier = Modifier
                                         .height(64.dp)
