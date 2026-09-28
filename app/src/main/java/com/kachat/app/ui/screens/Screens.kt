@@ -12416,6 +12416,9 @@ fun ChatInfoScreen(
 
     val messages by chatViewModel.getMessages(contactId).collectAsState(initial = emptyList())
     val myAddress by walletViewModel.address.collectAsState()
+    // Your own profile link lands here too (iOS 95f50ca). It is you, not a contact: nothing to
+    // rename, chat with, alias or notify, so only the rows that describe the address remain.
+    val isSelf = myAddress?.equals(contactId, ignoreCase = true) == true
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val uriHandler = LocalUriHandler.current
     // nil hides the "Chess Stats" row entirely - only shown once this contact has actually played
@@ -12545,16 +12548,24 @@ fun ChatInfoScreen(
                 // and the same rows (iOS 95c3760, 49cb2b6).
                 title = { Text(stringResource(R.string.user_info), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    if (!isSelf) {
+                        TextButton(onClick = onBack) {
+                            Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 actions = {
-                    TextButton(onClick = {
-                        chatViewModel.updateContactName(contactId, contactName)
-                        onBack()
-                    }) {
-                        Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    if (isSelf) {
+                        TextButton(onClick = onBack) {
+                            Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        TextButton(onClick = {
+                            chatViewModel.updateContactName(contactId, contactName)
+                            onBack()
+                        }) {
+                            Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -12606,7 +12617,13 @@ fun ChatInfoScreen(
                                 // It focuses the field too, so it works as the affordance it
                                 // looks like rather than being decoration next to the real target.
                                 val nameFocus = remember { androidx.compose.ui.focus.FocusRequester() }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isSelf) Text(
+                                    text = contactName.ifBlank { knsProfile?.selectedDomain ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId) },
+                                    color = LocalAppColors.current.textPrimary,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                ) else Row(verticalAlignment = Alignment.CenterVertically) {
                                     TextField(
                                         value = contactName,
                                         onValueChange = { contactName = it },
@@ -12739,7 +12756,7 @@ fun ChatInfoScreen(
                 // group roster or a broadcast room, where the person may be someone you have
                 // never messaged - and the only route to them was backing out and finding them
                 // on the chat list.
-                InfoSectionCard(
+                if (!isSelf) InfoSectionCard(
                     title = "Open Chat",
                     icon = Icons.AutoMirrored.Filled.Chat,
                 ) {
@@ -12758,6 +12775,7 @@ fun ChatInfoScreen(
                     icon = Icons.Default.AlternateEmail,
                 ) { infoSheet = "domains" }
 
+                if (!isSelf) {
                 InfoSectionCard(
                     title = stringResource(R.string.aliases),
                     icon = Icons.Default.Tag,
@@ -12787,6 +12805,7 @@ fun ChatInfoScreen(
                     title = stringResource(R.string.info),
                     icon = Icons.Default.Info,
                 ) { infoSheet = "info" }
+                }
 
                 // This person's kachat.app profile link, the same link-only share your own
                 // Profile uses: it previews with their name and avatar, opens a chat with them

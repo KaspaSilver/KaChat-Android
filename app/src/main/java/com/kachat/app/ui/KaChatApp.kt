@@ -619,10 +619,11 @@ fun MainShell(
     // the curated ones carries a join request that BroadcastChannelScreen consumes on open, so it
     // lands in the user's own channel list rather than disappearing when they navigate away.
     // Someone's profile link (kachat://profile/<address>, https://kachat.app/u/<address>, or a
-    // tapped KaChat Profile card). Your own lands on the chat list; anyone else's opens their User
-    // Info - contact or not - with Open Chat one tap away and their name and avatar to check who
-    // the link is for before writing to them (iOS 81df734). Someone new gets the same auto-added
-    // contact a tapped public chat sender does. Chats are not hidden by Simple Mode: no gate.
+    // tapped KaChat Profile card). It opens User Info for anyone - contact or not - with Open Chat
+    // one tap away and their name and avatar to check who the link is for before writing to them
+    // (iOS 81df734). Your own shows your own card, and you are never added as your own contact
+    // (iOS 95f50ca); someone new gets the same auto-added contact a tapped public chat sender
+    // does. Chats are not hidden by Simple Mode: no gate.
     val pendingProfileAddress by com.kachat.app.ui.screens.ProfileDeepLink.pendingAddress.collectAsState()
     LaunchedEffect(pendingProfileAddress) {
         val address = pendingProfileAddress ?: return@LaunchedEffect
@@ -630,7 +631,7 @@ fun MainShell(
         val mine = walletViewModel.address.value
         when {
             mine != null && mine.equals(address, ignoreCase = true) ->
-                navController.popBackStack(Screen.Chats.route, false)
+                navController.navigate("chat_info/$mine")
             else -> chatViewModel.openProfile(address) { navController.navigate("chat_info/$it") }
         }
     }
