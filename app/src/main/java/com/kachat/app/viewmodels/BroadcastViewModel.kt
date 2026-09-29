@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.kachat.app.util.redactedForLog
 import android.content.Context
@@ -90,7 +91,7 @@ class BroadcastViewModel @Inject constructor(
      */
     val contactAliases: StateFlow<Map<String, String>> = chatRepository.getContacts()
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     fun ensureSenderProfileFetched(address: String) {
         if (_senderProfiles.value.containsKey(address)) return
@@ -293,7 +294,7 @@ class BroadcastViewModel @Inject constructor(
     // unread counts and every room summary (iOS BroadcastService.serviceChannels).
     val joinedChannels: StateFlow<List<BroadcastChannelEntity>> = broadcastRepository.getJoinedChannels()
         .map { channels -> channels.filter { it.channelName !in com.kachat.app.services.ChessTournamentService.SERVICE_CHANNELS } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * Each joined room's newest message and unread count, for the Public Chats list. Rebuilt when
@@ -324,12 +325,12 @@ class BroadcastViewModel @Inject constructor(
                     ) { pairs -> pairs.toMap() }
                 }
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+            .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** Everything unread across the rooms - the Public Chats tab's badge. */
     val totalUnreadRooms: StateFlow<Int> = roomSummaries
         .map { summaries -> summaries.values.sumOf { it.unreadCount } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /** This wallet's own address, for "You" on the rows it sent. Null while there is none. */
     fun myAddress(): String? = runCatching { walletManager.getAddress() }.getOrNull()

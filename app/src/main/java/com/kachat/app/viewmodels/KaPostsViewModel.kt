@@ -1,5 +1,7 @@
 package com.kachat.app.viewmodels
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import com.kachat.app.util.UserFacingError
 import com.kachat.app.util.redactedForLog
 import android.util.Log
@@ -412,7 +414,7 @@ class KaPostsViewModel @Inject constructor(
     val visiblePosts: StateFlow<List<KaPostDraft>> = combine(
         _localPosts, _globalPosts, combine(muted, blocked) { m, b -> m + b },
     ) { local, remote, hiddenSet -> overlayLocal(local, remote, hiddenSet) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * The Following stream as rendered. get-contents-following is already scoped to the on-chain
@@ -423,7 +425,7 @@ class KaPostsViewModel @Inject constructor(
         _localPosts, _followingPosts, combine(muted, blocked) { m, b -> m + b }, following,
     ) { local, remote, hiddenSet, followingSet ->
         overlayLocal(local, remote, hiddenSet).filter { it.posterAddress in followingSet }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * One tab's rows. Pure, so the pager can render the neighbouring pages without them having to
@@ -457,7 +459,7 @@ class KaPostsViewModel @Inject constructor(
     val visibleFeed: StateFlow<List<KaPostDraft>> = combine(
         visiblePosts, visibleFollowingPosts, _selectedFeed,
     ) { global, followingFeed, tab -> feedFor(tab, global, followingFeed) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // MARK: - New posts waiting
 
@@ -804,7 +806,7 @@ class KaPostsViewModel @Inject constructor(
     /** Address -> locally-set contact alias; always wins over the KNS name. */
     val contactAliases: StateFlow<Map<String, String>> = chatRepository.getContacts()
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** A saved contact's own photo (linked phone contact, or the backup's photo), which every
      *  avatar in the app lets override the KNS avatar - iOS KNSAvatarView(contactAddress:). */
@@ -817,7 +819,7 @@ class KaPostsViewModel @Inject constructor(
                 else c.id to ContactPhoto(c.systemContactPhotoUri, c.backupPhotoBase64)
             }.toMap()
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** Oldest-first cap for the per-address sender maps below — every address ever seen in
      *  any feed lands in them, and an infinite-scroll session grew them without bound (this
@@ -1029,7 +1031,7 @@ class KaPostsViewModel @Inject constructor(
                     (post.text.lowercase().contains(needle) ||
                         posterDisplayName(post.posterAddress).lowercase().contains(needle))
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Authors of scanned posts whose name or address matches, busiest on this term first. */
     val searchPeopleResults: StateFlow<List<SearchPerson>> =

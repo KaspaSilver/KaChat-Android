@@ -1,5 +1,7 @@
 package com.kachat.app.viewmodels
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -254,7 +256,7 @@ class PortfolioViewModel @Inject constructor(
 
     val summary: StateFlow<PortfolioSummary> = combine(transactions, currentPriceUsd) { txs, price ->
         computeSummary(txs, price ?: 0.0)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), computeSummary(emptyList(), 0.0))
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), computeSummary(emptyList(), 0.0))
 
     /** Holdings' USD value at each price-history point — not the price itself, see [computeValueHistory]. */
     val valueHistory: StateFlow<List<Pair<Long, Double>>> =
@@ -268,7 +270,7 @@ class PortfolioViewModel @Inject constructor(
             val start = firstTransaction - 86_400_000L
             val trimmed = series.filter { it.first >= start }
             if (trimmed.size >= 2) trimmed else series
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var priceHistoryJob: Job? = null
 
@@ -312,7 +314,7 @@ class PortfolioViewModel @Inject constructor(
             val todayChange = computeTodayChange(computeValueHistory(scoped, sevenDayHistory))
             portfolio.id to PortfolioCardData(currentValue, todayChange?.first, todayChange?.second)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /** The currency code the most recent [refreshPrice] actually fetched in — lets the currency
      *  collector below distinguish "DataStore just emitted the currency we already fetched" from

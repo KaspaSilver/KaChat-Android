@@ -1,5 +1,6 @@
 package com.kachat.app.viewmodels
 
+import kotlinx.coroutines.flow.flowOn
 import com.kachat.app.util.UserFacingError
 import android.app.Activity
 import android.app.PendingIntent
@@ -541,7 +542,9 @@ class ChatViewModel @Inject constructor(
             // conversations that have messages.
             .filterNot { it.contact.id == it.contact.walletAddress && it.lastMessage == null }
             .sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+    // Built off the main thread, and kept alive for a few seconds after the Chats tab goes away,
+    // so switching tabs and back does not tear the list down and rebuild it from the database.
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * address -> cached KNS avatar URL, for group chat's per-sender avatars - group members are
@@ -551,7 +554,7 @@ class ChatViewModel @Inject constructor(
      */
     val contactAvatarsByAddress: StateFlow<Map<String, String?>> = chatRepository.getContacts()
         .map { contacts -> contacts.associateBy({ it.id }, { it.knsAvatarUrl }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /**
      * address -> cached device address-book photo URI, the fallback rendered wherever there's no
@@ -561,12 +564,12 @@ class ChatViewModel @Inject constructor(
      */
     val contactPhotoUrisByAddress: StateFlow<Map<String, String?>> = chatRepository.getContacts()
         .map { contacts -> contacts.associateBy({ it.id }, { it.systemContactPhotoUri }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** address -> live contact alias (KNS-resolved name or custom nickname), for group chat's sender labels - see [contactAvatarsByAddress]. */
     val contactAliasesByAddress: StateFlow<Map<String, String>> = chatRepository.getContacts()
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** contactId -> that conversation's newest reaction, for the chat list's "Reacted to your/
      *  their message" preview when it's more recent than the last real message - a separate flow
@@ -576,7 +579,7 @@ class ChatViewModel @Inject constructor(
     val latestReactionByContact: StateFlow<Map<String, com.kachat.app.services.database.LatestReactionRow>> =
         chatRepository.getLatestReactions()
             .map { rows -> rows.associateBy { it.contactId } }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+            .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** Group sibling of [latestReactionByContact]: groupId -> that group's newest reaction, for
      *  the Group Chats tab's "Alice reacted to a message" card preview when it's more recent than
@@ -584,7 +587,7 @@ class ChatViewModel @Inject constructor(
     val latestReactionByGroup: StateFlow<Map<String, com.kachat.app.services.database.LatestGroupReactionRow>> =
         groupRepository.getLatestGroupReactions()
             .map { rows -> rows.associateBy { it.groupId } }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+            .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /**
      * Fetches KNS name + avatar for every member of a group - group rosters cache a `displayName`
@@ -1378,7 +1381,7 @@ class ChatViewModel @Inject constructor(
                 }
             }) { conversations -> conversations.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L } }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * One-shot KNS resolve for a single group-member address row - unlike
@@ -1875,7 +1878,7 @@ class ChatViewModel @Inject constructor(
                 if (!url.isNullOrBlank() && merged[addr].isNullOrBlank()) merged[addr] = url
             }
             merged
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /**
      * address -> display name for GROUP members, resolved with the same priority as 1:1:
@@ -1894,7 +1897,7 @@ class ChatViewModel @Inject constructor(
                 if (name != null) merged[addr] = name
             }
             merged
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /**
      * Fetches this address's owned KNS domains + the active one's profile (avatar/bio/socials).
