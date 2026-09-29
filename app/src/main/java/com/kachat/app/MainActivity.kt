@@ -585,6 +585,9 @@ class MainActivity : AppCompatActivity() {
 
     /** Copies a shared image stream into app cache, returning a file:// URI readable at any later point (or null on failure). */
     private fun copySharedImageToCache(uri: android.net.Uri): android.net.Uri? {
+        // Shares arrive as content:// grants. A file:// "share" from another app could name one
+        // of KaChat's own private files, which this process can read and the sender cannot.
+        if (uri.scheme != android.content.ContentResolver.SCHEME_CONTENT) return null
         return try {
             val dir = File(cacheDir, "shared_images").apply { mkdirs() }
             // Stale copies from earlier shares are tiny compared to photo caches, but don't let
@@ -598,9 +601,26 @@ class MainActivity : AppCompatActivity() {
                 else -> "jpg"
             }
             val file = File(dir, "share_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(8)}.$extension")
-            contentResolver.openInputStream(uri)?.use { input ->
-                file.outputStream().use { output -> input.copyTo(output) }
+            val copied = contentResolver.openInputStream(uri)?.use { input ->
+                file.outputStream().use { output ->
+                    // Capped: a photo is shrunk to well under 1 MB before sending anyway, and an
+                    // unbounded stream could fill the cache.
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > MAX_SHARED_IMAGE_BYTES) return@use false
+                        output.write(buffer, 0, read)
+                    }
+                    true
+                }
             } ?: return null
+            if (!copied) {
+                file.delete()
+                return null
+            }
             android.net.Uri.fromFile(file)
         } catch (e: Exception) {
             android.util.Log.w("MainActivity", "Failed to copy shared image", e)
@@ -656,5 +676,6 @@ class MainActivity : AppCompatActivity() {
         private const val FCM_KEY_TYPE = "type"
         private val FCM_KEYS_POST_ID = listOf("post_id", "postId", "content_id")
         private val TX_ID_PATTERN = Regex("^[0-9a-fA-F]{64}$")
+        private const val MAX_SHARED_IMAGE_BYTES = 50L * 1024 * 1024
     }
 }
