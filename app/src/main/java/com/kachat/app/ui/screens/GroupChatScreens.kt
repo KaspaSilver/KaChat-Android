@@ -140,7 +140,8 @@ fun decodeGroupPhotoHex(photoHex: String?): android.graphics.Bitmap? {
         val bytes = ByteArray(photoHex.length / 2) { i ->
             ((Character.digit(photoHex[i * 2], 16) shl 4) + Character.digit(photoHex[i * 2 + 1], 16)).toByte()
         }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        // Any admin sets this photo, so its claimed size is not trusted (see SafeBitmapDecode).
+        com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = 512)
     } catch (e: Exception) { null }
 }
 

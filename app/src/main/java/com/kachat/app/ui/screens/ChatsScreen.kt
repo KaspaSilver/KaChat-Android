@@ -1621,7 +1621,8 @@ private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
     if (base64.isNullOrBlank()) return null
     return try {
         val bytes = Base64.decode(base64, Base64.DEFAULT)
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        // Backup photos arrive in other devices' archives; the claimed size is not trusted.
+        com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = 512)?.asImageBitmap()
     } catch (e: Exception) {
         null
     }

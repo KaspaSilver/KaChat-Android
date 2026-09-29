@@ -182,7 +182,9 @@ class ChatHistoryExportImportService @Inject constructor(
         return try {
             val bytes = context.contentResolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }
                 ?: return null
-            val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+            // Sampled at decode: a full-size camera photo on a contact card would otherwise be
+            // decoded whole just to be shrunk to 256px.
+            val source = com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = 1024) ?: return null
             val maxDimension = 256
             val scale = minOf(1f, maxDimension.toFloat() / maxOf(source.width, source.height))
             val scaled = if (scale < 1f) {

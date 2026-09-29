@@ -3359,16 +3359,9 @@ private val incomingPhotoDecodeLimiter = Semaphore(3)
  * `ImageDecoder` has occasionally succeeded where `BitmapFactory` fails on the same bytes on some
  * OEM builds.
  */
-private fun decodeIncomingPhotoBitmap(bytes: ByteArray): android.graphics.Bitmap? {
-    android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { return it }
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
-    return try {
-        val source = android.graphics.ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes))
-        android.graphics.ImageDecoder.decodeBitmap(source)
-    } catch (e: Exception) {
-        null
-    }
-}
+private fun decodeIncomingPhotoBitmap(bytes: ByteArray): android.graphics.Bitmap? =
+    // Size-capped: the sender chooses the dimensions the image claims (see SafeBitmapDecode).
+    com.kachat.app.util.SafeBitmapDecode.decode(bytes)
 
 /**
  * A photo message bubble — decodes the embedded base64 image to a [Bitmap] once, renders it inline
