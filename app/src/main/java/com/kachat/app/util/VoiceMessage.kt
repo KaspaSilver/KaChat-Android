@@ -20,6 +20,12 @@ data class VoiceMessageContent(
 object VoiceMessage {
     private val gson = Gson()
 
+    /** Parsed voice messages by message text. Bubbles call [parseOrNull] far more often than a
+     *  message changes, and each uncached call was a full parse of the whole recording. */
+    private val parsedCache = object : LinkedHashMap<String, VoiceMessageContent>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, VoiceMessageContent>?) = size > 64
+    }
+
     fun encode(fileName: String, sizeBytes: Long, base64Audio: String, mimeType: String = "audio/webm"): String {
         return gson.toJson(
             VoiceMessageContent(
@@ -53,9 +59,16 @@ object VoiceMessage {
      */
     fun parseOrNull(text: String?): VoiceMessageContent? {
         if (text.isNullOrBlank() || text.trimStart().firstOrNull() != '{') return null
+        // Cheap rejections first (iOS 70663bb): JSON envelopes that are not audio (replies, chess,
+        // calls, photos) are answered from the head of the string, not a full parse.
+        if (InlineMediaSniff.mimeType(text)?.lowercase()?.startsWith("audio/") != true) return null
+        synchronized(parsedCache) { parsedCache[text] }?.let { return it }
         return try {
             val parsed = gson.fromJson(text, VoiceMessageContent::class.java) ?: return null
-            if (parsed.mimeType.startsWith("audio/") && parsed.content.startsWith("data:")) parsed else null
+            if (parsed.mimeType.startsWith("audio/") && parsed.content.startsWith("data:")) {
+                synchronized(parsedCache) { parsedCache[text] = parsed }
+                parsed
+            } else null
         } catch (e: Exception) {
             // Gson's reflection-based Kotlin deserialization doesn't honor non-null defaults for
             // JSON keys that are simply absent — a field declared non-null String can still come
