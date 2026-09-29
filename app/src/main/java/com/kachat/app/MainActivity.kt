@@ -642,9 +642,10 @@ class MainActivity : AppCompatActivity() {
                 uri.pathSegments.firstOrNull() == "post" -> uri.pathSegments.getOrNull(1)
             else -> null
         }
-        if (!txId.isNullOrBlank()) {
+        // A post is a transaction id: 64 hex characters. Anything else in the link goes nowhere.
+        if (txId != null && TX_ID_PATTERN.matches(txId)) {
             KaPostsDeepLink.pendingOpenNotifications.value = false
-            KaPostsDeepLink.pendingPostTxId.value = txId
+            KaPostsDeepLink.pendingPostTxId.value = txId.lowercase()
         }
         return false
     }
@@ -654,5 +655,6 @@ class MainActivity : AppCompatActivity() {
          *  notification itself — see [applyFcmNotificationTarget]. */
         private const val FCM_KEY_TYPE = "type"
         private val FCM_KEYS_POST_ID = listOf("post_id", "postId", "content_id")
+        private val TX_ID_PATTERN = Regex("^[0-9a-fA-F]{64}$")
     }
 }

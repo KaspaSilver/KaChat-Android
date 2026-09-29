@@ -172,6 +172,12 @@ fun InAppBrowserScreen(url: String, title: String, onClose: () -> Unit) {
                     loadUrl(url)
                 }
             },
+            // Closing the browser frees the page (its renderer, timers and media) instead of
+            // leaving it to the garbage collector.
+            onRelease = { webView ->
+                webView.stopLoading()
+                webView.destroy()
+            },
         )
     }
 }

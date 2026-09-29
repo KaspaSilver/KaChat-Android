@@ -6954,25 +6954,26 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
         }
     }
 
-    if (showWithdraw && address != null) {
+    val flowAddress = address
+    if (showWithdraw && flowAddress != null) {
         SpendingAddressSendFlow(
-            fromAddress = address!!,
+            fromAddress = flowAddress,
             balanceSompi = balanceSompi,
             title = "Send Kaspa",
             viewModel = viewModel,
             portfolioViewModel = portfolioViewModel,
             onDone = {
                 showWithdraw = false
-                viewModel.loadSpendingAddressTxHistory(address!!)
-                viewModel.loadSpendingAddressUtxos(address!!)
+                viewModel.loadSpendingAddressTxHistory(flowAddress)
+                viewModel.loadSpendingAddressUtxos(flowAddress)
             }
         )
         return
     }
 
-    if (showCompoundFlow && address != null) {
+    if (showCompoundFlow && flowAddress != null) {
         SpendingAddressSendFlow(
-            fromAddress = address!!,
+            fromAddress = flowAddress,
             balanceSompi = balanceSompi,
             title = "Send Kaspa",
             viewModel = viewModel,
@@ -6980,8 +6981,8 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
             isCompoundMode = true,
             onDone = {
                 showCompoundFlow = false
-                viewModel.loadSpendingAddressTxHistory(address!!)
-                viewModel.loadSpendingAddressUtxos(address!!)
+                viewModel.loadSpendingAddressTxHistory(flowAddress)
+                viewModel.loadSpendingAddressUtxos(flowAddress)
             }
         )
         return
@@ -7101,7 +7102,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                                 textAlign = TextAlign.Center,
                             )
                             Spacer(Modifier.height(12.dp))
-                            TextButton(onClick = { viewModel.loadSpendingAddressTxHistory(address!!) }) {
+                            TextButton(onClick = { address?.let { viewModel.loadSpendingAddressTxHistory(it) } }) {
                                 Text("Try Again", color = KaspaTeal, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -7192,9 +7193,10 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
         }
     }
 
-    if (showQr && !address.isNullOrEmpty()) {
+    val qrAddress = address
+    if (showQr && !qrAddress.isNullOrEmpty()) {
         QrCodeOverlay(
-            value = address!!,
+            value = qrAddress,
             onDismiss = { showQr = false },
             message = "Just send 5-10 KAS at a time, that's plenty to cover chat fees for a while (about 500 messages per KAS)",
             borderColor = KaspaTeal,
