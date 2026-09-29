@@ -243,6 +243,14 @@ class KaspaWalletEngine @Inject constructor(
             // does not fit is folded into the fee, as before.
             val inputAmounts = selectionResult.selectedUtxos.map { it.utxoEntry.amount }
             val recipientAmounts = outputs.map { it.amount }
+            // Only dust is ever folded (iOS dd4d977): real change that cannot stand as an output
+            // means this amount does not fit these coins, and the send is refused rather than
+            // paying that change to the network as fee.
+            if (selectionResult.storageMassBlocked ||
+                (changeAmount > 0 && !KaspaUtxoSelector.changeIsKeptOrFoldable(inputAmounts, recipientAmounts, changeAmount))
+            ) {
+                return Result.failure(IllegalStateException(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE))
+            }
             var changeOutputIndex = -1
             if (changeAmount > 0 && KaspaMass.fitsStorageMass(inputAmounts, recipientAmounts + changeAmount)) {
                 changeOutputIndex = outputs.size

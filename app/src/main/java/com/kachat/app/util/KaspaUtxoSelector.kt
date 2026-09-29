@@ -17,13 +17,37 @@ object KaspaUtxoSelector {
      */
     const val MAX_INPUTS_PER_TRANSACTION = 80
 
+    /**
+     * The most a payment may fold into its fee when its change cannot stand as an output (iOS
+     * dd4d977). A change output is only ever too small for KIP-9 storage mass below about
+     * 0.1 KAS (its own harmonic term is C / change), so a larger remainder that does not fit
+     * means the RECIPIENT amount is what breaks the budget - and folding then paid the whole
+     * change to the miners: a 0.0999 KAS send from a 10.1 KAS coin built a ~10 KAS fee.
+     */
+    const val MAX_FOLDED_CHANGE_SOMPI = 10_000_000L // 0.1 KAS
+
+    const val SMALL_SEND_MASS_MESSAGE =
+        "This amount can't be sent from these coins without giving most of the change away as a network fee. Try a slightly larger amount, or compound this address first."
+
+    /**
+     * Whether a payment of [recipientAmounts] with [changeAmount] left over may be built from
+     * [inputAmounts]: the change stands as its own output, or it is dust small enough to fold
+     * into the fee. False means folding would give real change away.
+     */
+    fun changeIsKeptOrFoldable(inputAmounts: List<Long>, recipientAmounts: List<Long>, changeAmount: Long): Boolean =
+        changeAmount <= MAX_FOLDED_CHANGE_SOMPI ||
+            KaspaMass.fitsStorageMass(inputAmounts, recipientAmounts + changeAmount)
+
     data class SelectionResult(
         val selectedUtxos: List<UtxoEntry>,
         val totalSelected: Long,
         val estimatedFee: Long,
         val finalAmount: Long,
         val changeAmount: Long,
-        val requiredAmount: Long
+        val requiredAmount: Long,
+        /** Funds were enough, but no input set fit storage mass without paying real change away
+         *  as fee - see [MAX_FOLDED_CHANGE_SOMPI]. The send must be refused. */
+        val storageMassBlocked: Boolean = false
     )
 
     fun selectUtxosAndCalculateFee(
@@ -51,7 +75,11 @@ object KaspaUtxoSelector {
         // that direction never underpays the network.
         val outputScriptLens = if (amountSompi > 0) listOf(recipientScriptLen, changeScriptLen) else listOf(changeScriptLen)
 
-        // Iterate and select UTXOs until amount + fee is covered
+        // Iterate and select UTXOs until amount + fee is covered - and, for a payment, until the
+        // change either fits storage mass as its own output or is dust. A covered set whose real
+        // change does not fit keeps adding inputs (a smaller coin brings the mass back under)
+        // rather than stopping there and later folding the change into the fee.
+        var storageMassBlocked = false
         for (utxo in utxos.sortedByDescending { it.utxoEntry.amount }) {
             selectedUtxos.add(utxo)
             totalSelected += utxo.utxoEntry.amount
@@ -63,7 +91,16 @@ object KaspaUtxoSelector {
             )
             estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
 
-            if (totalSelected >= (amountSompi + estimatedFee)) break
+            if (totalSelected >= (amountSompi + estimatedFee)) {
+                val change = totalSelected - amountSompi - estimatedFee
+                if (amountSompi <= 0 || change <= 0 ||
+                    changeIsKeptOrFoldable(selectedUtxos.map { it.utxoEntry.amount }, listOf(amountSompi), change)
+                ) {
+                    storageMassBlocked = false
+                    break
+                }
+                storageMassBlocked = true
+            }
         }
 
         var finalAmount = amountSompi
@@ -86,7 +123,8 @@ object KaspaUtxoSelector {
             estimatedFee = estimatedFee,
             finalAmount = finalAmount,
             changeAmount = changeAmount,
-            requiredAmount = requiredAmount
+            requiredAmount = requiredAmount,
+            storageMassBlocked = storageMassBlocked
         )
     }
 

@@ -90,6 +90,12 @@ class KnsInscriptionEngine @Inject constructor(
         // Change stays when this transaction's KIP-9 storage mass allows it (see
         // KaspaMass.storageMass), the same rule every other builder uses; otherwise it is fee.
         val commitInputs = selection.selectedUtxos.map { it.utxoEntry.amount }
+        // Only dust is ever folded into the fee (iOS dd4d977) - see KaspaWalletEngine.
+        if (selection.storageMassBlocked || (selection.changeAmount > 0 &&
+                !KaspaUtxoSelector.changeIsKeptOrFoldable(commitInputs, listOf(commitAmountSompi), selection.changeAmount))
+        ) {
+            throw IllegalStateException(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE)
+        }
         if (selection.changeAmount > 0 && KaspaMass.fitsStorageMass(commitInputs, listOf(commitAmountSompi, selection.changeAmount))) {
             outputs.add(RawOutputWithVersion(amount = selection.changeAmount, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0)))
         }

@@ -113,6 +113,12 @@ class ColdStorageSendEngine @Inject constructor(
             // it (see KaspaMass.storageMass) - the same rule as KaspaWalletEngine; otherwise it
             // is folded into the fee.
             val inputAmounts = selection.selectedUtxos.map { it.utxoEntry.amount }
+            // Only dust is ever folded into the fee (iOS dd4d977) - see KaspaWalletEngine.
+            if (selection.storageMassBlocked || (selection.changeAmount > 0 &&
+                    !KaspaUtxoSelector.changeIsKeptOrFoldable(inputAmounts, listOf(selection.finalAmount), selection.changeAmount))
+            ) {
+                return@withLock Result.failure(IllegalStateException(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE))
+            }
             val keepsChange = selection.changeAmount > 0 &&
                 KaspaMass.fitsStorageMass(inputAmounts, listOf(selection.finalAmount, selection.changeAmount))
             if (keepsChange) {

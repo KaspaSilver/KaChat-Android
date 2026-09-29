@@ -19,11 +19,13 @@ class KaspaUtxoSelectorTest {
     @Test
     fun `selects the fewest large UTXOs needed to cover amount plus fee`() {
         val utxos = listOf(utxo(100_000_000L, "a"), utxo(50_000_000L, "b"), utxo(10_000_000L, "c"))
+        // 0.3 KAS: its change fits storage mass beside the 1 KAS coin alone. (0.1 KAS from that
+        // coin does not, and now correctly pulls in a second coin rather than folding 0.9 KAS.)
         val result = KaspaUtxoSelector.selectUtxosAndCalculateFee(
-            utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
+            utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
             payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
         )
-        assertEquals(1, result.selectedUtxos.size) // the 100M one alone covers 10M + fee
+        assertEquals(1, result.selectedUtxos.size) // the 100M one alone covers 30M + fee
         assertEquals(100_000_000L, result.totalSelected)
     }
 
@@ -140,5 +142,40 @@ class KaspaUtxoSelectorTest {
             payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
         )
         assertTrue(result.totalSelected < result.requiredAmount)
+    }
+
+    // iOS dd4d977: real change is never folded into the fee to make a shape fit.
+
+    @Test
+    fun `a small send from one big coin is refused rather than paying the change as fee`() {
+        val result = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            listOf(utxo(1_010_000_000L, "big")), amountSompi = 9_990_000L, feeRateSompiPerGram = 1L,
+            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertTrue(result.storageMassBlocked)
+        assertTrue(result.changeAmount > KaspaUtxoSelector.MAX_FOLDED_CHANGE_SOMPI)
+    }
+
+    @Test
+    fun `a smaller second coin brings the mass under and the change is kept`() {
+        val result = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            listOf(utxo(1_010_000_000L, "big"), utxo(50_000_000L, "small")), amountSompi = 9_990_000L, feeRateSompiPerGram = 1L,
+            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertTrue(!result.storageMassBlocked)
+        assertEquals(2, result.selectedUtxos.size)
+        assertTrue(
+            KaspaMass.fitsStorageMass(result.selectedUtxos.map { it.utxoEntry.amount }, listOf(9_990_000L, result.changeAmount))
+        )
+    }
+
+    @Test
+    fun `an ordinary send is not blocked`() {
+        val result = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            listOf(utxo(1_010_000_000L, "big")), amountSompi = 100_000_000L, feeRateSompiPerGram = 1L,
+            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertTrue(!result.storageMassBlocked)
+        assertEquals(1, result.selectedUtxos.size)
     }
 }
