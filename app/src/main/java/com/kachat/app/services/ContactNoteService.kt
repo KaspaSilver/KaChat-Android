@@ -77,12 +77,15 @@ class ContactNoteService @Inject constructor(
         val start = if (fullScanDue) 0L else (highWater - REORG_REWIND_MS).coerceAtLeast(0L)
 
         val notes = mutableListOf<SelfStashIndexerResponse>()
+        // Whether the read reached the end of the stash - a short last page - rather than
+        // stopping at the page cap or on a page that made no progress (iOS a1b89bd).
+        var reachedEnd = false
         try {
             var cursor = start
             for (page in 0 until MAX_PAGES) {
                 val rows = api.getSelfStashByOwner(wallet, SCOPE_HEX, PAGE_SIZE, cursor)
                 notes += rows
-                if (rows.size < PAGE_SIZE) break
+                if (rows.size < PAGE_SIZE) { reachedEnd = true; break }
                 val next = rows.mapNotNull { it.blockTime }.maxOrNull() ?: break
                 if (next <= cursor) break
                 cursor = next
@@ -114,8 +117,13 @@ class ContactNoteService @Inject constructor(
             // the next sync fetches its messages.
             if (content.alias.isNullOrEmpty()) restoreContact(wallet, contact)
         }
-        recordNoted(wallet, noted, completeScan = fullScanDue)
-        if (fullScanDue) backfill(wallet)
+        // A wallet switch during the read must not credit this wallet's notes to the next one.
+        if (!isActive(wallet)) return@withLock
+        // "Complete" means from block time 0 AND to the end: a read stopped at the page cap
+        // treated as complete would write a second note for every contact past the cut-off.
+        val completeScan = fullScanDue && reachedEnd
+        recordNoted(wallet, noted, completeScan = completeScan)
+        if (completeScan) backfill(wallet)
         sendPending(wallet)
     }
 
@@ -147,10 +155,9 @@ class ContactNoteService @Inject constructor(
         if (!indexComplete(wallet)) return false
         if (contactAddress in known(wallet) || contactAddress in pending(wallet)) return false
         if (!needsNote(wallet, contactAddress)) return false
-        prefs.edit()
-            .putStringSet(pendingKey(wallet), pending(wallet) + contactAddress)
-            .putStringSet(knownKey(wallet), known(wallet) + contactAddress)
-            .apply()
+        // Marked noted when the note is submitted (sendPending), not here: the pending entry is
+        // what keeps it from being queued twice meanwhile (iOS a1b89bd).
+        prefs.edit().putStringSet(pendingKey(wallet), pending(wallet) + contactAddress).apply()
         Log.i(TAG, "Queued contact note for …${contactAddress.takeLast(10)}")
         return true
     }
@@ -182,10 +189,15 @@ class ContactNoteService @Inject constructor(
      *  yet); the rest wait for the next sync. */
     private suspend fun sendPending(wallet: String) {
         for (contact in pending(wallet)) {
+            // sendKaspa spends from the active account: never send this wallet's note from another.
+            if (!isActive(wallet)) return
             try {
                 val payload = buildNotePayload(wallet, contact)
                 val txId = walletService.sendKaspa(toAddress = wallet, amountSompi = 0, payloadBytes = payload)
-                prefs.edit().putStringSet(pendingKey(wallet), pending(wallet) - contact).apply()
+                prefs.edit()
+                    .putStringSet(pendingKey(wallet), pending(wallet) - contact)
+                    .putStringSet(knownKey(wallet), known(wallet) + contact)
+                    .apply()
                 Log.i(TAG, "Contact note written for …${contact.takeLast(10)}: ${txId.take(16)}")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -195,6 +207,8 @@ class ContactNoteService @Inject constructor(
             }
         }
     }
+
+    private fun isActive(wallet: String) = runCatching { walletManager.getAddress() }.getOrNull() == wallet
 
     private suspend fun restoreContact(wallet: String, contactAddress: String) {
         if (database.contactDao().getContact(contactAddress, wallet) != null) return
@@ -251,7 +265,7 @@ class ContactNoteService @Inject constructor(
         const val SCOPE = "saved_handshake"
         val SCOPE_HEX = SCOPE.toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it) }
         const val PAGE_SIZE = 50
-        const val MAX_PAGES = 20
+        const val MAX_PAGES = 200
         const val FULL_SCAN_INTERVAL_MS = 24L * 60 * 60 * 1000
         const val REORG_REWIND_MS = 10L * 60 * 1000
     }
