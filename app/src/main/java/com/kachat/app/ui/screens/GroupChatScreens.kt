@@ -131,6 +131,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 private val groupMembersGson = com.google.gson.Gson()
 private val groupMembersType = object : com.google.gson.reflect.TypeToken<List<GroupMember>>() {}.type
 
+private val groupPhotoCache = android.util.LruCache<String, android.graphics.Bitmap>(32)
+
 /** Decodes an admin-set group photo (hex of a compressed JPEG) into a Bitmap, or null. */
 fun decodeGroupPhotoHex(photoHex: String?): android.graphics.Bitmap? {
     if (photoHex.isNullOrEmpty()) return null
@@ -146,7 +148,15 @@ fun decodeGroupPhotoHex(photoHex: String?): android.graphics.Bitmap? {
  *  group list, the thread header, and Group Info so a group looks the same everywhere. */
 @Composable
 fun GroupAvatar(photoHex: String?, size: Dp, modifier: Modifier = Modifier) {
-    val bitmap = remember(photoHex) { decodeGroupPhotoHex(photoHex) }
+    // Off the main thread and kept app-wide, like contact backup photos (see ContactAvatar).
+    val decoded by produceState(initialValue = photoHex?.let { groupPhotoCache.get(it) }, photoHex) {
+        val hex = photoHex
+        if (hex.isNullOrEmpty()) { value = null; return@produceState }
+        groupPhotoCache.get(hex)?.let { value = it; return@produceState }
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { decodeGroupPhotoHex(hex) }
+            ?.also { groupPhotoCache.put(hex, it) }
+    }
+    val bitmap = decoded
     Box(
         modifier = modifier.size(size).clip(CircleShape).background(LocalAppColors.current.surface),
         contentAlignment = Alignment.Center

@@ -1591,8 +1591,19 @@ fun ContactAvatar(
             deviceContactPhotoUri?.takeIf { it.isNotBlank() }
         )
     }
-    // Cross-platform backup photo (base64 JPEG) decoded once; the last fallback before the glyph.
-    val backupBitmap = remember(backupPhotoBase64) { decodeBase64Avatar(backupPhotoBase64) }
+    // Cross-platform backup photo (base64 JPEG); the last fallback before the glyph. Decoded off
+    // the main thread and kept app-wide, so opening a list decodes each photo once rather than
+    // every visible row on the main thread every time the screen comes back.
+    val backupBitmap by produceState(
+        initialValue = backupPhotoBase64?.let { backupAvatarCache.get(it) },
+        backupPhotoBase64
+    ) {
+        val base64 = backupPhotoBase64
+        if (base64.isNullOrBlank()) { value = null; return@produceState }
+        backupAvatarCache.get(base64)?.let { value = it; return@produceState }
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { decodeBase64Avatar(base64) }
+            ?.also { backupAvatarCache.put(base64, it) }
+    }
     Box(
         modifier = modifier
             .size(size)
@@ -1604,6 +1615,8 @@ fun ContactAvatar(
     }
 }
 
+private val backupAvatarCache = android.util.LruCache<String, ImageBitmap>(64)
+
 private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
     if (base64.isNullOrBlank()) return null
     return try {
@@ -1614,10 +1627,15 @@ private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
     }
 }
 
-/** Renders [candidates] in order, dropping to the next on load failure; then the backup photo, then the glyph. */
+/**
+ * Renders [candidates] in order, dropping to the next on load failure; then the backup photo, then
+ * the glyph. A plain AsyncImage over the glyph rather than SubcomposeAsyncImage: subcomposition per
+ * avatar is what Coil advises against in scrolling lists, and every list in the app draws these.
+ */
 @Composable
 private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fontSize: TextUnit, backupBitmap: ImageBitmap? = null) {
-    val current = candidates.firstOrNull()
+    var failedCount by remember(candidates) { mutableIntStateOf(0) }
+    val current = candidates.getOrNull(failedCount)
     if (current == null) {
         if (backupBitmap != null) {
             Image(
@@ -1631,14 +1649,19 @@ private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fon
         }
         return
     }
-    SubcomposeAsyncImage(
-        model = current,
-        contentDescription = null,
-        modifier = Modifier.fillMaxSize(),
-        contentScale = ContentScale.Crop,
-        loading = { AvatarInitials(fallbackText, fontSize) },
-        error = { AvatarImageChain(candidates.drop(1), fallbackText, fontSize, backupBitmap) }
-    )
+    var loaded by remember(current) { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // The glyph shows while the image loads, as the loading slot did before.
+        if (!loaded) AvatarInitials(fallbackText, fontSize)
+        coil.compose.AsyncImage(
+            model = current,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            onSuccess = { loaded = true },
+            onError = { failedCount++ }
+        )
+    }
 }
 
 @Composable

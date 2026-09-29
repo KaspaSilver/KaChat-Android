@@ -741,7 +741,9 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
                         .crossfade(true)
                         .build()
                 }
-                SubcomposeAsyncImage(
+                // No loading/error slots, so no subcomposition: this card sits in chat bubbles
+                // and the KaPosts feed, where a subcomposition per row costs on every scroll.
+                coil.compose.AsyncImage(
                     model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
