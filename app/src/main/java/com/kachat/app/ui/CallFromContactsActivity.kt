@@ -93,11 +93,34 @@ class CallFromContactsActivity : AppCompatActivity() {
         finish()
     }
 
-    /** The KaChat address the tapped row was written for (DATA1). */
+    /**
+     * The KaChat address the tapped row was written for (DATA1) - only for a row KaChat itself
+     * wrote. This activity is exported (the Contacts app launches it), so any app can start it
+     * with any content URI: one pointing at its own provider could name one of your contacts and
+     * have KaChat place a call, camera and all, with no tap in KaChat. So the URI must be the
+     * contacts provider's, the row must carry KaChat's call mimetype, and its raw contact must
+     * belong to KaChat's account.
+     */
     private fun addressFromRow(uri: android.net.Uri): String? = runCatching {
-        contentResolver.query(uri, arrayOf(ContactsContract.Data.DATA1), null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() } else null
-        }
+        if (uri.authority != ContactsContract.AUTHORITY) return@runCatching null
+        val (address, rawContactId) = contentResolver.query(
+            uri,
+            arrayOf(ContactsContract.Data.DATA1, ContactsContract.Data.MIMETYPE, ContactsContract.Data.RAW_CONTACT_ID),
+            null, null, null
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val mime = cursor.getString(1)
+            if (mime != CallableContactsExporter.MIME_VOICE_CALL && mime != CallableContactsExporter.MIME_VIDEO_CALL) return@use null
+            val address = cursor.getString(0)?.takeIf { it.isNotBlank() } ?: return@use null
+            address to cursor.getLong(2)
+        } ?: return@runCatching null
+        val accountType = contentResolver.query(
+            android.content.ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, rawContactId),
+            arrayOf(ContactsContract.RawContacts.ACCOUNT_TYPE),
+            null, null, null
+        )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+        if (accountType != CallableContactsExporter.ACCOUNT_TYPE) return@runCatching null
+        address
     }.onFailure { Log.w("CallFromContacts", "Could not read the contact row: ${it.message}") }.getOrNull()
 
     private fun toast(text: String) {
