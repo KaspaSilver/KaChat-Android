@@ -1,0 +1,15 @@
+# Baseline profile: code ART compiles ahead of time at install (Play) or on the first background
+# dexopt after profileinstaller writes it (sideloaded APK). Without it, the first visit to every
+# screen ran KaChat's own code interpreted/JIT - the Compose libraries ship their own profiles,
+# the app's code had none. Broad on purpose: every screen is a Compose function in this package,
+# and navigating to one is exactly the path that stuttered. R8 rewrites these rules through its
+# mapping, and the wildcards are expanded against the final dex at build time.
+
+Lcom/kachat/app/**;
+HSPLcom/kachat/app/**->**(**)**
+
+# Libraries on the navigation and list paths that ship no profile of their own.
+HSPLkotlinx/coroutines/**->**(**)**
+HSPLcoil/**->**(**)**
+HSPLdev/chrisbanes/haze/**->**(**)**
+HSPLcom/google/gson/**->**(**)**
