@@ -252,6 +252,7 @@ fun GroupChatThreadScreen(
     val groupReplyingTo by chatViewModel.groupReplyingTo.collectAsState()
     // The newest edit per message (see MessageEdit) - applied to the bubble as it is drawn.
     val groupEdits by chatViewModel.getGroupEdits(groupId).collectAsState(initial = emptyList())
+    val acceptedContacts by chatViewModel.acceptedContactAddresses.collectAsState()
     val groupEditsByTxId = remember(groupEdits) { groupEdits.associateBy { it.targetTxId } }
     val groupEditingMessage by chatViewModel.groupEditingMessage.collectAsState()
     // Merged contact+KNS maps: group members are usually not saved contacts, so their avatar/KNS
@@ -958,6 +959,7 @@ fun GroupChatThreadScreen(
                             group = group,
                             avatarUrl = message.senderAddress?.let { contactAvatarsByAddress[it] },
                             avatarPhotoUri = message.senderAddress?.let { contactPhotoUrisByAddress[it] },
+                            linkPreviewAutoFetch = message.senderAddress?.let { it == myAddress || it in acceptedContacts } ?: false,
                             liveAlias = message.senderAddress?.let { contactAliasesByAddress[it] },
                             myAddress = myAddress,
                             myAvatarUrl = myKnsProfile?.avatarUrl,
@@ -1270,6 +1272,10 @@ private fun GroupMessageBubble(
     avatarUrl: String?,
     /** Sender's device address-book photo, when they're a linked phone contact — the no-KNS-avatar fallback. */
     avatarPhotoUri: String? = null,
+    /** Load link previews without a tap: your own messages and accepted contacts only. Anyone
+     *  else's link waits for a tap, so reading the group tells no stranger's server your IP
+     *  (iOS 680cff3, the 1:1 rule). */
+    linkPreviewAutoFetch: Boolean = false,
     liveAlias: String?,
     myAddress: String?,
     myAvatarUrl: String?,
@@ -1488,7 +1494,8 @@ private fun GroupMessageBubble(
                             fallbackText = displayContent,
                             onSelect = onSelect,
                             onDoubleTap = { showQuickReactionBar = true },
-                            isOutgoing = isSent
+                            isOutgoing = isSent,
+                            autoFetch = isSent || linkPreviewAutoFetch
                         )
                     } else {
                         Surface(
@@ -1533,7 +1540,7 @@ private fun GroupMessageBubble(
                         // An internal link is always claimed above as the message itself, so
                         // only an external link can still want a card down here.
                         TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
-                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent)
+                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent, autoFetch = isSent || linkPreviewAutoFetch)
                         }
                     }
                 }

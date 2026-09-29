@@ -567,6 +567,12 @@ class ChatViewModel @Inject constructor(
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** address -> live contact alias (KNS-resolved name or custom nickname), for group chat's sender labels - see [contactAvatarsByAddress]. */
+    /** Contacts you have accepted (an active conversation) - whose links in a group may load
+     *  their preview without a tap, the same rule as a 1:1 chat (iOS 680cff3). */
+    val acceptedContactAddresses: StateFlow<Set<String>> = chatRepository.getContacts()
+        .map { contacts -> contacts.filter { it.conversationStatus == "active" }.map { it.id }.toSet() }
+        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     val contactAliasesByAddress: StateFlow<Map<String, String>> = chatRepository.getContacts()
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
