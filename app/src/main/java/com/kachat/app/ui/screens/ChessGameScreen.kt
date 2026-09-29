@@ -279,11 +279,14 @@ fun ChessGameScreen(
     // Drives the "Sent"/"Retry" indicator under the turn status - only shown right after *I*
     // made the most recent move (not after an invite/response/resign, and not when the most
     // recent action was the opponent's move, which has no local delivery status to report).
-    val lastMoveSendStatus = remember(lastActionMessage) {
+    val lastMoveSendStatus = remember(lastActionMessage, summary) {
         val message = lastActionMessage
         if (message != null && message.direction == "sent") {
             val unwrapped = MessageReply.parseOrNull(message.plaintextBody)?.text ?: message.plaintextBody
-            if (ChessMessage.parseOrNull(unwrapped) is ChessEnvelope.Move) message.deliveryStatus else null
+            if (ChessMessage.parseOrNull(unwrapped) is ChessEnvelope.Move &&
+                // A failed move is offered Retry only while it is still your turn (iOS dd03c4e).
+                (message.deliveryStatus != "failed" || ChessGameEngine.retryStillFits(message.plaintextBody, summary))
+            ) message.deliveryStatus else null
         } else {
             null
         }

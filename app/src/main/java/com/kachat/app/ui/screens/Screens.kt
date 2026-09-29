@@ -2181,6 +2181,11 @@ fun MessageBubble(
      *  just optional since not every caller of this composable is inside a selectable chat thread). */
     onSelect: (() -> Unit)? = null
 ) {
+    // Retry, unless this is a chess action the game has since moved past (iOS dd03c4e).
+    val retryOffered = remember(message.deliveryStatus, message.direction, message.type, message.plaintextBody, chessSummary) {
+        ChatViewModel.shouldShowRetryOption(message) &&
+            com.kachat.app.util.ChessGameEngine.retryStillFits(message.plaintextBody, chessSummary)
+    }
     val isSent = message.direction == "sent"
     var showMenu by remember { mutableStateOf(false) }
     // Who reacted to this message, when asked from the long-press menu.
@@ -2687,7 +2692,7 @@ fun MessageBubble(
                             showMenu = false
                         }
                     }
-                    if (ChatViewModel.shouldShowRetryOption(message)) {
+                    if (retryOffered) {
                         ActionSheetRow(
                             icon = Icons.Default.Refresh,
                             title = stringResource(R.string.retry_send),
@@ -2764,7 +2769,7 @@ fun MessageBubble(
             // (iOS bb1f9f5). "warning" used to fall through to the green check.
             DeliveryStatusLabel(
                 status = deliveryStatusOf(message.deliveryStatus),
-                onRetry = if (ChatViewModel.shouldShowRetryOption(message)) onRetry else null,
+                onRetry = if (retryOffered) onRetry else null,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
@@ -7343,7 +7348,7 @@ private fun IdentityAddressActionsSheet(
             )
             ActionSheetRow(
                 icon = Icons.Default.Public,
-                title = "View in Explorer",
+                title = stringResource(R.string.view_in_explorer),
                 subtitle = "Opens this address on your chosen block explorer.",
                 onClick = onExplorer,
             )
@@ -12718,7 +12723,10 @@ fun ChatInfoScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clickable {
-                                                    val url = if (value.startsWith("http")) value else "https://$value"
+                                                    // Someone else's profile: web and email only,
+                                                    // never another app's scheme (iOS 5090ad9).
+                                                    val url = com.kachat.app.util.SafeExternalLink.forProfileField(value)
+                                                        ?: return@clickable
                                                     try {
                                                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                                     } catch (e: Exception) { /* no browser available */ }
@@ -13705,7 +13713,7 @@ fun ChatPrivacyAddressActionsSheet(
         ) { onDismiss(); onMoveOut() }
         ActionSheetRow(
             icon = Icons.Default.ContentCopy,
-            title = "Copy Address",
+            title = stringResource(R.string.copy_address),
             subtitle = "Puts the full address on the clipboard.",
         ) { onDismiss(); onCopy() }
         ActionSheetRow(

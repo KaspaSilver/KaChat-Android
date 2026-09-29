@@ -397,6 +397,26 @@ object ChessGameEngine {
         )
     }
 
+    /**
+     * Whether Retry may still be offered on a failed chess message whose text is [body] (iOS
+     * dd03c4e). A failed action is left off the board, so the game carries on without it, and
+     * retrying it later would replay it into a game that has moved on - a failed move retried
+     * after playing a different one lands on the two boards in different orders. So: a move
+     * while it is still your turn, an accept while the game still waits for one, a resignation
+     * or invite while the game is not over. Anything that is not chess is always retryable.
+     */
+    fun retryStillFits(body: String?, summary: ChessGameSummary?): Boolean {
+        val unwrapped = MessageReply.parseOrNull(body)?.text ?: body
+        val envelope = ChessMessage.parseOrNull(unwrapped) ?: return true
+        summary ?: return true
+        return when (envelope) {
+            is ChessEnvelope.Move -> summary.status.kind == ChessGameStatusKind.IN_PROGRESS &&
+                summary.board.sideToMove == summary.viewerColor
+            is ChessEnvelope.Response -> summary.status.kind == ChessGameStatusKind.PENDING_RESPONSE
+            is ChessEnvelope.Resign, is ChessEnvelope.Invite -> !summary.status.isGameOver
+        }
+    }
+
     /** Cumulative decisive-outcome tally across every distinct chess game ever invited with this
      *  contact (not just the current one) - checkmate/resignation count as a win or loss for the
      *  local player; stalemate/declined/pending/in-progress games don't count either way. Used by
