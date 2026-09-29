@@ -168,6 +168,14 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND type = 'handshake' AND direction = 'received'")
     suspend fun getReceivedHandshakes(contactId: String, walletAddress: String): List<MessageEntity>
 
+    /** Whether this conversation ever had a handshake, either way - see ContactNoteService. */
+    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND type = 'handshake')")
+    suspend fun hasHandshake(contactId: String, walletAddress: String): Boolean
+
+    /** Every conversation you have a delivered message in - see ContactNoteService's backfill. */
+    @Query("SELECT DISTINCT contactId FROM messages WHERE walletAddress = :walletAddress AND direction = 'sent' AND deliveryStatus = 'sent'")
+    suspend fun contactsWithDeliveredSends(walletAddress: String): List<String>
+
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND direction = :direction)")
     suspend fun hasMessageWithDirection(contactId: String, walletAddress: String, direction: String): Boolean
 

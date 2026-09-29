@@ -317,6 +317,19 @@ interface KasiaIndexerApi {
      * param as [getHandshakesByReceiver]) — safe even if the boundary item comes back again, since
      * callers already dedup by txId against local storage.
      */
+    /**
+     * Your own `self_stash` notes by [scope] (hex of the UTF-8 scope, e.g. "saved_handshake").
+     * [blockTime] is the page cursor, as on the other endpoints. See MESSAGING.md "Saved-handshake
+     * notes" and ContactNoteService.
+     */
+    @GET("self-stash/by-owner")
+    suspend fun getSelfStashByOwner(
+        @Query("owner") owner: String,
+        @Query("scope") scopeHex: String,
+        @Query("limit") limit: Int = 50,
+        @Query("block_time") blockTime: Long = 0
+    ): List<SelfStashIndexerResponse>
+
     @GET("contextual-messages/by-sender")
     suspend fun getContextualMessagesBySender(
         @Query("address") address: String,
@@ -413,6 +426,14 @@ data class HandshakeIndexerResponse(
     val receiver: String,
     @SerializedName("block_time") val blockTime: Long,
     @SerializedName("message_payload") val messagePayload: String
+)
+
+data class SelfStashIndexerResponse(
+    @SerializedName("tx_id") val txId: String,
+    val owner: String? = null,
+    val scope: String? = null,
+    @SerializedName("block_time") val blockTime: Long? = null,
+    @SerializedName("stashed_data") val stashedData: String? = null
 )
 
 data class ContextualMessageIndexerResponse(

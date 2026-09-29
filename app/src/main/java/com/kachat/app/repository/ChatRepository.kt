@@ -76,6 +76,8 @@ class ChatRepository @Inject constructor(
     // Lazy for the same reason: CallService sends its envelopes through WalletService, which
     // depends on this repository. Incoming call envelopes are handed to it from the ingest.
     private val callServiceLazy: dagger.Lazy<com.kachat.app.services.CallService>,
+    // Lazy: ContactNoteService sends through WalletService, which itself depends on this.
+    private val contactNotesLazy: dagger.Lazy<com.kachat.app.services.ContactNoteService>,
     // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
     // WalletService, which depends on this repository.
     private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>,
@@ -638,6 +640,8 @@ class ChatRepository @Inject constructor(
         database.messageDao().insert(merged)
         database.messageDao().deleteById(provisionalId, final.walletAddress)
         scheduleAutoBackupIfEnabled()
+        // Delivered in a chat with no handshake: leave a note a fresh import can find it by.
+        if (merged.direction == "sent") contactNotesLazy.get().onMessageDelivered(merged.contactId)
         if (existing != null) {
             Log.i("ChatRepository", "Finalize merged into import-inserted row txId=${final.id.take(16)} (import won the race)")
         }
@@ -949,6 +953,9 @@ class ChatRepository @Inject constructor(
 
         syncHandshakes(myAddress, api)
         syncOutgoingHandshakes(myAddress, api)
+        // Saved-handshake notes: re-create chats that never had a handshake after a fresh
+        // import, and write the notes still missing (iOS fe45704). Not on the fast poll tick.
+        if (!fromPollLoop) contactNotesLazy.get().syncNotesInBackground()
         syncContextualMessages(myAddress, api, pollShaped = fromPollLoop)
         // Payments get their own, slower cadence on the poll path: the endpoint is
         // full-transactions (inputs + outputs + payloads resolved server-side — by far the
