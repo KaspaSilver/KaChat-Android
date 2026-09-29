@@ -541,7 +541,7 @@ fun LinkActionsSheet(
         Spacer(Modifier.height(4.dp))
         ActionSheetRow(
             icon = Icons.Default.Public,
-            title = "Open Link",
+            title = stringResource(R.string.open_link),
             subtitle = "Opens in your browser.",
         ) { onDismiss(); onOpen() }
         // Not for a Nextcloud share: the link is the address of someone's file, and the preview
@@ -549,14 +549,14 @@ fun LinkActionsSheet(
         if (com.kachat.app.services.LinkPreviewService.nextcloudShareEndpoints(url) == null) {
             ActionSheetRow(
                 icon = Icons.Default.ContentCopy,
-                title = "Copy Link",
+                title = stringResource(R.string.copy_link),
                 subtitle = "Copies the address to your clipboard.",
             ) { onDismiss(); onCopy() }
         }
         if (onReply != null) {
             ActionSheetRow(
                 icon = Icons.AutoMirrored.Filled.Reply,
-                title = "Reply",
+                title = stringResource(R.string.reply),
                 subtitle = "Reply to this message instead.",
             ) { onDismiss(); onReply() }
         }

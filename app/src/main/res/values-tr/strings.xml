@@ -414,4 +414,15 @@
     <string name="i_already_have_a_domain_somewhere">Baska bir yerde zaten bir alan adim var</string>
     <string name="transfer_your_domain_to_this_address">Kimliginizin KaChat\'e baglanmasi icin alan adinizi bu adrese transfer edin.</string>
     <string name="user_info">Kullanıcı Bilgisi</string>
+    <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
+    <string name="share">Paylaş</string>
+    <string name="translate">Çevir</string>
+    <string name="show_original">Orijinali Göster</string>
+    <string name="show_translation">Çeviriyi Göster</string>
+    <string name="translation_show_original_subtitle">Gönderildiği hâliyle metne dön.</string>
+    <string name="translation_show_translation_subtitle">Yine çevrilmiş metin.</string>
+    <string name="mark_as_unread">Okunmadi Olarak Isaretle</string>
+    <string name="mark_as_read">Okundu Olarak Isaretle</string>
+    <string name="copy_link">Baglantiyi Kopyala</string>
+    <string name="open_link">Baglantiyi Ac</string>
 </resources>

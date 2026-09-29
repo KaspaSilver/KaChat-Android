@@ -592,4 +592,14 @@
     <string name="public_chats">Public Chats</string>
     <string name="user_info">User Info</string>
     <string name="share">Share</string>
+    <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
+    <string name="translate">Translate</string>
+    <string name="show_original">Show Original</string>
+    <string name="show_translation">Show Translation</string>
+    <string name="translation_show_original_subtitle">Back to the text as it was sent.</string>
+    <string name="translation_show_translation_subtitle">The translated text again.</string>
+    <string name="mark_as_unread">Mark as Unread</string>
+    <string name="mark_as_read">Mark as Read</string>
+    <string name="copy_link">Copy Link</string>
+    <string name="open_link">Open Link</string>
 </resources>

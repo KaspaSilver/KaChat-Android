@@ -414,4 +414,15 @@
     <string name="i_already_have_a_domain_somewhere">כבר יש לי דומיין במקום אחר</string>
     <string name="transfer_your_domain_to_this_address">העבר את הדומיין שלך לכתובת זו כדי שהזהות שלך תתחבר ל-KaChat.</string>
     <string name="user_info">פרטי משתמש</string>
+    <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
+    <string name="share">שיתוף</string>
+    <string name="translate">תרגום</string>
+    <string name="show_original">הצגת המקור</string>
+    <string name="show_translation">הצגת התרגום</string>
+    <string name="translation_show_original_subtitle">חזרה לטקסט כפי שנשלח.</string>
+    <string name="translation_show_translation_subtitle">שוב הטקסט המתורגם.</string>
+    <string name="mark_as_unread">סמן כלא נקרא</string>
+    <string name="mark_as_read">סמן כנקרא</string>
+    <string name="copy_link">העתק קישור</string>
+    <string name="open_link">פתח קישור</string>
 </resources>

@@ -414,4 +414,15 @@
     <string name="i_already_have_a_domain_somewhere">Toi da co ten mien o noi khac</string>
     <string name="transfer_your_domain_to_this_address">Chuyen ten mien cua ban den dia chi nay de danh tinh cua ban duoc ket noi voi KaChat.</string>
     <string name="user_info">Thông tin người dùng</string>
+    <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
+    <string name="share">Chia sẻ</string>
+    <string name="translate">Dịch</string>
+    <string name="show_original">Xem bản gốc</string>
+    <string name="show_translation">Xem bản dịch</string>
+    <string name="translation_show_original_subtitle">Quay lại văn bản như khi gửi.</string>
+    <string name="translation_show_translation_subtitle">Lại văn bản đã dịch.</string>
+    <string name="mark_as_unread">Đánh dấu là chưa đọc</string>
+    <string name="mark_as_read">Đánh dấu là đã đọc</string>
+    <string name="copy_link">Sao chép liên kết</string>
+    <string name="open_link">Mở liên kết</string>
 </resources>

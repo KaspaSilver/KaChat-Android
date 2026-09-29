@@ -751,7 +751,7 @@ fun ChatsScreen(
                                         if (convo.unreadCount > 0) {
                                             ActionSheetRow(
                                                 icon = Icons.Default.MarkEmailRead,
-                                                title = "Mark as Read",
+                                                title = stringResource(R.string.mark_as_read),
                                                 subtitle = "Clears the unread badge on this chat.",
                                             ) {
                                                 menuContactId = null
@@ -760,7 +760,7 @@ fun ChatsScreen(
                                         } else {
                                             ActionSheetRow(
                                                 icon = Icons.Default.MarkEmailUnread,
-                                                title = "Mark as Unread",
+                                                title = stringResource(R.string.mark_as_unread),
                                                 subtitle = "Puts the unread badge back so you come across it again.",
                                             ) {
                                                 menuContactId = null
@@ -784,7 +784,7 @@ fun ChatsScreen(
                                         }
                                         ActionSheetRow(
                                             icon = Icons.Default.Delete,
-                                            title = "Delete",
+                                            title = stringResource(R.string.delete),
                                             subtitle = "Removes this chat and its messages from this device.",
                                             tint = Color(0xFFFF3B30),
                                         ) {
@@ -1164,7 +1164,7 @@ fun GroupListBody(
                                 if (convo.unreadCount > 0) {
                                     ActionSheetRow(
                                         icon = Icons.Default.MarkEmailRead,
-                                        title = "Mark as Read",
+                                        title = stringResource(R.string.mark_as_read),
                                         subtitle = "Clears the unread badge on this group.",
                                     ) {
                                         menuGroupId = null
@@ -1173,7 +1173,7 @@ fun GroupListBody(
                                 } else {
                                     ActionSheetRow(
                                         icon = Icons.Default.MarkEmailUnread,
-                                        title = "Mark as Unread",
+                                        title = stringResource(R.string.mark_as_unread),
                                         subtitle = "Puts the unread badge back so you come across it again.",
                                     ) {
                                         menuGroupId = null
@@ -1194,7 +1194,7 @@ fun GroupListBody(
                                 }
                                 ActionSheetRow(
                                     icon = Icons.Default.Delete,
-                                    title = "Delete",
+                                    title = stringResource(R.string.delete),
                                     subtitle = "Removes this group and its messages from this device.",
                                     tint = Color(0xFFFF3B30),
                                 ) {

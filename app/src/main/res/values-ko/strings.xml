@@ -414,4 +414,15 @@
     <string name="i_already_have_a_domain_somewhere">이미 다른 곳에 도메인이 있어요</string>
     <string name="transfer_your_domain_to_this_address">신원을 KaChat에 연결하려면 도메인을 이 주소로 이전하세요.</string>
     <string name="user_info">사용자 정보</string>
+    <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
+    <string name="share">공유</string>
+    <string name="translate">번역</string>
+    <string name="show_original">원문 보기</string>
+    <string name="show_translation">번역 보기</string>
+    <string name="translation_show_original_subtitle">보낸 그대로의 텍스트로 돌아갑니다.</string>
+    <string name="translation_show_translation_subtitle">번역된 텍스트를 다시 봅니다.</string>
+    <string name="mark_as_unread">읽지 않음으로 표시</string>
+    <string name="mark_as_read">읽음으로 표시</string>
+    <string name="copy_link">링크 복사</string>
+    <string name="open_link">링크 열기</string>
 </resources>

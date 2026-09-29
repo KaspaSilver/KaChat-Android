@@ -1,5 +1,7 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -214,7 +216,7 @@ fun SwapAddressPickerScreen(
         ) {
             ActionSheetRow(
                 icon = Icons.Default.Public,
-                title = "View in Explorer",
+                title = stringResource(R.string.view_in_explorer),
                 subtitle = "Check its history before you send a swap to it.",
             ) {
                 actionTarget = null

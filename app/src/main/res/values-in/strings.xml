@@ -283,4 +283,15 @@
     <string name="default_label">Default</string>
     <string name="continue_label">Lanjutkan</string>
     <string name="user_info">Info Pengguna</string>
+    <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
+    <string name="share">Bagikan</string>
+    <string name="translate">Terjemahkan</string>
+    <string name="show_original">Tampilkan Asli</string>
+    <string name="show_translation">Tampilkan Terjemahan</string>
+    <string name="translation_show_original_subtitle">Kembali ke teks seperti saat dikirim.</string>
+    <string name="translation_show_translation_subtitle">Teks terjemahan lagi.</string>
+    <string name="mark_as_unread">Tandai belum Dibaca</string>
+    <string name="mark_as_read">Tandai sudah Dibaca</string>
+    <string name="copy_link">Salin Tautan</string>
+    <string name="open_link">Buka Tautan</string>
 </resources>

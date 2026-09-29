@@ -1,5 +1,7 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.filled.Flag
 import android.content.Intent
 import android.widget.Toast
@@ -2259,7 +2261,7 @@ fun KaPostCell(
                             if (isMine && post.remoteId != null && post.deliveryStatus == KaPostDraft.Delivery.SENT) {
                                 ActionSheetRow(
                                     icon = Icons.Default.Delete,
-                                    title = "Delete",
+                                    title = stringResource(R.string.delete),
                                     subtitle = "Takes it out of every feed. The chain keeps the transaction.",
                                     tint = Color(0xFFFF3B30),
                                 ) {
@@ -4933,7 +4935,7 @@ private fun KaPostNotificationActionsSheet(
                 }
                 ActionSheetRow(
                     icon = Icons.Default.Public,
-                    title = "View in Explorer",
+                    title = stringResource(R.string.view_in_explorer),
                     subtitle = "Opens the transaction on your chosen block explorer.",
                     onClick = onOpenExplorer,
                 )

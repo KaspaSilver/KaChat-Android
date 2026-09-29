@@ -326,12 +326,12 @@ fun BroadcastListScreen(
         fun say(text: String) { coroutineScope.launch { snackbarHostState.showSnackbar(text) } }
         ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = { roomActionTarget = null }) {
             if (hasUnread) {
-                ActionSheetRow(icon = Icons.Default.Drafts, title = "Mark as Read", subtitle = "Clears the unread badge on this room.") {
+                ActionSheetRow(icon = Icons.Default.Drafts, title = stringResource(R.string.mark_as_read), subtitle = "Clears the unread badge on this room.") {
                     roomActionTarget = null
                     broadcastViewModel.markRoomRead(name)
                 }
             } else {
-                ActionSheetRow(icon = Icons.Default.MarkEmailUnread, title = "Mark as Unread", subtitle = "Puts the unread badge back so you come across it again.") {
+                ActionSheetRow(icon = Icons.Default.MarkEmailUnread, title = stringResource(R.string.mark_as_unread), subtitle = "Puts the unread badge back so you come across it again.") {
                     roomActionTarget = null
                     broadcastViewModel.markRoomUnread(name)
                 }
@@ -362,7 +362,7 @@ fun BroadcastListScreen(
             if (channel != null && !isCurated) {
                 ActionSheetRow(
                     icon = Icons.Default.Delete,
-                    title = "Delete",
+                    title = stringResource(R.string.delete),
                     subtitle = "Removes this room and its messages from this device.",
                     tint = Color(0xFFFF3B30),
                 ) {
@@ -439,7 +439,7 @@ fun BroadcastListScreen(
         ) {
             ActionSheetRow(
                 icon = Icons.Default.Delete,
-                title = "Delete",
+                title = stringResource(R.string.delete),
                 subtitle = "Removes this room and its messages from this device.",
                 tint = Color(0xFFFF3B30),
             ) {
@@ -1602,8 +1602,8 @@ fun BroadcastChannelScreen(
                                                 if (translationKey in translationOriginals) {
                                                     ActionSheetRow(
                                                         icon = Icons.Default.Translate,
-                                                        title = "Show Translation",
-                                                        subtitle = "The translated text again.",
+                                                        title = stringResource(R.string.show_translation),
+                                                        subtitle = stringResource(R.string.translation_show_translation_subtitle),
                                                     ) {
                                                         broadcastViewModel.showTranslation(translationKey)
                                                         showMenu = false
@@ -1611,8 +1611,8 @@ fun BroadcastChannelScreen(
                                                 } else {
                                                     ActionSheetRow(
                                                         icon = Icons.AutoMirrored.Filled.Undo,
-                                                        title = "Show Original",
-                                                        subtitle = "Back to the text as it was sent.",
+                                                        title = stringResource(R.string.show_original),
+                                                        subtitle = stringResource(R.string.translation_show_original_subtitle),
                                                     ) {
                                                         broadcastViewModel.showOriginal(translationKey)
                                                         showMenu = false
@@ -1624,7 +1624,7 @@ fun BroadcastChannelScreen(
                                                 if (considersTranslation && translationKey in translatableKeys) {
                                                     ActionSheetRow(
                                                         icon = Icons.Default.Translate,
-                                                        title = "Translate",
+                                                        title = stringResource(R.string.translate),
                                                         subtitle = "Shows this message in ${broadcastViewModel.readerLanguageName()}.",
                                                     ) {
                                                         broadcastViewModel.translateMessage(translationKey, displayContent)
