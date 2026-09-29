@@ -402,8 +402,8 @@ fun ChatThreadScreen(
     }
 
     DisposableEffect(contactId) {
-        chatViewModel.setActiveContact(contactId)
-        onDispose { chatViewModel.setActiveContact(null) }
+        chatViewModel.enterContact(contactId)
+        onDispose { chatViewModel.leaveContact(contactId) }
     }
     // Voice-note playback is owned per bubble; the thread going away is what ends it.
     DisposableEffect(Unit) { onDispose { VoicePlayback.stopAllAfterChildrenDispose() } }
@@ -464,7 +464,8 @@ fun ChatThreadScreen(
                 id = it.id,
                 plaintextBody = it.plaintextBody,
                 isOutgoing = it.direction == "sent",
-                blockTimestamp = it.blockTimestamp
+                blockTimestamp = it.blockTimestamp,
+                sendFailed = it.direction == "sent" && it.deliveryStatus == "failed"
             )
         }
         com.kachat.app.util.ChessGameEngine.activeGame(sourceMessages, address, contactId)
@@ -1566,7 +1567,8 @@ fun ChatThreadScreen(
                     id = it.id,
                     plaintextBody = it.plaintextBody,
                     isOutgoing = it.direction == "sent",
-                    blockTimestamp = it.blockTimestamp
+                    blockTimestamp = it.blockTimestamp,
+                    sendFailed = it.direction == "sent" && it.deliveryStatus == "failed"
                 )
             }
         }
@@ -1663,7 +1665,8 @@ fun ChatThreadScreen(
                                     id = msg.id,
                                     plaintextBody = msg.plaintextBody,
                                     isOutgoing = msg.direction == "sent",
-                                    blockTimestamp = msg.blockTimestamp
+                                    blockTimestamp = msg.blockTimestamp,
+                                    sendFailed = msg.direction == "sent" && msg.deliveryStatus == "failed"
                                 ),
                                 chessSourceMessages
                             )
@@ -12431,7 +12434,8 @@ fun ChatInfoScreen(
                 id = it.id,
                 plaintextBody = it.plaintextBody,
                 isOutgoing = it.direction == "sent",
-                blockTimestamp = it.blockTimestamp
+                blockTimestamp = it.blockTimestamp,
+                sendFailed = it.direction == "sent" && it.deliveryStatus == "failed"
             )
         }
         val hasChessHistory = chessSourceMessages.any { message ->

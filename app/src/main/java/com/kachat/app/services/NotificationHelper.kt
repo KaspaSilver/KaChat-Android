@@ -133,8 +133,26 @@ class NotificationHelper @Inject constructor(
         if (!txId.isNullOrBlank()) notifiedTxIds[txId] = true
     }
 
-    fun setActiveContact(contactId: String?) {
-        activeContactId.value = contactId
+    /** Screens showing a 1:1 conversation, newest last. The chat thread and the chess board over
+     *  it both hold the contact, and Compose Navigation disposes the thread only after the board
+     *  has entered - a plain "set null on dispose" then cleared the board's hold, which stopped
+     *  the open-chat fast poll while a game was on screen (iOS c1ee033). */
+    private val contactHolds = mutableListOf<String>()
+
+    fun enterContact(contactId: String) {
+        synchronized(contactHolds) {
+            contactHolds.add(contactId)
+            activeContactId.value = contactId
+        }
+        refreshOpenChat()
+    }
+
+    fun leaveContact(contactId: String) {
+        synchronized(contactHolds) {
+            val index = contactHolds.lastIndexOf(contactId)
+            if (index >= 0) contactHolds.removeAt(index)
+            activeContactId.value = contactHolds.lastOrNull()
+        }
         refreshOpenChat()
     }
 

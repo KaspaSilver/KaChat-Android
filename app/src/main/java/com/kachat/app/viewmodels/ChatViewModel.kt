@@ -131,29 +131,30 @@ class ChatViewModel @Inject constructor(
     val ownAddressUtxoActivityEvents = addressActivityNotifier.utxoActivityEvents
 
     /** Suppresses a notification for whichever contact's thread is currently open. */
-    fun setActiveContact(contactId: String?) {
-        notificationHelper.setActiveContact(contactId)
+    fun enterContact(contactId: String) {
+        notificationHelper.enterContact(contactId)
         // Opening a chat is one of the two moments the recency order the share sheet shows can
         // change — keep the direct-share conversation shortcuts current. refresh() diffs against
         // what's already published, so this is free when nothing changed.
-        if (contactId != null) {
-            shareShortcutsManager.refresh(conversations.value)
-            // Fresh-address payment pools: lazily offer our pool once per established contact,
-            // and top up our stored pool of theirs if it has run low (both throttled/marker-
-            // guarded inside the service) — the Android equivalent of iOS's enterConversation
-            // hook. Fire-and-forget on the service's own scope.
-            paymentPoolService.onConversationOpened(contactId)
-            // What arrived while the app was away, straight away rather than on the poll's next
-            // tick (iOS 360e5d2).
-            viewModelScope.launch {
-                try {
-                    chatRepository.syncConversationNow(contactId)
-                } catch (e: Exception) {
-                    Log.w("ChatViewModel", "Sync on opening chat failed", e)
-                }
+        shareShortcutsManager.refresh(conversations.value)
+        // Fresh-address payment pools: lazily offer our pool once per established contact,
+        // and top up our stored pool of theirs if it has run low (both throttled/marker-
+        // guarded inside the service) — the Android equivalent of iOS's enterConversation
+        // hook. Fire-and-forget on the service's own scope.
+        paymentPoolService.onConversationOpened(contactId)
+        // What arrived while the app was away, straight away rather than on the poll's next
+        // tick (iOS 360e5d2).
+        viewModelScope.launch {
+            try {
+                chatRepository.syncConversationNow(contactId)
+            } catch (e: Exception) {
+                Log.w("ChatViewModel", "Sync on opening chat failed", e)
             }
         }
     }
+
+    /** Releases [enterContact]'s hold; another screen still showing this chat keeps it open. */
+    fun leaveContact(contactId: String) = notificationHelper.leaveContact(contactId)
 
     /** Suppresses a notification for whichever group's thread is currently open, and (via
      *  `GroupRepository`'s `isViewingGroup` check) keeps it marked read in real time so a message
@@ -2399,7 +2400,8 @@ class ChatViewModel @Inject constructor(
                     id = entity.id,
                     plaintextBody = entity.plaintextBody,
                     isOutgoing = entity.direction == "sent",
-                    blockTimestamp = entity.blockTimestamp
+                    blockTimestamp = entity.blockTimestamp,
+                    sendFailed = entity.direction == "sent" && entity.deliveryStatus == "failed"
                 )
             }
             val existing = com.kachat.app.util.ChessGameEngine.activeGame(messages, myAddress, contactId)

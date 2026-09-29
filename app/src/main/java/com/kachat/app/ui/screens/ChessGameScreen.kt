@@ -121,11 +121,13 @@ fun ChessGameScreen(
     // its own composable is on screen) via the identical DisposableEffect pattern, but navigating
     // here to the chess board is a separate destination in the NavHost - Compose Navigation
     // actually disposes ChatThreadScreen while this screen is shown, which cleared that flag and
-    // let move notifications through for a game the user was already watching live. Re-set it
-    // here so it stays active for the whole time this screen (not just the chat thread) is open.
+    // let move notifications through for a game the user was already watching live - and, when
+    // the thread's dispose landed after this screen's enter, stopped the open chat's fast poll so
+    // the opponent's move waited on a push (iOS c1ee033). Each screen holds the contact and
+    // releases only its own hold, so the chat stays open for as long as either is on screen.
     DisposableEffect(contactId) {
-        chatViewModel.setActiveContact(contactId)
-        onDispose { chatViewModel.setActiveContact(null) }
+        chatViewModel.enterContact(contactId)
+        onDispose { chatViewModel.leaveContact(contactId) }
     }
 
     // Every non-chess message in the conversation - chess move/invite/response/resign envelopes
@@ -149,7 +151,8 @@ fun ChessGameScreen(
                 id = it.id,
                 plaintextBody = it.plaintextBody,
                 isOutgoing = it.direction == "sent",
-                blockTimestamp = it.blockTimestamp
+                blockTimestamp = it.blockTimestamp,
+                sendFailed = it.direction == "sent" && it.deliveryStatus == "failed"
             )
         }
     }

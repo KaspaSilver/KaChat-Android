@@ -237,6 +237,8 @@ object ChessGameEngine {
         val plaintextBody: String?
         val isOutgoing: Boolean
         val blockTimestamp: Long
+        /** Your own message whose send failed: it never reached the opponent. */
+        val sendFailed: Boolean get() = false
     }
 
     /** Plain adapter for wrapping a `MessageEntity` (`direction == "sent"` -> `isOutgoing`) or any
@@ -245,9 +247,21 @@ object ChessGameEngine {
         override val id: String,
         override val plaintextBody: String?,
         override val isOutgoing: Boolean,
-        override val blockTimestamp: Long
+        override val blockTimestamp: Long,
+        override val sendFailed: Boolean = false
     ) : ChessSourceMessage
 
+    /**
+     * Moves are replayed by TURN, not by timestamp (iOS c1ee033). Each side's moves are kept in
+     * their own order and dealt alternately to whichever color is to move. Sorting everything by
+     * time broke on real phones: an outgoing move carries the sender's clock and an incoming one
+     * the chain's, so a phone whose clock ran ahead sorted its own move after the reply to it. The
+     * reply then looked illegal and was skipped, and both sides sat on "Waiting on opponent".
+     *
+     * Your own response, move or resignation that FAILED to send is left out (iOS 6cfb62c): it
+     * never reached the opponent, so counting it here would leave the two boards disagreeing. It
+     * still drives `lastMessageId`, which is what offers Retry.
+     */
     fun summarize(gameId: String, messages: List<ChessSourceMessage>, myAddress: String, contactAddress: String): ChessGameSummary? {
         var invite: ChessInviteContent? = null
         var inviterAddress: String? = null
@@ -257,6 +271,7 @@ object ChessGameEngine {
         var resignReason: String? = null
         var lastMessageId: String? = null
         val moveHistory = mutableListOf<ChessMoveRecord>()
+        val moveEntries = mutableListOf<Triple<ChessSourceMessage, ChessMoveContent, String>>()
 
         for (message in messages.sortedBy { it.blockTimestamp }) {
             val replyUnwrapped = MessageReply.parseOrNull(message.plaintextBody)?.text ?: message.plaintextBody
@@ -264,6 +279,7 @@ object ChessGameEngine {
             if (envelope.gameId != gameId) continue
             lastMessageId = message.id
             val senderAddress = if (message.isOutgoing) myAddress else contactAddress
+            val unsent = message.isOutgoing && message.sendFailed
 
             when (envelope) {
                 is ChessEnvelope.Invite -> {
@@ -271,15 +287,46 @@ object ChessGameEngine {
                     inviterAddress = senderAddress
                 }
                 is ChessEnvelope.Response -> {
+                    if (unsent) continue
                     response = envelope.content
                 }
                 is ChessEnvelope.Move -> {
-                    val from = ChessSquare.fromAlgebraic(envelope.content.from) ?: continue
-                    val to = ChessSquare.fromAlgebraic(envelope.content.to) ?: continue
-                    val promotion = ChessPieceType.fromPromotionLetter(envelope.content.promotion)
+                    if (unsent) continue
+                    moveEntries.add(Triple(message, envelope.content, senderAddress))
+                }
+                is ChessEnvelope.Resign -> {
+                    if (unsent) continue
+                    resignerAddress = senderAddress
+                    resignReason = envelope.content.reason
+                }
+            }
+        }
+
+        val replayInvite = invite
+        val replayInviter = inviterAddress
+        if (replayInvite != null && replayInviter != null) {
+            val other = if (replayInviter == myAddress) contactAddress else myAddress
+            val white = if (replayInvite.inviterColor == ChessInviteColor.WHITE) replayInviter else other
+            // Each side's own order: one clock per side, so it only runs forward.
+            val whiteQueue = ArrayDeque(moveEntries.filter { it.third == white }.sortedBy { it.first.blockTimestamp })
+            val blackQueue = ArrayDeque(moveEntries.filter { it.third != white }.sortedBy { it.first.blockTimestamp })
+
+            // Deal moves to the side to move until that side has nothing legal left to play. A
+            // side's move that is illegal here (a duplicate resend, one made against a board that
+            // was wrong at the time) is dropped and its next move tried, as the old replay did.
+            while (true) {
+                val toMove = board.sideToMove
+                val queue = if (toMove == ChessColor.WHITE) whiteQueue else blackQueue
+                var applied = false
+                while (queue.isNotEmpty()) {
+                    val (message, content, _) = queue.removeFirst()
+                    val from = ChessSquare.fromAlgebraic(content.from) ?: continue
+                    val to = ChessSquare.fromAlgebraic(content.to) ?: continue
+                    val promotion = ChessPieceType.fromPromotionLetter(content.promotion)
                     val move = ChessEngine.normalizingPromotion(ChessMove(from, to, promotion), board)
                     if (!ChessEngine.isLegal(move, board)) continue
                     val movingPiece = board.piece(from) ?: continue
+                    if (movingPiece.color != toMove) continue
                     val isEnPassantCapture = movingPiece.type == ChessPieceType.PAWN &&
                         to == board.enPassantTarget && board.piece(to) == null
                     val capturedPiece = if (isEnPassantCapture) {
@@ -298,14 +345,13 @@ object ChessGameEngine {
                             capturedColor = capturedPiece?.color,
                             promotion = promotion,
                             messageId = message.id,
-                            clockMs = envelope.content.clockMs
+                            clockMs = content.clockMs
                         )
                     )
+                    applied = true
+                    break
                 }
-                is ChessEnvelope.Resign -> {
-                    resignerAddress = senderAddress
-                    resignReason = envelope.content.reason
-                }
+                if (!applied) break
             }
         }
 
@@ -321,7 +367,9 @@ object ChessGameEngine {
                 ChessGameStatus(ChessGameStatusKind.RESIGNED, loser, timedOut = resignReason == "timeout")
             }
             response != null && !response.accepted -> ChessGameStatus(ChessGameStatusKind.DECLINED)
-            response == null -> ChessGameStatus(ChessGameStatusKind.PENDING_RESPONSE)
+            // A move on the board means the game was accepted, even when the acceptance itself
+            // has not reached this phone yet (or never will).
+            response == null && moveHistory.isEmpty() -> ChessGameStatus(ChessGameStatusKind.PENDING_RESPONSE)
             ChessEngine.isCheckmate(board) -> ChessGameStatus(ChessGameStatusKind.CHECKMATE, board.sideToMove.opposite)
             ChessEngine.isStalemate(board) -> ChessGameStatus(ChessGameStatusKind.STALEMATE)
             // After checkmate/stalemate: mate already ended the game, and mate wins over a draw.
