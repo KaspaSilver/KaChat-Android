@@ -788,9 +788,11 @@ fun BroadcastChannelScreen(
     // window, and the old unconditional animateScrollToItem crawled the full history on every
     // open. After that, follow new arrivals only when the reader is already at the bottom, so
     // indexer backfill and live inserts never yank someone reading history (same policy as 1:1
-    // chats).
+    // chats). Keyed on the NEWEST message, not the count: each backfill page of OLDER history
+    // grew the count and ran this again, so a filling room animated to the bottom once per page
+    // (iOS 9c9e3e0).
     var hasPositionedAtLatest by remember(channelName) { mutableStateOf(false) }
-    LaunchedEffect(channelName, messages.size) {
+    LaunchedEffect(channelName, messages.lastOrNull()?.id) {
         if (messages.isEmpty()) return@LaunchedEffect
         if (!hasPositionedAtLatest) {
             listState.scrollToItem(messages.size - 1)

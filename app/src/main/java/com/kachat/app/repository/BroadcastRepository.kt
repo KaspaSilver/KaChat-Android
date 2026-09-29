@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -160,7 +162,7 @@ class BroadcastRepository @Inject constructor(
                 it.blockTimestamp > lastReadMs && it.senderAddress != myAddress
             }
             RoomSummary(lastMessage = readable.firstOrNull(), unreadCount = unread)
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     /** A room's newest [ROOM_WINDOW_SIZE] rows (widened by "Load earlier messages"), and whether
@@ -197,7 +199,10 @@ class BroadcastRepository @Inject constructor(
                 },
                 hasMore = limit != null && messages.size >= limit,
             )
-        }
+        // The reaction/edit sniff runs over every row on every change - through a room's first
+        // backfill that is once per page. Collected from the screen it ran on the main thread
+        // (iOS 9c9e3e0, 5463ccc).
+        }.flowOn(Dispatchers.Default)
     }
 
     /**
@@ -243,7 +248,7 @@ class BroadcastRepository @Inject constructor(
                     failedAction = if (row.deliveryStatus == "failed") parsed.action else null
                 )
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     /**
@@ -281,7 +286,7 @@ class BroadcastRepository @Inject constructor(
                 }
             }
             newestPerTarget
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     /** One message's newest edit in a room — see [getEdits]. */
