@@ -69,17 +69,35 @@ class GroupSecretStore @Inject constructor(
 
     private fun key(walletAddress: String, groupId: String) = "bag_${walletAddress}_$groupId"
 
+    /** Decoded bags, so the group poll (one read per group per tick, plus one per incoming
+     *  message) stops decrypting and parsing the same prefs entry every time (iOS 1ae9440).
+     *  saveBag and deleteBag are the only ways a bag changes, and both keep this in step.
+     *  Synchronized so a read racing a save can never put an older bag (an older msgCounter)
+     *  back over the newer one. */
+    private val bagCache = java.util.concurrent.ConcurrentHashMap<String, GroupBag>()
+
+    @Synchronized
     fun saveBag(walletAddress: String, bag: GroupBag) {
-        sharedPrefs.edit().putString(key(walletAddress, bag.groupId), gson.toJson(bag)).apply()
+        val key = key(walletAddress, bag.groupId)
+        sharedPrefs.edit().putString(key, gson.toJson(bag)).apply()
+        bagCache[key] = bag
     }
 
+    @Synchronized
     fun loadBag(walletAddress: String, groupId: String): GroupBag? {
-        val json = sharedPrefs.getString(key(walletAddress, groupId), null) ?: return null
-        return try { gson.fromJson(json, GroupBag::class.java) } catch (e: Exception) { null }
+        val key = key(walletAddress, groupId)
+        bagCache[key]?.let { return it }
+        val json = sharedPrefs.getString(key, null) ?: return null
+        val bag = try { gson.fromJson(json, GroupBag::class.java) } catch (e: Exception) { null } ?: return null
+        bagCache[key] = bag
+        return bag
     }
 
+    @Synchronized
     fun deleteBag(walletAddress: String, groupId: String) {
-        sharedPrefs.edit().remove(key(walletAddress, groupId)).apply()
+        val key = key(walletAddress, groupId)
+        sharedPrefs.edit().remove(key).apply()
+        bagCache.remove(key)
     }
 
     /** Every group id this wallet holds secrets for - used to restore in-memory scanning state on cold start/wallet switch. */

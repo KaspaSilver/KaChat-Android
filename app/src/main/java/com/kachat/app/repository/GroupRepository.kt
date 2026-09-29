@@ -165,6 +165,20 @@ class GroupRepository @Inject constructor(
     @Synchronized
     private fun isGroupTxHandledInMemory(txId: String): Boolean = handledGroupTxIds.containsKey(txId)
 
+    /** "wallet|txId" of gcomms fully handled this session - stored, or applied as a reaction or
+     *  edit (iOS 6b2f20e). Catch-up re-serves its rewind window every pass and the live poll
+     *  repeats it, and each re-serve paid the signature check, the decrypt and a database read
+     *  again before the insert's own dedupe said "already have it". Only successes are
+     *  remembered: a message rejected for a missing epoch key, or an edit whose target has not
+     *  arrived, must be tried again. Keyed by wallet so a switch needs no reset; cleared when a
+     *  group is deleted, so a re-join can store its messages again. */
+    private val completedGroupTxIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    private fun markGroupTxCompleted(walletAddress: String, txId: String) {
+        if (completedGroupTxIds.size >= 20_000) completedGroupTxIds.clear()
+        completedGroupTxIds.add("$walletAddress|$txId")
+    }
+
     /**
      * Whether [txId] has been ingested by the group pipeline — as a decrypted message row, an
      * applied reaction, or an in-memory record of processing it this session. The FCM handler
@@ -712,6 +726,7 @@ class GroupRepository @Inject constructor(
     suspend fun deleteGroup(groupId: String) {
         val walletAddress = walletManager.getAddress()
         groupSecretStore.deleteBag(walletAddress, groupId)
+        completedGroupTxIds.clear()
         database.groupDao().deleteMessagesForGroup(groupId, walletAddress)
         database.reactionDao().deleteAllForGroup(groupId, walletAddress)
         database.messageEditDao().deleteAllForGroup(groupId, walletAddress)
@@ -1036,6 +1051,7 @@ class GroupRepository @Inject constructor(
 
     suspend fun handleIncomingGroupMessage(parsed: GroupCipher.ParsedGroupMessage, txId: String, blockTimestamp: Long) {
         val walletAddress = walletManager.getAddress()
+        if ("$walletAddress|$txId" in completedGroupTxIds) return
         val hrp = walletAddress.substringBefore(":")
         val groups = database.groupDao().getGroupsOnce(walletAddress)
         for (group in groups) {
@@ -1103,6 +1119,7 @@ class GroupRepository @Inject constructor(
                             )
                         )
                     }
+                    markGroupTxCompleted(walletAddress, txId)
                 }
                 return
             }
@@ -1161,6 +1178,7 @@ class GroupRepository @Inject constructor(
                 } else {
                     database.reactionDao().deleteReaction(reaction.targetTxId, walletAddress, senderAddress)
                 }
+                markGroupTxCompleted(walletAddress, txId)
                 return
             }
 
@@ -1172,6 +1190,8 @@ class GroupRepository @Inject constructor(
                     contentEncryptedHex = parsed.ciphertext.toHexString(), blockTimestamp = blockTimestamp, isOutgoing = isOutgoing, deliveryStatus = "sent"
                 )
             )
+            // Stored now, or already stored: either way this tx never needs handling again.
+            markGroupTxCompleted(walletAddress, txId)
             // rowId == -1 means insertMessage's IGNORE conflict strategy dropped it as an
             // already-seen txId (e.g. catch-up re-fetching something the live scan already
             // processed) - only notify for a genuinely new, incoming (not our own) message.
@@ -1272,6 +1292,7 @@ class GroupRepository @Inject constructor(
                 groupSecretStore.recordTombstone(walletAddress, tomb.groupId, published = true)
                 // Remove locally WITHOUT re-publishing (record already done above).
                 groupSecretStore.deleteBag(walletAddress, tomb.groupId)
+                completedGroupTxIds.clear()
                 database.groupDao().deleteMessagesForGroup(tomb.groupId, walletAddress)
                 database.reactionDao().deleteAllForGroup(tomb.groupId, walletAddress)
                 database.groupDao().deleteGroup(tomb.groupId, walletAddress)
@@ -2024,6 +2045,7 @@ class GroupRepository @Inject constructor(
         val groups = database.groupDao().getGroupsOnce(walletAddress)
         for (group in groups) {
             groupSecretStore.deleteBag(walletAddress, group.groupId)
+            completedGroupTxIds.clear()
         }
         database.groupDao().deleteAllGroups(walletAddress)
         database.groupDao().deleteAllMessages(walletAddress)
