@@ -696,7 +696,8 @@ class PortfolioRepository @Inject constructor(
      * row would otherwise silently fail and get skipped. Strips those before parsing.
      */
     private fun parseLenientDouble(raw: String): Double? =
-        raw.trim().replace(",", "").toDoubleOrNull()
+        // "NaN"/"Infinity" parse as doubles; a CSV cell holding one is not a number (iOS 1f129d6).
+        raw.trim().replace(",", "").toDoubleOrNull()?.takeIf { it.isFinite() }
 
     private fun makeDateFormat(timeZone: TimeZone): SimpleDateFormat =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).apply {
@@ -812,7 +813,8 @@ class PortfolioRepository @Inject constructor(
             }
 
             val notes = if (fields.size > 8 && fields[8].isNotEmpty()) fields[8] else null
-            val amountSompi = (kas * 100_000_000).roundToLong()
+            // roundToLong throws on NaN, and an amount past Kaspa's supply overflows sompi.
+            val amountSompi = com.kachat.app.viewmodels.PortfolioViewModel.kasToSompiOrNull(kas) ?: continue
 
             val existingId = idByTimestamp[timestampMillis]
             if (existingId != null) {

@@ -651,9 +651,10 @@ class PortfolioViewModel @Inject constructor(
         sourceAddress: String? = null,
         sourceTxId: String? = null,
     ) {
+        val amountSompi = kasToSompiOrNull(amountKas) ?: return
         viewModelScope.launch {
             repository.addTransaction(
-                type, (amountKas * 100_000_000).toLong(), fiatValue, timestampMillis, notes,
+                type, amountSompi, fiatValue, timestampMillis, notes,
                 portfolioId = portfolioId, sourceAddress = sourceAddress, sourceTxId = sourceTxId,
             )
         }
@@ -683,8 +684,9 @@ class PortfolioViewModel @Inject constructor(
         repository.getHistoricalPrice(timestampMillis, currency.value)
 
     fun updateTransaction(id: String, type: String, amountKas: Double, fiatValue: Double, timestampMillis: Long, notes: String? = null) {
+        val amountSompi = kasToSompiOrNull(amountKas) ?: return
         viewModelScope.launch {
-            repository.updateTransaction(id, type, (amountKas * 100_000_000).toLong(), fiatValue, timestampMillis, notes)
+            repository.updateTransaction(id, type, amountSompi, fiatValue, timestampMillis, notes)
         }
     }
 
@@ -741,6 +743,16 @@ class PortfolioViewModel @Inject constructor(
     }
 
     companion object {
+        /** Kaspa's supply cap, with room: an amount past it is a typo or a hostile CSV cell. */
+        private const val MAX_PORTFOLIO_KAS = 30_000_000_000.0
+
+        /** KAS to sompi for a manual entry or CSV row, or null for NaN, infinity, a negative or
+         *  an out-of-range amount - which used to overflow or throw (iOS 1f129d6). */
+        fun kasToSompiOrNull(kas: Double): Long? {
+            if (!kas.isFinite() || kas < 0 || kas > MAX_PORTFOLIO_KAS) return null
+            return kotlin.math.round(kas * 100_000_000).toLong()
+        }
+
         /**
          * The key a ChangeNOW swap is recorded under. Namespaced so it can never collide with a
          * Kaspa txid.

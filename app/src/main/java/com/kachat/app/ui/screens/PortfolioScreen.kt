@@ -2642,7 +2642,8 @@ internal fun parseAmount(text: String): Double? {
         // "1.234.567" - dots as grouping.
         dots > 1 -> cleaned = cleaned.replace(".", "")
     }
-    return cleaned.toDoubleOrNull()
+    // "NaN" and "Infinity" parse as doubles; neither is an amount (iOS 1f129d6).
+    return cleaned.toDoubleOrNull()?.takeIf { it.isFinite() }
 }
 
 // MARK: network hashrate card + chart
