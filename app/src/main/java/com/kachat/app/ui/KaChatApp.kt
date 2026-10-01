@@ -1438,6 +1438,10 @@ fun MainShell(
                 )
             }
 
+            composable("edit_kachat_profile") {
+                com.kachat.app.ui.screens.KachatProfileEditorScreen(onBack = { navController.popBackStack() })
+            }
+
             composable("create_kns_profile") {
                 KnsCreateProfileWizardScreen(
                     viewModel = walletViewModel,

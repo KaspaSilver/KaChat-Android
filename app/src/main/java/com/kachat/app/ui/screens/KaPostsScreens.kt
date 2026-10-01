@@ -4740,14 +4740,16 @@ fun KaPostsProfileOverlay(
                                         .background(KaspaTeal.copy(alpha = 0.15f))
                                         .clickable {
                                             onClose()
-                                            navController.navigate("edit_kns_profile")
+                                            // KaChat's own profile (iOS 09e0403); .kas profiles are
+                                            // customized per domain in Your Domains.
+                                            navController.navigate("edit_kachat_profile")
                                         }
                                         .padding(horizontal = 12.dp, vertical = 7.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Icon(Icons.Default.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Edit KNS Profile", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(stringResource(R.string.edit_kachat_profile), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                             }
                         }

@@ -425,4 +425,19 @@
     <string name="copy_link">लिंक कॉपी करें</string>
     <string name="open_link">लिंक खोलें</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... या डोमेन</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">एक्स हैंडल</string>
+    <string name="discord_user_id">कलह उपयोगकर्ता आईडी</string>
+    <string name="redirect_url">यूआरएल पुनर्निर्देशित करें</string>
+    <string name="none_yet">अभी कोई नहीं</string>
+    <string name="customize_profile">प्रोफ़ाइल कस्टमाइज़ करें</string>
+    <string name="settling">पुष्टि हो रही है</string>
+    <string name="edit_kachat_profile">.kachat प्रोफ़ाइल संपादित करें</string>
+    <string name="kachat_profile_coming_body">.kachat नाम जल्द आ रहे हैं। एक लेने के बाद आप यहाँ अपना अवतार, बैनर, परिचय और लिंक सेट करेंगे - और KaChat हर जगह आपको इसी से दिखाएगा।</string>
+    <string name="kachat_name_section">.kachat नाम</string>
+    <string name="get_domain_at">%2$s पर %1$s डोमेन पाएँ</string>
+    <string name="could_not_reach_service">%1$s तक नहीं पहुँच सके। फिर से कोशिश करने के लिए नीचे खींचें।</string>
+    <string name="no_names_yet">अभी कोई %1$s नाम नहीं।</string>
+    <string name="kachat_names_are_coming">.kachat नाम जल्द आ रहे हैं</string>
+    <string name="kachat_names_coming_body">KaChat के अपने नाम यहाँ होंगे: एक लें, चैट में उसे अपना नाम बनाएँ और प्रोफ़ाइल लिंक के रूप में साझा करें।</string>
 </resources>

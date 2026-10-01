@@ -425,4 +425,19 @@
     <string name="copy_link">复制链接</string>
     <string name="open_link">打开链接</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... 或域名</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">X手柄</string>
+    <string name="discord_user_id">不一致的用户 ID</string>
+    <string name="redirect_url">重定向网址</string>
+    <string name="none_yet">暂无</string>
+    <string name="customize_profile">自定义资料</string>
+    <string name="settling">确认中</string>
+    <string name="edit_kachat_profile">编辑 .kachat 资料</string>
+    <string name="kachat_profile_coming_body">.kachat 名称即将推出。领取后，你可以在这里设置头像、横幅、简介和链接——这就是 KaChat 在各处展示的你。</string>
+    <string name="kachat_name_section">.kachat 名称</string>
+    <string name="get_domain_at">在 %2$s 获取 %1$s 域名</string>
+    <string name="could_not_reach_service">无法连接 %1$s。下拉重试。</string>
+    <string name="no_names_yet">还没有 %1$s 名称。</string>
+    <string name="kachat_names_are_coming">.kachat 名称即将推出</string>
+    <string name="kachat_names_coming_body">KaChat 自己的名称将在这里：领取一个，作为你在聊天中的名字，并作为你的资料链接分享。</string>
 </resources>

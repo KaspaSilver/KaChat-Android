@@ -425,4 +425,19 @@
     <string name="copy_link">Copia link</string>
     <string name="open_link">Apri link</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... o dominio</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">Maniglia X</string>
+    <string name="discord_user_id">ID utente discorde</string>
+    <string name="redirect_url">URL di reindirizzamento</string>
+    <string name="none_yet">Ancora nessuno</string>
+    <string name="customize_profile">Personalizza profilo</string>
+    <string name="settling">In conferma</string>
+    <string name="edit_kachat_profile">Modifica profilo .kachat</string>
+    <string name="kachat_profile_coming_body">I nomi .kachat stanno arrivando. Quando ne rivendichi uno, qui imposti avatar, banner, bio e link: è ciò che KaChat mostra di te ovunque.</string>
+    <string name="kachat_name_section">Nome .kachat</string>
+    <string name="get_domain_at">Ottieni un dominio %1$s su %2$s</string>
+    <string name="could_not_reach_service">Impossibile raggiungere %1$s. Trascina in basso per riprovare.</string>
+    <string name="no_names_yet">Ancora nessun nome %1$s.</string>
+    <string name="kachat_names_are_coming">I nomi .kachat stanno arrivando</string>
+    <string name="kachat_names_coming_body">Qui vivranno i nomi di KaChat: rivendicane uno, usalo come nome nelle chat e condividilo come link del profilo.</string>
 </resources>

@@ -425,4 +425,19 @@
     <string name="copy_link">Sao chép liên kết</string>
     <string name="open_link">Mở liên kết</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... hoặc tên miền</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">Tay cầm chữ X</string>
+    <string name="discord_user_id">Id người dùng Discord</string>
+    <string name="redirect_url">URL chuyển hướng</string>
+    <string name="none_yet">Chưa có</string>
+    <string name="customize_profile">Tùy chỉnh hồ sơ</string>
+    <string name="settling">Đang xác nhận</string>
+    <string name="edit_kachat_profile">Sửa hồ sơ .kachat</string>
+    <string name="kachat_profile_coming_body">Tên .kachat sắp ra mắt. Khi bạn nhận một tên, bạn đặt ảnh đại diện, ảnh bìa, giới thiệu và liên kết tại đây - đó là những gì KaChat hiển thị về bạn ở mọi nơi.</string>
+    <string name="kachat_name_section">Tên .kachat</string>
+    <string name="get_domain_at">Nhận tên miền %1$s tại %2$s</string>
+    <string name="could_not_reach_service">Không thể kết nối %1$s. Kéo xuống để thử lại.</string>
+    <string name="no_names_yet">Chưa có tên %1$s.</string>
+    <string name="kachat_names_are_coming">Tên .kachat sắp ra mắt</string>
+    <string name="kachat_names_coming_body">Tên riêng của KaChat sẽ ở đây: nhận một tên, dùng làm tên của bạn trong trò chuyện và chia sẻ làm liên kết hồ sơ.</string>
 </resources>

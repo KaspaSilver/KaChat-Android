@@ -425,4 +425,19 @@
     <string name="copy_link">Link kopieren</string>
     <string name="open_link">Link öffnen</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... oder Domain</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">X-Griff</string>
+    <string name="discord_user_id">Discord-Benutzer-ID</string>
+    <string name="redirect_url">Weiterleitungs-URL</string>
+    <string name="none_yet">Noch keiner</string>
+    <string name="customize_profile">Profil anpassen</string>
+    <string name="settling">Wird bestätigt</string>
+    <string name="edit_kachat_profile">.kachat-Profil bearbeiten</string>
+    <string name="kachat_profile_coming_body">.kachat-Namen kommen bald. Sobald du einen hast, legst du hier Avatar, Banner, Bio und Links fest - und genau das zeigt KaChat überall für dich.</string>
+    <string name="kachat_name_section">.kachat-Name</string>
+    <string name="get_domain_at">Hol dir eine %1$s-Domain bei %2$s</string>
+    <string name="could_not_reach_service">%1$s nicht erreichbar. Zum Erneut-Versuchen nach unten ziehen.</string>
+    <string name="no_names_yet">Noch keine %1$s-Namen.</string>
+    <string name="kachat_names_are_coming">.kachat-Namen kommen bald</string>
+    <string name="kachat_names_coming_body">Hier werden KaChats eigene Namen zu finden sein: Sichere dir einen, nutze ihn als deinen Namen in Chats und teile ihn als Profil-Link.</string>
 </resources>

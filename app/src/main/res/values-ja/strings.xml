@@ -425,4 +425,19 @@
     <string name="copy_link">リンクをコピー</string>
     <string name="open_link">リンクを開く</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... またはドメイン</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">Xハンドル</string>
+    <string name="discord_user_id">DiscordのユーザーID</string>
+    <string name="redirect_url">リダイレクトURL</string>
+    <string name="none_yet">まだありません</string>
+    <string name="customize_profile">プロフィールをカスタマイズ</string>
+    <string name="settling">確定待ち</string>
+    <string name="edit_kachat_profile">.kachatプロフィールを編集</string>
+    <string name="kachat_profile_coming_body">.kachat 名はまもなく登場します。取得すると、ここでアバター、バナー、自己紹介、リンクを設定でき、それが KaChat のあらゆる場所であなたとして表示されます。</string>
+    <string name="kachat_name_section">.kachat 名</string>
+    <string name="get_domain_at">%2$s で %1$s ドメインを取得</string>
+    <string name="could_not_reach_service">%1$s に接続できません。下に引いて再試行してください。</string>
+    <string name="no_names_yet">%1$s の名前はまだありません。</string>
+    <string name="kachat_names_are_coming">.kachat 名はまもなく登場</string>
+    <string name="kachat_names_coming_body">KaChat 独自の名前はここに表示されます。取得してチャットでの名前に使い、プロフィールリンクとして共有できます。</string>
 </resources>

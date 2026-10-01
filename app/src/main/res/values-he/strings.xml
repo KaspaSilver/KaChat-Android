@@ -425,4 +425,19 @@
     <string name="copy_link">העתק קישור</string>
     <string name="open_link">פתח קישור</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... או דומיין</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">ידית X</string>
+    <string name="discord_user_id">זיהוי משתמש של דיסקורד</string>
+    <string name="redirect_url">כתובת אתר להפניה מחדש</string>
+    <string name="none_yet">עדיין אין</string>
+    <string name="customize_profile">התאמת פרופיל</string>
+    <string name="settling">בתהליך אישור</string>
+    <string name="edit_kachat_profile">עריכת פרופיל .kachat</string>
+    <string name="kachat_profile_coming_body">שמות .kachat בדרך. כשתקבלו שם, תגדירו כאן תמונה, באנר, ביוגרפיה וקישורים - וזה מה ש-KaChat יציג עליכם בכל מקום.</string>
+    <string name="kachat_name_section">שם .kachat</string>
+    <string name="get_domain_at">קבלו דומיין %1$s ב-%2$s</string>
+    <string name="could_not_reach_service">לא ניתן להגיע אל %1$s. משכו למטה כדי לנסות שוב.</string>
+    <string name="no_names_yet">עדיין אין שמות %1$s.</string>
+    <string name="kachat_names_are_coming">שמות .kachat בדרך</string>
+    <string name="kachat_names_coming_body">השמות של KaChat יהיו כאן: קבלו שם, השתמשו בו כשמכם בצ\'אטים ושתפו אותו כקישור לפרופיל.</string>
 </resources>

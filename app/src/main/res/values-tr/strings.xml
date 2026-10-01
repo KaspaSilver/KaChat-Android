@@ -425,4 +425,19 @@
     <string name="copy_link">Baglantiyi Kopyala</string>
     <string name="open_link">Baglantiyi Ac</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... veya alan adı</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">X kolu</string>
+    <string name="discord_user_id">Discord kullanıcı kimliği</string>
+    <string name="redirect_url">Yönlendirme URL\'si</string>
+    <string name="none_yet">Henüz yok</string>
+    <string name="customize_profile">Profili özelleştir</string>
+    <string name="settling">Onaylanıyor</string>
+    <string name="edit_kachat_profile">.kachat profilini düzenle</string>
+    <string name="kachat_profile_coming_body">.kachat adları geliyor. Bir tane aldığında avatarını, kapak görselini, biyografini ve bağlantılarını burada ayarlarsın; KaChat seni her yerde bununla gösterir.</string>
+    <string name="kachat_name_section">.kachat adı</string>
+    <string name="get_domain_at">%2$s üzerinden bir %1$s alan adı al</string>
+    <string name="could_not_reach_service">%1$s ile bağlantı kurulamadı. Tekrar denemek için aşağı çek.</string>
+    <string name="no_names_yet">Henüz %1$s adı yok.</string>
+    <string name="kachat_names_are_coming">.kachat adları geliyor</string>
+    <string name="kachat_names_coming_body">KaChat\'in kendi adları burada olacak: bir tane al, sohbetlerde adın olarak kullan ve profil bağlantın olarak paylaş.</string>
 </resources>

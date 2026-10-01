@@ -295,4 +295,19 @@
     <string name="copy_link">Salin Tautan</string>
     <string name="open_link">Buka Tautan</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... atau domain</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">Handle X</string>
+    <string name="discord_user_id">ID Pengguna Discord</string>
+    <string name="redirect_url">URL Pengalihan</string>
+    <string name="none_yet">Belum ada</string>
+    <string name="customize_profile">Sesuaikan Profil</string>
+    <string name="settling">Sedang dikonfirmasi</string>
+    <string name="edit_kachat_profile">Edit Profil .kachat</string>
+    <string name="kachat_profile_coming_body">Nama .kachat segera hadir. Setelah kamu mengklaimnya, atur avatar, banner, bio, dan tautanmu di sini - itulah yang ditampilkan KaChat tentangmu di mana saja.</string>
+    <string name="kachat_name_section">Nama .kachat</string>
+    <string name="get_domain_at">Dapatkan domain %1$s di %2$s</string>
+    <string name="could_not_reach_service">Tidak dapat menjangkau %1$s. Tarik ke bawah untuk mencoba lagi.</string>
+    <string name="no_names_yet">Belum ada nama %1$s.</string>
+    <string name="kachat_names_are_coming">Nama .kachat segera hadir</string>
+    <string name="kachat_names_coming_body">Nama milik KaChat akan ada di sini: klaim satu, jadikan namamu di obrolan, dan bagikan sebagai tautan profilmu.</string>
 </resources>

@@ -897,3 +897,43 @@ fun Modifier.chatHeaderTapBand(
             }
         }
 }
+
+/**
+ * The app's underline tab bar - bold teal labels, dimmed when unselected, a teal bar under the
+ * selected one and a divider below: the Chats / Group Chats / Public Chats bar, shared by Your
+ * Domains and Connection Settings (iOS UnderlineTabBar, ee01f81).
+ */
+@Composable
+fun UnderlineTabBar(
+    titles: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Equal widths, like iOS's bar; five tabs (Connection Settings) take a slightly smaller label.
+    val labelSize = if (titles.size > 4) 13.sp else 15.sp
+    androidx.compose.material3.TabRow(
+        selectedTabIndex = selectedIndex.coerceIn(0, (titles.size - 1).coerceAtLeast(0)),
+        containerColor = LocalAppColors.current.background,
+        contentColor = KaspaTeal,
+        modifier = modifier,
+    ) {
+        titles.forEachIndexed { index, title ->
+            androidx.compose.material3.Tab(
+                selected = index == selectedIndex,
+                onClick = { onSelect(index) },
+                text = {
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = labelSize,
+                        color = if (index == selectedIndex) KaspaTeal else KaspaTeal.copy(alpha = 0.5f),
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                },
+            )
+        }
+    }
+}
+

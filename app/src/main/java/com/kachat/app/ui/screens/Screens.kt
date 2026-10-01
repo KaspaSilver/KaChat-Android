@@ -3990,21 +3990,17 @@ fun ProfileScreen(
                             }
                         }
                         Spacer(Modifier.weight(1f))
+                        // KaChat's own profile (iOS 09e0403). .kas profiles are customized per
+                        // domain in Your Domains instead; the app no longer shows them.
                         Text(
-                            stringResource(if (hasKnsProfile) R.string.edit_kns_profile else R.string.create_kns_profile),
+                            stringResource(R.string.edit_kachat_profile),
                             color = KaspaTeal,
                             fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier
                                 .padding(top = 8.dp, end = 8.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    if (hasKnsProfile) {
-                                        navController.navigate("edit_kns_profile")
-                                    } else {
-                                        navController.navigate("create_kns_profile")
-                                    }
-                                }
+                                .clickable { navController.navigate("edit_kachat_profile") }
                                 .padding(horizontal = 8.dp, vertical = 6.dp)
                         )
                     }
@@ -4268,29 +4264,28 @@ fun ProfileScreen(
  * on [ProfileScreen] itself; broken out once the list plus its two dialogs (inscribe/transfer)
  * made that screen too crowded to scan at a glance.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
     val primaryDomainName by viewModel.primaryDomainName.collectAsState()
     val setPrimaryState by viewModel.setPrimaryState.collectAsState()
-    val domainPreview by viewModel.domainPreview.collectAsState()
-    val knsInscribeState by viewModel.knsInscribeState.collectAsState()
-    var showInscribeDialog by remember { mutableStateOf(false) }
-    var domainLabelInput by remember { mutableStateOf("") }
     var selectedDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
     var showSendScreen by remember { mutableStateOf(false) }
+    var editingDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshOwnedDomainsAndAwait()
     }
+    LaunchedEffect(Unit) {
+        viewModel.refreshServiceNamesAndAwait()
+    }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    LaunchedEffect(pullRefreshState.isRefreshing) {
-        if (pullRefreshState.isRefreshing) {
-            viewModel.refreshOwnedDomainsAndAwait()
-            pullRefreshState.endRefresh()
-        }
+    // A .kas domain's own profile, edited on its own (iOS 09e0403): .kas profiles are no longer
+    // shown in the app, but a domain's profile is still its owner's to change.
+    editingDomain?.let { domain ->
+        KnsDomainProfileEditorScreen(domain = domain, viewModel = viewModel, onBack = { editingDomain = null })
+        return
     }
 
     // Full-screen swap: domain detail (card, primary status, Send entry point) - reached by
@@ -4310,6 +4305,7 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     viewModel.resetTransferDomainState()
                     showSendScreen = true
                 },
+                onCustomizeProfile = { editingDomain = domain },
                 onBack = { selectedDomain = null }
             )
             return
@@ -4327,213 +4323,214 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
         }
     }
 
+    // One tab per name ending, KaChat's own first: .kachat (not live yet), KNS (.kas), dotk (.k),
+    // Kaspa Names (.kaspa) - iOS df23b6f, 256e1c0, f9a8750. A sideways swipe changes the name
+    // service (7e5fa39). Opens on .kachat once it is live, on .kas until then.
+    val tabs = com.kachat.app.services.NameServiceTLD.entries
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+        initialPage = tabs.indexOf(com.kachat.app.services.NameServiceTLD.defaultTab),
+        pageCount = { tabs.size }
+    )
+    val tabScope = rememberCoroutineScope()
+
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.kns_domains), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        },
-        floatingActionButtonPosition = FabPosition.Center,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    domainLabelInput = ""
-                    viewModel.clearDomainPreview()
-                    viewModel.resetKnsInscribeState()
-                    showInscribeDialog = true
-                },
-                // Deliberately NOT teal - the domain cards are teal-filled, so the action
-                // button contrasts: surface background, teal text, teal outline.
-                containerColor = LocalAppColors.current.surface,
-                contentColor = KaspaTeal,
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier
-                    .height(56.dp)
-                    .widthIn(min = 120.dp)
-                    .border(1.5.dp, KaspaTeal, RoundedCornerShape(28.dp))
-            ) {
-                Text(
-                    stringResource(R.string.inscribe_new_domain),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 20.dp)
+            Column {
+                CenterAlignedTopAppBar(
+                    title = { Text("Your Domains", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+                )
+                UnderlineTabBar(
+                    titles = tabs.map { it.suffix },
+                    selectedIndex = pagerState.currentPage,
+                    onSelect = { index -> tabScope.launch { pagerState.animateScrollToPage(index) } },
                 )
             }
-        }
+        },
     ) { padding ->
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            beyondBoundsPageCount = 1,
+        ) { page ->
+            when (val tld = tabs[page]) {
+                com.kachat.app.services.NameServiceTLD.KAS -> KnsDomainListTab(
+                    domains = ownedDomainAssets.filter { it.asset != null },
+                    primaryDomainName = primaryDomainName,
+                    onRefresh = { viewModel.refreshOwnedDomainsAndAwait() },
+                    onSelect = { selectedDomain = it },
+                )
+                com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA ->
+                    ServiceNameListTab(tld = tld, viewModel = viewModel)
+                com.kachat.app.services.NameServiceTLD.KACHAT -> KachatNamesComingSoon()
+            }
+        }
+    }
+}
+
+/** A pull-to-refresh list with the service's "Get a ... domain" button pinned under it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DomainTabList(
+    tld: com.kachat.app.services.NameServiceTLD,
+    onRefresh: suspend () -> Unit,
+    content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
+) {
+    val pullRefreshState = rememberPullToRefreshState()
+    LaunchedEffect(pullRefreshState.isRefreshing) {
+        if (pullRefreshState.isRefreshing) {
+            onRefresh()
+            pullRefreshState.endRefresh()
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .weight(1f)
+                .fillMaxWidth()
                 .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item { Spacer(Modifier.height(16.dp)) }
-            if (ownedDomainAssets.isEmpty()) {
-                item {
-                    Text(text = stringResource(R.string.no_domains_yet), color = LocalAppColors.current.textSecondary, modifier = Modifier.padding(16.dp))
-                }
-            } else {
-                items(ownedDomainAssets.filter { it.asset != null }, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domainAsset ->
-                    val isPrimary = domainAsset.asset == primaryDomainName
-                    KnsDomainCard(
-                        domain = domainAsset,
-                        isPrimary = isPrimary,
-                        modifier = Modifier.clickable { selectedDomain = domainAsset }
-                    )
-                }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item { Spacer(Modifier.height(16.dp)) }
+                content()
+                item { Spacer(Modifier.height(16.dp)) }
             }
-            item { Spacer(modifier = Modifier.height(100.dp)) }
+            PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
-
-        PullToRefreshContainer(
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-        }
+        GetDomainButton(tld)
     }
+}
 
-    if (showInscribeDialog) {
-        val inFlight = knsInscribeState.status !in listOf(
-            WalletViewModel.KnsInscribeUiStatus.IDLE,
-            WalletViewModel.KnsInscribeUiStatus.SUCCESS,
-            WalletViewModel.KnsInscribeUiStatus.FAILED
+/**
+ * "Get a .kas domain at knsdomains.org" - the pinned button under each outside service's tab,
+ * opening that service's own site (iOS 718724b). KaChat creates only its own `.kachat` names; the
+ * other services' names are registered with them. The same outlined capsule the in-app Inscribe
+ * button was (not the teal fill: the cards above are teal-filled).
+ */
+@Composable
+private fun GetDomainButton(tld: com.kachat.app.services.NameServiceTLD) {
+    val url = tld.websiteUrl ?: return
+    val site = tld.websiteName ?: return
+    val uriHandler = LocalUriHandler.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(LocalAppColors.current.surface)
+            .border(1.5.dp, KaspaTeal, RoundedCornerShape(28.dp))
+            .clickable { runCatching { uriHandler.openUri(url) } }
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            stringResource(R.string.get_domain_at, tld.suffix, site),
+            color = KaspaTeal,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
         )
-        AlertDialog(
-            onDismissRequest = { if (!inFlight) showInscribeDialog = false },
-            title = {
-                Text(
-                    when (knsInscribeState.status) {
-                        WalletViewModel.KnsInscribeUiStatus.SUCCESS -> "Domain Registered"
-                        WalletViewModel.KnsInscribeUiStatus.FAILED -> "Inscription Failed"
-                        else -> "Inscribe New Domain"
-                    },
-                    color = LocalAppColors.current.textPrimary
+    }
+}
+
+@Composable
+private fun KnsDomainListTab(
+    domains: List<com.kachat.app.services.KnsAsset>,
+    primaryDomainName: String?,
+    onRefresh: suspend () -> Unit,
+    onSelect: (com.kachat.app.services.KnsAsset) -> Unit,
+) {
+    DomainTabList(tld = com.kachat.app.services.NameServiceTLD.KAS, onRefresh = onRefresh) {
+        if (domains.isEmpty()) {
+            item {
+                Text(text = stringResource(R.string.no_domains_yet), color = LocalAppColors.current.textSecondary, modifier = Modifier.padding(16.dp))
+            }
+        } else {
+            items(domains, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domainAsset ->
+                KnsDomainCard(
+                    domain = domainAsset,
+                    isPrimary = domainAsset.asset == primaryDomainName,
+                    modifier = Modifier.clickable { onSelect(domainAsset) }
                 )
-            },
-            containerColor = LocalAppColors.current.surface,
-            text = {
-                Column {
-                    when (knsInscribeState.status) {
-                        WalletViewModel.KnsInscribeUiStatus.IDLE -> {
-                            OutlinedTextField(
-                                value = domainLabelInput,
-                                onValueChange = {
-                                    domainLabelInput = it
-                                    viewModel.checkDomainLabel(it)
-                                },
-                                label = { Text(stringResource(R.string.domain_name)) },
-                                suffix = { Text(stringResource(R.string.kas)) },
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = LocalAppColors.current.textPrimary,
-                                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                    focusedBorderColor = KaspaTeal,
-                                    unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                                    focusedLabelColor = KaspaTeal,
-                                    unfocusedLabelColor = LocalAppColors.current.textSecondary
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            domainPreview?.let { preview ->
-                                when {
-                                    preview.checking -> Text(stringResource(R.string.checking_availability), color = LocalAppColors.current.textSecondary)
-                                    preview.errorMessage != null -> Text(preview.errorMessage, color = Color(0xFFFF3B30))
-                                    preview.available == false -> Text("${preview.label}.kas is not available", color = Color(0xFFFF3B30))
-                                    preview.available == true && preview.isReserved -> {
-                                        Text("${preview.label}.kas is available", color = Color(0xFF4CD964), fontWeight = FontWeight.Bold)
-                                        Text(stringResource(R.string.reserved_domain_no_registration_fee_only), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    preview.available == true -> {
-                                        Text("${preview.label}.kas is available", color = Color(0xFF4CD964), fontWeight = FontWeight.Bold)
-                                        Spacer(Modifier.height(8.dp))
-                                        val revealKas = preview.revealKas ?: 0.0
-                                        val commitKas = preview.commitKas ?: 0.0
-                                        Text(
-                                            "Registration fee: ${"%.2f".format(revealKas)} KAS",
-                                            color = LocalAppColors.current.textPrimary,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            "You'll send ~${"%.2f".format(commitKas)} KAS total; ~${"%.2f".format((commitKas - revealKas).coerceAtLeast(0.0))} KAS comes back as change, the rest covers the fee and network costs.",
-                                            color = LocalAppColors.current.textSecondary,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        WalletViewModel.KnsInscribeUiStatus.CHECKING_AVAILABILITY -> InscribeProgressRow(stringResource(R.string.checking_availability))
-                        WalletViewModel.KnsInscribeUiStatus.FETCHING_FEE -> InscribeProgressRow(stringResource(R.string.calculating_fee))
-                        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_COMMIT -> InscribeProgressRow(stringResource(R.string.submitting_commit_transaction))
-                        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL -> InscribeProgressRow(stringResource(R.string.submitting_reveal_transaction))
-                        WalletViewModel.KnsInscribeUiStatus.VERIFYING -> InscribeProgressRow(stringResource(R.string.verifying_on_chain_this_can_take))
-                        WalletViewModel.KnsInscribeUiStatus.SUCCESS -> {
-                            val result = knsInscribeState.result
-                            Text("${result?.domain} is now yours.", color = Color(0xFF4CD964), fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Commit tx: ${result?.commitTxId}", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            Text("Reveal tx: ${result?.revealTxId}", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            if (result?.verified == false) {
-                                Spacer(Modifier.height(8.dp))
-                                Text(stringResource(R.string.still_indexing_it_ll_show_up), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        WalletViewModel.KnsInscribeUiStatus.FAILED -> {
-                            Text(knsInscribeState.errorMessage ?: "Something went wrong", color = Color(0xFFFF3B30))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                when (knsInscribeState.status) {
-                    WalletViewModel.KnsInscribeUiStatus.IDLE -> {
-                        val preview = domainPreview
-                        TextButton(
-                            onClick = { viewModel.inscribeDomain(preview?.label ?: domainLabelInput) },
-                            enabled = preview?.available == true
-                        ) {
-                            val costLabel = preview?.commitKas?.let { " (pay ~${"%.2f".format(it)} KAS)" } ?: ""
-                            Text("Inscribe$costLabel", color = if (preview?.available == true) KaspaTeal else Color.Gray, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    WalletViewModel.KnsInscribeUiStatus.SUCCESS, WalletViewModel.KnsInscribeUiStatus.FAILED -> {
-                        TextButton(onClick = { showInscribeDialog = false }) {
-                            Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    else -> {}
-                }
-            },
-            dismissButton = {
-                if (!inFlight && knsInscribeState.status == WalletViewModel.KnsInscribeUiStatus.IDLE) {
-                    TextButton(onClick = { showInscribeDialog = false }) {
-                        Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceNameListTab(tld: com.kachat.app.services.NameServiceTLD, viewModel: WalletViewModel) {
+    val owned by viewModel.nameServices.owned.collectAsState()
+    val loading by viewModel.nameServices.loading.collectAsState()
+    val failed by viewModel.nameServices.failed.collectAsState()
+    val names = owned[tld].orEmpty()
+    DomainTabList(tld = tld, onRefresh = { viewModel.refreshServiceNamesAndAwait() }) {
+        if (names.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    when {
+                        tld in loading && owned[tld] == null -> CircularProgressIndicator(color = KaspaTeal)
+                        tld in failed -> Text(
+                            stringResource(R.string.could_not_reach_service, tld.serviceName),
+                            color = LocalAppColors.current.textSecondary,
+                            textAlign = TextAlign.Center,
+                        )
+                        else -> Text(
+                            stringResource(R.string.no_names_yet, tld.suffix),
+                            color = LocalAppColors.current.textSecondary,
+                        )
                     }
                 }
             }
+        } else {
+            items(names, key = { it.display }) { name ->
+                DomainNameCard(
+                    title = name.display,
+                    badge = if (name.isProvisional) stringResource(R.string.settling) else null,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun KachatNamesComingSoon() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
+        Text(stringResource(R.string.kachat_names_are_coming), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        Text(
+            stringResource(R.string.kachat_names_coming_body),
+            color = LocalAppColors.current.textSecondary,
+            textAlign = TextAlign.Center,
+            fontSize = 15.sp,
         )
     }
-
 }
 
 /** Teal card matching the app's KNS domain branding - used both as the row style in [KnsDomainsScreen] and as the header of [KnsDomainDetailScreen]. */
 @Composable
 fun KnsDomainCard(domain: com.kachat.app.services.KnsAsset, isPrimary: Boolean = false, modifier: Modifier = Modifier) {
+    DomainNameCard(title = domain.asset ?: "", badge = if (isPrimary) stringResource(R.string.primary) else null, modifier = modifier)
+}
+
+/** The teal name card, for any name service: the name, and an optional corner badge ("Primary"
+ *  on KNS, "Settling" on a `.kaspa` name still inside its settling window) - iOS DomainNameCardView. */
+@Composable
+fun DomainNameCard(title: String, badge: String? = null, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -4543,16 +4540,16 @@ fun KnsDomainCard(domain: com.kachat.app.services.KnsAsset, isPrimary: Boolean =
         contentAlignment = Alignment.Center
     ) {
         Text(
-            domain.asset ?: "",
+            title,
             color = Color.Black,
             fontWeight = FontWeight.Bold,
             fontSize = 22.sp,
             maxLines = 1,
             modifier = Modifier.padding(horizontal = 20.dp)
         )
-        if (isPrimary) {
+        if (badge != null) {
             Text(
-                stringResource(R.string.primary),
+                badge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
@@ -4581,6 +4578,10 @@ fun KnsDomainDetailScreen(
     settingInFlight: Boolean,
     onSetPrimary: () -> Unit,
     onSend: () -> Unit,
+    /** Opens the full profile editor for this domain (avatar, banner, bio, links). KaChat does not
+     *  SHOW .kas profiles anymore - .kachat profiles take priority - but a .kas domain's own
+     *  profile can still be customized here (iOS 09e0403). Null where the host offers no editor. */
+    onCustomizeProfile: (() -> Unit)? = null,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -4628,6 +4629,16 @@ fun KnsDomainDetailScreen(
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
                     )
+                }
+                if (onCustomizeProfile != null && domain.assetId != null) {
+                    HorizontalDivider(color = LocalAppColors.current.background)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { onCustomizeProfile() }.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.customize_profile), color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = KaspaTeal)
+                    }
                 }
                 HorizontalDivider(color = LocalAppColors.current.background)
                 Row(
@@ -8276,6 +8287,101 @@ private fun PopupMenuRowContent(label: String, labelColor: Color, onClick: () ->
     }
 }
 
+/**
+ * "Edit .kachat Profile": the same layout as the .kas profile editor - avatar, banner, bio and
+ * links - but nothing in it yet, because KaChat's own names are not live (iOS 09e0403). Once they
+ * are, this is the profile the whole app shows, ahead of any other name service's.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KachatProfileEditorScreen(onBack: () -> Unit) {
+    val colors = LocalAppColors.current
+    @Composable
+    fun placeholderRow(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+            }
+            Text(text, color = colors.textSecondary)
+        }
+    }
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.edit_kachat_profile), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                actions = {
+                    TextButton(onClick = onBack) {
+                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Spacer(Modifier.height(4.dp))
+            SettingsSection(title = null) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
+                    Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.kachat_profile_coming_body), color = colors.textPrimary, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            SettingsSection(title = stringResource(R.string.avatar)) { placeholderRow(stringResource(R.string.choose_avatar), Icons.Default.Photo) }
+            SettingsSection(title = stringResource(R.string.banner)) { placeholderRow(stringResource(R.string.choose_banner), Icons.Default.Image) }
+            SettingsSection(title = stringResource(R.string.profile)) {
+                listOf(R.string.bio, R.string.x_handle, R.string.website, R.string.telegram, R.string.discord_user_id, R.string.email, R.string.github, R.string.redirect_url)
+                    .forEachIndexed { index, res ->
+                        if (index > 0) HorizontalDivider(color = colors.background)
+                        placeholderRow(stringResource(res))
+                    }
+            }
+            SettingsSection(title = stringResource(R.string.kachat_name_section)) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.name), color = colors.textPrimary, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.none_yet), color = colors.textSecondary)
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * A .kas domain's own profile, from Your Domains > the domain > Customize Profile (iOS 09e0403):
+ * the full editor, loaded for that domain on its own and saved to it. The app no longer SHOWS
+ * .kas profiles, but a domain's profile is still its owner's to change.
+ */
+@Composable
+fun KnsDomainProfileEditorScreen(
+    domain: com.kachat.app.services.KnsAsset,
+    viewModel: WalletViewModel,
+    onBack: () -> Unit,
+) {
+    val loading by viewModel.editingDomainLoading.collectAsState()
+    val current by viewModel.editingDomain.collectAsState()
+    LaunchedEffect(domain.assetId) { viewModel.beginEditingDomain(domain) }
+    DisposableEffect(Unit) { onDispose { viewModel.endEditingDomain() } }
+    BackHandler(onBack = onBack)
+    // The fields seed once per domain, so they wait for its profile rather than seeding empty.
+    if (loading || current?.assetId != domain.assetId) {
+        Box(Modifier.fillMaxSize().background(LocalAppColors.current.background), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = KaspaTeal)
+        }
+        return
+    }
+    EditKnsProfileScreen(viewModel = viewModel, onBack = onBack, editingDomain = domain)
+}
+
 @Composable
 private fun InscribeProgressRow(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -8291,10 +8397,16 @@ fun EditKnsProfileScreen(
     viewModel: WalletViewModel,
     onBack: () -> Unit,
     onNavigateToDomains: () -> Unit = {},
-    onNavigateToSetupGuide: () -> Unit = {}
+    onNavigateToSetupGuide: () -> Unit = {},
+    /** Edit THIS .kas domain's profile (from Your Domains) rather than the primary's - see
+     *  [KnsDomainProfileEditorScreen]. */
+    editingDomain: com.kachat.app.services.KnsAsset? = null,
 ) {
-    val knsProfile by viewModel.knsProfile.collectAsState()
-    val activeProfileDomainName by viewModel.activeProfileDomainName.collectAsState()
+    val primaryProfile by viewModel.knsProfile.collectAsState()
+    val domainProfile by viewModel.editingDomainProfile.collectAsState()
+    val knsProfile = if (editingDomain != null) domainProfile else primaryProfile
+    val primaryDomainName by viewModel.activeProfileDomainName.collectAsState()
+    val activeProfileDomainName = editingDomain?.asset ?: primaryDomainName
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
     val pendingAvatarUri by viewModel.pendingAvatarUri.collectAsState()
     val pendingBannerUri by viewModel.pendingBannerUri.collectAsState()
@@ -8411,7 +8523,7 @@ fun EditKnsProfileScreen(
             // already exists. Lives here (rather than next to "KNS Profile" on the Profile tab)
             // since that spot sits directly beside the banner image, which made it unclickable
             // whenever a banner was set.
-            if (showSetupGuides) {
+            if (showSetupGuides && editingDomain == null) {
                 SettingsSection(title = stringResource(R.string.setup_guide)) {
                     Row(
                         modifier = Modifier

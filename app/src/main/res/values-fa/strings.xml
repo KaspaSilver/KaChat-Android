@@ -464,4 +464,19 @@
     <string name="copy_link">کپی پیوند</string>
     <string name="open_link">باز کردن پیوند</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... یا دامنه</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">دسته X</string>
+    <string name="discord_user_id">شناسه کاربر Discord</string>
+    <string name="redirect_url">تغییر مسیر URL</string>
+    <string name="none_yet">هنوز ندارد</string>
+    <string name="customize_profile">سفارشی‌سازی نمایه</string>
+    <string name="settling">در حال تأیید</string>
+    <string name="edit_kachat_profile">ویرایش نمایه .kachat</string>
+    <string name="kachat_profile_coming_body">نام‌های .kachat به‌زودی می‌آیند. وقتی یکی بگیرید، آواتار، بنر، معرفی و پیوندهایتان را اینجا تنظیم می‌کنید - و KaChat همه‌جا همین را از شما نشان می‌دهد.</string>
+    <string name="kachat_name_section">نام .kachat</string>
+    <string name="get_domain_at">یک دامنه %1$s از %2$s بگیرید</string>
+    <string name="could_not_reach_service">دسترسی به %1$s ممکن نشد. برای تلاش دوباره به پایین بکشید.</string>
+    <string name="no_names_yet">هنوز نام %1$s ندارد.</string>
+    <string name="kachat_names_are_coming">نام‌های .kachat به‌زودی می‌آیند</string>
+    <string name="kachat_names_coming_body">نام‌های اختصاصی KaChat اینجا خواهند بود: یکی بگیرید، آن را نام خود در گفتگوها کنید و به‌عنوان پیوند نمایه به اشتراک بگذارید.</string>
 </resources>

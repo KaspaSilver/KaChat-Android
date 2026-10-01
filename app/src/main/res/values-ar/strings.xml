@@ -425,4 +425,19 @@
     <string name="copy_link">نسخ الرابط</string>
     <string name="open_link">فتح الرابط</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... أو نطاق</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">مقبض X</string>
+    <string name="discord_user_id">معرف المستخدم الخلاف</string>
+    <string name="redirect_url">إعادة توجيه URL</string>
+    <string name="none_yet">لا يوجد بعد</string>
+    <string name="customize_profile">تخصيص الملف الشخصي</string>
+    <string name="settling">قيد التأكيد</string>
+    <string name="edit_kachat_profile">تعديل ملف .kachat</string>
+    <string name="kachat_profile_coming_body">أسماء .kachat قادمة قريبًا. عند حصولك على اسم، تضبط هنا صورتك الرمزية واللافتة والنبذة والروابط - وهذا ما يعرضه KaChat عنك في كل مكان.</string>
+    <string name="kachat_name_section">اسم .kachat</string>
+    <string name="get_domain_at">احصل على نطاق %1$s من %2$s</string>
+    <string name="could_not_reach_service">تعذّر الوصول إلى %1$s. اسحب للأسفل لإعادة المحاولة.</string>
+    <string name="no_names_yet">لا توجد أسماء %1$s بعد.</string>
+    <string name="kachat_names_are_coming">أسماء .kachat قادمة قريبًا</string>
+    <string name="kachat_names_coming_body">ستكون أسماء KaChat الخاصة هنا: احصل على اسم، واستخدمه اسمًا لك في المحادثات، وشاركه رابطًا لملفك الشخصي.</string>
 </resources>

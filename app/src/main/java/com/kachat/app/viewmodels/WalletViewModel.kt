@@ -56,8 +56,22 @@ class WalletViewModel @Inject constructor(
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter,
     private val chatRepository: com.kachat.app.repository.ChatRepository,
-    private val nextcloudService: com.kachat.app.services.NextcloudService
+    private val nextcloudService: com.kachat.app.services.NextcloudService,
+    /** The .k and .kaspa name services (Your Domains tabs, name resolution) - iOS NameServicesClient. */
+    val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
+
+    /** Refreshes what the active account owns on .k and .kaspa. */
+    fun refreshServiceNames() {
+        val address = walletManager.activeAddressFlow.value ?: return
+        viewModelScope.launch { nameServices.refresh(address) }
+    }
+
+    suspend fun refreshServiceNamesAndAwait() {
+        val address = walletManager.activeAddressFlow.value ?: return
+        nameServices.refresh(address)
+    }
+
 
     private val _sendResult = MutableStateFlow<Result<String>?>(null)
     val sendResult: StateFlow<Result<String>?> = _sendResult.asStateFlow()
@@ -1773,14 +1787,44 @@ class WalletViewModel @Inject constructor(
      * avatar first, then banner, then changed text fields. Reports a partial-failure state
      * rather than silently swallowing individual failures if some succeed and others don't.
      */
+    // A .kas domain's own profile, edited from Your Domains (iOS 09e0403). .kas profiles are no
+    // longer shown in the app (KnsService.LOADS_DOMAIN_PROFILES), so the domain's profile is
+    // fetched on its own here - not cached, not shown anywhere else.
+    private val _editingDomain = MutableStateFlow<com.kachat.app.services.KnsAsset?>(null)
+    val editingDomain: StateFlow<com.kachat.app.services.KnsAsset?> = _editingDomain.asStateFlow()
+    private val _editingDomainProfile = MutableStateFlow<com.kachat.app.services.KnsProfileFields?>(null)
+    val editingDomainProfile: StateFlow<com.kachat.app.services.KnsProfileFields?> = _editingDomainProfile.asStateFlow()
+    private val _editingDomainLoading = MutableStateFlow(false)
+    val editingDomainLoading: StateFlow<Boolean> = _editingDomainLoading.asStateFlow()
+
+    fun beginEditingDomain(domain: com.kachat.app.services.KnsAsset) {
+        _editingDomain.value = domain
+        _editingDomainProfile.value = null
+        clearPendingProfileImages()
+        val assetId = domain.assetId ?: return
+        _editingDomainLoading.value = true
+        viewModelScope.launch {
+            val profile = knsService.getProfileForEditing(assetId)
+            if (_editingDomain.value?.assetId == assetId) _editingDomainProfile.value = profile
+            _editingDomainLoading.value = false
+        }
+    }
+
+    fun endEditingDomain() {
+        _editingDomain.value = null
+        _editingDomainProfile.value = null
+        _editingDomainLoading.value = false
+    }
+
     fun saveKnsProfile(textFields: Map<String, String>) {
-        val assetId = profileDomainAssetId.value ?: return
+        val editing = _editingDomain.value
+        val assetId = editing?.assetId ?: profileDomainAssetId.value ?: return
         val step = _editProfileState.value.step
         if (step != EditProfileStep.IDLE && step != EditProfileStep.SUCCESS && step != EditProfileStep.PARTIAL_FAILURE && step != EditProfileStep.FAILED) return
 
         viewModelScope.launch {
             val results = mutableListOf<EditProfileFieldResult>()
-            val currentProfile = _knsProfile.value
+            val currentProfile = if (editing != null) _editingDomainProfile.value else _knsProfile.value
 
             _pendingAvatarUri.value?.let { uri ->
                 _editProfileState.value = _editProfileState.value.copy(step = EditProfileStep.UPLOADING_AVATAR)
@@ -1840,7 +1884,12 @@ class WalletViewModel @Inject constructor(
                 _editProfileState.value = _editProfileState.value.copy(fieldResults = results.toList())
             }
 
-            refreshKnsProfile()
+            if (editing != null) {
+                val reloaded = knsService.getProfileForEditing(assetId)
+                if (_editingDomain.value?.assetId == assetId) _editingDomainProfile.value = reloaded
+            } else {
+                refreshKnsProfile()
+            }
             _pendingAvatarUri.value = null
             _pendingBannerUri.value = null
             _avatarCleared.value = false

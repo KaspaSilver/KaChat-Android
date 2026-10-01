@@ -425,4 +425,19 @@
     <string name="copy_link">링크 복사</string>
     <string name="open_link">링크 열기</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... 또는 도메인</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">X 핸들</string>
+    <string name="discord_user_id">디스코드 사용자 아이디</string>
+    <string name="redirect_url">리디렉션 URL</string>
+    <string name="none_yet">아직 없음</string>
+    <string name="customize_profile">프로필 맞춤 설정</string>
+    <string name="settling">확정 중</string>
+    <string name="edit_kachat_profile">.kachat 프로필 편집</string>
+    <string name="kachat_profile_coming_body">.kachat 이름이 곧 나옵니다. 이름을 받으면 여기서 아바타, 배너, 소개, 링크를 설정하며, KaChat은 어디서나 이것으로 당신을 보여줍니다.</string>
+    <string name="kachat_name_section">.kachat 이름</string>
+    <string name="get_domain_at">%2$s에서 %1$s 도메인 받기</string>
+    <string name="could_not_reach_service">%1$s에 연결할 수 없습니다. 아래로 당겨 다시 시도하세요.</string>
+    <string name="no_names_yet">아직 %1$s 이름이 없습니다.</string>
+    <string name="kachat_names_are_coming">.kachat 이름이 곧 나옵니다</string>
+    <string name="kachat_names_coming_body">KaChat 고유 이름이 여기에 표시됩니다. 이름을 받아 채팅에서 이름으로 쓰고 프로필 링크로 공유하세요.</string>
 </resources>

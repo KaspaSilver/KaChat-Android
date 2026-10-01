@@ -602,4 +602,19 @@
     <string name="copy_link">Copy Link</string>
     <string name="open_link">Open Link</string>
     <string name="kaspa_qr_or_domain">kaspa:qr... or domain</string>
+    <!-- 5.2 name services (iOS df23b6f, 09e0403, 718724b, 9858bd1) -->
+    <string name="x_handle">X handle</string>
+    <string name="discord_user_id">Discord user id</string>
+    <string name="redirect_url">Redirect URL</string>
+    <string name="none_yet">None yet</string>
+    <string name="customize_profile">Customize Profile</string>
+    <string name="settling">Settling</string>
+    <string name="edit_kachat_profile">Edit .kachat Profile</string>
+    <string name="kachat_profile_coming_body">.kachat names are coming. Once you claim one, your avatar, banner, bio and links are set here - and they\'re what KaChat shows for you everywhere.</string>
+    <string name="kachat_name_section">.kachat Name</string>
+    <string name="get_domain_at">Get a %1$s domain at %2$s</string>
+    <string name="could_not_reach_service">Couldn\'t reach %1$s. Pull down to try again.</string>
+    <string name="no_names_yet">No %1$s names yet.</string>
+    <string name="kachat_names_are_coming">.kachat names are coming</string>
+    <string name="kachat_names_coming_body">KaChat\'s own names will live here: claim one, set it as your name in chats, and share it as your profile link.</string>
 </resources>
