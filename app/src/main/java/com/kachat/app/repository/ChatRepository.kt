@@ -323,10 +323,17 @@ class ChatRepository @Inject constructor(
                 return
             }
             if (!myAddress.equals(runCatching { walletManager.getAddress() }.getOrNull(), ignoreCase = true)) return
-            found.maxOfOrNull { it.blockTime }?.let { newest ->
-                if (newest > since) chatRequestStore.setInboxCursor(myAddress, newest)
-            }
-            val senders = found.map { it.sender }
+            // The cursor moves to the newest entry - but never past one whose sender the indexer
+            // hasn't resolved yet (it answers with an empty sender until the spent input is
+            // known): that entry is asked for again next time, or its sender would never be found
+            // (iOS 5d1f724). Gson can leave the field null, hence the nullable reads.
+            val (unresolved, resolved) = found.partition { (it.sender as String?).isNullOrBlank() }
+            val resolvedNewest = resolved.maxOfOrNull { it.blockTime }
+            val nextCursor = unresolved.minOfOrNull { it.blockTime }
+                ?.let { minOf((it - 1).coerceAtLeast(0L), resolvedNewest ?: 0L) }
+                ?: resolvedNewest
+            if (nextCursor != null && nextCursor > since) chatRequestStore.setInboxCursor(myAddress, nextCursor)
+            val senders = resolved.map { it.sender }
                 .filter { it.isNotBlank() && !it.equals(myAddress, ignoreCase = true) && KaspaAddress.isValid(it) }
                 .filterNot { chatRequestStore.isBlocked(it) }
                 .distinct()
