@@ -2,6 +2,7 @@ package com.kachat.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
@@ -75,6 +77,21 @@ import javax.inject.Singleton
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatMarketScreen(onBack: (() -> Unit)?) {
+    // A listing opens over the market, and Buy / Make an Offer over the listing (iOS cd9e10c).
+    var openListing by remember { mutableStateOf(false) }
+    var listingSheet by remember { mutableStateOf<String?>(null) }
+    when {
+        listingSheet == "buy" -> { KachatBuyScreen(onClose = { listingSheet = null }); return }
+        listingSheet == "offer" -> { KachatOfferScreen(onClose = { listingSheet = null }); return }
+        openListing -> {
+            KachatListingScreen(
+                onBack = { openListing = false },
+                onBuy = { listingSheet = "buy" },
+                onOffer = { listingSheet = "offer" },
+            )
+            return
+        }
+    }
     if (onBack != null) BackHandler(onBack = onBack)
     val colors = LocalAppColors.current
     var page by remember { mutableIntStateOf(0) }
@@ -163,7 +180,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
                 onSelect = { page = it },
             )
             when (page) {
-                0 -> MarketPage()
+                0 -> MarketPage(onOpenListing = { openListing = true })
                 1 -> MyNamesPage()
                 else -> ActivityPage()
             }
@@ -175,6 +192,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
             HowRow(Icons.Default.AlternateEmail, stringResource(R.string.km_claim), stringResource(R.string.km_claim_detail))
             HowRow(Icons.Default.Sell, stringResource(R.string.km_list), stringResource(R.string.km_list_detail))
             HowRow(Icons.Default.ShoppingCart, stringResource(R.string.km_buy), stringResource(R.string.km_buy_detail))
+            HowRow(Icons.Default.PanTool, stringResource(R.string.kl_offer), stringResource(R.string.kl_offer_detail))
             HowRow(Icons.Default.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
             Text(
                 stringResource(R.string.km_nothing_live),
@@ -212,7 +230,7 @@ private fun SectionHeader(title: String, detail: String?) {
 }
 
 @Composable
-private fun MarketPage() {
+private fun MarketPage(onOpenListing: () -> Unit) {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
         SectionHeader(stringResource(R.string.km_featured), stringResource(R.string.km_featured_detail))
@@ -222,7 +240,7 @@ private fun MarketPage() {
         ) {
             repeat(4) {
                 Column(
-                    Modifier.clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(12.dp),
+                    Modifier.clip(RoundedCornerShape(18.dp)).background(colors.surface).clickable(onClick = onOpenListing).padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(Modifier.size(170.dp, 90.dp).clip(RoundedCornerShape(14.dp)).background(KaspaTeal), contentAlignment = Alignment.Center) {
@@ -236,7 +254,7 @@ private fun MarketPage() {
         SectionHeader(stringResource(R.string.km_recently_listed), null)
         Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
             repeat(5) { index ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable(onClick = onOpenListing).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(36.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.25f)))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -244,6 +262,8 @@ private fun MarketPage() {
                         Redacted(70, 10)
                     }
                     Redacted(50)
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
                 }
                 if (index < 4) HorizontalDivider(Modifier.padding(start = 64.dp), color = colors.background)
             }
@@ -286,6 +306,13 @@ private fun MyNamesPage() {
             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).padding(top = 4.dp).height(48.dp)
         ) { Text(stringResource(R.string.km_claim_a_name), fontWeight = FontWeight.Bold) }
+        Column(Modifier.fillMaxWidth().padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionHeader(stringResource(R.string.kl_offers), stringResource(R.string.kl_offers_detail))
+            Box(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(vertical = 18.dp),
+                contentAlignment = Alignment.Center
+            ) { Text(stringResource(R.string.kl_no_offers), color = colors.textSecondary, fontSize = 15.sp) }
+        }
     }
 }
 
@@ -816,5 +843,221 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
                 else -> header({ Icon(Icons.Default.Verified, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_done_title, R.string.kg_done_body)
             }
         }
+    }
+}
+
+
+/**
+ * One listing in the .kachat marketplace (iOS cd9e10c, KachatListingDetailView): the name and its
+ * price, Buy Now / Make an Offer / Message the seller, the open offers and the history. UI only,
+ * like the rest of the marketplace: every name, price, seller and offer is a blank shape and every
+ * final action is disabled; Buy and Make an Offer still open their forms.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KachatListingScreen(onBack: () -> Unit, onBuy: () -> Unit, onOffer: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val colors = LocalAppColors.current
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.kl_listing), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal) } },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(vertical = 16.dp).padding(bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(18.dp)).background(KaspaTeal), contentAlignment = Alignment.Center) {
+                    Redacted(140, 22, Color.Black.copy(alpha = 0.25f))
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.kl_price), color = colors.textSecondary, fontSize = 12.sp)
+                        Redacted(80, 20)
+                    }
+                    Redacted(60, 10)
+                }
+                ComingSoonPill()
+            }
+            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onBuy, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)) {
+                    Icon(Icons.Default.ShoppingCart, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.kl_buy_now), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+                OutlinedButton(onClick = onOffer, modifier = Modifier.weight(1f).height(48.dp)) {
+                    Icon(Icons.Default.PanTool, null, tint = KaspaTeal, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.kl_make_offer), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionHeader(stringResource(R.string.kl_seller), null)
+                Row(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.25f)))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Redacted(120)
+                        Text(stringResource(R.string.kl_seller_detail), color = colors.textSecondary, fontSize = 12.sp)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    // Opens a 1:1 chat with the seller once listings are real.
+                    OutlinedButton(onClick = {}, enabled = false) { Text(stringResource(R.string.kl_message), fontSize = 14.sp) }
+                }
+            }
+            ListingPlaceholderList(stringResource(R.string.kl_offers), stringResource(R.string.kl_offers_on_name), List(3) { Icons.Default.PanTool })
+            ListingPlaceholderList(stringResource(R.string.kl_history), null, listOf(Icons.Default.Sell, Icons.AutoMirrored.Filled.CompareArrows, Icons.Default.AlternateEmail))
+            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(Icons.Default.ShoppingCart to R.string.kl_note_buy, Icons.Default.Lock to R.string.kl_note_offer, Icons.Default.Forum to R.string.kl_note_message).forEach { (icon, text) ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(icon, null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(text), color = colors.textSecondary, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ListingPlaceholderList(title: String, detail: String?, icons: List<ImageVector>) {
+    val colors = LocalAppColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionHeader(title, detail)
+        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
+            icons.forEachIndexed { index, icon ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) { Redacted(120); Redacted(50, 10) }
+                    Redacted(50)
+                }
+                if (index < icons.lastIndex) HorizontalDivider(Modifier.padding(start = 50.dp), color = colors.divider, thickness = 0.5.dp)
+            }
+        }
+    }
+}
+
+/** A Form-style sheet with Cancel top left, full height (iOS 6dd5578). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KachatFormSheet(title: String, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    BackHandler(onBack = onClose)
+    val colors = LocalAppColors.current
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel), color = KaspaTeal) } },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun SummaryRow(title: String, bold: Boolean = false) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = LocalAppColors.current.textPrimary, fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal, modifier = Modifier.weight(1f))
+        Redacted(70)
+    }
+}
+
+/** Buy at the listed price: what you pay, then one confirmation. Disabled until names launch. */
+@Composable
+private fun KachatBuyScreen(onClose: () -> Unit) {
+    KachatFormSheet(stringResource(R.string.kl_buy_name), onClose) {
+        SettingsSection(title = null) {
+            SummaryRow(stringResource(R.string.kl_name)); SettingsDivider()
+            SummaryRow(stringResource(R.string.kl_price)); SettingsDivider()
+            SummaryRow(stringResource(R.string.kl_network_fee)); SettingsDivider()
+            SummaryRow(stringResource(R.string.kl_total), bold = true)
+        }
+        SettingsFooter(stringResource(R.string.kl_buy_footer))
+        Spacer(Modifier.height(16.dp))
+        SettingsSection(title = null) {
+            Text(
+                stringResource(R.string.kl_confirm_purchase),
+                color = LocalAppColors.current.textTertiary,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).wrapContentHeight()
+            )
+        }
+        SettingsFooter(stringResource(R.string.kl_buying_opens))
+    }
+}
+
+/** Make an offer: an amount, how long it stands, and what happens to the KAS meanwhile. The amount
+ *  and expiry can be set so the form can be tried; sending is disabled until names launch. */
+@Composable
+private fun KachatOfferScreen(onClose: () -> Unit) {
+    var amount by remember { mutableStateOf("") }
+    var expiry by remember { mutableIntStateOf(1) }
+    val colors = LocalAppColors.current
+    KachatFormSheet(stringResource(R.string.kl_make_offer), onClose) {
+        SettingsSection(title = null) {
+            SummaryRow(stringResource(R.string.kl_name)); SettingsDivider()
+            SummaryRow(stringResource(R.string.kl_listed_at))
+        }
+        Spacer(Modifier.height(16.dp))
+        SettingsSection(title = stringResource(R.string.kl_your_offer)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextField(
+                    value = amount,
+                    onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } },
+                    placeholder = { Text("0", color = colors.textTertiary, fontSize = 20.sp) },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary, cursorColor = KaspaTeal,
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                Text("KAS", color = colors.textSecondary)
+            }
+        }
+        SettingsFooter(stringResource(R.string.kl_your_offer_footer))
+        Spacer(Modifier.height(16.dp))
+        SettingsSection(title = stringResource(R.string.kl_expires_after)) {
+            // iOS's segmented control.
+            Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceVariant).padding(2.dp)) {
+                listOf(R.string.kl_1d, R.string.kl_3d, R.string.kl_7d, R.string.kl_30d).forEachIndexed { index, res ->
+                    Box(
+                        Modifier.weight(1f).clip(RoundedCornerShape(7.dp))
+                            .background(if (index == expiry) colors.surface else Color.Transparent)
+                            .clickable { expiry = index }
+                            .padding(vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) { Text(stringResource(res), color = colors.textPrimary, fontSize = 13.sp, fontWeight = if (index == expiry) FontWeight.SemiBold else FontWeight.Normal) }
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        SettingsSection(title = null) {
+            Text(
+                stringResource(R.string.kl_send_offer),
+                color = colors.textTertiary,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).wrapContentHeight()
+            )
+        }
+        SettingsFooter(stringResource(R.string.kl_offers_open))
     }
 }
