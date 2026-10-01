@@ -472,4 +472,8 @@
     <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
     <string name="chat_day_today">Hari ini</string>
     <string name="chat_day_yesterday">Kemarin</string>
+    <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
+    <string name="address_tab_history">Riwayat</string>
+    <string name="kachat_no_names_on_address">Tidak ada nama .kachat di alamat ini</string>
+    <string name="kachat_names_on_address_hint">Nama yang diklaim atau dibeli alamat ini muncul di sini setelah nama .kachat diluncurkan.</string>
 </resources>

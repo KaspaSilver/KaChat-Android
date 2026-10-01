@@ -602,4 +602,8 @@
     <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
     <string name="chat_day_today">Aujourd\'hui</string>
     <string name="chat_day_yesterday">Hier</string>
+    <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
+    <string name="address_tab_history">Historique</string>
+    <string name="kachat_no_names_on_address">Aucun nom .kachat sur cette adresse</string>
+    <string name="kachat_names_on_address_hint">Les noms que cette adresse réclame ou achète apparaîtront ici au lancement des noms .kachat.</string>
 </resources>

@@ -6487,36 +6487,12 @@ fun SpendingAddressTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
-    var sendingDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
-    val knsDomains by viewModel.addressKnsDomains.collectAsState()
-    val isLoadingKnsDomains by viewModel.addressKnsDomainsLoading.collectAsState()
 
     LaunchedEffect(address) {
         if (address.isNotEmpty()) {
             viewModel.loadSpendingAddressTxHistory(address)
             viewModel.loadSpendingAddressUtxos(address)
-            viewModel.loadAddressKnsDomains(address)
             utxoLabels = viewModel.getSpendingUtxoLabels(address)
-        }
-    }
-
-    // Domain-transfer send flow parameterized to sign/fund from THIS spending address — same
-    // full-screen-swap idiom as the Withdraw flow below. Mirrors iOS's
-    // KNSDomainSendView(domain:spendingAddressIndex:) from the spending detail's KNS tab.
-    sendingDomain?.let { domain ->
-        if (entry != null) {
-            KnsDomainSendScreen(
-                domain = domain,
-                viewModel = viewModel,
-                fromSpendingAddressIndex = entry.index,
-                sourceAddress = entry.address,
-                onDone = {
-                    sendingDomain = null
-                    viewModel.loadAddressKnsDomains(address)
-                },
-                onBack = { sendingDomain = null }
-            )
-            return
         }
     }
 
@@ -6639,27 +6615,14 @@ fun SpendingAddressTxHistoryScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
             }
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = LocalAppColors.current.background,
-                contentColor = KaspaTeal
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("History") }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text("KNS Domains (${knsDomains.size})") }
-                )
-            }
+            // The app's tab look (Chats / Group Chats / Public Chats), not a segmented control;
+            // plain names - History, UTXOs, .kachat (iOS b96d727/718b88c).
+            UnderlineTabBar(
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), ".kachat"),
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
+                modifier = Modifier.padding(top = 4.dp),
+            )
             when (selectedTab) {
                 0 -> when {
                     isLoadingTxHistory && txHistory.isEmpty() -> {
@@ -6709,37 +6672,7 @@ fun SpendingAddressTxHistoryScreen(
                         }
                     }
                 }
-                2 -> when {
-                    isLoadingKnsDomains && knsDomains.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                    knsDomains.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("No KNS domains on this address.", color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(knsDomains, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domain ->
-                                // Tapping a domain card opens the transfer flow signed/funded
-                                // from THIS spending address.
-                                KnsDomainCard(
-                                    domain = domain,
-                                    modifier = Modifier.clickable {
-                                        viewModel.resetTransferDomainState()
-                                        sendingDomain = domain
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                2 -> KachatAddressDomainsList()
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -7033,22 +6966,6 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                     style = MaterialTheme.typography.titleMedium
                 )
             }
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = LocalAppColors.current.background,
-                contentColor = KaspaTeal
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text(stringResource(R.string.transaction_history)) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
-                )
-            }
             Button(
                 onClick = { showAddressActions = true },
                 enabled = !address.isNullOrEmpty(),
@@ -7056,11 +6973,18 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                 shape = RoundedCornerShape(28.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
                     .height(48.dp)
             ) {
                 Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
+            // Right above what it switches, the way Chats has it: History, UTXOs, .kachat
+            // (iOS b96d727/718b88c).
+            UnderlineTabBar(
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), ".kachat"),
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
+            )
             when (selectedTab) {
                 0 -> when {
                     isLoadingTxHistory && txHistory.isEmpty() -> {
@@ -7110,6 +7034,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                         }
                     }
                 }
+                2 -> KachatAddressDomainsList()
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

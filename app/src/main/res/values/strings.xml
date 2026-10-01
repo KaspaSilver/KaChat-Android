@@ -783,4 +783,8 @@
     <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
     <string name="chat_day_today">Today</string>
     <string name="chat_day_yesterday">Yesterday</string>
+    <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
+    <string name="address_tab_history">History</string>
+    <string name="kachat_no_names_on_address">No .kachat names on this address</string>
+    <string name="kachat_names_on_address_hint">Names this address claims or buys show here once .kachat names launch.</string>
 </resources>

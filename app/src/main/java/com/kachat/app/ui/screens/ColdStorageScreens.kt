@@ -2109,13 +2109,10 @@ fun ColdStorageTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
-    val knsDomains by viewModel.addressKnsDomains.collectAsState()
-    val isLoadingKnsDomains by viewModel.addressKnsDomainsLoading.collectAsState()
 
     LaunchedEffect(address) {
         viewModel.loadTxHistory(address)
         viewModel.loadUtxos(address)
-        viewModel.loadAddressKnsDomains(address)
         utxoLabels = viewModel.getUtxoLabels(address)
     }
 
@@ -2222,62 +2219,16 @@ fun ColdStorageTxHistoryScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
             }
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = LocalAppColors.current.background,
-                contentColor = KaspaTeal
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("History") }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("${stringResource(R.string.utxos)} (${utxos.size})") }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text("KNS Domains (${knsDomains.size})") }
-                )
-            }
+            // The app's tab look (Chats / Group Chats / Public Chats), not a segmented control;
+            // plain names - History, UTXOs, .kachat (iOS b96d727/718b88c).
+            UnderlineTabBar(
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), ".kachat"),
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
+                modifier = Modifier.padding(top = 4.dp),
+            )
             when (selectedTab) {
-                // LIST-ONLY, no send flow: a KNS transfer's reveal input spends a P2SH redeem
-                // script, and the KSPT QR format only carries plain single-sig Schnorr inputs —
-                // KasSigner can't sign inscription transactions (matches iOS's cold KNS tab).
-                2 -> when {
-                    isLoadingKnsDomains && knsDomains.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                    knsDomains.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("No KNS domains on this address.", color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(knsDomains, key = { it.assetId ?: it.asset ?: it.hashCode().toString() }) { domain ->
-                                KnsDomainCard(domain = domain)
-                            }
-                            item {
-                                Text(
-                                    "Sending domains from a cold storage address requires signing on the KasSigner, which doesn't support inscription transactions yet.",
-                                    color = LocalAppColors.current.textSecondary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+                2 -> KachatAddressDomainsList()
                 0 -> when {
                     isLoading && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

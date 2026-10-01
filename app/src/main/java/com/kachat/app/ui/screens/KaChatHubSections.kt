@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.kachat.app.R
 import com.kachat.app.repository.AppSettingsRepository
+import com.kachat.app.ui.tabIconPainter
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -1059,5 +1061,49 @@ private fun KachatOfferScreen(onClose: () -> Unit) {
             )
         }
         SettingsFooter(stringResource(R.string.kl_offers_open))
+    }
+}
+
+// MARK: - An address's .kachat names
+
+/**
+ * The ".kachat" tab of every screen that shows an address's history - Manage Addresses, Cold
+ * Storage and the chatting address: the .kachat names that address holds. It replaced the KNS
+ * Domains tab (iOS b96d727, 5.2), and is empty until .kachat names launch.
+ */
+@Composable
+fun KachatAddressDomainsList() {
+    val colors = LocalAppColors.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+    ) {
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    painter = com.kachat.app.ui.Screen.KachatNames.tabIconPainter(),
+                    contentDescription = null,
+                    tint = KaspaTeal,
+                    modifier = Modifier.size(width = 120.dp, height = 40.dp),
+                )
+                Text(
+                    stringResource(R.string.kachat_no_names_on_address),
+                    color = colors.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    stringResource(R.string.kachat_names_on_address_hint),
+                    color = colors.textSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
     }
 }

@@ -602,4 +602,8 @@
     <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
     <string name="chat_day_today">Bugün</string>
     <string name="chat_day_yesterday">Dün</string>
+    <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
+    <string name="address_tab_history">Geçmiş</string>
+    <string name="kachat_no_names_on_address">Bu adreste .kachat adı yok</string>
+    <string name="kachat_names_on_address_hint">Bu adresin aldığı ya da satın aldığı adlar .kachat adları başladığında burada görünür.</string>
 </resources>

@@ -602,4 +602,8 @@
     <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
     <string name="chat_day_today">Hôm nay</string>
     <string name="chat_day_yesterday">Hôm qua</string>
+    <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
+    <string name="address_tab_history">Lịch sử</string>
+    <string name="kachat_no_names_on_address">Không có tên .kachat trên địa chỉ này</string>
+    <string name="kachat_names_on_address_hint">Các tên mà địa chỉ này nhận hoặc mua sẽ hiện ở đây khi tên .kachat ra mắt.</string>
 </resources>
