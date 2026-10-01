@@ -1571,7 +1571,7 @@ class ChatViewModel @Inject constructor(
 
     fun isGroupMemberHidden(groupId: String, address: String) = "$groupId|$address" in groupHiddenMembers.value
     fun isGroupMemberMuted(groupId: String, address: String) = "$groupId|$address" in groupMutedMembers.value
-    fun isGroupMentionsOnly(groupId: String) = groupId in groupMentionsOnly.value
+    fun isGroupMentionsOnly(groupId: String) = com.kachat.app.util.MentionsFeature.ENABLED && groupId in groupMentionsOnly.value
 
     /** Groups currently being force-refreshed, so the button can show progress and refuse a second tap. */
     private val _refreshingGroupIds = MutableStateFlow<Set<String>>(emptySet())

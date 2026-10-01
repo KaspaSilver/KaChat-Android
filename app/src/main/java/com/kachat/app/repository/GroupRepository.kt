@@ -228,7 +228,7 @@ class GroupRepository @Inject constructor(
         val groups = database.groupDao().getGroups(walletManager.getAddress()).first()
         if (groups.isEmpty()) return false
         val silent = settings.groupSilent.first()
-        val mentionsOnly = settings.groupMentionsOnly.first()
+        val mentionsOnly = settings.groupMentionsOnlyApplied.first()
         return groups.all { it.groupId in silent || it.groupId in mentionsOnly }
     }
 
@@ -238,7 +238,7 @@ class GroupRepository @Inject constructor(
 
     /** Whether the per-group "Only Notify if I'm Mentioned" toggle is on for [groupId]. */
     suspend fun isGroupMentionsOnly(groupId: String): Boolean =
-        groupId in settings.groupMentionsOnly.first()
+        groupId in settings.groupMentionsOnlyApplied.first()
 
     /** Marks a group's thread as read as of now - backs the Group Chats tab's unread badge. Call when its thread screen opens. */
     suspend fun markGroupRead(groupId: String) {
@@ -1153,7 +1153,7 @@ class GroupRepository @Inject constructor(
                         val targetIsMine = target?.isOutgoing == true
                         val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
                         val silent = group.groupId in settings.groupSilent.first()
-                        val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
+                        val mentionsOnly = group.groupId in settings.groupMentionsOnlyApplied.first()
                         if (!silent && !isMuted && (targetIsMine || !mentionsOnly)) {
                             // alias > KNS primary domain > roster snapshot > short address -
                             // see groupSenderLabel; decodes the reactor the same way the chat
@@ -1230,7 +1230,7 @@ class GroupRepository @Inject constructor(
                 // iOS's mute (enforced there via push-registration exclusion instead, since
                 // Android has no remote push to gate the same way).
                 val isMuted = "${group.groupId}|$senderAddress" in settings.groupMutedMembers.first()
-                val mentionsOnly = group.groupId in settings.groupMentionsOnly.first()
+                val mentionsOnly = group.groupId in settings.groupMentionsOnlyApplied.first()
                 val silent = group.groupId in settings.groupSilent.first()
                 // "Mentions me" uses the SAME definition as the composer's @mention feature:
                 // members are mentioned by their primary KNS domain (insertMention writes

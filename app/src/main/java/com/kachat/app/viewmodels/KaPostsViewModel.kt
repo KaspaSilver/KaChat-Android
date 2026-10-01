@@ -1799,6 +1799,8 @@ class KaPostsViewModel @Inject constructor(
      * pubkey). Unresolvable tokens stay plain text.
      */
     private suspend fun mentionedPubkeys(text: String): List<String> {
+        // Off until mentions are rebuilt on .kachat (MentionsFeature): posts carry none.
+        if (!com.kachat.app.util.MentionsFeature.ENABLED) return emptyList()
         // Scanned on the RENDERED text, not the source. The @ token has to start a word, so
         // "**@alice.kas**" hides the mention behind the bold markers: the reader would see a
         // highlighted, tappable mention (the cell renders the same rendered text) while the

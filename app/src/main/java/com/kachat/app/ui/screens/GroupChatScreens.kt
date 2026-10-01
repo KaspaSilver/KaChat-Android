@@ -686,7 +686,7 @@ fun GroupChatThreadScreen(
                                 )
                             }
                         }
-                        mentionQuery?.let { query ->
+                        mentionQuery?.takeIf { com.kachat.app.util.MentionsFeature.ENABLED }?.let { query ->
                             val candidates = mentionCandidates(query)
                             if (candidates.isNotEmpty()) {
                                 // Deliberately no fillMaxWidth() on the Column or each row's Text -
@@ -830,7 +830,10 @@ fun GroupChatThreadScreen(
                             } else {
                                 IconButton(
                                     onClick = {
-                                        val text = GroupMentionCodec.encodeForSending(draft.text.trim(), groupMembers) { address ->
+                                        // Off until mentions are rebuilt on .kachat (MentionsFeature):
+                                        // an "@name" typed now is sent as the plain text it is.
+                                        val text = if (!com.kachat.app.util.MentionsFeature.ENABLED) draft.text.trim()
+                                        else GroupMentionCodec.encodeForSending(draft.text.trim(), groupMembers) { address ->
                                             primaryKnsByAddress[address] ?: ""
                                         }
                                         if (text.isEmpty()) return@IconButton
@@ -2081,8 +2084,8 @@ fun GroupChatInfoScreen(
                     checked = groupId in groupSilent,
                     onCheckedChange = { chatViewModel.setGroupSilent(groupId, it) },
                 )
-                GroupInfoDivider()
-                GroupInfoSwitchRow(
+                if (com.kachat.app.util.MentionsFeature.ENABLED) GroupInfoDivider()
+                if (com.kachat.app.util.MentionsFeature.ENABLED) GroupInfoSwitchRow(
                     label = stringResource(R.string.only_notify_if_i_m_mentioned),
                     checked = groupId in groupMentionsOnly,
                     // Silent already means "never", so the finer rule underneath it is moot.

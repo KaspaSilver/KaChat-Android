@@ -621,6 +621,12 @@ class AppSettingsRepository @Inject constructor(
     val groupMutedMembers: Flow<Set<String>> = dataStore.data.map { it[KEY_GROUP_MUTED_MEMBERS] ?: emptySet() }
     val groupMentionsOnly: Flow<Set<String>> = dataStore.data.map { it[KEY_GROUP_MENTIONS_ONLY] ?: emptySet() }
 
+    /** [groupMentionsOnly] as notifications apply it: empty while mentions are off
+     *  (MentionsFeature) - nobody can mention you then, so "only if mentioned" would silence the
+     *  group. The stored choice is left alone for when mentions return (iOS 08dd836). */
+    val groupMentionsOnlyApplied: Flow<Set<String>> =
+        if (com.kachat.app.util.MentionsFeature.ENABLED) groupMentionsOnly else kotlinx.coroutines.flow.flowOf(emptySet())
+
     /**
      * Groups muted outright - no banner ever, mentioned or not. Sits ABOVE [groupMentionsOnly]:
      * silent wins, and it is checked before the fallback that fires when a push cannot be

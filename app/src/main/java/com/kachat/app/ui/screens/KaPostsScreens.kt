@@ -3258,7 +3258,7 @@ fun KaPostComposerDialog(
             // @mention autocomplete: a SCROLLABLE vertical list of the KNS domains of everyone
             // you've chatted with (plus a live-resolved any-KNS match), iOS/group-chat style.
             // Above the editor so the keyboard can never hide it.
-            if (mentionSuggestions.isNotEmpty()) {
+            if (com.kachat.app.util.MentionsFeature.ENABLED && mentionSuggestions.isNotEmpty()) {
                 KaPostMentionSuggestionList(
                     suggestions = mentionSuggestions,
                     onPick = { domain ->
@@ -4287,7 +4287,7 @@ private fun ThreadReplyComposer(
                     } else contacts
                 }
             }
-            if (replyMentionSuggestions.isNotEmpty()) {
+            if (com.kachat.app.util.MentionsFeature.ENABLED && replyMentionSuggestions.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 KaPostMentionSuggestionList(
                     suggestions = replyMentionSuggestions,
@@ -5789,7 +5789,11 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
     // A mention is an identity, not prose: it always looks the same so it stays recognisable at a
     // glance, and formatting never applies to it. "**@alice.kas** ships it" bolds "ships it" and
     // leaves the mention alone.
-    val mentionRanges = KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text).mapNotNull { match ->
+    // While mentions are off (MentionsFeature) @name.kas is plain text: no tint, no link.
+    val mentionMatches = if (com.kachat.app.util.MentionsFeature.ENABLED) {
+        KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text).toList()
+    } else emptyList()
+    val mentionRanges = mentionMatches.mapNotNull { match ->
         val domain = match.groups[2] ?: return@mapNotNull null
         val start = domain.range.first - 1 // include the '@'
         if (start < 0) null else start until (domain.range.last + 1)
@@ -5829,7 +5833,7 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
                 }
             }
         }
-        for (match in KaPostsViewModel.MENTION_TOKEN_REGEX.findAll(text)) {
+        for (match in mentionMatches) {
             val domain = match.groups[2] ?: continue
             val start = domain.range.first - 1 // include the '@'
             if (start < 0) continue
