@@ -1023,7 +1023,7 @@ fun MainShell(
                                                 painter = screen.tabIconPainter(),
                                                 contentDescription = screen.label,
                                                 tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
-                                                modifier = Modifier.size(24.dp)
+                                                modifier = screen.tabIconModifier(24.dp)
                                             )
                                             // How many are waiting, not just that some are. A
                                             // bare dot said "something happened"; the number is

@@ -82,6 +82,7 @@ import com.kachat.app.ui.Screen
 import com.kachat.app.ui.hubTitle
 import com.kachat.app.ui.kaspaHubSections
 import com.kachat.app.ui.tabIconPainter
+import com.kachat.app.ui.tabIconModifier
 import com.kachat.app.ui.resolveDock
 import com.kachat.app.ui.theme.AppColors
 import com.kachat.app.ui.theme.KaspaTeal
@@ -491,7 +492,7 @@ private fun HubTile(
                 painter = screen.tabIconPainter(),
                 contentDescription = null,
                 tint = KaspaTeal,
-                modifier = Modifier.size(28.dp)
+                modifier = screen.tabIconModifier(28.dp)
             )
             Spacer(Modifier.size(10.dp))
             Text(
@@ -720,7 +721,7 @@ private fun DockItem(
                 painter = screen.tabIconPainter(),
                 contentDescription = screen.label,
                 tint = colors.textPrimary,
-                modifier = Modifier.size(24.dp)
+                modifier = screen.tabIconModifier(24.dp)
             )
             Spacer(Modifier.height(4.dp))
             Text(

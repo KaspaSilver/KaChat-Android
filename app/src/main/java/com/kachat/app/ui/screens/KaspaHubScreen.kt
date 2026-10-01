@@ -49,6 +49,7 @@ import com.kachat.app.ui.Screen
 import com.kachat.app.ui.hubTitle
 import com.kachat.app.ui.kaspaHubSections
 import com.kachat.app.ui.tabIconPainter
+import com.kachat.app.ui.tabIconModifier
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ChatViewModel
@@ -192,6 +193,8 @@ private fun HubGrid(
                 HubTile(
                     label = screen.hubTitle,
                     painter = screen.tabIconPainter(),
+                    // iOS: the .kachat wordmark 30pt tall beside 26pt icons (EcosystemView).
+                    iconModifier = screen.tabIconModifier(if (screen == com.kachat.app.ui.Screen.KachatNames) 32.dp else 28.dp),
                     colors = colors,
                     badgeCount = badgeCount(screen),
                     onClick = { onOpenSection(screen) }
@@ -213,6 +216,8 @@ private fun HubTile(
     label: String,
     /** The section's icon - the Kaspa mark, the chess pieces, or its vector (see tabIconPainter). */
     painter: androidx.compose.ui.graphics.painter.Painter,
+    /** The icon's box - wide for the chess pieces and the .kachat wordmark (tabIconModifier). */
+    iconModifier: Modifier = Modifier.size(28.dp),
     colors: com.kachat.app.ui.theme.AppColors,
     onClick: () -> Unit,
     /** Unseen items this destination is holding. Zero draws nothing. */
@@ -236,7 +241,7 @@ private fun HubTile(
                 painter = painter,
                 contentDescription = null,
                 tint = KaspaTeal,
-                modifier = Modifier.size(28.dp)
+                modifier = iconModifier
             )
             androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
             Text(

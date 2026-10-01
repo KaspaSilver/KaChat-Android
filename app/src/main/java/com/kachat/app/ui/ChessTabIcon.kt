@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.asImageBitmap
@@ -45,7 +46,8 @@ private val kachatWordmarkBitmap by lazy {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = android.graphics.Color.BLACK
         textSize = side * 0.62f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        // iOS draws it heavy (UIFont .heavy, rounded design); black is the heaviest system weight.
+        typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
         textAlign = Paint.Align.CENTER
     }
     val text = ".kachat"
@@ -55,6 +57,18 @@ private val kachatWordmarkBitmap by lazy {
     val baseline = side / 2f - (metrics.ascent + metrics.descent) / 2f
     Canvas(bitmap).drawText(text, width / 2f, baseline, paint)
     bitmap.asImageBitmap()
+}
+
+/**
+ * The box a tab's icon is drawn in, [size] tall. The chess pieces and the .kachat wordmark are
+ * wider than they are tall, and iOS draws them at the full height with their natural width
+ * (ChessTabIcon / KachatTabIcon `image(side:)`); a [size] square shrank them to fit its width,
+ * which left the wordmark a sliver.
+ */
+fun Screen.tabIconModifier(size: androidx.compose.ui.unit.Dp): androidx.compose.ui.Modifier = when (this) {
+    Screen.Chess -> androidx.compose.ui.Modifier.size(width = size * (chessIconBitmap.width.toFloat() / chessIconBitmap.height), height = size)
+    Screen.KachatNames -> androidx.compose.ui.Modifier.size(width = size * (kachatWordmarkBitmap.width.toFloat() / kachatWordmarkBitmap.height), height = size)
+    else -> androidx.compose.ui.Modifier.size(size)
 }
 
 /** The painter a tab's icon is drawn with: the Kaspa mark, the chess pieces, the .kachat
