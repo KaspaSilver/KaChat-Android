@@ -557,8 +557,11 @@ fun SavedAccountCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
-    var accountName by remember { mutableStateOf("My Account") }
-    var wordCount by remember { mutableIntStateOf(24) }
+    // Both start empty on purpose (iOS 3a5c852): the name and the seed length are the user's
+    // choice, and Generate Account stays disabled until both are made.
+    var accountName by remember { mutableStateOf("") }
+    var wordCount by remember { mutableIntStateOf(0) }
+    val canGenerate = accountName.isNotBlank() && wordCount != 0
 
     Surface(
         color = LocalAppColors.current.background,
@@ -692,6 +695,7 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
             TextField(
                 value = accountName,
                 onValueChange = { accountName = it },
+                placeholder = { Text("Enter account name", color = LocalAppColors.current.textSecondary) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
@@ -714,11 +718,13 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
 
             // Generate button
             Button(
-                onClick = { viewModel.createWallet(accountName, wordCount) },
+                onClick = { if (canGenerate) viewModel.createWallet(accountName.trim(), wordCount) },
+                enabled = canGenerate,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                // Visibly dimmed while disabled, as iOS's custom background is.
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = KaspaTeal.copy(alpha = 0.4f)),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
