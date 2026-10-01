@@ -213,19 +213,15 @@ fun BroadcastListScreen(
         // The same floating button the Chats and Group Chats pages carry, here for joining or
         // creating a room (iOS 6639a0b). Drawn by this page because it owns the join dialog.
         floatingActionButton = {
-            FloatingActionButton(
+            com.kachat.app.ui.theme.IosGlassFab(
                 onClick = {
                     channelInput = ""
                     broadcastViewModel.resetJoinChannelState()
                     showJoinDialog = true
                 },
-                containerColor = KaspaTeal,
-                contentColor = Color.Black,
-                shape = CircleShape,
-                modifier = Modifier.size(64.dp),
-            ) {
-                Icon(Icons.Default.AddComment, contentDescription = "Join or create a public room", modifier = Modifier.size(28.dp))
-            }
+                icon = Icons.Default.AddComment,
+                contentDescription = "Join or create a public room",
+            )
         },
         topBar = {
             // Embedded, the Chats header and its tab row are already above this.

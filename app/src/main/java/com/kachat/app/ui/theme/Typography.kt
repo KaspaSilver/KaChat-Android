@@ -49,6 +49,14 @@ val KaChatTypography = Typography(
         fontSize = 13.sp,
         lineHeight = 18.sp
     ),
+    // Every Material button label (Button, TextButton, OutlinedButton) reads this: iOS's buttons,
+    // alert actions and toolbar actions are 17pt.
+    labelLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 22.sp
+    ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Medium,

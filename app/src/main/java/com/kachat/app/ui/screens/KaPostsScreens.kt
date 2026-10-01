@@ -818,15 +818,11 @@ fun KaPostsScreen(
         floatingActionButton = {
             // iOS createPostButton: a 56pt circle in the material fill with the pencil in accent,
             // not a filled accent button - the chat list's create-chat button shape.
-            FloatingActionButton(
+            com.kachat.app.ui.theme.IosGlassFab(
                 onClick = { if (fundingGate.active) showFundingGate = true else showComposer = true },
-                shape = CircleShape,
-                containerColor = colors.surface,
-                contentColor = KaspaTeal,
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(Icons.Default.Edit, contentDescription = "New post", modifier = Modifier.size(22.dp))
-            }
+                icon = Icons.Default.Edit,
+                contentDescription = "New post",
+            )
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {

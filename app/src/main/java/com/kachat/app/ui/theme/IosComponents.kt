@@ -294,3 +294,29 @@ fun IosTextField(
         ),
     )
 }
+
+/**
+ * The floating glass button iOS puts in a list's corner (new chat, new public room, new KaPost):
+ * a 56pt circle of material with a faint white rim and a soft shadow, the symbol in the accent.
+ */
+@Composable
+fun IosGlassFab(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+) {
+    val app = LocalAppColors.current
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .shadow(10.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.12f))
+            .clip(CircleShape)
+            .background(app.surface.copy(alpha = 0.92f))
+            .border(0.8.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(icon, contentDescription = contentDescription, tint = app.accent, modifier = Modifier.size(24.dp))
+    }
+}

@@ -481,17 +481,13 @@ fun ChatsScreen(
             // region is already reserved above it before this Scaffold is even composed.
             // No create button on the rooms page: it carries its own join and create row.
             if (isOnPublicChatsTab) return@Scaffold
-            FloatingActionButton(
-                // Tab-aware: opens the group builder on the Group Chats tab, the 1:1 create
-                // screen on the Chats tab.
+            // Tab-aware: opens the group builder on the Group Chats tab, the 1:1 create screen
+            // on the Chats tab. iOS's glass corner button.
+            com.kachat.app.ui.theme.IosGlassFab(
                 onClick = { navController.navigate(if (isOnGroupsTab) "create_chat?group=true" else "create_chat") },
-                containerColor = KaspaTeal,
-                contentColor = Color.Black,
-                shape = CircleShape,
-                modifier = Modifier.size(64.dp)
-            ) {
-                Icon(Icons.Default.PersonAddAlt1, "Create chat", modifier = Modifier.size(28.dp))
-            }
+                icon = Icons.Default.PersonAddAlt1,
+                contentDescription = "Create chat",
+            )
         },
         bottomBar = {
             if (isSelectionMode) {
