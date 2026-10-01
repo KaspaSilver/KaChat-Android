@@ -326,7 +326,7 @@ fun SwapScreen(
                 } else "N/A"
                 Text(
                     rateText,
-                    color = if (isEstimateFailed) Color(0xFFFF3B30) else LocalAppColors.current.textSecondary,
+                    color = if (isEstimateFailed) LocalAppColors.current.danger else LocalAppColors.current.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -545,7 +545,7 @@ fun SwapScreen(
     if (!swapDisclaimerAgreed) {
         var hasReadChangeNowTerms by remember { mutableStateOf(false) }
         val termsUriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = {},
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.before_you_swap), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -605,7 +605,7 @@ fun SwapScreen(
     }
 
     pendingDeleteSwapId?.let { swapId ->
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { pendingDeleteSwapId = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.delete_this_swap), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -621,7 +621,7 @@ fun SwapScreen(
                     swapViewModel.deleteSwap(swapId)
                     pendingDeleteSwapId = null
                 }) {
-                    Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -701,9 +701,9 @@ private fun SwapDetailDialog(
                     Text(
                         swap.status.replaceFirstChar { it.uppercase() },
                         color = when (swap.status) {
-                            "finished" -> Color(0xFF4CD964)
-                            "failed", "refunded" -> Color(0xFFFF3B30)
-                            else -> Color(0xFFF39C12)
+                            "finished" -> LocalAppColors.current.success
+                            "failed", "refunded" -> LocalAppColors.current.danger
+                            else -> LocalAppColors.current.warning
                         },
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium
@@ -905,9 +905,9 @@ private fun SwapHistoryRow(swap: SwapTransactionEntity, onClick: () -> Unit, onD
         Text(
             swap.status.replaceFirstChar { it.uppercase() },
             color = when (swap.status) {
-                "finished" -> Color(0xFF4CD964)
-                "failed", "refunded" -> Color(0xFFFF3B30)
-                else -> Color(0xFFF39C12)
+                "finished" -> LocalAppColors.current.success
+                "failed", "refunded" -> LocalAppColors.current.danger
+                else -> LocalAppColors.current.warning
             },
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
@@ -916,7 +916,7 @@ private fun SwapHistoryRow(swap: SwapTransactionEntity, onClick: () -> Unit, onD
             Icon(
                 Icons.Default.Delete,
                 contentDescription = stringResource(R.string.delete),
-                tint = Color(0xFFFF3B30),
+                tint = LocalAppColors.current.danger,
                 modifier = Modifier.size(18.dp)
             )
         }

@@ -391,7 +391,7 @@ fun ChessGameScreen(
                             val resignLabel = if (summary.status.kind == ChessGameStatusKind.PENDING_RESPONSE)
                                 stringResource(R.string.chess_cancel_game) else stringResource(R.string.resign)
                             TextButton(onClick = { showResignConfirm = true }) {
-                                Text(resignLabel, color = Color(0xFFFF3B30))
+                                Text(resignLabel, color = LocalAppColors.current.danger)
                             }
                         }
                         WinLossCounter(wins = chessRecord.first, losses = chessRecord.second)
@@ -507,7 +507,7 @@ fun ChessGameScreen(
     }
 
     if (showResignConfirm) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showResignConfirm = false },
             title = { Text(stringResource(R.string.resign_this_game)) },
             confirmButton = {
@@ -516,7 +516,7 @@ fun ChessGameScreen(
                     chatViewModel.resignChessGame(contactId, gameId)
                     navController.popBackStack()
                 }) {
-                    Text(stringResource(R.string.resign), color = Color(0xFFFF3B30))
+                    Text(stringResource(R.string.resign), color = LocalAppColors.current.danger)
                 }
             },
             dismissButton = {
@@ -527,7 +527,7 @@ fun ChessGameScreen(
 
     val pendingMove = pendingPromotionMove
     if (pendingMove != null) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { pendingPromotionMove = null },
             title = { Text(stringResource(R.string.promote_pawn_to)) },
             text = {
@@ -562,12 +562,12 @@ private fun MoveSendStatusRow(status: String, onRetry: () -> Unit) {
     ) {
         when (status) {
             "sent" -> {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(14.dp))
                 Text(stringResource(R.string.sent), color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
             }
             "failed" -> {
-                Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
-                Text(stringResource(R.string.retry), color = Color(0xFFFF3B30), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.Error, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(14.dp))
+                Text(stringResource(R.string.retry), color = LocalAppColors.current.danger, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             else -> {
                 Icon(Icons.Default.Schedule, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(14.dp))
@@ -602,12 +602,12 @@ private fun WinLossCounter(wins: Int, losses: Int) {
 private fun ChessClockRow(remainingMs: Long, isSideToMove: Boolean) {
     val lowTime = remainingMs < 20_000L
     val containerColor = when {
-        lowTime -> Color(0xFFFF3B30).copy(alpha = if (isSideToMove) 0.30f else 0.16f)
+        lowTime -> LocalAppColors.current.danger.copy(alpha = if (isSideToMove) 0.30f else 0.16f)
         isSideToMove -> KaspaTeal.copy(alpha = 0.28f)
         else -> LocalAppColors.current.surface
     }
     val textColor = when {
-        lowTime -> Color(0xFFFF3B30)
+        lowTime -> LocalAppColors.current.danger
         isSideToMove -> LocalAppColors.current.textPrimary
         else -> LocalAppColors.current.textSecondary
     }
@@ -846,7 +846,7 @@ private fun ChessChatRow(message: MessageEntity, onRetry: () -> Unit) {
                         Icon(
                             imageVector = Icons.Default.Error,
                             contentDescription = stringResource(R.string.failed_to_send),
-                            tint = Color(0xFFFF3B30),
+                            tint = LocalAppColors.current.danger,
                             modifier = Modifier.size(11.dp)
                         )
                         // Tappable "Retry" next to the red error icon, matching the full-screen
@@ -855,7 +855,7 @@ private fun ChessChatRow(message: MessageEntity, onRetry: () -> Unit) {
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 text = stringResource(R.string.retry),
-                                color = Color(0xFFFF3B30),
+                                color = LocalAppColors.current.danger,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clickable { onRetry() }
@@ -871,7 +871,7 @@ private fun ChessChatRow(message: MessageEntity, onRetry: () -> Unit) {
                     else -> Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = Color(0xFF4CD964),
+                        tint = LocalAppColors.current.success,
                         modifier = Modifier.size(11.dp)
                     )
                 }

@@ -477,7 +477,7 @@ private fun PortfolioTransactionsContent(
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = "Delete selected",
-                        tint = if (selectedIds.isEmpty()) LocalAppColors.current.textSecondary else Color(0xFFFF3B30),
+                        tint = if (selectedIds.isEmpty()) LocalAppColors.current.textSecondary else LocalAppColors.current.danger,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -633,7 +633,7 @@ private fun PortfolioTransactionsContent(
 
     if (showDeleteSelected) {
         val count = selectedIds.size
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showDeleteSelected = false },
             containerColor = LocalAppColors.current.surface,
             title = {
@@ -649,7 +649,7 @@ private fun PortfolioTransactionsContent(
                     selectedIds = emptySet()
                     selecting = false
                     showDeleteSelected = false
-                }) { Text(stringResource(R.string.delete), color = Color(0xFFFF3B30)) }
+                }) { Text(stringResource(R.string.delete), color = LocalAppColors.current.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteSelected = false }) {
@@ -843,21 +843,21 @@ private fun AddressEntryDialog(
                             Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         }
                         knsResolvedAddress != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Resolves to ${shortenKaspaAddress(knsResolvedAddress ?: "")}", color = Color(0xFF4CD964), fontSize = 12.sp)
+                            Text("Resolves to ${shortenKaspaAddress(knsResolvedAddress ?: "")}", color = LocalAppColors.current.success, fontSize = 12.sp)
                         }
                         // Quiet by design — an unfinished domain isn't an error worth shouting about.
                         knsNotFound -> Text(stringResource(R.string.no_domain_found), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         isRawValid -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.valid_address), color = Color(0xFF4CD964), fontSize = 12.sp)
+                            Text(stringResource(R.string.valid_address), color = LocalAppColors.current.success, fontSize = 12.sp)
                         }
                         else -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Cancel, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Cancel, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.invalid_address_format), color = Color(0xFFFF3B30), fontSize = 12.sp)
+                            Text(stringResource(R.string.invalid_address_format), color = LocalAppColors.current.danger, fontSize = 12.sp)
                         }
                     }
                 }
@@ -888,7 +888,7 @@ private fun AddressEntryDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
-                    Text("Import", color = if (isValid) Color.Black else Color.Gray, fontWeight = FontWeight.Bold)
+                    Text("Import", color = if (isValid) Color.Black else LocalAppColors.current.textSecondary, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -903,7 +903,7 @@ private fun PortfolioSummaryCard(
     scrubbedPrice: Pair<Long, Double>? = null,
     currencyCode: String
 ) {
-    val plColor = if (summary.totalPL >= 0) Color(0xFF4CD964) else Color(0xFFFF3B30)
+    val plColor = if (summary.totalPL >= 0) LocalAppColors.current.success else LocalAppColors.current.danger
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -936,13 +936,13 @@ private fun PortfolioSummaryCard(
                     Icon(
                         if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
                         contentDescription = null,
-                        tint = if (isPositive) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                        tint = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(2.dp))
                     Text(
                         "${String.format(Locale.US, "%.2f", kotlin.math.abs(priceChange24h))}%",
-                        color = if (isPositive) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                        color = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
@@ -1244,7 +1244,7 @@ private fun LauncherSquare(
         }
         if (changePercent != null) {
             val positive = changePercent >= 0
-            val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
+            val color = if (positive) LocalAppColors.current.success else LocalAppColors.current.danger
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
@@ -1282,6 +1282,8 @@ private fun PortfolioBigChart(
     val range = (maxV - minV).takeIf { it > 0 } ?: 1.0
     val gridColor = LocalAppColors.current.divider
     val cursorColor = LocalAppColors.current.textSecondary
+    val upColor = LocalAppColors.current.success
+    val downColor = LocalAppColors.current.danger
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Canvas(
@@ -1400,7 +1402,7 @@ private fun PortfolioBigChart(
                 val xa = a * stepX
                 val xb = b * stepX
                 val up = points[b].second >= points[a].second
-                val shade = if (up) Color(0xFF34C759) else Color(0xFFFF3B30)
+                val shade = if (up) upColor else downColor
                 drawRect(
                     color = shade.copy(alpha = 0.16f),
                     topLeft = Offset(minOf(xa, xb), 0f),
@@ -1624,10 +1626,9 @@ internal fun ChartPairSheet(
                             Text(pair.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                             Text(pair.subtitle, color = colors.textSecondary, fontSize = 12.sp)
                         }
-                        Switch(
+                        com.kachat.app.ui.theme.IosSwitch(
                             checked = selected == pair,
-                            onCheckedChange = { on -> onSelect(if (on) pair else null) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                            onCheckedChange = { on -> onSelect(if (on) pair else null) }
                         )
                     }
                 }
@@ -1806,7 +1807,7 @@ fun PortfolioPriceChartScreen(
                     val up = to.second >= from.second
                     Text(
                         "${if (up) "+" else "-"}${String.format(Locale.US, "%.2f", kotlin.math.abs(pct))}% over this span",
-                        color = if (up) Color(0xFF34C759) else Color(0xFFFF3B30),
+                        color = if (up) LocalAppColors.current.success else LocalAppColors.current.danger,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                     )
@@ -1819,7 +1820,7 @@ fun PortfolioPriceChartScreen(
                 val rangeChange = PortfolioViewModel.computeRangeChange(shownHistory)
                 if (scrubbed == null && rangeChange != null) {
                     val positive = rangeChange.first >= 0
-                    val color = if (positive) Color(0xFF4CD964) else Color(0xFFFF3B30)
+                    val color = if (positive) LocalAppColors.current.success else LocalAppColors.current.danger
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
@@ -2001,7 +2002,7 @@ fun PortfolioValueChartScreen(
                     Text(
                         "${if (up) "+" else "-"}${money(kotlin.math.abs(delta), currencyCode)} " +
                             "(${String.format(Locale.US, "%.2f", kotlin.math.abs(pct))}%) over this span",
-                        color = if (up) Color(0xFF34C759) else Color(0xFFFF3B30),
+                        color = if (up) LocalAppColors.current.success else LocalAppColors.current.danger,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                     )
@@ -2022,12 +2023,12 @@ fun PortfolioValueChartScreen(
                         Icon(
                             if (isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                             contentDescription = null,
-                            tint = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                            tint = if (isUp) LocalAppColors.current.success else LocalAppColors.current.danger,
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
                             "${money(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
-                            color = if (isUp) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                            color = if (isUp) LocalAppColors.current.success else LocalAppColors.current.danger,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
                         )
@@ -2085,7 +2086,7 @@ fun PortfolioValueChartScreen(
 
 @Composable
 private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: String) {
-    val plColor = if (summary.totalPL >= 0) Color(0xFF4CD964) else Color(0xFFFF3B30)
+    val plColor = if (summary.totalPL >= 0) LocalAppColors.current.success else LocalAppColors.current.danger
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2176,13 +2177,13 @@ private fun TransactionRow(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(if (isBuy) Color(0xFF4CD964).copy(alpha = 0.15f) else Color(0xFFFF3B30).copy(alpha = 0.15f)),
+                    .background(if (isBuy) LocalAppColors.current.success.copy(alpha = 0.15f) else LocalAppColors.current.danger.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     if (isBuy) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
                     contentDescription = null,
-                    tint = if (isBuy) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                    tint = if (isBuy) LocalAppColors.current.success else LocalAppColors.current.danger,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -2210,7 +2211,7 @@ private fun TransactionRow(
         if (!selecting) {
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
-                Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Delete, "Delete", tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -2408,7 +2409,7 @@ private fun TransactionDialog(
                 ) {
                     Text(
                         if (existing != null) "Save Changes" else "Add Transaction",
-                        color = if (isValid) Color.Black else Color.Gray,
+                        color = if (isValid) Color.Black else LocalAppColors.current.textSecondary,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -2420,7 +2421,7 @@ private fun TransactionDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surfaceVariant),
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
-                        Text(stringResource(R.string.delete_transaction), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.delete_transaction), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -2470,7 +2471,7 @@ private fun DateTimePickerFlow(
             DatePicker(state = dateState)
         }
     } else {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = onDismiss,
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.select_time), color = LocalAppColors.current.textPrimary) },

@@ -518,7 +518,7 @@ fun GroupChatThreadScreen(
                             onClick = { showDeleteMessagesConfirmation = true },
                             enabled = selectedMessageIds.isNotEmpty()
                         ) {
-                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = Color(0xFFFF3B30))
+                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = LocalAppColors.current.danger)
                         }
                     } else {
                         // No info button: tapping the header opens Group Info, exactly as tapping
@@ -560,7 +560,7 @@ fun GroupChatThreadScreen(
                 errorMessage?.let { message ->
                     Text(
                         text = message,
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
@@ -739,7 +739,7 @@ fun GroupChatThreadScreen(
                                     draft = newValue
                                     mentionQuery = detectMentionQuery(newValue)
                                 },
-                                placeholder = { Text(stringResource(R.string.message), color = Color.DarkGray) },
+                                placeholder = { Text(stringResource(R.string.message), color = LocalAppColors.current.textTertiary) },
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(20.dp)),
@@ -1025,7 +1025,7 @@ fun GroupChatThreadScreen(
                                 Icon(
                                     imageVector = if (message.txId in selectedMessageIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                     contentDescription = null,
-                                    tint = if (message.txId in selectedMessageIds) KaspaTeal else Color.Gray
+                                    tint = if (message.txId in selectedMessageIds) KaspaTeal else LocalAppColors.current.textSecondary
                                 )
                             }
                         }
@@ -1069,7 +1069,7 @@ fun GroupChatThreadScreen(
     }
 
     if (showFeeEditor) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showFeeEditor = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },
@@ -1129,7 +1129,7 @@ fun GroupChatThreadScreen(
     }
 
     if (showDeleteMessagesConfirmation) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showDeleteMessagesConfirmation = false },
             containerColor = LocalAppColors.current.surface,
             title = {
@@ -1151,7 +1151,7 @@ fun GroupChatThreadScreen(
                     isSelectingMessages = false
                     selectedMessageIds = emptySet()
                 }) {
-                    Text("Delete", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    Text("Delete", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1196,7 +1196,7 @@ private fun groupPhotoPreviewRow(pendingPhotoUri: android.net.Uri?, onCancel: ()
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         IconButton(onClick = onCancel) {
-            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_photo), tint = Color(0xFFFF3B30))
+            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_photo), tint = LocalAppColors.current.danger)
         }
         val thumbnailContext = LocalContext.current
         val thumbnail = remember(pendingPhotoUri) {
@@ -1246,9 +1246,9 @@ private fun groupRecordingRow(elapsedMs: Long, onCancel: () -> Unit, onSend: () 
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         IconButton(onClick = onCancel) {
-            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = Color(0xFFFF3B30))
+            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = LocalAppColors.current.danger)
         }
-        Icon(Icons.Default.Mic, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
         Text(
             text = "Recording... ${formatRecordingElapsed(elapsedMs)}",
             color = LocalAppColors.current.textPrimary,
@@ -1690,7 +1690,7 @@ private fun GroupMessageBubble(
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = stringResource(R.string.retry),
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
@@ -1963,7 +1963,7 @@ fun GroupChatInfoScreen(
                 )
                 if (isGroupAdmin && group?.photoHex != null) {
                     TextButton(onClick = { showRemovePhotoConfirm = true }) {
-                        Text("Remove photo", color = Color(0xFFFF3B30))
+                        Text("Remove photo", color = LocalAppColors.current.danger)
                     }
                 }
             }
@@ -2046,7 +2046,7 @@ fun GroupChatInfoScreen(
                                         Icon(
                                             Icons.Default.Delete,
                                             contentDescription = "Remove from group",
-                                            tint = Color(0xFFFF3B30),
+                                            tint = LocalAppColors.current.danger,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -2054,7 +2054,7 @@ fun GroupChatInfoScreen(
                             }
                         }
                         if (index < members.size - 1) {
-                            HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.3f))
+                            HorizontalDivider(color = LocalAppColors.current.textTertiary.copy(alpha = 0.3f))
                         }
                     }
                 }
@@ -2114,7 +2114,7 @@ fun GroupChatInfoScreen(
                 GroupInfoRow(
                     icon = Icons.Default.Delete,
                     label = stringResource(R.string.delete_group),
-                    tint = Color(0xFFFF3B30),
+                    tint = LocalAppColors.current.danger,
                     bold = true,
                 ) { showDeleteConfirmation = true }
             }
@@ -2123,7 +2123,7 @@ fun GroupChatInfoScreen(
     }
 
     if (showRename) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showRename = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_group), color = LocalAppColors.current.textPrimary) },
@@ -2172,7 +2172,7 @@ fun GroupChatInfoScreen(
     }
 
     if (renameError != null) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { renameError = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.couldn_t_rename_group), color = LocalAppColors.current.textPrimary) },
@@ -2186,7 +2186,7 @@ fun GroupChatInfoScreen(
     }
 
     if (resendMessage != null) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { resendMessage = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Resend invites", color = LocalAppColors.current.textPrimary) },
@@ -2204,7 +2204,7 @@ fun GroupChatInfoScreen(
         val label = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
             ?: member.displayName?.takeIf { it.isNotBlank() }
             ?: member.address.takeLast(10)
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { memberToResend = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Resend invite", color = LocalAppColors.current.textPrimary) },
@@ -2231,7 +2231,7 @@ fun GroupChatInfoScreen(
         val label = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
             ?: member.displayName?.takeIf { it.isNotBlank() }
             ?: member.address.takeLast(10)
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { memberToRemove = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Remove member", color = LocalAppColors.current.textPrimary) },
@@ -2248,7 +2248,7 @@ fun GroupChatInfoScreen(
                         if (!ok) resendMessage = err ?: "Could not remove member. Please try again."
                     }
                 }) {
-                    Text("Yes", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    Text("Yes", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2260,7 +2260,7 @@ fun GroupChatInfoScreen(
     }
 
     if (groupPhotoError != null) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { groupPhotoError = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Group photo", color = LocalAppColors.current.textPrimary) },
@@ -2274,7 +2274,7 @@ fun GroupChatInfoScreen(
         val others = (members.size - 1).coerceAtLeast(0)
         val perPhoto = if (others > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * (hex.length + 300)) else 0L
         val feeLine = "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(perPhoto * others)} KAS across $others transaction${if (others == 1) "" else "s"}."
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { pendingPhotoHex = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Set group photo", color = LocalAppColors.current.textPrimary) },
@@ -2293,7 +2293,7 @@ fun GroupChatInfoScreen(
 
     // Confirm removing the group photo (Remove/Cancel).
     if (showRemovePhotoConfirm) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showRemovePhotoConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Remove group photo", color = LocalAppColors.current.textPrimary) },
@@ -2302,7 +2302,7 @@ fun GroupChatInfoScreen(
                 TextButton(onClick = {
                     chatViewModel.setGroupPhoto(groupId, "") { err -> groupPhotoError = err }
                     showRemovePhotoConfirm = false
-                }) { Text("Remove", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold) }
+                }) { Text("Remove", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { showRemovePhotoConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
@@ -2312,7 +2312,7 @@ fun GroupChatInfoScreen(
 
     // Confirm resending invites to everyone (Cancel / Send).
     if (showResendAllConfirm) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showResendAllConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Resend invites to all", color = LocalAppColors.current.textPrimary) },
@@ -2384,7 +2384,7 @@ fun GroupChatInfoScreen(
                 com.kachat.app.util.KaspaAddress.isValid(addr) && addr !in existingAddresses && candidates.none { it.id == addr }
             }
         }
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { if (!addBusy) showAddMembers = false },
             containerColor = LocalAppColors.current.surface,
             title = {
@@ -2420,7 +2420,7 @@ fun GroupChatInfoScreen(
                     TextField(
                         value = addSearch,
                         onValueChange = { addSearch = it },
-                        placeholder = { Text("Search contacts, or paste an address", color = Color.DarkGray) },
+                        placeholder = { Text("Search contacts, or paste an address", color = LocalAppColors.current.textTertiary) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
@@ -2515,7 +2515,7 @@ fun GroupChatInfoScreen(
                     }
                     addError?.let {
                         Spacer(Modifier.height(8.dp))
-                        Text(it, color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
+                        Text(it, color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(8.dp))
                     Text("New members can read messages from the moment they're added, not earlier history.",
@@ -2545,7 +2545,7 @@ fun GroupChatInfoScreen(
             val k = addChosen.size
             val finalOthers = (members.size - 1).coerceAtLeast(0) + k
             val hasPhoto = group?.photoHex != null
-            AlertDialog(
+            com.kachat.app.ui.theme.IosAlertDialog(
                 onDismissRequest = { showAddFeeConfirm = false },
                 containerColor = LocalAppColors.current.surface,
                 title = { Text("Add members", color = LocalAppColors.current.textPrimary) },
@@ -2581,7 +2581,7 @@ fun GroupChatInfoScreen(
             val parts = entry.split("|", limit = 2)
             if (parts.size == 2 && parts[0] == groupId) parts[1] else null
         }
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showHiddenUsers = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.hidden_users), color = LocalAppColors.current.textPrimary) },
@@ -2617,7 +2617,7 @@ fun GroupChatInfoScreen(
     }
 
     if (showDeleteConfirmation) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Delete \"${group?.name ?: "this group"}\"", color = LocalAppColors.current.textPrimary) },
@@ -2633,7 +2633,7 @@ fun GroupChatInfoScreen(
                     showDeleteConfirmation = false
                     navController.popBackStack("chats", inclusive = false)
                 }) {
-                    Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2773,11 +2773,10 @@ private fun GroupInfoSwitchRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
-        Switch(
+        com.kachat.app.ui.theme.IosSwitch(
             checked = checked,
             enabled = enabled,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = KaspaTeal, checkedTrackColor = KaspaTeal.copy(alpha = 0.5f)),
+            onCheckedChange = onCheckedChange
         )
     }
 }

@@ -559,7 +559,7 @@ fun ChatsScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surfaceVariant),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -727,7 +727,7 @@ fun ChatsScreen(
                             },
                             trailingIcon = Icons.Default.Delete,
                             trailingLabel = "Delete",
-                            trailingColor = Color(0xFFFF3B30),
+                            trailingColor = LocalAppColors.current.danger,
                             onTrailingClick = { contactToDelete = convo.contact.id }
                         ) {
                             Box {
@@ -739,7 +739,7 @@ fun ChatsScreen(
                                         Icon(
                                             imageVector = if (convo.contact.id in selectedContactIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                             contentDescription = stringResource(R.string.select_chat),
-                                            tint = if (convo.contact.id in selectedContactIds) KaspaTeal else Color.Gray,
+                                            tint = if (convo.contact.id in selectedContactIds) KaspaTeal else LocalAppColors.current.textSecondary,
                                             modifier = Modifier.padding(start = 16.dp).size(22.dp)
                                         )
                                     }
@@ -762,7 +762,7 @@ fun ChatsScreen(
                                         }
                                         HorizontalDivider(
                                             modifier = Modifier.padding(start = 72.dp),
-                                            color = Color.DarkGray.copy(alpha = 0.5f)
+                                            color = LocalAppColors.current.textTertiary.copy(alpha = 0.5f)
                                         )
                                     }
                                 }
@@ -819,7 +819,7 @@ fun ChatsScreen(
                                             icon = Icons.Default.Delete,
                                             title = stringResource(R.string.delete),
                                             subtitle = "Removes this chat and its messages from this device.",
-                                            tint = Color(0xFFFF3B30),
+                                            tint = LocalAppColors.current.danger,
                                         ) {
                                             menuContactId = null
                                             contactToDelete = convo.contact.id
@@ -844,7 +844,7 @@ fun ChatsScreen(
                 contactToDelete?.let { contactId ->
                     val label = filteredConversations.find { it.contact.id == contactId }
                         ?.contact?.displayName ?: "this chat"
-                    AlertDialog(
+                    com.kachat.app.ui.theme.IosAlertDialog(
                         onDismissRequest = { contactToDelete = null },
                         containerColor = LocalAppColors.current.surface,
                         title = { Text("Delete Chat with $label", color = LocalAppColors.current.textPrimary) },
@@ -859,7 +859,7 @@ fun ChatsScreen(
                                 chatViewModel.deleteChat(contactId)
                                 contactToDelete = null
                             }) {
-                                Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
@@ -895,7 +895,7 @@ fun ChatsScreen(
                 isOnGroupsTab -> selectedGroupIds.size
                 else -> selectedContactIds.size
             }
-            AlertDialog(
+            com.kachat.app.ui.theme.IosAlertDialog(
                 onDismissRequest = { showBulkDeleteConfirmation = false },
                 containerColor = LocalAppColors.current.surface,
                 title = {
@@ -934,7 +934,7 @@ fun ChatsScreen(
                         selectedContactIds = emptySet()
                         selectedGroupIds = emptySet()
                     }) {
-                        Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -960,7 +960,7 @@ private fun TabBadge(count: Int, content: @Composable () -> Unit) {
         // number. Weighted with fill = false, the label takes what is left of its own accord.
         Box(Modifier.weight(1f, fill = false)) { content() }
         if (count > 0) {
-            Surface(color = Color(0xFFFF3B30), shape = RoundedCornerShape(50)) {
+            Surface(color = LocalAppColors.current.danger, shape = RoundedCornerShape(50)) {
                 Text(
                     if (count > 99) "99+" else count.toString(),
                     color = Color.White,
@@ -1077,7 +1077,7 @@ fun GroupListBody(
                     },
                     trailingIcon = Icons.Default.Delete,
                     trailingLabel = "Delete",
-                    trailingColor = Color(0xFFFF3B30),
+                    trailingColor = LocalAppColors.current.danger,
                     onTrailingClick = { groupToDelete = convo.group.groupId }
                 ) {
                     // .background() is on this outer Column (covering the divider row below too),
@@ -1110,7 +1110,7 @@ fun GroupListBody(
                                 Icon(
                                     imageVector = if (convo.group.groupId in selectedGroupIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                     contentDescription = stringResource(R.string.select_group),
-                                    tint = if (convo.group.groupId in selectedGroupIds) KaspaTeal else Color.Gray,
+                                    tint = if (convo.group.groupId in selectedGroupIds) KaspaTeal else LocalAppColors.current.textSecondary,
                                     modifier = Modifier.size(22.dp)
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -1172,7 +1172,7 @@ fun GroupListBody(
                                         ?: groupMessagePreviewText(convo.lastMessage, groupMembers, memberNamesByAddress)
                                         ?: "No messages yet",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Gray,
+                                    color = LocalAppColors.current.textSecondary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -1241,7 +1241,7 @@ fun GroupListBody(
                                     icon = Icons.Default.Delete,
                                     title = stringResource(R.string.delete),
                                     subtitle = "Removes this group and its messages from this device.",
-                                    tint = Color(0xFFFF3B30),
+                                    tint = LocalAppColors.current.danger,
                                 ) {
                                     menuGroupId = null
                                     groupToDelete = convo.group.groupId
@@ -1251,7 +1251,7 @@ fun GroupListBody(
                         }
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 88.dp),
-                            color = Color.DarkGray.copy(alpha = 0.5f)
+                            color = LocalAppColors.current.textTertiary.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -1271,7 +1271,7 @@ fun GroupListBody(
 
     groupToDelete?.let { groupId ->
         val groupName = groupConversations.firstOrNull { it.group.groupId == groupId }?.group?.name ?: "this group"
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { groupToDelete = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Delete \"$groupName\"", color = LocalAppColors.current.textPrimary) },
@@ -1286,7 +1286,7 @@ fun GroupListBody(
                     onDeleteGroup(groupId)
                     groupToDelete = null
                 }) {
-                    Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1574,7 +1574,7 @@ private fun ConversationRow(
                         else -> preview ?: "No messages yet"
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (convo.contact.conversationStatus == "pending") KaspaTeal else Color.Gray,
+                    color = if (convo.contact.conversationStatus == "pending") KaspaTeal else LocalAppColors.current.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

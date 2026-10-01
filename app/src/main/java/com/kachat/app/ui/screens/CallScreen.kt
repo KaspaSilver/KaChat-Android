@@ -287,8 +287,8 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
         when (val phase = call.phase) {
             CallService.Phase.RingingIn -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(96.dp)) {
-                    BigButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), label = "Decline") { callService.declineIncoming() }
-                    BigButton(if (call.video) Icons.Default.Videocam else Icons.Default.Phone, tint = Color(0xFF34C759), label = "Accept", onClick = onAccept)
+                    BigButton(Icons.Default.CallEnd, tint = LocalAppColors.current.danger, label = "Decline") { callService.declineIncoming() }
+                    BigButton(if (call.video) Icons.Default.Videocam else Icons.Default.Phone, tint = LocalAppColors.current.success, label = "Accept", onClick = onAccept)
                 }
             }
             is CallService.Phase.Ended -> {
@@ -322,7 +322,7 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                             label = if (call.videoRequest == CallService.VideoRequest.OUTGOING) "asking…" else "video",
                         ) { callService.upgradeToVideo() }
                     }
-                    BigButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), label = null) { callService.hangUp() }
+                    BigButton(Icons.Default.CallEnd, tint = LocalAppColors.current.danger, label = null) { callService.hangUp() }
                 }
             }
         }
@@ -377,7 +377,7 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             SmallControl(if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown, active = call.isSpeakerOn) { callService.toggleSpeaker() }
             SmallControl(if (call.isCameraOff) Icons.Default.VideocamOff else Icons.Default.Videocam, active = call.isCameraOff) { callService.toggleCamera() }
             SmallControl(Icons.Default.Cameraswitch, active = false) { callService.flipCamera() }
-            RoundCallButton(Icons.Default.CallEnd, tint = Color(0xFFFF3B30), size = 60.dp) { callService.hangUp() }
+            RoundCallButton(Icons.Default.CallEnd, tint = LocalAppColors.current.danger, size = 60.dp) { callService.hangUp() }
         }
     }
 }
@@ -496,7 +496,7 @@ private fun CallReturnBar(call: CallService.ActiveCall, onReturn: () -> Unit) {
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF34C759))
+            .background(LocalAppColors.current.success)
             .clickable { onReturn() }
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {

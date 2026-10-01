@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity() {
         val crashFile = remember { CrashRecorder.unseenCrash(this) }
         var show by remember { mutableStateOf(crashFile != null) }
         if (!show || crashFile == null) return
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { show = false; CrashRecorder.markSeen(this) },
             title = { Text("KaChat closed unexpectedly") },
             text = { Text("The app did not close normally the last time it ran. A report of what happened was saved. Sharing it with the developer is the quickest way to get it fixed - it contains no messages, keys or addresses.") },

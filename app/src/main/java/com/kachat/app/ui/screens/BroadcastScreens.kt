@@ -370,7 +370,7 @@ fun BroadcastListScreen(
                     icon = Icons.Default.Delete,
                     title = stringResource(R.string.delete),
                     subtitle = "Removes this room and its messages from this device.",
-                    tint = Color(0xFFFF3B30),
+                    tint = LocalAppColors.current.danger,
                 ) {
                     roomActionTarget = null
                     channelToLeave = name
@@ -384,7 +384,7 @@ fun BroadcastListScreen(
                     icon = Icons.Default.Delete,
                     title = stringResource(R.string.delete),
                     subtitle = stringResource(R.string.default_room_delete_subtitle),
-                    tint = Color(0xFFFF3B30),
+                    tint = LocalAppColors.current.danger,
                 ) {
                     roomActionTarget = null
                     broadcastViewModel.removeFromList(name)
@@ -406,7 +406,7 @@ fun BroadcastListScreen(
             OutlinedTextField(
                 value = channelInput,
                 onValueChange = { channelInput = it },
-                placeholder = { Text(stringResource(R.string.channel_name), color = Color.DarkGray) },
+                placeholder = { Text(stringResource(R.string.channel_name), color = LocalAppColors.current.textTertiary) },
                 prefix = { Text("#", color = LocalAppColors.current.textSecondary) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -420,7 +420,7 @@ fun BroadcastListScreen(
             if (joinState.status == BroadcastViewModel.JoinChannelStatus.FAILED) {
                 Text(
                     joinState.message ?: "Invalid channel name",
-                    color = Color(0xFFFF3B30),
+                    color = LocalAppColors.current.danger,
                     fontSize = 12.sp
                 )
             }
@@ -462,7 +462,7 @@ fun BroadcastListScreen(
                 icon = Icons.Default.Delete,
                 title = stringResource(R.string.delete),
                 subtitle = "Removes this room and its messages from this device.",
-                tint = Color(0xFFFF3B30),
+                tint = LocalAppColors.current.danger,
             ) {
                 broadcastViewModel.leaveChannel(channelName)
                 channelToLeave = null
@@ -507,10 +507,9 @@ fun PublicChatsSettingsSheet(
                         Text("#$name", color = colors.textPrimary, fontSize = 16.sp)
                         if (language != null) Text(language, color = colors.textSecondary, fontSize = 12.sp)
                     }
-                    Switch(
+                    com.kachat.app.ui.theme.IosSwitch(
                         checked = name !in hidden,
-                        onCheckedChange = { shown -> broadcastViewModel.setCuratedRoomShown(name, shown) },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                        onCheckedChange = { shown -> broadcastViewModel.setCuratedRoomShown(name, shown) }
                     )
                 }
             }
@@ -558,7 +557,7 @@ private fun PublicChatRow(
             Icon(
                 imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                 contentDescription = null,
-                tint = if (selected) KaspaTeal else Color.Gray,
+                tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary,
                 modifier = Modifier.padding(end = 12.dp).size(24.dp)
             )
         }
@@ -988,7 +987,7 @@ fun BroadcastChannelScreen(
                 if (sendState.status == BroadcastViewModel.SendBroadcastStatus.FAILED) {
                     Text(
                         sendState.message ?: "Failed to send",
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -1092,9 +1091,9 @@ fun BroadcastChannelScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         IconButton(onClick = { broadcastViewModel.cancelVoiceRecording() }) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = Color(0xFFFF3B30))
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = LocalAppColors.current.danger)
                         }
-                        Icon(Icons.Default.Mic, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
                         Text(
                             text = "Recording... ${formatRecordingElapsed(voiceRecordingState.elapsedMs)}",
                             color = LocalAppColors.current.textPrimary,
@@ -1135,7 +1134,7 @@ fun BroadcastChannelScreen(
                         OutlinedTextField(
                             value = messageText,
                             onValueChange = { broadcastViewModel.setMessageText(it) },
-                            placeholder = { Text("Message #$channelName", color = Color.DarkGray) },
+                            placeholder = { Text("Message #$channelName", color = LocalAppColors.current.textTertiary) },
                             modifier = Modifier
                                 .weight(1f)
                                 .onFocusChanged { composerFocused = it.isFocused },
@@ -1175,7 +1174,7 @@ fun BroadcastChannelScreen(
                                 },
                                 enabled = !sending
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (sending) Color.Gray else KaspaTeal)
+                                Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (sending) LocalAppColors.current.textSecondary else KaspaTeal)
                             }
                         }
                     }
@@ -1816,7 +1815,7 @@ fun BroadcastChannelScreen(
                             messageReactions.firstOrNull { it.deliveryStatus == "failed" }?.let { failedReaction ->
                                 Text(
                                     text = stringResource(R.string.retry),
-                                    color = Color(0xFFFF3B30),
+                                    color = LocalAppColors.current.danger,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
@@ -1871,7 +1870,7 @@ fun BroadcastChannelScreen(
 
 
     if (showFeeEditor) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showFeeEditor = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },

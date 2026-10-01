@@ -377,7 +377,7 @@ fun AddToPortfolioSheet(
             initialHour = now.get(Calendar.HOUR_OF_DAY),
             initialMinute = now.get(Calendar.MINUTE),
         )
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showTimePicker = false },
             containerColor = colors.surface,
             title = { Text("Time", color = colors.textPrimary) },
@@ -433,7 +433,7 @@ fun PortfolioAddedSnackbar(portfolioName: String, onDismiss: () -> Unit) {
             Icon(
                 Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = androidx.compose.ui.graphics.Color(0xFF4CD964),
+                tint = LocalAppColors.current.success,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(8.dp))

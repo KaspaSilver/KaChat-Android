@@ -2263,7 +2263,7 @@ fun KaPostCell(
                                     icon = Icons.Default.Delete,
                                     title = stringResource(R.string.delete),
                                     subtitle = "Takes it out of every feed. The chain keeps the transaction.",
-                                    tint = Color(0xFFFF3B30),
+                                    tint = LocalAppColors.current.danger,
                                 ) {
                                     showOverflow = false
                                     viewModel.deletePost(post)
@@ -2279,7 +2279,7 @@ fun KaPostCell(
                                     icon = Icons.Default.Flag,
                                     title = "Report",
                                     subtitle = "Tell KaChat about abusive or objectionable content. Opens an email with this post attached.",
-                                    tint = Color(0xFFFF3B30),
+                                    tint = LocalAppColors.current.danger,
                                 ) {
                                     showOverflow = false
                                     reportPost(context, post)
@@ -2297,7 +2297,7 @@ fun KaPostCell(
                                     icon = Icons.Default.Block,
                                     title = "Block $name",
                                     subtitle = "Hides their posts and stops them interacting with you.",
-                                    tint = Color(0xFFFF3B30),
+                                    tint = LocalAppColors.current.danger,
                                 ) {
                                     showOverflow = false
                                     viewModel.block(post.posterAddress)
@@ -2590,7 +2590,7 @@ private fun EngagementRow(
     // iOS order and colours: comment, like (red), dislike (orange), repost (accent), bookmark,
     // share, Tip, then the delivery state at the trailing edge. Fixed 18pt gaps rather than
     // evenly spread, so the row reads the same on every width.
-    val likeRed = Color(0xFFFF3B30)
+    val likeRed = LocalAppColors.current.danger
     val dislikeOrange = Color(0xFFFF9500)
     var likeBurst by remember(post.id) { mutableStateOf(false) }
     // The Kaspa-logo burst plays when the like actually lands - after the countdown fires, not
@@ -2794,7 +2794,7 @@ private fun DeliveryState(post: KaPostDraft, onRetry: (() -> Unit)?) {
                 Icon(
                     Icons.Default.CheckCircle,
                     contentDescription = "Posted",
-                    tint = Color(0xFF34C759),
+                    tint = LocalAppColors.current.success,
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -2812,8 +2812,8 @@ private fun DeliveryState(post: KaPostDraft, onRetry: (() -> Unit)?) {
                 .clickable(enabled = onRetry != null) { onRetry?.invoke() }
                 .padding(2.dp),
         ) {
-            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(14.dp))
-            Text("Retry", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Icon(Icons.Default.Error, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(14.dp))
+            Text("Retry", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
     }
 }
@@ -3123,7 +3123,7 @@ fun KaPostComposerDialog(
                         icon = Icons.Default.Delete,
                         title = "Discard",
                         subtitle = "Throw this away.",
-                        tint = Color(0xFFFF3B30),
+                        tint = LocalAppColors.current.danger,
                     ) {
                         showCloseOptions = false
                         onDismiss()
@@ -5403,10 +5403,11 @@ private fun notificationKindIcon(kind: KaPostsViewModel.NotificationItem.Kind): 
 }
 
 /** iOS Item.Kind.tint. */
+@Composable
 private fun notificationKindTint(kind: KaPostsViewModel.NotificationItem.Kind, secondary: Color): Color = when (kind) {
-    KaPostsViewModel.NotificationItem.Kind.LIKE -> Color(0xFFFF3B30)
+    KaPostsViewModel.NotificationItem.Kind.LIKE -> LocalAppColors.current.danger
     KaPostsViewModel.NotificationItem.Kind.DISLIKE -> Color(0xFFFF9500)
-    KaPostsViewModel.NotificationItem.Kind.QUOTE, KaPostsViewModel.NotificationItem.Kind.REPOST -> Color(0xFF34C759)
+    KaPostsViewModel.NotificationItem.Kind.QUOTE, KaPostsViewModel.NotificationItem.Kind.REPOST -> LocalAppColors.current.success
     KaPostsViewModel.NotificationItem.Kind.OTHER -> secondary
     else -> KaspaTeal
 }
@@ -5453,11 +5454,11 @@ fun KaPostTipDialog(
     // The amount drives the live fee preview through the same estimator the chat composer uses.
     LaunchedEffect(amountText) { chatViewModel.setPaymentAmount(amountText) }
 
-    AlertDialog(
+    com.kachat.app.ui.theme.IosAlertDialog(
         onDismissRequest = {
             // A tip in flight cannot be dismissed out from under the send (iOS
             // interactiveDismissDisabled(isSending)).
-            if (isSending) return@AlertDialog
+            if (isSending) return@IosAlertDialog
             chatViewModel.setFeeRateOverride(null)
             chatViewModel.setPaymentAmount("")
             onDismiss()
@@ -6651,7 +6652,7 @@ fun KaPostsToastOverlay(
                 ) {
                     Icon(
                         Icons.Default.CheckCircle, null,
-                        tint = Color(0xFF34C759),
+                        tint = LocalAppColors.current.success,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))

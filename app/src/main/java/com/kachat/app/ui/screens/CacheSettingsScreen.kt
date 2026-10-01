@@ -153,7 +153,7 @@ fun CacheSettingsScreen(
                 SettingsActionItem(
                     label = "Clear All Cache",
                     icon = Icons.Default.DeleteSweep,
-                    color = if (total > 0) Color(0xFFFF3B30) else Color.Gray,
+                    color = if (total > 0) LocalAppColors.current.danger else LocalAppColors.current.textSecondary,
                 ) {
                     if (total > 0) showClearAll = true
                 }

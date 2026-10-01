@@ -533,7 +533,7 @@ fun ChatThreadScreen(
                             onClick = { showDeleteMessagesConfirmation = true },
                             enabled = selectedMessageIds.isNotEmpty()
                         ) {
-                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = Color(0xFFFF3B30))
+                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = LocalAppColors.current.danger)
                         }
                     } else {
                         // Entry point into select mode is a message's long-press "Select" menu
@@ -772,7 +772,7 @@ fun ChatThreadScreen(
                                 placeholder = {
                                     Text(
                                         if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else stringResource(R.string.amount_kas),
-                                        color = Color.DarkGray
+                                        color = LocalAppColors.current.textTertiary
                                     )
                                 },
                                 modifier = Modifier
@@ -927,7 +927,7 @@ fun ChatThreadScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             IconButton(onClick = { chatViewModel.cancelPendingPhoto() }) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_photo), tint = Color(0xFFFF3B30))
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_photo), tint = LocalAppColors.current.danger)
                             }
                             val thumbnailContext = LocalContext.current
                             // Fixed downsample for a quick composition-time thumbnail decode — the real
@@ -1006,9 +1006,9 @@ fun ChatThreadScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             IconButton(onClick = { chatViewModel.cancelVoiceRecording() }) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = Color(0xFFFF3B30))
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = LocalAppColors.current.danger)
                             }
-                            Icon(Icons.Default.Mic, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
                             Text(
                                 text = "Recording... ${formatRecordingElapsed(voiceRecordingState.elapsedMs)}",
                                 color = LocalAppColors.current.textPrimary,
@@ -1761,7 +1761,7 @@ fun ChatThreadScreen(
                                     Icon(
                                         imageVector = if (msg.id in selectedMessageIds) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                         contentDescription = null,
-                                        tint = if (msg.id in selectedMessageIds) KaspaTeal else Color.Gray
+                                        tint = if (msg.id in selectedMessageIds) KaspaTeal else LocalAppColors.current.textSecondary
                                     )
                                 }
                             }
@@ -1805,7 +1805,7 @@ fun ChatThreadScreen(
     }
 
     if (showFeeEditor) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showFeeEditor = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },
@@ -1865,7 +1865,7 @@ fun ChatThreadScreen(
     }
 
     if (showDeleteMessagesConfirmation) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showDeleteMessagesConfirmation = false },
             containerColor = LocalAppColors.current.surface,
             title = {
@@ -1887,7 +1887,7 @@ fun ChatThreadScreen(
                     isSelectingMessages = false
                     selectedMessageIds = emptySet()
                 }) {
-                    Text("Delete", color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                    Text("Delete", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1901,7 +1901,7 @@ fun ChatThreadScreen(
     // A payment that never reached the network leaves no row in the thread, so this is the only
     // place the reason gets said (iOS parity - it alerts and inserts nothing).
     paymentError?.let { message ->
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { paymentError = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Payment Failed", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -2116,7 +2116,7 @@ internal fun PaymentCardBubble(
                 Text(
                     text = "⚠︎ Unverified on-chain",
                     fontSize = 11.sp,
-                    color = if (isSent) Color.White.copy(alpha = 0.9f) else Color(0xFFF39C12)
+                    color = if (isSent) Color.White.copy(alpha = 0.9f) else LocalAppColors.current.warning
                 )
             }
         }
@@ -2403,7 +2403,7 @@ fun MessageBubble(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                             Icon(painterResource(R.drawable.ic_kaspa_logo), null, tint = Color.Unspecified, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(stringResource(R.string.payment), color = Color(0xFFF39C12), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.payment), color = LocalAppColors.current.warning, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Surface(
@@ -2781,7 +2781,7 @@ fun MessageBubble(
         reactions.firstOrNull { it.deliveryStatus == "failed" }?.let { failedReaction ->
             Text(
                 text = stringResource(R.string.retry),
-                color = Color(0xFFFF3B30),
+                color = LocalAppColors.current.danger,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -2838,7 +2838,7 @@ fun FullMessageTextDialog(text: String, onDismiss: () -> Unit, onCopy: () -> Uni
                     Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy), tint = KaspaTeal)
                 }
             }
-            HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
+            HorizontalDivider(color = LocalAppColors.current.textTertiary.copy(alpha = 0.5f))
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -3224,7 +3224,7 @@ fun AudioBubble(voiceContent: VoiceMessageContent, isSent: Boolean, onLongPress:
                 Icon(
                     if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = if (isReady) KaspaTeal else Color.Gray
+                    tint = if (isReady) KaspaTeal else LocalAppColors.current.textSecondary
                 )
             }
             Spacer(Modifier.width(8.dp))
@@ -3319,7 +3319,7 @@ fun AudioFileBubble(file: java.io.File, isSent: Boolean, onLongPress: () -> Unit
                 Icon(
                     if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = if (isReady) KaspaTeal else Color.Gray
+                    tint = if (isReady) KaspaTeal else LocalAppColors.current.textSecondary
                 )
             }
             Spacer(Modifier.width(8.dp))
@@ -3781,7 +3781,7 @@ fun ProfileScreen(
                     }
                 }
                 if (showNotifCenter) {
-                    AlertDialog(
+                    com.kachat.app.ui.theme.IosAlertDialog(
                         onDismissRequest = {
                             notifCenterVm.store.markAllSeen()
                             showNotifCenter = false
@@ -4772,7 +4772,7 @@ fun KnsDomainSendScreen(
             if (transferState.status == WalletViewModel.KnsInscribeUiStatus.SUCCESS) {
                 val result = transferState.result
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(48.dp))
+                    Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.sent), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Spacer(Modifier.height(20.dp))
@@ -4826,7 +4826,7 @@ fun KnsDomainSendScreen(
                 WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL -> InscribeProgressRow(stringResource(R.string.submitting_reveal_transaction))
                 WalletViewModel.KnsInscribeUiStatus.VERIFYING -> InscribeProgressRow(stringResource(R.string.verifying_new_ownership_on_chain_this))
                 WalletViewModel.KnsInscribeUiStatus.FAILED -> {
-                    Text(transferState.errorMessage ?: stringResource(R.string.something_went_wrong), color = Color(0xFFFF3B30))
+                    Text(transferState.errorMessage ?: stringResource(R.string.something_went_wrong), color = LocalAppColors.current.danger)
                 }
                 else -> {
                     Text(stringResource(R.string.recipient_address).uppercase(), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
@@ -4851,8 +4851,8 @@ fun KnsDomainSendScreen(
                         Spacer(Modifier.height(4.dp))
                         when {
                             preview.checking -> Text(stringResource(R.string.resolving), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            preview.errorMessage != null -> Text(preview.errorMessage, color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
-                            preview.resolvedAddress != null -> Text("Resolves to: ${preview.resolvedAddress}", color = Color(0xFF4CD964), style = MaterialTheme.typography.bodySmall)
+                            preview.errorMessage != null -> Text(preview.errorMessage, color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
+                            preview.resolvedAddress != null -> Text("Resolves to: ${preview.resolvedAddress}", color = LocalAppColors.current.success, style = MaterialTheme.typography.bodySmall)
                         }
                     }
 
@@ -5164,10 +5164,9 @@ fun ManageAddressesScreen(
                                 fontSize = 12.sp,
                             )
                         }
-                        Switch(
+                        com.kachat.app.ui.theme.IosSwitch(
                             checked = spendingNotify,
-                            onCheckedChange = { settingsViewModel.setSpendingReceiveNotifications(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                            onCheckedChange = { settingsViewModel.setSpendingReceiveNotifications(it) }
                         )
                     }
                 }
@@ -5389,7 +5388,7 @@ fun ManageAddressesScreen(
 
     if (showConsolidateConfirm) {
         val consolidating = consolidateState.status == WalletViewModel.ConsolidateStatus.RUNNING
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { if (!consolidating) showConsolidateConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.send_all_kaspa_to_primary_spend), color = LocalAppColors.current.textPrimary) },
@@ -5441,7 +5440,7 @@ private fun RenameAddressDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
-    AlertDialog(
+    com.kachat.app.ui.theme.IosAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = LocalAppColors.current.surface,
         title = { Text(stringResource(R.string.rename_address), color = LocalAppColors.current.textPrimary) },
@@ -5823,7 +5822,7 @@ fun AddressVisibilityScreen(
                         )
                         used != null -> Text(
                             if (used) "Used" else "Unused",
-                            color = if (used) Color(0xFFF39C12) else Color(0xFF4CD964),
+                            color = if (used) LocalAppColors.current.warning else LocalAppColors.current.success,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -5837,7 +5836,7 @@ fun AddressVisibilityScreen(
 /** "Make Active Address" confirmation — shared by [ManageAddressesScreen] and [ManageAddressesHiddenScreen]. */
 @Composable
 private fun ActivateAddressDialog(viewModel: WalletViewModel, index: Int, onDismiss: () -> Unit) {
-    AlertDialog(
+    com.kachat.app.ui.theme.IosAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = LocalAppColors.current.surface,
         title = { Text(stringResource(R.string.make_active_address), color = LocalAppColors.current.textPrimary) },
@@ -6065,7 +6064,7 @@ fun SpendingAddressSendFlow(
                 },
                 navigationIcon = {
                     IconButton(onClick = { if (!isSending) onDone() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = if (isSending) Color.Gray else KaspaTeal)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = if (isSending) LocalAppColors.current.textSecondary else KaspaTeal)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -6127,19 +6126,19 @@ fun SpendingAddressSendFlow(
                         }
                     } else if (knsError != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Warning, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(knsError ?: "", color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
+                            Text(knsError ?: "", color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
                         }
                     } else if (knsResolvedAddress != null) {
                         // The domain it resolved, then the address it resolved TO (iOS ColdStorageView).
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     "Resolved: ${knsResolvedDomain ?: KnsService.normalizeDomain(recipientInput.trim())}",
-                                    color = Color(0xFF4CD964),
+                                    color = LocalAppColors.current.success,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
@@ -6157,13 +6156,13 @@ fun SpendingAddressSendFlow(
                             Icon(
                                 if (isValidAddress) Icons.Default.CheckCircle else Icons.Default.Cancel,
                                 null,
-                                tint = if (isValidAddress) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                                tint = if (isValidAddress) LocalAppColors.current.success else LocalAppColors.current.danger,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 stringResource(if (isValidAddress) R.string.valid_address else R.string.invalid_address_format),
-                                color = if (isValidAddress) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                                color = if (isValidAddress) LocalAppColors.current.success else LocalAppColors.current.danger,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -6391,7 +6390,7 @@ fun SpendingAddressSendFlow(
             ) {
                 Text(
                     stringResource(R.string.send),
-                    color = if (!isSending && hasValidRecipient && (amountSompi ?: 0) > 0) Color.Black else Color.Gray,
+                    color = if (!isSending && hasValidRecipient && (amountSompi ?: 0) > 0) Color.Black else LocalAppColors.current.textSecondary,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -6399,7 +6398,7 @@ fun SpendingAddressSendFlow(
     }
 
     if (showFeeEditor) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showFeeEditor = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },
@@ -6840,7 +6839,7 @@ fun SpendingAddressTxHistoryScreen(
     }
 
     labelingUtxoKey?.let { key ->
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { labelingUtxoKey = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_utxo), color = LocalAppColors.current.textPrimary) },
@@ -7246,7 +7245,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     }
 
     labelingUtxoKey?.let { key ->
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { labelingUtxoKey = null },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_utxo), color = LocalAppColors.current.textPrimary) },
@@ -7521,12 +7520,12 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
                     .background(Color(0xFF2C1E1E))
                     .padding(16.dp)
             ) {
-                Icon(Icons.Default.Warning, null, tint = Color(0xFFF39C12), modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Warning, null, tint = LocalAppColors.current.warning, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text(
                         stringResource(R.string.security_warning),
-                        color = Color(0xFFF39C12),
+                        color = LocalAppColors.current.warning,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -7601,7 +7600,7 @@ private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressT
     val dateStr = tx.blockTimeMillis?.let {
         java.text.SimpleDateFormat("MMM d, yyyy, h:mm a", java.util.Locale.US).format(java.util.Date(it))
     } ?: "Pending"
-    val directionColor = if (tx.sent) Color(0xFFFF3B30) else Color(0xFF4CD964)
+    val directionColor = if (tx.sent) LocalAppColors.current.danger else LocalAppColors.current.success
 
     Row(
         modifier = Modifier
@@ -7794,8 +7793,8 @@ private fun ManageAddressRow(
                 // "Unverified" when the probe failed or the row was painted from the snapshot —
                 // a failed check must not masquerade as a fresh address.
                 val (usedTagText, usedTagColor) = when {
-                    entry.everUsed -> "Used" to Color(0xFFF39C12)
-                    entry.liveChecked -> "Unused" to Color(0xFF4CD964)
+                    entry.everUsed -> "Used" to LocalAppColors.current.warning
+                    entry.liveChecked -> "Unused" to LocalAppColors.current.success
                     else -> "Unverified" to LocalAppColors.current.textSecondary
                 }
                 Text(
@@ -8100,7 +8099,7 @@ fun ReactionPill(reactions: List<ReactionEntity>, modifier: Modifier = Modifier,
         color = LocalAppColors.current.surfaceVariant,
         shape = RoundedCornerShape(50),
         shadowElevation = 2.dp,
-        border = if (myStatus == "failed") BorderStroke(1.dp, Color(0xFFFF3B30).copy(alpha = 0.6f)) else null,
+        border = if (myStatus == "failed") BorderStroke(1.dp, LocalAppColors.current.danger.copy(alpha = 0.6f)) else null,
         modifier = modifier
     ) {
         Row(
@@ -8117,13 +8116,13 @@ fun ReactionPill(reactions: List<ReactionEntity>, modifier: Modifier = Modifier,
                 "failed" -> Icon(
                     imageVector = Icons.Default.Error,
                     contentDescription = stringResource(R.string.failed_to_send),
-                    tint = Color(0xFFFF3B30),
+                    tint = LocalAppColors.current.danger,
                     modifier = Modifier.size(11.dp)
                 )
                 "sent" -> Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = Color(0xFF4CD964),
+                    tint = LocalAppColors.current.success,
                     modifier = Modifier.size(11.dp)
                 )
             }
@@ -8503,7 +8502,7 @@ fun EditKnsProfileScreen(
                         onClick = { if (pendingChanges.isNotEmpty()) showSaveDialog = true },
                         enabled = !inFlight && pendingChanges.isNotEmpty()
                     ) {
-                        Text(stringResource(R.string.save), color = if (!inFlight && pendingChanges.isNotEmpty()) KaspaTeal else Color.Gray, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.save), color = if (!inFlight && pendingChanges.isNotEmpty()) KaspaTeal else LocalAppColors.current.textSecondary, fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -8566,7 +8565,7 @@ fun EditKnsProfileScreen(
                                 },
                                 enabled = !inFlight
                             ) {
-                                Text(stringResource(R.string.remove), color = Color(0xFFFF3B30))
+                                Text(stringResource(R.string.remove), color = LocalAppColors.current.danger)
                             }
                         }
                     }
@@ -8600,7 +8599,7 @@ fun EditKnsProfileScreen(
                                 },
                                 enabled = !inFlight
                             ) {
-                                Text(stringResource(R.string.remove), color = Color(0xFFFF3B30))
+                                Text(stringResource(R.string.remove), color = LocalAppColors.current.danger)
                             }
                         }
                     }
@@ -8634,7 +8633,7 @@ fun EditKnsProfileScreen(
             showSaveDialog = false
             viewModel.resetEditProfileState()
         }
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = {
                 when (editState.step) {
                     WalletViewModel.EditProfileStep.IDLE -> showSaveDialog = false
@@ -8688,18 +8687,18 @@ fun EditKnsProfileScreen(
                     }
                     WalletViewModel.EditProfileStep.SUCCESS -> Text(
                         if (editState.fieldResults.isEmpty()) "Nothing to save." else "All changes saved.",
-                        color = Color(0xFF4CD964),
+                        color = LocalAppColors.current.success,
                         fontWeight = FontWeight.Bold
                     )
                     WalletViewModel.EditProfileStep.PARTIAL_FAILURE -> Column {
-                        Text(stringResource(R.string.some_changes_failed_to_save), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.some_changes_failed_to_save), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                         editState.fieldResults.filter { !it.success }.forEach {
                             Text("${it.fieldKey}: ${it.errorMessage ?: "failed"}", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     WalletViewModel.EditProfileStep.FAILED -> Text(
                         editState.fieldResults.firstOrNull { !it.success }?.errorMessage ?: "Save failed",
-                        color = Color(0xFFFF3B30)
+                        color = LocalAppColors.current.danger
                     )
                 }
             },
@@ -8753,7 +8752,7 @@ private fun EditProfileTextField(label: String, value: String, onValueChange: (S
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = LocalAppColors.current.textPrimary,
             unfocusedTextColor = LocalAppColors.current.textPrimary,
-            disabledTextColor = Color.Gray,
+            disabledTextColor = LocalAppColors.current.textSecondary,
             focusedBorderColor = KaspaTeal,
             unfocusedBorderColor = LocalAppColors.current.textSecondary,
             focusedLabelColor = KaspaTeal,
@@ -8825,14 +8824,14 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = Color(0xFFF39C12),
+                    tint = LocalAppColors.current.warning,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
                         text = stringResource(R.string.security_warning),
-                        color = Color(0xFFF39C12),
+                        color = LocalAppColors.current.warning,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -9263,7 +9262,7 @@ fun SettingsScreen(
                 SettingsActionItem(
                     label = if (exportInFlight) "Exporting..." else "Export Chat History",
                     icon = Icons.Default.FileUpload,
-                    color = if (exportInFlight) Color.Gray else KaspaTeal
+                    color = if (exportInFlight) LocalAppColors.current.textSecondary else KaspaTeal
                 ) {
                     if (!exportInFlight) {
                         chatViewModel.exportChatHistory { uri ->
@@ -9279,7 +9278,7 @@ fun SettingsScreen(
                 if (exportChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
                     Text(
                         exportChatHistoryState.message ?: "Export failed",
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -9290,7 +9289,7 @@ fun SettingsScreen(
                 SettingsActionItem(
                     label = if (importInFlight) "Importing..." else "Import Chat History",
                     icon = Icons.Default.FileDownload,
-                    color = if (importInFlight) Color.Gray else KaspaTeal
+                    color = if (importInFlight) LocalAppColors.current.textSecondary else KaspaTeal
                 ) {
                     if (!importInFlight) {
                         importChatHistoryLauncher.launch(arrayOf("application/json"))
@@ -9299,7 +9298,7 @@ fun SettingsScreen(
                 if (importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
                     Text(
                         importChatHistoryState.message ?: "Import complete",
-                        color = Color(0xFF4CD964),
+                        color = LocalAppColors.current.success,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -9307,7 +9306,7 @@ fun SettingsScreen(
                 if (importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
                     Text(
                         importChatHistoryState.message ?: "Import failed",
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -9336,7 +9335,7 @@ fun SettingsScreen(
                 SettingsActionItem(
                     label = "Wipe and Re-sync Incoming Messages",
                     icon = Icons.Default.Cached,
-                    color = if (resyncInFlight) Color.Gray else Color.Red
+                    color = if (resyncInFlight) LocalAppColors.current.textSecondary else Color.Red
                 ) {
                     if (!resyncInFlight) showResyncScopeDialog = true
                 }
@@ -9356,7 +9355,7 @@ fun SettingsScreen(
                             icon = Icons.Default.Cached,
                             title = "All Chats",
                             subtitle = "Removes every incoming message from this device, then re-syncs them from the blockchain. Sent messages and account info are kept.",
-                            tint = Color(0xFFFF3B30),
+                            tint = LocalAppColors.current.danger,
                         ) {
                             showResyncScopeDialog = false
                             chatViewModel.wipeAndResyncIncomingMessages(null)
@@ -9481,7 +9480,7 @@ private fun ResyncChatPickerOverlay(
                         Text(
                             text = KaspaAddress.shortDisplay(convo.contact.id),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
+                            color = LocalAppColors.current.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -9696,15 +9695,9 @@ fun SettingsSwitchItem(label: String, checked: Boolean, onCheckedChange: (Boolea
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f).padding(end = 12.dp)
         )
-        Switch(
+        com.kachat.app.ui.theme.IosSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = KaspaTeal,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color.Gray
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }
@@ -9881,7 +9874,7 @@ fun DiagnosticsSettingsItems(chatViewModel: ChatViewModel = hiltViewModel()) {
     SettingsActionItem(
         label = if (diagnosticsExportInFlight) "Exporting..." else "Export Diagnostics Archive",
         icon = Icons.Default.BugReport,
-        color = if (diagnosticsExportInFlight) Color.Gray else KaspaTeal
+        color = if (diagnosticsExportInFlight) LocalAppColors.current.textSecondary else KaspaTeal
     ) {
         if (!diagnosticsExportInFlight) {
             chatViewModel.exportDiagnostics { uri ->
@@ -9897,7 +9890,7 @@ fun DiagnosticsSettingsItems(chatViewModel: ChatViewModel = hiltViewModel()) {
     if (diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
         Text(
             diagnosticsExportState.message ?: "Export failed",
-            color = Color(0xFFFF3B30),
+            color = LocalAppColors.current.danger,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
@@ -10138,7 +10131,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                     SettingsDivider()
                     Text(
                         stringResource(R.string.node_connections_blocked),
-                        color = Color(0xFFF39C12),
+                        color = LocalAppColors.current.warning,
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
                         modifier = Modifier.padding(16.dp)
@@ -10152,9 +10145,9 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        PoolStatItem(stringResource(R.string.active), activeNodes.size.toString(), Color(0xFF4CD964))
+                        PoolStatItem(stringResource(R.string.active), activeNodes.size.toString(), LocalAppColors.current.success)
                         PoolStatItem(stringResource(R.string.verified), verifiedCount.toString(), Color(0xFF2196F3))
-                        PoolStatItem(stringResource(R.string.total), allNodes.size.toString(), Color.Gray)
+                        PoolStatItem(stringResource(R.string.total), allNodes.size.toString(), LocalAppColors.current.textSecondary)
                     }
                     SettingsDivider()
                     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -10201,7 +10194,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CD964), CircleShape))
+                        Box(modifier = Modifier.size(8.dp).background(LocalAppColors.current.success, CircleShape))
                         Spacer(Modifier.width(8.dp))
                         Text(text = stringResource(R.string.active_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
                     }
@@ -10222,7 +10215,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).background(Color.Gray, CircleShape))
+                        Box(modifier = Modifier.size(8.dp).background(LocalAppColors.current.textSecondary, CircleShape))
                         Spacer(Modifier.width(8.dp))
                         Text(text = stringResource(R.string.other_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
                     }
@@ -10328,7 +10321,7 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.notifications_are_off_in_system_settings), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.notifications_are_off_in_system_settings), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(
                             stringResource(R.string.kachat_can_t_show_notifications_until),
@@ -10507,7 +10500,7 @@ fun QuickReactionSettingsScreen(onBack: () -> Unit, settingsViewModel: SettingsV
             TextButton(onClick = {
                 settingsViewModel.setQuickReactionEmojis(com.kachat.app.repository.AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
             }) {
-                Text("Reset to Default", color = Color(0xFFFF3B30))
+                Text("Reset to Default", color = LocalAppColors.current.danger)
             }
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -10688,7 +10681,7 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
         TextField(
             value = newLabel,
             onValueChange = { newLabel = it },
-            placeholder = { Text(stringResource(R.string.label_optional), color = Color.DarkGray) },
+            placeholder = { Text(stringResource(R.string.label_optional), color = LocalAppColors.current.textTertiary) },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).height(50.dp).clip(RoundedCornerShape(12.dp)),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = LocalAppColors.current.surfaceVariant,
@@ -10707,7 +10700,7 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
             TextField(
                 value = newAddress,
                 onValueChange = { newAddress = it; addError = null },
-                placeholder = { Text(stringResource(R.string.host_port_or_grpcs_host), color = Color.DarkGray) },
+                placeholder = { Text(stringResource(R.string.host_port_or_grpcs_host), color = LocalAppColors.current.textTertiary) },
                 modifier = Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(12.dp)),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = LocalAppColors.current.surfaceVariant,
@@ -10739,7 +10732,7 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
             }
         }
         addError?.let {
-            Text(it, color = Color(0xFFFF3B30), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            Text(it, color = LocalAppColors.current.danger, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
 
         if (savedNodeAddresses.isEmpty()) {
@@ -10956,7 +10949,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     if (editingKapostIndexerUrl) {
         var draft by remember { mutableStateOf(kapostIndexerUrl) }
         var rejected by remember { mutableStateOf(false) }
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { editingKapostIndexerUrl = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("KaPost Indexer URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -10993,7 +10986,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
 
     if (editingTranslationUrl) {
         var draft by remember { mutableStateOf(translationServiceUrl) }
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { editingTranslationUrl = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Translation Service URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -11099,7 +11092,7 @@ fun ActiveNodeRow(node: NodeInfo) {
             Row {
                 Text(node.type, color = Color(0xFF2196F3), fontSize = 10.sp)
                 Spacer(Modifier.width(8.dp))
-                Text(node.latency, color = Color(0xFFF39C12), fontSize = 10.sp)
+                Text(node.latency, color = LocalAppColors.current.warning, fontSize = 10.sp)
             }
             Text("DAA: ${node.daaScore}", color = LocalAppColors.current.textSecondary, fontSize = 10.sp)
         }
@@ -11126,7 +11119,7 @@ fun AllNodeRow(node: NodeInfo) {
         }
         Spacer(Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(node.latency, color = Color(0xFFF39C12), fontSize = 10.sp)
+            Text(node.latency, color = LocalAppColors.current.warning, fontSize = 10.sp)
             Spacer(Modifier.width(8.dp))
             Box(modifier = Modifier.background(Color(0x33FF3B30), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
                 Text(node.status, color = Color(node.color), fontSize = 10.sp, maxLines = 1)
@@ -11631,7 +11624,7 @@ fun CreateChatScreen(
         val k = selectedMemberAddresses.size
         val txCount = k + 1
         val fee = chatViewModel.estimateGroupControlTxFeeSompi(1600) * txCount
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showCreateGroupConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Create group", color = LocalAppColors.current.textPrimary) },
@@ -11683,7 +11676,7 @@ fun CreateChatScreen(
                                 onClick = { showCreateGroupConfirm = true },
                                 enabled = canCreateGroup
                             ) {
-                                Text(stringResource(R.string.create), color = if (canCreateGroup) KaspaTeal else Color.DarkGray, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.create), color = if (canCreateGroup) KaspaTeal else LocalAppColors.current.textTertiary, fontWeight = FontWeight.Bold)
                             }
                         }
                     } else {
@@ -11708,7 +11701,7 @@ fun CreateChatScreen(
                             },
                             enabled = isValidAddress
                         ) {
-                            Text(stringResource(R.string.add), color = if (isValidAddress) KaspaTeal else Color.DarkGray, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.add), color = if (isValidAddress) KaspaTeal else LocalAppColors.current.textTertiary, fontWeight = FontWeight.Bold)
                         }
                     }
                 },
@@ -11749,7 +11742,7 @@ fun CreateChatScreen(
                     TextField(
                         value = address,
                         onValueChange = { address = it },
-                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = Color.DarkGray) },
+                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = LocalAppColors.current.textTertiary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp)),
@@ -11774,19 +11767,19 @@ fun CreateChatScreen(
                     } else if (looksLikeKnsDomain && knsError != null) {
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(knsError ?: "", color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                     } else if (isValidAddress) {
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = if (looksLikeKnsDomain) "Resolved: ${knsResolvedDomain ?: ""} ${knsResolvedAddress?.takeLast(12) ?: ""}".trim() else stringResource(R.string.valid_address),
-                                color = Color(0xFF4CD964),
+                                color = LocalAppColors.current.success,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -11916,7 +11909,7 @@ fun CreateChatScreen(
                 TextField(
                     value = address,
                     onValueChange = { address = it },
-                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = Color.DarkGray) },
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = LocalAppColors.current.textTertiary) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -11939,9 +11932,9 @@ fun CreateChatScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (looksLikeKnsDomain && knsError != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(knsError ?: "", color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -11949,11 +11942,11 @@ fun CreateChatScreen(
                     // The domain it resolved, then the address it resolved TO - reading the whole
                     // address back is how you tell you typed the right name (iOS AddContactView).
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = "Resolved: ${knsResolvedDomain ?: com.kachat.app.services.KnsService.normalizeDomain(address.trim())}",
-                            color = Color(0xFF4CD964),
+                            color = LocalAppColors.current.success,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -11974,13 +11967,13 @@ fun CreateChatScreen(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF4CD964),
+                            tint = LocalAppColors.current.success,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.valid_address),
-                            color = Color(0xFF4CD964),
+                            color = LocalAppColors.current.success,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -12069,9 +12062,9 @@ fun CreateChatScreen(
                 importErrorMessage?.let { message ->
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(message, color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(message, color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -12140,7 +12133,7 @@ fun CreateChatScreen(
                         TextField(
                             value = pickerSearchText,
                             onValueChange = { pickerSearchText = it },
-                            placeholder = { Text("Search contacts", color = Color.DarkGray) },
+                            placeholder = { Text("Search contacts", color = LocalAppColors.current.textTertiary) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Search,
@@ -12462,7 +12455,7 @@ fun GroupChatCreationFields(
         TextField(
             value = groupName,
             onValueChange = onGroupNameChange,
-            placeholder = { Text(stringResource(R.string.group_name_2), color = Color.DarkGray) },
+            placeholder = { Text(stringResource(R.string.group_name_2), color = LocalAppColors.current.textTertiary) },
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp)),
@@ -12548,7 +12541,7 @@ fun GroupChatCreationFields(
         TextField(
             value = searchText,
             onValueChange = onSearchTextChange,
-            placeholder = { Text("Search name or address", color = Color.DarkGray) },
+            placeholder = { Text("Search name or address", color = LocalAppColors.current.textTertiary) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -12616,9 +12609,9 @@ fun GroupChatCreationFields(
     errorMessage?.let { message ->
         Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Warning, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(8.dp))
-            Text(message, color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(message, color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 
@@ -13096,10 +13089,9 @@ fun ChatInfoScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Allow calls and video calls", color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
-                        Switch(
+                        com.kachat.app.ui.theme.IosSwitch(
                             checked = callsAllowed,
-                            onCheckedChange = { allowed -> setCalls(allowed) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = KaspaTeal),
+                            onCheckedChange = { allowed -> setCalls(allowed) }
                         )
                     }
                 }
@@ -13269,9 +13261,9 @@ fun ChatInfoScreen(
                                 modifier = Modifier.clickable { chatViewModel.unlinkSystemContact(contactId) },
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.RemoveCircleOutline, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.RemoveCircleOutline, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.unlink), color = Color(0xFFFF3B30), fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.unlink), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

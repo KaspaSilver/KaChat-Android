@@ -178,7 +178,7 @@ fun ChattingAddressPickerScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.could_not_derive_addresses),
-                    color = Color(0xFFFF3B30),
+                    color = LocalAppColors.current.danger,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -450,7 +450,7 @@ private fun ChattingAddressDetailScreen(
                     Spacer(Modifier.height(12.dp))
                     Text(
                         stringResource(R.string.could_not_derive_addresses),
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
@@ -484,7 +484,7 @@ private fun ChattingAddressDetailScreen(
     }
 
     if (showConfirmation) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showConfirmation = false },
             containerColor = LocalAppColors.current.surface,
             title = {

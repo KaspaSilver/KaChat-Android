@@ -579,10 +579,10 @@ private fun KnsDomainCreationStep(
                 domainPreview?.let { preview ->
                     when {
                         preview.checking -> Text(stringResource(R.string.checking_availability), color = LocalAppColors.current.textSecondary)
-                        preview.errorMessage != null -> Text(preview.errorMessage, color = Color(0xFFFF3B30))
-                        preview.available == false -> Text("${preview.label}.kas is not available", color = Color(0xFFFF3B30))
+                        preview.errorMessage != null -> Text(preview.errorMessage, color = LocalAppColors.current.danger)
+                        preview.available == false -> Text("${preview.label}.kas is not available", color = LocalAppColors.current.danger)
                         preview.available == true && preview.isReserved -> {
-                            Text("${preview.label}.kas is available", color = Color(0xFF4CD964), fontWeight = FontWeight.Bold)
+                            Text("${preview.label}.kas is available", color = LocalAppColors.current.success, fontWeight = FontWeight.Bold)
                             Text(
                                 stringResource(R.string.reserved_domain_no_registration_fee_only),
                                 color = LocalAppColors.current.textSecondary,
@@ -590,7 +590,7 @@ private fun KnsDomainCreationStep(
                             )
                         }
                         preview.available == true -> {
-                            Text("${preview.label}.kas is available", color = Color(0xFF4CD964), fontWeight = FontWeight.Bold)
+                            Text("${preview.label}.kas is available", color = LocalAppColors.current.success, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
                             val revealKas = preview.revealKas ?: 0.0
                             Text(
@@ -623,7 +623,7 @@ private fun KnsDomainCreationStep(
             WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL -> KnsInscribeProgressRow(stringResource(R.string.submitting_reveal_transaction_this_could_take))
             WalletViewModel.KnsInscribeUiStatus.VERIFYING -> KnsInscribeProgressRow(stringResource(R.string.verifying_on_chain_this_could_take))
             WalletViewModel.KnsInscribeUiStatus.FAILED -> {
-                Text(knsInscribeState.errorMessage ?: "Something went wrong", color = Color(0xFFFF3B30))
+                Text(knsInscribeState.errorMessage ?: "Something went wrong", color = LocalAppColors.current.danger)
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = { viewModel.resetKnsInscribeState() },
@@ -751,7 +751,7 @@ private fun KnsImageInscribeStep(
             editProfileState.step == WalletViewModel.EditProfileStep.PARTIAL_FAILURE
         ) {
             Spacer(Modifier.height(12.dp))
-            Text(editProfileState.errorMessage ?: "Something went wrong", color = Color(0xFFFF3B30))
+            Text(editProfileState.errorMessage ?: "Something went wrong", color = LocalAppColors.current.danger)
         }
 
         if (isSubmitting) {
@@ -849,7 +849,7 @@ private fun KnsDetailsStep(
 
         if (editProfileState.step == WalletViewModel.EditProfileStep.FAILED) {
             Spacer(Modifier.height(8.dp))
-            Text(editProfileState.errorMessage ?: "Something went wrong", color = Color(0xFFFF3B30))
+            Text(editProfileState.errorMessage ?: "Something went wrong", color = LocalAppColors.current.danger)
         }
 
         if (isSubmitting) {
@@ -918,7 +918,7 @@ private fun KnsDetailField(
                 isDoneThisField -> Icon(
                     Icons.Default.CheckCircle,
                     contentDescription = stringResource(R.string.done),
-                    tint = Color(0xFF4CD964),
+                    tint = LocalAppColors.current.success,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -948,7 +948,7 @@ private fun KnsSimpleConfirmStep(message: String, buttonLabel: String?, onContin
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(64.dp))
+        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(64.dp))
         Spacer(Modifier.height(20.dp))
         Text(
             message,

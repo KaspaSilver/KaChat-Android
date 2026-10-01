@@ -13,44 +13,51 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 // KaChat brand colors — inspired by Kaspa's blue/teal palette
-val KaspaBlue    = Color(0xFF71D2C1) // Updated to match iOS teal/cyan
-val KaspaTeal    = Color(0xFF71D2C1) // Updated to match iOS teal/cyan
+// iOS's AccentColor asset exactly: sRGB (0.439, 0.780, 0.729) = #70C7BA, the same in both themes.
+val KaspaBlue    = Color(0xFF70C7BA)
+val KaspaTeal    = Color(0xFF70C7BA)
 val KaspaDark    = Color(0xFF000000) // True black background for iOS look
 val KaspaNavy    = Color(0xFF121212) // Slightly lighter black for surfaces
 val KaspaCard    = Color(0xFF1E1E1E) // For "Saved Accounts" card style
 val KaspaBorder  = Color(0xFF333333)
 val KaspaText    = Color(0xFFFFFFFF)
-val KaspaSubtext = Color(0xFFAAAAAA)
+val KaspaSubtext = Color(0xFF8D8D93)
 val KaspaError   = Color(0xFFFC8181)
 
 private val DarkColorScheme = darkColorScheme(
     primary          = KaspaTeal,
-    onPrimary        = Color.Black, // Text on primary button is black/white depending on contrast, iOS uses white usually but the teal is light
-    primaryContainer = Color(0xFF1A3A5C),
+    onPrimary        = Color.Black,
+    primaryContainer = KaspaTeal.copy(alpha = 0.2f),
     secondary        = KaspaTeal,
     onSecondary      = Color.Black,
-    background       = KaspaDark,
-    onBackground     = KaspaText,
-    surface          = KaspaNavy,
-    onSurface        = KaspaText,
-    surfaceVariant   = KaspaCard,
-    outline          = KaspaBorder,
-    error            = KaspaError,
+    background       = Color.Black,
+    onBackground     = Color.White,
+    surface          = Color(0xFF1C1C1E),
+    onSurface        = Color.White,
+    surfaceVariant   = Color(0xFF2C2C2E),
+    onSurfaceVariant = Color(0xFF8D8D93),
+    surfaceContainerHigh = Color(0xFF2C2C2E),
+    surfaceContainer = Color(0xFF1C1C1E),
+    outline          = Color(0xFF38383A),
+    error            = Color(0xFFFF453A),
 )
 
+// Whatever Material component still reads the scheme gets iOS's colours: the accent in both themes
+// (iOS has one AccentColor), the grouped backgrounds, label colours and systemRed.
 private val LightColorScheme = lightColorScheme(
-    primary          = Color(0xFF0077CC),
-    onPrimary        = Color.White,
-    primaryContainer = Color(0xFFD0E8FF),
-    secondary        = Color(0xFF009E7A),
-    onSecondary      = Color.White,
-    background       = Color(0xFFF8FAFC),
-    onBackground     = Color(0xFF1A202C),
+    primary          = KaspaTeal,
+    onPrimary        = Color.Black,
+    primaryContainer = KaspaTeal.copy(alpha = 0.2f),
+    secondary        = KaspaTeal,
+    onSecondary      = Color.Black,
+    background       = Color(0xFFF2F2F7),
+    onBackground     = Color.Black,
     surface          = Color.White,
-    onSurface        = Color(0xFF1A202C),
-    surfaceVariant   = Color(0xFFF1F5F9),
-    outline          = Color(0xFFCBD5E0),
-    error            = Color(0xFFE53E3E),
+    onSurface        = Color.Black,
+    surfaceVariant   = Color(0xFFE5E5EA),
+    onSurfaceVariant = Color(0xFF8A8A8E),
+    outline          = Color(0xFFC6C6C8),
+    error            = Color(0xFFFF3B30),
 )
 
 /**
@@ -68,6 +75,8 @@ data class AppColors(
     val surfaceVariant: Color,
     val textPrimary: Color,
     val textSecondary: Color,
+    /** iOS `tertiaryLabel` - placeholders and the faintest captions. */
+    val textTertiary: Color,
     val divider: Color,
     val accent: Color,
     val textOnAccent: Color,
@@ -84,35 +93,41 @@ data class AppColors(
     val incomingBubble: Color
 )
 
+// iOS system colours, dark appearance: systemGroupedBackground / secondarySystemGroupedBackground /
+// tertiary, label / secondaryLabel / tertiaryLabel (as they render on black), the opaque separator,
+// and systemGreen / systemOrange / systemRed.
 val DarkAppColors = AppColors(
     background     = Color.Black,
     surface        = Color(0xFF1C1C1E),
     surfaceVariant = Color(0xFF2C2C2E),
     textPrimary    = Color.White,
-    textSecondary  = Color.Gray,
-    divider        = Color.White.copy(alpha = 0.08f),
+    textSecondary  = Color(0xFF8D8D93),
+    textTertiary   = Color(0xFF48484A),
+    divider        = Color(0xFF38383A),
     accent         = KaspaTeal,
     textOnAccent   = Color.Black,
-    success        = Color(0xFF4CD964),
-    warning        = Color(0xFFF39C12),
-    danger         = Color(0xFFFF3B30),
+    success        = Color(0xFF30D158),
+    warning        = Color(0xFFFF9F0A),
+    danger         = Color(0xFFFF453A),
     outgoingBubble = Color(0xFF167368),
     onOutgoingBubble = Color.White,
     incomingBubble = Color(0xFF2C2C2E)
 )
 
+// The same iOS system colours, light appearance.
 val LightAppColors = AppColors(
     background     = Color(0xFFF2F2F7),
     surface        = Color.White,
-    surfaceVariant = Color(0xFFE9E9EE),
-    textPrimary    = Color(0xFF1A1A1A),
-    textSecondary  = Color(0xFF6B6B70),
-    divider        = Color.Black.copy(alpha = 0.08f),
+    surfaceVariant = Color(0xFFE5E5EA),
+    textPrimary    = Color.Black,
+    textSecondary  = Color(0xFF8A8A8E),
+    textTertiary   = Color(0xFFC4C4C6),
+    divider        = Color(0xFFC6C6C8),
     accent         = KaspaTeal,
     textOnAccent   = Color.Black,
-    success        = Color(0xFF2E9E4F),
-    warning        = Color(0xFFB9740A),
-    danger         = Color(0xFFD32F2F),
+    success        = Color(0xFF34C759),
+    warning        = Color(0xFFFF9500),
+    danger         = Color(0xFFFF3B30),
     outgoingBubble = Color(0xFF70C7BA),
     onOutgoingBubble = Color.White,
     incomingBubble = Color(0xFFE5E5EA)

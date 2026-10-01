@@ -197,7 +197,7 @@ fun NextcloudPickerDialog(
             if (errorMessage != null) {
                 Text(
                     errorMessage!!,
-                    color = Color(0xFFFF3B30),
+                    color = LocalAppColors.current.danger,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
@@ -457,7 +457,7 @@ fun NextcloudFolderSelectDialog(
             if (errorMessage != null) {
                 Text(
                     errorMessage!!,
-                    color = Color(0xFFFF3B30),
+                    color = LocalAppColors.current.danger,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
@@ -743,7 +743,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Use https. Unencrypted connections are not supported.",
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -783,7 +783,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         connectState.message ?: "Could not connect",
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -833,7 +833,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             SettingsActionItem(
                 label = if (backupInFlight) "Backing Up..." else "Back Up Messages Now",
                 icon = Icons.Default.CloudUpload,
-                color = if (backupInFlight) Color.Gray else KaspaTeal
+                color = if (backupInFlight) LocalAppColors.current.textSecondary else KaspaTeal
             ) {
                 if (!backupInFlight) chatViewModel.nextcloudBackupNow()
             }
@@ -857,7 +857,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             SettingsActionItem(
                 label = if (restoreInFlight) "Restoring..." else "Restore from Nextcloud",
                 icon = Icons.Default.CloudDownload,
-                color = if (restoreInFlight) Color.Gray else KaspaTeal
+                color = if (restoreInFlight) LocalAppColors.current.textSecondary else KaspaTeal
             ) {
                 // Progress and terminal states (success/failure) show in the blocking restore
                 // modal (ChatRestoreProgressOverlay), not as footer rows here.
@@ -868,7 +868,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             SettingsActionItem(
                 label = "Disconnect",
                 icon = Icons.Default.CloudOff,
-                color = Color(0xFFFF3B30)
+                color = LocalAppColors.current.danger
             ) {
                 chatViewModel.disconnectNextcloud()
             }
@@ -898,7 +898,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
         )
     }
     if (showRestoreConfirm) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showRestoreConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text("Restore from Nextcloud?", color = LocalAppColors.current.textPrimary) },

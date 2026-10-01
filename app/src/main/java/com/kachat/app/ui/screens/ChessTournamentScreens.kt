@@ -435,7 +435,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
 
     if (showCreate) {
         val duel = mode == ChessLobbyMode.DUEL
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { if (!isCreating) showCreate = false },
             title = { Text(if (duel) "Create a private 1v1" else "Create a private tournament") },
             text = {
@@ -470,7 +470,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
     }
 
     if (showJoinPrivate) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { if (!isJoining) showJoinPrivate = false },
             title = { Text("Join with a code") },
             text = {
@@ -1767,7 +1767,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
     }
 
     if (showCancelConfirm && tournament != null) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showCancelConfirm = false },
             title = { Text("Cancel this tournament?") },
             text = { Text("Everyone who joined is released. This is one transaction.") },

@@ -374,7 +374,7 @@ private fun ChildModePasswordDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    AlertDialog(
+    com.kachat.app.ui.theme.IosAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = LocalAppColors.current.surface,
         title = { Text(title, color = LocalAppColors.current.textPrimary) },
@@ -388,7 +388,7 @@ private fun ChildModePasswordDialog(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     helper,
-                    color = if (helperIsError) Color(0xFFFF3B30) else LocalAppColors.current.textSecondary,
+                    color = if (helperIsError) LocalAppColors.current.danger else LocalAppColors.current.textSecondary,
                     fontSize = 12.sp
                 )
             }

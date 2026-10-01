@@ -333,7 +333,7 @@ fun SenderActionsSheet(
                 icon = Icons.Default.VisibilityOff,
                 title = stringResource(R.string.hide_user),
                 subtitle = hideSubtitle,
-                tint = Color(0xFFFF3B30),
+                tint = LocalAppColors.current.danger,
             ) { onDismiss(); onHide() }
         }
     }
@@ -584,7 +584,7 @@ fun RepostActionsSheet(
             } else {
                 "Shares it to your followers as-is."
             },
-            tint = if (isReposted) Color(0xFFFF3B30) else KaspaTeal,
+            tint = if (isReposted) LocalAppColors.current.danger else KaspaTeal,
         ) { onDismiss(); onRepost() }
         ActionSheetRow(
             icon = Icons.Default.FormatQuote,
@@ -625,7 +625,7 @@ fun ConfirmActionSheet(
             icon = confirmIcon,
             title = confirmTitle,
             subtitle = confirmSubtitle,
-            tint = if (isDestructive) Color(0xFFFF3B30) else KaspaTeal,
+            tint = if (isDestructive) LocalAppColors.current.danger else KaspaTeal,
             onClick = { onDismiss(); onConfirm() },
         )
         if (secondaryTitle != null && secondarySubtitle != null && secondaryIcon != null && onSecondary != null) {
@@ -633,7 +633,7 @@ fun ConfirmActionSheet(
                 icon = secondaryIcon,
                 title = secondaryTitle,
                 subtitle = secondarySubtitle,
-                tint = Color(0xFFFF3B30),
+                tint = LocalAppColors.current.danger,
                 onClick = { onDismiss(); onSecondary() },
             )
         }
@@ -694,7 +694,7 @@ fun SentConfirmationSheet(
             Icon(
                 Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = Color(0xFF4CD964),
+                tint = LocalAppColors.current.success,
                 modifier = Modifier.size(52.dp),
             )
             Spacer(Modifier.height(12.dp))
@@ -806,9 +806,9 @@ fun DeliveryStatusLabel(
 ) {
     val colors = LocalAppColors.current
     val tint = when (status) {
-        DeliveryStatus.SENT -> if (compact) colors.textSecondary else Color(0xFF4CD964)
+        DeliveryStatus.SENT -> if (compact) colors.textSecondary else LocalAppColors.current.success
         DeliveryStatus.PENDING -> colors.textSecondary
-        DeliveryStatus.FAILED -> Color(0xFFFF3B30)
+        DeliveryStatus.FAILED -> LocalAppColors.current.danger
         DeliveryStatus.WARNING -> Color(0xFFFF9500)
     }
     val icon = when (status) {

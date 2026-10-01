@@ -214,7 +214,7 @@ private fun SeedSlot(
             color = when {
                 word.isEmpty() -> LocalAppColors.current.textSecondary
                 isValidWord || active -> LocalAppColors.current.textPrimary
-                else -> Color(0xFFFF3B30)
+                else -> LocalAppColors.current.danger
             },
             fontFamily = FontFamily.Monospace,
             fontSize = 13.sp,

@@ -436,7 +436,7 @@ fun ColdStorageListScreen(
                 if (isInvalid) {
                     Text(
                         importState.errorMessage ?: "Not a valid kpub",
-                        color = Color(0xFFFF3B30),
+                        color = LocalAppColors.current.danger,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -721,7 +721,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.remove_cold_storage_account), color = LocalAppColors.current.textPrimary) },
@@ -1013,7 +1013,7 @@ fun ColdStorageAddressVisibilityScreen(
                         )
                         used != null -> Text(
                             if (used) "Used" else "Unused",
-                            color = if (used) Color(0xFFF39C12) else Color(0xFF4CD964),
+                            color = if (used) LocalAppColors.current.warning else LocalAppColors.current.success,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1091,8 +1091,8 @@ private fun ColdAddressRow(
                     // "Unverified" for snapshot-painted or failed-check rows — a failed check
                     // must not masquerade as a fresh address.
                     val (usedTagText, usedTagColor) = when {
-                        row.hasHistory -> "Used" to Color(0xFFF39C12)
-                        row.liveChecked -> "Unused" to Color(0xFF4CD964)
+                        row.hasHistory -> "Used" to LocalAppColors.current.warning
+                        row.liveChecked -> "Unused" to LocalAppColors.current.success
                         else -> "Unverified" to LocalAppColors.current.textSecondary
                     }
                     Text(
@@ -1400,7 +1400,7 @@ private fun ColdSendFlow(
                 title = { Text(stringResource(R.string.send_from_cold_storage), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { if (!inFlight) onDone() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = if (inFlight) Color.Gray else KaspaTeal)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = if (inFlight) LocalAppColors.current.textSecondary else KaspaTeal)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -1485,19 +1485,19 @@ private fun ColdSendFlow(
                                 }
                             } else if (knsError != null) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Warning, null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Warning, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(8.dp))
-                                    Text(knsError ?: "", color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
+                                    Text(knsError ?: "", color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
                                 }
                             } else if (knsResolvedAddress != null) {
                                 // The domain it resolved, then the address it resolved TO (iOS ColdStorageView).
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(8.dp))
                                         Text(
                                             "Resolved: ${knsResolvedDomain ?: KnsService.normalizeDomain(toAddress.trim())}",
-                                            color = Color(0xFF4CD964),
+                                            color = LocalAppColors.current.success,
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
@@ -1515,13 +1515,13 @@ private fun ColdSendFlow(
                                     Icon(
                                         if (isValidRecipient) Icons.Default.CheckCircle else Icons.Default.Cancel,
                                         null,
-                                        tint = if (isValidRecipient) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                                        tint = if (isValidRecipient) LocalAppColors.current.success else LocalAppColors.current.danger,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text(
                                         stringResource(if (isValidRecipient) R.string.valid_address else R.string.invalid_address_format),
-                                        color = if (isValidRecipient) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                                        color = if (isValidRecipient) LocalAppColors.current.success else LocalAppColors.current.danger,
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -1702,7 +1702,7 @@ private fun ColdSendFlow(
                         style = MaterialTheme.typography.bodySmall
                     )
                     if (sendState.step == ColdStorageViewModel.ColdSendStep.FAILED) {
-                        Text(sendState.errorMessage ?: "Something went wrong", color = Color(0xFFFF3B30), style = MaterialTheme.typography.bodySmall)
+                        Text(sendState.errorMessage ?: "Something went wrong", color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(8.dp))
                     Button(
@@ -1725,7 +1725,7 @@ private fun ColdSendFlow(
                     ) {
                         Text(
                             stringResource(R.string.build_unsigned_transaction),
-                            color = if (hasValidRecipient && (amountSompi ?: 0) > 0) Color.Black else Color.Gray,
+                            color = if (hasValidRecipient && (amountSompi ?: 0) > 0) Color.Black else LocalAppColors.current.textSecondary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1795,7 +1795,7 @@ private fun ColdSendFlow(
 
                 ColdStorageViewModel.ColdSendStep.SUCCESS -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(48.dp))
+                        Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(12.dp))
                         Text(stringResource(R.string.sent), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(20.dp))
@@ -1838,7 +1838,7 @@ private fun ColdSendFlow(
     }
 
     if (showFeeEditor) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showFeeEditor = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },
@@ -2484,7 +2484,7 @@ private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction,
     val dateStr = tx.blockTimeMillis?.let {
         SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(it))
     } ?: "Pending"
-    val directionColor = if (tx.sent) Color(0xFFFF3B30) else Color(0xFF4CD964)
+    val directionColor = if (tx.sent) LocalAppColors.current.danger else LocalAppColors.current.success
 
     Row(
         modifier = Modifier

@@ -310,7 +310,7 @@ fun WelcomeScreen(
                         // they have to remove it there.
                         deleteAccountError?.let { failure ->
                             Surface(
-                                color = Color(0xFFFF3B30).copy(alpha = 0.12f),
+                                color = LocalAppColors.current.danger.copy(alpha = 0.12f),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -318,7 +318,7 @@ fun WelcomeScreen(
                             ) {
                                 Text(
                                     failure,
-                                    color = Color(0xFFFF3B30),
+                                    color = LocalAppColors.current.danger,
                                     fontSize = 13.sp,
                                     modifier = Modifier.padding(12.dp),
                                 )
@@ -484,7 +484,7 @@ fun SavedAccountCard(
                 icon = Icons.Default.Delete,
                 title = stringResource(R.string.delete),
                 subtitle = "Removes this account and its local data from this device.",
-                tint = Color(0xFFFF3B30),
+                tint = LocalAppColors.current.danger,
             ) {
                 showMenu = false
                 showDeleteConfirm = true
@@ -493,7 +493,7 @@ fun SavedAccountCard(
     }
 
     if (showRenameDialog) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showRenameDialog = false },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_account), color = LocalAppColors.current.textPrimary) },
@@ -611,14 +611,14 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = Color(0xFFF39C12),
+                    tint = LocalAppColors.current.warning,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
                         text = stringResource(R.string.important),
-                        color = Color(0xFFF39C12),
+                        color = LocalAppColors.current.warning,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -925,7 +925,7 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                 }
                 Text(
                     text = "$filled/$wordCount",
-                    color = if (allValid) Color(0xFF4CD964) else LocalAppColors.current.textSecondary,
+                    color = if (allValid) LocalAppColors.current.success else LocalAppColors.current.textSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -957,7 +957,7 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
             ) {
                 Text(
                     text = stringResource(R.string.import_account),
-                    color = if (canImport) Color.Black else Color.Gray,
+                    color = if (canImport) Color.Black else LocalAppColors.current.textSecondary,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -966,7 +966,7 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
     }
 
     if (importState.status == WalletViewModel.ImportWalletStatus.FAILED) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { viewModel.resetImportWalletState() },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.error), color = LocalAppColors.current.textPrimary) },
@@ -1039,14 +1039,14 @@ fun BackupMnemonicScreen(mnemonic: String, onComplete: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = Color(0xFFF39C12),
+                    tint = LocalAppColors.current.warning,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
                         text = stringResource(R.string.security_warning),
-                        color = Color(0xFFF39C12),
+                        color = LocalAppColors.current.warning,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -1243,7 +1243,7 @@ fun PassphraseSetupScreen(
 
     val shownError = localError ?: errorMessage
     if (shownError != null) {
-        AlertDialog(
+        com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { localError = null; onDismissError() },
             containerColor = colors.surface,
             title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },

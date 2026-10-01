@@ -128,7 +128,7 @@ fun MessageRetentionSetting(chatViewModel: ChatViewModel) {
             } else {
                 "Messages older than ${backupRetention.days} days are permanently deleted from this device. This cannot be undone."
             },
-            color = if (backupRetention == BackupRetention.FOREVER) Color.Gray else Color(0xFFFF3B30),
+            color = if (backupRetention == BackupRetention.FOREVER) LocalAppColors.current.textSecondary else LocalAppColors.current.danger,
             style = MaterialTheme.typography.bodySmall
         )
     }
@@ -254,7 +254,7 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                     Icon(
                         Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = Color(0xFF34C759),
+                        tint = LocalAppColors.current.success,
                         modifier = Modifier.size(44.dp)
                     )
                     Text(

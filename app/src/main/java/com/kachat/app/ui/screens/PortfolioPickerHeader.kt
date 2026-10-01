@@ -222,13 +222,13 @@ private fun PortfolioCard(
                     Icon(
                         if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = if (isPositive) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                        tint = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(Modifier.width(2.dp))
                     Text(
                         "${String.format(Locale.US, "%.2f", kotlin.math.abs(cardData.todayChangePercent))}%",
-                        color = if (isPositive) Color(0xFF4CD964) else Color(0xFFFF3B30),
+                        color = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger,
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -268,7 +268,7 @@ private fun PortfolioNameDialog(
     onDismiss: () -> Unit
 ) {
     var text by remember { mutableStateOf(initialText) }
-    AlertDialog(
+    com.kachat.app.ui.theme.IosAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = LocalAppColors.current.surface,
         title = { Text(title, color = LocalAppColors.current.textPrimary) },
@@ -512,7 +512,7 @@ private fun SheetActionRow(
     onClick: () -> Unit
 ) {
     val colors = LocalAppColors.current
-    val tint = if (destructive) Color(0xFFFF3B30) else colors.textPrimary
+    val tint = if (destructive) LocalAppColors.current.danger else colors.textPrimary
     Row(
         modifier = Modifier
             .fillMaxWidth()

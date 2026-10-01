@@ -560,7 +560,7 @@ private fun WelcomeGuideUserTypeStep(
 
             setupError?.let {
                 Spacer(Modifier.height(8.dp))
-                Text(it, color = Color(0xFFFF3B30), fontSize = 12.sp, textAlign = TextAlign.Center)
+                Text(it, color = LocalAppColors.current.danger, fontSize = 12.sp, textAlign = TextAlign.Center)
             }
         }
 
@@ -905,7 +905,7 @@ private fun WelcomeGuideNodeConnectionStep(
             TextField(
                 value = ownNodeInput,
                 onValueChange = onOwnNodeInputChange,
-                placeholder = { Text(stringResource(R.string.host_port_or_grpcs_host), color = Color.DarkGray) },
+                placeholder = { Text(stringResource(R.string.host_port_or_grpcs_host), color = LocalAppColors.current.textTertiary) },
                 modifier = Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(12.dp)),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
@@ -931,7 +931,7 @@ private fun WelcomeGuideNodeConnectionStep(
 
         validationError?.let {
             Spacer(Modifier.height(8.dp))
-            Text(it, color = Color(0xFFFF3B30), fontSize = 12.sp)
+            Text(it, color = LocalAppColors.current.danger, fontSize = 12.sp)
         }
     }
         Spacer(Modifier.height(16.dp))
