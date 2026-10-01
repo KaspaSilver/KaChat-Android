@@ -241,6 +241,9 @@ class ChatRepository @Inject constructor(
      */
     suspend fun deleteChat(contactId: String) {
         val myAddress = walletManager.getAddress()
+        // Your chat with yourself cannot be deleted (iOS ef4f183). A backstop behind the UI,
+        // which never offers it.
+        if (contactId.equals(myAddress, ignoreCase = true)) return
         // In blockTime clock domain, not wall-clock — see DeletedContactEntity's doc comment for
         // why mixing clocks here previously caused a genuinely new re-handshake to get dropped.
         val lastKnownBlockTime = database.messageDao().getMaxBlockTimestampForContact(contactId, myAddress)
@@ -933,6 +936,19 @@ class ChatRepository @Inject constructor(
         syncContextualMessages(myAddress, api, onlyContactIds = setOf(contactId))
     }
 
+    /**
+     * Your chat with yourself - notes to self, and where messages from unknown senders land -
+     * exists for every account from the start and cannot be deleted (iOS ef4f183): created here
+     * if missing, before any sync has anything to show, and any earlier deletion of it is undone.
+     * The chat list pins it first.
+     */
+    suspend fun ensureSelfConversation(myAddress: String? = runCatching { walletManager.getAddress() }.getOrNull()) {
+        val address = myAddress?.takeIf { it.isNotEmpty() } ?: return
+        if (database.contactDao().getContact(address, address) != null) return
+        database.contactDao().deleteDeletedContact(address, address)
+        database.contactDao().insert(ContactEntity(id = address, walletAddress = address, alias = null, knsName = null, publicKeyHex = null))
+    }
+
     suspend fun syncMessages(fromPollLoop: Boolean = false) {
         // Every other caller (pull-to-refresh, the sync worker, push handling) is held too - the
         // wizard is exclusive. The post-wizard initial sync releases the gate before running.
@@ -943,13 +959,7 @@ class ChatRepository @Inject constructor(
         val api = networkService.indexerApi.value ?: return
         liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
 
-        // Self-chat ("Note to Self"): ensure a contact for your own address (unless you deleted it)
-        // so your self→self notes are swept by syncContextualMessages (default status "active") and
-        // there's an entry point in the chat list. Mirrors the payment-path self-create + tombstone.
-        if (database.contactDao().getContact(myAddress, myAddress) == null &&
-            database.contactDao().getDeletedContact(myAddress, myAddress) == null) {
-            database.contactDao().insert(ContactEntity(id = myAddress, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
-        }
+        ensureSelfConversation(myAddress)
 
         syncHandshakes(myAddress, api)
         syncOutgoingHandshakes(myAddress, api)

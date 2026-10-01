@@ -782,7 +782,9 @@ fun ChatsScreen(
                                                 if (isSilent) null else com.kachat.app.models.ContactNotificationMode.OFF
                                             )
                                         }
-                                        ActionSheetRow(
+                                        // Your chat with yourself cannot be deleted - it is always
+                                        // there, first in the list (iOS ef4f183).
+                                        if (!convo.contact.id.equals(myAddress, ignoreCase = true)) ActionSheetRow(
                                             icon = Icons.Default.Delete,
                                             title = stringResource(R.string.delete),
                                             subtitle = "Removes this chat and its messages from this device.",

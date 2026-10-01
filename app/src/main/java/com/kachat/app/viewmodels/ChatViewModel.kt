@@ -540,8 +540,10 @@ class ChatViewModel @Inject constructor(
             // one mystery conversation for its own (unrecognizable) address within seconds of
             // creation. iOS behaves this way already: it seeds the self CONTACT but only lists
             // conversations that have messages.
-            .filterNot { it.contact.id == it.contact.walletAddress && it.lastMessage == null }
             .sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }
+            // Your chat with yourself always sits first, empty or not: notes to self, and where
+            // unknown senders land - never something to scroll for (iOS 195f228, ef4f183).
+            .sortedByDescending { it.contact.id.equals(it.contact.walletAddress, ignoreCase = true) }
     // Built off the main thread, and kept alive for a few seconds after the Chats tab goes away,
     // so switching tabs and back does not tear the list down and rebuild it from the database.
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -638,6 +640,7 @@ class ChatViewModel @Inject constructor(
 
     /** Multi-select bulk delete — mirrors markContactsAsRead/markContactsAsUnread's Collection shape. */
     fun deleteChats(contactIds: Collection<String>) {
+        // deleteChat itself skips your own chat, even when it was part of a Select All.
         viewModelScope.launch { contactIds.forEach { chatRepository.deleteChat(it) } }
     }
 
@@ -3059,6 +3062,16 @@ class ChatViewModel @Inject constructor(
         _olderThreadPages.value = emptyMap()
         _olderHistoryExhausted.value = emptySet()
         latestThreadWindows.clear()
+    }
+
+    init {
+        // Every account opens with its chat with yourself already there, first in the list -
+        // a new or just-imported account included, before any sync (iOS ef4f183).
+        viewModelScope.launch {
+            walletManager.activeAddressFlow.collect { address ->
+                if (address != null) runCatching { chatRepository.ensureSelfConversation(address) }
+            }
+        }
     }
 
     init {

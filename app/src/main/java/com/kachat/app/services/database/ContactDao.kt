@@ -41,6 +41,9 @@ interface ContactDao {
     @Query("SELECT * FROM deleted_contacts WHERE contactId = :contactId AND walletAddress = :walletAddress")
     suspend fun getDeletedContact(contactId: String, walletAddress: String): DeletedContactEntity?
 
+    @Query("DELETE FROM deleted_contacts WHERE contactId = :contactId AND walletAddress = :walletAddress")
+    suspend fun deleteDeletedContact(contactId: String, walletAddress: String)
+
     /** Every tombstoned contact address for this wallet — exported with chat-history backups so a restore anywhere skips deleted chats. */
     @Query("SELECT contactId FROM deleted_contacts WHERE walletAddress = :walletAddress")
     suspend fun getAllDeletedContactIds(walletAddress: String): List<String>
