@@ -792,6 +792,7 @@ class PortfolioViewModel @Inject constructor(
                         holdingsSompi -= tx.amountSompi
                         totalProceeds += tx.fiatValue
                     }
+                    // "transfer": your own KAS changing address - counted nowhere (iOS 7423330).
                 }
             }
             val holdingsKas = holdingsSompi / 100_000_000.0

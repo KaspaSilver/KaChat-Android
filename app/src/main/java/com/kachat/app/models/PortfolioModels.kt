@@ -27,7 +27,11 @@ data class PortfolioTransactionEntity(
     val id: String,
     val walletAddress: String = "",
     val portfolioId: String = "",
-    val type: String,          // "buy" | "sell"
+    /** "buy" | "sell" | "transfer". A transfer is KAS moved between your own addresses - sent
+     *  away and brought back later, or between two wallets. A record only: it changes neither
+     *  holdings nor cost basis nor profit, so marking both ends of a move as transfers keeps the
+     *  portfolio right (iOS 7423330). */
+    val type: String,
     val amountSompi: Long,     // KAS amount, sompi — matches how amounts are stored everywhere else in the app
     val fiatValue: Double,     // total USD paid (buy) or received (sell) for this transaction
     val timestampMillis: Long,

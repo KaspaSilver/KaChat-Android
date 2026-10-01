@@ -606,4 +606,8 @@
     <string name="address_tab_history">היסטוריה</string>
     <string name="kachat_no_names_on_address">אין שמות ‎.kachat בכתובת הזו</string>
     <string name="kachat_names_on_address_hint">שמות שהכתובת הזו מקבלת או קונה יופיעו כאן עם השקת שמות ‎.kachat.</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">לְהַעֲבִיר</string>
+    <string name="portfolio_value_at_the_time">השווי באותו זמן</string>
+    <string name="portfolio_transfer_footer">‏KAS שהועברו בין הכתובות שלכם - נשלחו והוחזרו, או מארנק לארנק. זה לא משנה את האחזקות, העלות או הרווח.</string>
 </resources>

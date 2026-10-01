@@ -2222,6 +2222,13 @@ private fun TransactionRow(
     onToggle: () -> Unit = {}
 ) {
     val isBuy = tx.type == "buy"
+    // A transfer is a record only - a two-way arrow in the accent colour (iOS 7423330).
+    val isTransfer = tx.type == "transfer"
+    val typeTint = when {
+        isTransfer -> KaspaTeal
+        isBuy -> LocalAppColors.current.success
+        else -> LocalAppColors.current.danger
+    }
     val amountKas = tx.amountSompi / 100_000_000.0
     val needsPrice = tx.notes == PRICE_UNAVAILABLE_NOTE
     val dateStr = remember(tx.timestampMillis) {
@@ -2252,20 +2259,32 @@ private fun TransactionRow(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(if (isBuy) LocalAppColors.current.success.copy(alpha = 0.15f) else LocalAppColors.current.danger.copy(alpha = 0.15f)),
+                    .background(typeTint.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    if (isBuy) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                    when {
+                        isTransfer -> Icons.Default.SwapHoriz
+                        isBuy -> Icons.Default.TrendingUp
+                        else -> Icons.Default.TrendingDown
+                    },
                     contentDescription = null,
-                    tint = if (isBuy) LocalAppColors.current.success else LocalAppColors.current.danger,
+                    tint = typeTint,
                     modifier = Modifier.size(18.dp)
                 )
             }
             Spacer(Modifier.width(12.dp))
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (isBuy) "Buy" else "Sell", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        when {
+                            isTransfer -> stringResource(R.string.portfolio_type_transfer)
+                            isBuy -> "Buy"
+                            else -> "Sell"
+                        },
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
                     if (needsPrice) {
                         Spacer(Modifier.width(6.dp))
                         Icon(
@@ -2312,7 +2331,15 @@ private fun TransactionDialog(
     prefillTimestampMillis: Long? = null,
     prefillNotes: String? = null
 ) {
-    var isBuy by remember { mutableStateOf(existing?.let { it.type == "buy" } ?: prefillType?.let { it == "buy" } ?: true) }
+    // "buy" | "sell" | "transfer" (iOS 7423330 - the editor's Buy / Sell / Transfer).
+    var type by remember {
+        mutableStateOf(
+            existing?.type?.takeIf { it == "buy" || it == "sell" || it == "transfer" }
+                ?: prefillType?.takeIf { it == "buy" || it == "sell" || it == "transfer" }
+                ?: "buy"
+        )
+    }
+    val isTransfer = type == "transfer"
     var quantityText by remember {
         mutableStateOf(
             existing?.let { formatKasAmount(it.amountSompi / 100_000_000.0) }
@@ -2349,9 +2376,15 @@ private fun TransactionDialog(
     val fee = parseAmount(feeText) ?: 0.0
     val total = if (quantity != null && pricePerCoin != null) {
         val base = quantity * pricePerCoin
-        if (isBuy) base + fee else base - fee
+        when (type) {
+            "buy" -> base + fee
+            "sell" -> base - fee
+            // What the KAS was worth when it moved - a note on the row, counted nowhere.
+            else -> base
+        }
     } else null
-    val isValid = quantity != null && quantity > 0 && pricePerCoin != null && pricePerCoin > 0
+    // A transfer only needs its amount: it has no price that counts for anything.
+    val isValid = quantity != null && quantity > 0 && (isTransfer || (pricePerCoin != null && pricePerCoin > 0))
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(20.dp)) {
@@ -2365,21 +2398,31 @@ private fun TransactionDialog(
                 Spacer(Modifier.height(16.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Buy" to true, "Sell" to false).forEach { (label, value) ->
+                    listOf("Buy" to "buy", "Sell" to "sell", stringResource(R.string.portfolio_type_transfer) to "transfer").forEach { (label, value) ->
                         Surface(
-                            color = if (isBuy == value) KaspaTeal else LocalAppColors.current.surfaceVariant,
+                            color = if (type == value) KaspaTeal else LocalAppColors.current.surfaceVariant,
                             shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.weight(1f).clickable { isBuy = value }
+                            modifier = Modifier.weight(1f).clickable { type = value }
                         ) {
                             Text(
                                 label,
-                                color = if (isBuy == value) Color.Black else Color.White,
+                                color = if (type == value) Color.Black else LocalAppColors.current.textPrimary,
+                                maxLines = 1,
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)
                             )
                         }
                     }
+                }
+                if (isTransfer) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.portfolio_transfer_footer),
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
 
@@ -2438,16 +2481,19 @@ private fun TransactionDialog(
                 }
                 Spacer(Modifier.height(12.dp))
 
-                com.kachat.app.ui.theme.IosTextField(
-                    value = feeText,
-                    onValueChange = { feeText = it },
-                    label = { Text(stringResource(R.string.fee_usd_optional)) },
-                    leadingIcon = { Text(currencySymbolFor(currencyCode), color = LocalAppColors.current.textSecondary) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
+                // A transfer has no fee: it is a record of your own KAS moving.
+                if (!isTransfer) {
+                    com.kachat.app.ui.theme.IosTextField(
+                        value = feeText,
+                        onValueChange = { feeText = it },
+                        label = { Text(stringResource(R.string.fee_usd_optional)) },
+                        leadingIcon = { Text(currencySymbolFor(currencyCode), color = LocalAppColors.current.textSecondary) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 com.kachat.app.ui.theme.IosTextField(
                     value = notesText,
                     onValueChange = { notesText = it },
@@ -2464,7 +2510,15 @@ private fun TransactionDialog(
                         .background(LocalAppColors.current.surfaceVariant)
                         .padding(16.dp)
                 ) {
-                    Text(if (isBuy) "Total Spent" else "Total Received", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                    Text(
+                        when (type) {
+                            "buy" -> "Total Spent"
+                            "sell" -> "Total Received"
+                            else -> stringResource(R.string.portfolio_value_at_the_time)
+                        },
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 12.sp
+                    )
                     Text(
                         text = if (total != null) money(total, currencyCode) else "${currencySymbolFor(currencyCode)}0",
                         color = LocalAppColors.current.textPrimary,
@@ -2476,7 +2530,8 @@ private fun TransactionDialog(
 
                 Button(
                     onClick = {
-                        if (isValid) onSave(if (isBuy) "buy" else "sell", quantity!!, total ?: 0.0, timestampMillis, notesText.ifBlank { null })
+                        // A transfer with no price is still a complete record.
+                        if (isValid) onSave(type, quantity!!, total ?: 0.0, timestampMillis, notesText.ifBlank { null })
                     },
                     enabled = isValid,
                     colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),

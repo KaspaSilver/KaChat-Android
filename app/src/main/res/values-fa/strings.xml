@@ -645,4 +645,8 @@
     <string name="address_tab_history">سابقه</string>
     <string name="kachat_no_names_on_address">هیچ نام ‎.kachat روی این نشانی نیست</string>
     <string name="kachat_names_on_address_hint">نام‌هایی که این نشانی می‌گیرد یا می‌خرد، پس از راه‌اندازی نام‌های ‎.kachat اینجا نمایش داده می‌شوند.</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">انتقال</string>
+    <string name="portfolio_value_at_the_time">ارزش در آن زمان</string>
+    <string name="portfolio_transfer_footer">KAS جابه‌جاشده بین نشانی‌های خودتان - فرستاده و بعد برگردانده‌شده، یا از کیف پولی به کیف پول دیگر. دارایی، هزینه یا سود شما را تغییر نمی‌دهد.</string>
 </resources>

@@ -97,4 +97,19 @@ class PortfolioViewModelTest {
         assertEquals(10.0, history[1].second, 1e-9)  // t=30, 100 KAS * $0.10
         assertEquals(6.0, history[2].second, 1e-9)   // t=90, 60 KAS remaining * $0.10
     }
+
+    @Test
+    fun `transfers change neither holdings nor cost nor value history`() {
+        val txs = listOf(
+            tx("buy", 100.0, 10.0, 0L),
+            tx("transfer", 100.0, 12.0, 50L),
+            tx("transfer", 100.0, 12.0, 60L),
+        )
+        val summary = PortfolioViewModel.computeSummary(txs, 0.2)
+        assertEquals(100.0, summary.holdingsKas, 1e-9)
+        assertEquals(10.0, summary.totalInvested, 1e-9)
+        assertEquals(0.0, summary.totalProceeds, 1e-9)
+        val history = PortfolioViewModel.computeValueHistory(txs, listOf(70L to 0.1))
+        assertEquals(10.0, history[0].second, 1e-9)
+    }
 }

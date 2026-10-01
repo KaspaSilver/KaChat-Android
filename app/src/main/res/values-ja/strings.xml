@@ -606,4 +606,8 @@
     <string name="address_tab_history">履歴</string>
     <string name="kachat_no_names_on_address">このアドレスには .kachat 名がありません</string>
     <string name="kachat_names_on_address_hint">このアドレスで取得・購入した名前は、.kachat 名の開始後にここに表示されます。</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">移行</string>
+    <string name="portfolio_value_at_the_time">当時の価値</string>
+    <string name="portfolio_transfer_footer">自分のアドレス間で移動した KAS（送ってから戻した、またはウォレット間の移動）。保有量・取得原価・損益は変わりません。</string>
 </resources>

@@ -246,7 +246,7 @@ fun AddToPortfolioSheet(
                 }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("buy" to "Buy", "sell" to "Sell").forEach { (value, label) ->
+                    listOf("buy" to "Buy", "sell" to "Sell", "transfer" to stringResource(com.kachat.app.R.string.portfolio_type_transfer)).forEach { (value, label) ->
                         val active = type == value
                         Text(
                             text = label,

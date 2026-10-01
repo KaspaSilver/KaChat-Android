@@ -129,8 +129,9 @@ class PortfolioRepository @Inject constructor(
      * whatever's currently active.
      */
     suspend fun updateTransaction(id: String, type: String, amountSompi: Long, fiatValue: Double, timestampMillis: Long, notes: String? = null) {
-        val existingPortfolioId = database.portfolioDao().getAllTransactionsForWallet(walletManager.getAddress()).first()
-            .firstOrNull { it.id == id }?.portfolioId
+        val existingRow = database.portfolioDao().getAllTransactionsForWallet(walletManager.getAddress()).first()
+            .firstOrNull { it.id == id }
+        val existingPortfolioId = existingRow?.portfolioId
             ?: currentPortfolioId() ?: return
         database.portfolioDao().insert(
             PortfolioTransactionEntity(
@@ -141,7 +142,12 @@ class PortfolioRepository @Inject constructor(
                 amountSompi = amountSompi,
                 fiatValue = fiatValue,
                 timestampMillis = timestampMillis,
-                notes = notes
+                notes = notes,
+                // Kept through an edit: they are how a re-import of the address recognises this
+                // row. Dropping them made the next import add the same transaction a second time -
+                // as a sell again, undoing a sell the user had just marked a transfer (iOS 7423330).
+                sourceAddress = existingRow?.sourceAddress,
+                sourceTxId = existingRow?.sourceTxId
             )
         )
     }
@@ -795,8 +801,13 @@ class PortfolioRepository @Inject constructor(
             val token = fields[1].trim()
             if (!token.equals(trackedToken, ignoreCase = true)) continue
 
-            val type = fields[2].trim().lowercase()
-            if (type != "buy" && type != "sell") continue
+            val typeRaw = fields[2].trim().lowercase()
+            // CoinMarketCap writes "Transfer In" / "Transfer Out"; both are a transfer here.
+            val type = when {
+                typeRaw == "buy" || typeRaw == "sell" || typeRaw == "transfer" -> typeRaw
+                typeRaw.startsWith("transfer") -> "transfer"
+                else -> continue
+            }
             val timestampMillis = try { dateFormat.parse(fields[0].trim())?.time } catch (e: Exception) { null } ?: continue
             val kas = parseLenientDouble(fields[4]) ?: continue
             val totalValue = parseLenientDouble(fields[5]) ?: continue
@@ -807,7 +818,11 @@ class PortfolioRepository @Inject constructor(
                 if (feeCurrency.equals("USD", ignoreCase = true)) {
                     val fee = parseLenientDouble(fields[6])
                     if (fee != null) {
-                        fiatValue = if (type == "buy") fiatValue + fee else maxOf(fiatValue - fee, 0.0)
+                        fiatValue = when (type) {
+                            "buy" -> fiatValue + fee
+                            "sell" -> maxOf(fiatValue - fee, 0.0)
+                            else -> fiatValue
+                        }
                     }
                 }
             }

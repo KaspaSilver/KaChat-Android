@@ -606,4 +606,8 @@
     <string name="address_tab_history">Geçmiş</string>
     <string name="kachat_no_names_on_address">Bu adreste .kachat adı yok</string>
     <string name="kachat_names_on_address_hint">Bu adresin aldığı ya da satın aldığı adlar .kachat adları başladığında burada görünür.</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">Aktarım</string>
+    <string name="portfolio_value_at_the_time">O Andaki Değeri</string>
+    <string name="portfolio_transfer_footer">Kendi adreslerin arasında taşınan KAS - gönderilip geri alınan ya da cüzdandan cüzdana. Varlıklarını, maliyetini veya kârını değiştirmez.</string>
 </resources>

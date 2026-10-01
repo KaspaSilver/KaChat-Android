@@ -787,4 +787,8 @@
     <string name="address_tab_history">History</string>
     <string name="kachat_no_names_on_address">No .kachat names on this address</string>
     <string name="kachat_names_on_address_hint">Names this address claims or buys show here once .kachat names launch.</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">Transfer</string>
+    <string name="portfolio_value_at_the_time">Value at the Time</string>
+    <string name="portfolio_transfer_footer">KAS moved between your own addresses - sent away and brought back, or wallet to wallet. It doesn\'t change your holdings, cost or profit.</string>
 </resources>

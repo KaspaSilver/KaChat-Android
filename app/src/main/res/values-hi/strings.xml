@@ -606,4 +606,8 @@
     <string name="address_tab_history">इतिहास</string>
     <string name="kachat_no_names_on_address">इस पते पर कोई .kachat नाम नहीं</string>
     <string name="kachat_names_on_address_hint">यह पता जो नाम लेता या खरीदता है, वे .kachat नाम शुरू होने पर यहाँ दिखेंगे।</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">स्थानांतरण</string>
+    <string name="portfolio_value_at_the_time">उस समय का मूल्य</string>
+    <string name="portfolio_transfer_footer">आपके अपने पतों के बीच ले जाए गए KAS - भेजकर वापस लाए गए, या एक वॉलेट से दूसरे में। इससे आपकी होल्डिंग, लागत या लाभ नहीं बदलता।</string>
 </resources>

@@ -606,4 +606,8 @@
     <string name="address_tab_history">Historique</string>
     <string name="kachat_no_names_on_address">Aucun nom .kachat sur cette adresse</string>
     <string name="kachat_names_on_address_hint">Les noms que cette adresse réclame ou achète apparaîtront ici au lancement des noms .kachat.</string>
+    <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
+    <string name="portfolio_type_transfer">Transfert</string>
+    <string name="portfolio_value_at_the_time">Valeur à ce moment</string>
+    <string name="portfolio_transfer_footer">Des KAS déplacés entre vos propres adresses - envoyés puis récupérés, ou d\'un portefeuille à l\'autre. Cela ne change ni vos avoirs, ni votre coût, ni votre profit.</string>
 </resources>
