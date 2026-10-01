@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.PersonSearch
@@ -130,9 +131,9 @@ fun ChattingAddressPickerScreen(
                     .background(LocalAppColors.current.surface, CircleShape)
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
+                    Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = stringResource(R.string.back),
-                    tint = LocalAppColors.current.textPrimary,
+                    tint = com.kachat.app.ui.theme.KaspaTeal,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -359,9 +360,9 @@ private fun ChattingAddressDetailScreen(
                         .background(LocalAppColors.current.surface, CircleShape)
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
+                        Icons.AutoMirrored.Filled.ArrowBackIos,
                         contentDescription = stringResource(R.string.back),
-                        tint = LocalAppColors.current.textPrimary,
+                        tint = com.kachat.app.ui.theme.KaspaTeal,
                         modifier = Modifier.size(20.dp)
                     )
                 }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -583,9 +584,9 @@ fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     .background(LocalAppColors.current.surface, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = stringResource(R.string.back),
-                    tint = LocalAppColors.current.textPrimary,
+                    tint = com.kachat.app.ui.theme.KaspaTeal,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -782,9 +783,9 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                     .background(LocalAppColors.current.surface, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = stringResource(R.string.back),
-                    tint = LocalAppColors.current.textPrimary,
+                    tint = com.kachat.app.ui.theme.KaspaTeal,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1278,7 +1279,7 @@ private fun PassphraseQuestionStep(
                 title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = !isBusy) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
@@ -1393,7 +1394,7 @@ private fun PassphraseEntryStep(
                 title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = !isBusy) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
@@ -1510,7 +1511,7 @@ private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
                 title = { Text("What is a passphrase?", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
@@ -1632,9 +1633,9 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
                     .background(LocalAppColors.current.surface, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = stringResource(R.string.back),
-                    tint = LocalAppColors.current.textPrimary,
+                    tint = com.kachat.app.ui.theme.KaspaTeal,
                     modifier = Modifier.size(20.dp)
                 )
             }

@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Close
@@ -176,7 +177,7 @@ fun NextcloudPickerDialog(
                 IconButton(onClick = {
                     if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = KaspaTeal)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal)
                 }
                 Text(
                     text = currentPath.substringAfterLast('/').ifEmpty { "Nextcloud" },
@@ -434,7 +435,7 @@ fun NextcloudFolderSelectDialog(
                 IconButton(onClick = {
                     if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = KaspaTeal)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal)
                 }
                 Text(
                     text = currentPath.substringAfterLast('/').ifEmpty { "All Files" },
