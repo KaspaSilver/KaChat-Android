@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">Ödediği ağ ücretlerini saymak için sohbet adresini + ile ekle.</string>
     <string name="portfolio_fees_count_loading">İşlemler: %1$d. Bazı fiyatlar hâlâ yükleniyor.</string>
     <string name="portfolio_fees_count_priced">İşlemler: %1$d, her günün fiyatıyla.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">Hiç kullanılmamış yeni bir adres. Buraya gönderilen Kaspa bu hesaba gelir ve harcanabilir toplamında görünür. Bu adresi sohbet dışındaki her şey için kullan.</string>
+    <string name="qr_chatting_address_subtitle">Bu adres sohbet içindir. Yaklaşık 50 Kaspa, uzun süre mesaj göndermeye yeter.</string>
 </resources>

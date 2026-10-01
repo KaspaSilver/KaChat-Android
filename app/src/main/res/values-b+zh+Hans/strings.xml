@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">用 + 添加你的聊天地址，即可统计它支付过的网络费用。</string>
     <string name="portfolio_fees_count_loading">交易：%1$d 笔。部分价格仍在加载。</string>
     <string name="portfolio_fees_count_priced">交易：%1$d 笔，按当日价格计算。</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">一个全新的、从未使用过的地址。发送到这里的 Kaspa 会进入此账户，并计入你的可支出总额。除聊天以外的所有用途都请使用这个地址。</string>
+    <string name="qr_chatting_address_subtitle">这个地址用于聊天。存入约 50 Kaspa 就足够长时间发送消息。</string>
 </resources>

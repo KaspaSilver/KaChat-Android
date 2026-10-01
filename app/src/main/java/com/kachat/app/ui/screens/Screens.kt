@@ -4184,7 +4184,7 @@ fun ProfileScreen(
             QrCodeOverlay(
                 value = address ?: "",
                 onDismiss = { showFundIdentityQr = false },
-                message = "This address is for chatting and KNS profile creation. Funding it with around 50 Kaspa is enough to create a KNS profile and send messages for a long time.",
+                message = stringResource(R.string.qr_chatting_address_subtitle),
                 borderColor = KaspaTeal,
                 borderWidth = 4.dp
             )
@@ -4209,7 +4209,7 @@ fun ProfileScreen(
                 QrCodeOverlay(
                     value = resolved,
                     onDismiss = { showAcceptPaymentQr = false },
-                    message = "A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting or KNS profile creation.",
+                    message = stringResource(R.string.qr_receive_address_subtitle),
                     borderColor = KaspaTeal,
                     borderWidth = 4.dp
                 )

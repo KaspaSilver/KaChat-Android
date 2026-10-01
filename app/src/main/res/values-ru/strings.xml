@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">Добавьте адрес чата через +, чтобы учесть уплаченные им сетевые комиссии.</string>
     <string name="portfolio_fees_count_loading">Транзакций: %1$d. Некоторые цены ещё загружаются.</string>
     <string name="portfolio_fees_count_priced">Транзакций: %1$d, по цене каждого дня.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">Новый, ещё не использованный адрес. Kaspa, отправленные сюда, поступают на этот аккаунт и учитываются в доступной сумме. Используйте этот адрес для всего, что не связано с чатами.</string>
+    <string name="qr_chatting_address_subtitle">Этот адрес — для чатов. Около 50 Kaspa хватит, чтобы долго отправлять сообщения.</string>
 </resources>

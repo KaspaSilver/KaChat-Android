@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">Adicione seu endereço de chat com + para contar as taxas de rede que ele pagou.</string>
     <string name="portfolio_fees_count_loading">Transações: %1$d. Alguns preços ainda estão carregando.</string>
     <string name="portfolio_fees_count_priced">Transações: %1$d, ao preço de cada dia.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">Um endereço novo, nunca usado. Kaspa enviado para cá chega a esta conta e aparece no seu total disponível. Use este endereço para tudo que não for relacionado a conversas.</string>
+    <string name="qr_chatting_address_subtitle">Este endereço é para conversar. Cerca de 50 Kaspa bastam para enviar mensagens por muito tempo.</string>
 </resources>

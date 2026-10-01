@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">चुकाए गए नेटवर्क शुल्क गिनने के लिए + से अपना चैट पता जोड़ें।</string>
     <string name="portfolio_fees_count_loading">लेन-देन: %1$d. कुछ कीमतें अभी लोड हो रही हैं।</string>
     <string name="portfolio_fees_count_priced">लेन-देन: %1$d, हर दिन की कीमत पर।</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">एक नया पता, जिसका पहले कभी उपयोग नहीं हुआ। यहाँ भेजे गए Kaspa इस खाते में आते हैं और आपके खर्च योग्य कुल में दिखते हैं। चैट से जुड़ी चीज़ों को छोड़कर बाकी सब के लिए यह पता इस्तेमाल करें।</string>
+    <string name="qr_chatting_address_subtitle">यह पता चैट के लिए है। लगभग 50 Kaspa लंबे समय तक मैसेज भेजने के लिए काफ़ी हैं।</string>
 </resources>

@@ -668,4 +668,7 @@
     <string name="portfolio_fees_empty_hint">نشانی گفتگوی خود را با + اضافه کنید تا کارمزدهای شبکه‌ای که پرداخته شمرده شوند.</string>
     <string name="portfolio_fees_count_loading">تراکنش‌ها: %1$d. برخی قیمت‌ها هنوز در حال بارگذاری‌اند.</string>
     <string name="portfolio_fees_count_priced">تراکنش‌ها: %1$d، با قیمت هر روز.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">یک نشانی تازه که هرگز استفاده نشده است. Kaspa ارسال‌شده به اینجا به این حساب می‌رسد و در مجموع قابل خرج شما نمایش داده می‌شود. از این نشانی برای هر کاری غیر از گفتگو استفاده کنید.</string>
+    <string name="qr_chatting_address_subtitle">این نشانی برای گفتگو است. حدود ۵۰ Kaspa برای مدت طولانی ارسال پیام کافی است.</string>
 </resources>

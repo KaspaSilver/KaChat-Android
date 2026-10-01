@@ -499,4 +499,7 @@
     <string name="portfolio_fees_empty_hint">Tambahkan alamat obrolanmu dengan + untuk menghitung biaya jaringan yang telah dibayarnya.</string>
     <string name="portfolio_fees_count_loading">Transaksi: %1$d. Beberapa harga masih dimuat.</string>
     <string name="portfolio_fees_count_priced">Transaksi: %1$d, dengan harga tiap hari.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di total yang bisa dibelanjakan. Gunakan alamat ini untuk semua hal selain obrolan.</string>
+    <string name="qr_chatting_address_subtitle">Alamat ini untuk mengobrol. Sekitar 50 Kaspa cukup untuk mengirim pesan dalam waktu lama.</string>
 </resources>

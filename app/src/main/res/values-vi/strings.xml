@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">Thêm địa chỉ trò chuyện bằng + để tính các phí mạng nó đã trả.</string>
     <string name="portfolio_fees_count_loading">Giao dịch: %1$d. Một số giá vẫn đang tải.</string>
     <string name="portfolio_fees_count_priced">Giao dịch: %1$d, theo giá từng ngày.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">Một địa chỉ mới, chưa từng dùng. Kaspa gửi đến đây sẽ vào tài khoản này và hiện trong tổng số có thể chi tiêu. Dùng địa chỉ này cho mọi việc không liên quan đến trò chuyện.</string>
+    <string name="qr_chatting_address_subtitle">Địa chỉ này dùng để trò chuyện. Khoảng 50 Kaspa là đủ để gửi tin nhắn trong thời gian dài.</string>
 </resources>

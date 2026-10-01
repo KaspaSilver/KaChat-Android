@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">দেওয়া নেটওয়ার্ক ফি গণনা করতে + দিয়ে আপনার চ্যাট ঠিকানা যোগ করুন।</string>
     <string name="portfolio_fees_count_loading">লেনদেন: %1$d। কিছু দাম এখনো লোড হচ্ছে।</string>
     <string name="portfolio_fees_count_priced">লেনদেন: %1$d, প্রতিদিনের দামে।</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">একটি নতুন, কখনো ব্যবহার না হওয়া ঠিকানা। এখানে পাঠানো Kaspa এই অ্যাকাউন্টে আসে এবং খরচযোগ্য মোটে দেখা যায়। চ্যাট ছাড়া অন্য সব কাজে এই ঠিকানা ব্যবহার করুন।</string>
+    <string name="qr_chatting_address_subtitle">এই ঠিকানা চ্যাটের জন্য। প্রায় ৫০ Kaspa দিয়ে অনেক দিন মেসেজ পাঠানো যায়।</string>
 </resources>

@@ -838,7 +838,7 @@ private fun WelcomeGuideFundingStep(
         QrCodeOverlay(
             value = chattingAddress,
             onDismiss = { showQr = false },
-            message = stringResource(R.string.just_send_5_10_kas_at_a_time),
+            message = stringResource(R.string.qr_chatting_address_subtitle),
             borderColor = KaspaTeal,
             borderWidth = 4.dp
         )

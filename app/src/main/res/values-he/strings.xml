@@ -629,4 +629,7 @@
     <string name="portfolio_fees_empty_hint">הוסיפו את כתובת הצ\'אט עם + כדי לספור את עמלות הרשת ששילמה.</string>
     <string name="portfolio_fees_count_loading">עסקאות: %1$d. חלק מהמחירים עדיין נטענים.</string>
     <string name="portfolio_fees_count_priced">עסקאות: %1$d, לפי מחיר כל יום.</string>
+    <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
+    <string name="qr_receive_address_subtitle">כתובת חדשה שמעולם לא נעשה בה שימוש. Kaspa שנשלחים לכאן מגיעים לחשבון הזה ומופיעים בסך הזמין להוצאה. השתמשו בכתובת הזו לכל מה שלא קשור לצ\'אט.</string>
+    <string name="qr_chatting_address_subtitle">הכתובת הזו מיועדת לצ\'אט. כ-50 Kaspa מספיקים כדי לשלוח הודעות לאורך זמן רב.</string>
 </resources>
