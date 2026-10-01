@@ -170,6 +170,15 @@ val Screen.hubTitle: String
  */
 val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
 
+/**
+ * ChangeNOW Swap, off for now (iOS f94db5a). An in-app crypto exchange - a third-party one like
+ * ChangeNOW included - is being treated by the stores as needing exchange licensing in every
+ * country the app ships to, so Swap is hidden everywhere: [resolveDock] and [kaspaHubSections] are
+ * the choke points every dock, Hub and Customize Dock reader goes through. The code stays, so
+ * turning it back on is this one line.
+ */
+const val SWAP_FEATURE_ENABLED = false
+
 /** Routes that are part of the Settings stack - a sheet on iOS (see IosSheetColors). */
 val SETTINGS_SHEET_ROUTES = setOf(
     "settings", "settings_section/{sectionKey}", "storage_nextcloud", "settings_menu",
@@ -273,6 +282,7 @@ fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>, childMode: Bo
 fun resolveDock(dockRoutes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
     val byRoute = bottomNavItems.associateBy { it.route }
     val placed = dockRoutes.mapNotNull { byRoute[it] }
+        .filter { SWAP_FEATURE_ENABLED || it != Screen.Swap }
         .filter { it.route !in hiddenTabs || it.route in ALWAYS_VISIBLE_TAB_ROUTES }
         .filter { !(childMode && it.route in CHILD_MODE_HIDDEN_ROUTES) }
         .toMutableList()
@@ -307,6 +317,7 @@ fun kaspaHubSections(
     val byRoute = bottomNavItems.associateBy { it.route }
     val inDock = resolveDock(dockRoutes, hiddenTabs, childMode).toSet()
     fun eligible(screen: Screen) = screen.route in ASSIGNABLE_TAB_ROUTES &&
+        (SWAP_FEATURE_ENABLED || screen != Screen.Swap) &&
         screen !in inDock &&
         screen.route !in hiddenTabs &&
         !(childMode && screen.route in CHILD_MODE_HIDDEN_ROUTES)
