@@ -12663,22 +12663,20 @@ fun ChatInfoScreen(
                                 when {
                                     // No domain means no profile to describe, so the address is
                                     // the useful caption - same fallback order as iOS.
-                                    ownedDomains.isEmpty() -> Text(
+                                    // The address, unless a profile supplies a bio. Since 5.2 .kas
+                                    // profiles are not loaded, so this is what a .kas owner shows
+                                    // until .kachat profiles exist (iOS d6ded9d).
+                                    ownedDomains.isEmpty() || bio == null -> Text(
                                         text = com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
                                         color = LocalAppColors.current.textSecondary,
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 1,
                                     )
-                                    bio != null -> Text(
+                                    else -> Text(
                                         text = bio,
                                         color = LocalAppColors.current.textPrimary,
                                         style = MaterialTheme.typography.bodyMedium,
                                         modifier = Modifier.clickable { clipboardManager.setText(AnnotatedString(bio)) }
-                                    )
-                                    else -> Text(
-                                        text = if (hasMoreInfo) "On-chain profile data available." else "No on-chain profile data yet.",
-                                        color = LocalAppColors.current.textSecondary,
-                                        style = MaterialTheme.typography.bodySmall
                                     )
                                 }
                             }

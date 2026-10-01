@@ -450,6 +450,9 @@ class ChatRepository @Inject constructor(
     suspend fun hasDeletionTombstone(contactId: String): Boolean =
         database.contactDao().getDeletedContact(contactId, walletManager.getAddress()) != null
 
+    /** See ContactDao.clearKnsAvatars. */
+    suspend fun clearStoredKnsAvatars(): Int = database.contactDao().clearKnsAvatars()
+
     suspend fun getContact(id: String): ContactEntity? {
         return database.contactDao().getContact(id, walletManager.getAddress())
     }

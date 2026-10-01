@@ -935,7 +935,7 @@ class WalletService @Inject constructor(
     private suspend fun verifyProfileField(assetId: String, fieldKey: String, expectedValue: String): Boolean {
         val deadlineMs = System.currentTimeMillis() + 90_000L
         while (System.currentTimeMillis() < deadlineMs) {
-            if (fieldValue(knsService.getProfile(assetId), fieldKey) == expectedValue) return true
+            if (fieldValue(knsService.getProfileForEditing(assetId), fieldKey) == expectedValue) return true
             delay(2_000L)
         }
         return false

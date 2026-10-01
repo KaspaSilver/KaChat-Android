@@ -1992,6 +1992,8 @@ class ChatViewModel @Inject constructor(
      * cached avatar on each visit is a round trip per contact for an answer that rarely changes.
      */
     fun refreshKnsAvatarsForAllContacts() {
+        // .kas profiles are not shown since 5.2 (KnsService.LOADS_DOMAIN_PROFILES).
+        if (!com.kachat.app.services.KnsService.LOADS_DOMAIN_PROFILES) return
         viewModelScope.launch {
             val contacts = chatRepository.getContacts().first()
             for (contact in contacts) {
@@ -3065,6 +3067,11 @@ class ChatViewModel @Inject constructor(
     }
 
     init {
+        // Avatars stored from .kas profiles before 5.2 stop showing with the profiles themselves
+        // (iOS d6ded9d strips its cached profiles on load the same way).
+        if (!com.kachat.app.services.KnsService.LOADS_DOMAIN_PROFILES) {
+            viewModelScope.launch(Dispatchers.IO) { runCatching { chatRepository.clearStoredKnsAvatars() } }
+        }
         // Every account opens with its chat with yourself already there, first in the list -
         // a new or just-imported account included, before any sync (iOS ef4f183).
         viewModelScope.launch {

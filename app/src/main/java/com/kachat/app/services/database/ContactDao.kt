@@ -27,6 +27,11 @@ interface ContactDao {
     suspend fun deleteContact(id: String, walletAddress: String)
 
     /** Every contact for this wallet, gone — used when wiping an entire account. */
+    /** Drops every stored .kas avatar - since 5.2 .kas profiles are not shown (KnsService
+     *  .LOADS_DOMAIN_PROFILES), and avatars saved before that would otherwise keep showing. */
+    @Query("UPDATE contacts SET knsAvatarUrl = NULL WHERE knsAvatarUrl IS NOT NULL")
+    suspend fun clearKnsAvatars(): Int
+
     @Query("DELETE FROM contacts WHERE walletAddress = :walletAddress")
     suspend fun deleteAllForWallet(walletAddress: String)
 

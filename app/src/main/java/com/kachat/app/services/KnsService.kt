@@ -141,8 +141,22 @@ class KnsService @Inject constructor(
         owners
     }
 
-    /** Avatar/bio/social-links profile attached to a specific owned domain (by its assetId, not its name). */
+    /**
+     * Avatar/bio/social-links profile attached to a specific owned domain (by its assetId, not
+     * its name) - for DISPLAY, which since 5.2 shows none (iOS d6ded9d): KaChat reads only a
+     * .kas domain's NAME. Full profiles across the app will come from KaChat's own .kachat
+     * names. Null while [LOADS_DOMAIN_PROFILES] is off; editing a .kas profile goes through
+     * [getProfileForEditing].
+     */
     suspend fun getProfile(assetId: String): KnsProfileFields? {
+        if (!LOADS_DOMAIN_PROFILES) return null
+        return getProfileForEditing(assetId)
+    }
+
+    /** One .kas domain's profile, for editing it in Your Domains (and confirming a save landed).
+     *  Not cached or shown anywhere else. Null when it has none or the lookup failed. */
+    suspend fun getProfileForEditing(assetId: String): KnsProfileFields? {
+        if (assetId.isBlank()) return null
         return try {
             val response = api().getDomainProfile(assetId)
             if (response.success) response.data?.profile else null
@@ -255,6 +269,10 @@ class KnsService @Inject constructor(
     }
 
     companion object {
+        /** Whether .kas profiles (avatar, banner, bio, links) are loaded for display anywhere in
+         *  the app. Off since 5.2 - only the domain name is resolved (iOS d6ded9d). */
+        const val LOADS_DOMAIN_PROFILES = false
+
         /**
          * Readable text for a failed KNS call.
          *
