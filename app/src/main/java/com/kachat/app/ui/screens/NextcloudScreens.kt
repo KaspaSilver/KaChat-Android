@@ -1,6 +1,11 @@
 package com.kachat.app.ui.screens
 
 import com.kachat.app.util.UserFacingError
+import com.kachat.app.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.alpha
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -923,5 +928,103 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 }
             }
         )
+    }
+}
+
+/**
+ * Pick one file from the connected Nextcloud (iOS aa5d783, NextcloudFileSelectView): browsing
+ * starts in the KaChat folder, with All Files for the root; only [allowedExtensions] can be picked
+ * and other files show dimmed. A KaChat folder that doesn't exist yet reads as empty rather than an
+ * error.
+ */
+@Composable
+fun NextcloudFileSelectDialog(
+    service: NextcloudService,
+    allowedExtensions: Set<String>,
+    onDismiss: () -> Unit,
+    onPick: (NextcloudFile) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val kachatFolder = service.backupFolderPath.trim('/')
+    var pathStack by remember { mutableStateOf(listOf(kachatFolder)) }
+    val currentPath = pathStack.last()
+    var entries by remember { mutableStateOf<List<NextcloudFile>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(currentPath) {
+        isLoading = true
+        errorMessage = null
+        entries = try {
+            service.listFolder(currentPath)
+        } catch (e: Exception) {
+            // The KaChat folder is only made on the first export or backup.
+            if (currentPath == kachatFolder && e.message?.contains("404") == true) emptyList()
+            else {
+                errorMessage = UserFacingError.message(e, "Could not load this folder.")
+                emptyList()
+            }
+        }
+        isLoading = false
+    }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = {
+                    if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
+                }) { Text(stringResource(if (pathStack.size > 1) R.string.back else R.string.cancel), color = KaspaTeal) }
+                Text(
+                    currentPath.substringAfterLast('/').ifEmpty { stringResource(R.string.pnc_all_files) },
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { if (currentPath.isNotEmpty()) pathStack = pathStack + "" }, enabled = currentPath.isNotEmpty()) {
+                    Text(stringResource(R.string.pnc_all_files), color = if (currentPath.isNotEmpty()) KaspaTeal else colors.textTertiary)
+                }
+            }
+            HorizontalDivider(color = colors.divider, thickness = 0.5.dp)
+            when {
+                isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal) }
+                errorMessage != null -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text(errorMessage ?: "", color = colors.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                entries.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.pnc_folder_empty), color = colors.textSecondary)
+                }
+                else -> androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize()) {
+                    items(entries.size) { index ->
+                        val file = entries[index]
+                        val pickable = file.isDirectory || file.name.substringAfterLast('.', "").lowercase() in allowedExtensions
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = pickable) {
+                                    if (file.isDirectory) pathStack = pathStack + file.path.trim('/') else onPick(file)
+                                }
+                                .alpha(if (pickable) 1f else 0.4f)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (file.isDirectory) Icons.Default.Folder else Icons.Default.Description,
+                                contentDescription = null,
+                                tint = if (file.isDirectory) KaspaTeal else colors.textSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(14.dp))
+                            Text(file.name, color = colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1)
+                            if (file.isDirectory) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = colors.textSecondary)
+                        }
+                        HorizontalDivider(Modifier.padding(start = 54.dp), color = colors.divider, thickness = 0.5.dp)
+                    }
+                }
+            }
+        }
     }
 }

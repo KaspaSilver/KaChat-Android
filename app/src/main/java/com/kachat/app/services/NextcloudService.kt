@@ -621,6 +621,57 @@ class NextcloudService @Inject constructor(
     }
 
     // -------------------------------------------------------------------------
+    // Plain files in the KaChat folder (Portfolio CSV export / import, iOS aa5d783)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Uploads [bytes] as [filename] into the KaChat folder ([backupFolderPath] - the same folder
+     * the chat backup lives in), creating the folder chain if it isn't there yet, and returns the
+     * stored path. A file of the same name is replaced - exports carry a timestamp in their name.
+     */
+    suspend fun uploadToKaChatFolder(bytes: ByteArray, filename: String, contentType: String): String = withContext(Dispatchers.IO) {
+        val account = requireAccount()
+        val folder = backupFolderPath.trim('/')
+        // Level by level: MKCOL is not recursive, and 405 means the level already exists.
+        var level = ""
+        for (part in folder.split("/").filter { it.isNotEmpty() }) {
+            level = if (level.isEmpty()) part else "$level/$part"
+            val mkcol = Request.Builder().url(davUrl(account, level)).method("MKCOL", null)
+                .header("Authorization", basicAuth(account)).build()
+            client.newCall(mkcol).execute().use { response ->
+                if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                if (!response.isSuccessful && response.code != 405) throw IOException("Nextcloud returned HTTP ${response.code}.")
+            }
+        }
+        val storedName = filename.replace(Regex("[^A-Za-z0-9._-]"), "_").takeIf { it.isNotBlank() } ?: "file"
+        val path = if (folder.isEmpty()) storedName else "$folder/$storedName"
+        val mediaType = contentType.toMediaTypeOrNull() ?: "application/octet-stream".toMediaType()
+        val put = Request.Builder().url(davUrl(account, path)).put(bytes.toRequestBody(mediaType))
+            .header("Authorization", basicAuth(account)).build()
+        client.newCall(put).execute().use { response ->
+            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
+        }
+        path
+    }
+
+    /** A file's bytes, for importing it. Every failure throws so the caller can say what went
+     *  wrong; capped at [maxBytes]. */
+    suspend fun downloadFile(relativePath: String, maxBytes: Long = 10_000_000L): ByteArray = withContext(Dispatchers.IO) {
+        val account = requireAccount()
+        val get = Request.Builder().url(davUrl(account, relativePath)).header("Authorization", basicAuth(account)).build()
+        client.newCall(get).execute().use { response ->
+            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
+            val body = response.body ?: throw IOException("Nextcloud sent an empty file.")
+            if (body.contentLength() > maxBytes) throw IOException("That file is too large to import.")
+            val bytes = body.bytes()
+            if (bytes.size > maxBytes) throw IOException("That file is too large to import.")
+            bytes
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // WebDAV browsing (the chat attach picker's data source)
     // -------------------------------------------------------------------------
 

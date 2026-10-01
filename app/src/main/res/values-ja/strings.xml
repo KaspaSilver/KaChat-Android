@@ -589,4 +589,14 @@
     <string name="kl_name">名前</string>
     <string name="kl_total">合計</string>
     <string name="kl_message">メッセージ</string>
+    <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
+    <string name="pnc_import">Nextcloud から読み込む</string>
+    <string name="pnc_import_sub">Nextcloud から CSV ファイルを選びます。</string>
+    <string name="pnc_export">Nextcloud に書き出す</string>
+    <string name="pnc_export_sub">CSV を Nextcloud の KaChat フォルダに保存します。</string>
+    <string name="pnc_saved_to">Nextcloud の %1$s に保存しました。</string>
+    <string name="pnc_export_failed">Nextcloud への書き出しに失敗しました：%1$s</string>
+    <string name="pnc_import_failed">Nextcloud からの読み込みに失敗しました：%1$s</string>
+    <string name="pnc_all_files">すべてのファイル</string>
+    <string name="pnc_folder_empty">このフォルダは空です。</string>
 </resources>

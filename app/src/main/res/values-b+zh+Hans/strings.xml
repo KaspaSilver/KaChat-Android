@@ -589,4 +589,14 @@
     <string name="kl_name">名称</string>
     <string name="kl_total">总计</string>
     <string name="kl_message">信息</string>
+    <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
+    <string name="pnc_import">从 Nextcloud 导入</string>
+    <string name="pnc_import_sub">从你的 Nextcloud 选择一个 CSV 文件。</string>
+    <string name="pnc_export">导出到 Nextcloud</string>
+    <string name="pnc_export_sub">将 CSV 保存到你 Nextcloud 中的 KaChat 文件夹。</string>
+    <string name="pnc_saved_to">已保存到 Nextcloud 的 %1$s。</string>
+    <string name="pnc_export_failed">导出到 Nextcloud 失败：%1$s</string>
+    <string name="pnc_import_failed">从 Nextcloud 导入失败：%1$s</string>
+    <string name="pnc_all_files">所有文件</string>
+    <string name="pnc_folder_empty">此文件夹为空。</string>
 </resources>

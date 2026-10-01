@@ -589,4 +589,14 @@
     <string name="kl_name">Name</string>
     <string name="kl_total">Gesamt</string>
     <string name="kl_message">Nachricht</string>
+    <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
+    <string name="pnc_import">Aus Nextcloud importieren</string>
+    <string name="pnc_import_sub">Wähle eine CSV-Datei aus deiner Nextcloud.</string>
+    <string name="pnc_export">In Nextcloud exportieren</string>
+    <string name="pnc_export_sub">Speichert die CSV im KaChat-Ordner deiner Nextcloud.</string>
+    <string name="pnc_saved_to">In Nextcloud unter %1$s gespeichert.</string>
+    <string name="pnc_export_failed">Export in Nextcloud fehlgeschlagen: %1$s</string>
+    <string name="pnc_import_failed">Import aus Nextcloud fehlgeschlagen: %1$s</string>
+    <string name="pnc_all_files">Alle Dateien</string>
+    <string name="pnc_folder_empty">Dieser Ordner ist leer.</string>
 </resources>

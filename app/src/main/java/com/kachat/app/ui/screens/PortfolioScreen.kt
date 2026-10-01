@@ -39,6 +39,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.material.icons.filled.Hexagon
@@ -422,6 +424,40 @@ private fun PortfolioTransactionsContent(
         if (transactions.isEmpty() && selecting) { selecting = false; selectedIds = emptySet() }
     }
 
+    var showNextcloudImporter by remember { mutableStateOf(false) }
+    val nextcloudScope = rememberCoroutineScope()
+    if (showNextcloudImporter) {
+        NextcloudFileSelectDialog(
+            service = viewModel.nextcloud,
+            allowedExtensions = setOf("csv", "txt"),
+            onDismiss = { showNextcloudImporter = false },
+            onPick = { file ->
+                showNextcloudImporter = false
+                // Downloaded to a temporary copy, then the same CSV import as a file from storage.
+                nextcloudScope.launch {
+                    try {
+                        val bytes = viewModel.nextcloud.downloadFile(file.path)
+                        val local = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val dir = java.io.File(context.cacheDir, "portfolio_imports").apply { mkdirs() }
+                            java.io.File(dir, java.util.UUID.randomUUID().toString() + "-" + file.name.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+                                .apply { writeBytes(bytes) }
+                        }
+                        viewModel.importCsv(android.net.Uri.fromFile(local)) { result ->
+                            local.delete()
+                            val message = result.fold(
+                                onSuccess = { count -> if (count > 0) "Imported $count transaction${if (count == 1) "" else "s"}" else "Import failed. Check the CSV format" },
+                                onFailure = { "Import failed. Check the CSV format" }
+                            )
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, context.getString(R.string.pnc_import_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again")), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+        )
+    }
+
     val importCsvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             viewModel.importCsv(uri) { result ->
@@ -589,6 +625,44 @@ private fun PortfolioTransactionsContent(
                             ) {
                                 showCsvMenu = false
                                 importCsvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
+                            }
+                            // Export to / Import from Nextcloud - while an account is connected (iOS aa5d783).
+                            if (viewModel.nextcloud.isConnected) {
+                                ActionSheetRow(
+                                    icon = Icons.Default.CloudDownload,
+                                    title = stringResource(R.string.pnc_import),
+                                    subtitle = stringResource(R.string.pnc_import_sub),
+                                ) {
+                                    showCsvMenu = false
+                                    showNextcloudImporter = true
+                                }
+                                ActionSheetRow(
+                                    icon = Icons.Default.CloudUpload,
+                                    title = stringResource(R.string.pnc_export),
+                                    subtitle = stringResource(R.string.pnc_export_sub),
+                                ) {
+                                    showCsvMenu = false
+                                    // Same CSV as Export CSV, uploaded into the KaChat folder.
+                                    viewModel.exportCsv(
+                                        onReady = { uri ->
+                                            nextcloudScope.launch {
+                                                val message = try {
+                                                    val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                                                    } ?: throw java.io.IOException("Couldn't write the CSV file")
+                                                    val name = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.endsWith(".csv") }
+                                                        ?: "kachat-portfolio-${System.currentTimeMillis()}.csv"
+                                                    val path = viewModel.nextcloud.uploadToKaChatFolder(bytes, name, "text/csv")
+                                                    context.getString(R.string.pnc_saved_to, path)
+                                                } catch (e: Exception) {
+                                                    context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again"))
+                                                }
+                                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        onUnavailable = { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+                                    )
+                                }
                             }
                         }
                     }

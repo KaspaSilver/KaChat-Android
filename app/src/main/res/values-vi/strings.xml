@@ -589,4 +589,14 @@
     <string name="kl_name">Tên</string>
     <string name="kl_total">Tổng</string>
     <string name="kl_message">Tin nhắn</string>
+    <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
+    <string name="pnc_import">Nhập từ Nextcloud</string>
+    <string name="pnc_import_sub">Chọn một tệp CSV từ Nextcloud của bạn.</string>
+    <string name="pnc_export">Xuất sang Nextcloud</string>
+    <string name="pnc_export_sub">Lưu tệp CSV vào thư mục KaChat trên Nextcloud của bạn.</string>
+    <string name="pnc_saved_to">Đã lưu vào %1$s trên Nextcloud.</string>
+    <string name="pnc_export_failed">Xuất sang Nextcloud thất bại: %1$s</string>
+    <string name="pnc_import_failed">Nhập từ Nextcloud thất bại: %1$s</string>
+    <string name="pnc_all_files">Tất cả tệp</string>
+    <string name="pnc_folder_empty">Thư mục này trống.</string>
 </resources>

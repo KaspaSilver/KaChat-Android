@@ -459,4 +459,14 @@
     <string name="kl_name">Nama</string>
     <string name="kl_total">Total</string>
     <string name="kl_message">Pesan</string>
+    <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
+    <string name="pnc_import">Impor dari Nextcloud</string>
+    <string name="pnc_import_sub">Pilih file CSV dari Nextcloud-mu.</string>
+    <string name="pnc_export">Ekspor ke Nextcloud</string>
+    <string name="pnc_export_sub">Simpan CSV ke folder KaChat di Nextcloud-mu.</string>
+    <string name="pnc_saved_to">Tersimpan di %1$s di Nextcloud.</string>
+    <string name="pnc_export_failed">Ekspor ke Nextcloud gagal: %1$s</string>
+    <string name="pnc_import_failed">Impor dari Nextcloud gagal: %1$s</string>
+    <string name="pnc_all_files">Semua File</string>
+    <string name="pnc_folder_empty">Folder ini kosong.</string>
 </resources>

@@ -589,4 +589,14 @@
     <string name="kl_name">Ad</string>
     <string name="kl_total">Toplam</string>
     <string name="kl_message">Mesaj</string>
+    <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
+    <string name="pnc_import">Nextcloud\'dan İçe Aktar</string>
+    <string name="pnc_import_sub">Nextcloud\'undan bir CSV dosyası seç.</string>
+    <string name="pnc_export">Nextcloud\'a Dışa Aktar</string>
+    <string name="pnc_export_sub">CSV\'yi Nextcloud\'undaki KaChat klasörüne kaydeder.</string>
+    <string name="pnc_saved_to">Nextcloud\'da %1$s konumuna kaydedildi.</string>
+    <string name="pnc_export_failed">Nextcloud\'a dışa aktarma başarısız: %1$s</string>
+    <string name="pnc_import_failed">Nextcloud\'dan içe aktarma başarısız: %1$s</string>
+    <string name="pnc_all_files">Tüm Dosyalar</string>
+    <string name="pnc_folder_empty">Bu klasör boş.</string>
 </resources>

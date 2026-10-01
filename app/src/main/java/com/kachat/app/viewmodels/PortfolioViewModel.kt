@@ -67,6 +67,8 @@ class PortfolioViewModel @Inject constructor(
     private val networkStats: KaspaNetworkStatsService,
     private val marketPairs: com.kachat.app.services.MarketPairService,
     private val nameServices: com.kachat.app.services.NameServicesClient,
+    /** Export to / Import from Nextcloud, offered while an account is connected (iOS aa5d783). */
+    val nextcloud: com.kachat.app.services.NextcloudService,
 ) : ViewModel() {
 
     // MARK: - Charts against a pair (iOS 39adefe, c42e9a3)
