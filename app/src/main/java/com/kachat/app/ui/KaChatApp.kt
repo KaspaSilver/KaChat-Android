@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BubbleChart
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.NoteAlt
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sensors
@@ -113,6 +115,13 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object KaspaWebsites : Screen("kaspa_websites", "Websites", Icons.Default.Public)
     // Chess tournaments (5.1) - placeable like the others, in the Hub by default (iOS AppTab.chess).
     object Chess       : Screen("chess",        "Chess",        Icons.Default.GridOn)
+    // .kachat names (5.2) - Kaspa Hub > .kachat: the marketplace for KaChat's own names (claim,
+    // buy and sell, trustless). UI only until the name service is built (iOS AppTab.kachatNames).
+    // Drawn as the ".kachat" wordmark wherever tabs are drawn (see tabIconPainter).
+    object KachatNames : Screen("kachat_names", ".kachat",      Icons.Default.AlternateEmail)
+    // KaChat Stats (5.2) - KaChat's transactions on Kaspa by kind, from the indexers' /stats
+    // (iOS AppTab.kachatStats). Read-only, so Simple Mode shows it.
+    object KachatStats : Screen("kachat_stats", "Stats",        Icons.Default.BarChart)
     // Holds whatever of the above is turned on but not in the dock - see [kaspaHubSections].
     // Route stays "kaspa_hub" once shipped: it is persisted in saved dock arrangements.
     object KaspaHub    : Screen("kaspa_hub",    "Kaspa Hub",    Icons.Default.BubbleChart)
@@ -132,7 +141,8 @@ private fun dockOwnerRoute(route: String?): String? = when (route) {
     "broadcast_channel/{channelName}" -> Screen.Broadcasts.route
     "cold_storage_detail/{accountId}", "cold_storage_tx_history/{address}" -> Screen.ColdStorage.route
     Screen.Chess.route, Screen.Broadcasts.route, Screen.KaPosts.route, Screen.Portfolio.route,
-    Screen.Swap.route, Screen.ColdStorage.route, Screen.KaspaWebsites.route -> route
+    Screen.Swap.route, Screen.ColdStorage.route, Screen.KaspaWebsites.route,
+    Screen.KachatNames.route, Screen.KachatStats.route -> route
     else -> null
 }
 
@@ -146,6 +156,7 @@ val Screen.hubTitle: String
         Screen.Swap -> "ChangeNOW Swap"
         Screen.KaspaWebsites -> "Kaspa Websites"
         Screen.Chess -> "Chess Online"
+        Screen.KachatStats -> "KaChat Stats"
         else -> label
     }
 
@@ -163,7 +174,8 @@ val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
 val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
     Screen.Swap.route, Screen.KaPosts.route,
-    Screen.KaspaWebsites.route, Screen.Chess.route
+    Screen.KaspaWebsites.route, Screen.Chess.route,
+    Screen.KachatNames.route, Screen.KachatStats.route
 )
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
@@ -178,6 +190,8 @@ val bottomNavItems = listOf(
     Screen.Chats,
     Screen.KaspaHub,
     Screen.Profile,
+    Screen.KachatNames,
+    Screen.KachatStats,
     Screen.Swap,
     Screen.KaPosts,
     Screen.Broadcasts,
@@ -202,7 +216,9 @@ val CHILD_MODE_HIDDEN_ROUTES = setOf(
     // A browser onto the open web - the one tab most obviously not for a child's phone.
     Screen.KaspaWebsites.route,
     // Public tournaments with strangers, paid per move (iOS hides Chess in Child Mode too).
-    Screen.Chess.route
+    Screen.Chess.route,
+    // A marketplace - buying and selling with real KAS - so Simple Mode hides it, like Swap.
+    Screen.KachatNames.route
 )
 
 /**
@@ -1611,6 +1627,16 @@ fun MainShell(
             }
 
             // Chess tournaments (5.1): the lobby as a dock tab, and the screens it opens.
+            composable(Screen.KachatNames.route) {
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.kachat.app.ui.screens.KachatMarketScreen(onBack = null)
+                }
+            }
+            composable(Screen.KachatStats.route) {
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.kachat.app.ui.screens.KaChatStatsScreen(onBack = null)
+                }
+            }
             composable(Screen.Chess.route) {
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                     com.kachat.app.ui.screens.ChessHomeScreen(navController)

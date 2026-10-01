@@ -1,0 +1,702 @@
+package com.kachat.app.ui.screens
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.kachat.app.R
+import com.kachat.app.repository.AppSettingsRepository
+import com.kachat.app.ui.theme.KaspaTeal
+import com.kachat.app.ui.theme.LocalAppColors
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.text.NumberFormat
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
+
+// ---------------------------------------------------------------------------------------------
+// Kaspa Hub > .kachat - the marketplace for KaChat's own names (iOS b064468, KachatMarketView).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Kaspa Hub > .kachat: the marketplace for KaChat's own names - claim one, list it, buy one, peer
+ * to peer and trustless (the name and the payment settle together on chain, no one holds either
+ * in between).
+ *
+ * UI only. Nothing is wired yet: search answers "not live yet", listings and activity show
+ * placeholder shapes, and every action is disabled. No invented names or prices anywhere - the
+ * placeholders are blank shapes, so nothing here can be mistaken for a real listing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KachatMarketScreen(onBack: (() -> Unit)?) {
+    if (onBack != null) BackHandler(onBack = onBack)
+    val colors = LocalAppColors.current
+    var page by remember { mutableIntStateOf(0) }
+    var searchText by remember { mutableStateOf("") }
+    var showHowItWorks by remember { mutableStateOf(false) }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(".kachat", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onBack != null) IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showHowItWorks = true }) {
+                        Icon(Icons.Outlined.HelpOutline, contentDescription = stringResource(R.string.km_how_it_works), tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            // Hero
+            Column(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.Black, fontSize = 40.sp)
+                Text(stringResource(R.string.km_hero_title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(
+                    stringResource(R.string.km_hero_body),
+                    color = colors.textSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                ComingSoonPill()
+            }
+            // Search
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface).padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary)
+                    TextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        placeholder = { Text(stringResource(R.string.km_find_a_name), color = colors.textSecondary) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            cursorColor = KaspaTeal,
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(".kachat", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+                }
+                val typed = searchText.trim().lowercase()
+                if (typed.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface).padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("$typed.kachat", color = colors.textPrimary, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(stringResource(R.string.km_registration_not_open), color = colors.textSecondary, fontSize = 12.sp)
+                        }
+                        Button(onClick = {}, enabled = false) { Text(stringResource(R.string.km_claim)) }
+                    }
+                }
+            }
+            UnderlineTabBar(
+                titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.km_my_names), stringResource(R.string.km_activity)),
+                selectedIndex = page,
+                onSelect = { page = it },
+            )
+            when (page) {
+                0 -> MarketPage()
+                1 -> MyNamesPage()
+                else -> ActivityPage()
+            }
+        }
+    }
+
+    if (showHowItWorks) {
+        ActionSheetContainer(title = stringResource(R.string.km_how_kachat_works), subtitle = null, onDismiss = { showHowItWorks = false }) {
+            HowRow(Icons.Default.AlternateEmail, stringResource(R.string.km_claim), stringResource(R.string.km_claim_detail))
+            HowRow(Icons.Default.Sell, stringResource(R.string.km_list), stringResource(R.string.km_list_detail))
+            HowRow(Icons.Default.ShoppingCart, stringResource(R.string.km_buy), stringResource(R.string.km_buy_detail))
+            HowRow(Icons.Default.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
+            Text(
+                stringResource(R.string.km_nothing_live),
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComingSoonPill() {
+    Text(
+        stringResource(R.string.coming_soon),
+        color = KaspaTeal,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(KaspaTeal.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 4.dp)
+    )
+}
+
+/** A redacted text-shaped block: where a real value will go, with nothing invented in it. */
+@Composable
+private fun Redacted(width: Int, height: Int = 14, color: Color = LocalAppColors.current.textSecondary.copy(alpha = 0.25f)) {
+    Box(Modifier.size(width.dp, height.dp).clip(RoundedCornerShape(4.dp)).background(color))
+}
+
+@Composable
+private fun SectionHeader(title: String, detail: String?) {
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Text(title, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        if (detail != null) Text(detail, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun MarketPage() {
+    val colors = LocalAppColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
+        SectionHeader(stringResource(R.string.km_featured), stringResource(R.string.km_featured_detail))
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            repeat(4) {
+                Column(
+                    Modifier.clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(Modifier.size(170.dp, 90.dp).clip(RoundedCornerShape(14.dp)).background(KaspaTeal), contentAlignment = Alignment.Center) {
+                        Redacted(100, 16, Color.Black.copy(alpha = 0.25f))
+                    }
+                    Redacted(60)
+                    Redacted(30, 12)
+                }
+            }
+        }
+        SectionHeader(stringResource(R.string.km_recently_listed), null)
+        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
+            repeat(5) { index ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(36.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.25f)))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Redacted(120)
+                        Redacted(70, 10)
+                    }
+                    Redacted(50)
+                }
+                if (index < 4) HorizontalDivider(Modifier.padding(start = 64.dp), color = colors.background)
+            }
+        }
+        OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp)) {
+            Icon(Icons.Default.Sell, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.km_list_a_name), fontWeight = FontWeight.Bold)
+        }
+        Text(
+            stringResource(R.string.km_listings_appear),
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun MyNamesPage() {
+    val colors = LocalAppColors.current
+    Column(
+        Modifier.fillMaxWidth().padding(top = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
+        Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        Text(
+            stringResource(R.string.km_no_names_body),
+            color = colors.textSecondary,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
+        Button(
+            onClick = {},
+            enabled = false,
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).padding(top = 4.dp).height(48.dp)
+        ) { Text(stringResource(R.string.km_claim_a_name), fontWeight = FontWeight.Bold) }
+    }
+}
+
+@Composable
+private fun ActivityPage() {
+    val colors = LocalAppColors.current
+    val icons = listOf(Icons.Default.Sell, Icons.Default.ShoppingCart, Icons.Default.AlternateEmail, Icons.AutoMirrored.Filled.CompareArrows)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
+        SectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.km_recent_activity_detail))
+        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
+            icons.forEachIndexed { index, icon ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.width(28.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Redacted(140)
+                        Redacted(40, 10)
+                    }
+                    Redacted(50)
+                }
+                if (index < icons.lastIndex) HorizontalDivider(Modifier.padding(start = 56.dp), color = colors.background)
+            }
+        }
+        Text(
+            stringResource(R.string.km_activity_appears),
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun HowRow(icon: ImageVector, title: String, detail: String, tint: Color = KaspaTeal) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(title, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(detail, color = LocalAppColors.current.textSecondary, fontSize = 14.sp)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Kaspa Hub > KaChat Stats - KaChat's transactions on Kaspa by kind (iOS f38cac2, b8dd56f).
+// ---------------------------------------------------------------------------------------------
+
+/** One kind of KaChat transaction the stats screen counts. [key] is the key in the indexer's
+ *  `GET /stats` response (STATS_INDEXER.md), so it is part of that contract. */
+enum class KaChatStatCategory(val key: String, val title: Int, val detail: Int, val icon: ImageVector, val color: Color) {
+    MESSAGES("messages", R.string.ks_messages, R.string.ks_messages_detail, Icons.Default.Forum, Color(0xFF0A84FF)),
+    HANDSHAKES("handshakes", R.string.ks_handshakes, R.string.ks_handshakes_detail, Icons.Default.WavingHand, Color(0xFF64D2FF)),
+    PAYMENTS("payments", R.string.ks_payments, R.string.ks_payments_detail, Icons.AutoMirrored.Filled.Send, Color(0xFF30D158)),
+    GROUP_MESSAGES("groupMessages", R.string.ks_group_messages, R.string.ks_group_messages_detail, Icons.Default.Groups, Color(0xFF5E5CE6)),
+    GROUP_UPDATES("groupUpdates", R.string.ks_group_updates, R.string.ks_group_updates_detail, Icons.Default.PersonAdd, Color(0xFF40C8E0)),
+    PUBLIC_CHATS("publicChats", R.string.ks_public_chats, R.string.ks_public_chats_detail, Icons.Default.Sensors, Color(0xFFFF9F0A)),
+    KAPOSTS("kaposts", R.string.ks_kaposts, R.string.ks_kaposts_detail, Icons.Default.ChatBubble, Color(0xFFFF375F)),
+    KAPOST_ACTIONS("kapostActions", R.string.ks_kapost_actions, R.string.ks_kapost_actions_detail, Icons.Default.ThumbUp, Color(0xFFBF5AF2)),
+    CHESS_MOVES("chessMoves", R.string.ks_chess_moves, R.string.ks_chess_moves_detail, Icons.Default.GridOn, Color(0xFFAC8E68)),
+    CHESS_GAMES("chessGames", R.string.ks_chess_games, R.string.ks_chess_games_detail, Icons.Default.EmojiEvents, Color(0xFFFFD60A)),
+    SELF_STASH("selfStash", R.string.ks_self_stash, R.string.ks_self_stash_detail, Icons.Default.Inventory2, Color(0xFF8E8E93));
+}
+
+enum class KaChatStatRange(val title: Int, val caption: Int) {
+    DAY(R.string.ks_range_day, R.string.ks_caption_day),
+    WEEK(R.string.ks_range_week, R.string.ks_caption_week),
+    ALL(R.string.ks_range_all, R.string.ks_caption_all),
+}
+
+/** One category's counts as an indexer reports them. Every field is optional: a server that
+ *  only keeps an all-time counter still works, the shorter ranges just show a dash. */
+data class KaChatStatCounts(val total: Long?, val last24h: Long?, val last7d: Long?) {
+    fun value(range: KaChatStatRange): Long? = when (range) {
+        KaChatStatRange.DAY -> last24h
+        KaChatStatRange.WEEK -> last7d
+        KaChatStatRange.ALL -> total
+    }
+}
+
+data class KaChatStatsSnapshot(
+    val counts: Map<KaChatStatCategory, KaChatStatCounts>,
+    val updatedAt: Long?,
+    val indexedSince: Long?,
+    val fetchedAt: Long,
+)
+
+/**
+ * Fetches and holds the stats. A singleton so switching tabs and coming back does not refetch: a
+ * snapshot younger than a minute is reused unless the user pulls to refresh (iOS KaChatStatsModel).
+ */
+@Singleton
+class KaChatStatsStore @Inject constructor(private val settings: AppSettingsRepository) {
+    enum class Failure { NO_INDEXER, UNAVAILABLE }
+
+    private val _snapshot = MutableStateFlow<KaChatStatsSnapshot?>(null)
+    val snapshot: StateFlow<KaChatStatsSnapshot?> = _snapshot.asStateFlow()
+    private val _failure = MutableStateFlow<Failure?>(null)
+    val failure: StateFlow<Failure?> = _failure.asStateFlow()
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private var sourceKey = ""
+    private val gson = Gson()
+    private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
+
+    suspend fun refresh(force: Boolean) {
+        val bases = indexerBases()
+        val key = bases.joinToString("|")
+        if (key != sourceKey) {
+            // Another network or indexer: the old numbers aren't this server's.
+            sourceKey = key
+            _snapshot.value = null
+            _failure.value = null
+        }
+        if (bases.isEmpty()) {
+            _failure.value = Failure.NO_INDEXER
+            return
+        }
+        val current = _snapshot.value
+        if (!force && current != null && System.currentTimeMillis() - current.fetchedAt < FRESH_FOR_MS) return
+        if (_loading.value) return
+        _loading.value = true
+        try {
+            val fetched = fetch(bases)
+            if (key != sourceKey) return
+            if (fetched != null) {
+                _snapshot.value = fetched
+                _failure.value = null
+            } else {
+                // Keep showing the last numbers, if there are any; the screen says they're stale.
+                _failure.value = Failure.UNAVAILABLE
+            }
+        } finally {
+            _loading.value = false
+        }
+    }
+
+    /** Every KaChat indexer this network is configured with, deduplicated - by default they are
+     *  all the same server, so this is one request. */
+    private suspend fun indexerBases(): List<String> {
+        val seen = mutableSetOf<String>()
+        return listOf(settings.indexerUrl.first(), settings.broadcastIndexerUrl.first(), settings.kapostIndexerUrl.first())
+            .map { it.trim().trimEnd('/') }
+            .filter { it.isNotEmpty() && seen.add(it.lowercase()) }
+    }
+
+    /** Asks each indexer for `/stats` and merges: a category comes from the first indexer (in
+     *  settings order) that reports it. Null when none of them reports a category this app knows. */
+    private suspend fun fetch(bases: List<String>): KaChatStatsSnapshot? = coroutineScope {
+        val responses = bases.map { base -> async { fetchOne(base) } }.mapNotNull { it.await() }
+        val counts = mutableMapOf<KaChatStatCategory, KaChatStatCounts>()
+        for (response in responses) {
+            val categories = response.getAsJsonObject("categories") ?: continue
+            for ((key, value) in categories.entrySet()) {
+                val category = KaChatStatCategory.entries.firstOrNull { it.key == key } ?: continue
+                if (category in counts || !value.isJsonObject) continue
+                val obj = value.asJsonObject
+                fun long(name: String) = obj.get(name)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
+                counts[category] = KaChatStatCounts(long("total"), long("last24h"), long("last7d"))
+            }
+        }
+        if (counts.isEmpty()) return@coroutineScope null
+        fun long(obj: JsonObject, name: String) = obj.get(name)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
+        KaChatStatsSnapshot(
+            counts = counts,
+            updatedAt = responses.mapNotNull { long(it, "updatedAt") }.maxOrNull(),
+            indexedSince = responses.mapNotNull { long(it, "indexedSince") }.minOrNull(),
+            fetchedAt = System.currentTimeMillis(),
+        )
+    }
+
+    private suspend fun fetchOne(base: String): JsonObject? = withContext(Dispatchers.IO) {
+        try {
+            client.newCall(Request.Builder().url("$base/stats").build()).execute().use { response ->
+                if (!response.isSuccessful) null
+                else gson.fromJson(response.body?.string(), JsonObject::class.java)
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private companion object {
+        const val FRESH_FOR_MS = 60_000L
+    }
+}
+
+@HiltViewModel
+class KaChatStatsViewModel @Inject constructor(val store: KaChatStatsStore) : ViewModel() {
+    fun refresh(force: Boolean) {
+        viewModelScope.launch { store.refresh(force) }
+    }
+
+    suspend fun refreshAndAwait() = store.refresh(force = true)
+}
+
+/**
+ * Kaspa Hub > KaChat Stats: how many transactions KaChat has put on Kaspa, split by kind. The
+ * numbers are the indexers' (`GET /stats`), never this phone's own traffic. A category no indexer
+ * reports is left out rather than shown as zero; while loading, or when the indexer has no stats
+ * yet, the rows keep their real names with the numbers blanked, so nothing invented is on screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = hiltViewModel()) {
+    if (onBack != null) BackHandler(onBack = onBack)
+    val colors = LocalAppColors.current
+    val snapshot by viewModel.store.snapshot.collectAsState()
+    val failure by viewModel.store.failure.collectAsState()
+    val loading by viewModel.store.loading.collectAsState()
+    var range by remember { mutableStateOf(KaChatStatRange.ALL) }
+    var showInfo by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { viewModel.refresh(force = false) }
+
+    val pullState = rememberPullToRefreshState()
+    LaunchedEffect(pullState.isRefreshing) {
+        if (pullState.isRefreshing) {
+            viewModel.refreshAndAwait()
+            pullState.endRefresh()
+        }
+    }
+    val numberFormat = remember { NumberFormat.getIntegerInstance() }
+    val percentFormat = remember { NumberFormat.getPercentInstance().apply { maximumFractionDigits = 1 } }
+
+    // The categories the indexer reports, in the fixed display order.
+    val rows = snapshot?.let { snap -> KaChatStatCategory.entries.mapNotNull { c -> snap.counts[c]?.let { c to it.value(range) } } }
+    val total = rows?.mapNotNull { it.second }?.takeIf { it.isNotEmpty() }?.sum()
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.ks_title), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onBack != null) IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showInfo = true }) {
+                        Icon(Icons.Outlined.HelpOutline, contentDescription = stringResource(R.string.ks_what_counts), tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding).nestedScroll(pullState.nestedScrollConnection)) {
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                // Hero
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Default.BarChart, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
+                    when {
+                        total != null -> Text(numberFormat.format(total), color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp, maxLines = 1)
+                        snapshot != null -> Text("—", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp)
+                        else -> Box(Modifier.padding(vertical = 8.dp)) { Redacted(180, 40) }
+                    }
+                    Text(stringResource(range.caption), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    // A kind the indexer counts all time only has no number for 24 Hours / 7 Days,
+                    // so the total above leaves it out - say so rather than let it look complete.
+                    if (range != KaChatStatRange.ALL && rows?.any { it.second == null } == true) {
+                        Text(stringResource(R.string.ks_all_time_only_note), color = colors.textSecondary, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    }
+                }
+                UnderlineTabBar(
+                    titles = KaChatStatRange.entries.map { stringResource(it.title) },
+                    selectedIndex = range.ordinal,
+                    onSelect = { range = KaChatStatRange.entries[it] },
+                )
+                if (rows != null) {
+                    // Each category's share of the range's total as one segmented bar.
+                    val parts = rows.filter { (it.second ?: 0) > 0 }
+                    val sum = parts.sumOf { it.second ?: 0 }
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(12.dp).clip(RoundedCornerShape(50)),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        if (sum > 0) {
+                            parts.forEach { (category, value) ->
+                                Box(Modifier.weight(((value ?: 0).toFloat() / sum).coerceAtLeast(0.01f)).fillMaxHeight().background(category.color))
+                            }
+                        } else {
+                            Box(Modifier.fillMaxSize().background(colors.surface))
+                        }
+                    }
+                    StatsCard {
+                        rows.forEachIndexed { index, (category, value) ->
+                            StatsRow(category) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    if (value != null) {
+                                        Text(numberFormat.format(value), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                        if ((total ?: 0) > 0) {
+                                            Text(percentFormat.format(value.toDouble() / (total ?: 1)), color = colors.textSecondary, fontSize = 12.sp)
+                                        }
+                                    } else {
+                                        Text("—", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                        // Reported, but without this range - the indexer keeps an
+                                        // all-time counter for it only.
+                                        if (range != KaChatStatRange.ALL) {
+                                            Text(stringResource(R.string.ks_all_time_only), color = colors.textSecondary, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+                            if (index < rows.lastIndex) HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
+                        }
+                    }
+                } else {
+                    val shownFailure = failure
+                    if (shownFailure != null && !loading) UnavailableCard(shownFailure) { viewModel.refresh(force = true) }
+                    StatsCard {
+                        KaChatStatCategory.entries.forEachIndexed { index, category ->
+                            StatsRow(category) { Redacted(50) }
+                            if (index < KaChatStatCategory.entries.lastIndex) HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
+                        }
+                    }
+                }
+                snapshot?.let { snap ->
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (failure == KaChatStatsStore.Failure.UNAVAILABLE) {
+                            Text(stringResource(R.string.ks_stale), color = colors.textSecondary, fontSize = 13.sp)
+                        }
+                        val updated = minOf(snap.updatedAt ?: snap.fetchedAt, System.currentTimeMillis())
+                        Text(
+                            stringResource(R.string.ks_updated, android.text.format.DateUtils.getRelativeTimeSpanString(updated).toString()),
+                            color = colors.textSecondary,
+                            fontSize = 13.sp
+                        )
+                        snap.indexedSince?.let { since ->
+                            Text(
+                                stringResource(R.string.ks_counting_since, java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(since))),
+                                color = colors.textSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+            PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
+        }
+    }
+
+    if (showInfo) {
+        ActionSheetContainer(title = stringResource(R.string.ks_what_counts), subtitle = stringResource(R.string.ks_info_header), onDismiss = { showInfo = false }) {
+            KaChatStatCategory.entries.forEach { category ->
+                HowRow(category.icon, stringResource(category.title), stringResource(category.detail), tint = category.color)
+            }
+            Text(
+                stringResource(R.string.ks_info_footer),
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatsCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface), content = content)
+}
+
+@Composable
+private fun StatsRow(category: KaChatStatCategory, value: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(32.dp).clip(CircleShape).background(category.color), contentAlignment = Alignment.Center) {
+            Icon(category.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(category.title), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(stringResource(category.detail), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 2)
+        }
+        Spacer(Modifier.width(8.dp))
+        value()
+    }
+}
+
+@Composable
+private fun UnavailableCard(failure: KaChatStatsStore.Failure, onRetry: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(Icons.Default.BarChart, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(28.dp))
+        when (failure) {
+            KaChatStatsStore.Failure.NO_INDEXER -> {
+                Text(stringResource(R.string.ks_no_indexer), color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ks_no_indexer_body), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            }
+            KaChatStatsStore.Failure.UNAVAILABLE -> {
+                Text(stringResource(R.string.ks_unavailable), color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ks_unavailable_body), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                OutlinedButton(onClick = onRetry, modifier = Modifier.padding(top = 4.dp)) {
+                    Text(stringResource(R.string.ks_try_again), color = KaspaTeal)
+                }
+            }
+        }
+    }
+}

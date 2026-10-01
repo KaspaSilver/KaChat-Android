@@ -35,10 +35,34 @@ private val chessIconBitmap by lazy {
     bitmap.asImageBitmap()
 }
 
-/** The painter a tab's icon is drawn with: the Kaspa mark, the chess pieces, or its vector. */
+/**
+ * The ".kachat" wordmark as a tintable bitmap - the Kaspa Hub tile, the dock item and Customize
+ * Dock draw it the way they draw the chess pieces (iOS KachatTabIcon). Black on transparent; the
+ * word is wider than it is tall.
+ */
+private val kachatWordmarkBitmap by lazy {
+    val side = 96
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.BLACK
+        textSize = side * 0.62f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+    val text = ".kachat"
+    val width = maxOf(paint.measureText(text).toInt() + 8, side)
+    val bitmap = Bitmap.createBitmap(width, side, Bitmap.Config.ARGB_8888)
+    val metrics = paint.fontMetrics
+    val baseline = side / 2f - (metrics.ascent + metrics.descent) / 2f
+    Canvas(bitmap).drawText(text, width / 2f, baseline, paint)
+    bitmap.asImageBitmap()
+}
+
+/** The painter a tab's icon is drawn with: the Kaspa mark, the chess pieces, the .kachat
+ *  wordmark, or its vector. */
 @Composable
 fun Screen.tabIconPainter(): Painter = when {
     usesKaspaLogo -> painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
     this == Screen.Chess -> remember { BitmapPainter(chessIconBitmap) }
+    this == Screen.KachatNames -> remember { BitmapPainter(kachatWordmarkBitmap) }
     else -> rememberVectorPainter(icon)
 }

@@ -193,7 +193,9 @@ class AppSettingsRepository @Inject constructor(
         val KEY_DOCK_TABS = stringPreferencesKey("dock_tabs")
         val KEY_HUB_TABS = stringPreferencesKey("hub_tabs")
         val DEFAULT_DOCK_TABS = listOf("cold_storage", "portfolio", "chats", "kaspa_hub", "profile")
-        val DEFAULT_HUB_TABS = listOf("kaposts", "broadcasts", "swap")
+        // .kachat and KaChat Stats first on a fresh install (iOS b064468, f38cac2); existing
+        // users get them appended (kaspaHubSections adds any eligible tab the list lacks).
+        val DEFAULT_HUB_TABS = listOf("kachat_names", "kachat_stats", "kaposts", "broadcasts", "swap")
         // One-time derivation of a placement from what an existing user could already SEE.
         val KEY_PLACEMENT_APPLIED = booleanPreferencesKey("dock_placement_applied")
         // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >
