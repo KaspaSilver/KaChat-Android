@@ -885,12 +885,14 @@ class PortfolioRepository @Inject constructor(
      * portfolios' transactions) — otherwise a row could get silently reassigned or overwritten
      * across portfolios just because two unrelated ledgers happen to share a timestamp.
      */
-    suspend fun importCsv(uri: Uri): Int {
+    suspend fun importCsv(uri: Uri, currency: String = "usd"): Int {
         val portfolioId = currentPortfolioId() ?: return 0
         val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: return 0
-        val lines = content.split("\r\n", "\n", "\r").toMutableList()
-        if (lines.isEmpty()) return 0
-        val header = lines.removeAt(0)
+        // Whole records, not lines: a note can hold line breaks, which the export writes inside
+        // its quotes. Splitting the file on every newline first cut such a row in two (iOS 98f5009).
+        val records = parseCsvRecords(content).toMutableList()
+        if (records.isEmpty()) return 0
+        val header = records.removeAt(0).joinToString(",")
         val dateFormat = makeDateFormat(parseHeaderUtcOffset(header))
 
         val walletAddress = walletManager.getAddress()
@@ -898,9 +900,7 @@ class PortfolioRepository @Inject constructor(
         val idByTimestamp = existing.associate { it.timestampMillis to it.id }.toMutableMap()
 
         var imported = 0
-        for (line in lines) {
-            if (line.isBlank()) continue
-            val fields = parseCsvLine(line)
+        for (fields in records) {
             if (fields.size < 6) continue
 
             val token = fields[1].trim()
@@ -957,36 +957,71 @@ class PortfolioRepository @Inject constructor(
             }
             imported++
         }
+        if (imported > 0) {
+            // A re-imported export can carry rows whose price was still loading when it was
+            // written, and a CSV row has no on-chain source - price them by their date like any
+            // other (iOS 98f5009).
+            val pendingIdsByDay = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
+                .filter { it.notes == PRICE_UNAVAILABLE_NOTE }
+                .groupBy({ utcDayStartMillis(it.timestampMillis) }, { it.id })
+            if (pendingIdsByDay.isNotEmpty()) {
+                priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency) }
+            }
+        }
         return imported
     }
 
-    /** Splits on commas outside double quotes, and unescapes "" back to " within a quoted field. */
-    private fun parseCsvLine(line: String): List<String> {
-        val fields = mutableListOf<String>()
-        val current = StringBuilder()
-        var inQuotes = false
-        var i = 0
-        while (i < line.length) {
-            val c = line[i]
-            when {
-                inQuotes && c == '"' && i + 1 < line.length && line[i + 1] == '"' -> {
-                    current.append('"')
-                    i++
-                }
-                c == '"' -> inQuotes = !inQuotes
-                c == ',' && !inQuotes -> {
-                    fields.add(current.toString())
-                    current.clear()
-                }
-                else -> current.append(c)
-            }
-            i++
-        }
-        fields.add(current.toString())
-        return fields
-    }
-
     companion object {
+        /**
+         * Splits a CSV document into records of fields (RFC 4180): commas and line breaks inside
+         * double quotes belong to the field, "" inside quotes is one literal quote, and a line
+         * break outside quotes - LF, CRLF or CR - ends the record. Blank lines yield no record.
+         * Mirrors iOS `parseCsvRecords` (98f5009).
+         */
+        fun parseCsvRecords(content: String): List<List<String>> {
+            val records = mutableListOf<List<String>>()
+            var fields = mutableListOf<String>()
+            val current = StringBuilder()
+            var inQuotes = false
+            fun endRecord() {
+                fields.add(current.toString())
+                if (!(fields.size == 1 && fields[0].isBlank())) records.add(fields)
+                fields = mutableListOf()
+                current.clear()
+            }
+            var i = 0
+            while (i < content.length) {
+                val c = content[i]
+                if (inQuotes) {
+                    if (c == '"') {
+                        if (i + 1 < content.length && content[i + 1] == '"') {
+                            current.append('"')
+                            i++
+                        } else {
+                            inQuotes = false
+                        }
+                    } else {
+                        current.append(c)
+                    }
+                } else when (c) {
+                    '"' -> inQuotes = true
+                    ',' -> {
+                        fields.add(current.toString())
+                        current.clear()
+                    }
+                    '\r' -> {
+                        if (i + 1 < content.length && content[i + 1] == '\n') i++
+                        endRecord()
+                    }
+                    '\n' -> endRecord()
+                    else -> current.append(c)
+                }
+                i++
+            }
+            if (current.isNotEmpty() || fields.isNotEmpty()) endRecord()
+            return records
+        }
+
         private const val PRICE_HISTORY_PREFS_NAME = "kachat_price_history_cache"
         private const val PREF_SERIES_MIGRATED_TO_FILES = "series_moved_to_files"
 
