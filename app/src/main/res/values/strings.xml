@@ -791,4 +791,10 @@
     <string name="portfolio_type_transfer">Transfer</string>
     <string name="portfolio_value_at_the_time">Value at the Time</string>
     <string name="portfolio_transfer_footer">KAS moved between your own addresses - sent away and brought back, or wallet to wallet. It doesn\'t change your holdings, cost or profit.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Move to Portfolio</string>
+    <string name="portfolio_move_need_another">Create another portfolio first, then you can move transactions into it.</string>
+    <string name="portfolio_move_already_has">Already has this transaction.</string>
+    <string name="portfolio_move_here">Move this transaction here.</string>
+    <string name="portfolio_moved_to">Moved to %1$s.</string>
 </resources>

@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">تحويل</string>
     <string name="portfolio_value_at_the_time">القيمة في ذلك الوقت</string>
     <string name="portfolio_transfer_footer">‏KAS نُقلت بين عناوينك الخاصة - أُرسلت ثم أُعيدت، أو من محفظة إلى أخرى. لا يغيّر ذلك رصيدك أو التكلفة أو الربح.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">نقل إلى محفظة</string>
+    <string name="portfolio_move_need_another">أنشئ محفظة أخرى أولًا، ثم يمكنك نقل المعاملات إليها.</string>
+    <string name="portfolio_move_already_has">تحتوي هذه المعاملة بالفعل.</string>
+    <string name="portfolio_move_here">انقل هذه المعاملة إلى هنا.</string>
+    <string name="portfolio_moved_to">تم النقل إلى %1$s.</string>
 </resources>

@@ -649,4 +649,10 @@
     <string name="portfolio_type_transfer">انتقال</string>
     <string name="portfolio_value_at_the_time">ارزش در آن زمان</string>
     <string name="portfolio_transfer_footer">KAS جابه‌جاشده بین نشانی‌های خودتان - فرستاده و بعد برگردانده‌شده، یا از کیف پولی به کیف پول دیگر. دارایی، هزینه یا سود شما را تغییر نمی‌دهد.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">انتقال به سبد</string>
+    <string name="portfolio_move_need_another">اول یک سبد دیگر بسازید، بعد می‌توانید تراکنش‌ها را به آن منتقل کنید.</string>
+    <string name="portfolio_move_already_has">این تراکنش را از قبل دارد.</string>
+    <string name="portfolio_move_here">انتقال این تراکنش به اینجا.</string>
+    <string name="portfolio_moved_to">به %1$s منتقل شد.</string>
 </resources>

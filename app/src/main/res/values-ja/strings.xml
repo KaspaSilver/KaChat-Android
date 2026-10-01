@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">移行</string>
     <string name="portfolio_value_at_the_time">当時の価値</string>
     <string name="portfolio_transfer_footer">自分のアドレス間で移動した KAS（送ってから戻した、またはウォレット間の移動）。保有量・取得原価・損益は変わりません。</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">ポートフォリオへ移動</string>
+    <string name="portfolio_move_need_another">先に別のポートフォリオを作成すると、取引をそこへ移動できます。</string>
+    <string name="portfolio_move_already_has">この取引はすでにあります。</string>
+    <string name="portfolio_move_here">この取引をここへ移動します。</string>
+    <string name="portfolio_moved_to">%1$s に移動しました。</string>
 </resources>

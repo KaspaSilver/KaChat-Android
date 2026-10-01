@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">Передача</string>
     <string name="portfolio_value_at_the_time">Стоимость на тот момент</string>
     <string name="portfolio_transfer_footer">KAS, перемещённые между вашими адресами: отправленные и возвращённые или переведённые из кошелька в кошелёк. Не меняет ни ваши активы, ни стоимость, ни прибыль.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Переместить в портфель</string>
+    <string name="portfolio_move_need_another">Сначала создайте ещё один портфель, затем сможете перемещать в него транзакции.</string>
+    <string name="portfolio_move_already_has">Уже содержит эту транзакцию.</string>
+    <string name="portfolio_move_here">Переместить транзакцию сюда.</string>
+    <string name="portfolio_moved_to">Перемещено в %1$s.</string>
 </resources>

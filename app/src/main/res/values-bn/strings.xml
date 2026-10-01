@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">স্থানান্তর</string>
     <string name="portfolio_value_at_the_time">তখনকার মূল্য</string>
     <string name="portfolio_transfer_footer">আপনার নিজের ঠিকানাগুলোর মধ্যে সরানো KAS - পাঠিয়ে আবার ফিরিয়ে আনা, বা এক ওয়ালেট থেকে আরেকটিতে। এতে আপনার হোল্ডিং, খরচ বা লাভ বদলায় না।</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">পোর্টফোলিওতে সরান</string>
+    <string name="portfolio_move_need_another">আগে আরেকটি পোর্টফোলিও তৈরি করুন, তারপর সেখানে লেনদেন সরাতে পারবেন।</string>
+    <string name="portfolio_move_already_has">এই লেনদেনটি আগে থেকেই আছে।</string>
+    <string name="portfolio_move_here">এই লেনদেনটি এখানে সরান।</string>
+    <string name="portfolio_moved_to">%1$s-এ সরানো হয়েছে।</string>
 </resources>

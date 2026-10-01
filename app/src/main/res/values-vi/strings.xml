@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">Chuyển khoản</string>
     <string name="portfolio_value_at_the_time">Giá trị tại thời điểm đó</string>
     <string name="portfolio_transfer_footer">KAS được chuyển giữa các địa chỉ của chính bạn - gửi đi rồi lấy lại, hoặc từ ví này sang ví khác. Không thay đổi số lượng nắm giữ, giá vốn hay lợi nhuận.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Chuyển sang danh mục</string>
+    <string name="portfolio_move_need_another">Hãy tạo thêm một danh mục trước, rồi bạn có thể chuyển giao dịch vào đó.</string>
+    <string name="portfolio_move_already_has">Đã có giao dịch này.</string>
+    <string name="portfolio_move_here">Chuyển giao dịch này vào đây.</string>
+    <string name="portfolio_moved_to">Đã chuyển sang %1$s.</string>
 </resources>

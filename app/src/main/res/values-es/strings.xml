@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">Transferir</string>
     <string name="portfolio_value_at_the_time">Valor en ese momento</string>
     <string name="portfolio_transfer_footer">KAS movidos entre tus propias direcciones: enviados y devueltos después, o de una billetera a otra. No cambia tus tenencias, tu coste ni tu ganancia.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Mover a portafolio</string>
+    <string name="portfolio_move_need_another">Crea primero otro portafolio y luego podrás mover transacciones a él.</string>
+    <string name="portfolio_move_already_has">Ya tiene esta transacción.</string>
+    <string name="portfolio_move_here">Mover esta transacción aquí.</string>
+    <string name="portfolio_moved_to">Movida a %1$s.</string>
 </resources>

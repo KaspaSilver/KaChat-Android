@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">Trasferire</string>
     <string name="portfolio_value_at_the_time">Valore in quel momento</string>
     <string name="portfolio_transfer_footer">KAS spostati tra i tuoi indirizzi - inviati e poi recuperati, o da un wallet all\'altro. Non cambia i tuoi possedimenti, il costo o il profitto.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Sposta nel portafoglio</string>
+    <string name="portfolio_move_need_another">Crea prima un altro portafoglio, poi potrai spostarvi le transazioni.</string>
+    <string name="portfolio_move_already_has">Contiene già questa transazione.</string>
+    <string name="portfolio_move_here">Sposta qui questa transazione.</string>
+    <string name="portfolio_moved_to">Spostata in %1$s.</string>
 </resources>

@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">לְהַעֲבִיר</string>
     <string name="portfolio_value_at_the_time">השווי באותו זמן</string>
     <string name="portfolio_transfer_footer">‏KAS שהועברו בין הכתובות שלכם - נשלחו והוחזרו, או מארנק לארנק. זה לא משנה את האחזקות, העלות או הרווח.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">העברה לתיק</string>
+    <string name="portfolio_move_need_another">צרו קודם תיק נוסף, ואז תוכלו להעביר אליו עסקאות.</string>
+    <string name="portfolio_move_already_has">העסקה הזו כבר קיימת בו.</string>
+    <string name="portfolio_move_here">העבירו את העסקה לכאן.</string>
+    <string name="portfolio_moved_to">הועבר ל-%1$s.</string>
 </resources>

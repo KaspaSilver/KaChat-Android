@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">转移</string>
     <string name="portfolio_value_at_the_time">当时价值</string>
     <string name="portfolio_transfer_footer">在你自己的地址之间转移的 KAS——转出后再转回，或在钱包之间转移。不会改变你的持仓、成本或收益。</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">移至投资组合</string>
+    <string name="portfolio_move_need_another">请先创建另一个投资组合，然后就可以把交易移过去。</string>
+    <string name="portfolio_move_already_has">已包含此交易。</string>
+    <string name="portfolio_move_here">将此交易移到这里。</string>
+    <string name="portfolio_moved_to">已移至 %1$s。</string>
 </resources>

@@ -480,4 +480,10 @@
     <string name="portfolio_type_transfer">Transfer</string>
     <string name="portfolio_value_at_the_time">Nilai Saat Itu</string>
     <string name="portfolio_transfer_footer">KAS yang dipindahkan antar-alamatmu sendiri - dikirim lalu dikembalikan, atau dari dompet ke dompet. Tidak mengubah kepemilikan, biaya, atau keuntunganmu.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Pindahkan ke Portofolio</string>
+    <string name="portfolio_move_need_another">Buat portofolio lain dulu, lalu kamu bisa memindahkan transaksi ke sana.</string>
+    <string name="portfolio_move_already_has">Sudah memiliki transaksi ini.</string>
+    <string name="portfolio_move_here">Pindahkan transaksi ini ke sini.</string>
+    <string name="portfolio_moved_to">Dipindahkan ke %1$s.</string>
 </resources>

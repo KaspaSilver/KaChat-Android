@@ -12,6 +12,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -403,6 +405,9 @@ private fun PortfolioTransactionsContent(
     // it's dismissed or saved so a later manual "+" tap opens a genuinely blank form.
     var pendingPrefillSwapId by remember { mutableStateOf(prefillSwapId) }
     var editingTransaction by remember { mutableStateOf<PortfolioTransactionEntity?>(null) }
+    /** The transaction a long press is moving to another portfolio, while its sheet is up. */
+    var movingTransaction by remember { mutableStateOf<PortfolioTransactionEntity?>(null) }
+    val portfolios by viewModel.portfolios.collectAsState()
     var showCsvMenu by remember { mutableStateOf(false) }
     var showAddMenu by remember { mutableStateOf(false) }
     var showAddAddressDialog by remember { mutableStateOf(false) }
@@ -692,6 +697,8 @@ private fun PortfolioTransactionsContent(
                     TransactionRow(
                         tx = tx,
                         onClick = { editingTransaction = tx },
+                        // Hold to move it to another portfolio (iOS b438f2d).
+                        onLongClick = { movingTransaction = tx },
                         onDelete = { viewModel.deleteTransaction(tx.id) },
                         currencyCode = currencyCode,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -701,6 +708,49 @@ private fun PortfolioTransactionsContent(
                             selectedIds = if (tx.id in selectedIds) selectedIds - tx.id else selectedIds + tx.id
                         }
                     )
+                }
+            }
+        }
+    }
+
+    // Hold a transaction: move it to another portfolio. The row itself sits on top so it's clear
+    // what is moving; a portfolio that already holds the same on-chain transaction is offered but
+    // disabled, since moving it there would count it twice (iOS b438f2d).
+    movingTransaction?.let { tx ->
+        val others = portfolios.filter { it.id != tx.portfolioId }
+        val alreadyHolding = remember(tx.id) { viewModel.portfolioIdsContaining(tx.sourceTxId ?: "") }
+        ActionSheetContainer(
+            title = stringResource(R.string.portfolio_move_title),
+            subtitle = null,
+            onDismiss = { movingTransaction = null },
+        ) {
+            TransactionRow(
+                tx = tx,
+                onClick = {},
+                onDelete = null,
+                currencyCode = currencyCode,
+            )
+            if (others.isEmpty()) {
+                Text(
+                    stringResource(R.string.portfolio_move_need_another),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                )
+            } else {
+                others.forEach { portfolio ->
+                    val duplicate = portfolio.id in alreadyHolding
+                    ActionSheetRow(
+                        icon = Icons.Default.Folder,
+                        title = portfolio.name,
+                        subtitle = stringResource(if (duplicate) R.string.portfolio_move_already_has else R.string.portfolio_move_here),
+                        enabled = !duplicate,
+                    ) {
+                        viewModel.moveTransaction(tx.id, portfolio.id)
+                        movingTransaction = null
+                        Toast.makeText(context, context.getString(R.string.portfolio_moved_to, portfolio.name), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -2210,17 +2260,22 @@ private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: Str
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TransactionRow(
     tx: PortfolioTransactionEntity,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
+    /** Null hides the bin - the Move to Portfolio sheet shows the row only as what is moving. */
+    onDelete: (() -> Unit)?,
     currencyCode: String,
     modifier: Modifier = Modifier,
     selecting: Boolean = false,
     picked: Boolean = false,
-    onToggle: () -> Unit = {}
+    onToggle: () -> Unit = {},
+    /** Long press - moving the row to another portfolio. Not attached in Select mode. */
+    onLongClick: (() -> Unit)? = null,
 ) {
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val isBuy = tx.type == "buy"
     // A transfer is a record only - a two-way arrow in the accent colour (iOS 7423330).
     val isTransfer = tx.type == "transfer"
@@ -2240,7 +2295,15 @@ private fun TransactionRow(
             .clip(RoundedCornerShape(12.dp))
             // A picked row is tinted rather than restyled, so the list stays the same list.
             .background(if (picked) KaspaTeal.copy(alpha = 0.10f) else LocalAppColors.current.surface)
-            .clickable(onClick = if (selecting) onToggle else onClick)
+            .combinedClickable(
+                onClick = if (selecting) onToggle else onClick,
+                onLongClick = if (!selecting && onLongClick != null) {
+                    {
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        onLongClick()
+                    }
+                } else null,
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -2302,7 +2365,7 @@ private fun TransactionRow(
             Text(kas(amountKas, grouped = true), color = LocalAppColors.current.textPrimary)
             Text(money(tx.fiatValue, currencyCode), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
         }
-        if (!selecting) {
+        if (!selecting && onDelete != null) {
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
                 Icon(Icons.Default.Delete, "Delete", tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))

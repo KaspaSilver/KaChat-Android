@@ -47,6 +47,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -191,6 +192,8 @@ fun ActionSheetRow(
     title: String,
     subtitle: String,
     tint: Color = KaspaTeal,
+    /** iOS `isDisabled`: shown, dimmed to half, and not tappable. */
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     ActionSheetRowFrame(
@@ -198,6 +201,7 @@ fun ActionSheetRow(
         title = title,
         subtitle = subtitle,
         onClick = onClick,
+        enabled = enabled,
     )
 }
 
@@ -227,14 +231,16 @@ private fun ActionSheetRowFrame(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
             .clip(RoundedCornerShape(16.dp))
             .background(colors.surface)
-            .clickable { onClick() }
+            .clickable(enabled = enabled) { onClick() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

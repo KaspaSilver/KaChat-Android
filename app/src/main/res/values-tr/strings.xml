@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">Aktarım</string>
     <string name="portfolio_value_at_the_time">O Andaki Değeri</string>
     <string name="portfolio_transfer_footer">Kendi adreslerin arasında taşınan KAS - gönderilip geri alınan ya da cüzdandan cüzdana. Varlıklarını, maliyetini veya kârını değiştirmez.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">Portföye Taşı</string>
+    <string name="portfolio_move_need_another">Önce başka bir portföy oluştur, sonra işlemleri oraya taşıyabilirsin.</string>
+    <string name="portfolio_move_already_has">Bu işlem zaten var.</string>
+    <string name="portfolio_move_here">Bu işlemi buraya taşı.</string>
+    <string name="portfolio_moved_to">%1$s portföyüne taşındı.</string>
 </resources>

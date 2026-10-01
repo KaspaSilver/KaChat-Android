@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">Überweisen</string>
     <string name="portfolio_value_at_the_time">Wert zu dem Zeitpunkt</string>
     <string name="portfolio_transfer_footer">KAS, die zwischen deinen eigenen Adressen bewegt wurden - weggeschickt und zurückgeholt oder von Wallet zu Wallet. Ändert weder deinen Bestand noch Kosten oder Gewinn.</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">In Portfolio verschieben</string>
+    <string name="portfolio_move_need_another">Lege zuerst ein weiteres Portfolio an, dann kannst du Transaktionen dorthin verschieben.</string>
+    <string name="portfolio_move_already_has">Enthält diese Transaktion bereits.</string>
+    <string name="portfolio_move_here">Transaktion hierher verschieben.</string>
+    <string name="portfolio_moved_to">Nach %1$s verschoben.</string>
 </resources>

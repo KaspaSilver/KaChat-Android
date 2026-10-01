@@ -65,6 +65,26 @@ class PortfolioRepository @Inject constructor(
      * — a very old install upgrading straight from before either migration needs both claims in
      * that order.
      */
+    /** Every portfolio's rows for the active wallet - what "already in another portfolio"
+     *  checks look across (iOS checks its whole transactions list, not the active portfolio). */
+    fun getAllTransactionsForActiveWallet(): Flow<List<PortfolioTransactionEntity>> =
+        walletManager.activeAddressFlow.flatMapLatest { address ->
+            if (address == null) flowOf(emptyList())
+            else database.portfolioDao().getAllTransactionsForWallet(address)
+        }
+
+    /**
+     * Moves one row to another of this wallet's portfolios - the same record, keeping its id and
+     * source, so a later "Add to Portfolio" of the same transaction still recognises it wherever
+     * it now lives (iOS b438f2d).
+     */
+    suspend fun moveTransaction(id: String, toPortfolioId: String) {
+        val row = database.portfolioDao().getAllTransactionsForWallet(walletManager.getAddress()).first()
+            .firstOrNull { it.id == id } ?: return
+        if (row.portfolioId == toPortfolioId) return
+        database.portfolioDao().insert(row.copy(portfolioId = toPortfolioId))
+    }
+
     fun getTransactions(): Flow<List<PortfolioTransactionEntity>> {
         return combine(walletManager.activeAddressFlow, portfolioManager.activePortfolioIdFlow) { address, portfolioId ->
             address to portfolioId

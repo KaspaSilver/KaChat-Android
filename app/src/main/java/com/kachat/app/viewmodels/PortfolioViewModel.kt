@@ -204,6 +204,10 @@ class PortfolioViewModel @Inject constructor(
     val transactions = repository.getTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Every portfolio's rows for this wallet - read synchronously by [portfolioIdsContaining]. */
+    private val allWalletTransactions = repository.getAllTransactionsForActiveWallet()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     /** Every portfolio for the current wallet (up to [PortfolioManager.MAX_PORTFOLIOS]) and which one is active — back the picker header. */
     val portfolios: StateFlow<List<PortfolioEntity>> = portfolioManager.getPortfolios()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -677,7 +681,7 @@ class PortfolioViewModel @Inject constructor(
      */
     fun portfolioIdsContaining(sourceTxId: String): Set<String> =
         if (sourceTxId.isEmpty()) emptySet()
-        else transactions.value.filter { it.sourceTxId == sourceTxId }.map { it.portfolioId }.toSet()
+        else allWalletTransactions.value.filter { it.sourceTxId == sourceTxId }.map { it.portfolioId }.toSet()
 
 
     /**
@@ -697,6 +701,11 @@ class PortfolioViewModel @Inject constructor(
 
     fun deleteTransaction(id: String) {
         viewModelScope.launch { repository.deleteTransaction(id) }
+    }
+
+    /** Long-press "Move to Portfolio" (iOS b438f2d) - see [PortfolioRepository.moveTransaction]. */
+    fun moveTransaction(id: String, toPortfolioId: String) {
+        viewModelScope.launch { repository.moveTransaction(id, toPortfolioId) }
     }
 
     /**

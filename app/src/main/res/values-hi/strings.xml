@@ -610,4 +610,10 @@
     <string name="portfolio_type_transfer">स्थानांतरण</string>
     <string name="portfolio_value_at_the_time">उस समय का मूल्य</string>
     <string name="portfolio_transfer_footer">आपके अपने पतों के बीच ले जाए गए KAS - भेजकर वापस लाए गए, या एक वॉलेट से दूसरे में। इससे आपकी होल्डिंग, लागत या लाभ नहीं बदलता।</string>
+    <!-- Move a portfolio transaction (iOS b438f2d) -->
+    <string name="portfolio_move_title">पोर्टफ़ोलियो में ले जाएँ</string>
+    <string name="portfolio_move_need_another">पहले एक और पोर्टफ़ोलियो बनाएँ, फिर आप उसमें लेन-देन ले जा सकते हैं।</string>
+    <string name="portfolio_move_already_has">इसमें यह लेन-देन पहले से है।</string>
+    <string name="portfolio_move_here">यह लेन-देन यहाँ ले जाएँ।</string>
+    <string name="portfolio_moved_to">%1$s में ले जाया गया।</string>
 </resources>
