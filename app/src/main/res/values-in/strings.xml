@@ -319,4 +319,7 @@
     <string name="not_registered">Tidak terdaftar</string>
     <string name="couldnt_check">Tidak dapat memeriksa</string>
     <string name="kaspa_address_or_domain">Alamat Kaspa atau domain</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">Mematikan ruang bawaan ini. Nyalakan lagi di pengaturan Obrolan Publik.</string>
+    <string name="default_room_switched_off">#%1$s dimatikan - nyalakan lagi di pengaturan Obrolan Publik</string>
 </resources>

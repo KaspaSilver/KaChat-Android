@@ -449,4 +449,7 @@
     <string name="not_registered">לא רשום</string>
     <string name="couldnt_check">לא ניתן לבדוק</string>
     <string name="kaspa_address_or_domain">כתובת Kaspa או דומיין</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">מכבה את חדר ברירת המחדל הזה. אפשר להפעיל מחדש בהגדרות הצ\'אטים הציבוריים.</string>
+    <string name="default_room_switched_off">#%1$s כבוי - אפשר להפעיל מחדש בהגדרות הצ\'אטים הציבוריים</string>
 </resources>

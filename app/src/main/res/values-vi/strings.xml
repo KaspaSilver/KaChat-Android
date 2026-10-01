@@ -449,4 +449,7 @@
     <string name="not_registered">Chưa đăng ký</string>
     <string name="couldnt_check">Không thể kiểm tra</string>
     <string name="kaspa_address_or_domain">Địa chỉ Kaspa hoặc tên miền</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">Tắt phòng mặc định này. Bật lại trong cài đặt Trò chuyện công khai.</string>
+    <string name="default_room_switched_off">#%1$s đã tắt - bật lại trong cài đặt Trò chuyện công khai</string>
 </resources>

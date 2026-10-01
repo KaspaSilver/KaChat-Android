@@ -449,4 +449,7 @@
     <string name="not_registered">未登録</string>
     <string name="couldnt_check">確認できませんでした</string>
     <string name="kaspa_address_or_domain">Kaspaアドレスまたはドメイン</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">この既定のルームをオフにします。公開チャットの設定で再びオンにできます。</string>
+    <string name="default_room_switched_off">#%1$s はオフです。公開チャットの設定で再びオンにできます</string>
 </resources>

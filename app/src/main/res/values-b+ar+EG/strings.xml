@@ -449,4 +449,7 @@
     <string name="not_registered">غير مسجل</string>
     <string name="couldnt_check">تعذّر التحقق</string>
     <string name="kaspa_address_or_domain">عنوان Kaspa أو نطاق</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">يُوقف هذه الغرفة الافتراضية. أعد تشغيلها من إعدادات المحادثات العامة.</string>
+    <string name="default_room_switched_off">#%1$s متوقفة - أعد تشغيلها من إعدادات المحادثات العامة</string>
 </resources>

@@ -55,6 +55,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Favorite
@@ -175,7 +176,12 @@ fun BroadcastListScreen(
     /** True when this is the Chats screen's Public Chats tab rather than a destination of its
      *  own: the Chats header is already up, and back belongs to the Chats screen. */
     embeddedInChats: Boolean = false,
-    broadcastViewModel: BroadcastViewModel = hiltViewModel()
+    broadcastViewModel: BroadcastViewModel = hiltViewModel(),
+    /** Select mode, owned by the Chats screen (its header and bottom bar act on the picked
+     *  rooms, iOS e08c4cc): a tap picks a room instead of opening it. */
+    isSelectionMode: Boolean = false,
+    selectedRooms: Set<String> = emptySet(),
+    onToggleRoom: (String) -> Unit = {},
 ) {
     // The back arrow is gone from the header (iOS has none), so system back carries what it
     // did: from the Kaspa Hub this returns to the grid rather than leaving the Hub entirely.
@@ -243,14 +249,9 @@ fun BroadcastListScreen(
             val senderKnsNames by broadcastViewModel.senderKnsNames.collectAsState()
             val contactAliases by broadcastViewModel.contactAliases.collectAsState()
             val myAddressForRows = remember { runCatching { broadcastViewModel.myAddress() }.getOrNull() }
-            val featured = com.kachat.app.models.FeaturedBroadcastChannels.NAMES
             // Default rooms switched off in Public Chats settings stay out of the list entirely.
             val hiddenCurated by broadcastViewModel.hiddenCuratedRooms.collectAsState()
-            fun lastActivity(channel: com.kachat.app.models.BroadcastChannelEntity): Long =
-                summaries[channel.channelName]?.lastMessage?.blockTimestamp ?: channel.joinedAt
-            val shownChannels = channels.filter { it.channelName !in hiddenCurated }
-            val listed = featured.mapNotNull { name -> shownChannels.firstOrNull { it.channelName == name } } +
-                shownChannels.filter { it.channelName !in featured }.sortedByDescending(::lastActivity)
+            val listed by broadcastViewModel.listedChannels.collectAsState()
             val joinedNames = channels.map { it.channelName }.toSet()
             val unjoinedLanguages = com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES
                 .filter { it !in joinedNames && it !in hiddenCurated }
@@ -279,12 +280,17 @@ fun BroadcastListScreen(
                         emptyText = "No messages yet",
                         timeText = last?.let { publicRoomTime(it.blockTimestamp) },
                         unread = summary?.unreadCount ?: 0,
-                        onClick = { navController.navigate("broadcast_channel/${channel.channelName}") },
-                        onLongClick = { roomActionTarget = channel.channelName },
+                        // In Select mode a tap picks the room, as on the Chats and Group Chats pages.
+                        onClick = {
+                            if (isSelectionMode) onToggleRoom(channel.channelName)
+                            else navController.navigate("broadcast_channel/${channel.channelName}")
+                        },
+                        onLongClick = if (isSelectionMode) null else ({ roomActionTarget = channel.channelName }),
+                        selected = if (isSelectionMode) channel.channelName in selectedRooms else null,
                     )
                 }
 
-                items(unjoinedLanguages, key = { "language:$it" }) { name ->
+                if (!isSelectionMode) items(unjoinedLanguages, key = { "language:$it" }) { name ->
                     PublicChatRow(
                         channelName = name,
                         notifyOff = false,
@@ -301,7 +307,7 @@ fun BroadcastListScreen(
                     )
                 }
 
-                item(key = "footer:note") {
+                if (!isSelectionMode) item(key = "footer:note") {
                     Text(
                         "Public rooms are open to everyone. #kaspa, #kachat-bugs and the language rooms keep 30 days of history.",
                         color = LocalAppColors.current.textSecondary,
@@ -368,6 +374,21 @@ fun BroadcastListScreen(
                 ) {
                     roomActionTarget = null
                     channelToLeave = name
+                }
+            } else if (isCurated) {
+                // A default room is never really deleted - it is switched off, exactly like its
+                // toggle in Public Chats settings, and that toggle brings it back. Nothing is
+                // lost, so it needs no confirmation (iOS e08c4cc).
+                val offText = stringResource(R.string.default_room_switched_off, name)
+                ActionSheetRow(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.delete),
+                    subtitle = stringResource(R.string.default_room_delete_subtitle),
+                    tint = Color(0xFFFF3B30),
+                ) {
+                    roomActionTarget = null
+                    broadcastViewModel.removeFromList(name)
+                    say(offText)
                 }
             }
         }
@@ -522,6 +543,8 @@ private fun PublicChatRow(
     unread: Int,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
+    /** Non-null in Select mode: whether this room is picked. */
+    selected: Boolean? = null,
 ) {
     val colors = LocalAppColors.current
     Row(
@@ -531,6 +554,14 @@ private fun PublicChatRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selected != null) {
+            Icon(
+                imageVector = if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (selected) KaspaTeal else Color.Gray,
+                modifier = Modifier.padding(end = 12.dp).size(24.dp)
+            )
+        }
         Box(
             modifier = Modifier.size(50.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center,

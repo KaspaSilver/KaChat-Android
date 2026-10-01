@@ -449,4 +449,7 @@
     <string name="not_registered">Non enregistré</string>
     <string name="couldnt_check">Vérification impossible</string>
     <string name="kaspa_address_or_domain">Adresse Kaspa ou domaine</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">Désactive ce salon par défaut. Réactivez-le dans les réglages des discussions publiques.</string>
+    <string name="default_room_switched_off">#%1$s est désactivé - réactivez-le dans les réglages des discussions publiques</string>
 </resources>

@@ -449,4 +449,7 @@
     <string name="not_registered">Nicht registriert</string>
     <string name="couldnt_check">Konnte nicht geprüft werden</string>
     <string name="kaspa_address_or_domain">Kaspa-Adresse oder Domain</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">Schaltet diesen Standardraum aus. In den Einstellungen für öffentliche Chats wieder einschalten.</string>
+    <string name="default_room_switched_off">#%1$s ist aus - in den Einstellungen für öffentliche Chats wieder einschalten</string>
 </resources>

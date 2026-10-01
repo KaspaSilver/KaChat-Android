@@ -449,4 +449,7 @@
     <string name="not_registered">Не зарегистрирован</string>
     <string name="couldnt_check">Не удалось проверить</string>
     <string name="kaspa_address_or_domain">Адрес Kaspa или домен</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">Отключает эту стандартную комнату. Включить снова можно в настройках публичных чатов.</string>
+    <string name="default_room_switched_off">#%1$s отключена — включите её снова в настройках публичных чатов</string>
 </resources>

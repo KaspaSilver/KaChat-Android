@@ -131,6 +131,9 @@ fun ChatsScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedContactIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    /** Public rooms picked in Select mode, by channel name (iOS e08c4cc). */
+    var selectedRooms by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val listedRooms by broadcastViewModel.listedChannels.collectAsState()
     var showBulkDeleteConfirmation by remember { mutableStateOf(false) }
     // Three pages: Chats, Group Chats, and Public Chats - the broadcast rooms, which used to be
     // a feature of their own and now live one swipe past Group Chats (iOS a566da7).
@@ -139,8 +142,8 @@ fun ChatsScreen(
     // either strand a selection the visible list can't act on, or blend Chats and Group Chats
     // selections together, so the other tab is blocked while editing (matches iOS).
     val isOnGroupsTab = pagerState.currentPage == 1
-    /** The rooms page brings its own join and create entry points, and nothing on it is
-     *  selectable in bulk. */
+    /** The rooms page brings its own join and create entry points; its rooms are selectable in
+     *  bulk like chats and groups (iOS e08c4cc). */
     val isOnPublicChatsTab = pagerState.currentPage == 2
     var showPublicChatsSettings by remember { mutableStateOf(false) }
     val tabCoroutineScope = rememberCoroutineScope()
@@ -276,14 +279,14 @@ fun ChatsScreen(
                         onStatusClick = { ConnectionStatusOverlayState.open() },
                         dotColorHex = dotColorHex,
                         showAddButton = false,
-                        // Rooms are not selectable in bulk; their corner holds Public Chats
-                        // settings (which default rooms show at all) instead (iOS d5c7613).
+                        // Public Chats keeps its settings (which default rooms show at all) beside
+                        // Select (iOS e08c4cc).
                         showEditButton = when {
-                            isOnPublicChatsTab -> false
+                            isOnPublicChatsTab -> listedRooms.isNotEmpty()
                             isOnGroupsTab -> groupConversations.isNotEmpty()
                             else -> conversations.isNotEmpty()
                         },
-                        trailingContent = if (isOnPublicChatsTab) {
+                        trailingContent = if (isOnPublicChatsTab && !isSelectionMode) {
                             {
                                 IconButton(onClick = { showPublicChatsSettings = true }) {
                                     Icon(
@@ -300,15 +303,22 @@ fun ChatsScreen(
                             if (!isSelectionMode) {
                                 selectedContactIds = emptySet()
                                 selectedGroupIds = emptySet()
+                                selectedRooms = emptySet()
                             }
                         },
-                        selectAllLabel = if (isOnGroupsTab) {
+                        selectAllLabel = if (isOnPublicChatsTab) {
+                            val allRooms = listedRooms.map { it.channelName }.toSet()
+                            if (allRooms.isNotEmpty() && selectedRooms == allRooms) "Deselect All" else "Select All"
+                        } else if (isOnGroupsTab) {
                             if (selectedGroupIds.size == filteredGroupConversations.size && filteredGroupConversations.isNotEmpty()) "Deselect All" else "Select All"
                         } else {
                             if (selectedContactIds.size == filteredConversations.size && filteredConversations.isNotEmpty()) "Deselect All" else "Select All"
                         },
                         onSelectAllClick = {
-                            if (isOnGroupsTab) {
+                            if (isOnPublicChatsTab) {
+                                val allRooms = listedRooms.map { it.channelName }.toSet()
+                                selectedRooms = if (selectedRooms == allRooms) emptySet() else allRooms
+                            } else if (isOnGroupsTab) {
                                 selectedGroupIds = if (selectedGroupIds.size == filteredGroupConversations.size) {
                                     emptySet()
                                 } else {
@@ -493,7 +503,9 @@ fun ChatsScreen(
                     ) {
                         Button(
                             onClick = {
-                                if (isOnGroupsTab) {
+                                if (isOnPublicChatsTab) {
+                                    selectedRooms.forEach { broadcastViewModel.markRoomRead(it) }
+                                } else if (isOnGroupsTab) {
                                     chatViewModel.markGroupsAsRead(selectedGroupIds)
                                 } else {
                                     chatViewModel.markContactsAsRead(selectedContactIds)
@@ -501,8 +513,13 @@ fun ChatsScreen(
                                 isSelectionMode = false
                                 selectedContactIds = emptySet()
                                 selectedGroupIds = emptySet()
+                                selectedRooms = emptySet()
                             },
-                            enabled = if (isOnGroupsTab) selectedGroupIds.isNotEmpty() else selectedContactIds.isNotEmpty(),
+                            enabled = when {
+                                isOnPublicChatsTab -> selectedRooms.isNotEmpty()
+                                isOnGroupsTab -> selectedGroupIds.isNotEmpty()
+                                else -> selectedContactIds.isNotEmpty()
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surfaceVariant),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -510,7 +527,9 @@ fun ChatsScreen(
                         }
                         Button(
                             onClick = {
-                                if (isOnGroupsTab) {
+                                if (isOnPublicChatsTab) {
+                                    selectedRooms.forEach { broadcastViewModel.markRoomUnread(it) }
+                                } else if (isOnGroupsTab) {
                                     chatViewModel.markGroupsAsUnread(selectedGroupIds)
                                 } else {
                                     chatViewModel.markContactsAsUnread(selectedContactIds)
@@ -518,8 +537,13 @@ fun ChatsScreen(
                                 isSelectionMode = false
                                 selectedContactIds = emptySet()
                                 selectedGroupIds = emptySet()
+                                selectedRooms = emptySet()
                             },
-                            enabled = if (isOnGroupsTab) selectedGroupIds.isNotEmpty() else selectedContactIds.isNotEmpty(),
+                            enabled = when {
+                                isOnPublicChatsTab -> selectedRooms.isNotEmpty()
+                                isOnGroupsTab -> selectedGroupIds.isNotEmpty()
+                                else -> selectedContactIds.isNotEmpty()
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surfaceVariant),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -527,7 +551,11 @@ fun ChatsScreen(
                         }
                         Button(
                             onClick = { showBulkDeleteConfirmation = true },
-                            enabled = if (isOnGroupsTab) selectedGroupIds.isNotEmpty() else selectedContactIds.isNotEmpty(),
+                            enabled = when {
+                                isOnPublicChatsTab -> selectedRooms.isNotEmpty()
+                                isOnGroupsTab -> selectedGroupIds.isNotEmpty()
+                                else -> selectedContactIds.isNotEmpty()
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surfaceVariant),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -556,6 +584,9 @@ fun ChatsScreen(
                 onBack = {},
                 embeddedInChats = true,
                 broadcastViewModel = broadcastViewModel,
+                isSelectionMode = isSelectionMode && isOnPublicChatsTab,
+                selectedRooms = selectedRooms,
+                onToggleRoom = { name -> selectedRooms = if (name in selectedRooms) selectedRooms - name else selectedRooms + name },
             )
             1 -> Box(
                 modifier = Modifier
@@ -859,19 +890,29 @@ fun ChatsScreen(
         // silently did nothing. Same for an empty or fully filtered 1:1 list. Dialogs render
         // in their own window, so screen scope shows it regardless of which tab is visible.
         if (showBulkDeleteConfirmation) {
-            val count = if (isOnGroupsTab) selectedGroupIds.size else selectedContactIds.size
+            val count = when {
+                isOnPublicChatsTab -> selectedRooms.size
+                isOnGroupsTab -> selectedGroupIds.size
+                else -> selectedContactIds.size
+            }
             AlertDialog(
                 onDismissRequest = { showBulkDeleteConfirmation = false },
                 containerColor = LocalAppColors.current.surface,
                 title = {
                     Text(
-                        if (isOnGroupsTab) "Delete $count Group${if (count == 1) "" else "s"}?" else "Delete $count Chat${if (count == 1) "" else "s"}?",
+                        when {
+                            isOnPublicChatsTab -> "Delete $count Public Chat${if (count == 1) "" else "s"}?"
+                            isOnGroupsTab -> "Delete $count Group${if (count == 1) "" else "s"}?"
+                            else -> "Delete $count Chat${if (count == 1) "" else "s"}?"
+                        },
                         color = LocalAppColors.current.textPrimary
                     )
                 },
                 text = {
                     Text(
-                        if (isOnGroupsTab) {
+                        if (isOnPublicChatsTab) {
+                            stringResource(R.string.public_chats_bulk_delete_body)
+                        } else if (isOnGroupsTab) {
                             "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
                         } else {
                             "This permanently deletes every message in each selected chat from this device. This cannot be undone."
@@ -881,7 +922,9 @@ fun ChatsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        if (isOnGroupsTab) {
+                        if (isOnPublicChatsTab) {
+                            selectedRooms.forEach { broadcastViewModel.removeFromList(it) }
+                        } else if (isOnGroupsTab) {
                             chatViewModel.deleteGroupChats(selectedGroupIds)
                         } else {
                             chatViewModel.deleteChats(selectedContactIds)

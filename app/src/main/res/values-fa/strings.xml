@@ -488,4 +488,7 @@
     <string name="not_registered">ثبت نشده</string>
     <string name="couldnt_check">بررسی ممکن نشد</string>
     <string name="kaspa_address_or_domain">آدرس Kaspa یا دامنه</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">این اتاق پیش‌فرض را خاموش می‌کند. در تنظیمات گفتگوهای عمومی دوباره روشنش کنید.</string>
+    <string name="default_room_switched_off">#%1$s خاموش است - در تنظیمات گفتگوهای عمومی دوباره روشنش کنید</string>
 </resources>

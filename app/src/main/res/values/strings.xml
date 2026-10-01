@@ -627,4 +627,8 @@
     <string name="not_registered">Not registered</string>
     <string name="couldnt_check">Couldn\'t check</string>
     <string name="kaspa_address_or_domain">Kaspa Address or Domain</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">Switches this default room off. Turn it back on in Public Chats settings.</string>
+    <string name="default_room_switched_off">#%1$s is off - turn it back on in Public Chats settings</string>
+    <string name="public_chats_bulk_delete_body">Rooms you added are removed with their messages. Default rooms are only switched off - turn them back on any time in Public Chats settings (the gear).</string>
 </resources>

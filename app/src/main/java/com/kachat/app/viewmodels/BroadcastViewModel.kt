@@ -332,6 +332,31 @@ class BroadcastViewModel @Inject constructor(
         .map { summaries -> summaries.values.sumOf { it.unreadCount } }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    /**
+     * The rooms the Public Chats list shows, in its order: the two Popular rooms on top, then every
+     * other joined room by latest activity. Default rooms switched off in settings are left out.
+     * Shared by the list and by its Select All (iOS e08c4cc, PublicChatService.listedChannels).
+     */
+    val listedChannels: StateFlow<List<BroadcastChannelEntity>> =
+        kotlinx.coroutines.flow.combine(joinedChannels, roomSummaries, readState.state) { channels, summaries, read ->
+            val featured = FeaturedBroadcastChannels.NAMES
+            val shown = channels.filter { it.channelName !in read.hiddenCurated }
+            fun lastActivity(channel: BroadcastChannelEntity): Long =
+                summaries[channel.channelName]?.lastMessage?.blockTimestamp ?: channel.joinedAt
+            featured.mapNotNull { name -> shown.firstOrNull { it.channelName == name } } +
+                shown.filter { it.channelName !in featured }.sortedByDescending(::lastActivity)
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * "Delete" from the room list. A room you added is left for good ([leaveChannel], its messages
+     * go). A default room cannot really be deleted - it is simply switched off, the same as its
+     * toggle in Public Chats settings, and that toggle brings it back (iOS e08c4cc).
+     */
+    fun removeFromList(channelName: String) {
+        if (channelName in FeaturedBroadcastChannels.INDEXED_NAMES) setCuratedRoomShown(channelName, false)
+        else leaveChannel(channelName)
+    }
+
     /** This wallet's own address, for "You" on the rows it sent. Null while there is none. */
     fun myAddress(): String? = runCatching { walletManager.getAddress() }.getOrNull()
 

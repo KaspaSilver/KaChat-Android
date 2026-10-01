@@ -449,4 +449,7 @@
     <string name="not_registered">未注册</string>
     <string name="couldnt_check">无法检查</string>
     <string name="kaspa_address_or_domain">Kaspa 地址或域名</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">关闭此默认房间。可在公开聊天设置中重新开启。</string>
+    <string name="default_room_switched_off">#%1$s 已关闭——可在公开聊天设置中重新开启</string>
 </resources>

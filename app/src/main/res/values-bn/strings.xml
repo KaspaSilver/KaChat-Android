@@ -449,4 +449,7 @@
     <string name="not_registered">নিবন্ধিত নয়</string>
     <string name="couldnt_check">যাচাই করা যায়নি</string>
     <string name="kaspa_address_or_domain">Kaspa ঠিকানা বা ডোমেইন</string>
+    <!-- Public Chats select (iOS e08c4cc) -->
+    <string name="default_room_delete_subtitle">এই ডিফল্ট রুমটি বন্ধ করে। পাবলিক চ্যাট সেটিংসে আবার চালু করুন।</string>
+    <string name="default_room_switched_off">#%1$s বন্ধ - পাবলিক চ্যাট সেটিংসে আবার চালু করুন</string>
 </resources>
