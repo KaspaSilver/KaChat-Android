@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Только за всё время</string>
     <string name="ks_all_time_only_note">Виды с пометкой «Только за всё время» пока не входят в этот итог.</string>
     <string name="ks_try_again">Повторить</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Получите имя .kachat</string>
+    <string name="kg_claim_body">Под этим именем вас видят во всём KaChat — в чатах, в постах и по ссылке на профиль. Без него видят ваш адрес.</string>
+    <string name="kg_avatar_title">Добавьте фото профиля</string>
+    <string name="kg_avatar_body">Ваш аватар показывается рядом с именем во всём KaChat.</string>
+    <string name="kg_banner_title">Добавьте баннер</string>
+    <string name="kg_banner_body">Широкое изображение в верхней части профиля.</string>
+    <string name="kg_details_title">Расскажите о себе</string>
+    <string name="kg_details_body">Короткое описание и ваши ссылки. Всё это необязательно.</string>
+    <string name="kg_done_title">Вот и вся настройка</string>
+    <string name="kg_done_body">Имена .kachat скоро появятся. После запуска этот помощник получит ваше имя и сохранит профиль за один раз.</string>
+    <string name="kg_setup_footer">Пошагово получите имя .kachat и настройте аватар, баннер и данные профиля.</string>
+    <string name="kg_help_title">Настройка профиля .kachat</string>
+    <string name="kg_help_body">Получите имя .kachat и пошагово настройте аватар, баннер и описание.</string>
+    <string name="kg_welcome_body">Полный вводный тур: кошелёк, чаты, платежи и другое.</string>
+    <string name="kg_previous">Назад</string>
+    <string name="kg_choose_photo">Выбрать фото</string>
+    <string name="kg_setup_guide">Руководство по настройке</string>
+    <string name="kg_close">Закрыть</string>
+    <string name="kg_next">Далее</string>
 </resources>

@@ -405,4 +405,24 @@
     <string name="ks_all_time_only">Hanya sepanjang waktu</string>
     <string name="ks_all_time_only_note">Jenis bertanda “Hanya sepanjang waktu” belum termasuk dalam total ini.</string>
     <string name="ks_try_again">Coba Lagi</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Klaim nama .kachat-mu</string>
+    <string name="kg_claim_body">Ini nama yang dilihat orang di seluruh KaChat - di obrolan, di postingan, dan di tautan profilmu. Tanpanya, orang melihat alamatmu.</string>
+    <string name="kg_avatar_title">Tambahkan foto profil</string>
+    <string name="kg_avatar_body">Avatarmu tampil di samping namamu di seluruh KaChat.</string>
+    <string name="kg_banner_title">Tambahkan banner</string>
+    <string name="kg_banner_body">Gambar lebar di bagian atas profilmu.</string>
+    <string name="kg_details_title">Ceritakan tentang dirimu</string>
+    <string name="kg_details_body">Bio singkat dan tautanmu. Semuanya opsional.</string>
+    <string name="kg_done_title">Itu seluruh penyiapannya</string>
+    <string name="kg_done_body">Nama .kachat segera hadir. Saat diluncurkan, panduan ini mengklaim namamu dan menyimpan profilmu sekaligus.</string>
+    <string name="kg_setup_footer">Klaim nama .kachat-mu dan atur avatar, banner, serta detail langkah demi langkah.</string>
+    <string name="kg_help_title">Panduan Penyiapan Profil .kachat</string>
+    <string name="kg_help_body">Klaim nama .kachat-mu dan atur avatar, banner, serta bio langkah demi langkah.</string>
+    <string name="kg_welcome_body">Tur awal lengkap: dompet, obrolan, pembayaran, dan lainnya.</string>
+    <string name="kg_previous">Sebelumnya</string>
+    <string name="kg_choose_photo">Pilih Foto</string>
+    <string name="kg_setup_guide">Panduan Penyiapan</string>
+    <string name="kg_close">Tutup</string>
+    <string name="kg_next">Berikutnya</string>
 </resources>

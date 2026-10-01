@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Yalnızca tüm zamanlar</string>
     <string name="ks_all_time_only_note">“Yalnızca tüm zamanlar” olarak işaretli türler henüz bu toplamda yok.</string>
     <string name="ks_try_again">Tekrar Dene</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">.kachat adını al</string>
+    <string name="kg_claim_body">İnsanların seni KaChat\'in her yerinde gördüğü ad: sohbetlerde, gönderilerde ve profil bağlantında. Yoksa adresin görünür.</string>
+    <string name="kg_avatar_title">Profil fotoğrafı ekle</string>
+    <string name="kg_avatar_body">Avatarın KaChat\'in her yerinde adının yanında görünür.</string>
+    <string name="kg_banner_title">Banner ekle</string>
+    <string name="kg_banner_body">Profilinin üst kısmında geniş bir görsel.</string>
+    <string name="kg_details_title">Kendinden bahset</string>
+    <string name="kg_details_body">Kısa bir biyografi ve bağlantıların. Hepsi isteğe bağlı.</string>
+    <string name="kg_done_title">Kurulumun tamamı bu</string>
+    <string name="kg_done_body">.kachat adları yakında geliyor. Başladığında bu rehber adını alır ve profilini tek seferde kaydeder.</string>
+    <string name="kg_setup_footer">.kachat adını al; avatarını, bannerını ve bilgilerini adım adım ayarla.</string>
+    <string name="kg_help_title">.kachat Profil Kurulum Rehberi</string>
+    <string name="kg_help_body">.kachat adını al; avatarını, bannerını ve biyografini adım adım ayarla.</string>
+    <string name="kg_welcome_body">Tam başlangıç turu: cüzdan, sohbetler, ödemeler ve daha fazlası.</string>
+    <string name="kg_previous">Geri</string>
+    <string name="kg_choose_photo">Fotograf Sec</string>
+    <string name="kg_setup_guide">Kurulum Rehberi</string>
+    <string name="kg_close">Kapat</string>
+    <string name="kg_next">Ileri</string>
 </resources>

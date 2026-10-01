@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">الإجمالي فقط</string>
     <string name="ks_all_time_only_note">الأنواع المعلّمة «الإجمالي فقط» غير مشمولة في هذا المجموع بعد.</string>
     <string name="ks_try_again">إعادة المحاولة</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">احصل على اسم ‎.kachat الخاص بك</string>
+    <string name="kg_claim_body">هو الاسم الذي يراك به الناس في كل KaChat - في المحادثات وعلى المنشورات وفي رابط ملفك الشخصي. بدونه يرى الناس عنوانك.</string>
+    <string name="kg_avatar_title">أضف صورة للملف الشخصي</string>
+    <string name="kg_avatar_body">تظهر صورتك الرمزية بجانب اسمك في كل مكان في KaChat.</string>
+    <string name="kg_banner_title">أضف لافتة</string>
+    <string name="kg_banner_body">صورة عريضة أعلى ملفك الشخصي.</string>
+    <string name="kg_details_title">عرّف الناس بنفسك</string>
+    <string name="kg_details_body">نبذة قصيرة وروابطك. كل ذلك اختياري.</string>
+    <string name="kg_done_title">هذا كل الإعداد</string>
+    <string name="kg_done_body">أسماء ‎.kachat قادمة قريبًا. عند إطلاقها، يحصل لك هذا الدليل على اسمك ويحفظ ملفك الشخصي دفعة واحدة.</string>
+    <string name="kg_setup_footer">احصل على اسم ‎.kachat وأعدّ صورتك الرمزية واللافتة والتفاصيل خطوة بخطوة.</string>
+    <string name="kg_help_title">دليل إعداد ملف ‎.kachat</string>
+    <string name="kg_help_body">احصل على اسم ‎.kachat وأعدّ صورتك الرمزية واللافتة والنبذة خطوة بخطوة.</string>
+    <string name="kg_welcome_body">الجولة الكاملة للبداية: المحفظة والمحادثات والمدفوعات والمزيد.</string>
+    <string name="kg_previous">السابق</string>
+    <string name="kg_choose_photo">اختيار صورة</string>
+    <string name="kg_setup_guide">دليل الإعداد</string>
+    <string name="kg_close">إغلاق</string>
+    <string name="kg_next">التالي</string>
 </resources>

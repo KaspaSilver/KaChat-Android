@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">כל הזמנים בלבד</string>
     <string name="ks_all_time_only_note">סוגים שמסומנים „כל הזמנים בלבד“ עדיין לא נכללים בסכום הזה.</string>
     <string name="ks_try_again">נסה שוב</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">קבלו את שם ה-‎.kachat שלכם</string>
+    <string name="kg_claim_body">זה השם שבו רואים אתכם בכל KaChat - בצ\'אטים, בפוסטים ובקישור לפרופיל. בלעדיו רואים את הכתובת שלכם.</string>
+    <string name="kg_avatar_title">הוסיפו תמונת פרופיל</string>
+    <string name="kg_avatar_body">האווטאר שלכם מופיע ליד השם שלכם בכל מקום ב-KaChat.</string>
+    <string name="kg_banner_title">הוסיפו באנר</string>
+    <string name="kg_banner_body">תמונה רחבה בראש הפרופיל שלכם.</string>
+    <string name="kg_details_title">ספרו על עצמכם</string>
+    <string name="kg_details_body">ביוגרפיה קצרה והקישורים שלכם. הכול אופציונלי.</string>
+    <string name="kg_done_title">זו כל ההגדרה</string>
+    <string name="kg_done_body">שמות ‎.kachat מגיעים בקרוב. כשהם יושקו, המדריך הזה יקבל את השם שלכם וישמור את הפרופיל בבת אחת.</string>
+    <string name="kg_setup_footer">קבלו את שם ה-‎.kachat שלכם והגדירו אווטאר, באנר ופרטים שלב אחר שלב.</string>
+    <string name="kg_help_title">מדריך הגדרת פרופיל ‎.kachat</string>
+    <string name="kg_help_body">קבלו את שם ה-‎.kachat שלכם והגדירו אווטאר, באנר וביוגרפיה שלב אחר שלב.</string>
+    <string name="kg_welcome_body">הסיור המלא להתחלה: ארנק, צ\'אטים, תשלומים ועוד.</string>
+    <string name="kg_previous">הקודם</string>
+    <string name="kg_choose_photo">בחר תמונה</string>
+    <string name="kg_setup_guide">מדריך הגדרה</string>
+    <string name="kg_close">סגור</string>
+    <string name="kg_next">הבא</string>
 </resources>

@@ -574,4 +574,24 @@
     <string name="ks_all_time_only">فقط کل زمان</string>
     <string name="ks_all_time_only_note">انواعی که «فقط کل زمان» دارند هنوز در این مجموع نیستند.</string>
     <string name="ks_try_again">تلاش مجدد</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">نام ‎.kachat خود را بگیرید</string>
+    <string name="kg_claim_body">این نامی است که دیگران شما را در سراسر KaChat با آن می‌بینند - در گفتگوها، پست‌ها و پیوند نمایه‌تان. بدون آن، نشانی شما دیده می‌شود.</string>
+    <string name="kg_avatar_title">عکس نمایه اضافه کنید</string>
+    <string name="kg_avatar_body">آواتار شما در همه جای KaChat کنار نامتان نمایش داده می‌شود.</string>
+    <string name="kg_banner_title">بنر اضافه کنید</string>
+    <string name="kg_banner_body">تصویری عریض در بالای نمایه شما.</string>
+    <string name="kg_details_title">درباره خودتان بگویید</string>
+    <string name="kg_details_body">یک بیوگرافی کوتاه و پیوندهایتان. همه اختیاری است.</string>
+    <string name="kg_done_title">راه‌اندازی همین بود</string>
+    <string name="kg_done_body">نام‌های ‎.kachat به‌زودی می‌آیند. پس از راه‌اندازی، این راهنما نام شما را می‌گیرد و نمایه‌تان را یکجا ذخیره می‌کند.</string>
+    <string name="kg_setup_footer">نام ‎.kachat خود را بگیرید و آواتار، بنر و جزئیات را گام‌به‌گام تنظیم کنید.</string>
+    <string name="kg_help_title">راهنمای راه‌اندازی نمایه ‎.kachat</string>
+    <string name="kg_help_body">نام ‎.kachat خود را بگیرید و آواتار، بنر و بیوگرافی را گام‌به‌گام تنظیم کنید.</string>
+    <string name="kg_welcome_body">معرفی کامل شروع کار: کیف پول، گفتگوها، پرداخت‌ها و بیشتر.</string>
+    <string name="kg_previous">قبلی</string>
+    <string name="kg_choose_photo">انتخاب عکس</string>
+    <string name="kg_setup_guide">راهنمای راه‌اندازی</string>
+    <string name="kg_close">بستن</string>
+    <string name="kg_next">بعدی</string>
 </resources>

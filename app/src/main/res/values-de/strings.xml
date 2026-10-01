@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Nur gesamt</string>
     <string name="ks_all_time_only_note">Mit „Nur gesamt“ markierte Arten sind noch nicht in dieser Summe enthalten.</string>
     <string name="ks_try_again">Erneut versuchen</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Sichere dir deinen .kachat-Namen</string>
+    <string name="kg_claim_body">Unter diesem Namen sehen dich andere überall in KaChat - in Chats, bei Beiträgen und über deinen Profillink. Ohne ihn sehen andere deine Adresse.</string>
+    <string name="kg_avatar_title">Profilfoto hinzufügen</string>
+    <string name="kg_avatar_body">Dein Avatar erscheint überall in KaChat neben deinem Namen.</string>
+    <string name="kg_banner_title">Banner hinzufügen</string>
+    <string name="kg_banner_body">Ein breites Bild oben in deinem Profil.</string>
+    <string name="kg_details_title">Erzähl etwas über dich</string>
+    <string name="kg_details_body">Eine kurze Bio und deine Links. Alles davon ist optional.</string>
+    <string name="kg_done_title">Das ist die ganze Einrichtung</string>
+    <string name="kg_done_body">.kachat-Namen kommen bald. Sobald sie starten, sichert diese Anleitung deinen Namen und speichert dein Profil in einem Schritt.</string>
+    <string name="kg_setup_footer">Sichere Schritt für Schritt deinen .kachat-Namen und richte Avatar, Banner und Details ein.</string>
+    <string name="kg_help_title">.kachat-Profil-Einrichtung</string>
+    <string name="kg_help_body">Sichere deinen .kachat-Namen und richte Schritt für Schritt Avatar, Banner und Bio ein.</string>
+    <string name="kg_welcome_body">Die komplette Einführung: Wallet, Chats, Zahlungen und mehr.</string>
+    <string name="kg_previous">Zurück</string>
+    <string name="kg_choose_photo">Foto wählen</string>
+    <string name="kg_setup_guide">Einrichtungsanleitung</string>
+    <string name="kg_close">Schließen</string>
+    <string name="kg_next">Weiter</string>
 </resources>

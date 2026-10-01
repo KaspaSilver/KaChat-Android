@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">전체 기간만</string>
     <string name="ks_all_time_only_note">\'전체 기간만\'으로 표시된 항목은 아직 이 합계에 포함되지 않습니다.</string>
     <string name="ks_try_again">다시 시도</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">.kachat 이름 받기</string>
+    <string name="kg_claim_body">KaChat 어디서나 사람들이 보는 이름입니다. 채팅, 게시물, 프로필 링크에 표시됩니다. 이름이 없으면 주소가 표시됩니다.</string>
+    <string name="kg_avatar_title">프로필 사진 추가</string>
+    <string name="kg_avatar_body">아바타는 KaChat 어디서나 이름 옆에 표시됩니다.</string>
+    <string name="kg_banner_title">배너 추가</string>
+    <string name="kg_banner_body">프로필 상단에 표시되는 넓은 이미지입니다.</string>
+    <string name="kg_details_title">자신을 소개하세요</string>
+    <string name="kg_details_body">짧은 소개와 링크. 모두 선택 사항입니다.</string>
+    <string name="kg_done_title">설정은 여기까지입니다</string>
+    <string name="kg_done_body">.kachat 이름이 곧 출시됩니다. 출시되면 이 가이드가 이름을 받고 프로필을 한 번에 저장합니다.</string>
+    <string name="kg_setup_footer">.kachat 이름을 받고 아바타, 배너, 세부 정보를 단계별로 설정하세요.</string>
+    <string name="kg_help_title">.kachat 프로필 설정 가이드</string>
+    <string name="kg_help_body">.kachat 이름을 받고 아바타, 배너, 소개를 단계별로 설정하세요.</string>
+    <string name="kg_welcome_body">처음 사용자를 위한 전체 안내: 지갑, 채팅, 결제 등.</string>
+    <string name="kg_previous">이전</string>
+    <string name="kg_choose_photo">사진 선택</string>
+    <string name="kg_setup_guide">설정 가이드</string>
+    <string name="kg_close">닫기</string>
+    <string name="kg_next">다음</string>
 </resources>

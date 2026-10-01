@@ -8313,7 +8313,11 @@ private fun PopupMenuRowContent(label: String, labelColor: Color, onClick: () ->
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KachatProfileEditorScreen(onBack: () -> Unit) {
+fun KachatProfileEditorScreen(
+    onBack: () -> Unit,
+    showSetupGuides: Boolean = true,
+    onSetupGuide: () -> Unit = {},
+) {
     val colors = LocalAppColors.current
     @Composable
     fun placeholderRow(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
@@ -8348,6 +8352,14 @@ fun KachatProfileEditorScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Spacer(Modifier.height(4.dp))
+            // The setup guide lives here since 5.2 (iOS b000310) - .kachat is the name KaChat sets
+            // up for you; .kas profiles are edited field by field in Your Domains.
+            if (showSetupGuides) {
+                SettingsSection(title = null) {
+                    SettingsNavigationItem(stringResource(R.string.kg_setup_guide), null, showIcon = false, onClick = onSetupGuide)
+                }
+                SettingsFooter(stringResource(R.string.kg_setup_footer))
+            }
             SettingsSection(title = null) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
                     Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
@@ -8542,25 +8554,8 @@ fun EditKnsProfileScreen(
             // already exists. Lives here (rather than next to "KNS Profile" on the Profile tab)
             // since that spot sits directly beside the banner image, which made it unclickable
             // whenever a banner was set.
-            if (showSetupGuides && editingDomain == null) {
-                SettingsSection(title = stringResource(R.string.setup_guide)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToSetupGuide() }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            stringResource(R.string.setup_guide),
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(Icons.Default.ChevronRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
+            // No setup guide here since 5.2 (iOS b000310): the guide is .kachat's, in Edit .kachat
+            // Profile. A .kas profile is edited field by field below.
 
             SettingsSection(title = stringResource(R.string.avatar)) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

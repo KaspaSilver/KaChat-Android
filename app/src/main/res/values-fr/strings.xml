@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Total seulement</string>
     <string name="ks_all_time_only_note">Les catégories marquées « Total seulement » ne sont pas encore dans ce total.</string>
     <string name="ks_try_again">Reessayer</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Réclamez votre nom .kachat</string>
+    <string name="kg_claim_body">C\'est le nom sous lequel on vous voit partout dans KaChat : dans les discussions, sur les publications et sur le lien de votre profil. Sans lui, on voit votre adresse.</string>
+    <string name="kg_avatar_title">Ajoutez une photo de profil</string>
+    <string name="kg_avatar_body">Votre avatar apparaît à côté de votre nom partout dans KaChat.</string>
+    <string name="kg_banner_title">Ajoutez une bannière</string>
+    <string name="kg_banner_body">Une image large en haut de votre profil.</string>
+    <string name="kg_details_title">Parlez de vous</string>
+    <string name="kg_details_body">Une courte bio et vos liens. Tout est facultatif.</string>
+    <string name="kg_done_title">C\'est toute la configuration</string>
+    <string name="kg_done_body">Les noms .kachat arrivent bientôt. À leur lancement, ce guide réclamera votre nom et enregistrera votre profil en une seule fois.</string>
+    <string name="kg_setup_footer">Réclamez votre nom .kachat et configurez votre avatar, votre bannière et vos informations étape par étape.</string>
+    <string name="kg_help_title">Guide de configuration du profil .kachat</string>
+    <string name="kg_help_body">Réclamez votre nom .kachat et configurez votre avatar, votre bannière et votre bio étape par étape.</string>
+    <string name="kg_welcome_body">La visite complète de démarrage : portefeuille, discussions, paiements et plus.</string>
+    <string name="kg_previous">Précédent</string>
+    <string name="kg_choose_photo">Choisir une photo</string>
+    <string name="kg_setup_guide">Guide de configuration</string>
+    <string name="kg_close">Fermer</string>
+    <string name="kg_next">Suivant</string>
 </resources>

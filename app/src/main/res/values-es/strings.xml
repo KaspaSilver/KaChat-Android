@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Solo total</string>
     <string name="ks_all_time_only_note">Los tipos marcados como «Solo total» aún no están en este total.</string>
     <string name="ks_try_again">Intentar de nuevo</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Reclama tu nombre .kachat</string>
+    <string name="kg_claim_body">Es el nombre con el que te ven en todo KaChat: en los chats, en las publicaciones y en el enlace de tu perfil. Sin él, ven tu dirección.</string>
+    <string name="kg_avatar_title">Añade una foto de perfil</string>
+    <string name="kg_avatar_body">Tu avatar aparece junto a tu nombre en todo KaChat.</string>
+    <string name="kg_banner_title">Añade un banner</string>
+    <string name="kg_banner_body">Una imagen ancha en la parte superior de tu perfil.</string>
+    <string name="kg_details_title">Cuéntale a la gente sobre ti</string>
+    <string name="kg_details_body">Una biografía corta y tus enlaces. Todo es opcional.</string>
+    <string name="kg_done_title">Esa es toda la configuración</string>
+    <string name="kg_done_body">Los nombres .kachat llegarán pronto. Cuando se lancen, esta guía reclamará tu nombre y guardará tu perfil de una sola vez.</string>
+    <string name="kg_setup_footer">Reclama tu nombre .kachat y configura tu avatar, banner y detalles paso a paso.</string>
+    <string name="kg_help_title">Guía de configuración del perfil .kachat</string>
+    <string name="kg_help_body">Reclama tu nombre .kachat y configura tu avatar, banner y biografía paso a paso.</string>
+    <string name="kg_welcome_body">El recorrido inicial completo: billetera, chats, pagos y más.</string>
+    <string name="kg_previous">Anterior</string>
+    <string name="kg_choose_photo">Elegir foto</string>
+    <string name="kg_setup_guide">Guia de configuracion</string>
+    <string name="kg_close">Cerrar</string>
+    <string name="kg_next">Siguiente</string>
 </resources>

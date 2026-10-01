@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -221,9 +223,20 @@ fun HelpScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
-                    HelpRow(androidx.compose.material.icons.Icons.Default.WavingHand, "Welcome Guide", onWelcomeGuide)
-                    androidx.compose.material3.HorizontalDivider(color = colors.surfaceVariant)
-                    HelpRow(androidx.compose.material.icons.Icons.Default.Badge, "KNS Profile Setup Guide", onKnsGuide)
+                    HelpRow(
+                        androidx.compose.material.icons.Icons.Default.WavingHand,
+                        "Welcome Guide",
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_welcome_body),
+                        onWelcomeGuide,
+                    )
+                    androidx.compose.material3.HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 52.dp))
+                    // .kachat's guide since 5.2 (iOS b000310).
+                    HelpRow(
+                        androidx.compose.material.icons.Icons.Default.AlternateEmail,
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_help_title),
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_help_body),
+                        onKnsGuide,
+                    )
                 }
             }
         }
@@ -231,7 +244,7 @@ fun HelpScreen(
 }
 
 @Composable
-private fun HelpRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun HelpRow(icon: ImageVector, label: String, subtitle: String, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -242,6 +255,10 @@ private fun HelpRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     ) {
         Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.padding(start = 16.dp))
-        Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+            Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+            Text(subtitle, color = colors.textSecondary, fontSize = 13.sp)
+        }
+        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = colors.textSecondary, modifier = Modifier.size(24.dp))
     }
 }

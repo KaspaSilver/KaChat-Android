@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">सिर्फ़ अब तक</string>
     <string name="ks_all_time_only_note">“सिर्फ़ अब तक” वाले प्रकार अभी इस कुल में शामिल नहीं हैं।</string>
     <string name="ks_try_again">फिर कोशिश करें</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">अपना .kachat नाम लें</string>
+    <string name="kg_claim_body">यह वह नाम है जिससे लोग आपको पूरे KaChat में देखते हैं - चैट में, पोस्ट पर और आपके प्रोफ़ाइल लिंक में। इसके बिना लोग आपका पता देखते हैं।</string>
+    <string name="kg_avatar_title">प्रोफ़ाइल फ़ोटो जोड़ें</string>
+    <string name="kg_avatar_body">आपका अवतार KaChat में हर जगह आपके नाम के साथ दिखता है।</string>
+    <string name="kg_banner_title">बैनर जोड़ें</string>
+    <string name="kg_banner_body">आपकी प्रोफ़ाइल के ऊपर एक चौड़ी तस्वीर।</string>
+    <string name="kg_details_title">अपने बारे में बताएँ</string>
+    <string name="kg_details_body">छोटा बायो और आपके लिंक। सब वैकल्पिक है।</string>
+    <string name="kg_done_title">बस इतना ही सेटअप है</string>
+    <string name="kg_done_body">.kachat नाम जल्द आ रहे हैं। लॉन्च होने पर यह गाइड आपका नाम लेगा और आपकी प्रोफ़ाइल एक साथ सहेज देगा।</string>
+    <string name="kg_setup_footer">अपना .kachat नाम लें और अवतार, बैनर व विवरण चरण-दर-चरण सेट करें।</string>
+    <string name="kg_help_title">.kachat प्रोफ़ाइल सेटअप गाइड</string>
+    <string name="kg_help_body">अपना .kachat नाम लें और अवतार, बैनर व बायो चरण-दर-चरण सेट करें।</string>
+    <string name="kg_welcome_body">शुरुआत का पूरा परिचय: वॉलेट, चैट, भुगतान और बहुत कुछ।</string>
+    <string name="kg_previous">पिछला</string>
+    <string name="kg_choose_photo">फ़ोटो चुनें</string>
+    <string name="kg_setup_guide">सेटअप गाइड</string>
+    <string name="kg_close">बंद करें</string>
+    <string name="kg_next">अगला</string>
 </resources>

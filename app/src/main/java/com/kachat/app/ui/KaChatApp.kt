@@ -1472,7 +1472,15 @@ fun MainShell(
             }
 
             composable("edit_kachat_profile") {
-                com.kachat.app.ui.screens.KachatProfileEditorScreen(onBack = { navController.popBackStack() })
+                com.kachat.app.ui.screens.KachatProfileEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    showSetupGuides = walletViewModel.showSetupGuides.collectAsState().value,
+                    onSetupGuide = { navController.navigate("kachat_setup_guide") },
+                )
+            }
+            // The .kachat profile setup guide (iOS b000310) - from Edit .kachat Profile and Help.
+            composable("kachat_setup_guide") {
+                com.kachat.app.ui.screens.KachatSetupGuideScreen(onClose = { navController.popBackStack() })
             }
 
             composable("create_kns_profile") {
@@ -1549,7 +1557,7 @@ fun MainShell(
                 HelpScreen(
                     onBack = { navController.popBackStack() },
                     onWelcomeGuide = { navController.navigate("welcome_guide") },
-                    onKnsGuide = { navController.navigate("create_kns_profile") }
+                    onKnsGuide = { navController.navigate("kachat_setup_guide") }
                 )
             }
 

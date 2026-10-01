@@ -1120,7 +1120,7 @@ fun KnsWizardBottomBar(
                 contentColor = LocalAppColors.current.textPrimary,
             ),
         ) {
-            Text("Previous", fontWeight = FontWeight.Bold)
+            Text(androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_previous), fontWeight = FontWeight.Bold)
         }
         Button(
             onClick = { onNext?.invoke() },

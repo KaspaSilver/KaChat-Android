@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">仅全部时间</string>
     <string name="ks_all_time_only_note">标有“仅全部时间”的类别尚未计入此总数。</string>
     <string name="ks_try_again">重试</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">领取你的 .kachat 名称</string>
+    <string name="kg_claim_body">这是你在 KaChat 各处显示的名字——聊天、帖子和个人资料链接中都会用到。没有名称时，别人看到的是你的地址。</string>
+    <string name="kg_avatar_title">添加头像</string>
+    <string name="kg_avatar_body">你的头像会在 KaChat 各处显示在名字旁边。</string>
+    <string name="kg_banner_title">添加横幅</string>
+    <string name="kg_banner_body">显示在个人资料顶部的宽幅图片。</string>
+    <string name="kg_details_title">介绍一下你自己</string>
+    <string name="kg_details_body">简短的简介和你的链接，全部可选。</string>
+    <string name="kg_done_title">设置就这些</string>
+    <string name="kg_done_body">.kachat 名称即将推出。上线后，本指南会一次性领取你的名称并保存你的资料。</string>
+    <string name="kg_setup_footer">逐步领取你的 .kachat 名称，并设置头像、横幅和详细信息。</string>
+    <string name="kg_help_title">.kachat 资料设置指南</string>
+    <string name="kg_help_body">领取你的 .kachat 名称，并逐步设置头像、横幅和简介。</string>
+    <string name="kg_welcome_body">完整的新手导览：钱包、聊天、付款等。</string>
+    <string name="kg_previous">上一步</string>
+    <string name="kg_choose_photo">选择照片</string>
+    <string name="kg_setup_guide">设置指南</string>
+    <string name="kg_close">关闭</string>
+    <string name="kg_next">下一步</string>
 </resources>

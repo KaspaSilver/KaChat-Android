@@ -701,3 +701,120 @@ private fun UnavailableCard(failure: KaChatStatsStore.Failure, onRetry: () -> Un
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The .kachat profile setup guide (iOS b000310, KachatSetupGuideView).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The .kachat profile setup guide: claim your name, then avatar, banner and details, step by
+ * step. Opened from Edit .kachat Profile and Profile > Help - the guide .kas used to have, rebuilt
+ * for KaChat's own names (a .kas profile is edited field by field in Your Domains).
+ *
+ * UI only until .kachat names launch: every step can be walked through, but nothing can be
+ * claimed, picked or typed, and each says so. No invented names or images anywhere.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KachatSetupGuideScreen(onClose: () -> Unit) {
+    BackHandler(onBack = onClose)
+    val colors = LocalAppColors.current
+    var step by remember { mutableIntStateOf(0) }
+    val last = 4
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.kg_setup_guide), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    TextButton(onClick = onClose) { Text(stringResource(R.string.kg_close), color = KaspaTeal) }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        },
+        bottomBar = {
+            KnsWizardBottomBar(
+                onBack = if (step > 0) ({ step -= 1 }) else null,
+                onNext = { if (step < last) step += 1 else onClose() },
+                nextLabel = stringResource(if (step == last) R.string.done else R.string.kg_next),
+                modifier = Modifier.navigationBarsPadding(),
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 12.dp, bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // One dot per step before the last, filled up to the current one.
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (dot in 0 until last) {
+                    Box(
+                        Modifier
+                            .height(8.dp)
+                            .width(if (dot == step) 22.dp else 8.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (dot <= step) KaspaTeal else colors.surfaceVariant)
+                    )
+                }
+            }
+            @Composable
+            fun header(icon: @Composable () -> Unit, title: Int, body: Int) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Box(Modifier.height(64.dp), contentAlignment = Alignment.Center) { icon() }
+                    Text(stringResource(title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp, textAlign = TextAlign.Center)
+                    Text(stringResource(body), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                }
+            }
+            @Composable
+            fun disabledAction(label: String, icon: ImageVector) {
+                OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                }
+            }
+            when (step) {
+                0 -> {
+                    header({ Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.Black, fontSize = 34.sp) }, R.string.kg_claim_title, R.string.kg_claim_body)
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface).padding(12.dp)) {
+                            Text("yourname", color = colors.textTertiary, modifier = Modifier.weight(1f))
+                            Text(".kachat", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text(stringResource(R.string.km_registration_not_open), color = colors.textSecondary, fontSize = 12.sp)
+                    }
+                    ComingSoonPill()
+                }
+                1 -> {
+                    header({ Icon(Icons.Default.AccountCircle, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_avatar_title, R.string.kg_avatar_body)
+                    Box(Modifier.size(120.dp).clip(CircleShape).background(colors.surface), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Person, null, tint = colors.textTertiary, modifier = Modifier.size(48.dp))
+                    }
+                    disabledAction(stringResource(R.string.kg_choose_photo), Icons.Default.Photo)
+                    ComingSoonPill()
+                }
+                2 -> {
+                    header({ Icon(Icons.Default.Panorama, null, tint = KaspaTeal, modifier = Modifier.size(48.dp)) }, R.string.kg_banner_title, R.string.kg_banner_body)
+                    Box(Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Photo, null, tint = colors.textTertiary, modifier = Modifier.size(36.dp))
+                    }
+                    disabledAction(stringResource(R.string.choose_banner), Icons.Default.Panorama)
+                    ComingSoonPill()
+                }
+                3 -> {
+                    header({ Icon(Icons.Default.Notes, null, tint = KaspaTeal, modifier = Modifier.size(46.dp)) }, R.string.kg_details_title, R.string.kg_details_body)
+                    val fields = listOf(R.string.bio, R.string.x_handle, R.string.website, R.string.telegram, R.string.discord_user_id, R.string.email, R.string.github)
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface)) {
+                        fields.forEachIndexed { index, res ->
+                            Text(stringResource(res), color = colors.textSecondary, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp))
+                            if (index < fields.lastIndex) HorizontalDivider(Modifier.padding(start = 14.dp), color = colors.divider, thickness = 0.5.dp)
+                        }
+                    }
+                    ComingSoonPill()
+                }
+                else -> header({ Icon(Icons.Default.Verified, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_done_title, R.string.kg_done_body)
+            }
+        }
+    }
+}

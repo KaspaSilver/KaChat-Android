@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Chỉ toàn thời gian</string>
     <string name="ks_all_time_only_note">Các loại có nhãn “Chỉ toàn thời gian” chưa được tính vào tổng này.</string>
     <string name="ks_try_again">Thử lại</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Nhận tên .kachat của bạn</string>
+    <string name="kg_claim_body">Đây là tên mọi người thấy bạn trên khắp KaChat - trong trò chuyện, trên bài đăng và qua liên kết hồ sơ. Nếu không có, mọi người thấy địa chỉ của bạn.</string>
+    <string name="kg_avatar_title">Thêm ảnh hồ sơ</string>
+    <string name="kg_avatar_body">Ảnh đại diện hiển thị cạnh tên bạn ở mọi nơi trong KaChat.</string>
+    <string name="kg_banner_title">Thêm ảnh bìa</string>
+    <string name="kg_banner_body">Một ảnh rộng ở đầu hồ sơ của bạn.</string>
+    <string name="kg_details_title">Giới thiệu về bạn</string>
+    <string name="kg_details_body">Tiểu sử ngắn và các liên kết. Tất cả đều không bắt buộc.</string>
+    <string name="kg_done_title">Đó là toàn bộ thiết lập</string>
+    <string name="kg_done_body">Tên .kachat sắp ra mắt. Khi ra mắt, hướng dẫn này sẽ nhận tên và lưu hồ sơ của bạn cùng lúc.</string>
+    <string name="kg_setup_footer">Nhận tên .kachat và thiết lập ảnh đại diện, ảnh bìa và thông tin từng bước.</string>
+    <string name="kg_help_title">Hướng dẫn thiết lập hồ sơ .kachat</string>
+    <string name="kg_help_body">Nhận tên .kachat và thiết lập ảnh đại diện, ảnh bìa và tiểu sử từng bước.</string>
+    <string name="kg_welcome_body">Hướng dẫn đầy đủ khi bắt đầu: ví, trò chuyện, thanh toán và hơn thế.</string>
+    <string name="kg_previous">Trước</string>
+    <string name="kg_choose_photo">Chọn ảnh</string>
+    <string name="kg_setup_guide">Hướng dẫn thiết lập</string>
+    <string name="kg_close">Đóng</string>
+    <string name="kg_next">Tiếp theo</string>
 </resources>

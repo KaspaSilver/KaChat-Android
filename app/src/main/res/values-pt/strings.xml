@@ -535,4 +535,24 @@
     <string name="ks_all_time_only">Só no total</string>
     <string name="ks_all_time_only_note">Os tipos marcados como “Só no total” ainda não entram neste total.</string>
     <string name="ks_try_again">Tentar novamente</string>
+    <!-- .kachat setup guide (iOS b000310, 66b152f) -->
+    <string name="kg_claim_title">Reivindique seu nome .kachat</string>
+    <string name="kg_claim_body">É o nome com que as pessoas te veem em todo o KaChat: nos chats, nos posts e no link do seu perfil. Sem ele, veem seu endereço.</string>
+    <string name="kg_avatar_title">Adicione uma foto de perfil</string>
+    <string name="kg_avatar_body">Seu avatar aparece ao lado do seu nome em todo o KaChat.</string>
+    <string name="kg_banner_title">Adicione um banner</string>
+    <string name="kg_banner_body">Uma imagem larga no topo do seu perfil.</string>
+    <string name="kg_details_title">Fale sobre você</string>
+    <string name="kg_details_body">Uma bio curta e seus links. Tudo é opcional.</string>
+    <string name="kg_done_title">Essa é toda a configuração</string>
+    <string name="kg_done_body">Os nomes .kachat chegam em breve. Quando forem lançados, este guia reivindica seu nome e salva seu perfil de uma só vez.</string>
+    <string name="kg_setup_footer">Reivindique seu nome .kachat e configure avatar, banner e detalhes passo a passo.</string>
+    <string name="kg_help_title">Guia de configuração do perfil .kachat</string>
+    <string name="kg_help_body">Reivindique seu nome .kachat e configure avatar, banner e bio passo a passo.</string>
+    <string name="kg_welcome_body">O tour inicial completo: carteira, chats, pagamentos e mais.</string>
+    <string name="kg_previous">Anterior</string>
+    <string name="kg_choose_photo">Escolher foto</string>
+    <string name="kg_setup_guide">Guia de configuracao</string>
+    <string name="kg_close">Fechar</string>
+    <string name="kg_next">Proximo</string>
 </resources>
