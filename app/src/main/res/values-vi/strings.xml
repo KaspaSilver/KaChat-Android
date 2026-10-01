@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">Đã có giao dịch này.</string>
     <string name="portfolio_move_here">Chuyển giao dịch này vào đây.</string>
     <string name="portfolio_moved_to">Đã chuyển sang %1$s.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">Thêm địa chỉ trò chuyện</string>
+    <string name="portfolio_add_chatting_address_sub">Các lần mua, bán của địa chỉ trò chuyện và mọi phí mạng nó đã trả.</string>
+    <string name="portfolio_fees_counted">. Phí mạng đã tính: %1$d</string>
+    <string name="portfolio_no_sells_this_year">Chưa có lần bán nào trong năm nay.</string>
+    <string name="portfolio_sells_fifo">Lần bán: %1$d. Lần mua cũ nhất trước (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s đã bán mà không có lần mua được ghi, tính với giá vốn bằng 0.</string>
+    <string name="portfolio_prices_loading">Một số giá vẫn đang tải.</string>
+    <string name="portfolio_realized_pl_year">Lãi/lỗ đã thực hiện %1$s</string>
+    <string name="portfolio_fees_spent">Phí đã trả</string>
+    <string name="portfolio_fees_empty_hint">Thêm địa chỉ trò chuyện bằng + để tính các phí mạng nó đã trả.</string>
+    <string name="portfolio_fees_count_loading">Giao dịch: %1$d. Một số giá vẫn đang tải.</string>
+    <string name="portfolio_fees_count_priced">Giao dịch: %1$d, theo giá từng ngày.</string>
 </resources>

@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">העסקה הזו כבר קיימת בו.</string>
     <string name="portfolio_move_here">העבירו את העסקה לכאן.</string>
     <string name="portfolio_moved_to">הועבר ל-%1$s.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">הוספת כתובת הצ\'אט</string>
+    <string name="portfolio_add_chatting_address_sub">הקניות והמכירות של כתובת הצ\'אט שלכם, וכל עמלת רשת ששילמה.</string>
+    <string name="portfolio_fees_counted">. עמלות רשת שנספרו: %1$d</string>
+    <string name="portfolio_no_sells_this_year">עדיין אין מכירות השנה.</string>
+    <string name="portfolio_sells_fifo">מכירות: %1$d. הקניות הוותיקות ראשונות (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s נמכרו ללא קנייה רשומה, נספרו בעלות אפס.</string>
+    <string name="portfolio_prices_loading">חלק מהמחירים עדיין נטענים.</string>
+    <string name="portfolio_realized_pl_year">רווח/הפסד ממומש %1$s</string>
+    <string name="portfolio_fees_spent">עמלות ששולמו</string>
+    <string name="portfolio_fees_empty_hint">הוסיפו את כתובת הצ\'אט עם + כדי לספור את עמלות הרשת ששילמה.</string>
+    <string name="portfolio_fees_count_loading">עסקאות: %1$d. חלק מהמחירים עדיין נטענים.</string>
+    <string name="portfolio_fees_count_priced">עסקאות: %1$d, לפי מחיר כל יום.</string>
 </resources>

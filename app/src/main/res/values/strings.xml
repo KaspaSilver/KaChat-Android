@@ -797,4 +797,17 @@
     <string name="portfolio_move_already_has">Already has this transaction.</string>
     <string name="portfolio_move_here">Move this transaction here.</string>
     <string name="portfolio_moved_to">Moved to %1$s.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">Add Chatting Address</string>
+    <string name="portfolio_add_chatting_address_sub">Your chatting address\'s buys and sells, and every network fee it has paid.</string>
+    <string name="portfolio_fees_counted">. Network fees counted: %1$d</string>
+    <string name="portfolio_no_sells_this_year">No sells yet this year.</string>
+    <string name="portfolio_sells_fifo">Sells: %1$d. Oldest buys first (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s sold with no buy on record, counted at zero cost.</string>
+    <string name="portfolio_prices_loading">Some prices are still loading.</string>
+    <string name="portfolio_realized_pl_year">Realized P&amp;L %1$s</string>
+    <string name="portfolio_fees_spent">Fees Spent</string>
+    <string name="portfolio_fees_empty_hint">Add your chatting address with + to count the network fees it has paid.</string>
+    <string name="portfolio_fees_count_loading">Transactions: %1$d. Some prices are still loading.</string>
+    <string name="portfolio_fees_count_priced">Transactions: %1$d, at each day\'s price.</string>
 </resources>

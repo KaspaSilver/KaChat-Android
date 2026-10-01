@@ -46,6 +46,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -197,6 +200,8 @@ fun PortfolioScreen(
     val currencyCode by viewModel.currency.collectAsState()
     val portfolios by viewModel.portfolios.collectAsState()
     val activePortfolioId by viewModel.activePortfolioId.collectAsState()
+    val realizedPL by viewModel.realizedPLThisYear.collectAsState()
+    val feeSummary by viewModel.feeSummary.collectAsState()
     val cardSummaries by viewModel.cardSummaries.collectAsState()
     val isRefreshing by viewModel.isRefreshingPortfolio.collectAsState()
     val currentHashrate by viewModel.currentHashrate.collectAsState()
@@ -309,6 +314,15 @@ fun PortfolioScreen(
                         history = hashrateHistory,
                         onOpen = { navController.navigate("portfolio_hashrate_chart") }
                     )
+                    // Realized P&L for the year and the network fees paid (iOS 61eff0f).
+                    RealizedPLCard(
+                        pl = realizedPL,
+                        currencyCode = currencyCode
+                    )
+                    FeesSpentCard(
+                        fees = feeSummary,
+                        currencyCode = currencyCode
+                    )
                     PortfolioTransactionsContent(
                         viewModel = viewModel,
                         swapViewModel = swapViewModel,
@@ -411,6 +425,8 @@ private fun PortfolioTransactionsContent(
     var showCsvMenu by remember { mutableStateOf(false) }
     var showAddMenu by remember { mutableStateOf(false) }
     var showAddAddressDialog by remember { mutableStateOf(false) }
+    /** Set for "Add Chatting Address": the address sheet imports this one straight away. */
+    var addAddressPreset by remember { mutableStateOf<String?>(null) }
     // Multi-select over the ledger, matching iOS's EditMode on PortfolioTransactionsView. Deleting
     // one row has always been the row's own bin icon; deleting the forty rows a bad CSV import left
     // behind was forty taps and forty confirmations.
@@ -574,7 +590,22 @@ private fun PortfolioTransactionsContent(
                                 subtitle = "Track an address's balance as part of this portfolio.",
                             ) {
                                 showAddMenu = false
+                                addAddressPreset = null
                                 showAddAddressDialog = true
+                            }
+                            // One tap for the address KaChat itself spends from: its buys and
+                            // sells, and every network fee it paid (messages, handshakes,
+                            // payments) for the Fees Spent card.
+                            viewModel.chattingAddress?.let { chattingAddress ->
+                                ActionSheetRow(
+                                    icon = Icons.Default.Forum,
+                                    title = stringResource(R.string.portfolio_add_chatting_address),
+                                    subtitle = stringResource(R.string.portfolio_add_chatting_address_sub),
+                                ) {
+                                    showAddMenu = false
+                                    addAddressPreset = chattingAddress
+                                    showAddAddressDialog = true
+                                }
                             }
                         }
                     }
@@ -830,6 +861,7 @@ private fun PortfolioTransactionsContent(
 
     if (showAddAddressDialog) {
         AddressEntryDialog(
+            presetAddress = addAddressPreset,
             onDismiss = { showAddAddressDialog = false },
             isImporting = isImportingAddress,
             progressText = importProgressText,
@@ -844,7 +876,10 @@ private fun PortfolioTransactionsContent(
                     showAddAddressDialog = false
                     val message = result.fold(
                         onSuccess = { imported ->
-                            val base = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
+                            var base = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
+                            if (imported.feeCount > 0) {
+                                base += context.getString(R.string.portfolio_fees_counted, imported.feeCount)
+                            }
                             if (imported.pendingPriceCount > 0) {
                                 "$base. Prices are filling in the background."
                             } else {
@@ -867,6 +902,9 @@ private fun shortenKaspaAddress(address: String): String =
 
 @Composable
 private fun AddressEntryDialog(
+    /** "Add Chatting Address": no field to fill - the import of this address starts as the
+     *  sheet opens, and the sheet shows only its progress. */
+    presetAddress: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
     resolveKns: suspend (String) -> String?,
@@ -931,14 +969,18 @@ private fun AddressEntryDialog(
         return
     }
 
+    LaunchedEffect(presetAddress) {
+        if (presetAddress != null && !isImporting) onConfirm(presetAddress)
+    }
+
     ActionSheetContainer(
-        title = "Add Kaspa Address",
+        title = if (presetAddress == null) "Add Kaspa Address" else stringResource(R.string.portfolio_add_chatting_address),
         subtitle = null,
         // Held open while the import runs - dismissing mid-import would abandon the only
         // progress readout while the work carried on regardless.
         onDismiss = { if (!isImporting) onDismiss() },
     ) {
-            if (isImporting) {
+            if (isImporting || presetAddress != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     com.kachat.app.ui.theme.IosActivityIndicator(
                         color = KaspaTeal,
@@ -2903,6 +2945,96 @@ private fun PickaxeIcon(iconSize: Dp = 24.dp, tint: Color = KaspaTeal) {
         rotate(degrees = 45f, pivot = androidx.compose.ui.geometry.Offset(x(12f), x(12f))) {
             drawPath(path, color = tint)
         }
+    }
+}
+
+/**
+ * This calendar year's realized profit or loss in the active portfolio: this year's sells against
+ * the cost of the KAS they sold, oldest buys first (FIFO - [PortfolioViewModel.computeRealizedPL]).
+ * iOS 61eff0f `realizedPLCard`.
+ */
+@Composable
+private fun RealizedPLCard(pl: com.kachat.app.models.RealizedPL, currencyCode: String) {
+    val colors = LocalAppColors.current
+    val hidden = LocalPortfolioValuesHidden.current
+    val notes = buildList {
+        if (pl.sellCount == 0) {
+            add(stringResource(R.string.portfolio_no_sells_this_year))
+        } else {
+            add(stringResource(R.string.portfolio_sells_fifo, pl.sellCount))
+            if (pl.uncoveredKas > 0) {
+                add(stringResource(R.string.portfolio_sold_uncovered, kas(pl.uncoveredKas, grouped = true)))
+            }
+        }
+        if (pl.pendingPriceCount > 0) add(stringResource(R.string.portfolio_prices_loading))
+    }
+    val valueText = if (hidden) MASKED_AMOUNT else (if (pl.amount > 0) "+" else "") + formatFiatAmount(pl.amount, currencyCode)
+    val valueColor = when {
+        hidden || pl.sellCount == 0 -> colors.textPrimary
+        pl.amount >= 0 -> colors.success
+        else -> colors.danger
+    }
+    PortfolioInfoCard(icon = Icons.Default.Verified) {
+        Text(
+            stringResource(R.string.portfolio_realized_pl_year, pl.year.toString()),
+            color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp
+        )
+        Text(valueText, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+        Text(notes.joinToString(" "), color = colors.textSecondary, fontSize = 12.sp)
+    }
+}
+
+/**
+ * Network fees the active portfolio's imported addresses paid - in KAS, and in the app currency
+ * at each day's price. Fed by Add Chatting Address (and Add Kaspa Address). iOS 61eff0f `feesCard`.
+ */
+@Composable
+private fun FeesSpentCard(fees: com.kachat.app.models.PortfolioFeeSummary, currencyCode: String) {
+    val colors = LocalAppColors.current
+    val hidden = LocalPortfolioValuesHidden.current
+    PortfolioInfoCard(icon = Icons.Default.LocalGasStation) {
+        Text(stringResource(R.string.portfolio_fees_spent), color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        if (fees.count == 0) {
+            Text("—", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text(stringResource(R.string.portfolio_fees_empty_hint), color = colors.textSecondary, fontSize = 12.sp)
+        } else {
+            Text(
+                if (hidden) MASKED_AMOUNT else formatFeeKas(fees.totalKas),
+                color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1
+            )
+            Text(
+                if (hidden) MASKED_AMOUNT else formatFiatAmount(fees.totalFiat, currencyCode),
+                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
+            )
+            Text(
+                if (fees.unpricedCount > 0) stringResource(R.string.portfolio_fees_count_loading, fees.count)
+                else stringResource(R.string.portfolio_fees_count_priced, fees.count),
+                color = colors.textSecondary, fontSize = 12.sp
+            )
+        }
+    }
+}
+
+/** Fees are fractions of a KAS - up to eight places, so a month of messages doesn't read 0. */
+private fun formatFeeKas(value: Double): String {
+    val format = java.text.DecimalFormat("#,##0.00######", java.text.DecimalFormatSymbols(Locale.US))
+    return format.format(value) + " KAS"
+}
+
+/** The Realized P&L / Fees Spent card shape: an accent glyph, then a column of lines. */
+@Composable
+private fun PortfolioInfoCard(icon: androidx.compose.ui.graphics.vector.ImageVector, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .padding(14.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.width(30.dp).height(22.dp).padding(top = 2.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp), content = content)
     }
 }
 

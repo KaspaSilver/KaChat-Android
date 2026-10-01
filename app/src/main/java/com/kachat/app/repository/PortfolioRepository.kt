@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.google.gson.Gson
+import com.kachat.app.models.PortfolioFeeRecord
 import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.services.CoinGeckoApi
 import com.kachat.app.services.ColdStorageAddressDiscovery
@@ -18,6 +19,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -67,11 +70,58 @@ class PortfolioRepository @Inject constructor(
      */
     /** Every portfolio's rows for the active wallet - what "already in another portfolio"
      *  checks look across (iOS checks its whole transactions list, not the active portfolio). */
+    /** The wallet's own chatting address - "Add Chatting Address" imports it (iOS 61eff0f). */
+    fun chattingAddress(): String? = walletManager.activeAddressFlow.value?.takeIf { it.isNotBlank() }
+
     fun getAllTransactionsForActiveWallet(): Flow<List<PortfolioTransactionEntity>> =
         walletManager.activeAddressFlow.flatMapLatest { address ->
             if (address == null) flowOf(emptyList())
             else database.portfolioDao().getAllTransactionsForWallet(address)
         }
+
+    // -------------------------------------------------------------------------
+    // Fees (iOS 61eff0f): network fees imported addresses paid, stored per wallet beside the
+    // ledger - one JSON list per wallet, like iOS's PortfolioLedgerStore fees key.
+    // -------------------------------------------------------------------------
+
+    private val feePrefs = context.getSharedPreferences("kachat_portfolio_fees", Context.MODE_PRIVATE)
+    private val feeGson = Gson()
+    /** Bumped on every save so [getFeesForActiveWallet] re-reads. */
+    private val feeVersion = MutableStateFlow(0)
+    private val feeLock = Any()
+
+    private fun feesKey(walletAddress: String) = "fees_" + walletAddress.replace(":", "_")
+
+    fun loadFees(walletAddress: String): List<PortfolioFeeRecord> {
+        if (walletAddress.isEmpty()) return emptyList()
+        val json = feePrefs.getString(feesKey(walletAddress), null) ?: return emptyList()
+        return try {
+            feeGson.fromJson(json, Array<PortfolioFeeRecord>::class.java)?.toList().orEmpty()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun saveFees(walletAddress: String, fees: List<PortfolioFeeRecord>) {
+        if (walletAddress.isEmpty()) return
+        feePrefs.edit().putString(feesKey(walletAddress), feeGson.toJson(fees)).apply()
+        feeVersion.value = feeVersion.value + 1
+    }
+
+    private fun updateFees(walletAddress: String, transform: (List<PortfolioFeeRecord>) -> List<PortfolioFeeRecord>) {
+        synchronized(feeLock) { saveFees(walletAddress, transform(loadFees(walletAddress))) }
+    }
+
+    /** Every portfolio's fees for the active wallet; re-emits on a wallet switch or a save. */
+    fun getFeesForActiveWallet(): Flow<List<PortfolioFeeRecord>> =
+        walletManager.activeAddressFlow.flatMapLatest { address ->
+            feeVersion.map { if (address == null) emptyList() else loadFees(address) }
+        }
+
+    /** A deleted portfolio's fees go with it (iOS forgetPortfolio). */
+    fun forgetPortfolioFees(portfolioId: String) {
+        updateFees(walletManager.getAddress()) { fees -> fees.filter { it.portfolioId != portfolioId } }
+    }
 
     /**
      * Moves one row to another of this wallet's portfolios - the same record, keeping its id and
@@ -601,6 +651,7 @@ class PortfolioRepository @Inject constructor(
             .filter { it.sourceAddress == trimmed }
             .mapNotNull { it.sourceTxId }
             .toSet()
+        val existingFeeTxIds = loadFees(walletAddress).filter { it.portfolioId == portfolioId }.map { it.txId }.toSet()
 
         onProgress("Fetching transactions…")
         val history = coldStorageAddressDiscovery.getFullTransactionHistoryPaginated(trimmed)
@@ -612,9 +663,32 @@ class PortfolioRepository @Inject constructor(
             if (existingTxIds.contains(tx.txId)) return@mapNotNull null
             Candidate(tx.txId, tx.sent, tx.amountSompi, utcDayStartMillis(blockTime), blockTime)
         }
-        if (candidates.isEmpty()) {
+        // Fees on their own terms: a message to yourself has no buy or sell in it but it still
+        // paid a fee. Only a transaction this address sent (one of its coins is an input), and
+        // only when every input's amount is known - the whole fee goes to this address, since
+        // KaChat's sends spend one address's coins (iOS feeSompi(of:paidBy:)).
+        val feeCandidates = history.mapNotNull { tx ->
+            val blockTime = tx.blockTimeMillis ?: return@mapNotNull null
+            if (!tx.sent || existingFeeTxIds.contains(tx.txId)) return@mapNotNull null
+            val fee = tx.feeSompi?.takeIf { it > 0 } ?: return@mapNotNull null
+            val cachedPrice = readPersistedHistoricalPrice(utcDayStartMillis(blockTime), currency)
+            PortfolioFeeRecord(
+                txId = tx.txId,
+                portfolioId = portfolioId,
+                sourceAddress = trimmed,
+                amountSompi = fee,
+                timestampMillis = blockTime,
+                fiatValue = cachedPrice?.let { fee / 100_000_000.0 * it },
+            )
+        }
+        if (candidates.isEmpty() && feeCandidates.isEmpty()) {
             throw PortfolioAddressImportError.NoTransactions
         }
+        if (feeCandidates.isNotEmpty()) {
+            updateFees(walletAddress) { it + feeCandidates }
+        }
+        val pendingFeeDays = feeCandidates.filter { it.fiatValue == null }
+            .map { utcDayStartMillis(it.timestampMillis) }.toSet()
 
         onProgress("Saving ${candidates.size} transaction${if (candidates.size == 1) "" else "s"}…")
         var importedCount = 0
@@ -647,11 +721,11 @@ class PortfolioRepository @Inject constructor(
             }
         }
 
-        if (pendingIdsByDay.isNotEmpty()) {
-            priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency) }
+        if (pendingIdsByDay.isNotEmpty() || pendingFeeDays.isNotEmpty()) {
+            priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays) }
         }
 
-        return AddressImportResult(importedCount, pendingPriceCount)
+        return AddressImportResult(importedCount, pendingPriceCount, feeCandidates.size)
     }
 
     /**
@@ -667,9 +741,11 @@ class PortfolioRepository @Inject constructor(
     private suspend fun backfillHistoricalPrices(
         walletAddress: String,
         pendingIdsByDay: Map<Long, List<String>>,
-        currency: String
+        currency: String,
+        /** Days of fee records still unpriced - priced in the same pass as the rows. */
+        pendingFeeDays: Set<Long> = emptySet(),
     ) {
-        val days = pendingIdsByDay.keys.sorted()
+        val days = (pendingIdsByDay.keys + pendingFeeDays).sorted()
         for ((index, day) in days.withIndex()) {
             var price: Double? = null
             var backoffMillis = 3_000L
@@ -688,7 +764,16 @@ class PortfolioRepository @Inject constructor(
             }
             if (price != null) {
                 val dayPrice = price
-                val idsForDay = pendingIdsByDay.getValue(day).toSet()
+                if (day in pendingFeeDays) {
+                    updateFees(walletAddress) { fees ->
+                        fees.map { fee ->
+                            if (fee.fiatValue == null && utcDayStartMillis(fee.timestampMillis) == day) {
+                                fee.copy(fiatValue = fee.amountKas * dayPrice)
+                            } else fee
+                        }
+                    }
+                }
+                val idsForDay = pendingIdsByDay[day]?.toSet() ?: emptySet()
                 val currentRows = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
                 for (row in currentRows) {
                     // Re-check the marker so a price the user already set by hand mid-backfill
@@ -937,7 +1022,12 @@ class PortfolioRepository @Inject constructor(
 /** [pendingPriceCount] rows were imported with fiatValue 0.0 and a flagging note — their days'
  *  prices are being backfilled in the background and fill in as each fetch lands; only rows
  *  whose price never arrives keep the note for manual pricing. */
-data class AddressImportResult(val importedCount: Int, val pendingPriceCount: Int)
+data class AddressImportResult(
+    val importedCount: Int,
+    val pendingPriceCount: Int,
+    /** Network fees this address paid that the import counted, for the Fees Spent card. */
+    val feeCount: Int = 0,
+)
 
 /** Marks a [PortfolioTransactionEntity.notes] value as "auto-imported but couldn't be priced" — checked by [com.kachat.app.ui.screens.PortfolioScreen]'s transaction row to show a warning icon flagging rows that still need the user to fill in a price. */
 const val PRICE_UNAVAILABLE_NOTE = "Price unavailable — set manually"

@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">이미 이 거래가 있습니다.</string>
     <string name="portfolio_move_here">이 거래를 여기로 옮깁니다.</string>
     <string name="portfolio_moved_to">%1$s(으)로 이동했습니다.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">채팅 주소 추가</string>
+    <string name="portfolio_add_chatting_address_sub">채팅 주소의 매수·매도와 지불한 모든 네트워크 수수료.</string>
+    <string name="portfolio_fees_counted">. 집계한 네트워크 수수료: %1$d</string>
+    <string name="portfolio_no_sells_this_year">올해는 아직 매도가 없습니다.</string>
+    <string name="portfolio_sells_fifo">매도: %1$d건. 오래된 매수부터(FIFO).</string>
+    <string name="portfolio_sold_uncovered">매수 기록 없이 매도된 %1$s, 원가 0으로 계산했습니다.</string>
+    <string name="portfolio_prices_loading">일부 가격을 아직 불러오는 중입니다.</string>
+    <string name="portfolio_realized_pl_year">실현 손익 %1$s</string>
+    <string name="portfolio_fees_spent">지불한 수수료</string>
+    <string name="portfolio_fees_empty_hint">+로 채팅 주소를 추가하면 지불한 네트워크 수수료를 집계합니다.</string>
+    <string name="portfolio_fees_count_loading">거래: %1$d건. 일부 가격을 아직 불러오는 중입니다.</string>
+    <string name="portfolio_fees_count_priced">거래: %1$d건, 각 날짜의 가격 기준.</string>
 </resources>

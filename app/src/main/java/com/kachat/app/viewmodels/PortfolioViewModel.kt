@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kachat.app.models.PortfolioEntity
+import com.kachat.app.models.PortfolioFeeSummary
+import com.kachat.app.models.RealizedPL
 import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.AddressImportResult
 import com.kachat.app.repository.AppSettingsRepository
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -228,8 +231,14 @@ class PortfolioViewModel @Inject constructor(
         viewModelScope.launch { portfolioManager.reorderPortfolios(orderedIds) }
     }
 
+    /** The wallet's chatting address, or null with no wallet loaded. */
+    val chattingAddress: String? get() = repository.chattingAddress()
+
     fun deletePortfolio(id: String) {
-        viewModelScope.launch { portfolioManager.deletePortfolio(id) }
+        viewModelScope.launch {
+            // Its fees go with its rows (iOS forgetPortfolio).
+            if (portfolioManager.deletePortfolio(id)) repository.forgetPortfolioFees(id)
+        }
     }
 
     private val _currentPriceUsd = MutableStateFlow<Double?>(null)
@@ -266,6 +275,32 @@ class PortfolioViewModel @Inject constructor(
     val summary: StateFlow<PortfolioSummary> = combine(transactions, currentPriceUsd) { txs, price ->
         computeSummary(txs, price ?: 0.0)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), computeSummary(emptyList(), 0.0))
+
+    /** The active portfolio's network fees, for the Fees Spent card (iOS 61eff0f). */
+    val feeSummary: StateFlow<PortfolioFeeSummary> =
+        combine(repository.getFeesForActiveWallet(), activePortfolioId) { fees, activeId ->
+            var summary = PortfolioFeeSummary()
+            if (activeId != null) {
+                for (fee in fees) {
+                    if (fee.portfolioId != activeId) continue
+                    summary = summary.copy(
+                        totalKas = summary.totalKas + fee.amountKas,
+                        count = summary.count + 1,
+                        totalFiat = summary.totalFiat + (fee.fiatValue ?: 0.0),
+                        unpricedCount = summary.unpricedCount + if (fee.fiatValue == null) 1 else 0,
+                    )
+                }
+            }
+            summary
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PortfolioFeeSummary())
+
+    /** The active portfolio's realized profit and loss for the current calendar year. */
+    val realizedPLThisYear: StateFlow<RealizedPL> = transactions.map { txs ->
+        computeRealizedPL(txs, java.util.Calendar.getInstance().get(java.util.Calendar.YEAR))
+    }.flowOn(Dispatchers.Default).stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        RealizedPL(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR))
+    )
 
     /** Holdings' USD value at each price-history point — not the price itself, see [computeValueHistory]. */
     val valueHistory: StateFlow<List<Pair<Long, Double>>> =
@@ -784,6 +819,71 @@ class PortfolioViewModel @Inject constructor(
 
         /** Backoff ceiling — a persistent outage retries every 5 minutes, cheap enough to leave running for the ViewModel's lifetime. */
         private const val MAX_RETRY_BACKOFF_MILLIS = 5 * 60_000L
+
+        /**
+         * FIFO realized profit and loss for the sells dated in [year]. Every buy, from any year,
+         * is a lot; each sell, from any year, takes from the oldest lots first - so a sale this
+         * year is matched against whatever was still held - but only this year's sells add to the
+         * result. Same timestamp: the buy goes first. A sell larger than the lots left counts the
+         * rest at zero cost ([RealizedPL.uncoveredKas]). Transfers are skipped. Mirrors iOS
+         * `computeRealizedPL` (61eff0f).
+         */
+        internal fun computeRealizedPL(
+            transactions: List<PortfolioTransactionEntity>,
+            year: Int,
+            timeZone: java.util.TimeZone = java.util.TimeZone.getDefault(),
+        ): RealizedPL {
+            val calendar = java.util.Calendar.getInstance(timeZone)
+            var proceeds = 0.0
+            var costBasis = 0.0
+            var sellCount = 0
+            var pendingPriceCount = 0
+            var uncoveredSompi = 0L
+            val lotSompi = mutableListOf<Long>()
+            val lotCostPerSompi = mutableListOf<Double>()
+            var lotStart = 0
+            val ordered = transactions.sortedWith(
+                compareBy<PortfolioTransactionEntity> { it.timestampMillis }.thenBy { if (it.type == "buy") 0 else 1 }
+            )
+            for (tx in ordered) {
+                val pending = tx.notes == com.kachat.app.repository.PRICE_UNAVAILABLE_NOTE
+                when (tx.type) {
+                    "buy" -> {
+                        if (tx.amountSompi <= 0) continue
+                        lotSompi.add(tx.amountSompi)
+                        lotCostPerSompi.add(tx.fiatValue / tx.amountSompi)
+                        if (pending) pendingPriceCount++
+                    }
+                    "sell" -> {
+                        var remaining = tx.amountSompi
+                        var cost = 0.0
+                        while (remaining > 0 && lotStart < lotSompi.size) {
+                            val take = minOf(remaining, lotSompi[lotStart])
+                            cost += take * lotCostPerSompi[lotStart]
+                            lotSompi[lotStart] -= take
+                            remaining -= take
+                            if (lotSompi[lotStart] == 0L) lotStart++
+                        }
+                        calendar.timeInMillis = tx.timestampMillis
+                        if (calendar.get(java.util.Calendar.YEAR) != year) continue
+                        proceeds += tx.fiatValue
+                        costBasis += cost
+                        sellCount++
+                        uncoveredSompi += maxOf(remaining, 0L)
+                        if (pending) pendingPriceCount++
+                    }
+                    // "transfer": your own KAS changing address - not a sale, and its cost stays with it.
+                }
+            }
+            return RealizedPL(
+                year = year,
+                proceeds = proceeds,
+                costBasis = costBasis,
+                sellCount = sellCount,
+                uncoveredKas = uncoveredSompi / 100_000_000.0,
+                pendingPriceCount = pendingPriceCount,
+            )
+        }
 
         internal fun computeSummary(transactions: List<PortfolioTransactionEntity>, currentPriceUsd: Double): PortfolioSummary {
             var holdingsSompi = 0L

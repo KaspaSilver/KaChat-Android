@@ -198,12 +198,13 @@ class PortfolioManager @Inject constructor(
     }
 
     /** Never allows deleting the last remaining portfolio — every wallet must always have at least one. Also deletes that portfolio's own ledger rows. */
-    suspend fun deletePortfolio(id: String) {
+    suspend fun deletePortfolio(id: String): Boolean {
         val address = walletManager.getAddress()
-        if (database.portfolioDefinitionDao().count(address) <= 1) return
+        if (database.portfolioDefinitionDao().count(address) <= 1) return false
         database.portfolioDefinitionDao().delete(id)
         database.portfolioDao().deleteAllForPortfolio(id)
         normalizeSortOrder(address)
+        return true
     }
 
     fun setActivePortfolio(id: String) {

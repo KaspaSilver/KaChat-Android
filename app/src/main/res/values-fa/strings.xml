@@ -655,4 +655,17 @@
     <string name="portfolio_move_already_has">این تراکنش را از قبل دارد.</string>
     <string name="portfolio_move_here">انتقال این تراکنش به اینجا.</string>
     <string name="portfolio_moved_to">به %1$s منتقل شد.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">افزودن نشانی گفتگو</string>
+    <string name="portfolio_add_chatting_address_sub">خریدها و فروش‌های نشانی گفتگوی شما و همه کارمزدهای شبکه‌ای که پرداخته است.</string>
+    <string name="portfolio_fees_counted">. کارمزدهای شبکه شمرده‌شده: %1$d</string>
+    <string name="portfolio_no_sells_this_year">امسال هنوز فروشی نداشته‌اید.</string>
+    <string name="portfolio_sells_fifo">فروش‌ها: %1$d. قدیمی‌ترین خریدها اول (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s بدون خرید ثبت‌شده فروخته شد و با هزینه صفر محاسبه شد.</string>
+    <string name="portfolio_prices_loading">برخی قیمت‌ها هنوز در حال بارگذاری‌اند.</string>
+    <string name="portfolio_realized_pl_year">سود/زیان تحقق‌یافته %1$s</string>
+    <string name="portfolio_fees_spent">کارمزدهای پرداختی</string>
+    <string name="portfolio_fees_empty_hint">نشانی گفتگوی خود را با + اضافه کنید تا کارمزدهای شبکه‌ای که پرداخته شمرده شوند.</string>
+    <string name="portfolio_fees_count_loading">تراکنش‌ها: %1$d. برخی قیمت‌ها هنوز در حال بارگذاری‌اند.</string>
+    <string name="portfolio_fees_count_priced">تراکنش‌ها: %1$d، با قیمت هر روز.</string>
 </resources>

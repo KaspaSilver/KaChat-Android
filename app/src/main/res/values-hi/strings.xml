@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">इसमें यह लेन-देन पहले से है।</string>
     <string name="portfolio_move_here">यह लेन-देन यहाँ ले जाएँ।</string>
     <string name="portfolio_moved_to">%1$s में ले जाया गया।</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">चैट पता जोड़ें</string>
+    <string name="portfolio_add_chatting_address_sub">आपके चैट पते की खरीद-बिक्री और उसका चुकाया हर नेटवर्क शुल्क।</string>
+    <string name="portfolio_fees_counted">. गिने गए नेटवर्क शुल्क: %1$d</string>
+    <string name="portfolio_no_sells_this_year">इस साल अभी कोई बिक्री नहीं।</string>
+    <string name="portfolio_sells_fifo">बिक्री: %1$d. सबसे पुरानी खरीद पहले (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s बिना दर्ज खरीद के बेचे गए, शून्य लागत पर गिने गए।</string>
+    <string name="portfolio_prices_loading">कुछ कीमतें अभी लोड हो रही हैं।</string>
+    <string name="portfolio_realized_pl_year">वास्तविक लाभ/हानि %1$s</string>
+    <string name="portfolio_fees_spent">चुकाए गए शुल्क</string>
+    <string name="portfolio_fees_empty_hint">चुकाए गए नेटवर्क शुल्क गिनने के लिए + से अपना चैट पता जोड़ें।</string>
+    <string name="portfolio_fees_count_loading">लेन-देन: %1$d. कुछ कीमतें अभी लोड हो रही हैं।</string>
+    <string name="portfolio_fees_count_priced">लेन-देन: %1$d, हर दिन की कीमत पर।</string>
 </resources>

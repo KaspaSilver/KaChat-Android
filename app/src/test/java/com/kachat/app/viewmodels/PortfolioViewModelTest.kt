@@ -112,4 +112,37 @@ class PortfolioViewModelTest {
         val history = PortfolioViewModel.computeValueHistory(txs, listOf(70L to 0.1))
         assertEquals(10.0, history[0].second, 1e-9)
     }
+
+    private val utc = java.util.TimeZone.getTimeZone("UTC")
+    private fun utcMillis(year: Int, month: Int, day: Int): Long =
+        java.util.Calendar.getInstance(utc).apply { clear(); set(year, month - 1, day) }.timeInMillis
+
+    @Test
+    fun `realized PL takes the oldest buys first and counts only that year's sells`() {
+        val txs = listOf(
+            tx("buy", 100.0, 10.0, utcMillis(2025, 1, 1)),   // $0.10
+            tx("buy", 100.0, 30.0, utcMillis(2025, 6, 1)),   // $0.30
+            tx("sell", 50.0, 25.0, utcMillis(2025, 12, 1)),  // last year: uses 50 of lot 1
+            tx("sell", 100.0, 50.0, utcMillis(2026, 3, 1)),  // 50 of lot 1 ($5) + 50 of lot 2 ($15)
+            tx("transfer", 100.0, 40.0, utcMillis(2026, 4, 1)),
+        )
+        val pl = PortfolioViewModel.computeRealizedPL(txs, 2026, utc)
+        assertEquals(1, pl.sellCount)
+        assertEquals(50.0, pl.proceeds, 1e-9)
+        assertEquals(20.0, pl.costBasis, 1e-9)
+        assertEquals(30.0, pl.amount, 1e-9)
+        assertEquals(0.0, pl.uncoveredKas, 1e-9)
+    }
+
+    @Test
+    fun `realized PL counts KAS sold beyond every buy at zero cost`() {
+        val txs = listOf(
+            tx("buy", 10.0, 1.0, utcMillis(2026, 1, 1)),
+            tx("sell", 30.0, 6.0, utcMillis(2026, 2, 1)),
+        )
+        val pl = PortfolioViewModel.computeRealizedPL(txs, 2026, utc)
+        assertEquals(1.0, pl.costBasis, 1e-9)
+        assertEquals(20.0, pl.uncoveredKas, 1e-9)
+        assertEquals(5.0, pl.amount, 1e-9)
+    }
 }

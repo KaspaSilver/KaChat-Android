@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">已包含此交易。</string>
     <string name="portfolio_move_here">将此交易移到这里。</string>
     <string name="portfolio_moved_to">已移至 %1$s。</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">添加聊天地址</string>
+    <string name="portfolio_add_chatting_address_sub">你的聊天地址的买入、卖出，以及它支付过的每笔网络费用。</string>
+    <string name="portfolio_fees_counted">。已统计网络费用：%1$d</string>
+    <string name="portfolio_no_sells_this_year">今年还没有卖出。</string>
+    <string name="portfolio_sells_fifo">卖出：%1$d 笔。最早的买入优先（FIFO）。</string>
+    <string name="portfolio_sold_uncovered">卖出的 %1$s 没有对应的买入记录，按零成本计算。</string>
+    <string name="portfolio_prices_loading">部分价格仍在加载。</string>
+    <string name="portfolio_realized_pl_year">已实现盈亏 %1$s</string>
+    <string name="portfolio_fees_spent">已付费用</string>
+    <string name="portfolio_fees_empty_hint">用 + 添加你的聊天地址，即可统计它支付过的网络费用。</string>
+    <string name="portfolio_fees_count_loading">交易：%1$d 笔。部分价格仍在加载。</string>
+    <string name="portfolio_fees_count_priced">交易：%1$d 笔，按当日价格计算。</string>
 </resources>

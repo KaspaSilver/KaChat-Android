@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">この取引はすでにあります。</string>
     <string name="portfolio_move_here">この取引をここへ移動します。</string>
     <string name="portfolio_moved_to">%1$s に移動しました。</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">チャットアドレスを追加</string>
+    <string name="portfolio_add_chatting_address_sub">チャットアドレスの購入・売却と、支払ったすべてのネットワーク手数料。</string>
+    <string name="portfolio_fees_counted">。集計したネットワーク手数料：%1$d</string>
+    <string name="portfolio_no_sells_this_year">今年はまだ売却がありません。</string>
+    <string name="portfolio_sells_fifo">売却：%1$d 件。古い購入から順に（FIFO）。</string>
+    <string name="portfolio_sold_uncovered">購入記録のない %1$s が売却され、取得原価ゼロとして計算しました。</string>
+    <string name="portfolio_prices_loading">一部の価格はまだ読み込み中です。</string>
+    <string name="portfolio_realized_pl_year">実現損益 %1$s</string>
+    <string name="portfolio_fees_spent">支払った手数料</string>
+    <string name="portfolio_fees_empty_hint">+ からチャットアドレスを追加すると、支払ったネットワーク手数料を集計できます。</string>
+    <string name="portfolio_fees_count_loading">取引：%1$d 件。一部の価格はまだ読み込み中です。</string>
+    <string name="portfolio_fees_count_priced">取引：%1$d 件、各日の価格で計算。</string>
 </resources>

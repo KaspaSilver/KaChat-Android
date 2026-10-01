@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">تحتوي هذه المعاملة بالفعل.</string>
     <string name="portfolio_move_here">انقل هذه المعاملة إلى هنا.</string>
     <string name="portfolio_moved_to">تم النقل إلى %1$s.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">إضافة عنوان المحادثة</string>
+    <string name="portfolio_add_chatting_address_sub">عمليات شراء وبيع عنوان المحادثة الخاص بك، وكل رسوم شبكة دفعها.</string>
+    <string name="portfolio_fees_counted">. رسوم الشبكة المحسوبة: %1$d</string>
+    <string name="portfolio_no_sells_this_year">لا توجد مبيعات هذا العام بعد.</string>
+    <string name="portfolio_sells_fifo">المبيعات: %1$d. أقدم المشتريات أولًا (FIFO).</string>
+    <string name="portfolio_sold_uncovered">تم بيع %1$s دون شراء مسجل، وحُسبت بتكلفة صفرية.</string>
+    <string name="portfolio_prices_loading">لا تزال بعض الأسعار قيد التحميل.</string>
+    <string name="portfolio_realized_pl_year">الربح/الخسارة المحققة %1$s</string>
+    <string name="portfolio_fees_spent">الرسوم المدفوعة</string>
+    <string name="portfolio_fees_empty_hint">أضف عنوان المحادثة عبر + لاحتساب رسوم الشبكة التي دفعها.</string>
+    <string name="portfolio_fees_count_loading">المعاملات: %1$d. لا تزال بعض الأسعار قيد التحميل.</string>
+    <string name="portfolio_fees_count_priced">المعاملات: %1$d، بسعر كل يوم.</string>
 </resources>

@@ -486,4 +486,17 @@
     <string name="portfolio_move_already_has">Sudah memiliki transaksi ini.</string>
     <string name="portfolio_move_here">Pindahkan transaksi ini ke sini.</string>
     <string name="portfolio_moved_to">Dipindahkan ke %1$s.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">Tambah Alamat Obrolan</string>
+    <string name="portfolio_add_chatting_address_sub">Pembelian dan penjualan alamat obrolanmu, serta setiap biaya jaringan yang telah dibayarnya.</string>
+    <string name="portfolio_fees_counted">. Biaya jaringan dihitung: %1$d</string>
+    <string name="portfolio_no_sells_this_year">Belum ada penjualan tahun ini.</string>
+    <string name="portfolio_sells_fifo">Penjualan: %1$d. Pembelian tertua lebih dulu (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s terjual tanpa catatan pembelian, dihitung dengan biaya nol.</string>
+    <string name="portfolio_prices_loading">Beberapa harga masih dimuat.</string>
+    <string name="portfolio_realized_pl_year">L/R terealisasi %1$s</string>
+    <string name="portfolio_fees_spent">Biaya Dibayar</string>
+    <string name="portfolio_fees_empty_hint">Tambahkan alamat obrolanmu dengan + untuk menghitung biaya jaringan yang telah dibayarnya.</string>
+    <string name="portfolio_fees_count_loading">Transaksi: %1$d. Beberapa harga masih dimuat.</string>
+    <string name="portfolio_fees_count_priced">Transaksi: %1$d, dengan harga tiap hari.</string>
 </resources>

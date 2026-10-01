@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">Уже содержит эту транзакцию.</string>
     <string name="portfolio_move_here">Переместить транзакцию сюда.</string>
     <string name="portfolio_moved_to">Перемещено в %1$s.</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">Добавить адрес чата</string>
+    <string name="portfolio_add_chatting_address_sub">Покупки и продажи вашего адреса чата и все сетевые комиссии, которые он заплатил.</string>
+    <string name="portfolio_fees_counted">. Учтено сетевых комиссий: %1$d</string>
+    <string name="portfolio_no_sells_this_year">В этом году продаж пока нет.</string>
+    <string name="portfolio_sells_fifo">Продаж: %1$d. Сначала самые ранние покупки (FIFO).</string>
+    <string name="portfolio_sold_uncovered">%1$s продано без записанной покупки, учтено по нулевой стоимости.</string>
+    <string name="portfolio_prices_loading">Некоторые цены ещё загружаются.</string>
+    <string name="portfolio_realized_pl_year">Реализованная П/У %1$s</string>
+    <string name="portfolio_fees_spent">Уплаченные комиссии</string>
+    <string name="portfolio_fees_empty_hint">Добавьте адрес чата через +, чтобы учесть уплаченные им сетевые комиссии.</string>
+    <string name="portfolio_fees_count_loading">Транзакций: %1$d. Некоторые цены ещё загружаются.</string>
+    <string name="portfolio_fees_count_priced">Транзакций: %1$d, по цене каждого дня.</string>
 </resources>

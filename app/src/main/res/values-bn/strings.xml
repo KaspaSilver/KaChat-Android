@@ -616,4 +616,17 @@
     <string name="portfolio_move_already_has">এই লেনদেনটি আগে থেকেই আছে।</string>
     <string name="portfolio_move_here">এই লেনদেনটি এখানে সরান।</string>
     <string name="portfolio_moved_to">%1$s-এ সরানো হয়েছে।</string>
+    <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
+    <string name="portfolio_add_chatting_address">চ্যাট ঠিকানা যোগ করুন</string>
+    <string name="portfolio_add_chatting_address_sub">আপনার চ্যাট ঠিকানার কেনা-বেচা এবং এর দেওয়া প্রতিটি নেটওয়ার্ক ফি।</string>
+    <string name="portfolio_fees_counted">. গণনা করা নেটওয়ার্ক ফি: %1$d</string>
+    <string name="portfolio_no_sells_this_year">এ বছর এখনো কোনো বিক্রি নেই।</string>
+    <string name="portfolio_sells_fifo">বিক্রি: %1$d। পুরোনো কেনা আগে (FIFO)।</string>
+    <string name="portfolio_sold_uncovered">%1$s কোনো রেকর্ড করা কেনা ছাড়াই বিক্রি হয়েছে, শূন্য খরচে গণনা করা হয়েছে।</string>
+    <string name="portfolio_prices_loading">কিছু দাম এখনো লোড হচ্ছে।</string>
+    <string name="portfolio_realized_pl_year">বাস্তবায়িত লাভ/ক্ষতি %1$s</string>
+    <string name="portfolio_fees_spent">দেওয়া ফি</string>
+    <string name="portfolio_fees_empty_hint">দেওয়া নেটওয়ার্ক ফি গণনা করতে + দিয়ে আপনার চ্যাট ঠিকানা যোগ করুন।</string>
+    <string name="portfolio_fees_count_loading">লেনদেন: %1$d। কিছু দাম এখনো লোড হচ্ছে।</string>
+    <string name="portfolio_fees_count_priced">লেনদেন: %1$d, প্রতিদিনের দামে।</string>
 </resources>
