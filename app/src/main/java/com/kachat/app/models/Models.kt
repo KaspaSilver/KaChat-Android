@@ -188,15 +188,17 @@ data class ContactEntity(
  * until some later path happened to copy it into [alias]. The name was already there; nothing was
  * reading it.
  */
+// A contact's stored .kas name is not shown since 5.2 (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY):
+// the name you gave them, else their address.
 val ContactEntity.displayName: String
     get() = alias?.takeIf { it.isNotBlank() }
-        ?: knsName?.takeIf { it.isNotBlank() }
+        ?: knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
         ?: com.kachat.app.util.KaspaAddress.shortDisplay(id)
 
 /** Avatar initial source - same order, but the raw tail rather than the formatted short address. */
 val ContactEntity.avatarFallbackText: String
     get() = alias?.takeIf { it.isNotBlank() }
-        ?: knsName?.takeIf { it.isNotBlank() }
+        ?: knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
         ?: id.takeLast(8)
 
 

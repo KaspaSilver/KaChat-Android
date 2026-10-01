@@ -59,6 +59,16 @@ class KnsService @Inject constructor(
      * [forceRefresh] is for the paths that just CHANGED something and must not read their own
      * stale answer back - setting a primary domain, or editing a KNS profile.
      */
+    /** [address]'s .kas name for showing as its name - null while
+     *  [SHOWS_DOMAIN_NAMES_AS_IDENTITY] is off. Use this, not [reverseResolve], anywhere the
+     *  result labels a person. */
+    suspend fun identityName(address: String): String? =
+        if (SHOWS_DOMAIN_NAMES_AS_IDENTITY) reverseResolve(address) else null
+
+    /** [getExplicitPrimaryDomain] for labelling a person - null while names are not shown. */
+    suspend fun identityPrimaryDomain(address: String): String? =
+        if (SHOWS_DOMAIN_NAMES_AS_IDENTITY) getExplicitPrimaryDomain(address) else null
+
     suspend fun reverseResolve(address: String, forceRefresh: Boolean = false): String? {
         if (!forceRefresh) {
             profileCache.cachedReverse(address)?.let { return it.domain }
@@ -272,6 +282,16 @@ class KnsService @Inject constructor(
         /** Whether .kas profiles (avatar, banner, bio, links) are loaded for display anywhere in
          *  the app. Off since 5.2 - only the domain name is resolved (iOS d6ded9d). */
         const val LOADS_DOMAIN_PROFILES = false
+
+        /**
+         * Whether an ADDRESS is shown by its .kas name anywhere in the app - contacts, chat rows,
+         * User Info, group and public chat senders, KaPosts authors, chess players, calls,
+         * notifications. Off since 5.2 (iOS 509c0fe): someone without a .kachat name is shown by
+         * the name you gave them, else their address. [identityName] / [identityPrimaryDomain]
+         * are the reads for display. Your Domains (managing your own .kas names) and typing a
+         * name to resolve it are unaffected - they use [resolve] / [getOwnedDomains] directly.
+         */
+        const val SHOWS_DOMAIN_NAMES_AS_IDENTITY = false
 
         /**
          * Readable text for a failed KNS call.

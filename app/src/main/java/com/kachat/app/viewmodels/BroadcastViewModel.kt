@@ -101,7 +101,7 @@ class BroadcastViewModel @Inject constructor(
                 val ownedAssets = knsService.getOwnedDomains(address)
                 if (ownedAssets.isEmpty()) return@launch
                 val ownedNames = ownedAssets.mapNotNull { it.asset }
-                val primary = knsService.reverseResolve(address)
+                val primary = knsService.identityName(address)
                 val activeName = KnsService.pickActiveDomain(ownedNames, null, primary)
                 _senderKnsNames.value = _senderKnsNames.value + (address to activeName)
 

@@ -450,6 +450,26 @@ class ChatRepository @Inject constructor(
     suspend fun hasDeletionTombstone(contactId: String): Boolean =
         database.contactDao().getDeletedContact(contactId, walletManager.getAddress()) != null
 
+    /**
+     * 5.2, once per account (iOS 509c0fe): a contact whose name is just a .kas domain goes back to
+     * unnamed, and stored .kas names are dropped, so everyone without a .kachat name shows as
+     * their address (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY). A name linked from the phone's
+     * Contacts app is left alone. Flagged per account rather than re-checked every launch, so a
+     * .kas-looking name typed after the update stays.
+     */
+    suspend fun clearKasDomainNames(walletAddress: String) {
+        for (contact in database.contactDao().getContacts(walletAddress).first()) {
+            val alias = contact.alias?.trim()?.lowercase()
+            val aliasIsDomain = alias != null && alias.length > 4 && alias.endsWith(".kas") &&
+                alias.none { it.isWhitespace() } &&
+                !(contact.systemContactId != null && contact.alias == contact.systemContactName)
+            if (!aliasIsDomain && contact.knsName == null) continue
+            database.contactDao().insert(
+                contact.copy(alias = if (aliasIsDomain) null else contact.alias, knsName = null)
+            )
+        }
+    }
+
     /** See ContactDao.clearKnsAvatars. */
     suspend fun clearStoredKnsAvatars(): Int = database.contactDao().clearKnsAvatars()
 

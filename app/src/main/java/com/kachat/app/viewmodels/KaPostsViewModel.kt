@@ -891,7 +891,7 @@ class KaPostsViewModel @Inject constructor(
     private fun seedSenderCachesFromDisk() {
         val cached = knsProfileCache.snapshot()
         if (cached.isEmpty()) return
-        _senderKnsNames.value = cached.mapValues { it.value.knsName }.cappedForSenders()
+        _senderKnsNames.value = cached.mapValues { it.value.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY } }.cappedForSenders()
         _senderProfiles.value = cached.mapValues { it.value.avatarUrl }.cappedForSenders()
         _senderBanners.value = cached.mapValues { it.value.bannerUrl }.cappedForSenders()
         _senderBios.value = cached.mapValues { it.value.bio }.cappedForSenders()
@@ -926,7 +926,7 @@ class KaPostsViewModel @Inject constructor(
                     return@withPermit
                 }
                 val ownedNames = ownedAssets.mapNotNull { it.asset }
-                val primary = knsService.reverseResolve(address)
+                val primary = knsService.identityName(address)
                 val activeName = KnsService.pickActiveDomain(ownedNames, null, primary)
                 _senderKnsNames.value = (_senderKnsNames.value + (address to activeName)).cappedForSenders()
                 val activeAsset = ownedAssets.firstOrNull { it.asset == activeName }

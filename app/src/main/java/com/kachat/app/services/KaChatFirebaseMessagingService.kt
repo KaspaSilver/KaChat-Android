@@ -366,7 +366,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
     private suspend fun contactTitle(senderId: String, default: String): String {
         val contact = runCatching { chatRepository.getContact(senderId) }.getOrNull()
-        return contact?.alias ?: contact?.knsName ?: default.takeLast(12)
+        return contact?.alias ?: contact?.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY } ?: default.takeLast(12)
     }
 
     private suspend fun contactOverride(senderId: String): ContactNotificationMode? {

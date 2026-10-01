@@ -3765,7 +3765,7 @@ fun ProfileScreen(
                                     val send = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/plain"
                                         putExtra(Intent.EXTRA_TEXT, link)
-                                        putExtra(Intent.EXTRA_TITLE, activeProfileDomainName ?: "My KaChat profile")
+                                        putExtra(Intent.EXTRA_TITLE, activeProfileDomainName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY } ?: "My KaChat profile")
                                     }
                                     runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
                                 }
@@ -3971,7 +3971,12 @@ fun ProfileScreen(
                         )
                     }
                     // The .kas is part of the name, so the hero shows it too.
-                    val heroName = activeProfileDomainName ?: accountName ?: ""
+                    // Your domain name, else your short address - never the account name, which is
+                    // your own label for the account, not what anyone sees you as (iOS 3041164).
+                    // Your .kas name isn't your name here since 5.2 (iOS 509c0fe); that will be
+                    // your .kachat name.
+                    val heroName = activeProfileDomainName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
+                        ?: address?.let { com.kachat.app.util.KaspaAddress.shortDisplay(it) } ?: ""
                     // This card only ever renders the user's own profile (ProfileScreen is
                     // own-account only), so the edit/create entry is always shown here.
                     // Label follows the same reactive condition as the destination: no profile
@@ -11464,7 +11469,7 @@ fun CreateChatScreen(
     }
     val storedDomainsByAddress = remember(conversations) {
         conversations.mapNotNull { convo ->
-            (convo.contact.knsName?.takeIf { it.isNotBlank() })?.let { convo.contact.id to it }
+            (convo.contact.knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY })?.let { convo.contact.id to it }
         }.toMap()
     }
     val resolvePickerName: (String, String?) -> String = { address, liveDomain ->
@@ -13009,7 +13014,9 @@ fun ChatInfoScreen(
                     icon = Icons.Default.QrCode,
                 ) { infoSheet = "address" }
 
-                InfoSectionCard(
+                // Someone's .kas names aren't shown since 5.2 (KnsService
+                // .SHOWS_DOMAIN_NAMES_AS_IDENTITY) - the card would only ever be empty.
+                if (com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) InfoSectionCard(
                     title = stringResource(R.string.contact_kns_domains),
                     icon = Icons.Default.AlternateEmail,
                 ) { infoSheet = "domains" }

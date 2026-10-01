@@ -170,7 +170,7 @@ fun ChatsScreen(
                 val contactLabel = convo.contact.displayName
                 listOfNotNull(
                     convo.contact.alias,
-                    convo.contact.knsName,
+                    convo.contact.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY },
                     convo.contact.id,
                     messagePreviewText(convo.lastMessage, contactLabel)
                 ).any { it.contains(query, ignoreCase = true) }

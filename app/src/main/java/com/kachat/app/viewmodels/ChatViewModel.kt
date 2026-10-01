@@ -611,7 +611,7 @@ class ChatViewModel @Inject constructor(
         for (address in addresses) {
             refreshKnsProfile(address)
             viewModelScope.launch {
-                val explicitPrimary = knsService.getExplicitPrimaryDomain(address)
+                val explicitPrimary = knsService.identityPrimaryDomain(address)
                 _groupMemberPrimaryKnsByAddress.update { it + (address to explicitPrimary) }
             }
         }
@@ -1237,7 +1237,7 @@ class ChatViewModel @Inject constructor(
             val myAddress = walletManager.getAddress()
             val storedNames = chatRepository.getContacts().first()
                 .filter { it.id != myAddress }
-                .associate { it.id to (it.alias ?: it.knsName) }
+                .associate { it.id to (it.alias ?: it.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }) }
             publishPickerContacts(storedNames, storedNames.keys, emptySet(), emptySet())
             _isLoadingPickerContacts.value = false
 
@@ -1275,6 +1275,7 @@ class ChatViewModel @Inject constructor(
             // coroutine per call, and a follow graph in the hundreds would fire that many KNS
             // round trips at once. The list renders immediately and names fill in behind it.
             for (connection in _pickerContacts.value) {
+                if (!com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) break
                 if (_knsProfiles.value.containsKey(connection.address)) continue
                 val assets = runCatching { knsService.getOwnedDomainsCached(connection.address) }
                     .getOrNull().orEmpty()
@@ -1354,7 +1355,7 @@ class ChatViewModel @Inject constructor(
             // `alias` — a contact is named only when the user names one, and a domain baked
             // into the alias would go stale the moment the domain moved.
             if (knsName == null) {
-                val primary = knsService.reverseResolve(address)
+                val primary = knsService.identityName(address)
                 if (primary != null) {
                     chatRepository.getContact(address)?.let { current ->
                         chatRepository.addContact(current.copy(knsName = primary))
@@ -1920,6 +1921,12 @@ class ChatViewModel @Inject constructor(
      * Info" may never have a [ContactEntity] row at all, and their KNS profile should still show.
      */
     fun refreshKnsProfile(contactId: String) {
+        // Someone's .kas names are not shown since 5.2 (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY):
+        // nothing to ask KNS for, and an empty state is what every reader falls back from.
+        if (!com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) {
+            _knsProfiles.update { it + (contactId to KnsProfileUiState()) }
+            return
+        }
         viewModelScope.launch {
             val contact = chatRepository.getContact(contactId)
             val ownedAssets = knsService.getOwnedDomains(contactId)
@@ -1963,6 +1970,9 @@ class ChatViewModel @Inject constructor(
         // time, including on a cold start seconds after the names were read from the database
         // where they already live. An in-memory guard would still have re-walked on every
         // launch, which is exactly the case worth stopping.
+        // Every result of this sweep is a .kas name to show for a contact, which 5.2 stopped doing
+        // (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY), so it no longer asks KNS at all.
+        if (!com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) return
         val prefs = appContext.getSharedPreferences("kns_sweep", Context.MODE_PRIVATE)
         val last = prefs.getLong(KNS_NAME_SWEEP_KEY, 0L)
         val now = System.currentTimeMillis()
@@ -3121,6 +3131,15 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             walletManager.activeAddressFlow.collect { address ->
                 if (address != null) runCatching { chatRepository.ensureSelfConversation(address) }
+                // .kas names stop being people's names, once per account (iOS 509c0fe).
+                if (address != null && !com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) {
+                    val prefs = appContext.getSharedPreferences("kachat_identity_migrations", Context.MODE_PRIVATE)
+                    val flag = "kas_alias_reset_v1_$address"
+                    if (!prefs.getBoolean(flag, false)) {
+                        runCatching { chatRepository.clearKasDomainNames(address) }
+                            .onSuccess { prefs.edit().putBoolean(flag, true).apply() }
+                    }
+                }
             }
         }
     }

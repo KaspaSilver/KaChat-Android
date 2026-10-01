@@ -86,7 +86,7 @@ fun ShareComposeSheet(
     val contactLabel = remember(conversations, share.contactId) {
         val contact = conversations.firstOrNull { it.contact.id == share.contactId }?.contact
         contact?.alias?.takeIf { it.isNotBlank() }
-            ?: contact?.knsName?.takeIf { it.isNotBlank() }
+            ?: contact?.knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
             ?: KaspaAddress.shortDisplay(share.contactId)
     }
 

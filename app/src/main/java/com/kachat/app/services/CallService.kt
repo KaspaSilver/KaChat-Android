@@ -1138,7 +1138,7 @@ class CallService @Inject constructor(
 
     private suspend fun ownDisplayName(): String {
         val address = runCatching { walletManager.getAddress() }.getOrNull() ?: return "KaChat"
-        val domain = runCatching { withContext(Dispatchers.IO) { knsService.reverseResolve(address) } }.getOrNull()
+        val domain = runCatching { withContext(Dispatchers.IO) { knsService.identityName(address) } }.getOrNull()
         return if (!domain.isNullOrEmpty()) domain else "KaChat ${address.takeLast(6)}"
     }
 

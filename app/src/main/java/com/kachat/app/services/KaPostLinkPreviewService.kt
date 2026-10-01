@@ -57,7 +57,7 @@ class KaPostLinkPreviewService @Inject constructor(
         val activeName = KnsService.pickActiveDomain(
             owned.mapNotNull { it.asset },
             null,
-            knsService.getExplicitPrimaryDomain(address)
+            knsService.identityPrimaryDomain(address)
         )
         val active = owned.firstOrNull { it.asset == activeName }
         // Active domain first, then the others - a person can hold several and have set the

@@ -472,7 +472,7 @@ class ChessTournamentService @Inject constructor(
         if (fresh.isEmpty()) return
         scope.launch {
             for (address in fresh) {
-                val domain = runCatching { knsService.reverseResolve(address) }.getOrNull()
+                val domain = runCatching { knsService.identityName(address) }.getOrNull()
                 if (!domain.isNullOrBlank()) _knsNames.value = _knsNames.value + (address to domain)
             }
         }

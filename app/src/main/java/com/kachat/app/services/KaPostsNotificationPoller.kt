@@ -64,8 +64,8 @@ class KaPostsNotificationPoller @Inject constructor(
         val name = if (alias.isNotEmpty()) {
             alias
         } else {
-            val domain = contact?.knsName?.trim().orEmpty().ifEmpty {
-                try { knsService.getExplicitPrimaryDomain(address) ?: knsService.reverseResolve(address) ?: "" }
+            val domain = contact?.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }?.trim().orEmpty().ifEmpty {
+                try { knsService.identityPrimaryDomain(address) ?: knsService.identityName(address) ?: "" }
                 catch (_: Exception) { "" }
             }
             if (domain.isNotEmpty()) domain else fallback

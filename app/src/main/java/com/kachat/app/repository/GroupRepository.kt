@@ -302,7 +302,7 @@ class GroupRepository @Inject constructor(
         senderKnsCache[address]?.let { (fetchedAt, domain) ->
             if (now - fetchedAt < 10 * 60_000L) return domain
         }
-        val domain = try { knsService.reverseResolve(address)?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }
+        val domain = try { knsService.identityName(address)?.trim()?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }
         senderKnsCache[address] = now to domain
         return domain
     }

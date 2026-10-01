@@ -119,7 +119,7 @@ class ShareShortcutsManager @Inject constructor(
             .take(MAX_SHORTCUTS)
             .map { convo ->
                 val label = convo.contact.alias?.takeIf { it.isNotBlank() }
-                    ?: convo.contact.knsName?.takeIf { it.isNotBlank() }
+                    ?: convo.contact.knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
                     ?: KaspaAddress.shortDisplay(convo.contact.id)
                 ShortcutEntry(
                     contactId = convo.contact.id,

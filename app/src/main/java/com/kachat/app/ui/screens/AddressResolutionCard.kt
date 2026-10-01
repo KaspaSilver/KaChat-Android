@@ -145,6 +145,8 @@ class AddressResolutionViewModel @Inject constructor(
 
     /** The address's primary domain and avatar, as far as KNS knows them. */
     suspend fun profileFor(address: String): Pair<String?, String?>? = runCatching {
+        // A .kas name labels nobody since 5.2 (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY).
+        if (!com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) return@runCatching null to null
         val primary = knsService.getExplicitPrimaryDomain(address)
             ?: knsService.getOwnedDomainsCached(address).firstNotNullOfOrNull { it.asset }
         val assetId = knsService.getOwnedDomainsCached(address)
