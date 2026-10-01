@@ -36,6 +36,8 @@ class WalletService @Inject constructor(
     private val walletEngine: KaspaWalletEngine,
     private val chatRepository: ChatRepository,
     private val knsService: KnsService,
+    /** .k and .kaspa names for the chatting-address scan (iOS 7a5b157). */
+    private val nameServices: NameServicesClient,
     private val knsInscriptionEngine: KnsInscriptionEngine,
     /** Fresh-address payment-pool reservations - offered ones are locked visible ("Chat privacy
      *  address" rows), so every visibility write/read here consults the store. */
@@ -388,9 +390,15 @@ class WalletService @Inject constructor(
         val address: String,
         val balanceSompi: Long,
         val domains: List<KnsAsset>,
-        val primaryDomain: String?
+        val primaryDomain: String?,
+        /** Names on the other services (.k, .kaspa; .kachat once live). */
+        val otherNames: List<OwnedServiceName> = emptyList(),
     ) {
-        val isInteresting: Boolean get() = balanceSompi > 0L || domains.isNotEmpty()
+        val nameCount: Int get() = domains.size + otherNames.size
+        /** The one name to show on the row when there is exactly one. */
+        val onlyName: String? get() = if (nameCount != 1) null
+            else domains.firstOrNull()?.asset ?: otherNames.firstOrNull()?.display
+        val isInteresting: Boolean get() = balanceSompi > 0L || nameCount > 0
     }
 
     /**
@@ -420,6 +428,9 @@ class WalletService @Inject constructor(
             }.awaitAll()
             results.forEach { (address, domains) -> domainsByAddress[address] = domains }
         }
+        // .k and .kaspa too: an identity can live at an address whose only trace is a name on
+        // one of them.
+        val otherNamesByAddress = nameServices.ownedNames(of = addresses)
 
         derived.map { (index, address) ->
             val domains = domainsByAddress[address].orEmpty()
@@ -431,7 +442,8 @@ class WalletService @Inject constructor(
                 // Only worth a reverse-lookup round trip for addresses that actually own domains.
                 primaryDomain = if (domains.isEmpty()) null else {
                     try { knsService.reverseResolve(address) } catch (e: Exception) { null }
-                }
+                },
+                otherNames = otherNamesByAddress[address].orEmpty()
             )
         }
     }

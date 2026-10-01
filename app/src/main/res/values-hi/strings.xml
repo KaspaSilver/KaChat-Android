@@ -632,4 +632,7 @@
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <string name="qr_receive_address_subtitle">एक नया पता, जिसका पहले कभी उपयोग नहीं हुआ। यहाँ भेजे गए Kaspa इस खाते में आते हैं और आपके खर्च योग्य कुल में दिखते हैं। चैट से जुड़ी चीज़ों को छोड़कर बाकी सब के लिए यह पता इस्तेमाल करें।</string>
     <string name="qr_chatting_address_subtitle">यह पता चैट के लिए है। लगभग 50 Kaspa लंबे समय तक मैसेज भेजने के लिए काफ़ी हैं।</string>
+    <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
+    <string name="chatting_picker_intro_any_name">अगर यह सीड आपकी पहचान किसी दूसरे पते पर पहले से रखता है - कोई डोमेन (.kas, .k या .kaspa) या बैलेंस वाला चैट पता - तो उसे यहाँ चुनें। सिर्फ़ बैलेंस या डोमेन वाले पते दिखाए जाते हैं।</string>
+    <string name="chatting_picker_other_names_count">.k और .kaspa नाम (%1$d)</string>
 </resources>

@@ -21,7 +21,8 @@ import javax.inject.Singleton
 class SpendingAddressDiscovery @Inject constructor(
     private val networkService: NetworkService,
     private val walletManager: WalletManager,
-    private val knsService: KnsService,
+    /** .kas, .k and .kaspa - an address holding only a name is still found (iOS 7a5b157). */
+    private val nameServices: NameServicesClient,
     private val addressActivity: AddressActivityService,
 ) {
     /**
@@ -142,7 +143,7 @@ class SpendingAddressDiscovery @Inject constructor(
             val domainOwners = if (knsCandidates.isEmpty()) emptySet() else coroutineScope {
                 knsCandidates.map { (_, address) ->
                     async {
-                        val owns = try { knsService.getOwnedDomains(address).isNotEmpty() } catch (e: Exception) { false }
+                        val owns = nameServices.ownsAnyName(address)
                         if (owns) address else null
                     }
                 }.awaitAll().filterNotNull().toSet()
@@ -181,7 +182,7 @@ class SpendingAddressDiscovery @Inject constructor(
                     val address = addresses[i] ?: continue
                     val funded = (balances[address] ?: 0L) > 0L
                     val matches = funded ||
-                        (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
+                        (i < KNS_PROBE_DEPTH && nameServices.ownsAnyName(address))
                     if (matches) {
                         matched.add(i)
                         consecutiveMisses = 0

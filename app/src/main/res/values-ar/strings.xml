@@ -632,4 +632,7 @@
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <string name="qr_receive_address_subtitle">عنوان جديد لم يُستخدم من قبل. تصل Kaspa المرسلة إلى هنا إلى هذا الحساب وتظهر في إجمالي الإنفاق. استخدم هذا العنوان لكل ما لا يتعلق بالمحادثة.</string>
     <string name="qr_chatting_address_subtitle">هذا العنوان مخصص للمحادثة. يكفي تمويله بنحو 50 Kaspa لإرسال الرسائل لفترة طويلة.</string>
+    <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
+    <string name="chatting_picker_intro_any_name">إذا كانت عبارة الاسترداد هذه تحمل هويتك بالفعل في عنوان آخر - نطاق (.kas أو .k أو .kaspa) أو رصيد محادثة - فاختره هنا. تظهر فقط العناوين التي لديها رصيد أو نطاقات.</string>
+    <string name="chatting_picker_other_names_count">أسماء .k و.kaspa (%1$d)</string>
 </resources>

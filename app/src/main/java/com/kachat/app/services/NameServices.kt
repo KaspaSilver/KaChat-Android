@@ -242,6 +242,42 @@ class NameServicesClient @Inject constructor(
         }
     }
 
+    // Any address (account discovery) - iOS 7a5b157
+
+    /** Names [address] owns on .k and .kaspa, for scanning many addresses - it leaves [owned]
+     *  (Your Domains' address) alone. A failed lookup counts as no names. */
+    suspend fun ownedNames(of: String): List<OwnedServiceName> {
+        val address = of.trim().lowercase()
+        if (address.isEmpty()) return emptyList()
+        return coroutineScope {
+            val dotk = async { runCatching { fetchDotk(address) }.getOrNull() }
+            val names = async { runCatching { fetchKaspaNames(address) }.getOrNull() }
+            dotk.await().orEmpty() + names.await().orEmpty()
+        }
+    }
+
+    /** [ownedNames] for many addresses, a few lookups at a time rather than one burst of two
+     *  requests per address against services that rate-limit. Addresses with none are absent. */
+    suspend fun ownedNames(of: List<String>, concurrency: Int = 6): Map<String, List<OwnedServiceName>> {
+        val result = mutableMapOf<String, List<OwnedServiceName>>()
+        for (chunk in of.chunked(concurrency)) {
+            coroutineScope {
+                chunk.map { address -> async { address to ownedNames(of = address) } }
+                    .map { it.await() }
+            }.forEach { (address, names) -> if (names.isNotEmpty()) result[address] = names }
+        }
+        return result
+    }
+
+    /** Whether [address] owns a name on any service KaChat reads - .kas, .k and .kaspa today.
+     *  Account discovery asks this so an address that holds only a name, and no KAS, is still
+     *  found. .kachat joins here once its registry is live ([NameServiceTLD.isLive]). */
+    suspend fun ownsAnyName(address: String): Boolean = coroutineScope {
+        val kas = async { runCatching { knsService.getOwnedDomains(address).isNotEmpty() }.getOrDefault(false) }
+        val others = async { ownedNames(of = address) }
+        kas.await() || others.await().isNotEmpty()
+    }
+
     // .k (dotk)
 
     private suspend fun fetchDotk(address: String): List<OwnedServiceName>? {

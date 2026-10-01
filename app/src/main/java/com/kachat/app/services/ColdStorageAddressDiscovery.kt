@@ -24,7 +24,8 @@ import javax.inject.Singleton
 @Singleton
 class ColdStorageAddressDiscovery @Inject constructor(
     private val networkService: NetworkService,
-    private val knsService: KnsService,
+    /** .kas, .k and .kaspa - an address holding only a name is still found (iOS 7a5b157). */
+    private val nameServices: NameServicesClient,
     private val addressActivity: AddressActivityService,
 ) {
     /** [matched] is set by [discoverAddresses] for an address holding a balance or a KNS domain. */
@@ -166,7 +167,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
             val domainOwners = if (knsCandidates.isEmpty()) emptySet() else coroutineScope {
                 knsCandidates.map { (_, address) ->
                     async {
-                        val owns = try { knsService.getOwnedDomains(address).isNotEmpty() } catch (e: Exception) { false }
+                        val owns = nameServices.ownsAnyName(address)
                         if (owns) address else null
                     }
                 }.awaitAll().filterNotNull().toSet()
@@ -218,7 +219,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
                 for ((i, address) in derived) {
                     val balance = balances[address] ?: 0L
                     val matches = balance > 0L ||
-                        (i < KNS_PROBE_DEPTH && knsService.getOwnedDomains(address).isNotEmpty())
+                        (i < KNS_PROBE_DEPTH && nameServices.ownsAnyName(address))
                     if (matches) {
                         results.add(
                             DiscoveredAddress(

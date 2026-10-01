@@ -552,7 +552,6 @@
     <!-- Chatting-address picker (import runs only) -->
     <string name="change_chatting_address">Change Chatting Address</string>
     <string name="choose_your_chatting_address">Choose Your Chatting Address</string>
-    <string name="if_this_seed_already_holds_your">If this seed already holds your identity at a different address, a KNS domain or a funded chatting balance, pick it here. Only addresses with a balance or domains are shown.</string>
     <string name="scan_further">Scan Further</string>
     <string name="scanning_addresses">Scanning addresses %1$d to %2$d…</string>
     <string name="scanned_the_first_addresses">Scanned the first %1$d addresses.</string>
@@ -812,4 +811,7 @@
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <string name="qr_receive_address_subtitle">A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting.</string>
     <string name="qr_chatting_address_subtitle">This address is for chatting. Funding it with around 50 Kaspa is enough to send messages for a long time.</string>
+    <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
+    <string name="chatting_picker_intro_any_name">If this seed already holds your identity at a different address - a domain (.kas, .k or .kaspa) or a funded chatting balance - pick it here. Only addresses with a balance or domains are shown.</string>
+    <string name="chatting_picker_other_names_count">.k and .kaspa Names (%1$d)</string>
 </resources>

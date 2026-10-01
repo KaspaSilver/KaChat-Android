@@ -671,4 +671,7 @@
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <string name="qr_receive_address_subtitle">یک نشانی تازه که هرگز استفاده نشده است. Kaspa ارسال‌شده به اینجا به این حساب می‌رسد و در مجموع قابل خرج شما نمایش داده می‌شود. از این نشانی برای هر کاری غیر از گفتگو استفاده کنید.</string>
     <string name="qr_chatting_address_subtitle">این نشانی برای گفتگو است. حدود ۵۰ Kaspa برای مدت طولانی ارسال پیام کافی است.</string>
+    <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
+    <string name="chatting_picker_intro_any_name">اگر این عبارت بازیابی هویت شما را در نشانی دیگری دارد - یک دامنه (.kas، .k یا .kaspa) یا موجودی گفتگو - آن را اینجا انتخاب کنید. فقط نشانی‌های دارای موجودی یا دامنه نمایش داده می‌شوند.</string>
+    <string name="chatting_picker_other_names_count">نام‌های .k و .kaspa (%1$d)</string>
 </resources>

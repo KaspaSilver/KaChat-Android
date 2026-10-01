@@ -158,7 +158,7 @@ fun ChattingAddressPickerScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                stringResource(R.string.if_this_seed_already_holds_your),
+                stringResource(R.string.chatting_picker_intro_any_name),
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
@@ -266,7 +266,7 @@ private fun ChattingAddressRow(
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    if (candidate.domains.isNotEmpty()) {
+                    if (candidate.nameCount > 0) {
                         Spacer(Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
@@ -275,8 +275,7 @@ private fun ChattingAddressRow(
                                 .padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                if (candidate.domains.size == 1) candidate.domains.first().asset ?: ""
-                                else stringResource(R.string.domains_count, candidate.domains.size),
+                                candidate.onlyName ?: stringResource(R.string.domains_count, candidate.nameCount),
                                 color = Color.Black,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -426,6 +425,23 @@ private fun ChattingAddressDetailScreen(
                             color = LocalAppColors.current.textSecondary,
                             fontFamily = FontFamily.Monospace
                         )
+                    }
+                }
+
+                if (candidate.otherNames.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        stringResource(R.string.chatting_picker_other_names_count, candidate.otherNames.size),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    candidate.otherNames.forEach { name ->
+                        DomainNameCard(
+                            title = name.display,
+                            badge = if (name.isProvisional) stringResource(R.string.settling) else null
+                        )
+                        Spacer(Modifier.height(10.dp))
                     }
                 }
 
