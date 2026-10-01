@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">この既定のルームをオフにします。公開チャットの設定で再びオンにできます。</string>
     <string name="default_room_switched_off">#%1$s はオフです。公開チャットの設定で再びオンにできます</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">インデクサー</string>
+    <string name="connection_tab_node">ノード</string>
+    <string name="connection_tab_translation">翻訳</string>
+    <string name="connection_tab_domains">ドメイン</string>
+    <string name="connection_tab_explorer">エクスプローラー</string>
+    <string name="message_indexer">メッセージインデクサ</string>
+    <string name="other_name_services">その他のネームサービス</string>
+    <string name="other_name_services_footer">アドレスが所有する .k と .kaspa の名前を表示するために使います。KaChat 独自の .kachat 名は開始後ここで設定されます。</string>
+    <string name="coming_soon">近日公開</string>
+    <string name="not_available_on_this_network">このネットワークでは利用できません</string>
 </resources>

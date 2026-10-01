@@ -10840,19 +10840,37 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             )
         }
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // One tab per kind of connection, so the page stays short as the app talks to more
+            // services: indexers, the Kaspa node, translation, name services, the block explorer
+            // (iOS ee01f81). Every field keeps its value while you switch between them.
+            val connectionTabs = listOf(
+                stringResource(R.string.connection_tab_indexer),
+                stringResource(R.string.connection_tab_node),
+                stringResource(R.string.connection_tab_translation),
+                stringResource(R.string.connection_tab_domains),
+                stringResource(R.string.connection_tab_explorer),
+            )
+            var selectedConnectionTab by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
+            UnderlineTabBar(
+                titles = connectionTabs,
+                selectedIndex = selectedConnectionTab,
+                onSelect = { selectedConnectionTab = it },
+            )
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            SettingsSection(title = stringResource(R.string.kachat_indexer)) {
+            Spacer(Modifier.height(0.dp))
+            when (selectedConnectionTab) {
+            0 -> {
+            SettingsSection(title = stringResource(R.string.message_indexer)) {
                 ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
                 SettingsFooter(stringResource(R.string.message_indexer_service_for_chat_functionality))
             }
-
 
             SettingsSection(title = stringResource(R.string.kapost_indexer)) {
                 // Editable, as on iOS: someone running their own K indexer points the app at it.
@@ -10864,6 +10882,30 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 SettingsFooter(stringResource(R.string.kapost_indexer_footer))
             }
 
+            SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
+                ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
+                SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
+            }
+
+            SettingsSection(title = "Push Registration") {
+                ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
+                SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
+            }
+
+            SettingsSection(title = "Diagnostics") {
+                SettingsSwitchItem(
+                    label = "Verbose API Logging",
+                    checked = verboseApiLogging,
+                    onCheckedChange = { viewModel.setVerboseApiLogging(it) }
+                )
+                SettingsFooter("Logs every API request and response to the system log. Failures and slow requests are always logged. Leave off for normal use.")
+            }
+            }
+            1 -> {
+            KaspaNodeQuickAccessSection(viewModel)
+            AddressBookSection(viewModel)
+            }
+            2 -> {
             SettingsSection(title = "Translation Service") {
                 // Editable, unlike the read-only fields around it: the point of this setting is
                 // that someone can run their own translator and point the app at it.
@@ -10878,40 +10920,36 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                         "TRANSLATION_SERVICE.md). Tap to change."
                 )
             }
-
-            SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
-                ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
-                SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
             }
-
-            SettingsSection(title = "Push Registration") {
-                ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
-                SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
-            }
-
+            3 -> {
             SettingsSection(title = stringResource(R.string.kaspa_name_service)) {
                 ConnectionUrlField(label = "KNS API URL", value = knsApiUrl)
                 SettingsFooter(stringResource(R.string.kns_domain_resolution_service))
             }
-
+            // The .k (dotk) and .kaspa (Kaspa Names) read APIs the app calls - shown, not
+            // editable yet - and KaChat's own names once they launch (iOS ee01f81).
+            SettingsSection(title = stringResource(R.string.other_name_services)) {
+                val isMainnet = network.equals("mainnet", ignoreCase = true)
+                listOf(com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA).forEach { tld ->
+                    ConnectionUrlField(
+                        label = "${tld.serviceName} (${tld.suffix})",
+                        value = tld.apiBaseUrl(isMainnet) ?: stringResource(R.string.not_available_on_this_network),
+                    )
+                }
+                ConnectionUrlField(label = "KaChat Names (.kachat)", value = stringResource(R.string.coming_soon))
+                SettingsFooter(stringResource(R.string.other_name_services_footer))
+            }
+            }
+            else -> {
             SettingsSection(title = stringResource(R.string.kaspa_explorer_api)) {
                 ConnectionUrlField(label = "Kaspa REST API URL", value = kaspaRestApiUrl)
                 SettingsFooter(stringResource(R.string.rest_api_for_transaction_history_and))
             }
-
-            KaspaNodeQuickAccessSection(viewModel)
-            AddressBookSection(viewModel)
-
-            SettingsSection(title = "Diagnostics") {
-                SettingsSwitchItem(
-                    label = "Verbose API Logging",
-                    checked = verboseApiLogging,
-                    onCheckedChange = { viewModel.setVerboseApiLogging(it) }
-                )
-                SettingsFooter("Logs every API request and response to the system log. Failures and slow requests are always logged. Leave off for normal use.")
+            }
             }
 
             Spacer(modifier = Modifier.height(100.dp))
+        }
         }
     }
 

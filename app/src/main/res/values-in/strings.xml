@@ -322,4 +322,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">Mematikan ruang bawaan ini. Nyalakan lagi di pengaturan Obrolan Publik.</string>
     <string name="default_room_switched_off">#%1$s dimatikan - nyalakan lagi di pengaturan Obrolan Publik</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">Pengindeks (Indexer)</string>
+    <string name="connection_tab_node">Node</string>
+    <string name="connection_tab_translation">Terjemahan</string>
+    <string name="connection_tab_domains">Domain</string>
+    <string name="connection_tab_explorer">Penjelajah</string>
+    <string name="message_indexer">Pengindeks Pesan</string>
+    <string name="other_name_services">Layanan Nama Lain</string>
+    <string name="other_name_services_footer">Dipakai untuk menampilkan nama .k dan .kaspa yang dimiliki sebuah alamat. Nama .kachat milik KaChat akan diatur di sini setelah diluncurkan.</string>
+    <string name="coming_soon">Segera hadir</string>
+    <string name="not_available_on_this_network">Tidak tersedia di jaringan ini</string>
 </resources>

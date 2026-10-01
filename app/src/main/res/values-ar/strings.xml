@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">يُوقف هذه الغرفة الافتراضية. أعد تشغيلها من إعدادات المحادثات العامة.</string>
     <string name="default_room_switched_off">#%1$s متوقفة - أعد تشغيلها من إعدادات المحادثات العامة</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">الفهرس</string>
+    <string name="connection_tab_node">العقدة</string>
+    <string name="connection_tab_translation">الترجمة</string>
+    <string name="connection_tab_domains">النطاقات</string>
+    <string name="connection_tab_explorer">المستكشف</string>
+    <string name="message_indexer">مفهرس الرسائل</string>
+    <string name="other_name_services">خدمات أسماء أخرى</string>
+    <string name="other_name_services_footer">يُستخدم لعرض أسماء .k و.kaspa التي يملكها عنوان. ستُضبط أسماء .kachat الخاصة بـ KaChat هنا عند إطلاقها.</string>
+    <string name="coming_soon">قريبًا</string>
+    <string name="not_available_on_this_network">غير متاح على هذه الشبكة</string>
 </resources>

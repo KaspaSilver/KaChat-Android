@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">Tắt phòng mặc định này. Bật lại trong cài đặt Trò chuyện công khai.</string>
     <string name="default_room_switched_off">#%1$s đã tắt - bật lại trong cài đặt Trò chuyện công khai</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">Trình lập chỉ mục</string>
+    <string name="connection_tab_node">Node</string>
+    <string name="connection_tab_translation">Dịch</string>
+    <string name="connection_tab_domains">Tên miền</string>
+    <string name="connection_tab_explorer">Trình khám phá</string>
+    <string name="message_indexer">Trình lập chỉ mục tin nhắn</string>
+    <string name="other_name_services">Dịch vụ tên khác</string>
+    <string name="other_name_services_footer">Dùng để hiển thị các tên .k và .kaspa mà một địa chỉ sở hữu. Tên .kachat của KaChat sẽ được đặt ở đây khi ra mắt.</string>
+    <string name="coming_soon">Sắp ra mắt</string>
+    <string name="not_available_on_this_network">Không khả dụng trên mạng này</string>
 </resources>

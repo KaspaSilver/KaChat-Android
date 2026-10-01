@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">이 기본 방을 끕니다. 공개 채팅 설정에서 다시 켤 수 있습니다.</string>
     <string name="default_room_switched_off">#%1$s이(가) 꺼졌습니다. 공개 채팅 설정에서 다시 켜세요</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">인덱서</string>
+    <string name="connection_tab_node">노드</string>
+    <string name="connection_tab_translation">번역</string>
+    <string name="connection_tab_domains">도메인</string>
+    <string name="connection_tab_explorer">탐색기</string>
+    <string name="message_indexer">메시지 인덱서</string>
+    <string name="other_name_services">다른 이름 서비스</string>
+    <string name="other_name_services_footer">주소가 소유한 .k 및 .kaspa 이름을 표시하는 데 사용됩니다. KaChat 고유의 .kachat 이름은 출시되면 여기서 설정됩니다.</string>
+    <string name="coming_soon">곧 제공</string>
+    <string name="not_available_on_this_network">이 네트워크에서는 사용할 수 없음</string>
 </resources>

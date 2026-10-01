@@ -631,4 +631,15 @@
     <string name="default_room_delete_subtitle">Switches this default room off. Turn it back on in Public Chats settings.</string>
     <string name="default_room_switched_off">#%1$s is off - turn it back on in Public Chats settings</string>
     <string name="public_chats_bulk_delete_body">Rooms you added are removed with their messages. Default rooms are only switched off - turn them back on any time in Public Chats settings (the gear).</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">Indexer</string>
+    <string name="connection_tab_node">Node</string>
+    <string name="connection_tab_translation">Translation</string>
+    <string name="connection_tab_domains">Domains</string>
+    <string name="connection_tab_explorer">Explorer</string>
+    <string name="message_indexer">Message Indexer</string>
+    <string name="other_name_services">Other Name Services</string>
+    <string name="other_name_services_footer">Used to show the .k and .kaspa names an address owns. KaChat\'s own .kachat names will be set here once they launch.</string>
+    <string name="coming_soon">Coming soon</string>
+    <string name="not_available_on_this_network">Not available on this network</string>
 </resources>

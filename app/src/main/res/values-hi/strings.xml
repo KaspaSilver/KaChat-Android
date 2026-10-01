@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">इस डिफ़ॉल्ट रूम को बंद करता है। पब्लिक चैट सेटिंग्स में इसे फिर चालू करें।</string>
     <string name="default_room_switched_off">#%1$s बंद है - पब्लिक चैट सेटिंग्स में इसे फिर चालू करें</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">इंडेक्सर</string>
+    <string name="connection_tab_node">नोड</string>
+    <string name="connection_tab_translation">अनुवाद</string>
+    <string name="connection_tab_domains">डोमेन</string>
+    <string name="connection_tab_explorer">एक्सप्लोरर</string>
+    <string name="message_indexer">संदेश इंडेक्सर</string>
+    <string name="other_name_services">अन्य नाम सेवाएँ</string>
+    <string name="other_name_services_footer">किसी पते के स्वामित्व वाले .k और .kaspa नाम दिखाने के लिए उपयोग होता है। KaChat के अपने .kachat नाम लॉन्च होने पर यहाँ सेट होंगे।</string>
+    <string name="coming_soon">जल्द आ रहा है</string>
+    <string name="not_available_on_this_network">इस नेटवर्क पर उपलब्ध नहीं</string>
 </resources>

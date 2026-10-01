@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">Disattiva questa stanza predefinita. Riattivala nelle impostazioni delle chat pubbliche.</string>
     <string name="default_room_switched_off">#%1$s è disattivata: riattivala nelle impostazioni delle chat pubbliche</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">Indexer</string>
+    <string name="connection_tab_node">Nodo</string>
+    <string name="connection_tab_translation">Traduzione</string>
+    <string name="connection_tab_domains">Domini</string>
+    <string name="connection_tab_explorer">Explorer</string>
+    <string name="message_indexer">Indicizzatore messaggi</string>
+    <string name="other_name_services">Altri servizi di nomi</string>
+    <string name="other_name_services_footer">Serve a mostrare i nomi .k e .kaspa posseduti da un indirizzo. I nomi .kachat di KaChat verranno impostati qui al lancio.</string>
+    <string name="coming_soon">Prossimamente</string>
+    <string name="not_available_on_this_network">Non disponibile su questa rete</string>
 </resources>

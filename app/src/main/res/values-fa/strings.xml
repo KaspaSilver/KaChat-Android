@@ -491,4 +491,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">این اتاق پیش‌فرض را خاموش می‌کند. در تنظیمات گفتگوهای عمومی دوباره روشنش کنید.</string>
     <string name="default_room_switched_off">#%1$s خاموش است - در تنظیمات گفتگوهای عمومی دوباره روشنش کنید</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">نمایه‌ساز</string>
+    <string name="connection_tab_node">گره</string>
+    <string name="connection_tab_translation">ترجمه</string>
+    <string name="connection_tab_domains">دامنه‌ها</string>
+    <string name="connection_tab_explorer">کاوشگر</string>
+    <string name="message_indexer">نمایه‌ساز پیام</string>
+    <string name="other_name_services">سرویس‌های نام دیگر</string>
+    <string name="other_name_services_footer">برای نمایش نام‌های .k و .kaspa که یک آدرس دارد به کار می‌رود. نام‌های .kachat خود KaChat پس از راه‌اندازی اینجا تنظیم می‌شوند.</string>
+    <string name="coming_soon">به‌زودی</string>
+    <string name="not_available_on_this_network">در این شبکه در دسترس نیست</string>
 </resources>

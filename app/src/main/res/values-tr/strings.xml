@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">Bu varsayılan odayı kapatır. Herkese açık sohbet ayarlarından yeniden aç.</string>
     <string name="default_room_switched_off">#%1$s kapalı - herkese açık sohbet ayarlarından yeniden aç</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">Indeksleyici</string>
+    <string name="connection_tab_node">Düğüm</string>
+    <string name="connection_tab_translation">Çeviri</string>
+    <string name="connection_tab_domains">Alan Adlari</string>
+    <string name="connection_tab_explorer">Kesif Motoru</string>
+    <string name="message_indexer">Mesaj dizinleyici</string>
+    <string name="other_name_services">Diğer ad hizmetleri</string>
+    <string name="other_name_services_footer">Bir adresin sahip olduğu .k ve .kaspa adlarını göstermek için kullanılır. KaChat\'in kendi .kachat adları kullanıma girince burada ayarlanacak.</string>
+    <string name="coming_soon">Yakında</string>
+    <string name="not_available_on_this_network">Bu ağda kullanılamıyor</string>
 </resources>

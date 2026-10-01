@@ -452,4 +452,15 @@
     <!-- Public Chats select (iOS e08c4cc) -->
     <string name="default_room_delete_subtitle">מכבה את חדר ברירת המחדל הזה. אפשר להפעיל מחדש בהגדרות הצ\'אטים הציבוריים.</string>
     <string name="default_room_switched_off">#%1$s כבוי - אפשר להפעיל מחדש בהגדרות הצ\'אטים הציבוריים</string>
+    <!-- Connection Settings tabs (iOS ee01f81) -->
+    <string name="connection_tab_indexer">אינדקסר</string>
+    <string name="connection_tab_node">צומת</string>
+    <string name="connection_tab_translation">תרגום</string>
+    <string name="connection_tab_domains">דומיינים</string>
+    <string name="connection_tab_explorer">סייר</string>
+    <string name="message_indexer">אינדקסר הודעות</string>
+    <string name="other_name_services">שירותי שמות אחרים</string>
+    <string name="other_name_services_footer">משמש להצגת שמות ה-.k וה-.kaspa שבבעלות כתובת. שמות ה-.kachat של KaChat יוגדרו כאן לאחר ההשקה.</string>
+    <string name="coming_soon">בקרוב</string>
+    <string name="not_available_on_this_network">לא זמין ברשת זו</string>
 </resources>
