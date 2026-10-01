@@ -63,6 +63,17 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.CellTower
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.PhoneEnabled
 import androidx.compose.material3.SwitchDefaults
@@ -9024,27 +9035,53 @@ fun SettingsScreen(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            Column(
+            // iOS's Settings sheet toolbar: the connection dot and Done in glass, the balance
+            // between them - no title.
+            Row(
                 modifier = Modifier
                     .background(LocalAppColors.current.background)
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    stringResource(R.string.settings),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                TopStatusBar(
-                    balance = balance,
-                    onStatusClick = { ConnectionStatusOverlayState.open() },
-                    dotColorHex = dotColorHex,
-                    showAddButton = false
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(LocalAppColors.current.surface)
+                        .border(0.5.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                        .clickable { ConnectionStatusOverlayState.open() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(Modifier.size(12.dp).background(Color(dotColorHex), CircleShape))
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BalanceLabelRow(balance) }
+                if (sectionKey == null) {
+                    Text(
+                        stringResource(R.string.done),
+                        color = KaspaTeal,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(LocalAppColors.current.surface)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50))
+                            .clickable { navController.popBackStack() }
+                            .padding(horizontal = 18.dp, vertical = 11.dp)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(LocalAppColors.current.surface)
+                            .clickable { navController.popBackStack() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal, modifier = Modifier.size(20.dp).offset(x = 3.dp))
+                    }
+                }
             }
         }
     ) { padding ->
@@ -9059,33 +9096,34 @@ fun SettingsScreen(
             if (sectionKey == null) {
                 // Flat hub list (matches iOS): no section titles - just the categories, the
                 // seed-phrase action, and Danger Zone in one card.
+                Spacer(Modifier.height(16.dp))
                 Surface(
                     color = LocalAppColors.current.surface,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(26.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
-                    SettingsNavigationItem(stringResource(R.string.customization), Icons.Default.Palette, onClick = { navController.navigate("settings_section/customization") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.security), Icons.Default.Security, onClick = { navController.navigate("settings_section/security") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.connection), Icons.Default.Language, onClick = { navController.navigate("settings_section/connection") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
+                    SettingsNavigationItem(stringResource(R.string.customization), Icons.Outlined.Brush, onClick = { navController.navigate("settings_section/customization") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.security), Icons.Outlined.Shield, onClick = { navController.navigate("settings_section/security") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.connection), Icons.Outlined.CellTower, onClick = { navController.navigate("settings_section/connection") })
+                    SettingsDivider(inset = IosRowTextInset)
                     // Top-level Notifications hub (4.0, matches iOS): Chats / Wallet / KaPosts
                     // subpages - sits between Connection and Chats like iOS's settings list.
-                    SettingsNavigationItem(stringResource(R.string.notifications), Icons.Default.NotificationsNone, onClick = { navController.navigate("settings_section/notifications") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = { navController.navigate("settings_section/chats") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.contacts), Icons.Default.People, onClick = { navController.navigate("settings_section/contacts") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.storage), Icons.Default.Storage, onClick = { navController.navigate("settings_section/storage") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.chat_history), Icons.Default.History, onClick = { navController.navigate("settings_section/chat_history") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Default.Key, Color.Red, labelColor = Color.Red) {
+                    SettingsNavigationItem(stringResource(R.string.notifications), Icons.Outlined.NotificationsActive, onClick = { navController.navigate("settings_section/notifications") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.chats), Icons.Outlined.Forum, onClick = { navController.navigate("settings_section/chats") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.contacts), Icons.Outlined.People, onClick = { navController.navigate("settings_section/contacts") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.storage), Icons.Outlined.Storage, onClick = { navController.navigate("settings_section/storage") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.chat_history), Icons.Outlined.History, onClick = { navController.navigate("settings_section/chat_history") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Outlined.MonitorHeart, onClick = { navController.navigate("settings_section/diagnostics") })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsActionItem(stringResource(R.string.view_seed_phrase), Icons.Outlined.Key, LocalAppColors.current.danger, labelColor = LocalAppColors.current.danger) {
                         if (biometricSeedPhraseEnabled) {
                             context.authenticateWithDeviceCredential(
                                 title = "Unlock to View Seed Phrase",
@@ -9095,8 +9133,8 @@ fun SettingsScreen(
                             navController.navigate("seed_phrase")
                         }
                     }
-                    HorizontalDivider(color = LocalAppColors.current.divider)
-                    SettingsActionItem(stringResource(R.string.danger_zone), Icons.Default.Warning, Color.Red) {
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsActionItem(stringResource(R.string.danger_zone), Icons.Outlined.Warning, LocalAppColors.current.danger, showChevron = true) {
                         navController.navigate("settings_section/danger_zone")
                     }
                     }
@@ -9531,8 +9569,8 @@ private fun ResyncChatPickerOverlay(
 
 @Composable
 fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
-    // iOS's inset-grouped Form section: a small uppercase secondary-label header over a card with
-    // 10pt corners.
+    // iOS's inset-grouped Form section (iOS 26): a small uppercase secondary-label header over a
+    // card with 26pt corners.
     Column {
         if (title != null) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -9548,7 +9586,7 @@ fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = nu
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(26.dp))
                 .background(LocalAppColors.current.surface)
         ) {
             content()
@@ -9692,8 +9730,8 @@ fun SettingsSwitchItem(label: String, checked: Boolean, onCheckedChange: (Boolea
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 44.dp)
-            .padding(horizontal = 16.dp, vertical = 7.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -9712,12 +9750,14 @@ fun SettingsSwitchItem(label: String, checked: Boolean, onCheckedChange: (Boolea
 
 @Composable
 fun SettingsNavigationItem(label: String, icon: ImageVector?, value: String = "", showIcon: Boolean = true, onClick: () -> Unit = {}) {
+    // iOS 26 list row: 52pt tall, a 24pt symbol in its own column, the label lined up with the
+    // separator that starts under it (see SettingsDivider(inset)).
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .heightIn(min = 44.dp)
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showIcon && icon != null) {
@@ -9728,10 +9768,23 @@ fun SettingsNavigationItem(label: String, icon: ImageVector?, value: String = ""
         if (value.isNotEmpty()) {
             Text(text = value, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 8.dp))
         }
-        // iOS's disclosure chevron: small, in the tertiary label colour.
-        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = LocalAppColors.current.textTertiary, modifier = Modifier.size(13.dp))
+        IosDisclosureChevron()
     }
 }
+
+/** iOS's disclosure chevron at the end of a navigation row. */
+@Composable
+fun IosDisclosureChevron() {
+    Icon(
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = null,
+        tint = LocalAppColors.current.textSecondary,
+        modifier = Modifier.size(24.dp)
+    )
+}
+
+/** Where a row's text starts when it has a leading symbol: 16 + 24 + 16. Separators inset to it. */
+val IosRowTextInset = 56.dp
 
 @Composable
 fun SettingsActionItem(
@@ -9740,19 +9793,22 @@ fun SettingsActionItem(
     color: Color,
     /** Defaults to [color]; set it when the label should read differently from the icon. */
     labelColor: Color = color,
+    /** A row that opens a page (iOS's Danger Zone) carries the disclosure chevron. */
+    showChevron: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .heightIn(min = 44.dp)
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        Text(text = label, color = labelColor, style = MaterialTheme.typography.bodyLarge)
+        Text(text = label, color = labelColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        if (showChevron) IosDisclosureChevron()
     }
 }
 
@@ -9762,8 +9818,8 @@ fun SettingsInfoItem(label: String, value: String, valueColor: Color = LocalAppC
         modifier = Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .heightIn(min = 44.dp)
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -9773,8 +9829,9 @@ fun SettingsInfoItem(label: String, value: String, valueColor: Color = LocalAppC
 }
 
 @Composable
-fun SettingsDivider() {
-    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = LocalAppColors.current.divider, thickness = 0.5.dp)
+fun SettingsDivider(inset: androidx.compose.ui.unit.Dp = 16.dp) {
+    // iOS separators start where the row's text starts and stop short of the right edge.
+    HorizontalDivider(modifier = Modifier.padding(start = inset, end = 16.dp), color = LocalAppColors.current.divider, thickness = 0.5.dp)
 }
 
 @Composable

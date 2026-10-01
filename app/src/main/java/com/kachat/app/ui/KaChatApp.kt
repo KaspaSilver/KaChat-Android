@@ -170,6 +170,14 @@ val Screen.hubTitle: String
  */
 val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
 
+/** Routes that are part of the Settings stack - a sheet on iOS (see IosSheetColors). */
+val SETTINGS_SHEET_ROUTES = setOf(
+    "settings", "settings_section/{sectionKey}", "storage_nextcloud", "settings_menu",
+    "cache_settings", "child_mode_settings", "connection_settings", "language_settings",
+    "currency_settings", "kaspa_explorer_settings", "notification_settings",
+    "wallet_notification_settings", "quick_reaction_settings",
+)
+
 /** Tabs the user can place. Excludes the pinned two. */
 val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
@@ -1091,6 +1099,15 @@ fun MainShell(
         // whole screen with their own Scaffold — applying innerPadding to the NavHost
         // as a whole left permanent dead space at the bottom of every one of those,
         // which became a visible gap once a Scaffold there also added imePadding().
+        // Settings is a sheet on iOS, so its whole stack draws with the sheet palette - one step
+        // lighter than a tab in dark mode (see IosSheetColors).
+        // Always the same provider (only the value changes), so moving in and out of Settings
+        // never rebuilds the NavHost.
+        val inSettingsSheet = currentTopRoute in SETTINGS_SHEET_ROUTES
+        val baseColors = LocalAppColors.current
+        CompositionLocalProvider(
+            LocalAppColors provides if (inSettingsSheet && baseColors.isDark) com.kachat.app.ui.theme.DarkSheetAppColors else baseColors
+        ) {
         NavHost(
             navController = navController,
             startDestination = Screen.Chats.route,
@@ -1850,6 +1867,7 @@ fun MainShell(
                     onBack = { navController.popBackStack() }
                 )
             }
+        }
         }
     }
 }

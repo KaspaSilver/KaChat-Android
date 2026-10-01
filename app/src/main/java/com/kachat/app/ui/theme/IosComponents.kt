@@ -61,7 +61,7 @@ fun IosSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val dark = LocalAppColors.current == DarkAppColors
+    val dark = LocalAppColors.current.isDark
     val track by animateColorAsState(
         if (checked) LocalAppColors.current.accent else if (dark) Color(0xFF39393D) else Color(0xFFE9E9EA),
         label = "iosSwitchTrack",
@@ -114,7 +114,7 @@ fun IosAlertDialog(
     @Suppress("UNUSED_PARAMETER") containerColor: Color = Color.Unspecified,
     properties: DialogProperties = DialogProperties(),
 ) {
-    val dark = LocalAppColors.current == DarkAppColors
+    val dark = LocalAppColors.current.isDark
     val background = if (dark) Color(0xFF2C2C2E) else Color(0xFFF2F2F2)
     val hairline = if (dark) Color(0xFF545458).copy(alpha = 0.65f) else Color(0xFF3C3C43).copy(alpha = 0.29f)
     Dialog(

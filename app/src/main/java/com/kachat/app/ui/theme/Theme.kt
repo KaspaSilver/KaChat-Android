@@ -117,7 +117,9 @@ data class AppColors(
     /** Text and icons drawn on [outgoingBubble] - white in both themes, as on iOS. */
     val onOutgoingBubble: Color,
     /** The other person's chat bubble - iOS's `systemGray5` in each theme. */
-    val incomingBubble: Color
+    val incomingBubble: Color,
+    /** Which appearance these colours are for - the sheet palette below keeps it. */
+    val isDark: Boolean = false,
 )
 
 // iOS system colours, dark appearance: systemGroupedBackground / secondarySystemGroupedBackground /
@@ -138,8 +140,29 @@ val DarkAppColors = AppColors(
     danger         = Color(0xFFFF453A),
     outgoingBubble = Color(0xFF167368),
     onOutgoingBubble = Color.White,
-    incomingBubble = Color(0xFF2C2C2E)
+    incomingBubble = Color(0xFF2C2C2E),
+    isDark         = true,
 )
+
+/**
+ * What a screen inside an iOS sheet is drawn with in dark mode: the sheet itself is the elevated
+ * grouped background (#1C1C1E) and its cards the elevated secondary (#2C2C2E) - Settings is a
+ * sheet on iOS, so its whole stack reads one step lighter than a tab. Light mode is unchanged
+ * (grouped #F2F2F7 behind white cards either way).
+ */
+val DarkSheetAppColors = DarkAppColors.copy(
+    background     = Color(0xFF1C1C1E),
+    surface        = Color(0xFF2C2C2E),
+    surfaceVariant = Color(0xFF3A3A3C),
+    divider        = Color(0xFF3D3D41),
+)
+
+/** Draws [content] with the iOS sheet palette (see [DarkSheetAppColors]). */
+@Composable
+fun IosSheetColors(content: @Composable () -> Unit) {
+    val current = LocalAppColors.current
+    CompositionLocalProvider(LocalAppColors provides if (current.isDark) DarkSheetAppColors else current, content = content)
+}
 
 // The same iOS system colours, light appearance.
 val LightAppColors = AppColors(
