@@ -315,7 +315,6 @@
     <string name="you_will_be_shown_a_seed">یک عبارت بازیابی به شما نشان داده خواهد شد. این تنها راه بازیابی حساب شماست. مطمئن شوید که فقط آن را یادداشت می‌کنید. هرگز از آن اسکرین‌شات نگیرید یا آن را در دستگاه خود ذخیره نکنید.</string>
     <string name="channel_name">نام-کانال</string>
     <string name="host_port_or_grpcs_host">host:port یا grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... یا name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -464,4 +463,5 @@
     <string name="mark_as_read">علامت‌گذاری به‌عنوان خوانده‌شده</string>
     <string name="copy_link">کپی پیوند</string>
     <string name="open_link">باز کردن پیوند</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... یا دامنه</string>
 </resources>

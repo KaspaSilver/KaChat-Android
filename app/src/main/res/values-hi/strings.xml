@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">आपको एक सीड फ्रेज़ दिखाई जाएगी। आपके खाते को पुनर्प्राप्त करने का यह एकमात्र तरीका है। सुनिश्चित करें कि आप इसे केवल लिख लें। कभी स्क्रीनशॉट न लें और इसे अपने डिवाइस पर संग्रहीत न करें।</string>
     <string name="channel_name">चैनल-नाम</string>
     <string name="host_port_or_grpcs_host">host:port या grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... या name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">पढ़ा हुआ चिह्नित करें</string>
     <string name="copy_link">लिंक कॉपी करें</string>
     <string name="open_link">लिंक खोलें</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... या डोमेन</string>
 </resources>

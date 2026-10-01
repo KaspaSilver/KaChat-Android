@@ -830,7 +830,7 @@ private fun AddressEntryDialog(
                 OutlinedTextField(
                     value = addressText,
                     onValueChange = { addressText = it },
-                    placeholder = { Text("kaspa:qr... or name.kas") },
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

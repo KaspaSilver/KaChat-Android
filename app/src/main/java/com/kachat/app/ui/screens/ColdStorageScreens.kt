@@ -1461,7 +1461,7 @@ private fun ColdSendFlow(
                         OutlinedTextField(
                             value = toAddress,
                             onValueChange = { toAddress = it },
-                            placeholder = { Text("kaspa:qr... or name.kas") },
+                            placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = LocalAppColors.current.textPrimary,

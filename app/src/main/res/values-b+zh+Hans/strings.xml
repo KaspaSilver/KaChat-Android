@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">系统将向您显示助记词。这是恢复您账户的唯一方法。请确保只将其写下来。切勿截图或将其存储在您的设备上。</string>
     <string name="channel_name">频道名称</string>
     <string name="host_port_or_grpcs_host">host:port 或 grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... 或 name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">标记为已读</string>
     <string name="copy_link">复制链接</string>
     <string name="open_link">打开链接</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... 或域名</string>
 </resources>

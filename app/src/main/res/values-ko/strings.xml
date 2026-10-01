@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">시드 문구가 표시됩니다. 이것이 계정을 복구하는 유일한 방법입니다. 반드시 종이에 적어두기만 하세요. 절대 스크린샷을 찍거나 기기에 저장하지 마세요.</string>
     <string name="channel_name">채널-이름</string>
     <string name="host_port_or_grpcs_host">host:port 또는 grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... 또는 name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">읽음으로 표시</string>
     <string name="copy_link">링크 복사</string>
     <string name="open_link">링크 열기</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... 또는 도메인</string>
 </resources>

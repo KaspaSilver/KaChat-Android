@@ -398,7 +398,6 @@
     <string name="you_will_be_shown_a_seed">You will be shown a seed phrase. This is the only way to recover your account. Make sure you only write this down. Never take a screenshot or store it on your device.</string>
     <string name="channel_name">channel-name</string>
     <string name="host_port_or_grpcs_host">host:port or grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... or name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -602,4 +601,5 @@
     <string name="mark_as_read">Mark as Read</string>
     <string name="copy_link">Copy Link</string>
     <string name="open_link">Open Link</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... or domain</string>
 </resources>

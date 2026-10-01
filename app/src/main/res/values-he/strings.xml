@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">תוצג לך ביטוי שחזור. זו הדרך היחידה לשחזר את חשבונך. הקפד לרשום אותו בלבד. לעולם אל תצלם מסך ואל תאחסן אותו במכשיר שלך.</string>
     <string name="channel_name">שם-ערוץ</string>
     <string name="host_port_or_grpcs_host">host:port או grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... או name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">סמן כנקרא</string>
     <string name="copy_link">העתק קישור</string>
     <string name="open_link">פתח קישור</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... או דומיין</string>
 </resources>

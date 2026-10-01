@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">Size bir kurtarma ifadesi gosterilecek. Hesabinizi kurtarmanin tek yolu budur. Yalnizca yazili olarak not aldiginizdan emin olun. Asla ekran goruntusu almayin veya cihazinizda saklamayin.</string>
     <string name="channel_name">kanal-adi</string>
     <string name="host_port_or_grpcs_host">host:port veya grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... veya isim.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">Okundu Olarak Isaretle</string>
     <string name="copy_link">Baglantiyi Kopyala</string>
     <string name="open_link">Baglantiyi Ac</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... veya alan adı</string>
 </resources>

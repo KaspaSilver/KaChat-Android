@@ -6090,7 +6090,7 @@ fun SpendingAddressSendFlow(
                 OutlinedTextField(
                     value = recipientInput,
                     onValueChange = { recipientInput = it },
-                    placeholder = { Text("kaspa:qr... or name.kas") },
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
                     singleLine = true,
                     enabled = !isSending,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -11591,7 +11591,7 @@ fun CreateChatScreen(
                     TextField(
                         value = address,
                         onValueChange = { address = it },
-                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
+                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = Color.DarkGray) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp)),
@@ -11754,7 +11754,7 @@ fun CreateChatScreen(
                 TextField(
                     value = address,
                     onValueChange = { address = it },
-                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_name_kas), color = Color.DarkGray) },
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = Color.DarkGray) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,

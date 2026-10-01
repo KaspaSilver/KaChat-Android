@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">Une phrase de recuperation va vous etre affichee. C\'est le seul moyen de recuperer votre compte. Notez-la uniquement par ecrit. Ne prenez jamais de capture d\'ecran et ne la stockez pas sur votre appareil.</string>
     <string name="channel_name">nom-du-canal</string>
     <string name="host_port_or_grpcs_host">hote:port ou grpcs://hote</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... ou nom.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">Marquer comme lu</string>
     <string name="copy_link">Copier le lien</string>
     <string name="open_link">Ouvrir le lien</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... ou domaine</string>
 </resources>

@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">Bạn sẽ được hiển thị một cụm từ khôi phục. Đây là cách duy nhất để khôi phục tài khoản của bạn. Đảm bảo bạn chỉ ghi nó ra giấy. Không bao giờ chụp ảnh màn hình hoặc lưu trữ nó trên thiết bị của bạn.</string>
     <string name="channel_name">ten-kenh</string>
     <string name="host_port_or_grpcs_host">host:port hoặc grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... hoặc name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">Đánh dấu là đã đọc</string>
     <string name="copy_link">Sao chép liên kết</string>
     <string name="open_link">Mở liên kết</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... hoặc tên miền</string>
 </resources>

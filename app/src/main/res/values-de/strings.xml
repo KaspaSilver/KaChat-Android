@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">Dir wird eine Seed-Phrase angezeigt. Dies ist der einzige Weg, dein Konto wiederherzustellen. Notiere sie nur schriftlich. Mache niemals einen Screenshot und bewahre sie nirgendwo digital auf.</string>
     <string name="channel_name">kanal-name</string>
     <string name="host_port_or_grpcs_host">Host:Port oder grpcs://Host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... oder name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">Als gelesen markieren</string>
     <string name="copy_link">Link kopieren</string>
     <string name="open_link">Link öffnen</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... oder Domain</string>
 </resources>

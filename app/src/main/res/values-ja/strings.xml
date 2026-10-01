@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">シードフレーズが表示されます。これがアカウントを復元する唯一の方法です。必ず書き留めるだけにしてください。スクリーンショットを撮ったり、デバイスに保存したりしないでください。</string>
     <string name="channel_name">チャンネル名</string>
     <string name="host_port_or_grpcs_host">host:port または grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... または name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">既読にする</string>
     <string name="copy_link">リンクをコピー</string>
     <string name="open_link">リンクを開く</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... またはドメイン</string>
 </resources>

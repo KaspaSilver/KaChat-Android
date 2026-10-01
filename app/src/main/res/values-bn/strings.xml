@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">আপনাকে একটি সিড ফ্রেজ দেখানো হবে। আপনার অ্যাকাউন্ট পুনরুদ্ধারের এটাই একমাত্র উপায়। নিশ্চিত করুন যে আপনি এটি শুধু লিখে রাখেন। কখনো স্ক্রিনশট নেবেন না এবং এটি আপনার ডিভাইসে সংরক্ষণ করবেন না।</string>
     <string name="channel_name">চ্যানেল-নাম</string>
     <string name="host_port_or_grpcs_host">host:port বা grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... বা name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">পঠিত হিসেবে চিহ্নিত করুন</string>
     <string name="copy_link">লিঙ্ক কপি করুন</string>
     <string name="open_link">লিঙ্ক খুলুন</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... বা ডোমেইন</string>
 </resources>

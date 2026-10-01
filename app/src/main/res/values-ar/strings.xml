@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">سيتم عرض عبارة استرداد لك. هذه هي الطريقة الوحيدة لاستعادة حسابك. تأكد من كتابتها فقط. لا تلتقط لقطة شاشة أبدًا ولا تخزنها على جهازك.</string>
     <string name="channel_name">اسم-القناة</string>
     <string name="host_port_or_grpcs_host">host:port أو grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... أو name.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">وضع علامة كمقروءة</string>
     <string name="copy_link">نسخ الرابط</string>
     <string name="open_link">فتح الرابط</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... أو نطاق</string>
 </resources>

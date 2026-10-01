@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">Ti verra mostrata una seed phrase. Questo e l\'unico modo per recuperare il tuo account. Assicurati di annotarla solo per iscritto. Non fare mai uno screenshot ne conservarla sul tuo dispositivo.</string>
     <string name="channel_name">nome-canale</string>
     <string name="host_port_or_grpcs_host">host:porta o grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... o nome.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">Segna come letto</string>
     <string name="copy_link">Copia link</string>
     <string name="open_link">Apri link</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... o dominio</string>
 </resources>

@@ -277,7 +277,6 @@
     <string name="you_will_be_shown_a_seed">Se te mostrara una frase semilla. Esta es la unica forma de recuperar tu cuenta. Asegurate de solo anotarla. Nunca tomes una captura de pantalla ni la guardes en tu dispositivo.</string>
     <string name="channel_name">nombre-del-canal</string>
     <string name="host_port_or_grpcs_host">host:puerto o grpcs://host</string>
-    <string name="kaspa_qr_or_name_kas">kaspa:qr... o nombre.kas</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
@@ -425,4 +424,5 @@
     <string name="mark_as_read">Marcar como leido</string>
     <string name="copy_link">Copiar enlace</string>
     <string name="open_link">Abrir enlace</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... o dominio</string>
 </resources>

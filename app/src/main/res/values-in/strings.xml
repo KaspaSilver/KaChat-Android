@@ -294,4 +294,5 @@
     <string name="mark_as_read">Tandai sudah Dibaca</string>
     <string name="copy_link">Salin Tautan</string>
     <string name="open_link">Buka Tautan</string>
+    <string name="kaspa_qr_or_domain">kaspa:qr... atau domain</string>
 </resources>
