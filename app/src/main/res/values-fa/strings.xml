@@ -432,13 +432,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat به شما امکان می‌دهد پیام‌ها را مستقیماً در شبکه Kaspa ارسال و دریافت کنید. برای پرداخت کارمزد هنگام ارسال پیام‌هایتان به Kaspa نیاز است. کارمزدی که می‌پردازید به استخراج‌کنندگانی می‌رسد که شبکه را ایمن نگه می‌دارند.</string>
     <string name="finish">پایان</string>
     <string name="starting_a_conversation">شروع یک گفتگو</string>
-    <string name="to_chat_with_someone_press_create">برای گفتگو با کسی، روی ایجاد گفتگو ضربه بزنید و آدرس Kaspa یا دامنه KNS او را وارد کنید. اگر پیامی ارسال کنید، او آن را نخواهد دید مگر اینکه ابتدا یک دست‌دهی (handshake) ارسال کنید، یا هر دوی شما تقریباً همزمان تصمیم بگیرید به یکدیگر پیام دهید - گزینه دوم حریم خصوصی شما را افزایش می‌دهد.</string>
     <string name="recommended">توصیه‌شده</string>
     <string name="connect_your_own_node">اتصال به گره (node) خودتان</string>
     <string name="enter_a_node_address_you_trust">آدرس گرهی که به آن اعتماد دارید را وارد کنید</string>
     <string name="auto_search_for_nodes">جستجوی خودکار برای گره‌ها</string>
     <string name="most_taxing_on_the_device_not_as">سنگین‌ترین برای دستگاه، قابل اعتمادتر نیست - بستگی به محل زندگی شما دارد</string>
-    <string name="your_public_messaging_identity">هویت پیام‌رسانی عمومی شما. آن را با مبلغ کمی شارژ کنید تا کارمزد پیام‌ها و کارمزد ایجاد پروفایل KNS پرداخت شود - هرگز پولی که قصد خرج کردنش را دارید به اینجا ارسال نکنید.</string>
     <string name="choose_your_language">زبان خود را انتخاب کنید</string>
     <string name="select_the_language_youd_like_to">زبانی که می‌خواهید در KaChat استفاده کنید را انتخاب کنید.</string>
     <string name="best">بهترین</string>
@@ -690,4 +688,8 @@
     <string name="private_chat_off_footer">پیام اول شما به‌صورت درخواست پیام می‌رسد. اگر نمی‌خواهید روی زنجیره پیوندی بینتان بماند، گفتگوی خصوصی را روشن کنید.</string>
     <string name="new_message_request">درخواست پیام جدید</string>
     <string name="wants_to_chat_with_you">%1$s می‌خواهد با شما گفتگو کند.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">برای گفتگو با کسی، روی ایجاد گفتگو بزنید و نشانی Kaspa یا نام ‎.kachat او را وارد کنید. اولین پیام شما به‌صورت درخواست پیامی به او می‌رسد که می‌تواند بپذیرد. برای بیشترین حریم خصوصی، گفتگوی خصوصی را روشن کنید: روی زنجیره چیزی شما را به هم مرتبط نمی‌کند و او وقتی با شما گفتگوی خصوصی شروع کند پیام‌هایتان را می‌بیند.</string>
+    <string name="welcome_fund_chatting_body">برای شروع ۵۰ Kaspa توصیه می‌شود - کافی برای گرفتن یک نام ‎.kachat و مدتی گفتگو. ۵ Kaspa برای حدود ۲۵۰۰ پیام کافی است.</string>
+    <string name="welcome_chatting_address_caption">هویت عمومی پیام‌رسانی شما. مبلغ کمی واریز کنید تا کارمزد پیام‌ها و نام ‎.kachat شما پرداخت شود - هرگز پولی را که قصد خرج کردنش را دارید به اینجا نفرستید.</string>
 </resources>

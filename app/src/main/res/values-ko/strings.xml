@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat을 사용하면 Kaspa 네트워크 자체에서 직접 메시지를 보내고 받을 수 있습니다. 메시지를 보낼 때 수수료를 지불하려면 Kaspa가 필요합니다. 지불하는 수수료는 네트워크를 보호하는 채굴자에게 전달됩니다.</string>
     <string name="finish">완료</string>
     <string name="starting_a_conversation">대화 시작하기</string>
-    <string name="to_chat_with_someone_press_create">누군가와 채팅하려면 채팅 만들기를 누르고 상대방의 Kaspa 주소 또는 KNS 도메인을 입력하세요. 메시지를 보내면 먼저 핸드셰이크를 보내거나 두 사람이 거의 동시에 서로에게 메시지를 보내기로 결정하지 않는 한 상대방은 이를 볼 수 없습니다 - 후자의 경우 개인정보 보호가 강화됩니다.</string>
     <string name="recommended">권장</string>
     <string name="connect_your_own_node">내 노드 연결하기</string>
     <string name="enter_a_node_address_you_trust">신뢰하는 노드 주소를 입력하세요</string>
     <string name="auto_search_for_nodes">노드 자동 검색</string>
     <string name="most_taxing_on_the_device_not_as">기기에 가장 부담이 크고 안정성은 떨어짐 - 거주 지역에 따라 다름</string>
-    <string name="your_public_messaging_identity">공개 메시징 신원입니다. 메시지 수수료와 KNS 프로필 생성 수수료를 지불하기 위해 소액을 충전하세요 - 여기에 사용할 의도가 있는 돈은 절대 보내지 마세요.</string>
     <string name="choose_your_language">언어를 선택하세요</string>
     <string name="select_the_language_youd_like_to">KaChat에서 사용하고 싶은 언어를 선택하세요.</string>
     <string name="best">최고</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">첫 메시지는 메시지 요청으로 전달됩니다. 체인에 두 사람의 연결을 남기고 싶지 않다면 비공개 채팅을 켜세요.</string>
     <string name="new_message_request">새 메시지 요청</string>
     <string name="wants_to_chat_with_you">%1$s 님이 채팅을 원합니다.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">누군가와 채팅하려면 채팅 만들기를 누르고 상대의 Kaspa 주소나 .kachat 이름을 입력하세요. 첫 메시지는 상대가 수락할 수 있는 메시지 요청으로 전달됩니다. 개인정보를 최대한 지키려면 비공개 채팅을 켜세요. 체인에서 두 사람을 연결하는 것이 없으며, 상대도 나와 비공개 채팅을 시작하면 메시지를 볼 수 있습니다.</string>
+    <string name="welcome_fund_chatting_body">시작하려면 50 Kaspa를 권장합니다. .kachat 이름을 받고 한동안 채팅하기에 충분합니다. 5 Kaspa면 약 2500개의 메시지를 보낼 수 있습니다.</string>
+    <string name="welcome_chatting_address_caption">공개 메시지 신원입니다. 메시지 수수료와 .kachat 이름 비용으로 소액을 넣어 두세요. 쓸 돈은 절대 여기로 보내지 마세요.</string>
 </resources>

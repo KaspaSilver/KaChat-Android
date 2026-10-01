@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat, mesajlarinizi dogrudan Kaspa agi uzerinden gondermenizi ve almanizi saglar. Mesajlarinizi gonderirken ucret odemek icin Kaspa gereklidir. Odediginiz ucret, agi guvence altina alan madencilere gider.</string>
     <string name="finish">Bitir</string>
     <string name="starting_a_conversation">Bir Konusma Baslatma</string>
-    <string name="to_chat_with_someone_press_create">Biriyle sohbet etmek icin Sohbet Olustur\'a dokunun ve Kaspa adresini veya KNS alan adini girin. Bir mesaj gonderirseniz, once bir el sikisma (handshake) gondermediginiz ya da ikinizin de yaklasik ayni zamanda birbirinize yazmaya karar vermediginiz surece bunu gormeyecektir - ikincisi gizliliginizi artirir.</string>
     <string name="recommended">Onerilen</string>
     <string name="connect_your_own_node">Kendi Node\'unuzu Baglayin</string>
     <string name="enter_a_node_address_you_trust">Guvendiginiz bir node adresi girin</string>
     <string name="auto_search_for_nodes">Node\'lari Otomatik Ara</string>
     <string name="most_taxing_on_the_device_not_as">Cihaz icin en yorucu olani, o kadar guvenilir degil - yasadiginiz yere bagli</string>
-    <string name="your_public_messaging_identity">Herkese acik mesajlasma kimliginiz. Mesaj ucretlerini ve KNS profil olusturma ucretlerini odemek icin kucuk bir miktarla fonlayin - buraya harcamayi dusundugunuz parayi asla gondermeyin.</string>
     <string name="choose_your_language">Dilinizi Secin</string>
     <string name="select_the_language_youd_like_to">KaChat\'te kullanmak istediginiz dili secin.</string>
     <string name="best">En iyi</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">İlk mesajın bir Mesaj İsteği olarak gider. Zincirde aranızda bağ kalmasın istiyorsan Özel Sohbet\'i aç.</string>
     <string name="new_message_request">Yeni mesaj isteği</string>
     <string name="wants_to_chat_with_you">%1$s seninle sohbet etmek istiyor.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">Biriyle sohbet etmek için Sohbet Oluştur\'a dokun ve Kaspa adresini ya da .kachat adını gir. İlk mesajın ona kabul edebileceği bir Mesaj İsteği olarak ulaşır. En fazla gizlilik için Özel Sohbet\'i aç: zincirde sizi hiçbir şey bağlamaz ve o da seninle özel sohbet başlattığında mesajlarını görür.</string>
+    <string name="welcome_fund_chatting_body">Başlamak için 50 Kaspa önerilir - bir .kachat adı almaya ve bir süre sohbet etmeye yeter. 5 Kaspa yaklaşık 2500 mesaja yeter.</string>
+    <string name="welcome_chatting_address_caption">Herkese açık mesajlaşma kimliğin. Mesaj ücretleri ve .kachat adın için küçük bir miktar yükle - harcamayı düşündüğün parayı asla buraya gönderme.</string>
 </resources>

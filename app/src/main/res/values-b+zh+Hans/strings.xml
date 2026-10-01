@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat 让您可以直接在 Kaspa 网络上发送和接收消息。发送消息时需要使用 Kaspa 支付手续费。您支付的手续费将支付给保护网络安全的矿工。</string>
     <string name="finish">完成</string>
     <string name="starting_a_conversation">开始对话</string>
-    <string name="to_chat_with_someone_press_create">要与某人聊天，请点击创建聊天并输入对方的 Kaspa 地址或 KNS 域名。如果您发送消息，除非您先发送握手请求，或者你们双方在大致相同的时间决定互相发消息，否则对方不会看到该消息 - 后者能提高您的隐私性。</string>
     <string name="recommended">推荐</string>
     <string name="connect_your_own_node">连接您自己的节点</string>
     <string name="enter_a_node_address_you_trust">输入您信任的节点地址</string>
     <string name="auto_search_for_nodes">自动搜索节点</string>
     <string name="most_taxing_on_the_device_not_as">对设备负担最大，可靠性也较低 - 取决于您所在的地区</string>
-    <string name="your_public_messaging_identity">您的公开消息身份。为其充值少量资金以支付消息手续费和 KNS 个人资料创建手续费 - 切勿在此发送您打算花费的资金。</string>
     <string name="choose_your_language">选择您的语言</string>
     <string name="select_the_language_youd_like_to">选择您想在 KaChat 中使用的语言。</string>
     <string name="best">最佳</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">你的第一条消息会以消息请求的形式送达。如果不想在链上留下你们之间的任何关联，请开启私密聊天。</string>
     <string name="new_message_request">新的消息请求</string>
     <string name="wants_to_chat_with_you">%1$s 想和你聊天。</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">要和某人聊天，点击“创建聊天”，输入对方的 Kaspa 地址或 .kachat 名称。你的第一条消息会作为消息请求送达，对方可以接受。想要最高隐私，请开启私密聊天：链上没有任何东西把你们联系在一起，对方也和你开始私密聊天后就能看到你的消息。</string>
+    <string name="welcome_fund_chatting_body">建议先准备 50 Kaspa——足够领取一个 .kachat 名称并聊上一阵子。5 Kaspa 大约可发送 2500 条消息。</string>
+    <string name="welcome_chatting_address_caption">你的公开消息身份。存入少量资金用于支付消息费用和 .kachat 名称——切勿把打算花掉的钱发到这里。</string>
 </resources>

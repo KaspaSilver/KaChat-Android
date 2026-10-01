@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat vous permet d\'envoyer et de recevoir des messages sur le reseau Kaspa lui-meme. Kaspa est necessaire pour payer les frais lors de l\'envoi de vos messages. Les frais que vous payez vont aux mineurs qui securisent le reseau.</string>
     <string name="finish">Terminer</string>
     <string name="starting_a_conversation">Demarrer une conversation</string>
-    <string name="to_chat_with_someone_press_create">Pour discuter avec quelqu\'un, appuyez sur Creer une discussion et saisissez son adresse Kaspa ou son domaine KNS. Si vous envoyez un message, il ne le verra pas a moins que vous n\'envoyiez d\'abord une demande de communication, ou que vous decidiez tous les deux de vous ecrire en meme temps - cette derniere option augmente votre confidentialite.</string>
     <string name="recommended">Recommande</string>
     <string name="connect_your_own_node">Connecter votre propre nœud</string>
     <string name="enter_a_node_address_you_trust">Entrez une adresse de nœud a laquelle vous faites confiance</string>
     <string name="auto_search_for_nodes">Rechercher des nœuds automatiquement</string>
     <string name="most_taxing_on_the_device_not_as">Plus exigeant pour l\'appareil, moins fiable - depend de l\'endroit ou vous vivez</string>
-    <string name="your_public_messaging_identity">Votre identite publique de messagerie. Financez-la avec un petit montant pour payer les frais de message et les frais de creation de profil KNS - n\'envoyez jamais ici de l\'argent que vous comptez depenser.</string>
     <string name="choose_your_language">Choisissez votre langue</string>
     <string name="select_the_language_youd_like_to">Selectionnez la langue que vous souhaitez utiliser dans KaChat.</string>
     <string name="best">Meilleur</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">Votre premier message lui arrivera comme demande de message. Activez Discussion privée si vous ne voulez laisser aucun lien entre vous sur la chaîne.</string>
     <string name="new_message_request">Nouvelle demande de message</string>
     <string name="wants_to_chat_with_you">%1$s veut discuter avec vous.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">Pour discuter avec quelqu\'un, touchez Créer une discussion et saisissez son adresse Kaspa ou son nom .kachat. Votre premier message lui arrive comme une demande de message qu\'il peut accepter. Pour un maximum de confidentialité, activez Discussion privée : rien ne vous relie sur la chaîne, et il verra vos messages dès qu\'il ouvrira lui aussi une discussion privée avec vous.</string>
+    <string name="welcome_fund_chatting_body">50 Kaspa sont recommandés pour commencer - assez pour réclamer un nom .kachat et discuter un moment. 5 Kaspa suffisent pour environ 2500 messages.</string>
+    <string name="welcome_chatting_address_caption">Votre identité publique de messagerie. Approvisionnez-la d\'un petit montant pour payer les frais des messages et votre nom .kachat - n\'envoyez jamais ici de l\'argent que vous comptez dépenser.</string>
 </resources>

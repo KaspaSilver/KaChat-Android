@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat מאפשר לך לשלוח ולקבל הודעות ישירות ברשת Kaspa עצמה. נדרש Kaspa כדי לשלם עמלות בעת שליחת ההודעות שלך. העמלה שאתה משלם הולכת לכורים המאבטחים את הרשת.</string>
     <string name="finish">סיום</string>
     <string name="starting_a_conversation">התחלת שיחה</string>
-    <string name="to_chat_with_someone_press_create">כדי לשוחח עם מישהו, הקש על יצירת צ\'אט והזן את כתובת ה-Kaspa שלו או את דומיין ה-KNS שלו. אם תשלח הודעה, הוא לא יראה אותה אלא אם תשלח לחיצת יד (handshake) קודם, או ששניכם תחליטו לשלוח הודעה זה לזה בערך באותו זמן - האפשרות האחרונה מגבירה את הפרטיות שלך.</string>
     <string name="recommended">מומלץ</string>
     <string name="connect_your_own_node">התחבר לצומת (node) משלך</string>
     <string name="enter_a_node_address_you_trust">הזן כתובת צומת שאתה סומך עליה</string>
     <string name="auto_search_for_nodes">חיפוש אוטומטי אחר צמתים</string>
     <string name="most_taxing_on_the_device_not_as">הכי מכביד על המכשיר, פחות אמין - תלוי היכן אתה גר</string>
-    <string name="your_public_messaging_identity">זהות ההודעות הציבורית שלך. מַמֵּן אותה בסכום קטן כדי לשלם עמלות הודעה ועמלות יצירת פרופיל KNS - לעולם אל תשלח לכאן כסף שבכוונתך להוציא.</string>
     <string name="choose_your_language">בחר את שפתך</string>
     <string name="select_the_language_youd_like_to">בחר את השפה שבה תרצה להשתמש ב-KaChat.</string>
     <string name="best">הכי טוב</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">ההודעה הראשונה שלכם תגיע כבקשת הודעה. הפעילו צ\'אט פרטי אם אתם לא רוצים להשאיר קשר ביניכם בשרשרת.</string>
     <string name="new_message_request">בקשת הודעה חדשה</string>
     <string name="wants_to_chat_with_you">%1$s רוצה לשוחח איתך.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">כדי לשוחח עם מישהו, הקישו צור צ\'אט והזינו את כתובת ה-Kaspa או את שם ה-‎.kachat שלו. ההודעה הראשונה שלכם תגיע אליו כבקשת הודעה שאפשר לאשר. לפרטיות מרבית, הפעילו צ\'אט פרטי: שום דבר לא מקשר ביניכם בשרשרת, והוא יראה את ההודעות כשגם הוא יפתח איתכם צ\'אט פרטי.</string>
+    <string name="welcome_fund_chatting_body">מומלץ להתחיל עם 50 Kaspa - מספיק כדי לקבל שם ‎.kachat ולשוחח לזמן מה. 5 Kaspa מספיקים לכ-2500 הודעות.</string>
+    <string name="welcome_chatting_address_caption">הזהות הציבורית שלכם להודעות. טענו סכום קטן כדי לשלם עמלות הודעה ואת שם ה-‎.kachat שלכם - לעולם אל תשלחו לכאן כסף שאתם מתכוונים להוציא.</string>
 </resources>

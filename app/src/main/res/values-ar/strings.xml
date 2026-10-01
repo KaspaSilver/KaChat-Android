@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">يتيح لك KaChat إرسال واستقبال الرسائل مباشرة عبر شبكة Kaspa نفسها. يلزم استخدام Kaspa لدفع الرسوم عند إرسال رسائلك. تذهب الرسوم التي تدفعها إلى المعدّنين الذين يؤمّنون الشبكة.</string>
     <string name="finish">إنهاء</string>
     <string name="starting_a_conversation">بدء محادثة</string>
-    <string name="to_chat_with_someone_press_create">للدردشة مع شخص ما، اضغط على إنشاء محادثة وأدخل عنوان Kaspa الخاص به أو نطاق KNS. إذا أرسلت رسالة، فلن يراها ما لم ترسل مصافحة (handshake) أولًا، أو يقرر كلاكما إرسال رسالة للآخر في نفس الوقت تقريبًا - هذا الخيار الأخير يزيد من خصوصيتك.</string>
     <string name="recommended">موصى به</string>
     <string name="connect_your_own_node">اتصل بعقدتك الخاصة</string>
     <string name="enter_a_node_address_you_trust">أدخل عنوان عقدة تثق بها</string>
     <string name="auto_search_for_nodes">البحث التلقائي عن العقد</string>
     <string name="most_taxing_on_the_device_not_as">الأكثر إرهاقًا للجهاز، وأقل موثوقية - يعتمد على مكان إقامتك</string>
-    <string name="your_public_messaging_identity">هويتك العامة للمراسلة. قم بتمويلها بمبلغ صغير لدفع رسوم الرسائل ورسوم إنشاء ملف تعريف KNS - لا ترسل هنا أبدًا أموالًا تنوي إنفاقها.</string>
     <string name="choose_your_language">اختر لغتك</string>
     <string name="select_the_language_youd_like_to">اختر اللغة التي ترغب في استخدامها في KaChat.</string>
     <string name="best">الأفضل</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">ستصل رسالتك الأولى كطلب رسالة. فعّل المحادثة الخاصة إذا كنت تفضّل ألا يبقى أي رابط بينكما على السلسلة.</string>
     <string name="new_message_request">طلب رسالة جديد</string>
     <string name="wants_to_chat_with_you">يريد %1$s الدردشة معك.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">للدردشة مع شخص ما، اضغط إنشاء محادثة وأدخل عنوان Kaspa الخاص به أو اسم ‎.kachat. تصل رسالتك الأولى إليه كطلب رسالة يمكنه قبوله. لأقصى خصوصية، فعّل المحادثة الخاصة: لا شيء يربطكما على السلسلة، وسيرى رسائلك عندما يبدأ هو أيضًا محادثة خاصة معك.</string>
+    <string name="welcome_fund_chatting_body">يُنصح بـ 50 Kaspa للبدء - ما يكفي للحصول على اسم ‎.kachat والدردشة لفترة. تكفي 5 Kaspa لنحو 2500 رسالة.</string>
+    <string name="welcome_chatting_address_caption">هويتك العامة للمراسلة. موّلها بمبلغ صغير لدفع رسوم الرسائل واسم ‎.kachat الخاص بك - لا ترسل إلى هنا أبدًا أموالًا تنوي إنفاقها.</string>
 </resources>

@@ -234,7 +234,6 @@
     <string name="leave_delete">Leave &amp; Delete</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this public chat permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
     <string name="let_s_add_more_details_about">Let\'s add more details about yourself</string>
-    <string name="let_s_fund_your_chatting_address">50 Kaspa is recommended to get started to be able to create a KNS profile and chat for a while. 5 Kaspa is enough for about 2500 messages</string>
     <string name="link_from_contacts">Link from Contacts</string>
     <string name="linked">Linked</string>
     <string name="local_storage_used">Local storage used</string>
@@ -522,13 +521,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network.</string>
     <string name="finish">Finish</string>
     <string name="starting_a_conversation">Starting a Conversation</string>
-    <string name="to_chat_with_someone_press_create">To chat with someone, press Create Chat and enter their Kaspa address or KNS domain. If you send a message, they will not see it unless you send a handshake first, or you both decide to message each other around the same time - doing the latter increases your privacy.</string>
     <string name="recommended">Recommended</string>
     <string name="connect_your_own_node">Connect Your Own Node</string>
     <string name="enter_a_node_address_you_trust">Enter a node address you trust</string>
     <string name="auto_search_for_nodes">Auto Search for Nodes</string>
     <string name="most_taxing_on_the_device_not_as">Most taxing on the device, not as reliable - depends on where you live</string>
-    <string name="your_public_messaging_identity">Your public messaging identity. Fund it with a small amount to pay message fees and KNS profile creation fees - never send money here that you intend to spend.</string>
     <string name="where_you_send_and_receive_kaspa">Where you send and receive Kaspa you intend to use for everything else.</string>
     <string name="choose_your_language">Choose Your Language</string>
     <string name="select_the_language_youd_like_to">Select the language you\'d like to use in KaChat.</string>
@@ -830,4 +827,8 @@
     <string name="private_chat_off_footer">They\'ll get your first message as a Message Request. Turn on Private Chat if you\'d rather leave no link between you on chain.</string>
     <string name="new_message_request">New message request</string>
     <string name="wants_to_chat_with_you">%1$s wants to chat with you.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">To chat with someone, press Create Chat and enter their Kaspa address or .kachat name. Your first message reaches them as a Message Request they can accept. For the most privacy, turn on Private Chat: nothing links you on chain, and they see your messages once they start a private chat with you too.</string>
+    <string name="welcome_fund_chatting_body">50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages.</string>
+    <string name="welcome_chatting_address_caption">Your public messaging identity. Fund it with a small amount to pay message fees and for your .kachat name - never send money here that you intend to spend.</string>
 </resources>

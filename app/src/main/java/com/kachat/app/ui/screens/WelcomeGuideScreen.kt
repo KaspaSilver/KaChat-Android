@@ -253,7 +253,7 @@ fun WelcomeGuideScreen(
                 WelcomeGuideStep.CHATTING -> WelcomeGuideStepScaffold(
                     icon = Icons.AutoMirrored.Filled.Chat,
                     title = stringResource(R.string.starting_a_conversation),
-                    body = stringResource(R.string.to_chat_with_someone_press_create),
+                    body = stringResource(R.string.welcome_starting_conversation_body),
                     buttonLabel = stringResource(R.string.next),
                     onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.PAYMENT_PRIVACY }
@@ -794,7 +794,7 @@ private fun WelcomeGuideFundingStep(
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            stringResource(R.string.let_s_fund_your_chatting_address),
+            stringResource(R.string.welcome_fund_chatting_body),
             color = LocalAppColors.current.textSecondary,
             textAlign = TextAlign.Center
         )
@@ -1018,7 +1018,7 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingA
         AddressMockRow(
             title = stringResource(R.string.chatting_address),
             address = chattingAddress.orEmpty(),
-            caption = stringResource(R.string.your_public_messaging_identity)
+            caption = stringResource(R.string.welcome_chatting_address_caption)
         )
         Spacer(Modifier.height(12.dp))
         AddressMockRow(

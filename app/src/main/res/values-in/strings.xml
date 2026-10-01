@@ -262,13 +262,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat memungkinkan Anda mengirim dan menerima pesan di jaringan Kaspa itu sendiri. Kaspa diperlukan untuk membayar biaya saat mengirim pesan. Biaya yang Anda bayar diberikan kepada penambang yang mengamankan jaringan.</string>
     <string name="finish">Selesai</string>
     <string name="starting_a_conversation">Memulai Percakapan</string>
-    <string name="to_chat_with_someone_press_create">Untuk mengobrol, tekan Buat Obrolan dan masukkan alamat Kaspa atau domain KNS mereka. Pesan Anda tidak akan terlihat kecuali Anda mengirim handshake terlebih dahulu, atau Anda berdua saling berkirim pesan di waktu bersamaan untuk privasi yang lebih tinggi.</string>
     <string name="recommended">Disarankan</string>
     <string name="connect_your_own_node">Hubungkan Node Anda Sendiri</string>
     <string name="enter_a_node_address_you_trust">Masukkan alamat node yang Anda percayai</string>
     <string name="auto_search_for_nodes">Cari Node Otomatis</string>
     <string name="most_taxing_on_the_device_not_as">Paling membebani perangkat, kurang andal - bergantung pada lokasi Anda</string>
-    <string name="your_public_messaging_identity">Identitas pesan publik Anda. Danai sedikit untuk biaya pesan dan pembuatan profil KNS - jangan simpan dana belanja di sini.</string>
     <string name="choose_your_language">Pilih Bahasa Anda</string>
     <string name="select_the_language_youd_like_to">Pilih bahasa yang ingin digunakan di KaChat.</string>
     <string name="best">Terbaik</string>
@@ -521,4 +519,8 @@
     <string name="private_chat_off_footer">Pesan pertamamu akan diterima sebagai Permintaan Pesan. Aktifkan Obrolan Privat jika kamu tidak ingin ada tautan di antara kalian di chain.</string>
     <string name="new_message_request">Permintaan pesan baru</string>
     <string name="wants_to_chat_with_you">%1$s ingin mengobrol denganmu.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">Untuk mengobrol dengan seseorang, tekan Buat Obrolan dan masukkan alamat Kaspa atau nama .kachat mereka. Pesan pertamamu sampai sebagai Permintaan Pesan yang bisa mereka terima. Untuk privasi maksimal, aktifkan Obrolan Privat: tidak ada yang menghubungkan kalian di chain, dan mereka melihat pesanmu setelah juga memulai obrolan privat denganmu.</string>
+    <string name="welcome_fund_chatting_body">Disarankan 50 Kaspa untuk memulai - cukup untuk mengklaim nama .kachat dan mengobrol untuk sementara. 5 Kaspa cukup untuk sekitar 2500 pesan.</string>
+    <string name="welcome_chatting_address_caption">Identitas pesan publikmu. Isi dengan sedikit dana untuk membayar biaya pesan dan nama .kachat-mu - jangan pernah mengirim uang ke sini yang ingin kamu belanjakan.</string>
 </resources>

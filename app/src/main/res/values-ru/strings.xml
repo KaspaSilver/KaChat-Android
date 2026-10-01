@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat позволяет отправлять и получать сообщения прямо в сети Kaspa. Kaspa требуется для оплаты комиссий при отправке сообщений. Комиссия, которую вы платите, идёт майнерам, защищающим сеть.</string>
     <string name="finish">Готово</string>
     <string name="starting_a_conversation">Начало разговора</string>
-    <string name="to_chat_with_someone_press_create">Чтобы начать чат с кем-то, нажмите Создать чат и введите его адрес Kaspa или домен KNS. Если вы отправите сообщение, собеседник не увидит его, пока вы не отправите handshake первым, либо вы оба решите написать друг другу примерно в одно и то же время - последнее повышает конфиденциальность.</string>
     <string name="recommended">Рекомендуется</string>
     <string name="connect_your_own_node">Подключить свой узел</string>
     <string name="enter_a_node_address_you_trust">Введите адрес узла, которому вы доверяете</string>
     <string name="auto_search_for_nodes">Автопоиск узлов</string>
     <string name="most_taxing_on_the_device_not_as">Наиболее нагружает устройство, менее надёжен - зависит от места проживания</string>
-    <string name="your_public_messaging_identity">Ваш публичный идентификатор для сообщений. Пополните его небольшой суммой для оплаты комиссий за сообщения и комиссий за создание профиля KNS - никогда не отправляйте сюда деньги, которые планируете тратить.</string>
     <string name="choose_your_language">Выберите язык</string>
     <string name="select_the_language_youd_like_to">Выберите язык, который вы хотите использовать в KaChat.</string>
     <string name="best">Лучший</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">Ваше первое сообщение придёт как запрос на переписку. Включите «Приватный чат», если не хотите оставлять связь между вами в блокчейне.</string>
     <string name="new_message_request">Новый запрос на переписку</string>
     <string name="wants_to_chat_with_you">%1$s хочет пообщаться с вами.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">Чтобы написать кому-то, нажмите «Создать чат» и введите его адрес Kaspa или имя .kachat. Ваше первое сообщение придёт ему как запрос на переписку, который можно принять. Для максимальной приватности включите «Приватный чат»: в блокчейне вас ничто не связывает, а ваши сообщения станут видны, когда собеседник тоже начнёт приватный чат с вами.</string>
+    <string name="welcome_fund_chatting_body">Для начала рекомендуется 50 Kaspa — этого хватит, чтобы получить имя .kachat и какое-то время общаться. 5 Kaspa хватает примерно на 2500 сообщений.</string>
+    <string name="welcome_chatting_address_caption">Ваша публичная личность для переписки. Пополните её небольшой суммой на комиссии за сообщения и на имя .kachat — никогда не отправляйте сюда деньги, которые собираетесь тратить.</string>
 </resources>

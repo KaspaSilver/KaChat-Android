@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChat cho phep ban gui va nhan tin nhan truc tiep tren mang luoi Kaspa. Can co Kaspa de tra phi khi gui tin nhan cua ban. Phi ban tra se den tay cac thợ dao bao mat mang luoi.</string>
     <string name="finish">Hoan tat</string>
     <string name="starting_a_conversation">Bat dau mot cuoc tro chuyen</string>
-    <string name="to_chat_with_someone_press_create">De tro chuyen voi ai do, nhan Tao cuoc tro chuyen va nhap dia chi Kaspa hoac ten mien KNS cua ho. Neu ban gui tin nhan, ho se khong thay no tru khi ban gui bat tay (handshake) truoc, hoac ca hai cung quyet dinh nhan tin cho nhau vao khoang cung mot thoi diem - cach sau lam tang tinh rieng tu cua ban.</string>
     <string name="recommended">Duoc de xuat</string>
     <string name="connect_your_own_node">Ket noi node cua rieng ban</string>
     <string name="enter_a_node_address_you_trust">Nhap dia chi node ma ban tin tuong</string>
     <string name="auto_search_for_nodes">Tu dong tim kiem node</string>
     <string name="most_taxing_on_the_device_not_as">Ton hao thiet bi nhieu nhat, khong dang tin cay bang - tuy thuoc vao noi ban song</string>
-    <string name="your_public_messaging_identity">Danh tinh nhan tin cong khai cua ban. Nap mot khoan nho de tra phi tin nhan va phi tao ho so KNS - khong bao gio gui vao day so tien ban dinh chi tieu.</string>
     <string name="choose_your_language">Chon ngon ngu cua ban</string>
     <string name="select_the_language_youd_like_to">Chon ngon ngu ban muon su dung trong KaChat.</string>
     <string name="best">Tot nhat</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">Tin nhắn đầu tiên của bạn sẽ đến dưới dạng Yêu cầu nhắn tin. Bật Trò chuyện riêng tư nếu bạn không muốn để lại liên kết nào giữa hai người trên chuỗi.</string>
     <string name="new_message_request">Yêu cầu nhắn tin mới</string>
     <string name="wants_to_chat_with_you">%1$s muốn trò chuyện với bạn.</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">Để trò chuyện với ai đó, nhấn Tạo cuộc trò chuyện và nhập địa chỉ Kaspa hoặc tên .kachat của họ. Tin nhắn đầu tiên của bạn đến với họ dưới dạng Yêu cầu nhắn tin để họ chấp nhận. Để riêng tư nhất, bật Trò chuyện riêng tư: không có gì liên kết hai bạn trên chuỗi, và họ sẽ thấy tin nhắn khi cũng bắt đầu trò chuyện riêng tư với bạn.</string>
+    <string name="welcome_fund_chatting_body">Nên có 50 Kaspa để bắt đầu - đủ để nhận một tên .kachat và trò chuyện một thời gian. 5 Kaspa đủ cho khoảng 2500 tin nhắn.</string>
+    <string name="welcome_chatting_address_caption">Danh tính nhắn tin công khai của bạn. Nạp một ít để trả phí tin nhắn và tên .kachat - đừng bao giờ gửi vào đây số tiền bạn định chi tiêu.</string>
 </resources>

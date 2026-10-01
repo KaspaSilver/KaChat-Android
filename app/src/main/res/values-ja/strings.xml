@@ -393,13 +393,11 @@
     <string name="kachat_lets_you_send_and_receive">KaChatでは、Kaspaネットワーク上で直接メッセージを送受信できます。メッセージを送信する際の手数料を支払うためにKaspaが必要です。支払った手数料は、ネットワークを保護するマイナーに渡ります。</string>
     <string name="finish">完了</string>
     <string name="starting_a_conversation">会話を始める</string>
-    <string name="to_chat_with_someone_press_create">誰かとチャットするには、チャットを作成をタップして、相手のKaspaアドレスまたはKNSドメインを入力してください。メッセージを送信しても、先にハンドシェイクを送るか、お互いにほぼ同時にメッセージを送ることを決めない限り、相手には表示されません - 後者の方法はプライバシーを高めます。</string>
     <string name="recommended">おすすめ</string>
     <string name="connect_your_own_node">自分のノードに接続する</string>
     <string name="enter_a_node_address_you_trust">信頼できるノードアドレスを入力してください</string>
     <string name="auto_search_for_nodes">ノードを自動検索</string>
     <string name="most_taxing_on_the_device_not_as">デバイスへの負荷が最も大きく、信頼性もそれほど高くありません - お住まいの地域によって異なります</string>
-    <string name="your_public_messaging_identity">あなたの公開メッセージングアイデンティティです。メッセージ手数料とKNSプロフィール作成手数料を支払うために少額を入金してください - 使う予定のあるお金を絶対にここに送らないでください。</string>
     <string name="choose_your_language">言語を選択してください</string>
     <string name="select_the_language_youd_like_to">KaChatで使用したい言語を選択してください。</string>
     <string name="best">最適</string>
@@ -651,4 +649,8 @@
     <string name="private_chat_off_footer">最初のメッセージはメッセージリクエストとして届きます。チェーン上に二人のつながりを残したくない場合はプライベートチャットをオンにしてください。</string>
     <string name="new_message_request">新しいメッセージリクエスト</string>
     <string name="wants_to_chat_with_you">%1$s があなたとチャットしたいようです。</string>
+    <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
+    <string name="welcome_starting_conversation_body">誰かとチャットするには「チャットを作成」を押し、相手の Kaspa アドレスか .kachat 名を入力します。最初のメッセージは、相手が承認できるメッセージリクエストとして届きます。プライバシーを最大にするにはプライベートチャットをオンに。チェーン上で二人を結ぶものはなく、相手もあなたとプライベートチャットを始めるとメッセージが見えます。</string>
+    <string name="welcome_fund_chatting_body">始めるには 50 Kaspa がおすすめです。.kachat 名を取得してしばらくチャットできます。5 Kaspa で約 2500 件のメッセージを送れます。</string>
+    <string name="welcome_chatting_address_caption">メッセージ用の公開 ID です。メッセージ手数料と .kachat 名の支払い用に少額を入れてください。使う予定のお金はここに送らないでください。</string>
 </resources>
