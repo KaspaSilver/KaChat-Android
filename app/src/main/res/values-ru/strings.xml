@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Если эта сид-фраза уже хранит вашу личность на другом адресе — домен (.kas, .k или .kaspa) или баланс для чата, — выберите его здесь. Показаны только адреса с балансом или доменами.</string>
     <string name="chatting_picker_other_names_count">Имена .k и .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Запросы на переписку</string>
+    <string name="message_requests_row_sub">Те, кто написал вам первым</string>
+    <string name="message_requests_none_new">Новых запросов нет</string>
+    <string name="message_requests_footer">Откройте запрос, чтобы прочитать его. «Принять» — ответить и перенести в чаты; «Отклонить» — удалить и запретить этому адресу писать вам, пока вы сами ему не напишете.</string>
+    <string name="message_requests_empty">Нет запросов на переписку</string>
+    <string name="message_request_wants_to_chat">%1$s хочет пообщаться. Примите, чтобы ответить, — ничего не отправится, пока вы не напишете.</string>
+    <string name="message_request_reject">Отклонить</string>
+    <string name="message_request_reject_confirm">Отклонить этот запрос?</string>
+    <string name="message_request_reject_message">Сообщения будут удалены с этого устройства, и этот адрес не сможет связаться с вами, пока вы сами ему не напишете.</string>
+    <string name="private_chat_notice">Приватный чат — в блокчейне вас ничто не связывает, поэтому %1$s не получает уведомления. Ваши сообщения станут видны, когда собеседник тоже начнёт приватный чат с вашим адресом.</string>
+    <string name="private_chat">Приватный чат</string>
+    <string name="private_chat_on_footer">В блокчейне вас ничто не связывает — даже то, кто написал первым. Собеседник не получит уведомления: он увидит ваши сообщения, когда тоже начнёт приватный чат с вашим адресом, так что договоритесь об этом заранее.</string>
+    <string name="private_chat_off_footer">Ваше первое сообщение придёт как запрос на переписку. Включите «Приватный чат», если не хотите оставлять связь между вами в блокчейне.</string>
+    <string name="new_message_request">Новый запрос на переписку</string>
+    <string name="wants_to_chat_with_you">%1$s хочет пообщаться с вами.</string>
 </resources>

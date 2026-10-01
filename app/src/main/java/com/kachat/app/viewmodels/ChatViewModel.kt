@@ -549,6 +549,72 @@ class ChatViewModel @Inject constructor(
     // so switching tabs and back does not tear the list down and rebuild it from the database.
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    // MARK: - Message Requests (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401)
+
+    /** The active wallet's Message Requests state - accepted, private, blocked. */
+    val chatRequestState: StateFlow<com.kachat.app.repository.ChatRequestState> = chatRepository.chatRequestStateFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.kachat.app.repository.ChatRequestState())
+
+    /** Contacts whose chat is a Message Request: someone else started it and you haven't
+     *  accepted (ChatRequestStore.isMessageRequest). */
+    val messageRequestIds: StateFlow<Set<String>> = combine(
+        chatRepository.getContacts(),
+        chatRepository.getContactMessageStats(),
+        chatRepository.chatRequestStateFlow(),
+    ) { contacts, stats, state ->
+        val statsByContact = stats.associateBy { it.contactId }
+        contacts.filter { contact ->
+            val s = statsByContact[contact.id]
+            com.kachat.app.repository.ChatRequestStore.isMessageRequest(
+                contactId = contact.id,
+                contactAddedAt = contact.addedAt,
+                myAddress = contact.walletAddress,
+                state = state,
+                firstMessageAt = s?.firstAt,
+                anySent = (s?.anySent ?: 0) > 0,
+            )
+        }.map { it.id }.toSet()
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** The chat list: not blocked, and not a Message Request (those sit behind the list's
+     *  Message Requests row). */
+    val chatListConversations: StateFlow<List<Conversation>> = combine(
+        conversations, messageRequestIds, chatRequestState,
+    ) { all, requests, state ->
+        all.filter { it.contact.id !in requests && it.contact.id.lowercase() !in state.blocked }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Message Requests, newest first. */
+    val messageRequests: StateFlow<List<Conversation>> = combine(conversations, messageRequestIds) { all, requests ->
+        all.filter { it.contact.id in requests }.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Accept: the chat joins the chat list. Nothing is sent on chain. */
+    fun acceptChat(contactId: String) {
+        viewModelScope.launch { chatRepository.acceptChat(contactId) }
+    }
+
+    /** Reject: deleted from this device, and the address blocked until you write to them. */
+    fun rejectChat(contactId: String) {
+        viewModelScope.launch { chatRepository.rejectChat(contactId) }
+    }
+
+    /** Starting a chat - Private or not - accepts it; Private also never tags it. */
+    fun startChat(contactId: String, isPrivate: Boolean) {
+        viewModelScope.launch {
+            if (isPrivate) chatRepository.setPrivateChat(contactId, true) else chatRepository.acceptChat(contactId)
+        }
+    }
+
+    /** Whether the indexer files first-contact messages - if not, the handshake banner and
+     *  "Send Handshake" stay as the way to reach a stranger. */
+    private val _inboxSupported = MutableStateFlow(false)
+    val inboxSupported: StateFlow<Boolean> = _inboxSupported.asStateFlow()
+
+    fun refreshInboxSupport() {
+        viewModelScope.launch { _inboxSupported.value = chatRepository.inboxSupported() }
+    }
+
     /**
      * address -> cached KNS avatar URL, for group chat's per-sender avatars - group members are
      * always saved contacts (created automatically when added to a group), so this reuses the
@@ -2856,6 +2922,8 @@ class ChatViewModel @Inject constructor(
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
         viewModelScope.launch {
+            // Paying someone is reaching out to them, like writing to them.
+            if (!contactId.equals(walletManager.getAddress(), ignoreCase = true)) chatRepository.acceptChat(contactId)
             val pendingId = "pending_${java.util.UUID.randomUUID()}"
             try {
                 val myAddress = walletManager.getAddress()

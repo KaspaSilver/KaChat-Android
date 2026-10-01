@@ -206,6 +206,36 @@ fun ChatThreadScreen(
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val conversations by chatViewModel.conversations.collectAsState()
     val conversation = conversations.find { it.contact.id == contactId }
+    // Message Requests (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401): someone else started this chat
+    // and you haven't accepted - the whole thread is readable, and Accept / Reject replace the
+    // composer. A Private chat never carries the inbox tag.
+    val messageRequestIds by chatViewModel.messageRequestIds.collectAsState()
+    val isMessageRequest = contactId in messageRequestIds
+    val chatRequestState by chatViewModel.chatRequestState.collectAsState()
+    val isPrivateChat = contactId.lowercase() in chatRequestState.privateChats
+    val inboxSupported by chatViewModel.inboxSupported.collectAsState()
+    LaunchedEffect(Unit) { chatViewModel.refreshInboxSupport() }
+    var showRejectRequestConfirm by remember { mutableStateOf(false) }
+    if (showRejectRequestConfirm) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showRejectRequestConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.message_request_reject_confirm), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.message_request_reject_message), color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRejectRequestConfirm = false
+                    chatViewModel.rejectChat(contactId)
+                    navController.popBackStack()
+                }) { Text(stringResource(R.string.message_request_reject), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRejectRequestConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = KaspaTeal)
+                }
+            }
+        )
+    }
     // A window of the newest history plus whatever older pages have been scrolled into, not the
     // whole conversation - a two-year chat used to be mapped in full on every emission (iOS keeps
     // the same 160-row window and pages older history in from the store).
@@ -667,6 +697,14 @@ fun ChatThreadScreen(
             }
         },
         bottomBar = {
+            if (isMessageRequest) {
+                // Someone wrote first: read it all, then Accept or Reject.
+                MessageRequestBar(
+                    displayName = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                    onAccept = { chatViewModel.acceptChat(contactId) },
+                    onReject = { showRejectRequestConfirm = true },
+                )
+            } else {
             // navigationBarsPadding() keeps the mic/send row clear of the system nav bar
             // (gesture pill or 3-button bar) when the keyboard is closed — its height varies
             // a lot across devices/manufacturers, so a fixed dp padding isn't enough on every
@@ -682,7 +720,10 @@ fun ChatThreadScreen(
                 // encrypted conversation WITH SOMEONE, and there is nobody on the other side of
                 // your own chatting address to accept it. Reachable after importing the same
                 // wallet on a second device, where your own address is among the contacts.
-                if (ChatViewModel.shouldShowUnnotifiedWarning(messages) && contactId != myAddress) {
+                // Only where first contact still needs a handshake: an indexer without inbox
+                // lookups, and never in a Private chat (which deliberately has no first-contact
+                // signal at all) - iOS f7ca401.
+                if (!inboxSupported && !isPrivateChat && ChatViewModel.shouldShowUnnotifiedWarning(messages) && contactId != myAddress) {
                     // Same guard the composer menu's "Send Handshake" row uses — once the
                     // handshake is complete there's nothing left to ping, so the action drops
                     // away while the banner itself stays until the chat is actually reciprocated.
@@ -696,6 +737,12 @@ fun ChatThreadScreen(
                         // The request is out and unanswered: say so rather than offering a second
                         // 0.2 KAS send that the unchanged banner makes look necessary.
                         awaitingReply = canSendHandshake && handshakeAwaitingReply
+                    )
+                }
+                // A Private chat that hasn't heard back yet: why the other person isn't notified.
+                if (isPrivateChat && contactId != myAddress && messages.none { it.direction == "received" }) {
+                    PrivateChatNotice(
+                        displayName = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
                     )
                 }
                 if (paymentMode) {
@@ -1283,7 +1330,9 @@ fun ChatThreadScreen(
                                         // which left no way to send another when the first never
                                         // arrived; a handshake is an ordinary on-chain send and
                                         // re-sending one is a normal thing to want.
-                                        if (contactId != myAddress) {
+                                        // Only where first contact still needs one: an indexer
+                                        // without inbox lookups (iOS f7ca401).
+                                        if (contactId != myAddress && !inboxSupported) {
                                             val handshakeOutstanding =
                                                 ChatViewModel.hasUnansweredOutgoingHandshake(messages)
                                             ActionSheetRow(
@@ -1381,6 +1430,7 @@ fun ChatThreadScreen(
                         }
                     }
                 }
+            }
             }
         }
     ) { padding ->
@@ -1671,13 +1721,11 @@ fun ChatThreadScreen(
                                 contactDisplayName = conversation?.contact?.displayName.orEmpty(),
                                 myAvatarUrl = myKnsProfile?.avatarUrl,
                                 myAvatarFallback = myAddress?.takeLast(8) ?: "",
-                                isPendingRequest = msg.type == MessageProtocol.TYPE_HANDSHAKE &&
-                                    msg.direction == "received" &&
-                                    conversation?.contact?.conversationStatus == "pending",
+                                // No Accept/Decline bubble: an incoming handshake (old clients,
+                                // Kasia) is just the first line of a Message Request, accepted or
+                                // rejected from its bar (iOS f7ca401).
+                                isPendingRequest = false,
                                 isHandshakeComplete = conversation?.contact?.conversationStatus == "active",
-                                onAccept = { chatViewModel.acceptHandshake(contactId) },
-                                acceptInFlight = contactId in handshakeAcceptInFlight,
-                                onDecline = { chatViewModel.declineHandshake(contactId) },
                                 onRetry = { chatViewModel.retrySendMessage(msg) },
                                 onReply = { chatViewModel.startReplyTo(msg) },
                                 isEdited = editForRow != null,
@@ -1989,6 +2037,75 @@ private fun UnnotifiedMessageBanner(
                 }
             }
         }
+    }
+}
+
+/**
+ * Accept / Reject, in place of the composer while the chat is a Message Request (iOS
+ * `messageRequestBar`). Accept is local - nothing is sent until the user writes back.
+ */
+@Composable
+private fun MessageRequestBar(displayName: String, onAccept: () -> Unit, onReject: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.background)
+            .navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            stringResource(R.string.message_request_wants_to_chat, displayName),
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.danger.copy(alpha = 0.15f))
+                    .clickable(onClick = onReject)
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(stringResource(R.string.message_request_reject), color = colors.danger, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(KaspaTeal)
+                    .clickable(onClick = onAccept)
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(stringResource(R.string.accept), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        }
+    }
+}
+
+/** A Private chat that hasn't heard back yet: why the other person isn't notified (iOS
+ *  `privateChatNotice`). */
+@Composable
+private fun PrivateChatNotice(displayName: String) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(Icons.Default.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(13.dp).padding(top = 1.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.private_chat_notice, displayName), color = colors.textSecondary, fontSize = 12.sp)
     }
 }
 
@@ -11356,6 +11473,8 @@ fun CreateChatScreen(
 ) {
     var address by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
+    /** Start this chat as Private (no inbox tag ever) - see the toggle's footer (iOS f7ca401). */
+    var startPrivate by remember { mutableStateOf(false) }
 
     // Group chat mode. The create button is tab-aware (Chats vs Group Chats), so the screen
     // opens directly in the right mode instead of exposing a toggle.
@@ -11644,7 +11763,14 @@ fun CreateChatScreen(
                                     knsName = if (looksLikeKnsDomain) com.kachat.app.services.KnsService.normalizeDomain(address) else null,
                                     deliberate = true,
                                 ) { refusal ->
-                                    if (refusal == null) onChatCreated(resolvedAddress) else importErrorMessage = refusal
+                                    if (refusal == null) {
+                                        // Starting a chat accepts it; Private also keeps it from
+                                        // ever carrying the inbox tag.
+                                        chatViewModel.startChat(resolvedAddress, isPrivate = startPrivate)
+                                        onChatCreated(resolvedAddress)
+                                    } else {
+                                        importErrorMessage = refusal
+                                    }
                                 }
                             },
                             enabled = isValidAddress
@@ -12024,6 +12150,35 @@ fun CreateChatScreen(
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
+
+            // Private: no first-contact signal at all (NO_HANDSHAKE_MESSAGING.md §3.1).
+            if (!isGroupMode) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(LocalAppColors.current.surface)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        stringResource(R.string.private_chat),
+                        color = LocalAppColors.current.textPrimary,
+                        fontSize = 17.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    com.kachat.app.ui.theme.IosSwitch(checked = startPrivate, onCheckedChange = { startPrivate = it })
+                }
+                Text(
+                    text = stringResource(if (startPrivate) R.string.private_chat_on_footer else R.string.private_chat_off_footer),
+                    color = LocalAppColors.current.textSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
 
             // Your existing chats plus both directions of your KaPosts follow graph. A chat you
             // had months ago is buried far down the chat list, so it belongs here next to the

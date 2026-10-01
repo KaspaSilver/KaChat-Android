@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">إذا كانت عبارة الاسترداد هذه تحمل هويتك بالفعل في عنوان آخر - نطاق (.kas أو .k أو .kaspa) أو رصيد محادثة - فاختره هنا. تظهر فقط العناوين التي لديها رصيد أو نطاقات.</string>
     <string name="chatting_picker_other_names_count">أسماء .k و.kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">طلبات الرسائل</string>
+    <string name="message_requests_row_sub">أشخاص راسلوك أولًا</string>
+    <string name="message_requests_none_new">لا توجد طلبات جديدة</string>
+    <string name="message_requests_footer">افتح الطلب لقراءته. اقبل للرد ونقله إلى محادثاتك؛ الرفض يحذفه ويمنع هذا العنوان من مراسلتك حتى تراسله أنت.</string>
+    <string name="message_requests_empty">لا توجد طلبات رسائل</string>
+    <string name="message_request_wants_to_chat">يريد %1$s الدردشة. اقبل للرد - لن يُرسل شيء حتى ترد.</string>
+    <string name="message_request_reject">رفض</string>
+    <string name="message_request_reject_confirm">رفض هذا الطلب؟</string>
+    <string name="message_request_reject_message">تُحذف رسائله من هذا الجهاز، ولن يتمكن هذا العنوان من مراسلتك مجددًا حتى تراسله أنت.</string>
+    <string name="private_chat_notice">محادثة خاصة - لا شيء يربطكما على السلسلة، لذا لا يتلقى %1$s إشعارًا. سيرى رسائلك عندما يبدأ هو أيضًا محادثة خاصة مع عنوانك.</string>
+    <string name="private_chat">محادثة خاصة</string>
+    <string name="private_chat_on_footer">لا شيء يربطكما على السلسلة - ولا حتى من كتب أولًا. لن يتلقى الطرف الآخر إشعارًا: سيرى رسائلك عندما يبدأ محادثة خاصة مع عنوانك، لذا اتفقا على ذلك مسبقًا في مكان آخر.</string>
+    <string name="private_chat_off_footer">ستصل رسالتك الأولى كطلب رسالة. فعّل المحادثة الخاصة إذا كنت تفضّل ألا يبقى أي رابط بينكما على السلسلة.</string>
+    <string name="new_message_request">طلب رسالة جديد</string>
+    <string name="wants_to_chat_with_you">يريد %1$s الدردشة معك.</string>
 </resources>

@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">אם הסיד הזה כבר מחזיק את הזהות שלכם בכתובת אחרת - דומיין (.kas, .k או .kaspa) או יתרת צ\'אט - בחרו אותה כאן. מוצגות רק כתובות עם יתרה או דומיינים.</string>
     <string name="chatting_picker_other_names_count">שמות .k ו-.kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">בקשות הודעה</string>
+    <string name="message_requests_row_sub">אנשים שכתבו לכם ראשונים</string>
+    <string name="message_requests_none_new">אין בקשות חדשות</string>
+    <string name="message_requests_footer">פתחו בקשה כדי לקרוא אותה. אישור כדי להשיב ולהעביר אותה לצ\'אטים; דחייה מוחקת אותה ומונעת מהכתובת לפנות אליכם עד שתכתבו לה.</string>
+    <string name="message_requests_empty">אין בקשות הודעה</string>
+    <string name="message_request_wants_to_chat">%1$s רוצה לשוחח. אשרו כדי להשיב - שום דבר לא נשלח עד שתענו.</string>
+    <string name="message_request_reject">דחייה</string>
+    <string name="message_request_reject_confirm">לדחות את הבקשה?</string>
+    <string name="message_request_reject_message">ההודעות שלו יימחקו מהמכשיר הזה, והכתובת הזו לא תוכל לפנות אליכם שוב עד שתכתבו לה.</string>
+    <string name="private_chat_notice">צ\'אט פרטי - שום דבר לא מקשר ביניכם בשרשרת, לכן %1$s לא מקבל התראה. ההודעות שלכם יוצגו לו כשגם הוא יפתח צ\'אט פרטי עם הכתובת שלכם.</string>
+    <string name="private_chat">צ\'אט פרטי</string>
+    <string name="private_chat_on_footer">שום דבר לא מקשר ביניכם בשרשרת - אפילו לא מי כתב ראשון. הצד השני לא מקבל התראה: הוא יראה את ההודעות כשיפתח צ\'אט פרטי עם הכתובת שלכם, אז תאמו זאת קודם במקום אחר.</string>
+    <string name="private_chat_off_footer">ההודעה הראשונה שלכם תגיע כבקשת הודעה. הפעילו צ\'אט פרטי אם אתם לא רוצים להשאיר קשר ביניכם בשרשרת.</string>
+    <string name="new_message_request">בקשת הודעה חדשה</string>
+    <string name="wants_to_chat_with_you">%1$s רוצה לשוחח איתך.</string>
 </resources>

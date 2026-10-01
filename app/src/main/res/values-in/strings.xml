@@ -505,4 +505,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Jika seed ini sudah menyimpan identitasmu di alamat lain - domain (.kas, .k, atau .kaspa) atau saldo obrolan - pilih di sini. Hanya alamat dengan saldo atau domain yang ditampilkan.</string>
     <string name="chatting_picker_other_names_count">Nama .k dan .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Permintaan Pesan</string>
+    <string name="message_requests_row_sub">Orang yang lebih dulu menulis kepadamu</string>
+    <string name="message_requests_none_new">Tidak ada permintaan baru</string>
+    <string name="message_requests_footer">Buka permintaan untuk membacanya. Terima untuk membalas dan memindahkannya ke obrolanmu; Tolak menghapusnya dan mencegah alamat itu menghubungimu sampai kamu menulis kepadanya.</string>
+    <string name="message_requests_empty">Tidak ada permintaan pesan</string>
+    <string name="message_request_wants_to_chat">%1$s ingin mengobrol. Terima untuk membalas - tidak ada yang dikirim sampai kamu membalas.</string>
+    <string name="message_request_reject">Tolak</string>
+    <string name="message_request_reject_confirm">Tolak permintaan ini?</string>
+    <string name="message_request_reject_message">Pesannya dihapus dari perangkat ini, dan alamat ini tidak bisa menghubungimu lagi sampai kamu menulis kepadanya.</string>
+    <string name="private_chat_notice">Obrolan privat - tidak ada yang menghubungkan kalian di chain, jadi %1$s tidak diberi tahu. Ia akan melihat pesanmu setelah juga memulai obrolan privat dengan alamatmu.</string>
+    <string name="private_chat">Obrolan Privat</string>
+    <string name="private_chat_on_footer">Tidak ada yang menghubungkan kalian di chain - bahkan siapa yang menulis duluan. Ia tidak diberi tahu: ia akan melihat pesanmu setelah memulai obrolan privat dengan alamatmu, jadi sepakati dulu di tempat lain.</string>
+    <string name="private_chat_off_footer">Pesan pertamamu akan diterima sebagai Permintaan Pesan. Aktifkan Obrolan Privat jika kamu tidak ingin ada tautan di antara kalian di chain.</string>
+    <string name="new_message_request">Permintaan pesan baru</string>
+    <string name="wants_to_chat_with_you">%1$s ingin mengobrol denganmu.</string>
 </resources>

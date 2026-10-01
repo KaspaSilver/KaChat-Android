@@ -189,6 +189,20 @@ class NotificationHelper @Inject constructor(
      *  full contact sweep is throttled. */
     val currentContactId: String? get() = activeContactId.value
 
+    /** The one notification a new Message Request gets: "New message request - <address> wants
+     *  to chat with you." (NO_HANDSHAKE_MESSAGING.md §4). The caller decides it is the first. */
+    suspend fun showMessageRequest(contactId: String, dedupeTxId: String? = null) {
+        show(
+            contactId = contactId,
+            title = context.getString(com.kachat.app.R.string.new_message_request),
+            text = context.getString(
+                com.kachat.app.R.string.wants_to_chat_with_you,
+                com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
+            ),
+            dedupeTxId = dedupeTxId,
+        )
+    }
+
     suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null, dedupeTxId: String? = null) {
         if (activeContactId.value == contactId) return // already looking at this conversation
         if (!settings.notificationsEnabled.first()) return

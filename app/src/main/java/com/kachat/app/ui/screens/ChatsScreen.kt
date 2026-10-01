@@ -16,6 +16,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoveToInbox
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
@@ -117,7 +119,10 @@ fun ChatsScreen(
     val balance by walletViewModel.fullBalance.collectAsState()
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
-    val conversations by chatViewModel.conversations.collectAsState()
+    // The chat list leaves out Message Requests and blocked chats - requests sit behind their own
+    // row, and neither counts toward the unread badge (iOS f7ca401, 84e3402).
+    val conversations by chatViewModel.chatListConversations.collectAsState()
+    val messageRequests by chatViewModel.messageRequests.collectAsState()
     val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
     val latestReactionByGroup by chatViewModel.latestReactionByGroup.collectAsState()
@@ -704,6 +709,16 @@ fun ChatsScreen(
                 var menuContactId by remember { mutableStateOf<String?>(null) }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // People who wrote first and haven't been accepted - one row, always there,
+                    // right above your own chat; hidden only while searching or selecting
+                    // (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401 / 74bd52c).
+                    if (searchQuery.isBlank() && !isSelectionMode) {
+                        item(key = "message_requests_row") {
+                            MessageRequestsRow(count = messageRequests.size) {
+                                navController.navigate("message_requests")
+                            }
+                        }
+                    }
                     // 4.0: the Broadcasts entry card is gone - Broadcasts is a dock tab now,
                     // riding the Chats-slot cycle when the dock is full (matches iOS).
                     items(filteredConversations, key = { it.contact.id }) { convo ->
@@ -1477,7 +1492,7 @@ fun SwipeActionRow(
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ConversationRow(
+internal fun ConversationRow(
     convo: Conversation,
     latestReaction: com.kachat.app.services.database.LatestReactionRow?,
     myAddress: String?,
@@ -1716,4 +1731,129 @@ private fun AvatarInitials(text: String, fontSize: TextUnit) {
         tint = KaspaTeal,
         modifier = Modifier.fillMaxSize(0.55f)
     )
+}
+
+// MARK: - Message Requests (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401 / 74bd52c)
+
+/** The chat list's Message Requests row: everyone who wrote first and hasn't been accepted. With
+ *  nothing pending it reads "No new requests" and drops the count badge. */
+@Composable
+private fun MessageRequestsRow(count: Int, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(KaspaTeal),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.MoveToInbox, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.message_requests),
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+            Text(
+                stringResource(if (count > 0) R.string.message_requests_row_sub else R.string.message_requests_none_new),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (count > 0) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(KaspaTeal)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(count.toString(), color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        com.kachat.app.ui.screens.IosDisclosureChevron()
+    }
+}
+
+/**
+ * Chats someone else started that you haven't accepted. Open one to read everything they sent,
+ * then Accept or Reject from inside it. Their messages never notify you beyond the first "New
+ * message request". iOS `MessageRequestsView` - a sheet with Done, here its own page.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MessageRequestsScreen(
+    navController: NavController,
+    chatViewModel: ChatViewModel = hiltViewModel(),
+    walletViewModel: WalletViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    val requests by chatViewModel.messageRequests.collectAsState()
+    val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
+    val myAddress by walletViewModel.address.collectAsState()
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.message_requests), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                actions = {
+                    TextButton(onClick = { navController.popBackStack() }) {
+                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        if (requests.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Inbox, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(40.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.message_requests_empty), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(colors.surface)
+                    ) {
+                        requests.forEachIndexed { index, convo ->
+                            if (index > 0) {
+                                HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 80.dp))
+                            }
+                            ConversationRow(convo, latestReactionByContact[convo.contact.id], myAddress) {
+                                navController.navigate("chat/${convo.contact.id}")
+                            }
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        stringResource(R.string.message_requests_footer),
+                        color = colors.textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
 }

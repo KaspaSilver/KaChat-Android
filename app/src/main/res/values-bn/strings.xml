@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">এই সিড যদি আগে থেকেই অন্য কোনো ঠিকানায় আপনার পরিচয় রাখে - একটি ডোমেইন (.kas, .k বা .kaspa) বা ব্যালেন্সসহ চ্যাট ঠিকানা - তবে এখানে বেছে নিন। শুধু ব্যালেন্স বা ডোমেইন থাকা ঠিকানা দেখানো হয়।</string>
     <string name="chatting_picker_other_names_count">.k ও .kaspa নাম (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">মেসেজ অনুরোধ</string>
+    <string name="message_requests_row_sub">যারা আপনাকে আগে লিখেছেন</string>
+    <string name="message_requests_none_new">নতুন কোনো অনুরোধ নেই</string>
+    <string name="message_requests_footer">পড়তে একটি অনুরোধ খুলুন। উত্তর দিতে ও চ্যাটে নিতে গ্রহণ করুন; প্রত্যাখ্যান সেটি মুছে দেয় এবং আপনি না লেখা পর্যন্ত ওই ঠিকানা আপনাকে লিখতে পারে না।</string>
+    <string name="message_requests_empty">কোনো মেসেজ অনুরোধ নেই</string>
+    <string name="message_request_wants_to_chat">%1$s চ্যাট করতে চান। উত্তর দিতে গ্রহণ করুন - আপনি উত্তর না দেওয়া পর্যন্ত কিছুই পাঠানো হয় না।</string>
+    <string name="message_request_reject">প্রত্যাখ্যান</string>
+    <string name="message_request_reject_confirm">এই অনুরোধ প্রত্যাখ্যান করবেন?</string>
+    <string name="message_request_reject_message">তাদের মেসেজ এই ডিভাইস থেকে মুছে যায়, এবং আপনি না লেখা পর্যন্ত এই ঠিকানা আবার আপনাকে লিখতে পারবে না।</string>
+    <string name="private_chat_notice">প্রাইভেট চ্যাট - চেইনে আপনাদের দুজনকে কিছুই যুক্ত করে না, তাই %1$s কোনো বিজ্ঞপ্তি পান না। তিনিও আপনার ঠিকানা দিয়ে প্রাইভেট চ্যাট শুরু করলে আপনার মেসেজ দেখতে পাবেন।</string>
+    <string name="private_chat">প্রাইভেট চ্যাট</string>
+    <string name="private_chat_on_footer">চেইনে আপনাদের কিছুই যুক্ত করে না - কে আগে লিখেছে সেটাও না। অপর পক্ষ বিজ্ঞপ্তি পান না: আপনার ঠিকানা দিয়ে প্রাইভেট চ্যাট শুরু করলে তবেই মেসেজ দেখবেন, তাই আগে অন্য কোথাও ঠিক করে নিন।</string>
+    <string name="private_chat_off_footer">আপনার প্রথম মেসেজ মেসেজ অনুরোধ হিসেবে যাবে। চেইনে আপনাদের মধ্যে কোনো যোগসূত্র রাখতে না চাইলে প্রাইভেট চ্যাট চালু করুন।</string>
+    <string name="new_message_request">নতুন মেসেজ অনুরোধ</string>
+    <string name="wants_to_chat_with_you">%1$s আপনার সঙ্গে চ্যাট করতে চান।</string>
 </resources>

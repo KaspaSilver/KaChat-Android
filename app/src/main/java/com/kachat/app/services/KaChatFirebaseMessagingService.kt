@@ -228,6 +228,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     // "Started a conversation") — no decryption needed.
                     "payment", "handshake" -> {
                         val sender = data["sender"] ?: return@runBlocking
+                        // Payments land in your own chat and ring as before; a handshake is
+                        // first contact like any other (Message Requests).
+                        if (type == "handshake" && applyMessageRequestRule(sender, data)) return@runBlocking
                         notificationHelper.show(
                             contactId = sender,
                             title = contactTitle(sender, sender),
@@ -287,6 +290,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             else -> {}
         }
 
+        // Message Requests (NO_HANDSHAKE_MESSAGING.md §4): one "New message request" per new
+        // sender, then nothing from them until accepted; nothing at all from a blocked address.
+        if (applyMessageRequestRule(sender, data)) return
+
         // A call. The chain is how a call is carried, but a closed app cannot watch the chain -
         // this push is what wakes it, and the phone must ring, not show a banner. Hand the
         // envelope to the call machinery, which rings exactly as it does with the app open
@@ -320,6 +327,39 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             // paths see the same message.
             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
         )
+    }
+
+    /**
+     * What a 1:1 push from [sender] does under Message Requests (iOS NotificationService
+     * `messageRequestDecision`). True when the push was handled here - silent, or the one "New
+     * message request" - and the caller must not post its own notification.
+     *
+     * Blocked or a pending request -> silent. A contact the app already has as an ordinary chat
+     * -> the normal notification. Anyone else -> "New message request", once; the app then looks
+     * the sender up in the inbox so the request is there when the user opens it.
+     */
+    private suspend fun applyMessageRequestRule(sender: String, data: Map<String, String>): Boolean {
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull() ?: return false
+        if (sender.equals(myAddress, ignoreCase = true)) return false
+        val txId = data["tx_id"]?.takeIf { it.isNotBlank() }
+        val silent = when {
+            chatRepository.isChatBlocked(sender) -> true
+            else -> {
+                val contact = runCatching { chatRepository.getContact(sender) }.getOrNull()
+                if (contact != null) {
+                    if (!chatRepository.isMessageRequest(contact, myAddress)) return false
+                    true
+                } else if (chatRepository.markRequestNotified(sender)) {
+                    notificationHelper.showMessageRequest(sender, dedupeTxId = txId)
+                    runCatching { kotlinx.coroutines.withTimeoutOrNull(8_000) { chatRepository.syncInbox() } }
+                    return true
+                } else {
+                    true
+                }
+            }
+        }
+        if (silent) txId?.let { notificationHelper.claimWithoutNotifying(it) }
+        return silent
     }
 
     /**

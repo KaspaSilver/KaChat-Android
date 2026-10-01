@@ -20,6 +20,11 @@ object MessageProtocol {
     const val VERSION         = "1"
     const val TYPE_HANDSHAKE  = "handshake"
     const val TYPE_COMM       = "comm"
+    /** A first-contact message: `kchat:1:dm:<inbox tag>:<alias>:<sealed>` - a `comm` message plus
+     *  the recipient's [InboxTag], so they can find it without knowing the sender
+     *  (NO_HANDSHAKE_MESSAGING.md). Only ever written, never stored as its own type. */
+    const val TYPE_DM         = "dm"
+    const val DM_PREFIX       = "$PREFIX:$VERSION:$TYPE_DM:"
     const val TYPE_PAY        = "pay"
     const val TYPE_BCAST      = "bcast"
 
@@ -41,10 +46,26 @@ object MessageProtocol {
      * Builds "kchat:1:comm:<alias>:<base64>" — alias is plaintext, colon-delimited
      * ahead of the base64-encoded [KasiaCipher.EncryptedMessage] bytes.
      */
-    fun buildCommPayload(alias: String, encrypted: KasiaCipher.EncryptedMessage): ByteArray {
+    fun buildCommPayload(alias: String, encrypted: KasiaCipher.EncryptedMessage, inboxTag: String? = null): ByteArray {
         val safeAlias = alias.replace(":", "_").take(32)
         val base64 = Base64.getEncoder().encodeToString(encrypted.toBytes())
-        return "$PREFIX:$VERSION:$TYPE_COMM:$safeAlias:$base64".toByteArray(Charsets.UTF_8)
+        // With [inboxTag] it is the first-contact form, `kchat:1:dm:<tag>:<alias>:<sealed>` - the
+        // same message, also filed by the recipient's inbox tag (NO_HANDSHAKE_MESSAGING.md).
+        val root = if (inboxTag != null) "$DM_PREFIX$inboxTag:" else "$PREFIX:$VERSION:$TYPE_COMM:"
+        return "$root$safeAlias:$base64".toByteArray(Charsets.UTF_8)
+    }
+
+    /**
+     * Reading first-contact messages: `kchat:1:dm:<tag>:<alias>:<sealed>` is a contextual message
+     * plus the recipient's inbox tag, so every parser reads it as `kchat:1:comm:<alias>:<sealed>`.
+     * Mirrors iOS `ContextualPayloadFormat.normalized`.
+     */
+    fun normalizeFirstContact(payload: String): String {
+        if (!payload.startsWith(DM_PREFIX)) return payload
+        val rest = payload.substring(DM_PREFIX.length)
+        val colon = rest.indexOf(':')
+        if (colon < 0) return payload
+        return "$PREFIX:$VERSION:$TYPE_COMM:" + rest.substring(colon + 1)
     }
 
     /**
@@ -73,7 +94,8 @@ object MessageProtocol {
      * Parses a "comm" payload, returning the plaintext alias and the still-encrypted message.
      */
     fun parseCommPayload(rawBytes: ByteArray): Pair<String, KasiaCipher.EncryptedMessage>? {
-        val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return null }
+        // A first-contact `dm` message reads as `comm`.
+        val text = try { normalizeFirstContact(String(rawBytes, Charsets.UTF_8)) } catch (e: Exception) { return null }
         // ["kchat", "1", "comm", alias, base64] (or the legacy "ciph_msg" root) — Kotlin limit=5 matches Swift's maxSplits:4
         val parts = text.split(":", limit = 5)
         if (parts.size != 5 || (parts[0] != PREFIX && parts[0] != LEGACY_PREFIX) || parts[1] != VERSION || parts[2] != TYPE_COMM) return null

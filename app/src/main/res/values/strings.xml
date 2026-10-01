@@ -814,4 +814,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">If this seed already holds your identity at a different address - a domain (.kas, .k or .kaspa) or a funded chatting balance - pick it here. Only addresses with a balance or domains are shown.</string>
     <string name="chatting_picker_other_names_count">.k and .kaspa Names (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Message Requests</string>
+    <string name="message_requests_row_sub">People who wrote to you first</string>
+    <string name="message_requests_none_new">No new requests</string>
+    <string name="message_requests_footer">Open a request to read it. Accept to reply and move it to your chats; Reject deletes it and stops that address reaching you until you write to them.</string>
+    <string name="message_requests_empty">No message requests</string>
+    <string name="message_request_wants_to_chat">%1$s wants to chat. Accept to reply - nothing is sent until you write back.</string>
+    <string name="message_request_reject">Reject</string>
+    <string name="message_request_reject_confirm">Reject this request?</string>
+    <string name="message_request_reject_message">Their messages are deleted from this device, and this address can\'t reach you again until you write to them.</string>
+    <string name="private_chat_notice">Private chat - nothing links you two on chain, so %1$s isn\'t notified. They\'ll see your messages once they start a private chat with your address too.</string>
+    <string name="private_chat">Private Chat</string>
+    <string name="private_chat_on_footer">Nothing on chain links you two - not even who wrote first. They won\'t be notified: they\'ll see your messages once they start a private chat with your address too, so agree on it somewhere else first.</string>
+    <string name="private_chat_off_footer">They\'ll get your first message as a Message Request. Turn on Private Chat if you\'d rather leave no link between you on chain.</string>
+    <string name="new_message_request">New message request</string>
+    <string name="wants_to_chat_with_you">%1$s wants to chat with you.</string>
 </resources>

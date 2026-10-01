@@ -674,4 +674,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">اگر این عبارت بازیابی هویت شما را در نشانی دیگری دارد - یک دامنه (.kas، .k یا .kaspa) یا موجودی گفتگو - آن را اینجا انتخاب کنید. فقط نشانی‌های دارای موجودی یا دامنه نمایش داده می‌شوند.</string>
     <string name="chatting_picker_other_names_count">نام‌های .k و .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">درخواست‌های پیام</string>
+    <string name="message_requests_row_sub">کسانی که اول به شما پیام دادند</string>
+    <string name="message_requests_none_new">درخواست جدیدی نیست</string>
+    <string name="message_requests_footer">یک درخواست را باز کنید تا بخوانید. پذیرفتن برای پاسخ و انتقال به گفتگوها؛ رد کردن آن را حذف می‌کند و تا وقتی خودتان پیام ندهید، آن نشانی نمی‌تواند به شما پیام دهد.</string>
+    <string name="message_requests_empty">درخواست پیامی نیست</string>
+    <string name="message_request_wants_to_chat">%1$s می‌خواهد گفتگو کند. برای پاسخ بپذیرید - تا وقتی پاسخ ندهید چیزی ارسال نمی‌شود.</string>
+    <string name="message_request_reject">رد کردن</string>
+    <string name="message_request_reject_confirm">این درخواست رد شود؟</string>
+    <string name="message_request_reject_message">پیام‌هایش از این دستگاه حذف می‌شود و این نشانی تا وقتی خودتان پیام ندهید نمی‌تواند دوباره به شما پیام دهد.</string>
+    <string name="private_chat_notice">گفتگوی خصوصی - روی زنجیره چیزی شما دو نفر را به هم مرتبط نمی‌کند، پس %1$s مطلع نمی‌شود. وقتی او هم با نشانی شما گفتگوی خصوصی شروع کند، پیام‌هایتان را می‌بیند.</string>
+    <string name="private_chat">گفتگوی خصوصی</string>
+    <string name="private_chat_on_footer">روی زنجیره چیزی شما را به هم مرتبط نمی‌کند - حتی اینکه چه کسی اول پیام داد. طرف مقابل مطلع نمی‌شود: وقتی با نشانی شما گفتگوی خصوصی شروع کند پیام‌ها را می‌بیند، پس از قبل جای دیگری هماهنگ کنید.</string>
+    <string name="private_chat_off_footer">پیام اول شما به‌صورت درخواست پیام می‌رسد. اگر نمی‌خواهید روی زنجیره پیوندی بینتان بماند، گفتگوی خصوصی را روشن کنید.</string>
+    <string name="new_message_request">درخواست پیام جدید</string>
+    <string name="wants_to_chat_with_you">%1$s می‌خواهد با شما گفتگو کند.</string>
 </resources>

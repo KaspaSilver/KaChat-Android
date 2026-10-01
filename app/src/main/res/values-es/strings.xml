@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Si esta semilla ya tiene tu identidad en otra dirección (un dominio .kas, .k o .kaspa, o un saldo de chat), elígela aquí. Solo se muestran direcciones con saldo o dominios.</string>
     <string name="chatting_picker_other_names_count">Nombres .k y .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Solicitudes de mensajes</string>
+    <string name="message_requests_row_sub">Personas que te escribieron primero</string>
+    <string name="message_requests_none_new">No hay solicitudes nuevas</string>
+    <string name="message_requests_footer">Abre una solicitud para leerla. Acepta para responder y pasarla a tus chats; Rechazar la borra e impide que esa dirección te escriba hasta que tú le escribas.</string>
+    <string name="message_requests_empty">No hay solicitudes de mensajes</string>
+    <string name="message_request_wants_to_chat">%1$s quiere chatear. Acepta para responder; no se envía nada hasta que contestes.</string>
+    <string name="message_request_reject">Rechazar</string>
+    <string name="message_request_reject_confirm">¿Rechazar esta solicitud?</string>
+    <string name="message_request_reject_message">Sus mensajes se borran de este dispositivo y esta dirección no podrá contactarte hasta que tú le escribas.</string>
+    <string name="private_chat_notice">Chat privado: nada os vincula en la cadena, así que %1$s no recibe aviso. Verá tus mensajes cuando también inicie un chat privado con tu dirección.</string>
+    <string name="private_chat">Chat privado</string>
+    <string name="private_chat_on_footer">Nada os vincula en la cadena, ni siquiera quién escribió primero. No recibirá aviso: verá tus mensajes cuando inicie un chat privado con tu dirección, así que acordadlo antes por otro medio.</string>
+    <string name="private_chat_off_footer">Recibirá tu primer mensaje como solicitud de mensaje. Activa Chat privado si prefieres no dejar ningún vínculo entre vosotros en la cadena.</string>
+    <string name="new_message_request">Nueva solicitud de mensaje</string>
+    <string name="wants_to_chat_with_you">%1$s quiere chatear contigo.</string>
 </resources>

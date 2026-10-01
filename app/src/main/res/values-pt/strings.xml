@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Se esta semente já guarda sua identidade em outro endereço - um domínio (.kas, .k ou .kaspa) ou um saldo de chat - escolha-o aqui. Só aparecem endereços com saldo ou domínios.</string>
     <string name="chatting_picker_other_names_count">Nomes .k e .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Solicitações de mensagem</string>
+    <string name="message_requests_row_sub">Pessoas que escreveram para você primeiro</string>
+    <string name="message_requests_none_new">Nenhuma solicitação nova</string>
+    <string name="message_requests_footer">Abra uma solicitação para ler. Aceite para responder e movê-la para seus chats; Recusar a apaga e impede esse endereço de falar com você até você escrever para ele.</string>
+    <string name="message_requests_empty">Nenhuma solicitação de mensagem</string>
+    <string name="message_request_wants_to_chat">%1$s quer conversar. Aceite para responder - nada é enviado até você responder.</string>
+    <string name="message_request_reject">Recusar</string>
+    <string name="message_request_reject_confirm">Recusar esta solicitação?</string>
+    <string name="message_request_reject_message">As mensagens são apagadas deste dispositivo, e este endereço não poderá falar com você de novo até você escrever para ele.</string>
+    <string name="private_chat_notice">Chat privado - nada liga vocês dois na blockchain, então %1$s não é notificado. Ele verá suas mensagens quando também iniciar um chat privado com seu endereço.</string>
+    <string name="private_chat">Chat privado</string>
+    <string name="private_chat_on_footer">Nada liga vocês na blockchain - nem quem escreveu primeiro. A outra pessoa não é notificada: verá suas mensagens quando iniciar um chat privado com seu endereço, então combinem isso antes por outro meio.</string>
+    <string name="private_chat_off_footer">Sua primeira mensagem chega como solicitação de mensagem. Ative Chat privado se preferir não deixar nenhuma ligação entre vocês na blockchain.</string>
+    <string name="new_message_request">Nova solicitação de mensagem</string>
+    <string name="wants_to_chat_with_you">%1$s quer conversar com você.</string>
 </resources>

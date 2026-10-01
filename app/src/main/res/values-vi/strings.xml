@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Nếu cụm từ khôi phục này đã giữ danh tính của bạn ở địa chỉ khác - một tên miền (.kas, .k hoặc .kaspa) hoặc số dư trò chuyện - hãy chọn ở đây. Chỉ hiện các địa chỉ có số dư hoặc tên miền.</string>
     <string name="chatting_picker_other_names_count">Tên .k và .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Yêu cầu nhắn tin</string>
+    <string name="message_requests_row_sub">Những người nhắn cho bạn trước</string>
+    <string name="message_requests_none_new">Không có yêu cầu mới</string>
+    <string name="message_requests_footer">Mở một yêu cầu để đọc. Chấp nhận để trả lời và chuyển vào cuộc trò chuyện; Từ chối sẽ xóa và chặn địa chỉ đó liên lạc với bạn cho đến khi bạn nhắn cho họ.</string>
+    <string name="message_requests_empty">Không có yêu cầu nhắn tin</string>
+    <string name="message_request_wants_to_chat">%1$s muốn trò chuyện. Chấp nhận để trả lời - không có gì được gửi cho đến khi bạn nhắn lại.</string>
+    <string name="message_request_reject">Từ chối</string>
+    <string name="message_request_reject_confirm">Từ chối yêu cầu này?</string>
+    <string name="message_request_reject_message">Tin nhắn của họ bị xóa khỏi thiết bị này và địa chỉ này không thể liên lạc lại với bạn cho đến khi bạn nhắn cho họ.</string>
+    <string name="private_chat_notice">Trò chuyện riêng tư - không có gì liên kết hai bạn trên chuỗi, nên %1$s không được thông báo. Họ sẽ thấy tin nhắn của bạn khi cũng bắt đầu một cuộc trò chuyện riêng tư với địa chỉ của bạn.</string>
+    <string name="private_chat">Trò chuyện riêng tư</string>
+    <string name="private_chat_on_footer">Không có gì liên kết hai bạn trên chuỗi - kể cả ai nhắn trước. Người kia không được thông báo: họ sẽ thấy tin nhắn khi bắt đầu trò chuyện riêng tư với địa chỉ của bạn, vì vậy hãy thống nhất trước ở nơi khác.</string>
+    <string name="private_chat_off_footer">Tin nhắn đầu tiên của bạn sẽ đến dưới dạng Yêu cầu nhắn tin. Bật Trò chuyện riêng tư nếu bạn không muốn để lại liên kết nào giữa hai người trên chuỗi.</string>
+    <string name="new_message_request">Yêu cầu nhắn tin mới</string>
+    <string name="wants_to_chat_with_you">%1$s muốn trò chuyện với bạn.</string>
 </resources>

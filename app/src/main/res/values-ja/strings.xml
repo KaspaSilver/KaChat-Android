@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">このシードが別のアドレスですでにあなたの ID（.kas・.k・.kaspa のドメイン、または残高のあるチャットアドレス）を持っている場合は、ここで選んでください。残高かドメインのあるアドレスだけが表示されます。</string>
     <string name="chatting_picker_other_names_count">.k と .kaspa の名前（%1$d）</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">メッセージリクエスト</string>
+    <string name="message_requests_row_sub">先にメッセージを送ってきた人</string>
+    <string name="message_requests_none_new">新しいリクエストはありません</string>
+    <string name="message_requests_footer">リクエストを開いて読めます。「承認」で返信できるようになりチャットに移動します。「拒否」で削除し、あなたからメッセージを送るまでそのアドレスからは届かなくなります。</string>
+    <string name="message_requests_empty">メッセージリクエストはありません</string>
+    <string name="message_request_wants_to_chat">%1$s がチャットを希望しています。承認すると返信できます。あなたが返信するまで何も送信されません。</string>
+    <string name="message_request_reject">拒否</string>
+    <string name="message_request_reject_confirm">このリクエストを拒否しますか？</string>
+    <string name="message_request_reject_message">メッセージはこのデバイスから削除され、あなたからメッセージを送るまでこのアドレスからは届かなくなります。</string>
+    <string name="private_chat_notice">プライベートチャット - チェーン上で二人を結ぶものはないため、%1$s には通知されません。相手もあなたのアドレスとプライベートチャットを始めると、メッセージが見えるようになります。</string>
+    <string name="private_chat">プライベートチャット</string>
+    <string name="private_chat_on_footer">チェーン上で二人を結ぶものは何もありません（どちらが先に送ったかも）。相手には通知されず、相手があなたのアドレスとプライベートチャットを始めたときにメッセージが見えます。事前に別の方法で伝えておいてください。</string>
+    <string name="private_chat_off_footer">最初のメッセージはメッセージリクエストとして届きます。チェーン上に二人のつながりを残したくない場合はプライベートチャットをオンにしてください。</string>
+    <string name="new_message_request">新しいメッセージリクエスト</string>
+    <string name="wants_to_chat_with_you">%1$s があなたとチャットしたいようです。</string>
 </resources>

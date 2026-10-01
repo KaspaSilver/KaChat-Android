@@ -330,6 +330,26 @@ interface KasiaIndexerApi {
         @Query("block_time") blockTime: Long = 0
     ): List<SelfStashIndexerResponse>
 
+    /**
+     * First-contact messages addressed to [tag] - a recipient's inbox tag ([com.kachat.app.util.InboxTag]) -
+     * newer than [blockTime]. Same objects as by-sender, with `sender` filled in
+     * (NO_HANDSHAKE_MESSAGING.md §5.3).
+     */
+    @GET("contextual-messages/by-inbox")
+    suspend fun getContextualMessagesByInbox(
+        @Query("tag") tag: String,
+        @Query("limit") limit: Int = 100,
+        @Query("block_time") blockTime: Long? = null
+    ): List<ContextualMessageIndexerResponse>
+
+    /** The same endpoint, raw, for the support probe: 200 means the indexer files `dm`, 404 that
+     *  it does not (§5.3). */
+    @GET("contextual-messages/by-inbox")
+    suspend fun probeContextualMessagesByInbox(
+        @Query("tag") tag: String,
+        @Query("limit") limit: Int = 1
+    ): retrofit2.Response<okhttp3.ResponseBody>
+
     @GET("contextual-messages/by-sender")
     suspend fun getContextualMessagesBySender(
         @Query("address") address: String,

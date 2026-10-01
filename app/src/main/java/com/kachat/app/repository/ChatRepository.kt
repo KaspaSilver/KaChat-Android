@@ -83,6 +83,8 @@ class ChatRepository @Inject constructor(
     private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val peerAliasStore: com.kachat.app.services.PeerAliasStore,
+    /** Message Requests state - accepted, private, blocked (NO_HANDSHAKE_MESSAGING.md). */
+    private val chatRequestStore: ChatRequestStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -200,6 +202,13 @@ class ChatRepository @Inject constructor(
         return database.messageDao().getMessagesForContactBefore(contactId, address, before.blockTimestamp, before.id, limit)
     }
 
+    /** Per contact: first message time and whether you ever sent anything (Message Requests). */
+    fun getContactMessageStats(): Flow<List<com.kachat.app.services.database.ContactMessageStats>> =
+        scopedToActiveAccount({ address -> database.messageDao().getContactMessageStats(address) }, emptyList())
+
+    /** The active wallet's Message Requests state; re-emits on any change. */
+    fun chatRequestStateFlow(): Flow<ChatRequestState> = chatRequestStore.stateFlow()
+
     fun getLatestMessages(): Flow<List<MessageEntity>> {
         return scopedToActiveAccount({ address -> database.messageDao().getLatestMessagePerContact(address) }, emptyList())
     }
@@ -232,6 +241,184 @@ class ChatRepository @Inject constructor(
     fun getContacts(): Flow<List<ContactEntity>> {
         return scopedToActiveAccount({ address -> database.contactDao().getContacts(address) }, emptyList())
     }
+
+    // MARK: - Message Requests (NO_HANDSHAKE_MESSAGING.md, iOS 9fbcfd7)
+
+    /** Last time the poll path asked the inbox - see [syncMessages]. */
+    @Volatile
+    private var lastInboxSyncAt = 0L
+    private val inboxSyncMutex = kotlinx.coroutines.sync.Mutex()
+
+    /** Whether each indexer answers inbox lookups, by URL. */
+    private val inboxSupportByIndexer = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /**
+     * Whether the configured indexer answers inbox lookups - probed once per indexer URL; an
+     * unreachable indexer is asked again next time. An indexer without it would drop a `dm`
+     * transaction from its index altogether, so nothing is ever sent tagged to one.
+     */
+    suspend fun inboxSupported(): Boolean {
+        val base = runCatching { settingsRepository.indexerUrl.first() }.getOrNull().orEmpty()
+        inboxSupportByIndexer[base]?.let { return it }
+        val api = networkService.indexerApi.value ?: return false
+        val answer = try {
+            val response = api.probeContextualMessagesByInbox(tag = "0".repeat(32))
+            response.body()?.close()
+            response.errorBody()?.close()
+            when {
+                response.isSuccessful -> true
+                response.code() == 404 -> false
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        } ?: return false
+        inboxSupportByIndexer[base] = answer
+        return answer
+    }
+
+    /**
+     * The inbox tag for a message to [address], or null to send it untagged. Only the FIRST
+     * message carries it - one tagged message tells the recipient who wrote, and their app
+     * fetches everything after it by sender and alias, unlinked. So: not once a tagged message
+     * has gone out to them ([ChatRequestState.inboxTagged], set on a successful submit), not once
+     * they have written to us, never in a Private chat, and only when the indexer files `dm`.
+     */
+    suspend fun firstContactInboxTag(address: String): String? {
+        val me = runCatching { walletManager.getAddress() }.getOrNull() ?: return null
+        if (address.equals(me, ignoreCase = true)) return null
+        val state = chatRequestStore.state(me)
+        val key = address.lowercase()
+        if (key in state.privateChats || key in state.inboxTagged) return null
+        if (database.messageDao().hasReceivedFromContact(address, me)) return null
+        if (!inboxSupported()) return null
+        return com.kachat.app.util.InboxTag.compute(address)
+    }
+
+    /** The one tagged first message to [address] is out - nothing after it is tagged. */
+    fun noteInboxTagged(address: String) = chatRequestStore.markInboxTagged(address)
+
+    /**
+     * Finds people who wrote to this wallet first: asks the indexer for our inbox tag, then pulls
+     * each new sender's whole history the normal way (sender + alias). Blocked senders are
+     * skipped. Their chat lands in Message Requests ([isMessageRequest]).
+     */
+    suspend fun syncInbox(
+        myAddress: String = runCatching { walletManager.getAddress() }.getOrDefault(""),
+        api: KasiaIndexerApi? = networkService.indexerApi.value,
+    ) {
+        if (myAddress.isEmpty() || api == null) return
+        if (!inboxSupported()) return
+        if (!inboxSyncMutex.tryLock()) return
+        try {
+            val since = chatRequestStore.state(myAddress).inboxCursor
+            val found = try {
+                api.getContextualMessagesByInbox(
+                    tag = com.kachat.app.util.InboxTag.compute(myAddress),
+                    blockTime = since.takeIf { it > 0 },
+                )
+            } catch (e: Exception) {
+                noteIndexerError()
+                Log.w("ChatRepository", "Inbox lookup failed", e)
+                return
+            }
+            if (!myAddress.equals(runCatching { walletManager.getAddress() }.getOrNull(), ignoreCase = true)) return
+            found.maxOfOrNull { it.blockTime }?.let { newest ->
+                if (newest > since) chatRequestStore.setInboxCursor(myAddress, newest)
+            }
+            val senders = found.map { it.sender }
+                .filter { it.isNotBlank() && !it.equals(myAddress, ignoreCase = true) && KaspaAddress.isValid(it) }
+                .filterNot { chatRequestStore.isBlocked(it) }
+                .distinct()
+            // Someone already known is fetched by the ordinary sweep (it has their aliases); only
+            // a new sender needs their whole history pulled once.
+            for (sender in senders) {
+                if (database.contactDao().getContact(sender, myAddress) != null) continue
+                val senderPubKeyHex = runCatching {
+                    KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
+                }.getOrNull()
+                database.contactDao().insert(
+                    ContactEntity(
+                        id = sender, walletAddress = myAddress, alias = null, knsName = null,
+                        publicKeyHex = senderPubKeyHex,
+                        // Not accepted yet: out of the push watch list until the user says so.
+                        conversationStatus = "pending",
+                    )
+                )
+                syncContextualMessages(myAddress, api, onlyContactIds = setOf(sender))
+            }
+        } finally {
+            inboxSyncMutex.unlock()
+        }
+    }
+
+    /**
+     * A conversation someone else started that the user hasn't accepted - see
+     * [ChatRequestStore.isMessageRequest]. Read straight from the database, for the sync and push
+     * paths; the chat list derives the same answer from its flows.
+     */
+    suspend fun isMessageRequest(contact: ContactEntity, myAddress: String = walletManager.getAddress()): Boolean {
+        val first = database.messageDao().getFirstMessageForContact(contact.id, myAddress) ?: return false
+        return ChatRequestStore.isMessageRequest(
+            contactId = contact.id,
+            contactAddedAt = contact.addedAt,
+            myAddress = myAddress,
+            state = chatRequestStore.state(myAddress),
+            firstMessageAt = first.blockTimestamp,
+            anySent = database.messageDao().hasSentToContact(contact.id, myAddress),
+        )
+    }
+
+    fun isChatBlocked(address: String): Boolean = chatRequestStore.isBlocked(address)
+
+    /** Push: records [address] as rung with "New message request"; false when it already was. */
+    fun markRequestNotified(address: String): Boolean = chatRequestStore.markRequestNotified(address)
+
+    /**
+     * Banners from the sync path (a device with no push): a Message Request rings once, "New
+     * message request", then stays silent until accepted. True when [contact] is a request, so
+     * the caller's ordinary banner is skipped.
+     */
+    private suspend fun notifyAsMessageRequest(contact: ContactEntity, myAddress: String, txId: String): Boolean {
+        if (!isMessageRequest(contact, myAddress)) return false
+        if (chatRequestStore.markRequestNotified(contact.id, myAddress)) {
+            notificationHelper.showMessageRequest(contact.id, dedupeTxId = txId)
+        }
+        return true
+    }
+
+    /**
+     * Accept: the chat joins the chat list. Nothing is sent on chain. Also what writing to or
+     * paying someone does - and it lifts a block, since messaging them is consent.
+     */
+    suspend fun acceptChat(address: String) {
+        chatRequestStore.accept(address)
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull() ?: return
+        val existing = database.contactDao().getContact(address, myAddress) ?: return
+        if (existing.conversationStatus != "active") {
+            val activated = existing.copy(conversationStatus = "active")
+            database.contactDao().insert(activated)
+            noteConversationActivated(existing, activated)
+        }
+    }
+
+    /**
+     * Reject: their messages are deleted from this device and the address is blocked - ignored
+     * by discovery, fetching and notifications until the user writes to them.
+     */
+    suspend fun rejectChat(address: String) {
+        chatRequestStore.block(address)
+        deleteChat(address)
+    }
+
+    /**
+     * Starting a chat as Private: it never carries the inbox tag, so nothing on chain links the
+     * two people. The other side isn't notified; they see it once they start a private chat with
+     * this address too (NO_HANDSHAKE_MESSAGING.md §3.1). Starting any chat accepts it.
+     */
+    fun setPrivateChat(address: String, isPrivate: Boolean) = chatRequestStore.setPrivate(address, isPrivate)
+
+    fun isPrivateChat(address: String): Boolean = chatRequestStore.isPrivate(address)
 
     /**
      * Permanently deletes [contactId] and every local message with them — replaces the old
@@ -986,6 +1173,13 @@ class ChatRepository @Inject constructor(
 
         syncHandshakes(myAddress, api)
         syncOutgoingHandshakes(myAddress, api)
+        // People writing to us for the first time, without a handshake (Message Requests) - its
+        // own cursor, its own phase. On the fast poll tick only every so often.
+        val nowForInbox = System.currentTimeMillis()
+        if (!fromPollLoop || nowForInbox - lastInboxSyncAt >= INBOX_POLL_INTERVAL_MS) {
+            lastInboxSyncAt = nowForInbox
+            syncInbox(myAddress, api)
+        }
         // Saved-handshake notes: re-create chats that never had a handshake after a fresh
         // import, and write the notes still missing (iOS fe45704). Not on the fast poll tick.
         if (!fromPollLoop) contactNotesLazy.get().syncNotesInBackground()
@@ -1163,6 +1357,9 @@ class ChatRepository @Inject constructor(
             Log.i("ChatRepository", "Handshake ${handshake.txId.take(16)} has no resolvable sender yet - will retry")
             return false
         }
+        // A rejected (blocked) address stays blocked: a handshake from them is ignored, not a way
+        // back in. Only the user writing to them lifts it (acceptChat).
+        if (chatRequestStore.isBlocked(sender)) return true
 
         // A deleted contact's tombstone outlives the contact row itself. This still matters even
         // with the block_time sync cursor above: the very first sync for a *newly re-created*
@@ -1221,7 +1418,7 @@ class ChatRepository @Inject constructor(
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. The sync still lands the handshake; it just no longer
         // announces it. Only a device with no push at all banners from here.
-        if (!backfill && !pushState.isActive) {
+        if (!backfill && !pushState.isActive && !notifyAsMessageRequest(updatedContact, myAddress, handshake.txId)) {
             notificationHelper.show(
                 contactId = sender,
                 title = if (newStatus == "pending") "Request to communicate" else "Connected",
@@ -1485,6 +1682,8 @@ class ChatRepository @Inject constructor(
      * to the account the sync actually started with.
      */
     private suspend fun processContextualMessage(myAddress: String, contact: ContactEntity, message: ContextualMessageIndexerResponse) {
+        // Rejected in Message Requests: nothing they send is kept, until the user writes to them.
+        if (contact.id != myAddress && chatRequestStore.isBlocked(contact.id)) return
         val encryptedBytes = decodeContextualMessagePayload(message.messagePayload)
         val encryptedMessage = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes) ?: return
         // Decryption only needs our own private key + the ephemeral key embedded in the
@@ -1588,7 +1787,7 @@ class ChatRepository @Inject constructor(
         }
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. Only a device with no push at all banners from here.
-        if (!backfill && !pushState.isActive) {
+        if (!backfill && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, message.txId)) {
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.displayName,
@@ -1794,7 +1993,8 @@ class ChatRepository @Inject constructor(
          */
         internal fun decodeOnChainContextualPayload(hexPayload: String): ByteArray? {
             val text = try {
-                String(hexPayload.hexToBytes(), Charsets.US_ASCII)
+                // A first-contact `dm` message reads as `comm` (NO_HANDSHAKE_MESSAGING.md).
+                MessageProtocol.normalizeFirstContact(String(hexPayload.hexToBytes(), Charsets.US_ASCII))
             } catch (e: Exception) {
                 return null
             }
@@ -1842,6 +2042,8 @@ class ChatRepository @Inject constructor(
         /** Poll-path contact-sweep shape — see [syncContextualMessages]. Matches iOS's
          *  startForegroundContactSweep (5s between sweeps, 100-120ms between contacts, cap 40). */
         private const val CONTACT_SWEEP_MIN_INTERVAL_MS = 5_000L
+        /** How often the fast poll tick also asks the inbox for first-contact messages. */
+        private const val INBOX_POLL_INTERVAL_MS = 30_000L
         private const val CONTACT_SWEEP_CAP = 40
         private const val CONTACT_SWEEP_SPACING_MS = 110L
 

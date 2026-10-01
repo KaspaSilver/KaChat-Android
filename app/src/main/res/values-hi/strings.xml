@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">अगर यह सीड आपकी पहचान किसी दूसरे पते पर पहले से रखता है - कोई डोमेन (.kas, .k या .kaspa) या बैलेंस वाला चैट पता - तो उसे यहाँ चुनें। सिर्फ़ बैलेंस या डोमेन वाले पते दिखाए जाते हैं।</string>
     <string name="chatting_picker_other_names_count">.k और .kaspa नाम (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">मैसेज अनुरोध</string>
+    <string name="message_requests_row_sub">जिन लोगों ने आपको पहले लिखा</string>
+    <string name="message_requests_none_new">कोई नया अनुरोध नहीं</string>
+    <string name="message_requests_footer">पढ़ने के लिए अनुरोध खोलें। जवाब देने और चैट में ले जाने के लिए स्वीकारें; अस्वीकारें उसे हटा देता है और जब तक आप न लिखें, वह पता आप तक नहीं पहुँच सकता।</string>
+    <string name="message_requests_empty">कोई मैसेज अनुरोध नहीं</string>
+    <string name="message_request_wants_to_chat">%1$s चैट करना चाहते हैं। जवाब देने के लिए स्वीकारें - आपके जवाब देने तक कुछ नहीं भेजा जाता।</string>
+    <string name="message_request_reject">अस्वीकारें</string>
+    <string name="message_request_reject_confirm">यह अनुरोध अस्वीकारें?</string>
+    <string name="message_request_reject_message">उनके मैसेज इस डिवाइस से हटा दिए जाते हैं, और जब तक आप उन्हें न लिखें, यह पता आप तक दोबारा नहीं पहुँच सकता।</string>
+    <string name="private_chat_notice">प्राइवेट चैट - चेन पर आप दोनों को कुछ भी नहीं जोड़ता, इसलिए %1$s को सूचना नहीं मिलती। जब वे भी आपके पते के साथ प्राइवेट चैट शुरू करेंगे, तब आपके मैसेज देख पाएँगे।</string>
+    <string name="private_chat">प्राइवेट चैट</string>
+    <string name="private_chat_on_footer">चेन पर आप दोनों को कुछ नहीं जोड़ता - यह भी नहीं कि पहले किसने लिखा। सामने वाले को सूचना नहीं मिलती: वे आपके पते के साथ प्राइवेट चैट शुरू करने पर ही मैसेज देखेंगे, इसलिए पहले कहीं और तय कर लें।</string>
+    <string name="private_chat_off_footer">आपका पहला मैसेज मैसेज अनुरोध के रूप में पहुँचेगा। अगर आप चेन पर अपने बीच कोई लिंक नहीं छोड़ना चाहते, तो प्राइवेट चैट चालू करें।</string>
+    <string name="new_message_request">नया मैसेज अनुरोध</string>
+    <string name="wants_to_chat_with_you">%1$s आपसे चैट करना चाहते हैं।</string>
 </resources>

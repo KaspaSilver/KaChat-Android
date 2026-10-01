@@ -103,6 +103,27 @@ interface MessageDao {
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE id = :id AND walletAddress = :walletAddress)")
     suspend fun exists(id: String, walletAddress: String): Boolean
 
+    /** Per contact: when its first message was and whether you ever sent anything - what
+     *  Message Requests decides from (ChatRequestStore.isMessageRequest). */
+    @Query(
+        """
+        SELECT contactId, MIN(blockTimestamp) AS firstAt,
+               MAX(CASE WHEN direction = 'sent' THEN 1 ELSE 0 END) AS anySent
+        FROM messages WHERE walletAddress = :walletAddress GROUP BY contactId
+        """
+    )
+    fun getContactMessageStats(walletAddress: String): Flow<List<ContactMessageStats>>
+
+    @Query("SELECT * FROM messages WHERE walletAddress = :walletAddress AND contactId = :contactId ORDER BY blockTimestamp ASC LIMIT 1")
+    suspend fun getFirstMessageForContact(contactId: String, walletAddress: String): MessageEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE walletAddress = :walletAddress AND contactId = :contactId AND direction = 'sent')")
+    suspend fun hasSentToContact(contactId: String, walletAddress: String): Boolean
+
+    /** Anything they sent us we can see - a message, payment or handshake. */
+    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE walletAddress = :walletAddress AND contactId = :contactId AND direction = 'received')")
+    suspend fun hasReceivedFromContact(contactId: String, walletAddress: String): Boolean
+
     @Query("SELECT * FROM messages WHERE id = :id AND walletAddress = :walletAddress")
     suspend fun getById(id: String, walletAddress: String): MessageEntity?
 
@@ -299,3 +320,10 @@ interface MessageDao {
     @Query("DELETE FROM message_sync_cursors WHERE walletAddress = :walletAddress AND contactId IN (:contactIds)")
     suspend fun deleteSyncCursorsForContacts(walletAddress: String, contactIds: List<String>)
 }
+
+/** Row of [MessageDao.getContactMessageStats]. */
+data class ContactMessageStats(
+    val contactId: String,
+    val firstAt: Long?,
+    val anySent: Int,
+)

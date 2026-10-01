@@ -573,6 +573,9 @@ class WalletService @Inject constructor(
      * ever seeing a handshake (see [WalletManager.theirDeterministicAlias]).
      */
     suspend fun sendKasiaMessage(toContactId: String, text: String, feeRateOverride: Long? = null): SendResult {
+        // Writing to someone is consent: their chat is accepted, and a block on them lifts
+        // (NO_HANDSHAKE_MESSAGING.md §4).
+        if (!toContactId.equals(walletManager.getAddress(), ignoreCase = true)) chatRepository.acceptChat(toContactId)
         val recipientPubKey = KaspaAddress.decode(toContactId).second
         val contact = chatRepository.getContact(toContactId)
 
@@ -583,9 +586,14 @@ class WalletService @Inject constructor(
         }
 
         val encrypted = MessageProtocol.encrypt(text, recipientPubKey)
-        val payloadBytes = MessageProtocol.buildCommPayload(alias, encrypted)
+        // First contact carries their inbox tag so they can find it (NO_HANDSHAKE_MESSAGING.md §3).
+        val inboxTag = chatRepository.firstContactInboxTag(toContactId)
+        val payloadBytes = MessageProtocol.buildCommPayload(alias, encrypted, inboxTag)
 
         val txId = sendKaspa(toAddress = walletManager.getAddress(), amountSompi = 0, payloadBytes = payloadBytes, feeRateOverride = feeRateOverride)
+        // The one tagged first message is out - recorded only after the submit, so a failed send
+        // does not use the tag up.
+        if (inboxTag != null) chatRepository.noteInboxTagged(toContactId)
         return SendResult(txId, payloadBytes.toHexString())
     }
 

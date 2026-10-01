@@ -1808,6 +1808,11 @@ fun MainShell(
                 GroupChatInfoScreen(navController = navController, groupId = groupId, chatViewModel = chatViewModel)
             }
 
+            // Message Requests - people who wrote first and aren't accepted (iOS f7ca401).
+            composable("message_requests") {
+                com.kachat.app.ui.screens.MessageRequestsScreen(navController = navController, chatViewModel = chatViewModel)
+            }
+
             // Chat thread — navigated to from ChatsScreen. paymentMode is an optional query-style
             // arg (defaults false) so a "Pay in Kaspa" shortcut elsewhere (e.g. a broadcast
             // sender's avatar menu) can land the user straight in payment-entry mode.

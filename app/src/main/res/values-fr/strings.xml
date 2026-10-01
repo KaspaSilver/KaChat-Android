@@ -635,4 +635,20 @@
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Si cette phrase de récupération porte déjà votre identité à une autre adresse - un domaine (.kas, .k ou .kaspa) ou un solde de discussion -, choisissez-la ici. Seules les adresses avec un solde ou des domaines sont affichées.</string>
     <string name="chatting_picker_other_names_count">Noms .k et .kaspa (%1$d)</string>
+    <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
+    <string name="message_requests">Demandes de message</string>
+    <string name="message_requests_row_sub">Les personnes qui vous ont écrit en premier</string>
+    <string name="message_requests_none_new">Aucune nouvelle demande</string>
+    <string name="message_requests_footer">Ouvrez une demande pour la lire. Acceptez pour répondre et la déplacer dans vos discussions ; Refuser la supprime et empêche cette adresse de vous joindre jusqu\'à ce que vous lui écriviez.</string>
+    <string name="message_requests_empty">Aucune demande de message</string>
+    <string name="message_request_wants_to_chat">%1$s veut discuter. Acceptez pour répondre - rien n\'est envoyé tant que vous ne répondez pas.</string>
+    <string name="message_request_reject">Refuser</string>
+    <string name="message_request_reject_confirm">Refuser cette demande ?</string>
+    <string name="message_request_reject_message">Ses messages sont supprimés de cet appareil, et cette adresse ne pourra plus vous joindre tant que vous ne lui écrivez pas.</string>
+    <string name="private_chat_notice">Discussion privée - rien ne vous relie sur la chaîne, donc %1$s n\'est pas averti. Vos messages lui apparaîtront dès qu\'il ouvrira lui aussi une discussion privée avec votre adresse.</string>
+    <string name="private_chat">Discussion privée</string>
+    <string name="private_chat_on_footer">Rien ne vous relie sur la chaîne - pas même qui a écrit en premier. L\'autre personne n\'est pas avertie : elle verra vos messages dès qu\'elle ouvrira une discussion privée avec votre adresse, alors convenez-en ailleurs avant.</string>
+    <string name="private_chat_off_footer">Votre premier message lui arrivera comme demande de message. Activez Discussion privée si vous ne voulez laisser aucun lien entre vous sur la chaîne.</string>
+    <string name="new_message_request">Nouvelle demande de message</string>
+    <string name="wants_to_chat_with_you">%1$s veut discuter avec vous.</string>
 </resources>
