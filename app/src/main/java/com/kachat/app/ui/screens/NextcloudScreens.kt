@@ -270,7 +270,7 @@ fun NextcloudPickerDialog(
                     }
                 }
                 if (isLoading && entries.isEmpty()) {
-                    CircularProgressIndicator(
+                    com.kachat.app.ui.theme.IosActivityIndicator(
                         color = KaspaTeal,
                         modifier = Modifier.align(Alignment.Center)
                     )
@@ -317,7 +317,7 @@ private fun NextcloudFileRow(
             }
         }
         if (isSharing) {
-            CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
         }
     }
 }
@@ -383,7 +383,7 @@ private fun NextcloudThumbnailCell(
                     .background(Color.Black.copy(alpha = 0.45f)),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
             }
         }
     }
@@ -505,7 +505,7 @@ fun NextcloudFolderSelectDialog(
                     }
                 }
                 if (isLoading && folders.isEmpty()) {
-                    CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.align(Alignment.Center))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.align(Alignment.Center))
                 }
             }
         }
@@ -544,7 +544,7 @@ fun NextcloudPhotoViewerDialog(
                 contentScale = ContentScale.Fit,
                 loading = {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color.White)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White)
                     }
                 },
                 error = {
@@ -661,7 +661,7 @@ fun NextcloudPdfViewerDialog(
                     )
                 }
                 else -> {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
                 }
             }
             Row(
@@ -731,7 +731,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 // inside NextcloudService.normalizeServer, which also refuses http:// as a
                 // backstop) — an app password and full chat history travel over this connection.
                 val serverIsPlainHttp = server.trim().lowercase().startsWith("http://")
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = server,
                     onValueChange = { server = it },
                     label = { Text("Server (e.g. cloud.example.com)") },
@@ -749,7 +749,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("Username") },
@@ -775,7 +775,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (connecting) {
-                        CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Text("Connect", color = Color.Black, fontWeight = FontWeight.Bold)
                     }

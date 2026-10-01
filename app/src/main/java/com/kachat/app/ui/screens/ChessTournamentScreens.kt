@@ -445,10 +445,10 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                         else "You take the first seat and get a code to share. It starts when eight players have joined. Creating it is one transaction."
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(value = newName, onValueChange = { newName = it }, singleLine = true, placeholder = { Text("Name") })
+                    com.kachat.app.ui.theme.IosTextField(value = newName, onValueChange = { newName = it }, singleLine = true, placeholder = { Text("Name") })
                     if (!duel) {
                         Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(value = creatorCode, onValueChange = { creatorCode = it }, singleLine = true, placeholder = { Text("Creator code") })
+                        com.kachat.app.ui.theme.IosTextField(value = creatorCode, onValueChange = { creatorCode = it }, singleLine = true, placeholder = { Text("Creator code") })
                     }
                 }
             },
@@ -480,7 +480,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                             "${service.feeText(ChessTournamentCodec.join("abcdefgh")) ?: "--"})."
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = privateCode, onValueChange = { privateCode = it }, singleLine = true, placeholder = { Text("Code") },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.None, autoCorrect = false,
@@ -1587,7 +1587,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
     ) { padding ->
         if (tournament == null) {
             Column(Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                CircularProgressIndicator(color = KaspaTeal)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                 Spacer(Modifier.height(12.dp))
                 Text("Loading the tournament from the arena…", color = colors.textSecondary, fontSize = 14.sp)
             }
@@ -1803,7 +1803,7 @@ private fun gameStatus(game: ChessTournamentGame, now: Long, contacts: Map<Strin
 @Composable
 private fun ChessComposer(text: String, onChange: (String) -> Unit, onSend: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
+        com.kachat.app.ui.theme.IosTextField(
             value = text,
             onValueChange = onChange,
             placeholder = { Text("Message (one transaction)") },
@@ -2185,7 +2185,7 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
         },
     ) { padding ->
         if (tournament == null || game == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = KaspaTeal) }
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal) }
             return@Scaffold
         }
         val legalDestinations: List<ChessSquare> = selectedSquare?.takeIf { isMyTurn }?.let { from ->

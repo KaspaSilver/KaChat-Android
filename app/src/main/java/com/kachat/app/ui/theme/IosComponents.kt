@@ -2,8 +2,11 @@ package com.kachat.app.ui.theme
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -164,4 +167,130 @@ fun IosAlertDialog(
             }
         }
     }
+}
+
+/**
+ * The iOS activity indicator: eight rounded spokes, the brightest stepping round, tinted like
+ * every ProgressView under the app's accent tint. Replaces Material's sweeping arc everywhere a
+ * spinner shows. [strokeWidth] and [trackColor] are accepted for call-site compatibility.
+ */
+@Composable
+fun IosActivityIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = LocalAppColors.current.textSecondary,
+    @Suppress("UNUSED_PARAMETER") strokeWidth: androidx.compose.ui.unit.Dp = 0.dp,
+    @Suppress("UNUSED_PARAMETER") trackColor: Color = Color.Unspecified,
+) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "iosSpinner")
+    val step by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 8f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(durationMillis = 800, easing = androidx.compose.animation.core.LinearEasing)
+        ),
+        label = "iosSpinnerStep",
+    )
+    androidx.compose.foundation.Canvas(modifier.then(Modifier.size(24.dp))) {
+        val spokes = 8
+        val lead = step.toInt() % spokes
+        val radius = size.minDimension / 2f
+        val spokeWidth = radius * 0.24f
+        for (i in 0 until spokes) {
+            // The lead spoke is solid; the ones behind it fade out.
+            val age = (lead - i + spokes) % spokes
+            val alpha = 1f - age * (0.75f / spokes)
+            rotate(degrees = i * 360f / spokes) {
+                drawLine(
+                    color = color.copy(alpha = color.alpha * alpha),
+                    start = androidx.compose.ui.geometry.Offset(center.x, center.y - radius * 0.45f),
+                    end = androidx.compose.ui.geometry.Offset(center.x, center.y - radius + spokeWidth / 2f),
+                    strokeWidth = spokeWidth,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The iOS text field: a rounded rectangle with a hairline edge and placeholder text - no
+ * Material outline, no floating label. Takes OutlinedTextField's parameters so every field in the
+ * app switches shape without changing behaviour; a [label] with no [placeholder] is shown as the
+ * placeholder, as an iOS form shows a field's name. [colors] is accepted for call-site
+ * compatibility; the field uses the system colours.
+ */
+@Composable
+fun IosTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    textStyle: androidx.compose.ui.text.TextStyle = LocalTextStyle.current,
+    label: (@Composable () -> Unit)? = null,
+    placeholder: (@Composable () -> Unit)? = null,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    prefix: (@Composable () -> Unit)? = null,
+    suffix: (@Composable () -> Unit)? = null,
+    isError: Boolean = false,
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
+    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    minLines: Int = 1,
+    @Suppress("UNUSED_PARAMETER") colors: androidx.compose.material3.TextFieldColors? = null,
+) {
+    val app = LocalAppColors.current
+    val shape = RoundedCornerShape(10.dp)
+    androidx.compose.material3.TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .clip(shape)
+            .border(0.5.dp, if (isError) app.danger else app.divider, shape),
+        enabled = enabled,
+        readOnly = readOnly,
+        textStyle = textStyle,
+        placeholder = placeholder ?: label,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        prefix = prefix,
+        suffix = suffix,
+        isError = isError,
+        visualTransformation = visualTransformation,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        singleLine = singleLine,
+        maxLines = maxLines,
+        minLines = minLines,
+        shape = shape,
+        colors = androidx.compose.material3.TextFieldDefaults.colors(
+            focusedContainerColor = app.surface,
+            unfocusedContainerColor = app.surface,
+            disabledContainerColor = app.surface,
+            errorContainerColor = app.surface,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            errorIndicatorColor = Color.Transparent,
+            focusedTextColor = app.textPrimary,
+            unfocusedTextColor = app.textPrimary,
+            disabledTextColor = app.textSecondary,
+            errorTextColor = app.textPrimary,
+            cursorColor = app.accent,
+            errorCursorColor = app.danger,
+            focusedPlaceholderColor = app.textSecondary,
+            unfocusedPlaceholderColor = app.textSecondary,
+            focusedLeadingIconColor = app.textSecondary,
+            unfocusedLeadingIconColor = app.textSecondary,
+            focusedTrailingIconColor = app.textSecondary,
+            unfocusedTrailingIconColor = app.textSecondary,
+            focusedPrefixColor = app.textSecondary,
+            unfocusedPrefixColor = app.textSecondary,
+            focusedSuffixColor = app.textSecondary,
+            unfocusedSuffixColor = app.textSecondary,
+        ),
+    )
 }

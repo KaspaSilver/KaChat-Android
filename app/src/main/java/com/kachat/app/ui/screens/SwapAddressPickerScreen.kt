@@ -104,7 +104,7 @@ fun SwapAddressPickerScreen(
     ) { padding ->
         if (loading && addresses.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = KaspaTeal)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
             }
             return@Scaffold
         }
@@ -129,7 +129,7 @@ fun SwapAddressPickerScreen(
                 if (isGenerating) {
                     Spacer(Modifier.height(8.dp))
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                     }
                 }
                 Spacer(Modifier.height(4.dp))

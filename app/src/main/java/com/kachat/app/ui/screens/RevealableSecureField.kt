@@ -43,7 +43,7 @@ fun RevealableSecureField(
     colors: TextFieldColors? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
-    OutlinedTextField(
+    com.kachat.app.ui.theme.IosTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },

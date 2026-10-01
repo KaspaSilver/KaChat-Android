@@ -501,7 +501,7 @@ fun ChessGameScreen(
                 )
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.CircularProgressIndicator(color = KaspaTeal)
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                 }
             }
         }

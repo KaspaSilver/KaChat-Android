@@ -193,7 +193,7 @@ fun ChattingAddressPickerScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Text(
                         stringResource(
@@ -471,7 +471,7 @@ private fun ChattingAddressDetailScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isSwitching) {
-                        CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(

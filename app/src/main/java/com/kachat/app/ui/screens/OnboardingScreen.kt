@@ -499,7 +499,7 @@ fun SavedAccountCard(
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_account), color = LocalAppColors.current.textPrimary) },
             text = {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = nameInput,
                     onValueChange = { nameInput = it },
                     singleLine = true,
@@ -1340,7 +1340,7 @@ private fun PassphraseQuestionStep(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 if (isBusy) {
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 } else {
                     Text("No", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
@@ -1486,7 +1486,7 @@ private fun PassphraseEntryStep(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 if (isBusy) {
-                    CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 } else {
                     Text(
                         if (mode == PassphraseMode.CREATE) "Continue" else "Import",

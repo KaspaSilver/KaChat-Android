@@ -816,7 +816,7 @@ private fun AddressEntryDialog(
     ) {
             if (isImporting) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.CircularProgressIndicator(
+                    com.kachat.app.ui.theme.IosActivityIndicator(
                         color = KaspaTeal,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(20.dp)
@@ -828,7 +828,7 @@ private fun AddressEntryDialog(
                 return@ActionSheetContainer
             }
             Column(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = addressText,
                     onValueChange = { addressText = it },
                     placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
@@ -839,7 +839,7 @@ private fun AddressEntryDialog(
                     Spacer(Modifier.height(6.dp))
                     when {
                         isResolvingKns -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         }
@@ -2329,7 +2329,7 @@ private fun TransactionDialog(
                 // Full width, stacked rather than side-by-side — a half-width field cut off KAS
                 // prices with several decimal digits (e.g. "0.02874099"), which didn't fit next
                 // to Quantity in a shared row and just clipped at the field's edge.
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = quantityText,
                     onValueChange = { quantityText = it },
                     label = { Text(stringResource(R.string.quantity)) },
@@ -2338,7 +2338,7 @@ private fun TransactionDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = priceText,
                     onValueChange = { priceText = it },
                     label = { Text(stringResource(R.string.price_per_coin)) },
@@ -2364,7 +2364,7 @@ private fun TransactionDialog(
                 }
                 Spacer(Modifier.height(12.dp))
 
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = feeText,
                     onValueChange = { feeText = it },
                     label = { Text(stringResource(R.string.fee_usd_optional)) },
@@ -2374,7 +2374,7 @@ private fun TransactionDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = notesText,
                     onValueChange = { notesText = it },
                     label = { Text(stringResource(R.string.notes_optional)) },
@@ -2550,7 +2550,7 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
     ) {
         Text("Converter", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
-        OutlinedTextField(
+        com.kachat.app.ui.theme.IosTextField(
             value = kasText,
             // Grouped as you type - "1200000" is a number you have to count digits on.
             onValueChange = {
@@ -2564,7 +2564,7 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
+        com.kachat.app.ui.theme.IosTextField(
             value = fiatText,
             onValueChange = {
                 fiatText = com.kachat.app.util.DecimalInputFormat.grouped(it)
@@ -2969,7 +2969,7 @@ private fun MiningEstimateCard(
     ) {
         Text("Mining Estimate", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
-        OutlinedTextField(
+        com.kachat.app.ui.theme.IosTextField(
             value = amountText,
             // Grouped as you type - "1200000" is a number you have to count digits on.
             onValueChange = { amountText = com.kachat.app.util.DecimalInputFormat.grouped(it) },

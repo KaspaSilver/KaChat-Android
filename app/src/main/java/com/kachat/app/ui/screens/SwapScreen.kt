@@ -226,7 +226,7 @@ fun SwapScreen(
                     modifier = Modifier.weight(1f).height(40.dp)
                 ) {
                     if (isBusy) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Black, strokeWidth = 2.dp)
+                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp), color = Color.Black, strokeWidth = 2.dp)
                     } else {
                         Text(
                             "Get Deposit Address",
@@ -249,7 +249,7 @@ fun SwapScreen(
 
             if (needsPayoutAddress) {
                 Spacer(Modifier.height(16.dp))
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = payoutAddressText,
                     onValueChange = { swapViewModel.setPayoutAddressText(it) },
                     label = { Text("Receive ${toCoinForDisplay.displayName} at") },
@@ -949,10 +949,10 @@ private fun SwapAmountCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isQuoting) {
                     Box(modifier = Modifier.weight(1f).height(56.dp), contentAlignment = Alignment.CenterStart) {
-                        CircularProgressIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
                     }
                 } else {
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = amountText,
                         onValueChange = onAmountChange,
                         placeholder = { Text(stringResource(R.string.n_0_00), color = LocalAppColors.current.textSecondary) },
@@ -1070,7 +1070,7 @@ private fun SwapCoinPickerDialog(currentCoin: SwapCoin, onDismiss: () -> Unit, o
             }
         ) { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
                     placeholder = { Text(stringResource(R.string.search_coins), color = LocalAppColors.current.textSecondary) },

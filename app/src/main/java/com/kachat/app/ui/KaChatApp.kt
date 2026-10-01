@@ -467,7 +467,7 @@ fun MainShell(
                         Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.height(14.dp))
                     Text("Setting up your account", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))

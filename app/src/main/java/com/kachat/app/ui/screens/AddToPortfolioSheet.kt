@@ -264,7 +264,7 @@ fun AddToPortfolioSheet(
                     }
                 }
 
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
                     label = { Text("Amount (KAS)", color = colors.textSecondary) },
@@ -272,13 +272,13 @@ fun AddToPortfolioSheet(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = priceText,
                     onValueChange = { priceText = it },
                     label = { Text("Price per KAS", color = colors.textSecondary) },
                     trailingIcon = {
                         if (isLookingUpPrice) {
-                            CircularProgressIndicator(strokeWidth = 1.5.dp, modifier = Modifier.size(16.dp), color = colors.textSecondary)
+                            com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 1.5.dp, modifier = Modifier.size(16.dp), color = colors.textSecondary)
                         }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -288,7 +288,7 @@ fun AddToPortfolioSheet(
                 if (total != null) {
                     Text("Total ${formatFiatAmount(total, currencyCode)}", color = colors.textSecondary, fontSize = 13.sp)
                 }
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Note (optional)", color = colors.textSecondary) },

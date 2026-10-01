@@ -108,7 +108,7 @@ fun CacheSettingsScreen(
                 Text("Total", color = colors.textSecondary, fontSize = 12.sp)
                 if (measuring && total == 0L) {
                     Spacer(Modifier.height(6.dp))
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.height(22.dp).width(22.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.height(22.dp).width(22.dp))
                 } else {
                     Text(
                         CacheManager.formatted(total),

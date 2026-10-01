@@ -340,7 +340,7 @@ fun ColdStorageListScreen(
             subtitle = stringResource(R.string.paste_the_kpub_exported_from_your),
             onDismiss = { showManualEntry = false },
         ) {
-            OutlinedTextField(
+            com.kachat.app.ui.theme.IosTextField(
                 value = manualKpubInput,
                 onValueChange = { manualKpubInput = it },
                 label = { Text(stringResource(R.string.kpub_2)) },
@@ -421,7 +421,7 @@ fun ColdStorageListScreen(
                     color = colors.textSecondary,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = nameInput,
                     onValueChange = { nameInput = it },
                     label = { Text(stringResource(R.string.name)) },
@@ -641,7 +641,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
                         if (isUserDiscovering) {
-                            CircularProgressIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
+                            com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
                         } else {
                             Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
@@ -661,7 +661,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
             if (isDiscovering && addresses.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = KaspaTeal)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                     }
                 }
             } else if (visibleAddresses.isEmpty()) {
@@ -1462,7 +1462,7 @@ private fun ColdSendFlow(
                             style = MaterialTheme.typography.bodySmall
                         )
                     } else {
-                        OutlinedTextField(
+                        com.kachat.app.ui.theme.IosTextField(
                             value = toAddress,
                             onValueChange = { toAddress = it },
                             placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
@@ -1480,7 +1480,7 @@ private fun ColdSendFlow(
                         if (toAddress.isNotEmpty()) {
                             if (isResolvingKns) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                                 }
@@ -1554,7 +1554,7 @@ private fun ColdSendFlow(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = fiatAmountState.displayText,
                         onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
                         placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else stringResource(R.string.amount_kas)) },
@@ -1592,7 +1592,7 @@ private fun ColdSendFlow(
                                     )
                                 }
                                 if (isEstimatingMax) {
-                                    CircularProgressIndicator(
+                                    com.kachat.app.ui.theme.IosActivityIndicator(
                                         color = KaspaTeal,
                                         modifier = Modifier.size(16.dp),
                                         strokeWidth = 2.dp
@@ -1734,7 +1734,7 @@ private fun ColdSendFlow(
 
                 ColdStorageViewModel.ColdSendStep.BUILDING -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 32.dp)) {
-                        CircularProgressIndicator(color = KaspaTeal)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         Spacer(Modifier.height(12.dp))
                         Text(stringResource(R.string.building_transaction), color = LocalAppColors.current.textSecondary)
                     }
@@ -1788,7 +1788,7 @@ private fun ColdSendFlow(
 
                 ColdStorageViewModel.ColdSendStep.BROADCASTING -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 32.dp)) {
-                        CircularProgressIndicator(color = KaspaTeal)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         Spacer(Modifier.height(12.dp))
                         Text(stringResource(R.string.broadcasting), color = LocalAppColors.current.textSecondary)
                     }
@@ -1851,7 +1851,7 @@ private fun ColdSendFlow(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
                         label = { Text(stringResource(R.string.fee_kas)) },
@@ -1992,7 +1992,7 @@ fun CoinControlScreen(
         when {
             isLoading && utxos.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = KaspaTeal)
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                 }
             }
             utxos.isEmpty() -> {
@@ -2250,7 +2250,7 @@ fun ColdStorageTxHistoryScreen(
                 2 -> when {
                     isLoadingKnsDomains && knsDomains.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     knsDomains.isEmpty() -> {
@@ -2281,7 +2281,7 @@ fun ColdStorageTxHistoryScreen(
                 0 -> when {
                     isLoading && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     txHistory.isEmpty() -> {
@@ -2310,7 +2310,7 @@ fun ColdStorageTxHistoryScreen(
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     utxos.isEmpty() -> {
@@ -2582,7 +2582,7 @@ private fun ColdStorageAddressActionsSheet(
 
             if (isDiscovering) {
                 Spacer(Modifier.height(8.dp))
-                CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
                 Text(
                     "Checking address #${progress?.checkingIndex ?: 0}",
                     color = colors.textPrimary,

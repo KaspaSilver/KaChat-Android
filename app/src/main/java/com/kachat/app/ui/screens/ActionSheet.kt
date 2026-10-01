@@ -357,7 +357,7 @@ fun ColumnScope.ActionSheetRenameFields(
     // already the decision to type.
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    OutlinedTextField(
+    com.kachat.app.ui.theme.IosTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },

@@ -244,7 +244,7 @@ private fun NextcloudAudioBubble(
                 if (failed) {
                     Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
                 } else {
-                    CircularProgressIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
                 }
                 Spacer(Modifier.width(10.dp))
                 Column {
@@ -510,7 +510,7 @@ private fun NextcloudMediaBubble(data: LinkPreviewData, url: String, txId: Strin
                         .background(LocalAppColors.current.surface),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = LocalAppColors.current.textSecondary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = LocalAppColors.current.textSecondary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 }
             },
             error = {

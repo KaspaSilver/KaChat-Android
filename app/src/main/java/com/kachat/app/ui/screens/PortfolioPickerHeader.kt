@@ -273,7 +273,7 @@ private fun PortfolioNameDialog(
         containerColor = LocalAppColors.current.surface,
         title = { Text(title, color = LocalAppColors.current.textPrimary) },
         text = {
-            OutlinedTextField(
+            com.kachat.app.ui.theme.IosTextField(
                 value = text,
                 onValueChange = { text = it },
                 label = { Text("Portfolio Name") },
@@ -393,7 +393,7 @@ private fun PortfolioActionsSheet(
                 }
 
                 SheetMode.RENAME -> {
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = renameText,
                         onValueChange = { renameText = it },
                         label = { Text("Portfolio Name") },

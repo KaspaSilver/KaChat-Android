@@ -1618,7 +1618,7 @@ fun ChatThreadScreen(
                     if (showOlderSpinner) {
                         item(key = "older-history-spinner") {
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(
+                                com.kachat.app.ui.theme.IosActivityIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
                                     color = LocalAppColors.current.textSecondary,
@@ -1817,7 +1817,7 @@ fun ChatThreadScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
                         label = { Text(stringResource(R.string.fee_kas)) },
@@ -1984,7 +1984,7 @@ private fun UnnotifiedMessageBanner(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isSendingHandshake) {
-                            CircularProgressIndicator(
+                            com.kachat.app.ui.theme.IosActivityIndicator(
                                 color = colors.textOnAccent,
                                 strokeWidth = 1.5.dp,
                                 modifier = Modifier.size(12.dp)
@@ -2289,7 +2289,7 @@ fun MessageBubble(
                                 // Accepting broadcasts a transaction, which takes seconds. The
                                 // button used to look idle the whole time, so a slow accept and a
                                 // failed one were indistinguishable from a dead one.
-                                CircularProgressIndicator(
+                                com.kachat.app.ui.theme.IosActivityIndicator(
                                     strokeWidth = 2.dp,
                                     color = Color.Black,
                                     modifier = Modifier.size(16.dp)
@@ -3453,7 +3453,7 @@ fun ImageBubble(
             modifier = Modifier.size(width = 220.dp, height = 160.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
             }
         }
         return
@@ -3911,7 +3911,7 @@ fun ProfileScreen(
                 var editedName by remember { mutableStateOf("") }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isEditingName) {
-                        OutlinedTextField(
+                        com.kachat.app.ui.theme.IosTextField(
                             value = editedName,
                             onValueChange = { editedName = it },
                             singleLine = true,
@@ -4227,7 +4227,7 @@ fun ProfileScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp)
                         Spacer(Modifier.height(12.dp))
                         Text("Preparing a fresh address", color = Color.White, fontSize = 14.sp)
                     }
@@ -4477,7 +4477,7 @@ private fun ServiceNameListTab(tld: com.kachat.app.services.NameServiceTLD, view
             item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
                     when {
-                        tld in loading && owned[tld] == null -> CircularProgressIndicator(color = KaspaTeal)
+                        tld in loading && owned[tld] == null -> com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         tld in failed -> Text(
                             stringResource(R.string.could_not_reach_service, tld.serviceName),
                             color = LocalAppColors.current.textSecondary,
@@ -4658,7 +4658,7 @@ fun KnsDomainDetailScreen(
                         modifier = Modifier.weight(1f)
                     )
                     if (settingInFlight) {
-                        CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(
                             if (isPrimary) Icons.Default.Star else Icons.Default.StarBorder,
@@ -4752,7 +4752,7 @@ fun KnsDomainSendScreen(
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) {
                         if (inFlight) {
-                            CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
                             Text(stringResource(R.string.send), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
@@ -4830,7 +4830,7 @@ fun KnsDomainSendScreen(
                 }
                 else -> {
                     Text(stringResource(R.string.recipient_address).uppercase(), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = recipientInput,
                         onValueChange = {
                             recipientInput = it
@@ -4892,7 +4892,7 @@ fun KnsDomainSendScreen(
                     ) {
                         Text(stringResource(R.string.network_fee), color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
                         if (isEditingFee) {
-                            OutlinedTextField(
+                            com.kachat.app.ui.theme.IosTextField(
                                 value = customFeeText,
                                 onValueChange = { customFeeText = it },
                                 singleLine = true,
@@ -5187,7 +5187,7 @@ fun ManageAddressesScreen(
                 if (loading && addresses.isEmpty()) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                 } else if (chatPrivacyAddresses.isEmpty()) {
@@ -5258,7 +5258,7 @@ fun ManageAddressesScreen(
                             modifier = Modifier.fillMaxWidth().height(48.dp)
                         ) {
                             if (isDiscoveringAddresses) {
-                                CircularProgressIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
+                                com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
                             } else {
                                 Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             }
@@ -5305,7 +5305,7 @@ fun ManageAddressesScreen(
             if (loading && addresses.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = KaspaTeal)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                     }
                 }
             } else {
@@ -5448,7 +5448,7 @@ private fun RenameAddressDialog(
             Column {
                 Text("Address #$index", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = nameInput,
                     onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.name)) },
@@ -6101,7 +6101,7 @@ fun SpendingAddressSendFlow(
                     )
                 }
             } else {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = recipientInput,
                     onValueChange = { recipientInput = it },
                     placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
@@ -6120,7 +6120,7 @@ fun SpendingAddressSendFlow(
                 if (recipientInput.isNotEmpty()) {
                     if (isResolvingKns) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                         }
@@ -6193,7 +6193,7 @@ fun SpendingAddressSendFlow(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
             )
-            OutlinedTextField(
+            com.kachat.app.ui.theme.IosTextField(
                 value = fiatAmountState.displayText,
                 onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
                 placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else stringResource(R.string.amount_kas)) },
@@ -6232,7 +6232,7 @@ fun SpendingAddressSendFlow(
                             )
                         }
                         if (isEstimatingMax) {
-                            CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
                             TextButton(
                                 onClick = {
@@ -6410,7 +6410,7 @@ fun SpendingAddressSendFlow(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
                         label = { Text(stringResource(R.string.fee_kas)) },
@@ -6691,7 +6691,7 @@ fun SpendingAddressTxHistoryScreen(
                 0 -> when {
                     isLoadingTxHistory && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     // A failed fetch is not an empty history. Saying "No transactions yet."
@@ -6739,7 +6739,7 @@ fun SpendingAddressTxHistoryScreen(
                 2 -> when {
                     isLoadingKnsDomains && knsDomains.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     knsDomains.isEmpty() -> {
@@ -6770,7 +6770,7 @@ fun SpendingAddressTxHistoryScreen(
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     utxos.isEmpty() -> {
@@ -6844,7 +6844,7 @@ fun SpendingAddressTxHistoryScreen(
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_utxo), color = LocalAppColors.current.textPrimary) },
             text = {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = labelInput,
                     onValueChange = { labelInput = it },
                     label = { Text(stringResource(R.string.name)) },
@@ -7092,7 +7092,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                 0 -> when {
                     isLoadingTxHistory && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     // A failed fetch is not an empty history. Saying "No transactions yet."
@@ -7140,7 +7140,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     utxos.isEmpty() -> {
@@ -7250,7 +7250,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_utxo), color = LocalAppColors.current.textPrimary) },
             text = {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = labelInput,
                     onValueChange = { labelInput = it },
                     label = { Text(stringResource(R.string.name)) },
@@ -8378,7 +8378,7 @@ fun KnsDomainProfileEditorScreen(
     // The fields seed once per domain, so they wait for its profile rather than seeding empty.
     if (loading || current?.assetId != domain.assetId) {
         Box(Modifier.fillMaxSize().background(LocalAppColors.current.background), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = KaspaTeal)
+            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
         }
         return
     }
@@ -8388,7 +8388,7 @@ fun KnsDomainProfileEditorScreen(
 @Composable
 private fun InscribeProgressRow(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Spacer(Modifier.width(12.dp))
         Text(text, color = LocalAppColors.current.textPrimary)
     }
@@ -8673,7 +8673,7 @@ fun EditKnsProfileScreen(
                     WalletViewModel.EditProfileStep.UPLOADING_AVATAR,
                     WalletViewModel.EditProfileStep.UPLOADING_BANNER,
                     WalletViewModel.EditProfileStep.SUBMITTING_FIELD -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        CircularProgressIndicator(color = KaspaTeal)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         Spacer(Modifier.height(12.dp))
                         Text(
                             when (editState.step) {
@@ -8743,7 +8743,7 @@ fun EditKnsProfileScreen(
 
 @Composable
 private fun EditProfileTextField(label: String, value: String, onValueChange: (String) -> Unit, enabled: Boolean, singleLine: Boolean = true) {
-    OutlinedTextField(
+    com.kachat.app.ui.theme.IosTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
@@ -10964,7 +10964,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             title = { Text("KaPost Indexer URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = draft,
                         onValueChange = { draft = it; rejected = false },
                         singleLine = true,
@@ -11001,7 +11001,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             title = { Text("Translation Service URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = draft,
                         onValueChange = { draft = it },
                         singleLine = true,
@@ -11678,7 +11678,7 @@ fun CreateChatScreen(
                 actions = {
                     if (isGroupMode) {
                         if (isCreatingGroup) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(16.dp))
                         } else {
                             TextButton(
@@ -11769,7 +11769,7 @@ fun CreateChatScreen(
                     if (looksLikeKnsDomain && isResolvingKns) {
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
@@ -11850,7 +11850,7 @@ fun CreateChatScreen(
                                 )
                             }
                             if (stillLoading) {
-                                CircularProgressIndicator(
+                                com.kachat.app.ui.theme.IosActivityIndicator(
                                     color = KaspaTeal,
                                     strokeWidth = 2.dp,
                                     modifier = Modifier.size(16.dp),
@@ -11934,7 +11934,7 @@ fun CreateChatScreen(
                 
                 if (looksLikeKnsDomain && isResolvingKns) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
+                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
@@ -12045,7 +12045,7 @@ fun CreateChatScreen(
                             )
                         }
                         if (stillLoading) {
-                            CircularProgressIndicator(
+                            com.kachat.app.ui.theme.IosActivityIndicator(
                                 color = KaspaTeal,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(16.dp),
@@ -12125,7 +12125,7 @@ fun CreateChatScreen(
 
                 if (pickerContacts.isEmpty()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(
+                        com.kachat.app.ui.theme.IosActivityIndicator(
                             color = KaspaTeal,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(16.dp),
@@ -13838,7 +13838,7 @@ private fun ManageAddressesActionsSheet(
 
             if (isDiscovering) {
                 Spacer(Modifier.height(8.dp))
-                CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
                 Text(
                     "Checking address #${progress?.checkingIndex ?: 0}",
                     color = colors.textPrimary,

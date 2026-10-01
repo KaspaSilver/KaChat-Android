@@ -121,7 +121,7 @@ fun AddressResolutionCard(
             )
         }
         if (looking) {
-            CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
         }
     }
 }

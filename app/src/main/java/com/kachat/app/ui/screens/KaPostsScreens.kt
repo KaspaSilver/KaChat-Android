@@ -415,7 +415,7 @@ private fun PagingFooterContent(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.textSecondary)
+            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.textSecondary)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Loading more...", color = colors.textSecondary, fontSize = 12.sp)
         }
@@ -1019,7 +1019,7 @@ fun KaPostsScreen(
                                     )
                                 } else if (feedPaging.isLoadingMore) {
                                     Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = KaspaTeal)
+                                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = KaspaTeal)
                                     }
                                 }
                             }
@@ -2799,7 +2799,7 @@ private fun DeliveryState(post: KaPostDraft, onRetry: (() -> Unit)?) {
                 )
             }
         }
-        KaPostDraft.Delivery.PENDING -> CircularProgressIndicator(
+        KaPostDraft.Delivery.PENDING -> com.kachat.app.ui.theme.IosActivityIndicator(
             modifier = Modifier.size(12.dp),
             strokeWidth = 1.5.dp,
             color = colors.textSecondary,
@@ -4424,7 +4424,7 @@ private fun ThreadCommentNode(
                             ) {
                                 when {
                                     page.isLoadingMore || !viewModel.repliesRequested(comment) -> {
-                                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.textSecondary)
+                                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = colors.textSecondary)
                                         Text("Loading replies...", color = colors.textSecondary, fontSize = 12.sp)
                                     }
                                     page.error != null -> {
@@ -4796,7 +4796,7 @@ fun KaPostsProfileOverlay(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             if (loading) {
-                                CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
+                                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
                             } else {
                                 // Your own profile says whose posts these would be; another
                                 // person's carries the title alone (iOS).
@@ -4977,7 +4977,7 @@ fun KaPostsSearchOverlay(
     // The one KaPosts screen that says Done rather than Back (iOS).
     KaPostsOverlayScaffold(title = "Search", onClose = onClose) {
         Column(Modifier.fillMaxSize()) {
-            OutlinedTextField(
+            com.kachat.app.ui.theme.IosTextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
@@ -5134,7 +5134,7 @@ fun KaPostsSearchOverlay(
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                         ) {
                             if (isSearching) {
-                                CircularProgressIndicator(color = colors.textSecondary, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                                com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                             }
                             Text(
                                 if (isSearching) "Reading older posts" else "Search older posts",
@@ -5198,7 +5198,7 @@ fun KaPostsNotificationsOverlay(
         ) {
         if (isLoading && items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = KaspaTeal)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
             }
         } else if (items.isEmpty()) {
             // Wrapped in a LazyColumn purely so the empty state can be pulled to refresh too.
@@ -5511,7 +5511,7 @@ fun KaPostTipDialog(
                     fontSize = 11.sp,
                 )
                 Text("AMOUNT", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = amountText,
                     onValueChange = { amountText = it; errorText = null },
                     label = { Text("Amount (KAS)") },
@@ -5618,7 +5618,7 @@ fun KaPostTipDialog(
                 },
             ) {
                 if (isSending) {
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                 } else {
                     Text("Send Tip", color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
@@ -5681,7 +5681,7 @@ internal fun TranslateAffordance(
         PostTranslationService.TranslationState.Translating -> {
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(
+                com.kachat.app.ui.theme.IosActivityIndicator(
                     color = colors.textSecondary,
                     strokeWidth = 1.5.dp,
                     modifier = Modifier.size(12.dp),
@@ -5922,7 +5922,7 @@ fun KaPostsFollowListOverlay(
         ) {
         if (list == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = KaspaTeal)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
             }
         } else if (list.isEmpty()) {
             Column(
@@ -6092,7 +6092,7 @@ fun KaPostEngagementOverlay(
             Box(modifier = Modifier.weight(1f)) {
                 if (!loaded) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = KaspaTeal)
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                     }
                 } else if (rows.isEmpty()) {
                     Column(
@@ -6240,7 +6240,7 @@ fun KaPostsSettingsOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        OutlinedTextField(
+                        com.kachat.app.ui.theme.IosTextField(
                             value = tipText,
                             onValueChange = { input ->
                                 tipText = input.filter { it.isDigit() || it == '.' || it == ',' }

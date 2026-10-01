@@ -1082,7 +1082,7 @@ fun GroupChatThreadScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
                         label = { Text(stringResource(R.string.fee_kas)) },
@@ -1839,7 +1839,7 @@ fun GroupChatInfoScreen(
                         Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.height(14.dp))
                     Text("Rebuilding this group", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
@@ -2075,7 +2075,7 @@ fun GroupChatInfoScreen(
                     onClick = { chatViewModel.refreshGroup(groupId) },
                     trailing = {
                         if (groupId in refreshingGroupIds) {
-                            CircularProgressIndicator(strokeWidth = 2.dp, color = KaspaTeal, modifier = Modifier.size(18.dp))
+                            com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 2.dp, color = KaspaTeal, modifier = Modifier.size(18.dp))
                         }
                     },
                 )
@@ -2137,7 +2137,7 @@ fun GroupChatInfoScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = renameText,
                         onValueChange = { renameText = it },
                         label = { Text(stringResource(R.string.group_name_2)) },
@@ -2394,7 +2394,7 @@ fun GroupChatInfoScreen(
                     if (addBusy) {
                         Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
+                            com.kachat.app.ui.theme.IosActivityIndicator(
                                 color = KaspaTeal,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(14.dp),
@@ -2438,7 +2438,7 @@ fun GroupChatInfoScreen(
                     Spacer(Modifier.height(8.dp))
                     if (addResolvingDomain) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Looking up domain...", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                         }

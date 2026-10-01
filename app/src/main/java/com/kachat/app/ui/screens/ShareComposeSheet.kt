@@ -233,7 +233,7 @@ fun ShareComposeSheet(
                             Text(stringResource(R.string.sent), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                         isSending -> {
-                            CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.sending), color = Color.Black, fontWeight = FontWeight.Bold)
                         }

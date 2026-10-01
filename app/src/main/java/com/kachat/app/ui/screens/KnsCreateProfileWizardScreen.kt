@@ -202,7 +202,7 @@ fun KnsCreateProfileWizardScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            CircularProgressIndicator(color = KaspaTeal)
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                             Spacer(Modifier.height(12.dp))
                             Text(stringResource(R.string.checking_your_chatting_address_balance), color = LocalAppColors.current.textSecondary)
                         }
@@ -484,7 +484,7 @@ private fun KnsTransferExistingDomainStep(
             // wizard and coming back.
             TextButton(onClick = onRefresh, enabled = !isScanning) {
                 if (isScanning) {
-                    CircularProgressIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                 } else {
                     Icon(Icons.Default.Refresh, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 }
@@ -556,7 +556,7 @@ private fun KnsDomainCreationStep(
 
         when (knsInscribeState.status) {
             WalletViewModel.KnsInscribeUiStatus.IDLE -> {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = domainLabelInput,
                     onValueChange = {
                         domainLabelInput = it
@@ -641,7 +641,7 @@ private fun KnsDomainCreationStep(
 @Composable
 private fun KnsInscribeProgressRow(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        CircularProgressIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Spacer(Modifier.width(12.dp))
         Text(text, color = LocalAppColors.current.textPrimary)
     }
@@ -773,7 +773,7 @@ private fun KnsImageInscribeStep(
             modifier = Modifier.fillMaxWidth()
         ) {
             if (isSubmitting) {
-                CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
                 Text(stringResource(R.string.inscribe), color = Color.Black, fontWeight = FontWeight.Bold)
             }
@@ -910,7 +910,7 @@ private fun KnsDetailField(
                 modifier = Modifier.weight(1f)
             )
             when {
-                isSubmittingThisField -> CircularProgressIndicator(
+                isSubmittingThisField -> com.kachat.app.ui.theme.IosActivityIndicator(
                     color = KaspaTeal,
                     modifier = Modifier.size(14.dp),
                     strokeWidth = 2.dp
@@ -924,7 +924,7 @@ private fun KnsDetailField(
             }
         }
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(
+        com.kachat.app.ui.theme.IosTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = singleLine,

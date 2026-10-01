@@ -200,7 +200,7 @@ fun BroadcastRoomInfoScreen(
             )
 
             InfoCard(title = "Indexer for this room") {
-                OutlinedTextField(
+                com.kachat.app.ui.theme.IosTextField(
                     value = indexerText,
                     onValueChange = { indexerText = it },
                     placeholder = { Text(appWideIndexer, color = colors.textSecondary, fontSize = 13.sp) },

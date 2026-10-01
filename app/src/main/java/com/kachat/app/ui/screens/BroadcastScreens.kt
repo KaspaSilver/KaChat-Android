@@ -404,7 +404,7 @@ fun BroadcastListScreen(
             subtitle = stringResource(R.string.anyone_who_joins_the_same_channel),
             onDismiss = { showJoinDialog = false },
         ) {
-            OutlinedTextField(
+            com.kachat.app.ui.theme.IosTextField(
                 value = channelInput,
                 onValueChange = { channelInput = it },
                 placeholder = { Text(stringResource(R.string.channel_name), color = LocalAppColors.current.textTertiary) },
@@ -1132,7 +1132,7 @@ fun BroadcastChannelScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedTextField(
+                        com.kachat.app.ui.theme.IosTextField(
                             value = messageText,
                             onValueChange = { broadcastViewModel.setMessageText(it) },
                             placeholder = { Text("Message #$channelName", color = LocalAppColors.current.textTertiary) },
@@ -1883,7 +1883,7 @@ fun BroadcastChannelScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
+                    com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
                         label = { Text(stringResource(R.string.fee_kas)) },
