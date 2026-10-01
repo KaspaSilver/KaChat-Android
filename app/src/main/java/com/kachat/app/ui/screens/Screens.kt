@@ -1553,22 +1553,6 @@ fun ChatThreadScreen(
             }
         }
 
-        // Swipe-left-to-reveal-timestamps (iMessage-style) — see the matching implementation in
-        // BroadcastScreens.kt for the full rationale; kept in sync with it.
-        val revealOffsetPx = remember { Animatable(0f) }
-        val maxRevealOffsetPx = with(LocalDensity.current) { 64.dp.toPx() }
-        // True only while a finger is actively dragging the reveal. Guards every snapTo so a
-        // straggler delta (launched during the drag but dispatched after release) can never
-        // cancel the settle animation — Animatable mutations are mutually exclusive, and that
-        // cancellation is exactly what used to leave the reveal stuck mid-swipe.
-        val isRevealDragging = remember { mutableStateOf(false) }
-        // Release ALWAYS springs the rows back; a vertical scroll stealing the gesture (which
-        // can end the drag without a clean stop) forces the same settle.
-        LaunchedEffect(isRevealDragging.value, scrollState.isScrollInProgress) {
-            if (scrollState.isScrollInProgress) isRevealDragging.value = false
-            if (!isRevealDragging.value) revealOffsetPx.animateTo(0f)
-        }
-
         // Computed here (not inside the LazyColumn content below) - LazyListScope's item-builder
         // lambda isn't a real @Composable context, so a bare remember() call in it fails to
         // compile ("@Composable invocations can only happen from the context of a @Composable
@@ -1589,20 +1573,6 @@ fun ChatThreadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        coroutineScope.launch {
-                            if (isRevealDragging.value) {
-                                revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
-                            }
-                        }
-                    },
-                    onDragStarted = { isRevealDragging.value = true },
-                    // The settle LaunchedEffect above owns the spring-back — flipping the flag
-                    // both triggers it and disarms any still-queued snapTo deltas.
-                    onDragStopped = { isRevealDragging.value = false }
-                )
         ) {
             LazyColumn(
                 state = scrollState,
@@ -1642,7 +1612,7 @@ fun ChatThreadScreen(
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                                 Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(12.dp)) {
                                     Text(
-                                        ChatTimeFormat.formatDateDivider(msg.blockTimestamp),
+                                        ChatTimeFormat.formatDateDivider(msg.blockTimestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday)),
                                         color = LocalAppColors.current.textSecondary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -1736,8 +1706,6 @@ fun ChatThreadScreen(
                                     }
                                 },
                                 onSavePhoto = savePhotoIfPermitted,
-                                revealOffsetPx = revealOffsetPx,
-                                maxRevealOffsetPx = maxRevealOffsetPx,
                                 photosBlocked = !com.kachat.app.repository.ChatRepository.shouldAutoDisplayPhotos(
                                     conversation?.contact
                                 ),
@@ -2171,8 +2139,6 @@ fun MessageBubble(
     /** Retries the local user's failed reaction on this message (see its `failedAction`). */
     onRetryReaction: (ReactionEntity) -> Unit = {},
     onSavePhoto: (ByteArray, String) -> Unit = { _, _ -> },
-    revealOffsetPx: Animatable<Float, AnimationVector1D> = remember { Animatable(0f) },
-    maxRevealOffsetPx: Float = 1f,
     photosBlocked: Boolean = false,
     isPhotoRevealed: Boolean = false,
     onRevealPhoto: () -> Unit = {},
@@ -2332,22 +2298,8 @@ fun MessageBubble(
             .fillMaxWidth()
             .background(highlightColor, RoundedCornerShape(12.dp))
     ) {
-        Text(
-            text = remember(message.blockTimestamp) { ChatTimeFormat.formatMessageTime(message.blockTimestamp) },
-            color = LocalAppColors.current.textSecondary,
-            fontSize = 11.sp,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 12.dp)
-                // graphicsLayer, not alpha(): reading the Animatable inside this block defers it
-                // to the draw phase, so dragging the row animates without recomposing every
-                // visible bubble on every frame. `.offset { }` below defers the same way.
-                .graphicsLayer { alpha = (-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f) }
-        )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset { IntOffset(revealOffsetPx.value.toInt(), 0) },
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = if (isSent) Arrangement.End else Arrangement.Start,
             verticalAlignment = Alignment.Bottom
         ) {
@@ -2766,6 +2718,21 @@ fun MessageBubble(
             LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent, autoFetch = linkPreviewAutoFetch)
         }
 
+        // The time under every message, and for your own the delivery status after it (iOS
+        // fc6aec6): "Sending" / "Sent" / "Failed · Tap to retry" - the failed label is itself the
+        // retry button (iOS bb1f9f5), so no second "Retry" beside it.
+        MessageTimeLine(
+            timestampMs = message.blockTimestamp,
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            if (isSent) {
+                DeliveryStatusLabel(
+                    status = deliveryStatusOf(message.deliveryStatus),
+                    onRetry = if (retryOffered) onRetry else null,
+                )
+            }
+        }
+
         // "edited" under the bubble - the mark every platform shows on an edited message.
         if (isEdited) {
             Text(
@@ -2773,16 +2740,6 @@ fun MessageBubble(
                 color = LocalAppColors.current.textSecondary,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 2.dp)
-            )
-        }
-
-        if (isSent) {
-            // The icon carries the word for it now, and a failed row IS the retry button
-            // (iOS bb1f9f5). "warning" used to fall through to the green check.
-            DeliveryStatusLabel(
-                status = deliveryStatusOf(message.deliveryStatus),
-                onRetry = if (retryOffered) onRetry else null,
-                modifier = Modifier.padding(top = 4.dp),
             )
         }
 

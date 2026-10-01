@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">Nextcloud에서 가져오지 못했습니다: %1$s</string>
     <string name="pnc_all_files">모든 파일</string>
     <string name="pnc_folder_empty">이 폴더는 비어 있습니다.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">오늘</string>
+    <string name="chat_day_yesterday">어제</string>
 </resources>

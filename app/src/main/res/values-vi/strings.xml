@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">Nhập từ Nextcloud thất bại: %1$s</string>
     <string name="pnc_all_files">Tất cả tệp</string>
     <string name="pnc_folder_empty">Thư mục này trống.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">Hôm nay</string>
+    <string name="chat_day_yesterday">Hôm qua</string>
 </resources>

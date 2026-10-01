@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">Nextcloud からの読み込みに失敗しました：%1$s</string>
     <string name="pnc_all_files">すべてのファイル</string>
     <string name="pnc_folder_empty">このフォルダは空です。</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">今日</string>
+    <string name="chat_day_yesterday">昨日</string>
 </resources>

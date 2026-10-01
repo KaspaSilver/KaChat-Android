@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">Error al importar desde Nextcloud: %1$s</string>
     <string name="pnc_all_files">Todos los archivos</string>
     <string name="pnc_folder_empty">Esta carpeta está vacía.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">Hoy</string>
+    <string name="chat_day_yesterday">Ayer</string>
 </resources>

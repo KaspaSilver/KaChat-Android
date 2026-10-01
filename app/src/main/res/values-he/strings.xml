@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">הייבוא מ-Nextcloud נכשל: %1$s</string>
     <string name="pnc_all_files">כל הקבצים</string>
     <string name="pnc_folder_empty">התיקייה הזו ריקה.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">היום</string>
+    <string name="chat_day_yesterday">אתמול</string>
 </resources>

@@ -469,4 +469,7 @@
     <string name="pnc_import_failed">Impor dari Nextcloud gagal: %1$s</string>
     <string name="pnc_all_files">Semua File</string>
     <string name="pnc_folder_empty">Folder ini kosong.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">Hari ini</string>
+    <string name="chat_day_yesterday">Kemarin</string>
 </resources>

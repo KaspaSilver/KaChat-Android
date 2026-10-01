@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">Nextcloud से इम्पोर्ट विफल: %1$s</string>
     <string name="pnc_all_files">सभी फ़ाइलें</string>
     <string name="pnc_folder_empty">यह फ़ोल्डर खाली है।</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">आज</string>
+    <string name="chat_day_yesterday">कल</string>
 </resources>

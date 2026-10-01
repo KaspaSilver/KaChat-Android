@@ -782,21 +782,6 @@ fun BroadcastChannelScreen(
         }
     }
 
-    // Swipe-left-to-reveal-timestamps (iMessage-style): dragging left across the whole message
-    // list shifts every message row left by the same amount, uncovering a per-message time in the
-    // strip of space that opens up on the right; releasing snaps everything back. revealOffsetPx
-    // is negative-or-zero (never allowed to shift right past its resting position).
-    val revealOffsetPx = remember { Animatable(0f) }
-    val maxRevealOffsetPx = with(LocalDensity.current) { 64.dp.toPx() }
-    // Guards every snapTo so a straggler delta dispatched after release can't cancel the settle
-    // animation and leave the reveal stuck — see ChatThreadScreen's identical block.
-    val isRevealDragging = remember { mutableStateOf(false) }
-    // Release ALWAYS springs the rows back; a vertical scroll stealing the gesture forces it too.
-    LaunchedEffect(isRevealDragging.value, listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) isRevealDragging.value = false
-        if (!isRevealDragging.value) revealOffsetPx.animateTo(0f)
-    }
-
     val micContext = LocalContext.current
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) broadcastViewModel.startVoiceRecording(channelName)
@@ -1185,20 +1170,6 @@ fun BroadcastChannelScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        coroutineScope.launch {
-                            if (isRevealDragging.value) {
-                                revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
-                            }
-                        }
-                    },
-                    onDragStarted = { isRevealDragging.value = true },
-                    // The settle LaunchedEffect above owns the spring-back — flipping the flag
-                    // both triggers it and disarms any still-queued snapTo deltas.
-                    onDragStopped = { isRevealDragging.value = false }
-                )
         ) {
         if (messages.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1274,7 +1245,7 @@ fun BroadcastChannelScreen(
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                             Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(12.dp)) {
                                 Text(
-                                    ChatTimeFormat.formatDateDivider(message.blockTimestamp),
+                                    ChatTimeFormat.formatDateDivider(message.blockTimestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday)),
                                     color = LocalAppColors.current.textSecondary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -1371,22 +1342,8 @@ fun BroadcastChannelScreen(
                             .fillMaxWidth()
                             .background(highlightColor, RoundedCornerShape(12.dp))
                     ) {
-                        Text(
-                            text = remember(message.blockTimestamp) { ChatTimeFormat.formatMessageTime(message.blockTimestamp) },
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 11.sp,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 12.dp)
-                                // graphicsLayer, not alpha(): reading the Animatable inside this block defers it
-                                // to the draw phase, so dragging the row animates without recomposing every
-                                // visible bubble on every frame. `.offset { }` below defers the same way.
-                                .graphicsLayer { alpha = (-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f) }
-                        )
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .offset { IntOffset(revealOffsetPx.value.toInt(), 0) },
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
                             verticalAlignment = Alignment.Bottom
                         ) {
@@ -1792,17 +1749,22 @@ fun BroadcastChannelScreen(
                                 )
                             }
 
-                            // Under your own message, exactly as in a 1:1 chat: "Sending", "Sent" with the
-                            // green check, "Failed · Tap to retry". It was a badge pinned to the bubble's
-                            // corner, which read as a different thing from the 1:1 one (iOS 21baa36).
-                            if (isMine) {
-                                DeliveryStatusLabel(
-                                    status = deliveryStatusOf(message.deliveryStatus),
-                                    onRetry = if (message.deliveryStatus == "failed") {
-                                        { broadcastViewModel.retryBroadcast(message) }
-                                    } else null,
-                                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-                                )
+                            // The time under every message, exactly as in a 1:1 chat, and under your own
+                            // the status after it: "Sending", "Sent" with the green check, "Failed · Tap
+                            // to retry" (iOS fc6aec6). Rooms are long feeds, so other days carry the day.
+                            MessageTimeLine(
+                                timestampMs = message.blockTimestamp,
+                                showsDay = true,
+                                modifier = Modifier.padding(top = 4.dp),
+                            ) {
+                                if (isMine) {
+                                    DeliveryStatusLabel(
+                                        status = deliveryStatusOf(message.deliveryStatus),
+                                        onRetry = if (message.deliveryStatus == "failed") {
+                                            { broadcastViewModel.retryBroadcast(message) }
+                                        } else null,
+                                    )
+                                }
                             }
 
                             // A reaction (not the message) that failed to send: red "Retry" under the

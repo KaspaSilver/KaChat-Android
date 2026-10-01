@@ -14,18 +14,30 @@ object ChatTimeFormat {
             cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 
-    /** "Today" / "Yesterday" / "July 6, 2026" — shown as a divider between days' worth of messages. */
-    fun formatDateDivider(timestamp: Long): String {
+    /** "Today" / "Yesterday" / "July 6, 2026" — shown as a divider between days' worth of messages.
+     *  Callers pass the localized "Today"/"Yesterday" (iOS fc6aec6). */
+    fun formatDateDivider(timestamp: Long, today: String = "Today", yesterday: String = "Yesterday"): String {
         val now = System.currentTimeMillis()
         return when {
-            isSameDay(timestamp, now) -> "Today"
-            isSameDay(timestamp, now - 24L * 60 * 60 * 1000) -> "Yesterday"
+            isSameDay(timestamp, now) -> today
+            isSameDay(timestamp, now - 24L * 60 * 60 * 1000) -> yesterday
             else -> SimpleDateFormat("MMMM d, yyyy", Locale.US).format(Date(timestamp))
         }
     }
 
-    /** "3:45pm" — revealed per-message only when the chat is swiped left. */
+    /** "10:57 AM" — iOS SharedFormatting.chatTime ("h:mm a", en_US_POSIX). */
     fun formatMessageTime(timestamp: Long): String {
-        return SimpleDateFormat("h:mma", Locale.US).format(Date(timestamp)).lowercase()
+        return SimpleDateFormat("h:mm a", Locale.US).format(Date(timestamp))
+    }
+
+    /** The time under a message (iOS MessageTimeLine). With [showsDay] (public chat rooms) a
+     *  message from another day reads "Yesterday, 10:57 AM" or "Sep 28, 10:57 AM". */
+    fun formatTimeLine(timestamp: Long, showsDay: Boolean, yesterday: String): String {
+        val time = formatMessageTime(timestamp)
+        val now = System.currentTimeMillis()
+        if (!showsDay || isSameDay(timestamp, now)) return time
+        val day = if (isSameDay(timestamp, now - 24L * 60 * 60 * 1000)) yesterday
+            else SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+        return "$day, $time"
     }
 }

@@ -367,19 +367,6 @@ fun GroupChatThreadScreen(
         }
     }
 
-    // Swipe-left-to-reveal-timestamps (iMessage-style) — same implementation as 1:1/broadcast
-    // rooms (see ChatThreadScreen in Screens.kt), kept in sync with it.
-    val revealOffsetPx = remember { Animatable(0f) }
-    val maxRevealOffsetPx = with(LocalDensity.current) { 64.dp.toPx() }
-    // Guards every snapTo so a straggler delta dispatched after release can't cancel the settle
-    // animation and leave the reveal stuck — see ChatThreadScreen's identical block.
-    val isRevealDragging = remember { mutableStateOf(false) }
-    // Release ALWAYS springs the rows back; a vertical scroll stealing the gesture forces it too.
-    LaunchedEffect(isRevealDragging.value, listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) isRevealDragging.value = false
-        if (!isRevealDragging.value) revealOffsetPx.animateTo(0f)
-    }
-
     LaunchedEffect(Unit) {
         chatViewModel.refreshUtxos()
         chatViewModel.markGroupRead(groupId)
@@ -872,20 +859,6 @@ fun GroupChatThreadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        coroutineScope.launch {
-                            if (isRevealDragging.value) {
-                                revealOffsetPx.snapTo((revealOffsetPx.value + delta).coerceIn(-maxRevealOffsetPx, 0f))
-                            }
-                        }
-                    },
-                    onDragStarted = { isRevealDragging.value = true },
-                    // The settle LaunchedEffect above owns the spring-back — flipping the flag
-                    // both triggers it and disarms any still-queued snapTo deltas.
-                    onDragStopped = { isRevealDragging.value = false }
-                )
         ) {
             senderSheetTarget?.let { target ->
                 val address = target.address
@@ -937,7 +910,7 @@ fun GroupChatThreadScreen(
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                             Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(12.dp)) {
                                 Text(
-                                    ChatTimeFormat.formatDateDivider(message.blockTimestamp),
+                                    ChatTimeFormat.formatDateDivider(message.blockTimestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday)),
                                     color = LocalAppColors.current.textSecondary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -1002,8 +975,6 @@ fun GroupChatThreadScreen(
                             resolveMentionName = resolveDisplayName,
                             mentionDomains = primaryKnsByAddress,
                             onAvatarTap = { address -> senderSheetTarget = SenderSheetTarget(address, isOwnMessage = address == myAddress) },
-                            revealOffsetPx = revealOffsetPx,
-                            maxRevealOffsetPx = maxRevealOffsetPx,
                             onSelect = {
                                 isSelectingMessages = true
                                 selectedMessageIds = selectedMessageIds + message.txId
@@ -1305,8 +1276,6 @@ private fun GroupMessageBubble(
     /** Tapping an avatar. The parent presents the sender half sheet for this address (see
      *  [SenderActionsSheet]); the row itself no longer owns a menu. */
     onAvatarTap: (String) -> Unit = {},
-    revealOffsetPx: Animatable<Float, AnimationVector1D>,
-    maxRevealOffsetPx: Float,
     /** Enters the chat's message multi-select mode with this message pre-selected - null disables
      *  the "Select" long-press menu option entirely. Mirrors [MessageBubble]'s onSelect. */
     onSelect: (() -> Unit)? = null
@@ -1362,26 +1331,8 @@ private fun GroupMessageBubble(
             .fillMaxWidth()
             .background(highlightColor, RoundedCornerShape(12.dp))
     ) {
-        Text(
-            text = remember(message.blockTimestamp) { ChatTimeFormat.formatMessageTime(message.blockTimestamp) },
-            color = LocalAppColors.current.textSecondary,
-            fontSize = 11.sp,
-            modifier = Modifier
-                // Always trailing-edge: sliding the row LEFT exposes the right side only, so a
-                // CenterStart label on received rows stayed covered by the row drawn above it
-                // (received messages appeared to have no timestamp). Matches the 1:1 thread's
-                // MessageBubble in Screens.kt, which reveals both directions at CenterEnd.
-                .align(Alignment.CenterEnd)
-                .padding(end = 12.dp)
-                // graphicsLayer, not alpha(): reading the Animatable inside this block defers it
-                // to the draw phase, so dragging the row animates without recomposing every
-                // visible bubble on every frame. `.offset { }` below defers the same way.
-                .graphicsLayer { alpha = (-revealOffsetPx.value / maxRevealOffsetPx).coerceIn(0f, 1f) }
-        )
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset { IntOffset(revealOffsetPx.value.toInt(), 0) },
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isSent) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom
     ) {
@@ -1563,6 +1514,20 @@ private fun GroupMessageBubble(
                 }
             }
 
+            // The time under every message, and your own messages' status after it (iOS
+            // fc6aec6). The failed label is itself the retry button (DeliveryStatusLabel).
+            MessageTimeLine(
+                timestampMs = message.blockTimestamp,
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                if (isSent) {
+                    DeliveryStatusLabel(
+                        status = deliveryStatusOf(message.deliveryStatus),
+                        onRetry = if (canRetry) onRetry else null,
+                    )
+                }
+            }
+
             // "edited" under the bubble - the mark every platform shows on an edited message.
             if (isEdited) {
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -1575,14 +1540,6 @@ private fun GroupMessageBubble(
                             .padding(top = 2.dp)
                     )
                 }
-            }
-
-            if (isSent) {
-                DeliveryStatusLabel(
-                    status = deliveryStatusOf(message.deliveryStatus),
-                    onRetry = if (canRetry) onRetry else null,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
             }
 
             if (showMenu) {

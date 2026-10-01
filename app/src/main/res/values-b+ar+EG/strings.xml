@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">فشل الاستيراد من Nextcloud: %1$s</string>
     <string name="pnc_all_files">كل الملفات</string>
     <string name="pnc_folder_empty">هذا المجلد فارغ.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">اليوم</string>
+    <string name="chat_day_yesterday">أمس</string>
 </resources>

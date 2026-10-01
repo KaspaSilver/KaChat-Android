@@ -599,4 +599,7 @@
     <string name="pnc_import_failed">Nextcloud\'dan içe aktarma başarısız: %1$s</string>
     <string name="pnc_all_files">Tüm Dosyalar</string>
     <string name="pnc_folder_empty">Bu klasör boş.</string>
+    <!-- Chat day dividers and message time lines (iOS fc6aec6) -->
+    <string name="chat_day_today">Bugün</string>
+    <string name="chat_day_yesterday">Dün</string>
 </resources>

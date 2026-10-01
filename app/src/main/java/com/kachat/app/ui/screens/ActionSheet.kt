@@ -777,6 +777,35 @@ private fun trimmedKasAmount(sompi: Long): String {
 }
 
 /** What a sent message's delivery row is reporting. Mirrors iOS's `DeliveryStatusLabel.Status`. */
+/**
+ * The line under a message: its time, and - for your own messages - the delivery status right
+ * after it ("10:57 AM  ✓ Sent"). Every chat shows this under every message; it replaced the
+ * swipe-left-to-reveal times (iOS fc6aec6, `MessageTimeLine`).
+ *
+ * [showsDay]: public chat rooms are long feeds, so a message from another day says which
+ * ("Yesterday, 9:41 AM", "Sep 28, 9:41 AM"). Threads keep the bare time under their day separators.
+ */
+@Composable
+fun MessageTimeLine(
+    timestampMs: Long,
+    modifier: Modifier = Modifier,
+    showsDay: Boolean = false,
+    status: @Composable () -> Unit = {},
+) {
+    val yesterday = stringResource(R.string.chat_day_yesterday)
+    val text = remember(timestampMs, showsDay, yesterday) {
+        com.kachat.app.util.ChatTimeFormat.formatTimeLine(timestampMs, showsDay, yesterday)
+    }
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(text, color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+        status()
+    }
+}
+
 enum class DeliveryStatus { PENDING, SENT, FAILED, WARNING }
 
 /** Maps the persisted `deliveryStatus` string onto [DeliveryStatus]; anything unknown reads as sent,
