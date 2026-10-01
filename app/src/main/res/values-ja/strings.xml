@@ -440,4 +440,13 @@
     <string name="no_names_yet">%1$s の名前はまだありません。</string>
     <string name="kachat_names_are_coming">.kachat 名はまもなく登場</string>
     <string name="kachat_names_coming_body">KaChat 独自の名前はここに表示されます。取得してチャットでの名前に使い、プロフィールリンクとして共有できます。</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">ドメインが見つかりません</string>
+    <string name="no_tld_domain_found">%1$s ドメインが見つかりません</string>
+    <string name="looking_up_domain">ドメインを検索中...</string>
+    <string name="no_domain">ドメインなし</string>
+    <string name="other_domains">その他のドメイン</string>
+    <string name="not_registered">未登録</string>
+    <string name="couldnt_check">確認できませんでした</string>
+    <string name="kaspa_address_or_domain">Kaspaアドレスまたはドメイン</string>
 </resources>

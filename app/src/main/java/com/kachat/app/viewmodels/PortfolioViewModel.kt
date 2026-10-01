@@ -66,6 +66,7 @@ class PortfolioViewModel @Inject constructor(
     private val knsService: KnsService,
     private val networkStats: KaspaNetworkStatsService,
     private val marketPairs: com.kachat.app.services.MarketPairService,
+    private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
     // MARK: - Charts against a pair (iOS 39adefe, c42e9a3)
@@ -194,7 +195,9 @@ class PortfolioViewModel @Inject constructor(
 
     /** Forward KNS domain resolution for the Add Kaspa Address field — lets typing "name.kas"
      *  resolve to a Kaspa address the same way the send flows' address fields already do. */
-    suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
+    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
+    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
 
     val transactions = repository.getTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

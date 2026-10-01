@@ -440,4 +440,13 @@
     <string name="no_names_yet">עדיין אין שמות %1$s.</string>
     <string name="kachat_names_are_coming">שמות .kachat בדרך</string>
     <string name="kachat_names_coming_body">השמות של KaChat יהיו כאן: קבלו שם, השתמשו בו כשמכם בצ\'אטים ושתפו אותו כקישור לפרופיל.</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">לא נמצא דומיין</string>
+    <string name="no_tld_domain_found">לא נמצא דומיין %1$s</string>
+    <string name="looking_up_domain">מחפש דומיין...</string>
+    <string name="no_domain">אין דומיין</string>
+    <string name="other_domains">דומיינים אחרים</string>
+    <string name="not_registered">לא רשום</string>
+    <string name="couldnt_check">לא ניתן לבדוק</string>
+    <string name="kaspa_address_or_domain">כתובת Kaspa או דומיין</string>
 </resources>

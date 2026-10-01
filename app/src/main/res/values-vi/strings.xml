@@ -440,4 +440,13 @@
     <string name="no_names_yet">Chưa có tên %1$s.</string>
     <string name="kachat_names_are_coming">Tên .kachat sắp ra mắt</string>
     <string name="kachat_names_coming_body">Tên riêng của KaChat sẽ ở đây: nhận một tên, dùng làm tên của bạn trong trò chuyện và chia sẻ làm liên kết hồ sơ.</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">Không tìm thấy tên miền</string>
+    <string name="no_tld_domain_found">Không tìm thấy tên miền %1$s</string>
+    <string name="looking_up_domain">Đang tìm tên miền...</string>
+    <string name="no_domain">Không có tên miền</string>
+    <string name="other_domains">Tên miền khác</string>
+    <string name="not_registered">Chưa đăng ký</string>
+    <string name="couldnt_check">Không thể kiểm tra</string>
+    <string name="kaspa_address_or_domain">Địa chỉ Kaspa hoặc tên miền</string>
 </resources>

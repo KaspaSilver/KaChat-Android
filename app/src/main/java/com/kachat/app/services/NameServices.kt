@@ -299,6 +299,10 @@ class NameServicesClient @Inject constructor(
         return NameServiceTLD.resolutionOrder.mapNotNull { results[it] }
     }
 
+    /** The address a typed name points to, by [primary]'s rule - null when nothing resolves. */
+    suspend fun resolvePrimary(input: String): NameResolution? =
+        primary(resolveEverywhere(input), input)?.takeIf { it.address != null }
+
     private suspend fun resolveKas(label: String): NameResolution? {
         val canonical = KnsService.normalizeDomainLabel(label) ?: return null
         val owner = knsService.resolve("$canonical.kas")

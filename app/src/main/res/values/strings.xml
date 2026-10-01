@@ -617,4 +617,14 @@
     <string name="no_names_yet">No %1$s names yet.</string>
     <string name="kachat_names_are_coming">.kachat names are coming</string>
     <string name="kachat_names_coming_body">KaChat\'s own names will live here: claim one, set it as your name in chats, and share it as your profile link.</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">No domain found</string>
+    <string name="no_tld_domain_found">No %1$s domain found</string>
+    <string name="looking_up_domain">Looking up domain...</string>
+    <string name="looking_up">Looking up...</string>
+    <string name="no_domain">No domain</string>
+    <string name="other_domains">Other domains</string>
+    <string name="not_registered">Not registered</string>
+    <string name="couldnt_check">Couldn\'t check</string>
+    <string name="kaspa_address_or_domain">Kaspa Address or Domain</string>
 </resources>

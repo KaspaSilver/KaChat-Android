@@ -76,6 +76,7 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.CallMerge
@@ -5942,6 +5943,7 @@ fun SpendingAddressSendFlow(
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
+    val noDomainFoundText = stringResource(R.string.no_domain_found)
     LaunchedEffect(recipientInput) {
         knsResolvedAddress = null
         knsResolvedDomain = null
@@ -5952,20 +5954,22 @@ fun SpendingAddressSendFlow(
         }
         val trimmed = recipientInput.trim()
         if (trimmed.isEmpty() || trimmed.startsWith("kaspa:", ignoreCase = true) ||
-            trimmed.startsWith("kaspatest:", ignoreCase = true) || !KnsService.looksLikeDomain(trimmed)
+            trimmed.startsWith("kaspatest:", ignoreCase = true) || !com.kachat.app.services.NameServicesClient.looksLikeName(trimmed)
         ) {
             isResolvingKns = false
             return@LaunchedEffect
         }
         isResolvingKns = true
         kotlinx.coroutines.delay(500)
-        val resolved = viewModel.resolveKnsDomain(trimmed)
+        // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+        // (iOS 79b6ac8). The resolved line names which one answered.
+        val resolved = viewModel.resolveName(trimmed)
         isResolvingKns = false
-        if (resolved != null) {
-            knsResolvedAddress = resolved
-            knsResolvedDomain = KnsService.normalizeDomain(trimmed)
+        if (resolved?.address != null) {
+            knsResolvedAddress = resolved.address
+            knsResolvedDomain = resolved.display
         } else {
-            knsError = "KNS domain not found"
+            knsError = noDomainFoundText
         }
     }
 
@@ -6119,7 +6123,7 @@ fun SpendingAddressSendFlow(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                         }
                     } else if (knsError != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -11389,7 +11393,11 @@ fun CreateChatScreen(
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
     val isValidRawAddress = remember(address) { KaspaAddress.isValid(address) }
-    val looksLikeKnsDomain = remember(address) { com.kachat.app.services.KnsService.looksLikeDomain(address) }
+    // A name on any service - .kachat, .kas, .k, .kaspa - typed with or without its ending (iOS a0dbc15).
+    val looksLikeKnsDomain = remember(address) { com.kachat.app.services.NameServicesClient.looksLikeName(address) }
+    val nameResolutions by chatViewModel.nameResolutions.collectAsState()
+    val selectedResolutionTld by chatViewModel.selectedResolutionTld.collectAsState()
+    val otherDomainsSuggested by chatViewModel.otherDomainsSuggested.collectAsState()
 
     val knsResolvedAddress by chatViewModel.knsResolvedAddress.collectAsState()
     val knsResolvedDomain by chatViewModel.knsResolvedDomain.collectAsState()
@@ -11723,7 +11731,7 @@ fun CreateChatScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     } else if (looksLikeKnsDomain && knsError != null) {
                         Spacer(Modifier.height(8.dp))
@@ -11732,17 +11740,21 @@ fun CreateChatScreen(
                             Spacer(Modifier.width(8.dp))
                             Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
+                        OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                     } else if (isValidAddress) {
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = if (looksLikeKnsDomain) "Resolved: ${knsResolvedAddress?.takeLast(12)}" else stringResource(R.string.valid_address),
+                                text = if (looksLikeKnsDomain) "Resolved: ${knsResolvedDomain ?: ""} ${knsResolvedAddress?.takeLast(12) ?: ""}".trim() else stringResource(R.string.valid_address),
                                 color = Color(0xFF4CD964),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                        if (looksLikeKnsDomain) {
+                            OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                         }
                     }
 
@@ -11859,7 +11871,7 @@ fun CreateChatScreen(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.kaspa_address_or_kns_domain),
+                    text = stringResource(R.string.kaspa_address_or_domain),
                     color = LocalAppColors.current.textSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -11884,7 +11896,7 @@ fun CreateChatScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (looksLikeKnsDomain && knsError != null) {
@@ -11893,6 +11905,7 @@ fun CreateChatScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(knsError ?: "", color = Color(0xFFFF3B30), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
+                    OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (looksLikeKnsDomain && knsResolvedAddress != null) {
                     // The domain it resolved, then the address it resolved TO - reading the whole
@@ -11916,6 +11929,7 @@ fun CreateChatScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (isValidAddress) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -12217,6 +12231,74 @@ fun CreateChatActionItem(icon: ImageVector, label: String, onClick: () -> Unit) 
 private const val MAX_GROUP_MEMBERS = 50
 
 /** One row in the group-member address list - supports both a raw Kaspa address and a KNS domain, resolved the same way the single-contact flow's address field does. */
+/**
+ * "Other domains": what the same typed name points to on the other name services, each one
+ * selectable to switch the chat to it (iOS a0dbc15). Unregistered or unreachable ones are listed
+ * but not selectable.
+ */
+@Composable
+fun OtherDomainsDropdown(
+    resolutions: List<com.kachat.app.services.NameResolution>,
+    selected: com.kachat.app.services.NameServiceTLD?,
+    initiallyOpen: Boolean,
+    onPick: (com.kachat.app.services.NameResolution) -> Unit,
+) {
+    val others = resolutions.filter { it.tld != selected }
+    if (others.isEmpty()) return
+    var expanded by remember(initiallyOpen, resolutions) { mutableStateOf(initiallyOpen) }
+    val colors = LocalAppColors.current
+    Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Row(
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { expanded = !expanded }.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(stringResource(R.string.other_domains), color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Icon(
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        if (expanded) {
+            others.forEach { resolution ->
+                val address = resolution.address
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = address != null) {
+                            onPick(resolution)
+                            expanded = false
+                        }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            resolution.display,
+                            color = if (address == null) colors.textSecondary else colors.textPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            address ?: stringResource(if (resolution.failed) R.string.couldnt_check else R.string.not_registered),
+                            color = colors.textSecondary,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (address != null) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
 data class GroupAddressRow(
     val id: String = java.util.UUID.randomUUID().toString(),
     val text: String = "",
@@ -12225,7 +12307,7 @@ data class GroupAddressRow(
     val knsError: String? = null
 ) {
     val trimmedText: String get() = text.trim()
-    val looksLikeDomain: Boolean get() = com.kachat.app.services.KnsService.looksLikeDomain(trimmedText)
+    val looksLikeDomain: Boolean get() = com.kachat.app.services.NameServicesClient.looksLikeName(trimmedText)
 
     /** The actual address this row resolves to - resolved KNS owner address, or the raw typed/scanned address. Null while a domain hasn't resolved yet. */
     val effectiveAddress: String? get() = if (looksLikeDomain) resolvedAddress else trimmedText.ifEmpty { null }

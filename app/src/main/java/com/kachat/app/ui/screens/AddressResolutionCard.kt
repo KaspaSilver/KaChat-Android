@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import com.kachat.app.services.KnsService
+import com.kachat.app.R
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.flow.first
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
@@ -66,7 +68,7 @@ fun AddressResolutionCard(
             looking = false
             return@LaunchedEffect
         }
-        val isDomain = KnsService.looksLikeDomain(trimmed)
+        val isDomain = com.kachat.app.services.NameServicesClient.looksLikeName(trimmed) && !KaspaAddress.isValid(trimmed)
         if (!isDomain && !KaspaAddress.isValid(trimmed)) {
             looking = false
             return@LaunchedEffect
@@ -75,13 +77,14 @@ fun AddressResolutionCard(
         // The same 300ms iOS debounces a typed domain by, so a name being typed is not looked up
         // once per keystroke.
         kotlinx.coroutines.delay(300)
-        val resolved = if (isDomain) viewModel.resolveDomain(trimmed) else trimmed
+        val resolution = if (isDomain) viewModel.resolveName(trimmed) else null
+        val resolved = if (isDomain) resolution?.address else trimmed
         if (resolved == null) {
             looking = false
             return@LaunchedEffect
         }
         address = resolved
-        domain = if (isDomain) KnsService.normalizeDomain(trimmed) else null
+        domain = if (isDomain) resolution?.display else null
         val profile = viewModel.profileFor(resolved)
         domain = domain ?: profile?.first
         avatarUrl = profile?.second
@@ -101,7 +104,7 @@ fun AddressResolutionCard(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                domain ?: if (looking) "Looking up..." else "No KNS domain",
+                domain ?: if (looking) stringResource(R.string.looking_up) else stringResource(R.string.no_domain),
                 color = if (domain != null) colors.textPrimary else colors.textSecondary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -128,6 +131,7 @@ fun AddressResolutionCard(
 class AddressResolutionViewModel @Inject constructor(
     private val knsService: KnsService,
     private val chatRepository: com.kachat.app.repository.ChatRepository,
+    private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
     /** The contact saved for [address] on this account, if there is one. */
@@ -135,7 +139,9 @@ class AddressResolutionViewModel @Inject constructor(
         chatRepository.getContacts().first().firstOrNull { it.id.equals(address, ignoreCase = true) }
     }.getOrNull()
 
-    suspend fun resolveDomain(domain: String): String? = runCatching { knsService.resolve(domain) }.getOrNull()
+    /** Every name service, in priority (iOS 79b6ac8): the typed ending, else .kachat, .kas, .k, .kaspa. */
+    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? =
+        runCatching { nameServices.resolvePrimary(input) }.getOrNull()
 
     /** The address's primary domain and avatar, as far as KNS knows them. */
     suspend fun profileFor(address: String): Pair<String?, String?>? = runCatching {

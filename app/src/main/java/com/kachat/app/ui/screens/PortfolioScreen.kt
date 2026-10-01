@@ -731,7 +731,7 @@ private fun PortfolioTransactionsContent(
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 }
             },
-            resolveKns = viewModel::resolveKnsDomain
+            resolveKns = { input -> viewModel.resolveName(input)?.address }
         )
     }
 }
@@ -765,7 +765,7 @@ private fun AddressEntryDialog(
         val input = addressText.trim()
         if (input.isEmpty() || input.startsWith("kaspa:", ignoreCase = true) ||
             input.startsWith("kaspatest:", ignoreCase = true) ||
-            !com.kachat.app.services.KnsService.looksLikeDomain(input)
+            !com.kachat.app.services.NameServicesClient.looksLikeName(input)
         ) {
             isResolvingKns = false
             return@LaunchedEffect
@@ -840,7 +840,7 @@ private fun AddressEntryDialog(
                         isResolvingKns -> Row(verticalAlignment = Alignment.CenterVertically) {
                             androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                            Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         }
                         knsResolvedAddress != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
@@ -848,7 +848,7 @@ private fun AddressEntryDialog(
                             Text("Resolves to ${shortenKaspaAddress(knsResolvedAddress ?: "")}", color = Color(0xFF4CD964), fontSize = 12.sp)
                         }
                         // Quiet by design — an unfinished domain isn't an error worth shouting about.
-                        knsNotFound -> Text("Domain not found", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        knsNotFound -> Text(stringResource(R.string.no_domain_found), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         isRawValid -> Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CD964), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))

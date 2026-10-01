@@ -32,12 +32,15 @@ class ColdStorageViewModel @Inject constructor(
     private val addressDiscovery: ColdStorageAddressDiscovery,
     private val sendEngine: ColdStorageSendEngine,
     private val settings: AppSettingsRepository,
-    private val knsService: KnsService
+    private val knsService: KnsService,
+    private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
     /** Forward KNS domain resolution for the send form's recipient field - lets typing "name.kas"
      *  resolve to a Kaspa address the same way Create Chat's own address field already does. */
-    suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
+    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
+    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
 
     private val _accounts = MutableStateFlow(coldStorageManager.getAccounts())
     val accounts: StateFlow<List<ColdStorageManager.ColdAccount>> = _accounts.asStateFlow()

@@ -1336,6 +1336,7 @@ private fun ColdSendFlow(
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
+    val noDomainFoundText = stringResource(R.string.no_domain_found)
     LaunchedEffect(toAddress) {
         knsResolvedAddress = null
         knsResolvedDomain = null
@@ -1346,20 +1347,22 @@ private fun ColdSendFlow(
         }
         val trimmed = toAddress.trim()
         if (trimmed.isEmpty() || trimmed.startsWith("kaspa:", ignoreCase = true) ||
-            trimmed.startsWith("kaspatest:", ignoreCase = true) || !KnsService.looksLikeDomain(trimmed)
+            trimmed.startsWith("kaspatest:", ignoreCase = true) || !com.kachat.app.services.NameServicesClient.looksLikeName(trimmed)
         ) {
             isResolvingKns = false
             return@LaunchedEffect
         }
         isResolvingKns = true
         kotlinx.coroutines.delay(500)
-        val resolved = viewModel.resolveKnsDomain(trimmed)
+        // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+        // (iOS 79b6ac8). The resolved line names which one answered.
+        val resolved = viewModel.resolveName(trimmed)
         isResolvingKns = false
-        if (resolved != null) {
-            knsResolvedAddress = resolved
-            knsResolvedDomain = KnsService.normalizeDomain(trimmed)
+        if (resolved?.address != null) {
+            knsResolvedAddress = resolved.address
+            knsResolvedDomain = resolved.display
         } else {
-            knsError = "KNS domain not found"
+            knsError = noDomainFoundText
         }
     }
     // The actual address to use (resolved from a KNS domain, or the direct input) - same
@@ -1478,7 +1481,7 @@ private fun ColdSendFlow(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     CircularProgressIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.resolving_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                                    Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                                 }
                             } else if (knsError != null) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {

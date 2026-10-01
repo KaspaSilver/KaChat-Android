@@ -1460,7 +1460,9 @@ class WalletViewModel @Inject constructor(
     /** Forward KNS domain resolution for any recipient-address field (Withdraw dialogs, the
      *  spending-address send flow) - lets typing "name.kas" resolve to a Kaspa address the same
      *  way Create Chat's own address field already does. */
-    suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
+    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
+    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
 
     /** Epoch millis this account was first added to this device, or null for one added before
      *  that started being recorded. See [WalletManager.accountAddedAt]. */
@@ -1594,8 +1596,11 @@ class WalletViewModel @Inject constructor(
             _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = true)
             val myAddress = sourceAddress ?: address.value
             try {
-                val resolved = if (KnsService.looksLikeDomain(trimmed)) {
-                    knsService.resolve(trimmed) ?: throw IllegalStateException("Domain not found or has no owner")
+                // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+                // (iOS 79b6ac8) - the same lookup as every other address field.
+                val resolved = if (!KaspaAddress.isValid(trimmed) && com.kachat.app.services.NameServicesClient.looksLikeName(trimmed)) {
+                    nameServices.resolvePrimary(trimmed)?.address
+                        ?: throw IllegalStateException(appContext.getString(com.kachat.app.R.string.no_domain_found))
                 } else {
                     trimmed
                 }

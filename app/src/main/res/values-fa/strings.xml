@@ -479,4 +479,13 @@
     <string name="no_names_yet">هنوز نام %1$s ندارد.</string>
     <string name="kachat_names_are_coming">نام‌های .kachat به‌زودی می‌آیند</string>
     <string name="kachat_names_coming_body">نام‌های اختصاصی KaChat اینجا خواهند بود: یکی بگیرید، آن را نام خود در گفتگوها کنید و به‌عنوان پیوند نمایه به اشتراک بگذارید.</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">دامنه‌ای پیدا نشد</string>
+    <string name="no_tld_domain_found">دامنه %1$s پیدا نشد</string>
+    <string name="looking_up_domain">در حال یافتن دامنه...</string>
+    <string name="no_domain">بدون دامنه</string>
+    <string name="other_domains">دامنه‌های دیگر</string>
+    <string name="not_registered">ثبت نشده</string>
+    <string name="couldnt_check">بررسی ممکن نشد</string>
+    <string name="kaspa_address_or_domain">آدرس Kaspa یا دامنه</string>
 </resources>

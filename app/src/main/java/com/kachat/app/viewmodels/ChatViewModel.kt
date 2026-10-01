@@ -73,7 +73,8 @@ class ChatViewModel @Inject constructor(
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
     private val kaPostsService: com.kachat.app.services.KaPostsService,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
-    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter
+    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter,
+    private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
     // ---------------------------------------------------------------------
@@ -1399,6 +1400,11 @@ class ChatViewModel @Inject constructor(
      * concurrently, so each row owns its own debounce/resolving state locally in Compose and
      * just calls this directly.
      */
+    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
+    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
+
+    /** .kas only - for the group add-members search, which stays on what KNS indexes (iOS 79b6ac8). */
     suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
 
     private val _isCreatingGroup = MutableStateFlow(false)
@@ -2125,14 +2131,33 @@ class ChatViewModel @Inject constructor(
 
     private var knsResolveJob: Job? = null
 
-    /** Call on every keystroke in the Create Chat address field — debounces and resolves if the input looks like a KNS domain. */
+    /** What the typed name points to on every name service (.kachat first), and which one the
+     *  chat will use - the priority answer until a different one is picked under "Other
+     *  domains" (iOS a0dbc15). */
+    private val _nameResolutions = MutableStateFlow<List<com.kachat.app.services.NameResolution>>(emptyList())
+    val nameResolutions: StateFlow<List<com.kachat.app.services.NameResolution>> = _nameResolutions.asStateFlow()
+    private val _selectedResolutionTld = MutableStateFlow<com.kachat.app.services.NameServiceTLD?>(null)
+    val selectedResolutionTld: StateFlow<com.kachat.app.services.NameServiceTLD?> = _selectedResolutionTld.asStateFlow()
+    /** Whether the "Other domains" list starts open - when nothing resolved for the ending typed
+     *  but another service has the name. */
+    private val _otherDomainsSuggested = MutableStateFlow(false)
+    val otherDomainsSuggested: StateFlow<Boolean> = _otherDomainsSuggested.asStateFlow()
+
+    /** Call on every keystroke in the Create Chat address field - debounces, then looks a name
+     *  (with or without its ending) up on every service at once. The chat goes to the priority
+     *  answer - the ending typed, else .kachat, then .kas, .k, .kaspa - and the others are listed
+     *  under "Other domains" to pick instead. */
     fun onCreateChatAddressChanged(input: String) {
         knsResolveJob?.cancel()
         _knsResolvedAddress.value = null
         _knsResolvedDomain.value = null
         _knsError.value = null
+        _nameResolutions.value = emptyList()
+        _selectedResolutionTld.value = null
+        _otherDomainsSuggested.value = false
 
-        if (!KnsService.looksLikeDomain(input)) {
+        val typed = input.trim()
+        if (!com.kachat.app.services.NameServicesClient.looksLikeName(typed)) {
             _isResolvingKns.value = false
             return
         }
@@ -2141,15 +2166,34 @@ class ChatViewModel @Inject constructor(
         knsResolveJob = viewModelScope.launch {
             // Same 300ms debounce iOS types against.
             delay(300)
-            val resolved = knsService.resolve(input)
+            val results = nameServices.resolveEverywhere(typed)
+            _nameResolutions.value = results
             _isResolvingKns.value = false
-            if (resolved != null) {
-                _knsResolvedAddress.value = resolved
-                _knsResolvedDomain.value = KnsService.normalizeDomain(input)
+            val primary = com.kachat.app.services.NameServicesClient.primary(results, typed)
+            if (primary?.address != null) {
+                selectNameResolution(primary)
             } else {
-                _knsError.value = "KNS domain not found"
+                // Deliberately does NOT set a name. A contact is only ever named when the user
+                // types one; display falls through to the domain on its own.
+                val explicit = com.kachat.app.services.NameServiceTLD.splitTypedName(typed).second
+                _knsError.value = if (explicit != null) {
+                    appContext.getString(com.kachat.app.R.string.no_tld_domain_found, explicit.suffix)
+                } else {
+                    appContext.getString(com.kachat.app.R.string.no_domain_found)
+                }
+                // Nothing resolved for the ending typed, but another service may have it.
+                _otherDomainsSuggested.value = results.any { it.address != null }
             }
         }
+    }
+
+    /** Points the chat at [resolution] - the priority answer, or one picked under "Other domains". */
+    fun selectNameResolution(resolution: com.kachat.app.services.NameResolution) {
+        val address = resolution.address ?: return
+        _selectedResolutionTld.value = resolution.tld
+        _knsResolvedAddress.value = address
+        _knsResolvedDomain.value = resolution.display
+        _knsError.value = null
     }
 
     /**

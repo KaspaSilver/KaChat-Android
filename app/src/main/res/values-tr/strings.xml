@@ -440,4 +440,13 @@
     <string name="no_names_yet">Henüz %1$s adı yok.</string>
     <string name="kachat_names_are_coming">.kachat adları geliyor</string>
     <string name="kachat_names_coming_body">KaChat\'in kendi adları burada olacak: bir tane al, sohbetlerde adın olarak kullan ve profil bağlantın olarak paylaş.</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">Alan adı bulunamadı</string>
+    <string name="no_tld_domain_found">%1$s alan adı bulunamadı</string>
+    <string name="looking_up_domain">Alan adı aranıyor...</string>
+    <string name="no_domain">Alan adı yok</string>
+    <string name="other_domains">Diğer alan adları</string>
+    <string name="not_registered">Kayıtlı değil</string>
+    <string name="couldnt_check">Kontrol edilemedi</string>
+    <string name="kaspa_address_or_domain">Kaspa adresi veya alan adı</string>
 </resources>

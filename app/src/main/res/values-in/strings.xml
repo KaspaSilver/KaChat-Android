@@ -310,4 +310,13 @@
     <string name="no_names_yet">Belum ada nama %1$s.</string>
     <string name="kachat_names_are_coming">Nama .kachat segera hadir</string>
     <string name="kachat_names_coming_body">Nama milik KaChat akan ada di sini: klaim satu, jadikan namamu di obrolan, dan bagikan sebagai tautan profilmu.</string>
+    <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
+    <string name="no_domain_found">Domain tidak ditemukan</string>
+    <string name="no_tld_domain_found">Domain %1$s tidak ditemukan</string>
+    <string name="looking_up_domain">Mencari domain...</string>
+    <string name="no_domain">Tidak ada domain</string>
+    <string name="other_domains">Domain lain</string>
+    <string name="not_registered">Tidak terdaftar</string>
+    <string name="couldnt_check">Tidak dapat memeriksa</string>
+    <string name="kaspa_address_or_domain">Alamat Kaspa atau domain</string>
 </resources>
