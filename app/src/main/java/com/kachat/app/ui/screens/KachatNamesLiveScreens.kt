@@ -2302,14 +2302,10 @@ private fun KachatSocialPreview(
                     SocialSource.Kind.AVATAR -> ContactAvatar(imageUrl = resolved?.avatar, fallbackText = "", size = 64.dp)
                     SocialSource.Kind.BANNER -> {
                         val gradient = androidx.compose.ui.graphics.Brush.linearGradient(listOf(KaspaTeal.copy(alpha = 0.55f), KaspaTeal.copy(alpha = 0.15f)))
-                        coil.compose.SubcomposeAsyncImage(
-                            model = resolved?.banner,
-                            contentDescription = null,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.fillMaxWidth().height(90.dp).clip(RoundedCornerShape(8.dp)),
-                            loading = { Box(Modifier.fillMaxSize().background(gradient)) },
-                            error = { Box(Modifier.fillMaxSize().background(gradient)) }
-                        )
+                        // Whole, at its own proportions (iOS c66bfc7).
+                        WholeBanner(model = resolved?.banner, placeholderHeight = 90.dp, shape = RoundedCornerShape(8.dp)) {
+                            Box(Modifier.fillMaxSize().background(gradient))
+                        }
                     }
                     SocialSource.Kind.BIO -> Text(resolved?.bio ?: "", color = colors.textPrimary, fontSize = 15.sp)
                 }

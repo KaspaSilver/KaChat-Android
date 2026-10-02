@@ -4665,14 +4665,11 @@ fun KaPostsProfileOverlay(
                     Column {
                         val bannerUrl = profileBannerUrl
                         if (bannerUrl != null) {
-                            SubcomposeAsyncImage(
-                                model = bannerUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxWidth().height(140.dp),
-                                loading = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                                error = { Box(Modifier.fillMaxSize().background(colors.surfaceVariant)) },
-                            )
+                            // The whole banner at the full width (its own proportions, no crop);
+                            // the plain canvas only when there is no banner (iOS c66bfc7).
+                            WholeBanner(model = bannerUrl, placeholderHeight = 140.dp) {
+                                Box(Modifier.fillMaxSize().background(colors.surfaceVariant))
+                            }
                         } else {
                             Box(Modifier.fillMaxWidth().height(140.dp).background(colors.surfaceVariant))
                         }

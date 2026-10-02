@@ -4078,14 +4078,10 @@ fun ProfileScreen(
                     val bannerUrl = kachatBanner
                         ?: knsProfile?.bannerUrl?.takeIf { !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled }
                     if (bannerUrl != null) {
-                        SubcomposeAsyncImage(
-                            model = bannerUrl,
-                            contentDescription = null,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.fillMaxWidth().height(140.dp),
-                            loading = { Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f))) },
-                            error = { Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f))) }
-                        )
+                        // Whole, at its own proportions (iOS c66bfc7).
+                        WholeBanner(model = bannerUrl, placeholderHeight = 140.dp) {
+                            Box(Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.25f)))
+                        }
                     } else {
                         Box(
                             Modifier.fillMaxWidth().height(140.dp).background(
@@ -13130,16 +13126,14 @@ fun ChatInfoScreen(
                         val bannerUrl = kachatBanner
                             ?: knsFields?.bannerUrl?.takeIf { it.isNotBlank() && usesKnsProfile }
                         if (bannerUrl != null) {
-                            SubcomposeAsyncImage(
+                            // Whole, at its own proportions (iOS c66bfc7).
+                            WholeBanner(
                                 model = bannerUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(90.dp)
-                                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                                    .background(LocalAppColors.current.surfaceVariant)
-                            )
+                                placeholderHeight = 90.dp,
+                                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                            ) {
+                                Box(Modifier.fillMaxSize().background(LocalAppColors.current.surfaceVariant))
+                            }
                         }
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             ContactAvatar(
