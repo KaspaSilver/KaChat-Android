@@ -15,6 +15,9 @@ import com.kachat.app.util.Secp256k1
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -206,7 +209,7 @@ class PushRegistrationManager @Inject constructor(
      * failure here costs nothing but the ring on a sleeping phone. Throws so the caller can log it.
      */
     suspend fun requestRing(toAddress: String, callId: String, video: Boolean, kind: String, payloadHex: String) {
-        val api = networkService.pushApi.first { it != null }
+        val api = pushApiOrNull()
             ?: throw IllegalStateException("push API unavailable")
         val token = FirebaseMessaging.getInstance().token.await().trim()
         if (token.isEmpty()) throw IllegalStateException("no FCM token")
@@ -265,7 +268,7 @@ class PushRegistrationManager @Inject constructor(
         pushState.setActive(false)
         lastRegisteredFingerprint = null
 
-        val api = networkService.pushApi.first { it != null } ?: return@withLock
+        val api = pushApiOrNull() ?: return@withLock
         val token = try { FirebaseMessaging.getInstance().token.await().trim() } catch (e: Exception) {
             pushState.recordAttempt("unregister", succeeded = false, error = "FCM token unavailable: ${e.message}", fcmTokenPresent = false)
             return@withLock
@@ -297,11 +300,61 @@ class PushRegistrationManager @Inject constructor(
         }
     }
 
+    // MARK: - No push service on this network (testnet) - iOS df52425
+
+    private val gson = com.google.gson.Gson()
+    private val pushPrefs by lazy { context.getSharedPreferences("kachat_push_registration", Context.MODE_PRIVATE) }
+
+    /** The push API, or null when this network has no push service (a blank URL - testnet). It
+     *  used to wait for a client that a blank URL never builds. */
+    private suspend fun pushApiOrNull(): PushApi? {
+        if (settings.pushIndexerUrl.first().isBlank()) return null
+        return networkService.pushApi.first { it != null }
+    }
+
+    /**
+     * No push service on this network: the registration made on mainnet is withdrawn with one
+     * unsigned DELETE to the service the device last registered with (unsigned because the signed
+     * form binds the address of the network being left), and this device counts as unregistered -
+     * otherwise the mainnet service kept pushing mainnet messages into the testnet account.
+     */
+    private suspend fun leavePushServiceOfOtherNetworkIfNeeded() {
+        pushState.setActive(false)
+        lastRegisteredFingerprint = null
+        // Registrations made before this was recorded went to the shipped default service.
+        val registeredBase = pushPrefs.getString(KEY_REGISTERED_BASE_URL, null)?.takeIf { it.isNotBlank() }
+            ?: com.kachat.app.repository.AppSettingsRepository.DEFAULT_PUSH_INDEXER_URL.takeIf { !pushPrefs.getBoolean(KEY_LEFT, false) }
+            ?: return
+        pushPrefs.edit().remove(KEY_REGISTERED_BASE_URL).putBoolean(KEY_LEFT, true).apply()
+        val token = try { FirebaseMessaging.getInstance().token.await().trim() } catch (e: Exception) { return }
+        if (token.isEmpty()) return
+        try {
+            val body = gson.toJson(PushUnregisterRequest(deviceToken = token, auth = null))
+                .toRequestBody("application/json".toMediaType())
+            val request = okhttp3.Request.Builder()
+                .url(registeredBase.trimEnd('/') + "/v1/push/unregister")
+                .delete(body)
+                .build()
+            leaveClient.newCall(request).execute().close()
+            Log.i(TAG, "No push service on this network; sent unregister to $registeredBase")
+        } catch (e: Exception) {
+            Log.w(TAG, "Unregister from the other network's push service failed: ${e.message}")
+        }
+    }
+
+    private val leaveClient by lazy {
+        okhttp3.OkHttpClient.Builder().callTimeout(20, java.util.concurrent.TimeUnit.SECONDS).build()
+    }
+
     private suspend fun register(tokenOverride: String?) = mutex.withLock {
         if (!walletManager.hasWallet()) return@withLock
         if (!settings.notificationsEnabled.first()) return@withLock
+        if (settings.pushIndexerUrl.first().isBlank()) {
+            withContext(Dispatchers.IO) { leavePushServiceOfOtherNetworkIfNeeded() }
+            return@withLock
+        }
 
-        val api = networkService.pushApi.first { it != null } ?: return@withLock
+        val api = pushApiOrNull() ?: return@withLock
         val token = try {
             (tokenOverride ?: FirebaseMessaging.getInstance().token.await()).trim()
         } catch (e: Exception) {
@@ -378,6 +431,8 @@ class PushRegistrationManager @Inject constructor(
         // anyway, but keeping the flag honest costs nothing.
         pushState.setActive(NotificationManagerCompat.from(context).areNotificationsEnabled())
         pushState.recordAttempt("register", succeeded = true, error = null, fcmTokenPresent = true)
+        // The service this device is registered with - withdrawn from on a network without one.
+        pushPrefs.edit().putString(KEY_REGISTERED_BASE_URL, settings.pushIndexerUrl.first()).putBoolean(KEY_LEFT, false).apply()
         Log.i(
             TAG,
             "push registered (watched=${watchedAddresses.size}, aliases=${aliases.size}, groups=${watchedGroupIds.size}, " +
@@ -598,7 +653,7 @@ class PushRegistrationManager @Inject constructor(
         watchedGroupIds: List<String> = emptyList(),
         primaryAddress: String,
     ): PushAuthRequest {
-        val api = networkService.pushApi.first { it != null }
+        val api = pushApiOrNull()
             ?: throw IllegalStateException("push API unavailable")
         val walletPubkey = Schnorr.publicKeyXOnly(material.privateKey).toHex()
         val challenge = api.challenge()
@@ -703,6 +758,8 @@ class PushRegistrationManager @Inject constructor(
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     companion object {
+        private const val KEY_REGISTERED_BASE_URL = "registered_base_url"
+        private const val KEY_LEFT = "left_push_service"
         // Shared with KaChatFirebaseMessagingService so `adb logcat -s KaChatPush` shows the
         // whole story: registration attempts, their outcomes, token rotations, and every
         // received push.

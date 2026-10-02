@@ -708,6 +708,12 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun insertMessage(message: MessageEntity) {
+        // Every delivery path ends here: a message from the other network's address (a mainnet
+        // push arriving on testnet - the same key decrypts it) is never filed (iOS df52425).
+        if (!com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(message.contactId)) {
+            Log.i("ChatRepository", "Dropped a message from the other network")
+            return
+        }
         database.messageDao().insert(message)
         scheduleAutoBackupIfEnabled()
     }
@@ -1159,6 +1165,22 @@ class ChatRepository @Inject constructor(
      * if missing, before any sync has anything to show, and any earlier deletion of it is undone.
      * The chat list pins it first.
      */
+    /**
+     * Chats of the other network already filed under this account are removed, messages and all
+     * (iOS dropOtherNetworkConversations / ContactsManager load filter, df52425).
+     */
+    suspend fun dropOtherNetworkChats(myAddress: String) {
+        val all = database.contactDao().getContacts(myAddress).first()
+        for (contact in all) {
+            if (com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(contact.id)) continue
+            database.messageDao().deleteAllForContact(contact.id, myAddress)
+            database.reactionDao().deleteAllForContact(contact.id, myAddress)
+            database.messageEditDao().deleteAllForContact(contact.id, myAddress)
+            database.messageDao().deleteSyncCursorsForContact(contact.id, myAddress)
+            database.contactDao().deleteContact(contact.id, myAddress)
+        }
+    }
+
     suspend fun ensureSelfConversation(myAddress: String? = runCatching { walletManager.getAddress() }.getOrNull()) {
         val address = myAddress?.takeIf { it.isNotEmpty() } ?: return
         if (database.contactDao().getContact(address, address) != null) return
@@ -1177,6 +1199,7 @@ class ChatRepository @Inject constructor(
         liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
 
         ensureSelfConversation(myAddress)
+        if (!fromPollLoop) dropOtherNetworkChats(myAddress)
 
         syncHandshakes(myAddress, api)
         syncOutgoingHandshakes(myAddress, api)

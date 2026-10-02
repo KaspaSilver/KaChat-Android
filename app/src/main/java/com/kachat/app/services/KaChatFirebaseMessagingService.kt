@@ -228,6 +228,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     // "Started a conversation") — no decryption needed.
                     "payment", "handshake" -> {
                         val sender = data["sender"] ?: return@runBlocking
+                        if (silenceOtherNetwork(sender, data)) return@runBlocking
                         // Payments land in your own chat and ring as before; a handshake is
                         // first contact like any other (Message Requests).
                         if (type == "handshake" && applyMessageRequestRule(sender, data)) return@runBlocking
@@ -254,6 +255,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      */
     private suspend fun handleDirectMessage(data: Map<String, String>) {
         val sender = data["sender"] ?: return
+        if (silenceOtherNetwork(sender, data)) return
         // Media/large messages exceed FCM's 4KB cap, so the server can't attach the encrypted body
         // (enc_payload absent) — the server's generic body is used for those. Small text messages
         // carry enc_payload and are decrypted here for the real preview.
@@ -338,6 +340,18 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      * -> the normal notification. Anyone else -> "New message request", once; the app then looks
      * the sender up in the inbox so the request is there when the user opens it.
      */
+    /**
+     * A push about the other network's address - the mainnet service still pushing a device that
+     * has moved to testnet - is silenced and not filed; the same key would decrypt it into the
+     * wrong account (iOS NotificationService, df52425).
+     */
+    private suspend fun silenceOtherNetwork(sender: String, data: Map<String, String>): Boolean {
+        if (com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(sender)) return false
+        data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+        Log.i(TAG, "Silenced a push from the other network")
+        return true
+    }
+
     private suspend fun applyMessageRequestRule(sender: String, data: Map<String, String>): Boolean {
         val myAddress = runCatching { walletManager.getAddress() }.getOrNull() ?: return false
         if (sender.equals(myAddress, ignoreCase = true)) return false
