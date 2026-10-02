@@ -143,7 +143,10 @@ fun KaspaHubScreen(
         openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel, handlesDeepLinks = false)
         openSection == Screen.Swap -> SwapScreen(navController = navController)
         openSection == Screen.Chess -> ChessHomeScreen(navController, onBack = { openSectionRoute = null })
-        openSection == Screen.KachatNames -> KachatMarketScreen(onBack = { openSectionRoute = null })
+        openSection == Screen.KachatNames -> KachatMarketScreen(
+            onBack = { openSectionRoute = null },
+            onOpenChat = { address -> navController.navigate("chat/$address") }
+        )
         openSection == Screen.KachatStats -> KaChatStatsScreen(onBack = { openSectionRoute = null })
         else -> HubGrid(
             sections = sections,

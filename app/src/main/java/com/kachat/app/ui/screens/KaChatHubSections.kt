@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -73,16 +74,52 @@ import com.kachat.app.util.KaspaUnit
  * to peer and trustless (the name and the payment settle together on chain, no one holds either
  * in between).
  *
- * UI only. Nothing is wired yet: search answers "not live yet", listings and activity show
- * placeholder shapes, and every action is disabled. No invented names or prices anywhere - the
- * placeholders are blank shapes, so nothing here can be mistaken for a real listing.
+ * On mainnet it is UI only. Nothing is wired yet: search answers "not live yet", listings and
+ * activity show placeholder shapes, and every action is disabled. No invented names or prices
+ * anywhere - the placeholders are blank shapes, so nothing here can be mistaken for a real listing.
+ *
+ * On TESTNET (testnet-10, with the bundled registry manifest verified) it is live
+ * (KachatNamesLiveScreens.kt, iOS 5df42b4): search shows real availability and the price, Claim
+ * registers, the tabs read the registry, registrations in flight show their progress, and a name
+ * opens its live detail. [onOpenChat] opens a 1:1 chat (Message on a name's owner).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KachatMarketScreen(onBack: (() -> Unit)?) {
+fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {}) {
+    // Testnet only: mainnet never builds the live model, so it makes no network calls.
+    val live: KachatLiveViewModel? = if (KachatLive.isEnabled) hiltViewModel() else null
+    // Kept above the full-screen swaps below, so a name's detail returns to the same search and tab
+    // (iOS pushes it on a NavigationStack).
+    var page by remember { mutableIntStateOf(0) }
+    var searchText by remember { mutableStateOf("") }
+    var liveSheet by remember { mutableStateOf<KachatHubSheet?>(null) }
+    if (live != null) {
+        LaunchedEffect(Unit) { live.start() }
+    }
     // A listing opens over the market, and Buy / Make an Offer over the listing (iOS cd9e10c).
     var openListing by remember { mutableStateOf(false) }
     var listingSheet by remember { mutableStateOf<String?>(null) }
+    if (live != null) {
+        when (val sheet = liveSheet) {
+            is KachatHubSheet.Detail -> {
+                KachatLiveNameDetailScreen(sheet.info, onBack = { liveSheet = null }, onOpenChat = onOpenChat, vm = live)
+                return
+            }
+            is KachatHubSheet.Claim -> {
+                KachatClaimSheet(sheet.target, onClose = { liveSheet = null }, vm = live)
+                return
+            }
+            is KachatHubSheet.Reclaim -> {
+                KachatReclaimSheet(sheet.info, onClose = { liveSheet = null }, vm = live)
+                return
+            }
+            is KachatHubSheet.Offer -> {
+                KachatOfferActionSheet(sheet.action, onClose = { liveSheet = null })
+                return
+            }
+            null -> Unit
+        }
+    }
     when {
         listingSheet == "buy" -> { KachatBuyScreen(onClose = { listingSheet = null }); return }
         listingSheet == "offer" -> { KachatOfferScreen(onClose = { listingSheet = null }); return }
@@ -97,9 +134,19 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
     }
     if (onBack != null) BackHandler(onBack = onBack)
     val colors = LocalAppColors.current
-    var page by remember { mutableIntStateOf(0) }
-    var searchText by remember { mutableStateOf("") }
     var showHowItWorks by remember { mutableStateOf(false) }
+    // (smart-casts `live` to non-null where it is true)
+    val isLive = live?.isLive == true
+    // `live` is null on mainnet for the screen's whole life, so this call is never conditional in practice.
+    val pending = live?.actions?.pending?.collectAsState()?.value ?: emptyList()
+    // Pull to refresh on testnet only; mainnet has nothing to refresh.
+    val pullState = rememberPullToRefreshState(enabled = { isLive })
+    LaunchedEffect(pullState.isRefreshing) {
+        if (pullState.isRefreshing) {
+            live?.refresh()
+            pullState.endRefresh()
+        }
+    }
 
     Scaffold(
         containerColor = colors.background,
@@ -120,8 +167,9 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
             )
         }
     ) { padding ->
+      Box(Modifier.fillMaxSize().padding(padding).then(if (isLive) Modifier.nestedScroll(pullState.nestedScrollConnection) else Modifier)) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // Hero
@@ -135,7 +183,22 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
-                ComingSoonPill()
+                if (isLive) {
+                    KachatTestnetBadge()
+                } else {
+                    ComingSoonPill()
+                    // Testnet, but the manifest did not verify: the mockup, and why.
+                    val setupError = live?.setupError
+                    if (live != null && live.ready == false && setupError != null) {
+                        Text(
+                            LocalContext.current.kachatErrorText(setupError),
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
+                        )
+                    }
+                }
             }
             // Search
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -164,7 +227,13 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
                     Text(".kachat", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
                 }
                 val typed = searchText.trim().lowercase()
-                if (typed.isNotEmpty()) {
+                if (typed.isNotEmpty() && isLive) {
+                    KachatLiveSearchResult(
+                        live, typed,
+                        onOpen = { liveSheet = KachatHubSheet.Detail(it) },
+                        onClaim = { liveSheet = KachatHubSheet.Claim(it) },
+                    )
+                } else if (typed.isNotEmpty()) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -177,17 +246,41 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
                     }
                 }
             }
+            // Registrations in flight (testnet)
+            if (isLive) {
+                pending.filter { it.isOpen }.forEach { registration ->
+                    KachatRegistrationCard(registration, live)
+                }
+            }
             UnderlineTabBar(
                 titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.km_my_names), stringResource(R.string.km_activity)),
                 selectedIndex = page,
                 onSelect = { page = it },
             )
-            when (page) {
-                0 -> MarketPage(onOpenListing = { openListing = true })
-                1 -> MyNamesPage()
-                else -> ActivityPage()
+            if (isLive) {
+                when (page) {
+                    0 -> KachatLiveMarketPage(
+                        live,
+                        onOpen = { liveSheet = KachatHubSheet.Detail(it) },
+                        onReclaim = { liveSheet = KachatHubSheet.Reclaim(it) },
+                    )
+                    1 -> KachatLiveMyNamesPage(
+                        live,
+                        onOpen = { liveSheet = KachatHubSheet.Detail(it) },
+                        onOfferAction = { liveSheet = KachatHubSheet.Offer(it) },
+                    )
+                    else -> KachatLiveActivityPage(live)
+                }
+            } else {
+                when (page) {
+                    0 -> MarketPage(onOpenListing = { openListing = true })
+                    1 -> MyNamesPage()
+                    else -> ActivityPage()
+                }
             }
         }
+        if (isLive) PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
+      }
     }
 
     if (showHowItWorks) {
@@ -198,13 +291,22 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
             HowRow(Icons.Default.PanTool, stringResource(R.string.kl_offer), KaspaUnit.label(stringResource(R.string.kl_offer_detail)))
             HowRow(Icons.Default.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
             Text(
-                stringResource(R.string.km_nothing_live),
+                stringResource(if (isLive) R.string.kn_how_live_footer else R.string.km_nothing_live),
                 color = LocalAppColors.current.textSecondary,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
     }
+}
+
+/** What the live hub shows over itself (iOS NavigationLink / .sheet): a name's detail, the claim
+ *  sheet, a reclaim, or an offer action. */
+private sealed class KachatHubSheet {
+    class Detail(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
+    class Claim(val target: KachatClaimTarget) : KachatHubSheet()
+    class Reclaim(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
+    class Offer(val action: KachatOfferAction) : KachatHubSheet()
 }
 
 @Composable
@@ -742,7 +844,8 @@ private fun UnavailableCard(failure: KaChatStatsStore.Failure, onRetry: () -> Un
  * for KaChat's own names (a .kas profile is edited field by field in Your Domains).
  *
  * UI only until .kachat names launch: every step can be walked through, but nothing can be
- * claimed, picked or typed, and each says so. No invented names or images anywhere.
+ * claimed, picked or typed, and each says so. No invented names or images anywhere. On testnet the
+ * claim step points to Kaspa Hub > .kachat instead, where names are live (iOS 5df42b4).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -812,9 +915,14 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
                             Text("yourname", color = colors.textTertiary, modifier = Modifier.weight(1f))
                             Text(".kachat", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
                         }
-                        Text(stringResource(R.string.km_registration_not_open), color = colors.textSecondary, fontSize = 12.sp)
+                        // Testnet: .kachat is live there (iOS 5df42b4).
+                        Text(
+                            stringResource(if (KachatLive.isEnabled) R.string.kn_guide_testnet else R.string.km_registration_not_open),
+                            color = colors.textSecondary,
+                            fontSize = 12.sp
+                        )
                     }
-                    ComingSoonPill()
+                    if (!KachatLive.isEnabled) ComingSoonPill()
                 }
                 1 -> {
                     header({ Icon(Icons.Default.AccountCircle, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_avatar_title, R.string.kg_avatar_body)

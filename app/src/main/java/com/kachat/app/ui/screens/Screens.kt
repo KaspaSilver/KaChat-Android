@@ -3687,6 +3687,17 @@ fun ProfileScreen(
 
     val profileAssetId by viewModel.profileDomainAssetId.collectAsState()
     val knsProfile by viewModel.knsProfile.collectAsState()
+    // Testnet: your `.kachat` label (KACHAT_NAMES.md section 7 - your primary name while you own it
+    // and it is active, else your oldest active name), shown as your name on the hero (iOS
+    // 5df42b4). Mainnet never builds the names model.
+    val kachatLive: KachatLiveViewModel? =
+        if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) hiltViewModel() else null
+    var kachatLabel by remember { mutableStateOf<String?>(null) }
+    val kachatRevision = kachatLive?.registry?.revision?.collectAsState()?.value
+    LaunchedEffect(address, kachatRevision) {
+        val a = address
+        kachatLabel = if (kachatLive != null && a != null) kachatLive.label(a) else null
+    }
     val activeProfileDomainName = viewModel.activeProfileDomainName.collectAsState().value
     val hasAnyProfileData = knsProfile != null && listOf(
         knsProfile?.bio, knsProfile?.x, knsProfile?.website, knsProfile?.telegram,
@@ -4061,7 +4072,9 @@ fun ProfileScreen(
                     // your own label for the account, not what anyone sees you as (iOS 3041164).
                     // Your .kas name isn't your name here since 5.2 (iOS 509c0fe); that will be
                     // your .kachat name.
-                    val heroName = activeProfileDomainName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
+                    // On testnet your .kachat label comes first (iOS 5df42b4).
+                    val heroName = kachatLabel?.let { "$it.kachat" }
+                        ?: activeProfileDomainName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
                         ?: address?.let { com.kachat.app.util.KaspaAddress.shortDisplay(it) } ?: ""
                     // This card only ever renders the user's own profile (ProfileScreen is
                     // own-account only), so the edit/create entry is always shown here.
@@ -4358,8 +4371,11 @@ fun ProfileScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
+fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
+    // Testnet: a .kachat name opened from the .kachat tab - its live detail (iOS 5df42b4).
+    var selectedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
+    val walletAddress by viewModel.address.collectAsState()
     val primaryDomainName by viewModel.primaryDomainName.collectAsState()
     val setPrimaryState by viewModel.setPrimaryState.collectAsState()
     var selectedDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
@@ -4371,6 +4387,11 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
     }
     LaunchedEffect(Unit) {
         viewModel.refreshServiceNamesAndAwait()
+    }
+
+    selectedKachat?.let { info ->
+        KachatLiveNameDetailScreen(info, onBack = { selectedKachat = null }, onOpenChat = onOpenChat)
+        return
     }
 
     // A .kas domain's own profile, edited on its own (iOS 09e0403): .kas profiles are no longer
@@ -4460,7 +4481,13 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                 )
                 com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA ->
                     ServiceNameListTab(tld = tld, viewModel = viewModel)
-                com.kachat.app.services.NameServiceTLD.KACHAT -> KachatNamesComingSoon()
+                // Live on testnet (the testnet-10 registry); mainnet keeps "coming" (iOS 5df42b4).
+                com.kachat.app.services.NameServiceTLD.KACHAT ->
+                    if (KachatLive.isEnabled) {
+                        KachatLiveDomainsTab(walletAddress = walletAddress ?: "", onOpen = { selectedKachat = it })
+                    } else {
+                        KachatNamesComingSoon()
+                    }
             }
         }
     }
@@ -8308,8 +8335,9 @@ private fun PopupMenuRowContent(label: String, labelColor: Color, onClick: () ->
 
 /**
  * "Edit .kachat Profile": the same layout as the .kas profile editor - avatar, banner, bio and
- * links - but nothing in it yet, because KaChat's own names are not live (iOS 09e0403). Once they
- * are, this is the profile the whole app shows, ahead of any other name service's.
+ * links - but nothing in it yet on mainnet, because KaChat's own names are not live there (iOS
+ * 09e0403). On testnet it is the live address profile editor ([KachatLiveProfileEditorScreen],
+ * iOS 5df42b4): it writes the `kchat:1:profile:` record.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -8318,6 +8346,10 @@ fun KachatProfileEditorScreen(
     showSetupGuides: Boolean = true,
     onSetupGuide: () -> Unit = {},
 ) {
+    if (KachatLive.isEnabled) {
+        KachatLiveProfileEditorScreen(onBack = onBack)
+        return
+    }
     val colors = LocalAppColors.current
     @Composable
     fun placeholderRow(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
@@ -11069,7 +11101,12 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                         value = tld.apiBaseUrl(isMainnet) ?: stringResource(R.string.not_available_on_this_network),
                     )
                 }
-                ConnectionUrlField(label = "KaChat Names (.kachat)", value = stringResource(R.string.coming_soon))
+                // Testnet: the testnet-10 registry, read through the chat indexer above when it
+                // serves names, else straight from the chain (KachatNamesRegistry, iOS 5df42b4).
+                ConnectionUrlField(
+                    label = "KaChat Names (.kachat)",
+                    value = stringResource(if (isMainnet) R.string.coming_soon else R.string.kn_live_testnet_registry)
+                )
                 SettingsFooter(stringResource(R.string.other_name_services_footer))
             }
             }

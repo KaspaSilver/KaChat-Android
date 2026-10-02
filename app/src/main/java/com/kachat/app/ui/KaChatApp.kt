@@ -1546,7 +1546,9 @@ fun MainShell(
             composable("kns_domains") {
                 KnsDomainsScreen(
                     viewModel = walletViewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    // Message on a .kachat name's owner (testnet).
+                    onOpenChat = { address -> navController.navigate("chat/$address") }
                 )
             }
 
@@ -1665,7 +1667,10 @@ fun MainShell(
             // Chess tournaments (5.1): the lobby as a dock tab, and the screens it opens.
             composable(Screen.KachatNames.route) {
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                    com.kachat.app.ui.screens.KachatMarketScreen(onBack = null)
+                    com.kachat.app.ui.screens.KachatMarketScreen(
+                        onBack = null,
+                        onOpenChat = { address -> navController.navigate("chat/$address") }
+                    )
                 }
             }
             composable(Screen.KachatStats.route) {
