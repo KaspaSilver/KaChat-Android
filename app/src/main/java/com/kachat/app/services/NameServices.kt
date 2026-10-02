@@ -3,6 +3,10 @@ package com.kachat.app.services
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.kachat.app.services.kachatnames.KachatNames
+import com.kachat.app.services.kachatnames.KachatNamesRegistry
+import com.kachat.app.services.kachatnames.KachatNamesService
+import com.kachat.app.services.kachatnames.resolvedOwner
 import com.kachat.app.util.KaspaAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -28,7 +32,9 @@ import javax.inject.Singleton
  *   `https://kaspaname.com/v1`, reference SDK `@kronsdk/kaspa-names`.
  *   `GET /addresses/{owner identifier}/names` lists an owner's names, where the identifier is
  *   the 64-hex x-only public key inside a P2PK address - not the `kaspa:` string itself.
- * - `.kachat` - KaChat's own names. Not live yet; listed so the app already has its place.
+ * - `.kachat` - KaChat's own names (Kaspa covenants, KACHAT_NAMES.md). Live on testnet only, read
+ *   through [KachatNamesRegistry] (the names indexer, or the chain itself); mainnet waits for an
+ *   audit and keeps it not live (iOS 25cc2c9).
  *
  * Read-only, like both SDKs: nothing here needs a wallet key.
  */
@@ -70,15 +76,16 @@ enum class NameServiceTLD(val raw: String) {
         }
 
     /** The read API this app calls for the service, shown in Connection Settings > Domains.
-     *  Null for `.kas` (KNS has its own setting there) and `.kachat` (not live). */
+     *  Null for `.kas` (KNS has its own setting there) and `.kachat` (the registry has its own
+     *  sources: the names indexer, or the chain). */
     fun apiBaseUrl(mainnet: Boolean): String? = when (this) {
         K -> if (mainnet) "https://api.dotk.name/v1" else "https://api-tn10.dotk.name/v1"
         KASPA -> if (mainnet) "https://kaspaname.com/v1" else null
         KAS, KACHAT -> null
     }
 
-    /** Whether the app can read this service yet. */
-    val isLive: Boolean get() = this != KACHAT
+    /** Whether the app can read this service yet. `.kachat` only on testnet (testnet-10 registry). */
+    val isLive: Boolean get() = this != KACHAT || KachatNamesService.isEnabled
 
     companion object {
         /** The tab Your Domains opens on: `.kachat` once it is live, KNS until then. */
@@ -181,6 +188,9 @@ data class OwnedServiceName(
 @Singleton
 class NameServicesClient @Inject constructor(
     private val knsService: KnsService,
+    // Lazy: the registry (and the node/REST plumbing behind it) is only built where .kachat is
+    // live - on mainnet nothing here ever asks for it.
+    private val kachatRegistry: dagger.Lazy<KachatNamesRegistry>,
 ) {
     private val gson = Gson()
     private val client = OkHttpClient.Builder()
@@ -269,13 +279,25 @@ class NameServicesClient @Inject constructor(
         return result
     }
 
-    /** Whether [address] owns a name on any service KaChat reads - .kas, .k and .kaspa today.
-     *  Account discovery asks this so an address that holds only a name, and no KAS, is still
-     *  found. .kachat joins here once its registry is live ([NameServiceTLD.isLive]). */
-    suspend fun ownsAnyName(address: String): Boolean = coroutineScope {
-        val kas = async { runCatching { knsService.getOwnedDomains(address).isNotEmpty() }.getOrDefault(false) }
-        val others = async { ownedNames(of = address) }
-        kas.await() || others.await().isNotEmpty()
+    /** Whether [address] owns a name on any service KaChat reads - .kas, .k and .kaspa, and
+     *  .kachat where it is live (testnet). Account discovery asks this so an address that holds
+     *  only a name, and no KAS, is still found. */
+    suspend fun ownsAnyName(address: String): Boolean {
+        val found = coroutineScope {
+            val kas = async { runCatching { knsService.getOwnedDomains(address).isNotEmpty() }.getOrDefault(false) }
+            val others = async { ownedNames(of = address) }
+            kas.await() || others.await().isNotEmpty()
+        }
+        return found || ownsKachatName(address)
+    }
+
+    /** Any `.kachat` name (grace and lapsed included) - testnet only. */
+    private suspend fun ownsKachatName(address: String): Boolean {
+        if (!NameServiceTLD.KACHAT.isLive) return false
+        val key = KachatNamesRegistry.keyOf(address) ?: return false
+        val registry = kachatRegistry.get()
+        registry.refreshIfStale()
+        return runCatching { registry.names(key, includeInactive = true) }.getOrNull().orEmpty().isNotEmpty()
     }
 
     // .k (dotk)
@@ -320,13 +342,14 @@ class NameServicesClient @Inject constructor(
     // Forward resolution (typed name -> address)
 
     /** What [input] points to on every live service, in [NameServiceTLD.resolutionOrder]. A
-     *  service whose own rules reject the label is left out. `.kachat` is skipped until it is
-     *  live. Each service normalizes with its own rule ([NameNormalization]). */
+     *  service whose own rules reject the label is left out. `.kachat` is skipped where it is not
+     *  live (mainnet). Each service normalizes with its own rule ([NameNormalization]). */
     suspend fun resolveEverywhere(input: String): List<NameResolution> {
         val label = NameServiceTLD.splitTypedName(input).first
         if (label.isEmpty()) return emptyList()
         val results = coroutineScope {
             listOf(
+                async { resolveKachat(label) },
                 async { resolveKas(label) },
                 async { resolveDotk(label) },
                 async { resolveKaspaNames(label) },
@@ -338,6 +361,27 @@ class NameServicesClient @Inject constructor(
     /** The address a typed name points to, by [primary]'s rule - null when nothing resolves. */
     suspend fun resolvePrimary(input: String): NameResolution? =
         primary(resolveEverywhere(input), input)?.takeIf { it.address != null }
+
+    /** `.kachat` (testnet only): the registry's owner of an ACTIVE name - a name in grace or
+     *  lapsed does not resolve (KACHAT_NAMES.md section 4, [KachatNames.resolvedOwner]). Same
+     *  rules as the gap: a-z, 0-9, hyphen. iOS 25cc2c9. */
+    private suspend fun resolveKachat(label: String): NameResolution? {
+        if (!NameServiceTLD.KACHAT.isLive) return null
+        val canonical = KachatNames.Codec.normalize(label)
+        if (!KachatNames.Codec.isValid(canonical)) return null
+        val display = "$canonical.kachat"
+        val registry = kachatRegistry.get()
+        registry.refreshIfStale()
+        return try {
+            val owner = KachatNames.resolvedOwner(registry.lookup(canonical), registry.graceMs)
+            NameResolution(NameServiceTLD.KACHAT, display, owner?.let { KachatNamesRegistry.address(it) }, failed = false)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, ".kachat lookup failed: ${e.message}")
+            NameResolution(NameServiceTLD.KACHAT, display, null, failed = true)
+        }
+    }
 
     private suspend fun resolveKas(label: String): NameResolution? {
         val canonical = KnsService.normalizeDomainLabel(label) ?: return null

@@ -381,7 +381,16 @@ class KaspadConnection internal constructor(
             gas = tx.gas
             tx.payload?.let { payload = it }
         }
+        return submitRpcTransaction(rpcTx, allowOrphan)
+    }
 
+    /**
+     * Submits an already-converted transaction (iOS `NodePoolService.submitRpcTransaction`, KaChat
+     * ede9417): [submitTransaction] forwards here unchanged. The version-1 (Toccata) `.kachat`
+     * builders fill `computeBudget`, `covenant` and `storageMass` themselves
+     * (`KachatNamesService.rpcTransaction`), which the v0 [RawTransaction] has no place for.
+     */
+    suspend fun submitRpcTransaction(rpcTx: Rpc.RpcTransaction, allowOrphan: Boolean = false): String {
         val response = call(
             timeoutMs = 15000,
             build = { id ->

@@ -116,6 +116,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
 
+    // .kachat registrations in flight (testnet only) resume on every foreground, like iOS's
+    // app-active (KaChat 5df42b4). Lazy, so a mainnet launch never even builds the names stack.
+    @Inject
+    lateinit var kachatNamesActions: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesActions>
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(hiltWorkerFactory).build()
 
@@ -203,6 +208,15 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // suspended along with the rest of the app) - reconnect any that are dead right
                 // now instead of waiting for the next 5-30s probe cycle to notice and replace them.
                 nodePoolManager.reconnectStaleConnections()
+                // .kachat registrations in flight (testnet only; nothing on mainnet) resume after a
+                // relaunch: commit -> wait -> register continues by itself.
+                if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+                    try {
+                        kachatNamesActions.get().resume()
+                    } catch (e: Exception) {
+                        android.util.Log.w("KaChatApplication", ".kachat registration resume failed", e)
+                    }
+                }
                 // Group invites (gctl_root) otherwise only surface via the 15-min SyncWorker
                 // periodic job or the live block-scan - unlike 1:1 chat, which has its own
                 // always-running poll loop, groups had no on-foreground catch-up at all, so a
