@@ -730,7 +730,6 @@
     <string name="kn_buyer">ক্রেতা</string>
     <string name="kn_refundable_now">এখন ফেরতযোগ্য</string>
     <string name="kn_price_to_miners">দাম (মাইনারদের জন্য)</string>
-    <string name="kn_your_balance">আপনার ব্যালান্স</string>
     <string name="kn_sent_note">নেটওয়ার্ক গ্রহণ করলে এখানে দেখা যাবে, সাধারণত কয়েক সেকেন্ডে।</string>
     <string name="kn_years">বছর</string>
     <string name="kn_bond_returned">বন্ড (ছাড়লে ফেরত)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">মেয়াদ</string>
     <string name="kn_one_year">1 বছর</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">সোশ্যাল প্রোফাইল</string>
-    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram বা LinkedIn থেকে একটি প্রোফাইল লিংক, অথবা একটি Discord সার্ভারের আমন্ত্রণ পেস্ট করুন।</string>
-    <string name="kn_social_footer">আপনার অবতার, ব্যানার ও বায়ো এই প্রোফাইল থেকে আসে, ঠিক যেভাবে ওই প্ল্যাটফর্ম দেখায়, তাই তাদের মডারেশন এখানেও প্রযোজ্য। ব্যানার আসে X, YouTube ও Discord থেকে; বায়ো আসে X, YouTube, Telegram, Twitch, Kick, GitHub ও Discord থেকে।</string>
-    <string name="kn_linktree_bad">শুধু একটি Linktree লিংক (linktr.ee/yourname) যোগ করা যায়।</string>
     <string name="kn_linktree_footer">আপনার অন্যান্য অ্যাকাউন্ট ও ওয়েবসাইটে মানুষকে পাঠাতে আপনার Linktree যোগ করুন।</string>
     <string name="kn_social_looking">প্রোফাইল খোঁজা হচ্ছে...</string>
-    <string name="kn_social_nothing">এই লিংকের জন্য কিছু পাওয়া যায়নি।</string>
     <string name="kn_social_from">%1$s থেকে</string>
     <string name="kn_social_no_avatar">এই %1$s প্রোফাইলে কোনো অবতার নেই।</string>
     <string name="kn_social_no_banner">এই %1$s প্রোফাইলে কোনো ব্যানার নেই।</string>
-    <string name="kn_social_no_banners">%1$s ব্যানার শেয়ার করে না।</string>
     <string name="kn_social_no_bio">এই %1$s প্রোফাইলে কোনো বায়ো নেই।</string>
-    <string name="kn_social_no_bios">%1$s বায়ো শেয়ার করে না।</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">%1$s-এ পৌঁছানো যায়নি।</string>
+    <string name="kn_account_on">অ্যাকাউন্ট</string>
+    <string name="kn_handle">হ্যান্ডেল</string>
+    <string name="kn_invite">আমন্ত্রণ</string>
+    <string name="kn_username">ইউজারনেম</string>
+    <string name="kn_profile_pieces_footer">প্রতিটি অংশ আসে আপনার লিংক করা একটি সোশ্যাল প্রোফাইল থেকে, ঠিক যেভাবে ওই প্ল্যাটফর্ম দেখায়, তাই তাদের মডারেশন এখানেও প্রযোজ্য। তিনটির জন্য একটি অ্যাকাউন্ট ব্যবহার করতে পারেন, বা মিশিয়ে নিতে পারেন।</string>
+    <string name="kn_linktree_username_bad">আপনার Linktree ইউজারনেম লিখুন: অক্ষর, সংখ্যা, ডট, ড্যাশ বা আন্ডারস্কোর।</string>
+    <string name="kn_handle_bad">এটি এই প্ল্যাটফর্মের হ্যান্ডেলের মতো দেখাচ্ছে না।</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">চ্যাটিং ঠিকানার ব্যালান্স</string>
+    <string name="kn_balance_after">পরে ব্যালান্স</string>
+    <string name="kn_balance_change">ব্যালান্সের পরিবর্তন</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">লেনদেন পাঠানো হয়েছে</string>
+    <string name="kn_view_transaction">লেনদেন দেখুন</string>
+    <string name="kn_done_released">নাম ছেড়ে দেওয়া হয়েছে</string>
+    <string name="kn_done_bought">নাম কেনা হয়েছে</string>
+    <string name="kn_done_offer_sent">অফার পাঠানো হয়েছে</string>
+    <string name="kn_done_price_changed">দাম বদলানো হয়েছে</string>
+    <string name="kn_done_listed">বিক্রির জন্য তালিকাভুক্ত</string>
+    <string name="kn_done_transferred">নাম হস্তান্তর হয়েছে</string>
+    <string name="kn_done_reclaimed">নাম পুনরুদ্ধার হয়েছে</string>
+    <string name="kn_done_profile_saved">প্রোফাইল সংরক্ষিত</string>
+    <string name="kn_done_primary_set">প্রাথমিক নাম সেট হয়েছে</string>
+    <string name="kn_done_registered">নাম নিবন্ধিত হয়েছে</string>
+    <string name="kn_done_commit_cancelled">কমিট বাতিল হয়েছে</string>
 </resources>

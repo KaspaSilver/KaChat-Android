@@ -730,7 +730,6 @@
     <string name="kn_buyer">खरीदार</string>
     <string name="kn_refundable_now">अब लौटाया जा सकता है</string>
     <string name="kn_price_to_miners">कीमत (माइनरों को)</string>
-    <string name="kn_your_balance">आपका बैलेंस</string>
     <string name="kn_sent_note">नेटवर्क के स्वीकार करते ही यह यहाँ दिखेगा, आम तौर पर कुछ सेकंड में।</string>
     <string name="kn_years">वर्ष</string>
     <string name="kn_bond_returned">बॉन्ड (छोड़ने पर वापस)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">समाप्ति</string>
     <string name="kn_one_year">1 वर्ष</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">सोशल प्रोफ़ाइल</string>
-    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram या LinkedIn का प्रोफ़ाइल लिंक, या किसी Discord सर्वर का इनवाइट पेस्ट करें।</string>
-    <string name="kn_social_footer">आपका अवतार, बैनर और बायो इसी प्रोफ़ाइल से आते हैं, ठीक वैसे ही जैसे वह प्लेटफ़ॉर्म दिखाता है, इसलिए उसका मॉडरेशन यहाँ भी लागू होता है। बैनर X, YouTube और Discord से आते हैं; बायो X, YouTube, Telegram, Twitch, Kick, GitHub और Discord से।</string>
-    <string name="kn_linktree_bad">सिर्फ़ एक Linktree लिंक (linktr.ee/yourname) जोड़ा जा सकता है।</string>
     <string name="kn_linktree_footer">लोगों को अपने दूसरे अकाउंट और वेबसाइट तक ले जाने के लिए अपना Linktree जोड़ें।</string>
     <string name="kn_social_looking">प्रोफ़ाइल खोजी जा रही है...</string>
-    <string name="kn_social_nothing">इस लिंक के लिए कुछ नहीं मिला।</string>
     <string name="kn_social_from">%1$s से</string>
     <string name="kn_social_no_avatar">इस %1$s प्रोफ़ाइल पर कोई अवतार नहीं है।</string>
     <string name="kn_social_no_banner">इस %1$s प्रोफ़ाइल पर कोई बैनर नहीं है।</string>
-    <string name="kn_social_no_banners">%1$s बैनर साझा नहीं करता।</string>
     <string name="kn_social_no_bio">इस %1$s प्रोफ़ाइल पर कोई बायो नहीं है।</string>
-    <string name="kn_social_no_bios">%1$s बायो साझा नहीं करता।</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">%1$s तक नहीं पहुँच सके।</string>
+    <string name="kn_account_on">अकाउंट</string>
+    <string name="kn_handle">हैंडल</string>
+    <string name="kn_invite">इनवाइट</string>
+    <string name="kn_username">यूज़रनेम</string>
+    <string name="kn_profile_pieces_footer">हर हिस्सा आपके लिंक किए सोशल प्रोफ़ाइल से आता है, ठीक वैसे ही जैसे वह प्लेटफ़ॉर्म दिखाता है, इसलिए उसका मॉडरेशन यहाँ भी लागू होता है। तीनों के लिए एक अकाउंट इस्तेमाल करें या उन्हें मिलाएँ।</string>
+    <string name="kn_linktree_username_bad">अपना Linktree यूज़रनेम डालें: अक्षर, अंक, डॉट, डैश या अंडरस्कोर।</string>
+    <string name="kn_handle_bad">यह इस प्लेटफ़ॉर्म का हैंडल नहीं लगता।</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">चैट पते का बैलेंस</string>
+    <string name="kn_balance_after">बाद में बैलेंस</string>
+    <string name="kn_balance_change">बैलेंस में बदलाव</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">लेन-देन भेजा गया</string>
+    <string name="kn_view_transaction">लेन-देन देखें</string>
+    <string name="kn_done_released">नाम छोड़ा गया</string>
+    <string name="kn_done_bought">नाम खरीदा गया</string>
+    <string name="kn_done_offer_sent">ऑफ़र भेजा गया</string>
+    <string name="kn_done_price_changed">कीमत बदली गई</string>
+    <string name="kn_done_listed">बिक्री के लिए सूचीबद्ध</string>
+    <string name="kn_done_transferred">नाम ट्रांसफ़र किया गया</string>
+    <string name="kn_done_reclaimed">नाम वापस लिया गया</string>
+    <string name="kn_done_profile_saved">प्रोफ़ाइल सहेजी गई</string>
+    <string name="kn_done_primary_set">मुख्य नाम सेट किया गया</string>
+    <string name="kn_done_registered">नाम पंजीकृत हुआ</string>
+    <string name="kn_done_commit_cancelled">कमिट रद्द हुआ</string>
 </resources>

@@ -730,7 +730,6 @@
     <string name="kn_buyer">Alıcı</string>
     <string name="kn_refundable_now">Şimdi iade edilebilir</string>
     <string name="kn_price_to_miners">Fiyat (madencilere)</string>
-    <string name="kn_your_balance">Bakiyeniz</string>
     <string name="kn_sent_note">Ağ kabul edince burada görünür, genellikle saniyeler içinde.</string>
     <string name="kn_years">Yıl</string>
     <string name="kn_bond_returned">Teminat (bırakınca iade)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Süre</string>
     <string name="kn_one_year">1 yıl</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Sosyal Profil</string>
-    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram veya LinkedIn profil bağlantısı ya da bir Discord sunucu daveti yapıştırın.</string>
-    <string name="kn_social_footer">Avatarınız, kapak görseliniz ve biyografiniz bu profilden, o platformun gösterdiği şekliyle gelir; bu yüzden onun moderasyonu burada da geçerlidir. Kapak görselleri X, YouTube ve Discord\'dan; biyografiler X, YouTube, Telegram, Twitch, Kick, GitHub ve Discord\'dan gelir.</string>
-    <string name="kn_linktree_bad">Yalnızca bir Linktree bağlantısı (linktr.ee/adiniz) eklenebilir.</string>
     <string name="kn_linktree_footer">İnsanları diğer hesaplarınıza ve web sitelerinize yönlendirmek için Linktree\'nizi ekleyin.</string>
     <string name="kn_social_looking">Profil aranıyor...</string>
-    <string name="kn_social_nothing">Bu bağlantı için bir şey bulunamadı.</string>
     <string name="kn_social_from">%1$s üzerinden</string>
     <string name="kn_social_no_avatar">Bu %1$s profilinde avatar yok.</string>
     <string name="kn_social_no_banner">Bu %1$s profilinde kapak görseli yok.</string>
-    <string name="kn_social_no_banners">%1$s kapak görsellerini paylaşmıyor.</string>
     <string name="kn_social_no_bio">Bu %1$s profilinde biyografi yok.</string>
-    <string name="kn_social_no_bios">%1$s biyografileri paylaşmıyor.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">%1$s ile bağlantı kurulamadı.</string>
+    <string name="kn_account_on">Hesap</string>
+    <string name="kn_handle">kullanıcı adı</string>
+    <string name="kn_invite">davet</string>
+    <string name="kn_username">kullanıcı adı</string>
+    <string name="kn_profile_pieces_footer">Her parça, bağladığınız sosyal profilden o platformun gösterdiği şekliyle gelir; bu yüzden onun moderasyonu burada da geçerlidir. Üçü için tek bir hesap kullanabilir ya da karıştırabilirsiniz.</string>
+    <string name="kn_linktree_username_bad">Linktree kullanıcı adınızı girin: harf, rakam, nokta, tire veya alt çizgi.</string>
+    <string name="kn_handle_bad">Bu, bu platformda bir kullanıcı adına benzemiyor.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Sohbet adresi bakiyesi</string>
+    <string name="kn_balance_after">Sonraki bakiye</string>
+    <string name="kn_balance_change">Bakiye değişimi</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">İşlem gönderildi</string>
+    <string name="kn_view_transaction">İşlemi görüntüle</string>
+    <string name="kn_done_released">Ad bırakıldı</string>
+    <string name="kn_done_bought">Ad satın alındı</string>
+    <string name="kn_done_offer_sent">Teklif gönderildi</string>
+    <string name="kn_done_price_changed">Fiyat değiştirildi</string>
+    <string name="kn_done_listed">Satışa çıkarıldı</string>
+    <string name="kn_done_transferred">Ad aktarıldı</string>
+    <string name="kn_done_reclaimed">Ad geri alındı</string>
+    <string name="kn_done_profile_saved">Profil kaydedildi</string>
+    <string name="kn_done_primary_set">Ana ad ayarlandı</string>
+    <string name="kn_done_registered">Ad kaydedildi</string>
+    <string name="kn_done_commit_cancelled">Taahhüt iptal edildi</string>
 </resources>

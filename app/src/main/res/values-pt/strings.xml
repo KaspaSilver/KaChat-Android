@@ -730,7 +730,6 @@
     <string name="kn_buyer">Comprador</string>
     <string name="kn_refundable_now">Reembolsável agora</string>
     <string name="kn_price_to_miners">Preço (para os mineradores)</string>
-    <string name="kn_your_balance">Seu saldo</string>
     <string name="kn_sent_note">Aparece aqui quando a rede aceitar, geralmente em segundos.</string>
     <string name="kn_years">Anos</string>
     <string name="kn_bond_returned">Caução (devolvida ao liberar)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Expira</string>
     <string name="kn_one_year">1 ano</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Perfil social</string>
-    <string name="kn_social_bad">Cole um link de perfil do X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram ou LinkedIn, ou um convite para um servidor do Discord.</string>
-    <string name="kn_social_footer">Seu avatar, banner e bio vêm deste perfil, exatamente como essa plataforma os mostra, então a moderação dela também vale aqui. Banners vêm do X, YouTube e Discord; bios do X, YouTube, Telegram, Twitch, Kick, GitHub e Discord.</string>
-    <string name="kn_linktree_bad">Só é possível adicionar um link do Linktree (linktr.ee/seunome).</string>
     <string name="kn_linktree_footer">Adicione seu Linktree para levar as pessoas às suas outras contas e sites.</string>
     <string name="kn_social_looking">Procurando o perfil...</string>
-    <string name="kn_social_nothing">Nada encontrado para este link.</string>
     <string name="kn_social_from">Do %1$s</string>
     <string name="kn_social_no_avatar">Este perfil do %1$s não tem avatar.</string>
     <string name="kn_social_no_banner">Este perfil do %1$s não tem banner.</string>
-    <string name="kn_social_no_banners">O %1$s não compartilha banners.</string>
     <string name="kn_social_no_bio">Este perfil do %1$s não tem bio.</string>
-    <string name="kn_social_no_bios">O %1$s não compartilha bios.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Não foi possível acessar o %1$s.</string>
+    <string name="kn_account_on">Conta no</string>
+    <string name="kn_handle">usuário</string>
+    <string name="kn_invite">convite</string>
+    <string name="kn_username">usuário</string>
+    <string name="kn_profile_pieces_footer">Cada parte vem de um perfil social que você vincula, exatamente como essa plataforma o mostra, então a moderação dela também vale aqui. Você pode usar uma conta para as três ou misturá-las.</string>
+    <string name="kn_linktree_username_bad">Digite seu usuário do Linktree: letras, números, pontos, hífens ou sublinhados.</string>
+    <string name="kn_handle_bad">Isso não parece um usuário desta plataforma.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Saldo do endereço de chat</string>
+    <string name="kn_balance_after">Saldo depois</string>
+    <string name="kn_balance_change">Variação do saldo</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transação enviada</string>
+    <string name="kn_view_transaction">Ver transação</string>
+    <string name="kn_done_released">Nome liberado</string>
+    <string name="kn_done_bought">Nome comprado</string>
+    <string name="kn_done_offer_sent">Oferta enviada</string>
+    <string name="kn_done_price_changed">Preço alterado</string>
+    <string name="kn_done_listed">Colocado à venda</string>
+    <string name="kn_done_transferred">Nome transferido</string>
+    <string name="kn_done_reclaimed">Nome recuperado</string>
+    <string name="kn_done_profile_saved">Perfil salvo</string>
+    <string name="kn_done_primary_set">Nome principal definido</string>
+    <string name="kn_done_registered">Nome registrado</string>
+    <string name="kn_done_commit_cancelled">Compromisso cancelado</string>
 </resources>

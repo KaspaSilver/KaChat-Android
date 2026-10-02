@@ -600,7 +600,6 @@
     <string name="kn_buyer">Pembeli</string>
     <string name="kn_refundable_now">Bisa dikembalikan sekarang</string>
     <string name="kn_price_to_miners">Harga (untuk penambang)</string>
-    <string name="kn_your_balance">Saldo Anda</string>
     <string name="kn_sent_note">Ini muncul di sini setelah jaringan menerimanya, biasanya dalam hitungan detik.</string>
     <string name="kn_years">Tahun</string>
     <string name="kn_bond_returned">Jaminan (dikembalikan saat dilepas)</string>
@@ -686,17 +685,39 @@
     <string name="kn_expires">Kedaluwarsa</string>
     <string name="kn_one_year">1 tahun</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Profil Sosial</string>
-    <string name="kn_social_bad">Tempel tautan profil dari X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram atau LinkedIn, atau undangan server Discord.</string>
-    <string name="kn_social_footer">Avatar, banner, dan bio Anda berasal dari profil ini, persis seperti yang ditampilkan platform itu, jadi moderasinya juga berlaku di sini. Banner berasal dari X, YouTube, dan Discord; bio dari X, YouTube, Telegram, Twitch, Kick, GitHub, dan Discord.</string>
-    <string name="kn_linktree_bad">Hanya tautan Linktree (linktr.ee/namaanda) yang bisa ditambahkan.</string>
     <string name="kn_linktree_footer">Tambahkan Linktree Anda untuk mengarahkan orang ke akun dan situs web Anda yang lain.</string>
     <string name="kn_social_looking">Mencari profil...</string>
-    <string name="kn_social_nothing">Tidak ada yang ditemukan untuk tautan ini.</string>
     <string name="kn_social_from">Dari %1$s</string>
     <string name="kn_social_no_avatar">Profil %1$s ini tidak punya avatar.</string>
     <string name="kn_social_no_banner">Profil %1$s ini tidak punya banner.</string>
-    <string name="kn_social_no_banners">%1$s tidak membagikan banner.</string>
     <string name="kn_social_no_bio">Profil %1$s ini tidak punya bio.</string>
-    <string name="kn_social_no_bios">%1$s tidak membagikan bio.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Tidak dapat menjangkau %1$s.</string>
+    <string name="kn_account_on">Akun di</string>
+    <string name="kn_handle">handle</string>
+    <string name="kn_invite">undangan</string>
+    <string name="kn_username">nama pengguna</string>
+    <string name="kn_profile_pieces_footer">Setiap bagian berasal dari profil sosial yang Anda tautkan, persis seperti yang ditampilkan platform itu, jadi moderasinya juga berlaku di sini. Anda bisa memakai satu akun untuk ketiganya, atau mencampurnya.</string>
+    <string name="kn_linktree_username_bad">Masukkan nama pengguna Linktree Anda: huruf, angka, titik, tanda hubung, atau garis bawah.</string>
+    <string name="kn_handle_bad">Itu tidak tampak seperti handle di platform ini.</string>
+    <!-- Retry (the .kachat profile editor; missing in Indonesian) -->
+    <string name="retry">Coba lagi</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Saldo alamat obrolan</string>
+    <string name="kn_balance_after">Saldo setelahnya</string>
+    <string name="kn_balance_change">Perubahan saldo</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transaksi terkirim</string>
+    <string name="kn_view_transaction">Lihat transaksi</string>
+    <string name="kn_done_released">Nama dilepas</string>
+    <string name="kn_done_bought">Nama dibeli</string>
+    <string name="kn_done_offer_sent">Penawaran terkirim</string>
+    <string name="kn_done_price_changed">Harga diubah</string>
+    <string name="kn_done_listed">Dijual</string>
+    <string name="kn_done_transferred">Nama dipindahkan</string>
+    <string name="kn_done_reclaimed">Nama diklaim ulang</string>
+    <string name="kn_done_profile_saved">Profil disimpan</string>
+    <string name="kn_done_primary_set">Nama utama diatur</string>
+    <string name="kn_done_registered">Nama terdaftar</string>
+    <string name="kn_done_commit_cancelled">Komitmen dibatalkan</string>
 </resources>

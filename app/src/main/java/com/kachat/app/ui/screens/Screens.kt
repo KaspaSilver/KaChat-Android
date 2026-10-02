@@ -3693,23 +3693,31 @@ fun ProfileScreen(
     val kachatLive: KachatLiveViewModel? =
         if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) hiltViewModel() else null
     var kachatLabel by remember { mutableStateOf<String?>(null) }
-    // The address profile's social link (avatar, banner and bio looked up on this device) and
-    // Linktree link - testnet (iOS ad32798 / 1322216).
-    var kachatSocialLink by remember { mutableStateOf<String?>(null) }
+    // The address profile's sources (a social link each for avatar, banner and bio, looked up on
+    // this device) and Linktree link - testnet (iOS ad32798 / 1322216 / c124cb3).
+    var kachatAvatarSource by remember { mutableStateOf<String?>(null) }
+    var kachatBannerSource by remember { mutableStateOf<String?>(null) }
+    var kachatBioSource by remember { mutableStateOf<String?>(null) }
     var kachatLinktree by remember { mutableStateOf<String?>(null) }
     val kachatRevision = kachatLive?.registry?.revision?.collectAsState()?.value
     LaunchedEffect(address, kachatRevision) {
         val a = address
         val hero = if (kachatLive != null && a != null) kachatLive.hero(a) else null
         kachatLabel = hero?.label
-        kachatSocialLink = hero?.social
+        kachatAvatarSource = hero?.avatar
+        kachatBannerSource = hero?.banner
+        kachatBioSource = hero?.bio
         kachatLinktree = hero?.linktree
     }
-    // What the social link shows, from the device's cache; a missing or stale answer is looked
-    // up again and lands here through the collected cache (iOS `socialImages.profile(for:)`).
+    // What each source shows, from the device's cache; a missing or stale answer is looked up
+    // again and lands here through the collected cache (iOS `socialImages.profile(for:)`).
     val kachatSocialEntries = kachatLive?.social?.entries?.collectAsState()?.value
-    LaunchedEffect(kachatSocialLink) { kachatLive?.social?.refreshIfStale(kachatSocialLink) }
-    val kachatSocial = kachatSocialEntries?.let { kachatLive?.social?.cached(kachatSocialLink, it) }
+    LaunchedEffect(kachatAvatarSource, kachatBannerSource, kachatBioSource) {
+        listOf(kachatAvatarSource, kachatBannerSource, kachatBioSource).forEach { kachatLive?.social?.refreshIfStale(it) }
+    }
+    val kachatAvatar = kachatSocialEntries?.let { kachatLive?.social?.cached(kachatAvatarSource, it) }?.avatar
+    val kachatBanner = kachatSocialEntries?.let { kachatLive?.social?.cached(kachatBannerSource, it) }?.banner
+    val kachatBio = kachatSocialEntries?.let { kachatLive?.social?.cached(kachatBioSource, it) }?.bio
     val activeProfileDomainName = viewModel.activeProfileDomainName.collectAsState().value
     val hasAnyProfileData = knsProfile != null && listOf(
         knsProfile?.bio, knsProfile?.x, knsProfile?.website, knsProfile?.telegram,
@@ -4062,7 +4070,7 @@ fun ProfileScreen(
                 Column {
                     // On testnet the .kachat profile (avatar, banner and bio looked up from its
                     // social link) comes first; the KNS one otherwise (iOS ad32798 / 1322216).
-                    val bannerUrl = kachatSocial?.banner ?: knsProfile?.bannerUrl
+                    val bannerUrl = kachatBanner ?: knsProfile?.bannerUrl
                     if (bannerUrl != null) {
                         SubcomposeAsyncImage(
                             model = bannerUrl,
@@ -4105,7 +4113,7 @@ fun ProfileScreen(
                                 modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
                                 contentAlignment = Alignment.Center
                             ) {
-                                ContactAvatar(imageUrl = kachatSocial?.avatar ?: knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
+                                ContactAvatar(imageUrl = kachatAvatar ?: knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
                             }
                         }
                         Spacer(Modifier.weight(1f))
@@ -4125,7 +4133,7 @@ fun ProfileScreen(
                     }
                     Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
                         Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-                        (kachatSocial?.bio ?: knsProfile?.bio?.takeIf { it.isNotBlank() })?.let { bio ->
+                        (kachatBio ?: knsProfile?.bio?.takeIf { it.isNotBlank() })?.let { bio ->
                             Spacer(Modifier.height(4.dp))
                             Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
                         }

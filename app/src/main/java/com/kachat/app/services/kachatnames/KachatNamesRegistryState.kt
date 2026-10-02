@@ -174,28 +174,34 @@ fun KachatNames.resolvedOwner(lookup: Lookup, graceMs: Long, nowMs: Long = nowMs
 // Profile record (KACHAT_NAMES.md section 7, KACHAT_NAMES_INDEXER.md Part C)
 
 /**
- * The address profile as written on chain: `{social, linktree, primaryName, v}` (iOS 1322216). No
- * picture and no free text is ever written: the avatar, banner and bio all come from [social],
- * looked up on each device ([KachatSocialImageResolver]), so the platform's moderation applies to
- * all three. iOS and Android read each other's records, so the shape, the normalization and the
- * JSON must stay exactly iOS's.
+ * The address profile as written on chain: `{avatar, banner, bio, linktree, primaryName, v}`, every
+ * piece a link (iOS c124cb3; 1322216's single `social` link is gone). No picture and no free text
+ * is ever written: [avatar], [banner] and [bio] each name a social profile - possibly three
+ * different accounts - whose avatar, banner or bio KaChat looks up on each device
+ * ([KachatSocialImageResolver]), so the platform's moderation applies. iOS and Android read each
+ * other's records, so the shape, the normalization and the JSON must stay exactly iOS's.
  */
 data class Profile(
     val v: Int = 1,
-    /** Your profile on a social platform ([SocialSource]): KaChat shows its avatar, banner and
-     *  bio. Stored normalized (`https://x.com/name`). */
-    val social: String? = null,
+    /** Where each piece comes from: a profile link ([SocialSource]) on a platform that can supply
+     *  it, stored normalized (`https://x.com/name`). */
+    val avatar: String? = null,
+    val banner: String? = null,
+    val bio: String? = null,
     /** A Linktree page (`https://linktr.ee/<name>`): the one way to link anything else. */
     val linktree: String? = null,
     val primaryName: String? = null
 ) {
     /**
-     * The record as the indexer accepts it: a supported social link and a Linktree link,
-     * normalized, anything else dropped; the primary name normalized.
+     * The record as the indexer accepts it: each piece's social link (on a platform that can
+     * supply that piece) and a Linktree link, normalized, anything else dropped; the primary name
+     * normalized.
      */
     fun sanitized(): Profile = Profile(
         v = 1,
-        social = clean(social)?.let { SocialSource.from(it, SocialSource.Kind.AVATAR)?.link },
+        avatar = clean(avatar)?.let { SocialSource.from(it, SocialSource.Kind.AVATAR)?.link },
+        banner = clean(banner)?.let { SocialSource.from(it, SocialSource.Kind.BANNER)?.link },
+        bio = clean(bio)?.let { SocialSource.from(it, SocialSource.Kind.BIO)?.link },
         linktree = linktreeLink(linktree),
         primaryName = clean(primaryName)?.let { Codec.normalize(it) }?.takeIf { Codec.isValid(it) }
     )
@@ -207,9 +213,11 @@ data class Profile(
     fun recordJSON(): ByteArray {
         val p = sanitized()
         val o = JsonObject()
+        p.avatar?.let { o.addProperty("avatar", it) }
+        p.banner?.let { o.addProperty("banner", it) }
+        p.bio?.let { o.addProperty("bio", it) }
         p.linktree?.let { o.addProperty("linktree", it) }
         p.primaryName?.let { o.addProperty("primaryName", it) }
-        p.social?.let { o.addProperty("social", it) }
         o.addProperty("v", p.v)
         val data = JSON.toJson(o).toByteArray(Charsets.UTF_8)
         if (data.size > Codec.MAX_PROFILE_JSON_BYTES) throw Failure("the profile is over 2 KB")
@@ -224,6 +232,19 @@ data class Profile(
         private val JSON = GsonBuilder().disableHtmlEscaping().create()
 
         internal fun clean(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }
+
+        /** The Linktree username in a stored link (`https://linktr.ee/<name>` -> `<name>`). */
+        fun linktreeUsername(link: String?): String =
+            linktreeLink(link)?.removePrefix("https://linktr.ee/") ?: ""
+
+        /** What the Linktree field holds - a bare username, or a pasted link - as a stored link. */
+        fun linktreeLinkFromUsername(raw: String): String? {
+            val t = raw.trim()
+            if (t.isEmpty()) return null
+            if (t.lowercase().contains("linktr.ee")) return linktreeLink(t)
+            val name = t.removePrefix("@")
+            return linktreeLink("https://linktr.ee/$name")
+        }
 
         /** A pasted Linktree link, normalized to `https://linktr.ee/<name>`; null for anything else. */
         fun linktreeLink(raw: String?): String? {
@@ -248,8 +269,8 @@ data class Profile(
 
         /**
          * Strict like Swift's synthesized Decodable: `v` is required, every known field must have
-         * its type (or be null/absent), unknown fields - the old record's avatar, banner, bio and
-         * links among them - are ignored. Null for anything else.
+         * its type (or be null/absent), unknown fields - 1322216's `social`, the first record's
+         * `links` - are ignored. Null for anything else.
          */
         fun decode(e: JsonElement?): Profile? {
             if (e == null || !e.isJsonObject) return null
@@ -268,7 +289,9 @@ data class Profile(
             return try {
                 Profile(
                     v = vd.toInt(),
-                    social = str("social").getOrThrow(),
+                    avatar = str("avatar").getOrThrow(),
+                    banner = str("banner").getOrThrow(),
+                    bio = str("bio").getOrThrow(),
                     linktree = str("linktree").getOrThrow(),
                     primaryName = str("primaryName").getOrThrow()
                 )
@@ -324,21 +347,40 @@ data class SocialSource(
     /** The handle, channel path or invite code inside it. */
     val handle: String
 ) {
-    enum class Kind { AVATAR, BANNER }
+    enum class Kind { AVATAR, BANNER, BIO }
 
     enum class Platform(
         /** The platform's own name (not translated: a brand). */
-        val displayName: String
+        val displayName: String,
+        /** What the editor's handle field shows in front of the handle (iOS c124cb3). */
+        val prefix: String
     ) {
-        X("X"), YOUTUBE("YouTube"), FACEBOOK("Facebook"), INSTAGRAM("Instagram"), TIKTOK("TikTok"),
-        TWITCH("Twitch"), KICK("Kick"), GITHUB("GitHub"), TELEGRAM("Telegram"), LINKEDIN("LinkedIn"),
-        DISCORD("Discord");
+        X("X", "x.com/"), YOUTUBE("YouTube", "youtube.com/@"), FACEBOOK("Facebook", "facebook.com/"),
+        INSTAGRAM("Instagram", "instagram.com/"), TIKTOK("TikTok", "tiktok.com/@"), TWITCH("Twitch", "twitch.tv/"),
+        KICK("Kick", "kick.com/"), GITHUB("GitHub", "github.com/"), TELEGRAM("Telegram", "t.me/"),
+        LINKEDIN("LinkedIn", "linkedin.com/in/"), DISCORD("Discord", "discord.gg/");
 
         /** Platforms whose banner can be read without signing in. */
         val hasBanner: Boolean get() = this == X || this == YOUTUBE || this == DISCORD
 
         /** Platforms whose preview carries the person's own bio (see [SocialSource.bio]). */
         val hasBio: Boolean get() = this in setOf(X, YOUTUBE, TELEGRAM, TWITCH, KICK, GITHUB, DISCORD)
+
+        companion object {
+            /** The platforms that can fill a field, in picker order. */
+            fun choices(kind: Kind): List<Platform> = when (kind) {
+                Kind.AVATAR -> listOf(X, YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, TWITCH, KICK, GITHUB, TELEGRAM, LINKEDIN, DISCORD)
+                Kind.BANNER -> listOf(X, YOUTUBE, DISCORD)
+                Kind.BIO -> listOf(X, YOUTUBE, TELEGRAM, TWITCH, KICK, GITHUB, DISCORD)
+            }
+        }
+    }
+
+    /** The handle as the editor's field shows it after [Platform.prefix]. */
+    val displayHandle: String get() = when (platform) {
+        Platform.YOUTUBE, Platform.TIKTOK -> handle.removePrefix("@")
+        Platform.LINKEDIN -> handle.removePrefix("in/")
+        else -> handle
     }
 
     companion object {
@@ -407,7 +449,31 @@ data class SocialSource(
             }
             val p = platform ?: return null
             if (kind == Kind.BANNER && !p.hasBanner) return null
+            if (kind == Kind.BIO && !p.hasBio) return null
             return SocialSource(p, link, handle)
+        }
+
+        /**
+         * A handle typed for [platform] (with or without `@`), or a whole pasted profile link -
+         * which may name another platform: the caller switches its picker to the result's
+         * [SocialSource.platform] (iOS `from(platform:handle:for:)`, c124cb3).
+         */
+        fun from(platform: Platform, handle: String, kind: Kind): SocialSource? {
+            var h = handle.trim()
+            if (h.isEmpty()) return null
+            if (h.lowercase().startsWith("http") || (h.contains(".") && h.contains("/"))) return from(h, kind)
+            h = h.removePrefix("@")
+            val link = when (platform) {
+                Platform.LINKEDIN -> if (h.startsWith("in/") || h.startsWith("company/")) "linkedin.com/$h" else platform.prefix + h
+                else -> platform.prefix + h
+            }
+            return from(link, kind)
+        }
+
+        /** Whether the handle field holds a whole pasted link rather than a handle. */
+        fun looksLikeLink(handle: String): Boolean {
+            val t = handle.trim()
+            return t.lowercase().startsWith("http") || (t.contains(".") && t.contains("/"))
         }
 
         /**
@@ -483,6 +549,22 @@ data class SocialSource(
             return root.string("avatar_url") to trimmedBio(root.string("bio"))
         }
 
+        /**
+         * FxTwitter's user API (`api.fxtwitter.com/<handle>`): X's avatar (400 px), banner and bio
+         * in one small JSON answer - X's own data, so X's moderation still applies. Null when the
+         * answer isn't a user; an unknown or suspended account (`code` 404) answers empty (iOS c124cb3).
+         */
+        fun fxTwitterProfile(json: String): SocialProfile? {
+            val root = jsonObject(json) ?: return null
+            // Swift `root["code"] as? Int`
+            val code = root.get("code")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asDouble
+            val user = root.get("user")?.takeIf { it.isJsonObject }?.asJsonObject
+            if (code != 200.0 || user == null) return if (code == 404.0) SocialProfile() else null
+            val avatar = user.string("avatar_url")?.takeIf { it.startsWith("https://") }?.replace("_normal.", "_400x400.")
+            val banner = user.string("banner_url")?.takeIf { it.startsWith("https://") }?.let { if (it.endsWith("/1500x500")) it else "$it/1500x500" }
+            return SocialProfile(avatar, banner, trimmedBio(user.string("description")))
+        }
+
         /** A Discord invite's server description. */
         fun discordDescription(inviteJson: String): String? {
             val guild = jsonObject(inviteJson)?.get("guild")?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
@@ -496,6 +578,7 @@ data class SocialSource(
             return when (kind) {
                 Kind.AVATAR -> guild.string("icon")?.takeIf { it.isNotEmpty() }?.let { "https://cdn.discordapp.com/icons/$id/$it.png?size=256" }
                 Kind.BANNER -> guild.string("banner")?.takeIf { it.isNotEmpty() }?.let { "https://cdn.discordapp.com/banners/$id/$it.png?size=1024" }
+                Kind.BIO -> null // the server's description: discordDescription
             }
         }
 

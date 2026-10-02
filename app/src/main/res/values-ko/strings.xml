@@ -730,7 +730,6 @@
     <string name="kn_buyer">구매자</string>
     <string name="kn_refundable_now">지금 환불 가능</string>
     <string name="kn_price_to_miners">가격 (채굴자에게)</string>
-    <string name="kn_your_balance">내 잔액</string>
     <string name="kn_sent_note">네트워크가 받아들이면 여기에 보여요. 보통 몇 초 걸려요.</string>
     <string name="kn_years">연수</string>
     <string name="kn_bond_returned">보증금 (해제 시 반환)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">만료</string>
     <string name="kn_one_year">1년</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">소셜 프로필</string>
-    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram 또는 LinkedIn 프로필 링크나 Discord 서버 초대 링크를 붙여넣으세요.</string>
-    <string name="kn_social_footer">아바타, 배너, 소개는 이 프로필에서 해당 플랫폼이 보여주는 그대로 가져오므로 그 플랫폼의 관리 기준이 여기에도 적용됩니다. 배너는 X, YouTube, Discord에서, 소개는 X, YouTube, Telegram, Twitch, Kick, GitHub, Discord에서 가져옵니다.</string>
-    <string name="kn_linktree_bad">Linktree 링크(linktr.ee/yourname)만 추가할 수 있습니다.</string>
     <string name="kn_linktree_footer">Linktree를 추가해 다른 계정과 웹사이트로 사람들을 안내하세요.</string>
     <string name="kn_social_looking">프로필을 찾는 중...</string>
-    <string name="kn_social_nothing">이 링크에서 아무것도 찾지 못했습니다.</string>
     <string name="kn_social_from">%1$s에서</string>
     <string name="kn_social_no_avatar">이 %1$s 프로필에는 아바타가 없습니다.</string>
     <string name="kn_social_no_banner">이 %1$s 프로필에는 배너가 없습니다.</string>
-    <string name="kn_social_no_banners">%1$s은(는) 배너를 공유하지 않습니다.</string>
     <string name="kn_social_no_bio">이 %1$s 프로필에는 소개가 없습니다.</string>
-    <string name="kn_social_no_bios">%1$s은(는) 소개를 공유하지 않습니다.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">%1$s에 연결할 수 없습니다.</string>
+    <string name="kn_account_on">계정 위치</string>
+    <string name="kn_handle">핸들</string>
+    <string name="kn_invite">초대 코드</string>
+    <string name="kn_username">사용자 이름</string>
+    <string name="kn_profile_pieces_footer">각 항목은 연결한 소셜 프로필에서 해당 플랫폼이 보여주는 그대로 가져오므로 그 플랫폼의 관리 기준이 여기에도 적용됩니다. 세 가지 모두 한 계정을 쓰거나 섞어서 쓸 수 있습니다.</string>
+    <string name="kn_linktree_username_bad">Linktree 사용자 이름을 입력하세요: 문자, 숫자, 마침표, 하이픈 또는 밑줄.</string>
+    <string name="kn_handle_bad">이 플랫폼의 핸들처럼 보이지 않습니다.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">채팅 주소 잔액</string>
+    <string name="kn_balance_after">이후 잔액</string>
+    <string name="kn_balance_change">잔액 변화</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">거래를 보냈습니다</string>
+    <string name="kn_view_transaction">거래 보기</string>
+    <string name="kn_done_released">이름을 해제했습니다</string>
+    <string name="kn_done_bought">이름을 구매했습니다</string>
+    <string name="kn_done_offer_sent">제안을 보냈습니다</string>
+    <string name="kn_done_price_changed">가격을 변경했습니다</string>
+    <string name="kn_done_listed">판매 등록했습니다</string>
+    <string name="kn_done_transferred">이름을 이전했습니다</string>
+    <string name="kn_done_reclaimed">이름을 회수했습니다</string>
+    <string name="kn_done_profile_saved">프로필을 저장했습니다</string>
+    <string name="kn_done_primary_set">대표 이름을 설정했습니다</string>
+    <string name="kn_done_registered">이름을 등록했습니다</string>
+    <string name="kn_done_commit_cancelled">커밋을 취소했습니다</string>
 </resources>

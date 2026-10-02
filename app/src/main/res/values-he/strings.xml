@@ -730,7 +730,6 @@
     <string name="kn_buyer">קונה</string>
     <string name="kn_refundable_now">ניתן להחזר עכשיו</string>
     <string name="kn_price_to_miners">מחיר (לכורים)</string>
-    <string name="kn_your_balance">היתרה שלך</string>
     <string name="kn_sent_note">זה יופיע כאן כשהרשת תקבל אותה, בדרך כלל תוך שניות.</string>
     <string name="kn_years">שנים</string>
     <string name="kn_bond_returned">ערבון (מוחזר בשחרור)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">תפוגה</string>
     <string name="kn_one_year">שנה אחת</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">פרופיל ברשת חברתית</string>
-    <string name="kn_social_bad">הדבק קישור לפרופיל ב-X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram או LinkedIn, או הזמנה לשרת Discord.</string>
-    <string name="kn_social_footer">האווטאר, הבאנר והביו שלך מגיעים מהפרופיל הזה, בדיוק כפי שהפלטפורמה מציגה אותם, כך שהפיקוח שלה חל גם כאן. באנרים מגיעים מ-X, YouTube ו-Discord; ביו מ-X, YouTube, Telegram, Twitch, Kick, GitHub ו-Discord.</string>
-    <string name="kn_linktree_bad">ניתן להוסיף רק קישור Linktree ‏(linktr.ee/yourname).</string>
     <string name="kn_linktree_footer">הוסף את ה-Linktree שלך כדי להפנות אנשים לחשבונות ולאתרים האחרים שלך.</string>
     <string name="kn_social_looking">מחפש את הפרופיל...</string>
-    <string name="kn_social_nothing">לא נמצא דבר לקישור הזה.</string>
     <string name="kn_social_from">מ-%1$s</string>
     <string name="kn_social_no_avatar">לפרופיל ה-%1$s הזה אין אווטאר.</string>
     <string name="kn_social_no_banner">לפרופיל ה-%1$s הזה אין באנר.</string>
-    <string name="kn_social_no_banners">%1$s לא משתף באנרים.</string>
     <string name="kn_social_no_bio">לפרופיל ה-%1$s הזה אין ביו.</string>
-    <string name="kn_social_no_bios">%1$s לא משתף ביו.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">לא ניתן להתחבר אל %1$s.</string>
+    <string name="kn_account_on">חשבון ב-</string>
+    <string name="kn_handle">שם משתמש</string>
+    <string name="kn_invite">הזמנה</string>
+    <string name="kn_username">שם משתמש</string>
+    <string name="kn_profile_pieces_footer">כל חלק מגיע מפרופיל ברשת חברתית שאתה מקשר, בדיוק כפי שהפלטפורמה מציגה אותו, כך שהפיקוח שלה חל גם כאן. אפשר להשתמש בחשבון אחד לשלושתם או לשלב.</string>
+    <string name="kn_linktree_username_bad">הזן את שם המשתמש שלך ב-Linktree: אותיות, מספרים, נקודות, מקפים או קווים תחתונים.</string>
+    <string name="kn_handle_bad">זה לא נראה כמו שם משתמש בפלטפורמה הזו.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">יתרת כתובת הצ\'אט</string>
+    <string name="kn_balance_after">יתרה לאחר מכן</string>
+    <string name="kn_balance_change">שינוי ביתרה</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">העסקה נשלחה</string>
+    <string name="kn_view_transaction">הצג עסקה</string>
+    <string name="kn_done_released">השם שוחרר</string>
+    <string name="kn_done_bought">השם נקנה</string>
+    <string name="kn_done_offer_sent">ההצעה נשלחה</string>
+    <string name="kn_done_price_changed">המחיר שונה</string>
+    <string name="kn_done_listed">הוצע למכירה</string>
+    <string name="kn_done_transferred">השם הועבר</string>
+    <string name="kn_done_reclaimed">השם נדרש מחדש</string>
+    <string name="kn_done_profile_saved">הפרופיל נשמר</string>
+    <string name="kn_done_primary_set">השם הראשי הוגדר</string>
+    <string name="kn_done_registered">השם נרשם</string>
+    <string name="kn_done_commit_cancelled">ההתחייבות בוטלה</string>
 </resources>

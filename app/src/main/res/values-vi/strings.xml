@@ -730,7 +730,6 @@
     <string name="kn_buyer">Người mua</string>
     <string name="kn_refundable_now">Có thể hoàn ngay</string>
     <string name="kn_price_to_miners">Giá (trả cho thợ đào)</string>
-    <string name="kn_your_balance">Số dư của bạn</string>
     <string name="kn_sent_note">Sẽ hiện ở đây khi mạng chấp nhận, thường trong vài giây.</string>
     <string name="kn_years">Số năm</string>
     <string name="kn_bond_returned">Tiền bảo đảm (hoàn khi nhả)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Hết hạn</string>
     <string name="kn_one_year">1 năm</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Hồ sơ mạng xã hội</string>
-    <string name="kn_social_bad">Dán liên kết hồ sơ từ X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram hoặc LinkedIn, hoặc lời mời vào máy chủ Discord.</string>
-    <string name="kn_social_footer">Ảnh đại diện, ảnh bìa và tiểu sử của bạn lấy từ hồ sơ này, đúng như nền tảng đó hiển thị, nên việc kiểm duyệt của họ cũng áp dụng ở đây. Ảnh bìa lấy từ X, YouTube và Discord; tiểu sử lấy từ X, YouTube, Telegram, Twitch, Kick, GitHub và Discord.</string>
-    <string name="kn_linktree_bad">Chỉ có thể thêm liên kết Linktree (linktr.ee/tenban).</string>
     <string name="kn_linktree_footer">Thêm Linktree của bạn để dẫn mọi người đến các tài khoản và trang web khác của bạn.</string>
     <string name="kn_social_looking">Đang tìm hồ sơ...</string>
-    <string name="kn_social_nothing">Không tìm thấy gì cho liên kết này.</string>
     <string name="kn_social_from">Từ %1$s</string>
     <string name="kn_social_no_avatar">Hồ sơ %1$s này không có ảnh đại diện.</string>
     <string name="kn_social_no_banner">Hồ sơ %1$s này không có ảnh bìa.</string>
-    <string name="kn_social_no_banners">%1$s không chia sẻ ảnh bìa.</string>
     <string name="kn_social_no_bio">Hồ sơ %1$s này không có tiểu sử.</string>
-    <string name="kn_social_no_bios">%1$s không chia sẻ tiểu sử.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Không thể kết nối tới %1$s.</string>
+    <string name="kn_account_on">Tài khoản trên</string>
+    <string name="kn_handle">tên người dùng</string>
+    <string name="kn_invite">lời mời</string>
+    <string name="kn_username">tên người dùng</string>
+    <string name="kn_profile_pieces_footer">Mỗi phần lấy từ một hồ sơ mạng xã hội bạn liên kết, đúng như nền tảng đó hiển thị, nên việc kiểm duyệt của họ cũng áp dụng ở đây. Bạn có thể dùng một tài khoản cho cả ba, hoặc kết hợp.</string>
+    <string name="kn_linktree_username_bad">Nhập tên người dùng Linktree: chữ cái, số, dấu chấm, gạch ngang hoặc gạch dưới.</string>
+    <string name="kn_handle_bad">Đây không giống tên người dùng trên nền tảng này.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Số dư địa chỉ trò chuyện</string>
+    <string name="kn_balance_after">Số dư sau đó</string>
+    <string name="kn_balance_change">Thay đổi số dư</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Đã gửi giao dịch</string>
+    <string name="kn_view_transaction">Xem giao dịch</string>
+    <string name="kn_done_released">Đã giải phóng tên</string>
+    <string name="kn_done_bought">Đã mua tên</string>
+    <string name="kn_done_offer_sent">Đã gửi đề nghị</string>
+    <string name="kn_done_price_changed">Đã đổi giá</string>
+    <string name="kn_done_listed">Đã đăng bán</string>
+    <string name="kn_done_transferred">Đã chuyển tên</string>
+    <string name="kn_done_reclaimed">Đã thu hồi tên</string>
+    <string name="kn_done_profile_saved">Đã lưu hồ sơ</string>
+    <string name="kn_done_primary_set">Đã đặt tên chính</string>
+    <string name="kn_done_registered">Đã đăng ký tên</string>
+    <string name="kn_done_commit_cancelled">Đã hủy cam kết</string>
 </resources>

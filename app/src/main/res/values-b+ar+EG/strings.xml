@@ -730,7 +730,6 @@
     <string name="kn_buyer">المشتري</string>
     <string name="kn_refundable_now">قابل للاسترداد الآن</string>
     <string name="kn_price_to_miners">السعر (للمعدِّنين)</string>
-    <string name="kn_your_balance">رصيدك</string>
     <string name="kn_sent_note">يظهر هنا بعد قبول الشبكة له، عادةً خلال ثوانٍ.</string>
     <string name="kn_years">السنوات</string>
     <string name="kn_bond_returned">الضمان (يُعاد عند التخلي)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">تنتهي</string>
     <string name="kn_one_year">1 سنة</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">البروفايل الاجتماعي</string>
-    <string name="kn_social_bad">الصق رابط بروفايل من X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram أو LinkedIn، أو دعوة لسيرفر Discord.</string>
-    <string name="kn_social_footer">صورتك وغلافك ونبذتك بييجوا من البروفايل ده، زي ما المنصة دي بتعرضهم بالظبط، فإشرافها بيتطبق هنا كمان. الأغلفة بتيجي من X وYouTube وDiscord، والنبذات من X, YouTube, Telegram, Twitch, Kick, GitHub وDiscord.</string>
-    <string name="kn_linktree_bad">ممكن تضيف رابط Linktree بس (linktr.ee/yourname).</string>
     <string name="kn_linktree_footer">ضيف Linktree بتاعك علشان توجّه الناس لحساباتك ومواقعك التانية.</string>
     <string name="kn_social_looking">بندوّر على البروفايل...</string>
-    <string name="kn_social_nothing">مفيش حاجة للرابط ده.</string>
     <string name="kn_social_from">من %1$s</string>
     <string name="kn_social_no_avatar">مفيش صورة في بروفايل %1$s ده.</string>
     <string name="kn_social_no_banner">مفيش غلاف في بروفايل %1$s ده.</string>
-    <string name="kn_social_no_banners">%1$s مبيشاركش صور الغلاف.</string>
     <string name="kn_social_no_bio">مفيش نبذة في بروفايل %1$s ده.</string>
-    <string name="kn_social_no_bios">%1$s مبيشاركش النبذات.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">مقدرناش نوصل لـ %1$s.</string>
+    <string name="kn_account_on">الحساب على</string>
+    <string name="kn_handle">اليوزر</string>
+    <string name="kn_invite">الدعوة</string>
+    <string name="kn_username">اسم المستخدم</string>
+    <string name="kn_profile_pieces_footer">كل جزء بييجي من بروفايل اجتماعي بتربطه، زي ما المنصة دي بتعرضه بالظبط، فإشرافها بيتطبق هنا كمان. ممكن تستخدم حساب واحد للتلاتة أو تخلط بينهم.</string>
+    <string name="kn_linktree_username_bad">اكتب يوزر Linktree بتاعك: حروف أو أرقام أو نقط أو شرط أو شرط سفلية.</string>
+    <string name="kn_handle_bad">ده مش شكل يوزر على المنصة دي.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">رصيد عنوان الشات</string>
+    <string name="kn_balance_after">الرصيد بعد العملية</string>
+    <string name="kn_balance_change">تغيّر الرصيد</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">المعاملة اتبعتت</string>
+    <string name="kn_view_transaction">اعرض المعاملة</string>
+    <string name="kn_done_released">الاسم اتساب</string>
+    <string name="kn_done_bought">الاسم اتشرى</string>
+    <string name="kn_done_offer_sent">العرض اتبعت</string>
+    <string name="kn_done_price_changed">السعر اتغير</string>
+    <string name="kn_done_listed">معروض للبيع</string>
+    <string name="kn_done_transferred">الاسم اتنقل</string>
+    <string name="kn_done_reclaimed">الاسم اترجع</string>
+    <string name="kn_done_profile_saved">البروفايل اتحفظ</string>
+    <string name="kn_done_primary_set">الاسم الأساسي اتحدد</string>
+    <string name="kn_done_registered">الاسم اتسجل</string>
+    <string name="kn_done_commit_cancelled">الالتزام اتلغى</string>
 </resources>

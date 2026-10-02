@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -565,11 +568,15 @@ class KachatSocialImageResolver @Inject constructor(
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** iOS `timeoutInterval = 15`. Redirects are followed, as URLSession does. */
+    /**
+     * No request outlives 8 s (iOS c124cb3's ephemeral session). The app's client keeps no cookies
+     * and no HTTP cache, so nothing is written to a shared store either. Redirects are followed,
+     * as URLSession does.
+     */
     private val http: OkHttpClient = okHttpClient.newBuilder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .callTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
+        .callTimeout(8, TimeUnit.SECONDS)
         .build()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -579,7 +586,18 @@ class KachatSocialImageResolver @Inject constructor(
      *  (iOS `@Published entries`). */
     val entries: StateFlow<Map<String, Entry>> = _entries.asStateFlow()
 
-    private val inFlight = HashMap<String, Deferred<SocialProfile?>>()
+    /** What a lookup came back with (iOS `KachatSocialImageResolver.Lookup`, c124cb3). */
+    sealed class Lookup {
+        abstract val profile: SocialProfile?
+
+        /** The platform answered (possibly with nothing: taken down, account gone). */
+        data class Answered(override val profile: SocialProfile) : Lookup()
+
+        /** It couldn't be reached in time; the last answer this device had, if any. */
+        data class Unreachable(override val profile: SocialProfile?) : Lookup()
+    }
+
+    private val inFlight = HashMap<String, Deferred<Lookup>>()
     private val lock = Any()
 
     /** The cached profile for [link] in [entries] (a snapshot screens collected), null when
@@ -597,17 +615,27 @@ class KachatSocialImageResolver @Inject constructor(
         }
     }
 
-    /** Looks the profile up now (the editor's preview), sharing a lookup in flight. */
-    suspend fun resolve(source: SocialSource): SocialProfile? {
+    /**
+     * Looks the profile up now (the editor's preview), sharing a lookup in flight. An answer under
+     * [maxAgeMs] old is the answer, so the three fields of one account cost one request (iOS
+     * 0f44a07). A lookup never takes longer than 10 s, every request and fallback included
+     * (c124cb3).
+     */
+    suspend fun resolve(source: SocialSource, maxAgeMs: Long = 300_000): Lookup {
         val key = source.link
+        _entries.value[key]?.let { if (System.currentTimeMillis() - it.checkedAt < maxAgeMs) return Lookup.Answered(it.profile) }
         val deferred = synchronized(lock) {
             inFlight[key] ?: scope.async {
-                val answered = lookUp(source)
-                    ?: return@async _entries.value[key]?.profile // couldn't reach it: keep the last answer
+                val started = System.currentTimeMillis()
+                // Cancelling at the deadline cancels the OkHttp call in progress (see fetch).
+                val answered = withTimeoutOrNull(DEADLINE_MS) { lookUp(source) }
+                Log.i(TAG, "${source.platform.name.lowercase()} ${if (answered == null) "unreachable" else "answered"} " +
+                    "in ${"%.1f".format(java.util.Locale.US, (System.currentTimeMillis() - started) / 1000.0)}s")
+                if (answered == null) return@async Lookup.Unreachable(_entries.value[key]?.profile) // keep the last answer
                 // The platform answered - with something, or with nothing (taken down, account gone).
                 _entries.update { it + (key to Entry(answered, System.currentTimeMillis())) }
                 persist()
-                answered
+                Lookup.Answered(answered)
             }.also { d ->
                 inFlight[key] = d
                 d.invokeOnCompletion { synchronized(lock) { if (inFlight[key] === d) inFlight.remove(key) } }
@@ -655,7 +683,7 @@ class KachatSocialImageResolver @Inject constructor(
      * The platform's answer (possibly empty: taken down, account gone), or null when it couldn't
      * be reached or answered with an error - nothing is known then.
      */
-    private fun lookUp(source: SocialSource): SocialProfile? {
+    private suspend fun lookUp(source: SocialSource): SocialProfile? {
         when (source.platform) {
             SocialSource.Platform.DISCORD -> {
                 val (body, status) = fetch("https://discord.com/api/v10/invites/${source.handle}", BROWSER_AGENT) ?: return null
@@ -666,6 +694,14 @@ class KachatSocialImageResolver @Inject constructor(
                     banner = SocialSource.discordImage(body, SocialSource.Kind.BANNER),
                     bio = SocialSource.discordDescription(body)
                 )
+            }
+            SocialSource.Platform.X -> {
+                // FxTwitter first: one small JSON answer with avatar, banner and bio. X's own page
+                // (served to link-preview crawlers) is the fallback (iOS c124cb3).
+                fetch("https://api.fxtwitter.com/${source.handle}", BROWSER_AGENT)
+                    ?.takeIf { it.second == 200 || it.second == 404 }
+                    ?.let { SocialSource.fxTwitterProfile(it.first) }
+                    ?.let { return it }
             }
             SocialSource.Platform.GITHUB -> {
                 val (body, status) = fetch("https://api.github.com/users/${source.handle}", BROWSER_AGENT) ?: return null
@@ -693,35 +729,56 @@ class KachatSocialImageResolver @Inject constructor(
         )
     }
 
-    /** The body (first 3 MB, as text) and status, or null when nothing came back. */
-    private fun fetch(url: String, agent: String, cookie: String? = null): Pair<String, Int>? = try {
-        val request = Request.Builder().url(url)
-            .header("User-Agent", agent)
-            .header("Accept-Language", "en-US,en;q=0.8")
-            .apply { if (cookie != null) header("Cookie", cookie) }
-            .build()
-        http.newCall(request).execute().use { response ->
-            val source = response.body?.source()
-            val buffer = okio.Buffer()
-            if (source != null) {
-                while (buffer.size < MAX_BODY_BYTES) {
-                    if (source.read(buffer, MAX_BODY_BYTES - buffer.size) == -1L) break
+    /**
+     * The body (first 3 MB, as text) and status, or null when nothing came back. Suspends on an
+     * enqueued call so that cancelling the lookup (its 10 s deadline) cancels the request too.
+     */
+    private suspend fun fetch(url: String, agent: String, cookie: String? = null): Pair<String, Int>? {
+        val request = runCatching {
+            Request.Builder().url(url)
+                .header("User-Agent", agent)
+                .header("Accept-Language", "en-US,en;q=0.8")
+                .apply { if (cookie != null) header("Cookie", cookie) }
+                .build()
+        }.getOrNull() ?: return null
+        val call = http.newCall(request)
+        return suspendCancellableCoroutine { cont ->
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                    if (cont.isActive) cont.resume(null)
                 }
-            }
-            buffer.readString(Charsets.UTF_8) to response.code
+
+                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                    val result = try {
+                        response.use {
+                            val source = it.body?.source()
+                            val buffer = okio.Buffer()
+                            if (source != null) {
+                                while (buffer.size < MAX_BODY_BYTES) {
+                                    if (source.read(buffer, MAX_BODY_BYTES - buffer.size) == -1L) break
+                                }
+                            }
+                            buffer.readString(Charsets.UTF_8) to it.code
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (cont.isActive) cont.resume(result)
+                }
+            })
         }
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (_: Exception) {
-        null
     }
 
     companion object {
+        private const val TAG = "KachatSocial"
         private const val PREFS = "kachat_prefs"
         private const val CACHE_KEY = "kachat_social_profile_cache"
         private const val FRESH_FOR_MS = 24L * 3600 * 1000
         private const val MAX_ENTRIES = 500
         private const val MAX_BODY_BYTES = 3_000_000L
+        /** Hard limit for one lookup: a preview never spins longer than this (iOS c124cb3). */
+        private const val DEADLINE_MS = 10_000L
         /** The link-preview crawler user agent: X, TikTok and others serve their Open Graph tags to it. */
         private const val CRAWLER_AGENT = "facebookexternalhit/1.1"
         /** A desktop browser: YouTube's desktop channel page carries the banner in plain form (the

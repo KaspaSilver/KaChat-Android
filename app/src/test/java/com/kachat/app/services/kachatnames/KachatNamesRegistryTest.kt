@@ -324,37 +324,42 @@ class KachatNamesRegistryTest {
         r.eq(KachatNames.label(owned, "notmine", g, now), "zeta", "label: a primary name not owned is skipped")
         r.eq(KachatNames.label(listOf(owned[2]), null, g, now), null, "label: no active name")
 
-        // The record is {social, linktree, primaryName} (iOS 1322216): what shows comes from the
-        // social link, looked up on each device; nothing typed or uploaded is on chain.
-        val p = Profile(social = " x.com/KaspaCurrency/ ", linktree = "https://www.linktr.ee/kaspa?utm=1", primaryName = "Alice.kachat")
+        // The record is {avatar, banner, bio, linktree, primaryName}, each piece a social profile
+        // link on a platform that can supply it (iOS c124cb3); nothing typed or uploaded is on chain.
+        val p = Profile(
+            avatar = " x.com/KaspaCurrency/ ", banner = "youtube.com/@KaspaCurrency", bio = "instagram.com/instagram",
+            linktree = "https://www.linktr.ee/kaspa?utm=1", primaryName = "Alice.kachat"
+        )
         val clean = p.sanitized()
-        r.eq(clean.social, "https://x.com/KaspaCurrency", "profile: social link normalized")
+        r.eq(clean.avatar, "https://x.com/KaspaCurrency", "profile: avatar source normalized")
+        r.eq(clean.banner, "https://www.youtube.com/@KaspaCurrency", "profile: banner from another account")
+        r.eq(clean.bio, null, "profile: a bio source on a platform without bios is dropped")
         r.eq(clean.linktree, "https://linktr.ee/kaspa", "profile: Linktree link normalized")
         r.eq(clean.primaryName, "alice", "profile: primary name normalized")
         r.eq(
-            Profile(social = "https://example.com/me", linktree = "https://example.com/links").sanitized(), Profile(),
+            Profile(avatar = "https://example.com/me", banner = "instagram.com/instagram", linktree = "https://example.com/links").sanitized(), Profile(),
             "profile: unsupported social site and non-Linktree link dropped"
         )
         val json = p.recordJSON()
         r.check(json.size <= 2048) { "profile JSON within 2 KB" }
         r.eq(
             String(json, Charsets.UTF_8),
-            "{\"linktree\":\"https://linktr.ee/kaspa\",\"primaryName\":\"alice\",\"social\":\"https://x.com/KaspaCurrency\",\"v\":1}",
+            "{\"avatar\":\"https://x.com/KaspaCurrency\",\"banner\":\"https://www.youtube.com/@KaspaCurrency\",\"linktree\":\"https://linktr.ee/kaspa\",\"primaryName\":\"alice\",\"v\":1}",
             "profile JSON compact with sorted keys"
         )
         r.eq(Profile.parse(json), clean, "profile JSON round trip")
         r.eq(
-            Profile.parse("{\"v\":1,\"displayName\":\"x\",\"bio\":\"free text\",\"social\":\"ftp://a\"}".toByteArray()), Profile(),
-            "profile: unknown fields (bio, display name) and bad links dropped"
+            Profile.parse("{\"v\":1,\"displayName\":\"x\",\"bio\":\"free text\",\"avatar\":\"ftp://a\"}".toByteArray()), Profile(),
+            "profile: free text, display names and bad links dropped"
         )
         r.eq(Profile.parse("{\"v\":2}".toByteArray()), null, "profile: only v 1")
-        r.eq(Profile.parse("{\"social\":\"https://x.com/a\"}".toByteArray()), null, "profile: v is required")
-        r.eq(Profile.parse("{\"v\":1,\"social\":5}".toByteArray()), null, "profile: a field of the wrong type refuses the record")
-        // The record before 1322216 (avatar/banner/bio/links) reads as an empty one, primary name kept.
+        r.eq(Profile.parse("{\"avatar\":\"https://x.com/a\"}".toByteArray()), null, "profile: v is required")
+        r.eq(Profile.parse("{\"v\":1,\"avatar\":5}".toByteArray()), null, "profile: a field of the wrong type refuses the record")
+        // 1322216's {social} and the first record's image URLs / links read as empty, primary name kept.
         r.eq(
-            Profile.parse("{\"avatar\":\"https://a.b/c.png\",\"bio\":\"hi\",\"links\":{\"x\":\"k\"},\"primaryName\":\"bob\",\"v\":1}".toByteArray()),
+            Profile.parse("{\"social\":\"https://x.com/a\",\"avatar\":\"https://a.b/c.png\",\"links\":{\"x\":\"k\"},\"primaryName\":\"bob\",\"v\":1}".toByteArray()),
             Profile(primaryName = "bob"),
-            "profile: an old record keeps only its primary name"
+            "profile: an older record keeps only its primary name"
         )
 
         // what a social link shows
@@ -371,6 +376,32 @@ class KachatNamesRegistryTest {
         r.eq(SocialSource.bio(SocialSource.Platform.X, "b".repeat(400))?.length, 280, "bio cut to 280")
         val gh = SocialSource.githubProfile("{\"avatar_url\":\"https://avatars.githubusercontent.com/u/1\",\"bio\":\" hi \"}")
         r.check(gh.first == "https://avatars.githubusercontent.com/u/1" && gh.second == "hi") { "GitHub avatar and bio: $gh" }
+        val fx = SocialSource.fxTwitterProfile(
+            "{\"code\":200,\"user\":{\"avatar_url\":\"https://pbs.twimg.com/profile_images/1/a_normal.jpg\",\"banner_url\":\"https://pbs.twimg.com/profile_banners/9/8\",\"description\":\"hi\"}}"
+        )
+        r.eq(
+            fx, SocialProfile("https://pbs.twimg.com/profile_images/1/a_400x400.jpg", "https://pbs.twimg.com/profile_banners/9/8/1500x500", "hi"),
+            "FxTwitter: avatar 400px, banner 1500x500, bio"
+        )
+        r.eq(SocialSource.fxTwitterProfile("{\"code\":404,\"message\":\"NOT_FOUND\"}"), SocialProfile(), "FxTwitter: unknown account answers empty")
+        r.eq(SocialSource.fxTwitterProfile("{\"code\":500}"), null, "FxTwitter: an error means fall back")
+        val BIO = SocialSource.Kind.BIO
+        r.eq(SocialSource.from("instagram.com/instagram", BIO), null, "no bio source on Instagram")
+        r.eq(SocialSource.from(SocialSource.Platform.X, "@KaspaCurrency", SocialSource.Kind.AVATAR)?.link, "https://x.com/KaspaCurrency", "X handle with @")
+        r.eq(SocialSource.from(SocialSource.Platform.YOUTUBE, "MrBeast", SocialSource.Kind.BANNER)?.link, "https://www.youtube.com/@MrBeast", "YouTube handle")
+        r.eq(SocialSource.from(SocialSource.Platform.TIKTOK, "tiktok", SocialSource.Kind.AVATAR)?.link, "https://www.tiktok.com/@tiktok", "TikTok handle")
+        r.eq(SocialSource.from(SocialSource.Platform.LINKEDIN, "company/linkedin", SocialSource.Kind.AVATAR)?.link, "https://www.linkedin.com/company/linkedin", "LinkedIn company path")
+        r.eq(SocialSource.from(SocialSource.Platform.DISCORD, "discord-developers", BIO)?.link, "https://discord.gg/discord-developers", "Discord invite code")
+        val pasted = SocialSource.from(SocialSource.Platform.X, "https://www.youtube.com/@MrBeast", SocialSource.Kind.AVATAR)
+        r.check(pasted?.platform == SocialSource.Platform.YOUTUBE && pasted.displayHandle == "MrBeast") { "a pasted link switches platform: $pasted" }
+        r.eq(SocialSource.from(SocialSource.Platform.INSTAGRAM, "instagram", SocialSource.Kind.BANNER), null, "no banner from Instagram")
+        r.eq(SocialSource.from(SocialSource.Platform.X, "bad handle!", SocialSource.Kind.AVATAR), null, "invalid handle refused")
+        r.eq(Profile.linktreeLinkFromUsername("kaspa"), "https://linktr.ee/kaspa", "Linktree from a username")
+        r.eq(Profile.linktreeLinkFromUsername("@kaspa "), "https://linktr.ee/kaspa", "Linktree from @username")
+        r.eq(Profile.linktreeLinkFromUsername("https://linktr.ee/kaspa"), "https://linktr.ee/kaspa", "Linktree from a pasted link")
+        r.eq(Profile.linktreeLinkFromUsername("kas pa"), null, "Linktree username with a space refused")
+        r.eq(Profile.linktreeUsername("https://linktr.ee/kaspa"), "kaspa", "Linktree username shown back")
+        r.check(SocialSource.from("t.me/telegram", BIO) != null) { "bio source on Telegram" }
         r.eq(SocialSource.discordDescription("{\"guild\":{\"id\":\"1\",\"description\":\"Devs\"}}"), "Devs", "Discord server description")
 
         val k = ByteArray(31) { 0x10 } + byteArrayOf(0x00)
@@ -633,6 +664,19 @@ class KachatNamesRegistryTest {
         r.eq(SocialSource.discordDescription(invite), null, "a blank Discord description is none")
         r.eq(SocialSource.githubProfile("not json"), null to null, "GitHub garbage")
         r.check(SocialProfile().isEmpty && !SocialProfile(bio = "x").isEmpty) { "SocialProfile.isEmpty" }
+        // the editor's picker and handle field (iOS c124cb3)
+        r.eq(SocialSource.Platform.choices(SocialSource.Kind.BANNER), listOf(SocialSource.Platform.X, SocialSource.Platform.YOUTUBE, SocialSource.Platform.DISCORD), "banner picker")
+        r.eq(SocialSource.Platform.choices(SocialSource.Kind.BIO).toSet(), SocialSource.Platform.values().filter { it.hasBio }.toSet(), "bio picker = platforms with bios")
+        r.eq(SocialSource.Platform.choices(A).toSet(), SocialSource.Platform.values().toSet(), "avatar picker = every platform")
+        r.check(SocialSource.Platform.values().all { p -> SocialSource.Kind.values().all { k -> p !in SocialSource.Platform.choices(k) || SocialSource.from(p, "kaspa", k) != null } }) {
+            "every picker platform takes a plain handle"
+        }
+        r.eq(SocialSource.from("linkedin.com/in/someone", A)?.displayHandle, "someone", "LinkedIn person shown without in/")
+        r.eq(SocialSource.from("linkedin.com/company/k", A)?.displayHandle, "company/k", "LinkedIn company keeps its path")
+        r.eq(SocialSource.from(SocialSource.Platform.LINKEDIN, "someone", A)?.link, "https://www.linkedin.com/in/someone", "LinkedIn handle")
+        r.eq(SocialSource.from("tiktok.com/@k", A)?.displayHandle, "k", "TikTok shown without @")
+        r.check(SocialSource.looksLikeLink("x.com/k") && SocialSource.looksLikeLink("https://k") && !SocialSource.looksLikeLink("k.k")) { "pasted-link detection" }
+        r.eq(SocialSource.from(SocialSource.Platform.X, "  ", A), null, "blank handle")
         r.eq(KachatSocialImageResolver.key(" X.com/kaspa "), "https://x.com/kaspa", "cache keyed by the normalized link")
         r.assertClean()
     }

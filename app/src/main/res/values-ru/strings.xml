@@ -730,7 +730,6 @@
     <string name="kn_buyer">Покупатель</string>
     <string name="kn_refundable_now">Можно вернуть сейчас</string>
     <string name="kn_price_to_miners">Цена (майнерам)</string>
-    <string name="kn_your_balance">Ваш баланс</string>
     <string name="kn_sent_note">Появится здесь, когда сеть её примет, обычно за секунды.</string>
     <string name="kn_years">Годы</string>
     <string name="kn_bond_returned">Залог (возвращается при освобождении)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Истекает</string>
     <string name="kn_one_year">1 год</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Профиль в соцсети</string>
-    <string name="kn_social_bad">Вставьте ссылку на профиль в X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram или LinkedIn либо приглашение на сервер Discord.</string>
-    <string name="kn_social_footer">Аватар, баннер и описание берутся из этого профиля — ровно так, как их показывает платформа, поэтому её модерация действует и здесь. Баннеры берутся из X, YouTube и Discord, описания — из X, YouTube, Telegram, Twitch, Kick, GitHub и Discord.</string>
-    <string name="kn_linktree_bad">Можно добавить только ссылку Linktree (linktr.ee/yourname).</string>
     <string name="kn_linktree_footer">Добавьте свой Linktree, чтобы направлять людей к другим вашим аккаунтам и сайтам.</string>
     <string name="kn_social_looking">Ищем профиль...</string>
-    <string name="kn_social_nothing">По этой ссылке ничего не найдено.</string>
     <string name="kn_social_from">Из %1$s</string>
     <string name="kn_social_no_avatar">В этом профиле %1$s нет аватара.</string>
     <string name="kn_social_no_banner">В этом профиле %1$s нет баннера.</string>
-    <string name="kn_social_no_banners">%1$s не показывает баннеры.</string>
     <string name="kn_social_no_bio">В этом профиле %1$s нет описания.</string>
-    <string name="kn_social_no_bios">%1$s не показывает описания.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Не удалось связаться с %1$s.</string>
+    <string name="kn_account_on">Аккаунт в</string>
+    <string name="kn_handle">имя пользователя</string>
+    <string name="kn_invite">приглашение</string>
+    <string name="kn_username">имя пользователя</string>
+    <string name="kn_profile_pieces_footer">Каждая часть берётся из привязанного профиля в соцсети — ровно так, как его показывает платформа, поэтому её модерация действует и здесь. Можно использовать один аккаунт для всех трёх или сочетать разные.</string>
+    <string name="kn_linktree_username_bad">Введите имя пользователя Linktree: буквы, цифры, точки, дефисы или подчёркивания.</string>
+    <string name="kn_handle_bad">Это не похоже на имя пользователя этой платформы.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Баланс адреса для чата</string>
+    <string name="kn_balance_after">Баланс после</string>
+    <string name="kn_balance_change">Изменение баланса</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Транзакция отправлена</string>
+    <string name="kn_view_transaction">Открыть транзакцию</string>
+    <string name="kn_done_released">Имя освобождено</string>
+    <string name="kn_done_bought">Имя куплено</string>
+    <string name="kn_done_offer_sent">Предложение отправлено</string>
+    <string name="kn_done_price_changed">Цена изменена</string>
+    <string name="kn_done_listed">Выставлено на продажу</string>
+    <string name="kn_done_transferred">Имя передано</string>
+    <string name="kn_done_reclaimed">Имя возвращено</string>
+    <string name="kn_done_profile_saved">Профиль сохранён</string>
+    <string name="kn_done_primary_set">Основное имя задано</string>
+    <string name="kn_done_registered">Имя зарегистрировано</string>
+    <string name="kn_done_commit_cancelled">Коммит отменён</string>
 </resources>

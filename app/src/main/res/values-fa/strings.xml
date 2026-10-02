@@ -769,7 +769,6 @@
     <string name="kn_buyer">خریدار</string>
     <string name="kn_refundable_now">اکنون قابل بازپرداخت</string>
     <string name="kn_price_to_miners">قیمت (به ماینرها)</string>
-    <string name="kn_your_balance">موجودی شما</string>
     <string name="kn_sent_note">وقتی شبکه آن را پذیرفت اینجا نمایش داده می‌شود، معمولاً ظرف چند ثانیه.</string>
     <string name="kn_years">سال‌ها</string>
     <string name="kn_bond_returned">وثیقه (هنگام رهاسازی برمی‌گردد)</string>
@@ -855,17 +854,37 @@
     <string name="kn_expires">انقضا</string>
     <string name="kn_one_year">1 سال</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">نمایهٔ اجتماعی</string>
-    <string name="kn_social_bad">پیوند یک نمایه از X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram یا LinkedIn، یا دعوت‌نامهٔ یک سرور Discord را جای‌گذاری کنید.</string>
-    <string name="kn_social_footer">آواتار، بنر و بیوگرافی شما از این نمایه می‌آیند، دقیقاً همان‌طور که آن پلتفرم نشان می‌دهد، پس نظارت آن اینجا هم اعمال می‌شود. بنرها از X، YouTube و Discord و بیوگرافی‌ها از X, YouTube, Telegram, Twitch, Kick, GitHub و Discord می‌آیند.</string>
-    <string name="kn_linktree_bad">فقط پیوند Linktree (linktr.ee/yourname) قابل افزودن است.</string>
     <string name="kn_linktree_footer">Linktree خود را اضافه کنید تا دیگران را به حساب‌ها و وب‌سایت‌های دیگرتان راهنمایی کنید.</string>
     <string name="kn_social_looking">در حال یافتن نمایه...</string>
-    <string name="kn_social_nothing">چیزی برای این پیوند پیدا نشد.</string>
     <string name="kn_social_from">از %1$s</string>
     <string name="kn_social_no_avatar">این نمایهٔ %1$s آواتار ندارد.</string>
     <string name="kn_social_no_banner">این نمایهٔ %1$s بنر ندارد.</string>
-    <string name="kn_social_no_banners">%1$s بنر را به اشتراک نمی‌گذارد.</string>
     <string name="kn_social_no_bio">این نمایهٔ %1$s بیوگرافی ندارد.</string>
-    <string name="kn_social_no_bios">%1$s بیوگرافی را به اشتراک نمی‌گذارد.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">دسترسی به %1$s ممکن نشد.</string>
+    <string name="kn_account_on">حساب در</string>
+    <string name="kn_handle">شناسه</string>
+    <string name="kn_invite">دعوت‌نامه</string>
+    <string name="kn_username">نام کاربری</string>
+    <string name="kn_profile_pieces_footer">هر بخش از یک نمایهٔ اجتماعی که پیوند می‌دهید می‌آید، دقیقاً همان‌طور که آن پلتفرم نشان می‌دهد، پس نظارت آن اینجا هم اعمال می‌شود. می‌توانید یک حساب برای هر سه استفاده کنید یا آن‌ها را ترکیب کنید.</string>
+    <string name="kn_linktree_username_bad">نام کاربری Linktree خود را وارد کنید: حروف، اعداد، نقطه، خط تیره یا زیرخط.</string>
+    <string name="kn_handle_bad">این شبیه شناسه‌ای در این پلتفرم نیست.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">موجودی آدرس گفتگو</string>
+    <string name="kn_balance_after">موجودی پس از آن</string>
+    <string name="kn_balance_change">تغییر موجودی</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">تراکنش ارسال شد</string>
+    <string name="kn_view_transaction">مشاهدهٔ تراکنش</string>
+    <string name="kn_done_released">نام آزاد شد</string>
+    <string name="kn_done_bought">نام خریداری شد</string>
+    <string name="kn_done_offer_sent">پیشنهاد ارسال شد</string>
+    <string name="kn_done_price_changed">قیمت تغییر کرد</string>
+    <string name="kn_done_listed">برای فروش گذاشته شد</string>
+    <string name="kn_done_transferred">نام منتقل شد</string>
+    <string name="kn_done_reclaimed">نام بازپس گرفته شد</string>
+    <string name="kn_done_profile_saved">نمایه ذخیره شد</string>
+    <string name="kn_done_primary_set">نام اصلی تنظیم شد</string>
+    <string name="kn_done_registered">نام ثبت شد</string>
+    <string name="kn_done_commit_cancelled">تعهد لغو شد</string>
 </resources>

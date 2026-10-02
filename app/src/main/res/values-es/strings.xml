@@ -730,7 +730,6 @@
     <string name="kn_buyer">Comprador</string>
     <string name="kn_refundable_now">Reembolsable ahora</string>
     <string name="kn_price_to_miners">Precio (para los mineros)</string>
-    <string name="kn_your_balance">Tu saldo</string>
     <string name="kn_sent_note">Aparece aquí cuando la red la acepta, normalmente en segundos.</string>
     <string name="kn_years">Años</string>
     <string name="kn_bond_returned">Fianza (se devuelve al liberar)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Caduca</string>
     <string name="kn_one_year">1 año</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Perfil social</string>
-    <string name="kn_social_bad">Pega un enlace de perfil de X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram o LinkedIn, o una invitación a un servidor de Discord.</string>
-    <string name="kn_social_footer">Tu avatar, banner y biografía vienen de este perfil, tal como los muestra esa plataforma, así que su moderación también se aplica aquí. Los banners vienen de X, YouTube y Discord; las biografías, de X, YouTube, Telegram, Twitch, Kick, GitHub y Discord.</string>
-    <string name="kn_linktree_bad">Solo se puede añadir un enlace de Linktree (linktr.ee/tunombre).</string>
     <string name="kn_linktree_footer">Añade tu Linktree para llevar a la gente a tus otras cuentas y sitios web.</string>
     <string name="kn_social_looking">Buscando el perfil...</string>
-    <string name="kn_social_nothing">No se encontró nada para este enlace.</string>
     <string name="kn_social_from">De %1$s</string>
     <string name="kn_social_no_avatar">Este perfil de %1$s no tiene avatar.</string>
     <string name="kn_social_no_banner">Este perfil de %1$s no tiene banner.</string>
-    <string name="kn_social_no_banners">%1$s no comparte banners.</string>
     <string name="kn_social_no_bio">Este perfil de %1$s no tiene biografía.</string>
-    <string name="kn_social_no_bios">%1$s no comparte biografías.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">No se pudo conectar con %1$s.</string>
+    <string name="kn_account_on">Cuenta en</string>
+    <string name="kn_handle">usuario</string>
+    <string name="kn_invite">invitación</string>
+    <string name="kn_username">usuario</string>
+    <string name="kn_profile_pieces_footer">Cada parte viene de un perfil social que enlazas, tal como lo muestra esa plataforma, así que su moderación también se aplica aquí. Puedes usar una cuenta para las tres o combinarlas.</string>
+    <string name="kn_linktree_username_bad">Escribe tu usuario de Linktree: letras, números, puntos, guiones o guiones bajos.</string>
+    <string name="kn_handle_bad">Eso no parece un usuario de esta plataforma.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Saldo de la dirección de chat</string>
+    <string name="kn_balance_after">Saldo después</string>
+    <string name="kn_balance_change">Cambio de saldo</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transacción enviada</string>
+    <string name="kn_view_transaction">Ver transacción</string>
+    <string name="kn_done_released">Nombre liberado</string>
+    <string name="kn_done_bought">Nombre comprado</string>
+    <string name="kn_done_offer_sent">Oferta enviada</string>
+    <string name="kn_done_price_changed">Precio cambiado</string>
+    <string name="kn_done_listed">Puesto a la venta</string>
+    <string name="kn_done_transferred">Nombre transferido</string>
+    <string name="kn_done_reclaimed">Nombre recuperado</string>
+    <string name="kn_done_profile_saved">Perfil guardado</string>
+    <string name="kn_done_primary_set">Nombre principal establecido</string>
+    <string name="kn_done_registered">Nombre registrado</string>
+    <string name="kn_done_commit_cancelled">Compromiso cancelado</string>
 </resources>

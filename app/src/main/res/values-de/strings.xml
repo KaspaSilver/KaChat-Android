@@ -730,7 +730,6 @@
     <string name="kn_buyer">Käufer</string>
     <string name="kn_refundable_now">Jetzt erstattbar</string>
     <string name="kn_price_to_miners">Preis (an die Miner)</string>
-    <string name="kn_your_balance">Dein Guthaben</string>
     <string name="kn_sent_note">Es erscheint hier, sobald das Netzwerk es annimmt, meist innerhalb von Sekunden.</string>
     <string name="kn_years">Jahre</string>
     <string name="kn_bond_returned">Kaution (bei Freigabe zurück)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Läuft ab</string>
     <string name="kn_one_year">1 Jahr</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Social-Media-Profil</string>
-    <string name="kn_social_bad">Füge einen Profillink von X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram oder LinkedIn ein, oder eine Einladung zu einem Discord-Server.</string>
-    <string name="kn_social_footer">Avatar, Banner und Bio kommen aus diesem Profil – genau so, wie die Plattform sie zeigt. Ihre Moderation gilt also auch hier. Banner kommen von X, YouTube und Discord, Bios von X, YouTube, Telegram, Twitch, Kick, GitHub und Discord.</string>
-    <string name="kn_linktree_bad">Es kann nur ein Linktree-Link (linktr.ee/deinname) hinzugefügt werden.</string>
     <string name="kn_linktree_footer">Füge deinen Linktree hinzu, um andere zu deinen weiteren Konten und Websites zu führen.</string>
     <string name="kn_social_looking">Profil wird gesucht …</string>
-    <string name="kn_social_nothing">Für diesen Link wurde nichts gefunden.</string>
     <string name="kn_social_from">Von %1$s</string>
     <string name="kn_social_no_avatar">Dieses %1$s-Profil hat keinen Avatar.</string>
     <string name="kn_social_no_banner">Dieses %1$s-Profil hat kein Banner.</string>
-    <string name="kn_social_no_banners">%1$s gibt keine Banner weiter.</string>
     <string name="kn_social_no_bio">Dieses %1$s-Profil hat keine Bio.</string>
-    <string name="kn_social_no_bios">%1$s gibt keine Bios weiter.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">%1$s war nicht erreichbar.</string>
+    <string name="kn_account_on">Konto auf</string>
+    <string name="kn_handle">Handle</string>
+    <string name="kn_invite">Einladung</string>
+    <string name="kn_username">Benutzername</string>
+    <string name="kn_profile_pieces_footer">Jeder Teil kommt aus einem verknüpften Social-Media-Profil – genau so, wie die Plattform ihn zeigt. Ihre Moderation gilt also auch hier. Du kannst ein Konto für alle drei nutzen oder sie mischen.</string>
+    <string name="kn_linktree_username_bad">Gib deinen Linktree-Benutzernamen ein: Buchstaben, Zahlen, Punkte, Bindestriche oder Unterstriche.</string>
+    <string name="kn_handle_bad">Das sieht nicht nach einem Handle auf dieser Plattform aus.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Guthaben der Chat-Adresse</string>
+    <string name="kn_balance_after">Guthaben danach</string>
+    <string name="kn_balance_change">Guthabenänderung</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transaktion gesendet</string>
+    <string name="kn_view_transaction">Transaktion ansehen</string>
+    <string name="kn_done_released">Name freigegeben</string>
+    <string name="kn_done_bought">Name gekauft</string>
+    <string name="kn_done_offer_sent">Angebot gesendet</string>
+    <string name="kn_done_price_changed">Preis geändert</string>
+    <string name="kn_done_listed">Zum Verkauf angeboten</string>
+    <string name="kn_done_transferred">Name übertragen</string>
+    <string name="kn_done_reclaimed">Name zurückgeholt</string>
+    <string name="kn_done_profile_saved">Profil gespeichert</string>
+    <string name="kn_done_primary_set">Hauptname festgelegt</string>
+    <string name="kn_done_registered">Name registriert</string>
+    <string name="kn_done_commit_cancelled">Commit storniert</string>
 </resources>

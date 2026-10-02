@@ -730,7 +730,6 @@
     <string name="kn_buyer">Acheteur</string>
     <string name="kn_refundable_now">Remboursable maintenant</string>
     <string name="kn_price_to_miners">Prix (aux mineurs)</string>
-    <string name="kn_your_balance">Votre solde</string>
     <string name="kn_sent_note">Elle apparaît ici dès que le réseau l’accepte, en général en quelques secondes.</string>
     <string name="kn_years">Années</string>
     <string name="kn_bond_returned">Caution (rendue à la libération)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Expire</string>
     <string name="kn_one_year">1 an</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Profil social</string>
-    <string name="kn_social_bad">Collez un lien de profil X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram ou LinkedIn, ou une invitation à un serveur Discord.</string>
-    <string name="kn_social_footer">Votre avatar, votre bannière et votre bio proviennent de ce profil, tels que cette plateforme les affiche : sa modération s\'applique donc ici aussi. Les bannières viennent de X, YouTube et Discord ; les bios de X, YouTube, Telegram, Twitch, Kick, GitHub et Discord.</string>
-    <string name="kn_linktree_bad">Seul un lien Linktree (linktr.ee/votrenom) peut être ajouté.</string>
     <string name="kn_linktree_footer">Ajoutez votre Linktree pour orienter les gens vers vos autres comptes et sites.</string>
     <string name="kn_social_looking">Recherche du profil...</string>
-    <string name="kn_social_nothing">Rien trouvé pour ce lien.</string>
     <string name="kn_social_from">Depuis %1$s</string>
     <string name="kn_social_no_avatar">Ce profil %1$s n\'a pas d\'avatar.</string>
     <string name="kn_social_no_banner">Ce profil %1$s n\'a pas de bannière.</string>
-    <string name="kn_social_no_banners">%1$s ne partage pas les bannières.</string>
     <string name="kn_social_no_bio">Ce profil %1$s n\'a pas de bio.</string>
-    <string name="kn_social_no_bios">%1$s ne partage pas les bios.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Impossible de joindre %1$s.</string>
+    <string name="kn_account_on">Compte sur</string>
+    <string name="kn_handle">identifiant</string>
+    <string name="kn_invite">invitation</string>
+    <string name="kn_username">nom d\'utilisateur</string>
+    <string name="kn_profile_pieces_footer">Chaque élément provient d\'un profil social que vous liez, tel que cette plateforme l\'affiche : sa modération s\'applique donc ici aussi. Vous pouvez utiliser un seul compte pour les trois, ou les combiner.</string>
+    <string name="kn_linktree_username_bad">Saisissez votre nom d\'utilisateur Linktree : lettres, chiffres, points, tirets ou traits de soulignement.</string>
+    <string name="kn_handle_bad">Cela ne ressemble pas à un identifiant sur cette plateforme.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Solde de l\'adresse de discussion</string>
+    <string name="kn_balance_after">Solde après</string>
+    <string name="kn_balance_change">Variation du solde</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transaction envoyée</string>
+    <string name="kn_view_transaction">Voir la transaction</string>
+    <string name="kn_done_released">Nom libéré</string>
+    <string name="kn_done_bought">Nom acheté</string>
+    <string name="kn_done_offer_sent">Offre envoyée</string>
+    <string name="kn_done_price_changed">Prix modifié</string>
+    <string name="kn_done_listed">Mis en vente</string>
+    <string name="kn_done_transferred">Nom transféré</string>
+    <string name="kn_done_reclaimed">Nom récupéré</string>
+    <string name="kn_done_profile_saved">Profil enregistré</string>
+    <string name="kn_done_primary_set">Nom principal défini</string>
+    <string name="kn_done_registered">Nom enregistré</string>
+    <string name="kn_done_commit_cancelled">Engagement annulé</string>
 </resources>

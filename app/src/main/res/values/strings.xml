@@ -908,7 +908,6 @@
     <string name="kn_buyer">Buyer</string>
     <string name="kn_refundable_now">Refundable now</string>
     <string name="kn_price_to_miners">Price (to miners)</string>
-    <string name="kn_your_balance">Your balance</string>
     <string name="kn_sent_note">It shows here once the network accepts it, usually within seconds.</string>
     <string name="kn_years">Years</string>
     <string name="kn_bond_returned">Bond (returned on release)</string>
@@ -994,17 +993,37 @@
     <string name="kn_expires">Expires</string>
     <string name="kn_one_year">1 year</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Social Profile</string>
-    <string name="kn_social_bad">Paste a profile link from X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram or LinkedIn, or a Discord server invite.</string>
-    <string name="kn_social_footer">Your avatar, banner and bio come from this profile, exactly as that platform shows them, so its moderation applies here too. Banners come from X, YouTube and Discord; bios from X, YouTube, Telegram, Twitch, Kick, GitHub and Discord.</string>
-    <string name="kn_linktree_bad">Only a Linktree link (linktr.ee/yourname) can be added.</string>
     <string name="kn_linktree_footer">Add your Linktree to point people to your other accounts and websites.</string>
     <string name="kn_social_looking">Looking up the profile...</string>
-    <string name="kn_social_nothing">Nothing found for this link.</string>
     <string name="kn_social_from">From %1$s</string>
     <string name="kn_social_no_avatar">No avatar on this %1$s profile.</string>
     <string name="kn_social_no_banner">No banner on this %1$s profile.</string>
-    <string name="kn_social_no_banners">%1$s doesn\'t share banners.</string>
     <string name="kn_social_no_bio">No bio on this %1$s profile.</string>
-    <string name="kn_social_no_bios">%1$s doesn\'t share bios.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Couldn\'t reach %1$s.</string>
+    <string name="kn_account_on">Account on</string>
+    <string name="kn_handle">handle</string>
+    <string name="kn_invite">invite</string>
+    <string name="kn_username">username</string>
+    <string name="kn_profile_pieces_footer">Each piece comes from a social profile you link, exactly as that platform shows it, so its moderation applies here too. You can use one account for all three, or mix them.</string>
+    <string name="kn_linktree_username_bad">Enter your Linktree username: letters, numbers, dots, dashes or underscores.</string>
+    <string name="kn_handle_bad">That doesn\'t look like a handle on this platform.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Chatting address balance</string>
+    <string name="kn_balance_after">Balance after</string>
+    <string name="kn_balance_change">Balance change</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transaction sent</string>
+    <string name="kn_view_transaction">View Transaction</string>
+    <string name="kn_done_released">Name released</string>
+    <string name="kn_done_bought">Name bought</string>
+    <string name="kn_done_offer_sent">Offer sent</string>
+    <string name="kn_done_price_changed">Price changed</string>
+    <string name="kn_done_listed">Listed for sale</string>
+    <string name="kn_done_transferred">Name transferred</string>
+    <string name="kn_done_reclaimed">Name reclaimed</string>
+    <string name="kn_done_profile_saved">Profile saved</string>
+    <string name="kn_done_primary_set">Primary name set</string>
+    <string name="kn_done_registered">Name registered</string>
+    <string name="kn_done_commit_cancelled">Commit cancelled</string>
 </resources>

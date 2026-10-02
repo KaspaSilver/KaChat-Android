@@ -730,7 +730,6 @@
     <string name="kn_buyer">Acquirente</string>
     <string name="kn_refundable_now">Rimborsabile ora</string>
     <string name="kn_price_to_miners">Prezzo (ai miner)</string>
-    <string name="kn_your_balance">Il tuo saldo</string>
     <string name="kn_sent_note">Appare qui quando la rete la accetta, di solito in pochi secondi.</string>
     <string name="kn_years">Anni</string>
     <string name="kn_bond_returned">Cauzione (restituita al rilascio)</string>
@@ -816,17 +815,37 @@
     <string name="kn_expires">Scade</string>
     <string name="kn_one_year">1 anno</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
-    <string name="kn_social_profile">Profilo social</string>
-    <string name="kn_social_bad">Incolla un link a un profilo X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram o LinkedIn, oppure un invito a un server Discord.</string>
-    <string name="kn_social_footer">Avatar, banner e bio provengono da questo profilo, esattamente come li mostra quella piattaforma, quindi la sua moderazione vale anche qui. I banner provengono da X, YouTube e Discord; le bio da X, YouTube, Telegram, Twitch, Kick, GitHub e Discord.</string>
-    <string name="kn_linktree_bad">Si può aggiungere solo un link Linktree (linktr.ee/tuonome).</string>
     <string name="kn_linktree_footer">Aggiungi il tuo Linktree per indirizzare le persone ai tuoi altri account e siti.</string>
     <string name="kn_social_looking">Ricerca del profilo...</string>
-    <string name="kn_social_nothing">Niente trovato per questo link.</string>
     <string name="kn_social_from">Da %1$s</string>
     <string name="kn_social_no_avatar">Questo profilo %1$s non ha un avatar.</string>
     <string name="kn_social_no_banner">Questo profilo %1$s non ha un banner.</string>
-    <string name="kn_social_no_banners">%1$s non condivide i banner.</string>
     <string name="kn_social_no_bio">Questo profilo %1$s non ha una bio.</string>
-    <string name="kn_social_no_bios">%1$s non condivide le bio.</string>
+    <!-- .kachat profile editor: a source per piece (iOS c124cb3) -->
+    <string name="kn_couldnt_reach">Impossibile raggiungere %1$s.</string>
+    <string name="kn_account_on">Account su</string>
+    <string name="kn_handle">nome utente</string>
+    <string name="kn_invite">invito</string>
+    <string name="kn_username">nome utente</string>
+    <string name="kn_profile_pieces_footer">Ogni parte proviene da un profilo social che colleghi, esattamente come lo mostra quella piattaforma, quindi la sua moderazione vale anche qui. Puoi usare un account per tutte e tre o combinarli.</string>
+    <string name="kn_linktree_username_bad">Inserisci il tuo nome utente Linktree: lettere, numeri, punti, trattini o trattini bassi.</string>
+    <string name="kn_handle_bad">Non sembra un nome utente di questa piattaforma.</string>
+    <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
+    <string name="kn_chatting_balance">Saldo dell\'indirizzo chat</string>
+    <string name="kn_balance_after">Saldo dopo</string>
+    <string name="kn_balance_change">Variazione del saldo</string>
+    <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
+    <string name="kn_done_tx_sent">Transazione inviata</string>
+    <string name="kn_view_transaction">Vedi transazione</string>
+    <string name="kn_done_released">Nome rilasciato</string>
+    <string name="kn_done_bought">Nome acquistato</string>
+    <string name="kn_done_offer_sent">Offerta inviata</string>
+    <string name="kn_done_price_changed">Prezzo cambiato</string>
+    <string name="kn_done_listed">Messo in vendita</string>
+    <string name="kn_done_transferred">Nome trasferito</string>
+    <string name="kn_done_reclaimed">Nome recuperato</string>
+    <string name="kn_done_profile_saved">Profilo salvato</string>
+    <string name="kn_done_primary_set">Nome principale impostato</string>
+    <string name="kn_done_registered">Nome registrato</string>
+    <string name="kn_done_commit_cancelled">Impegno annullato</string>
 </resources>
