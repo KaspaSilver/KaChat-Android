@@ -2,6 +2,7 @@ package com.kachat.app.ui.screens
 
 import com.kachat.app.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Flag
 import android.content.Intent
 import android.widget.Toast
@@ -508,9 +509,55 @@ private sealed interface KaPostsProfileReturn {
     data class Poster(val address: String, val pubkey: String?) : KaPostsProfileReturn
 }
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+/**
+ * KaPosts, or - on a network with no KaPost indexer (testnet) - a page saying so, with none of
+ * the feed work started (iOS KaPostsUnavailableView, 0bda85e).
+ */
 @Composable
 fun KaPostsScreen(
+    navController: NavController,
+    walletViewModel: WalletViewModel = hiltViewModel(),
+    handlesDeepLinks: Boolean = true,
+    connectionViewModel: com.kachat.app.viewmodels.ConnectionViewModel = hiltViewModel(),
+) {
+    val kapostIndexerUrl by connectionViewModel.kapostIndexerUrl.collectAsState(initial = null)
+    when {
+        kapostIndexerUrl == null -> Box(Modifier.fillMaxSize().background(LocalAppColors.current.background))
+        kapostIndexerUrl.isNullOrBlank() -> KaPostsUnavailable()
+        else -> KaPostsFeedScreen(navController = navController, walletViewModel = walletViewModel, handlesDeepLinks = handlesDeepLinks)
+    }
+}
+
+@Composable
+private fun KaPostsUnavailable() {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier.fillMaxSize().background(colors.background).padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(androidx.compose.material.icons.Icons.Default.Forum, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(34.dp))
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.kaposts_not_on_testnet),
+            color = colors.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 17.sp,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            stringResource(R.string.kaposts_not_on_testnet_sub),
+            color = colors.textSecondary,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun KaPostsFeedScreen(
     navController: NavController,
     viewModel: KaPostsViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),

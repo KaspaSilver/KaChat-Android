@@ -121,6 +121,8 @@ class KaPostsNotificationPoller @Inject constructor(
         val address = try { walletManager.getAddress() } catch (_: Exception) { return }
         // Child Mode removes KaPosts entirely - no polling, no count, no pings (iOS).
         if (settingsRepository.childModeEnabled.first()) return
+        // No KaPost indexer on this network (testnet) - none of the feed work runs (iOS 0bda85e).
+        if (settingsRepository.kapostIndexerUrl.first().isBlank()) return
         val notifications = kaPostsService.fetchNotifications(limit = 50)
         val newest = notifications.maxOfOrNull { it.timestamp } ?: return
         val key = lastSeenKey(address)

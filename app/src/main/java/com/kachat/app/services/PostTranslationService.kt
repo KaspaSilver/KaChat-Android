@@ -226,6 +226,9 @@ class PostTranslationService @Inject constructor(
      * than paying for a second ML Kit round trip on the same text.
      */
     suspend fun canOfferTranslation(text: String, detectedSource: String? = null): Boolean {
+        // No translation service on this network (testnet): Translate isn't offered, rather than
+        // falling back to the mainnet server (iOS 0bda85e).
+        if (settings.translationServiceUrl.first().isBlank()) return false
         val target = targetLanguage() ?: return false
         val source = detectedSource ?: detectLanguage(text) ?: return false
         if (source == target) return false
