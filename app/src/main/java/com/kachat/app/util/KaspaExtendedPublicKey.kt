@@ -79,7 +79,7 @@ object KaspaExtendedPublicKey {
      * pubkey-to-address conversion (strip the leading parity byte off the 33-byte compressed
      * key, encode the remaining x-only 32 bytes as a Schnorr (version 0) address).
      */
-    fun deriveChildAddress(rootKey: DeterministicKey, chain: Int, index: Int, prefix: String = "kaspa"): String {
+    fun deriveChildAddress(rootKey: DeterministicKey, chain: Int, index: Int, prefix: String = KaspaNetwork.hrp): String {
         val chainKey = HDKeyDerivation.deriveChildKey(rootKey, ChildNumber(chain, false))
         val addressKey = HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false))
         val pubKey = addressKey.pubKey

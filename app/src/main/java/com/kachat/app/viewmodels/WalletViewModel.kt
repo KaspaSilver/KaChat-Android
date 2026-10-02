@@ -1199,8 +1199,12 @@ class WalletViewModel @Inject constructor(
                         )
                     }
             }
-            runCatching { chatRepository.wipeAllLocalDataForAddress(address) }
-                .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
+            // On both networks: the same key is the same account as kaspa: and kaspatest:, and
+            // each kept its own chats (iOS 741c005).
+            for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
+                runCatching { chatRepository.wipeAllLocalDataForAddress(variant) }
+                    .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
+            }
         }
         walletManager.deleteAccount(address)
         _accounts.value = walletManager.getAllAccounts()

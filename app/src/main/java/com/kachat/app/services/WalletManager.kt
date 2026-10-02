@@ -168,8 +168,15 @@ class WalletManager @Inject constructor(
         } catch (e: Exception) {
             emptyList()
         }
-        accountsCache = parsed
-        return parsed
+        // The same key's address on the network this launch runs on - an account saved as
+        // kaspa: appears as its kaspatest: address on testnet and back again after (iOS
+        // walletOnCurrentNetwork, bdae4b7). One key is one account on either network, so a list
+        // holding both encodings keeps one (iOS updateSavedAccounts / 741c005).
+        val onNetwork = parsed
+            .map { it.copy(address = com.kachat.app.util.KaspaNetwork.reencode(it.address)) }
+            .distinctBy { it.address.lowercase() }
+        accountsCache = onNetwork
+        return onNetwork
     }
 
     private fun saveAccounts(accounts: List<Account>) {
@@ -223,7 +230,9 @@ class WalletManager @Inject constructor(
 
     fun getActiveAccount(): Account? {
         val address = sharedPrefs.getString(PREF_ACTIVE_ADDRESS, null) ?: return getAccounts().firstOrNull()
-        return getAccounts().find { it.address == address }
+        // Matched by key, not by string: the stored active address may be the other network's
+        // encoding (iOS isSameAccount, 741c005).
+        return getAccounts().find { com.kachat.app.util.KaspaNetwork.isSameAccount(it.address, address) }
     }
 
     fun getAllAccounts(): List<Account> = getAccounts()
@@ -455,9 +464,10 @@ class WalletManager @Inject constructor(
      * Deletes a specific account.
      */
     fun deleteAccount(address: String) {
-        val accounts = getAccounts().filter { it.address != address }
+        val accounts = getAccounts().filterNot { com.kachat.app.util.KaspaNetwork.isSameAccount(it.address, address) }
         saveAccounts(accounts)
-        if (sharedPrefs.getString(PREF_ACTIVE_ADDRESS, null) == address) {
+        val active = sharedPrefs.getString(PREF_ACTIVE_ADDRESS, null)
+        if (active != null && com.kachat.app.util.KaspaNetwork.isSameAccount(active, address)) {
             sharedPrefs.edit().remove(PREF_ACTIVE_ADDRESS).apply()
         }
         refreshActiveAddressFlow()
@@ -570,8 +580,9 @@ class WalletManager @Inject constructor(
         return out
     }
 
+    /** Encoded for the network this launch runs on - kaspa: or kaspatest:. */
     private fun addressFromPrivateKeyBytes(privateKey: ByteArray): String =
-        KaspaAddress.encode("kaspa", 0x00, com.kachat.app.util.Schnorr.publicKeyXOnly(privateKey))
+        KaspaAddress.encode(com.kachat.app.util.KaspaNetwork.hrp, 0x00, com.kachat.app.util.Schnorr.publicKeyXOnly(privateKey))
 
     /**
      * Identity (chatting) address for one seed at one index within one source family — the single
@@ -632,7 +643,7 @@ class WalletManager @Inject constructor(
     private fun addressFromKey(key: DeterministicKey): String {
         val pubKey = key.pubKey
         val xOnlyPubKey = if (pubKey.size == 33) pubKey.sliceArray(1..32) else pubKey
-        return KaspaAddress.encode("kaspa", 0x00, xOnlyPubKey)
+        return KaspaAddress.encode(com.kachat.app.util.KaspaNetwork.hrp, 0x00, xOnlyPubKey)
     }
 
     /** The active account's BIP39 passphrase (empty when it has none), used to re-derive its keys. */

@@ -354,7 +354,7 @@ class KaPostsService @Inject constructor(
                 32 -> raw
                 else -> return null
             }
-            return KaspaAddress.encode("kaspa", 0x00, xOnly)
+            return KaspaAddress.encode(com.kachat.app.util.KaspaNetwork.hrp, 0x00, xOnly)
         }
 
         /**

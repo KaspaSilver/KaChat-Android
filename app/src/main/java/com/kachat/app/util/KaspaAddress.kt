@@ -111,7 +111,7 @@ object KaspaAddress {
      * anything else (ECDSA/P2SH outputs, or malformed scripts) — broadcast senders are expected to
      * use ordinary Schnorr addresses like any other KaChat/Kasia wallet.
      */
-    fun addressFromScriptPublicKey(scriptPublicKeyHex: String, prefix: String = "kaspa"): String? {
+    fun addressFromScriptPublicKey(scriptPublicKeyHex: String, prefix: String = KaspaNetwork.hrp): String? {
         if (scriptPublicKeyHex.length != 68) return null // "20" + 64 hex chars + "ac" = 68
         if (!scriptPublicKeyHex.startsWith("20") || !scriptPublicKeyHex.endsWith("ac")) return null
         val pubKeyHex = scriptPublicKeyHex.substring(2, 66)

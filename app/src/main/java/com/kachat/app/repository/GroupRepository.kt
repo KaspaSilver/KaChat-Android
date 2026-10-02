@@ -1412,7 +1412,7 @@ class GroupRepository @Inject constructor(
             GroupMember(address = address, xOnlyPubKeyHex = xOnlyPub.toHexString(), isAdmin = xOnlyPub.toHexString() == payload.adminSigningPub)
         }
         val adminAddress = try {
-            KaspaAddress.encode("kaspa", 0x00, payload.adminSigningPub.hexToByteArray())
+            KaspaAddress.encode(com.kachat.app.util.KaspaNetwork.hrp, 0x00, payload.adminSigningPub.hexToByteArray())
         } catch (e: Exception) {
             members.firstOrNull { it.isAdmin }?.address ?: ""
         }

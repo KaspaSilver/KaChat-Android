@@ -500,16 +500,21 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.IN_PROGRESS)
             try {
-                chatRepository.wipeAllLocalDataForAddress(address)
-                groupRepository.clearAllLocalData(address)
+                // Both networks' data: one key, one account (iOS 741c005).
+                for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
+                    chatRepository.wipeAllLocalDataForAddress(variant)
+                    groupRepository.clearAllLocalData(variant)
+                }
                 // Both danger-zone entries to this flow delete the wallet itself right after the
                 // local wipe (onLocalWipeComplete -> deleteWallet), so the account's Nextcloud
                 // login and settings must go with it — mirrors iOS's purgeStoredState in the
                 // WalletManager account-deletion flows.
-                nextcloudService.purgeStoredState(address)
-                // The continuous Nextcloud sync state (dirty flag, last-synced stamp, restored
-                // marker) and any pending debounced upload go with the account too.
-                nextcloudSyncService.purgeStoredState(address)
+                for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
+                    nextcloudService.purgeStoredState(variant)
+                    // The continuous Nextcloud sync state (dirty flag, last-synced stamp, restored
+                    // marker) and any pending debounced upload go with the account too.
+                    nextcloudSyncService.purgeStoredState(variant)
+                }
                 _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.SUCCESS)
                 onLocalWipeComplete()
             } catch (e: Exception) {

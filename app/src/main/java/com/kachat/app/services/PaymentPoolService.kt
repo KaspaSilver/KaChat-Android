@@ -545,7 +545,8 @@ class PaymentPoolService @Inject constructor(
 
     /** Validates and stores a received `addr_pool` as "addresses I can pay this contact at". */
     private suspend fun acceptIncomingAddressPool(content: PaymentPoolProtocol.AddressPoolContent, contact: ContactEntity, myAddress: String) {
-        val expectedPrefix = "kaspa:"
+        // Only addresses of the network this launch runs on (iOS ChatService+PaymentPools).
+        val expectedPrefix = com.kachat.app.util.KaspaNetwork.hrp + ":"
         val accepted = mutableListOf<String>()
         for (raw in content.addresses.take(PaymentPoolStore.MAX_STORED_POOL_SIZE)) {
             val address = raw.trim()
