@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">שמות שבעליהם הניחו להם לפקוע. כל אחד יכול לדרוש אותם מחדש: הערבון חוזר לבעלים האחרון, את הפיקדון שהשתחרר תשמרו כפרס, והשם מתפנה לרישום.</string>
     <string name="kn_nothing_to_reclaim">אין מה לדרוש מחדש.</string>
     <string name="kn_reclaim">דרישה מחדש</string>
-    <string name="kn_my_names_detail">חדשו, הציעו למכירה, העבירו או שחררו אותם, ובחרו איזה שם KaChat יציג עבורכם.</string>
     <string name="kn_search_above">חפשו שם למעלה ורשמו אותו.</string>
     <string name="kn_my_offers">ההצעות שלי</string>
     <string name="kn_my_offers_detail">הצעות שהגשתם. אפשר למשוך כל אחת בכל עת; אחרי מועד ההחזר כל אחד יכול להחזיר אותה אליכם.</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">המחיר הולך לכורים - KaChat לא לוקח כלום. הערבון והפיקדון חוזרים כשמשחררים את השם.</string>
     <string name="kn_claim_step1">קודם נשלחת לשרשרת התחייבות מוסתרת. אף אחד לא יכול לראות לאיזה שם היא.</string>
     <string name="kn_claim_step2">כדקה אחר כך KaChat רושם את השם לבד. השאירו את האפליקציה פתוחה; אם יוצאים, היא תמשיך בפעם הבאה.</string>
-    <string name="kn_claim_step3">השם שלך לשנים ששילמת עליהן. אפשר לחדש בכל עת לפני שהוא פג.</string>
     <string name="kn_how_claiming_works">איך הרישום עובד</string>
     <string name="kn_claim_name_button">רישום %1$s.kachat</string>
     <string name="kn_claim_name_title">רישום שם</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">השם מוצע למכירה בפחות מההצעה שלך. כל אחד יכול לקנות אותו עם ההצעה שלך, אז עדיף לקנות אותו ישירות.</string>
     <string name="kn_offer_locked">ה-KAS שלך נשאר נעול בשרשרת עד שהבעלים יקבל, תמשכו את ההצעה או שהיא תפוג - ואז כל אחד יכול להחזיר אותו אליכם.</string>
     <string name="kn_refundable_after">ניתן להחזר אחרי</string>
-    <string name="kn_renew_footer">חידוש מתווסף לתאריך התפוגה הנוכחי, גם אם הוא כבר עבר. המחיר הולך לכורים.</string>
     <string name="kn_price_per_year">מחיר לשנה</string>
     <string name="kn_new_expiry">תפוגה חדשה</string>
     <string name="kn_list_footer">כל אחד יכול לקנות במחיר הזה: התשלום מגיע אליך והשם לקונה בעסקה אחת. אפשר להסיר מהמכירה בכל עת.</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">נשמר על השרשרת מכתובת הצ\'אט שלך אל עצמה.</string>
     <string name="kn_profiles_public_note">פרופילים הם ציבוריים ועל השרשרת: כל אחד יכול לקרוא אותם, וגרסאות קודמות נשארות קריאות גם אחרי שינוי.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">הוארך</string>
+    <string name="kn_extend">הארכה</string>
+    <string name="kn_extend_to_years">הארכה ל-%1$d שנים</string>
+    <string name="kn_renewal_opens_on">החידוש נפתח ב-%1$s</string>
+    <string name="kn_paid_from_to">שולם מ-%1$s עד %2$s</string>
+    <string name="kn_new_period">תקופה חדשה</string>
+    <string name="kn_renewal_open">החידוש פתוח</string>
+    <string name="kn_extend_footer">הארכה מוסיפה שנים לתקופה המשולמת הנוכחית, שמחזיקה לכל היותר שנתיים. המחיר הולך לכורים.</string>
+    <string name="kn_renew_period_footer">חידוש מתחיל את התקופה הבאה בתאריך התפוגה הנוכחי, כך ששום זמן לא אובד ולא מתווסף, גם אם התאריך כבר עבר. המחיר הולך לכורים.</string>
+    <string name="kn_err_period_full">השם הזה כבר שולם לשנתיים מתחילת התקופה שלו. החידוש נפתח ב-%1$s.</string>
+    <string name="kn_err_period_unknown">האינדקסר של השמות לא שלח את התקופה המשולמת של השם הזה. משכו לרענון ונסו שוב.</string>
+    <string name="kn_my_names_extend_detail">האריכו, חדשו, הציעו למכירה, העבירו או שחררו אותם, ובחרו את השם ש-KaChat מציג עבורכם.</string>
+    <string name="kn_claim_step3_cap">השם שלכם לשנים ששילמתם, לכל היותר שנתיים מראש. שם לשנה אחת אפשר להאריך לשנתיים; מ-10 ימים לפני התפוגה אפשר לחדש אותו.</string>
+    <string name="kn_setting_up">בהקמה</string>
+    <string name="kn_registry_upgrading">רישום ה-.kachat בטסטנט משודרג. השמות ייפתחו כאן שוב ברגע שהרישום החדש יפעל.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">שמות ‎.kachat</string>
 </resources>

@@ -111,6 +111,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.kachat.app.R
 import com.kachat.app.models.BroadcastRetention
+import com.kachat.app.models.addressDisplayName
 import com.kachat.app.models.FeaturedBroadcastChannels
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.ui.theme.KaspaTeal
@@ -253,12 +254,11 @@ fun BroadcastListScreen(
             val joinedNames = channels.map { it.channelName }.toSet()
             val unjoinedLanguages = com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES
                 .filter { it !in joinedNames && it !in hiddenCurated }
-            fun senderName(address: String): String = when {
-                address == myAddressForRows -> "You"
-                !contactAliases[address].isNullOrBlank() -> contactAliases[address]!!
-                !senderKnsNames[address].isNullOrBlank() -> senderKnsNames[address]!!
-                else -> address.takeLast(8)
-            }
+            // the app's one rule (addressDisplayName): your name for them, else their .kachat
+            // name on testnet (KNS elsewhere), else the short address (iOS e52357d)
+            fun senderName(address: String): String =
+                if (address == myAddressForRows) "You"
+                else addressDisplayName(address, contactAliases[address], senderKnsNames[address], address.takeLast(8))
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -1023,7 +1023,7 @@ fun BroadcastChannelScreen(
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "Replying to ${contactAliases[reply.senderAddress] ?: senderKnsNames[reply.senderAddress] ?: reply.senderAddress.takeLast(10)}",
+                                "Replying to ${addressDisplayName(reply.senderAddress, contactAliases[reply.senderAddress], senderKnsNames[reply.senderAddress], reply.senderAddress.takeLast(10))}",
                                 color = KaspaTeal,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -1187,7 +1187,7 @@ fun BroadcastChannelScreen(
                 val sheetContext = LocalContext.current
                 SenderActionsSheet(
                     address = address,
-                    displayName = contactAliases[address] ?: senderKnsNames[address] ?: address.takeLast(10),
+                    displayName = addressDisplayName(address, contactAliases[address], senderKnsNames[address], address.takeLast(10)),
                     isOwnMessage = target.isOwnMessage,
                     onDismiss = { senderSheetTarget = null },
                     // Broadcast senders are usually strangers: openSenderProfile creates the
@@ -1328,6 +1328,7 @@ fun BroadcastChannelScreen(
                             imageUrl = senderProfiles[message.senderAddress],
                             fallbackText = message.senderAddress.takeLast(8),
                             size = 32.dp,
+                            address = message.senderAddress,
                             modifier = Modifier.clickable {
                                 senderSheetTarget = SenderSheetTarget(message.senderAddress, isOwnMessage = isMine)
                             }
@@ -1359,7 +1360,7 @@ fun BroadcastChannelScreen(
                             }
                         ) {
                             Text(
-                                contactAliases[message.senderAddress] ?: senderKnsNames[message.senderAddress] ?: message.senderAddress.takeLast(10),
+                                addressDisplayName(message.senderAddress, contactAliases[message.senderAddress], senderKnsNames[message.senderAddress], message.senderAddress.takeLast(10)),
                                 color = KaspaTeal,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1380,7 +1381,7 @@ fun BroadcastChannelScreen(
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
                                         Text(
-                                            contactAliases[replyContent.replyToSender] ?: senderKnsNames[replyContent.replyToSender] ?: replyContent.replyToSender.takeLast(10),
+                                            addressDisplayName(replyContent.replyToSender, contactAliases[replyContent.replyToSender], senderKnsNames[replyContent.replyToSender], replyContent.replyToSender.takeLast(10)),
                                             color = KaspaTeal,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
@@ -1654,9 +1655,7 @@ fun BroadcastChannelScreen(
                                     ChatReactionsSheet(
                                         reactions = messageReactions,
                                         nameFor = { addr ->
-                                            contactAliases[addr]
-                                                ?: senderKnsNames[addr]
-                                                ?: addr.takeLast(10)
+                                            addressDisplayName(addr, contactAliases[addr], senderKnsNames[addr], addr.takeLast(10))
                                         },
                                         isMe = { it == myAddress },
                                         // Rooms already fetch every sender's KNS profile for the

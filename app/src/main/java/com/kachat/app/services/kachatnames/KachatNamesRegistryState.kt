@@ -16,7 +16,7 @@ import java.text.BreakIterator
 // rule, the label rule, the address profile record, and the registry walker's state with its
 // transition decoder - a port of the kachat-domains CLI's `registry.rs` (`Registry::apply`,
 // KACHAT_NAMES_INDEXER.md B3), through iOS KaChat/Services/KachatNames/KachatNamesRegistryState.swift
-// (KaChat 27edcd5). Pure Kotlin + Gson: no network, no keys, no Android, so it is tested on the JVM
+// (KaChat 27edcd5; registry v2 - periodStart, extend, the new renew - from a1e38d6). Pure Kotlin + Gson: no network, no keys, no Android, so it is tested on the JVM
 // (`KachatNamesRegistryTest`, the port of iOS scripts/test_kachat_names_registry.swift).
 //
 // Swift nests these in `extension KachatNames`; Kotlin cannot add nested types to the object from
@@ -63,19 +63,41 @@ class NameInfo(
     /** unix ms of the registration, when known */
     val registeredAt: Long? = null,
     val registeredTxId: String? = null,
-    val updatedAt: Long? = null
+    val updatedAt: Long? = null,
+    /**
+     * unix ms, the start of the current paid period (registry v2, iOS a1e38d6); null when the
+     * source did not say (an indexer without the field): then the name can't be spent from this
+     * record and Extend isn't offered. Last (not after [expiresAt] as on iOS) so the positional
+     * call sites keep compiling.
+     */
+    val periodStart: Long? = null
 ) {
     val id: String get() = name
     val display: String get() = "$name.kachat"
     val isListed: Boolean get() = price > 0
 
-    val fields: NameFields get() = NameFields(key, Codec.padded(name), owner, price, expiresAt)
+    /** The on-chain state, when the period start is known. */
+    val fields: NameFields? get() = periodStart?.let { NameFields(key, Codec.padded(name), owner, price, it, expiresAt) }
 
     fun status(graceMs: Long, nowMs: Long = KachatNames.nowMs()): Status = Status.of(expiresAt, graceMs, nowMs)
 
+    // The paid period (registry v2, KACHAT_NAMES.md 4.1)
+
+    /** Whole years `extend` can add now (0 when the period start is unknown). */
+    fun extendableYears(p: Params): Long = periodStart?.let { p.extendableYears(it, expiresAt) } ?: 0
+
+    /** When the renewal window opens: `expiresAt - renewWindowMs` (unix ms). */
+    fun renewOpens(p: Params): Long = p.renewOpens(expiresAt)
+
+    /**
+     * The renewal window by the wall clock (what the screens show; the transaction itself waits
+     * for the network's median time, a couple of minutes behind).
+     */
+    fun renewOpen(p: Params, nowMs: Long = KachatNames.nowMs()): Boolean = nowMs >= renewOpens(p)
+
     override fun equals(other: Any?): Boolean =
         other is NameInfo && name == other.name && key.contentEquals(other.key) && owner.contentEquals(other.owner) &&
-            price == other.price && expiresAt == other.expiresAt && outpoint == other.outpoint &&
+            price == other.price && expiresAt == other.expiresAt && periodStart == other.periodStart && outpoint == other.outpoint &&
             registeredAt == other.registeredAt && registeredTxId == other.registeredTxId && updatedAt == other.updatedAt
 
     override fun hashCode(): Int = listOf(name, key.contentHashCode(), owner.contentHashCode(), price, expiresAt, outpoint).hashCode()
@@ -134,7 +156,7 @@ class OfferInfo(
  */
 data class Event(
     val txId: String,
-    /** register, transfer, list, delist, sale, renew, release, reclaim, offer_accepted, offer */
+    /** register, transfer, list, delist, sale, extend, renew, release, reclaim, offer_accepted, offer */
     val op: String,
     val name: String? = null,
     val at: Long? = null,
@@ -773,6 +795,8 @@ data class RegistryState(
         val key: String,
         val owner: String,
         val price: Long,
+        /** unix ms, the start of the current paid period (registry v2) */
+        val periodStart: Long,
         val expiresAt: Long,
         val value: Long,
         val registeredAt: Long? = null,
@@ -853,7 +877,7 @@ data class RegistryState(
             val hi = runCatching { unhex32(g.hi) }.getOrNull() ?: continue
             out.add(Tracked("${g.txid}:${g.index}", m.gap.script(Codec.gapState(lo, hi)), true))
         }
-        for (n in names) out.add(Tracked("${n.txid}:${n.index}", m.name.script(info(n).fields.encoded), true))
+        for (n in names) out.add(Tracked("${n.txid}:${n.index}", m.name.script(fields(n).encoded), true))
         for (o in offers) out.add(Tracked("${o.txid}:${o.index}", m.offer.script(info(o).fields.encoded), false))
         return out
     }
@@ -928,7 +952,7 @@ data class RegistryState(
                     val name = String(nameBytes, Charsets.UTF_8)
                     val k = KachatNames.blake3(nameBytes)
                     val padded = nameBytes.copyOf(minOf(nameBytes.size, 32)).copyOf(32)
-                    val f = NameFields(k, padded, owner, 0, now + years * KachatNames.YEAR_MS)
+                    val f = NameFields(k, padded, owner, 0, now, now + years * KachatNames.YEAR_MS)
                     predicted.add(i to Predicted.GapP(g.lo, hex(k)))
                     predicted.add(i to Predicted.GapP(hex(k), g.hi))
                     predicted.add(i to Predicted.NameP(f, name))
@@ -950,7 +974,7 @@ data class RegistryState(
             } catch (e: Exception) {
                 throw Failure("$short: name input $i: ${e.message}")
             }
-            val f = info(n).fields
+            val f = fields(n)
             if (!sp.redeem.contentEquals(m.name.redeem(f.encoded))) {
                 throw Failure("$short: name input $i reveals a redeem script that is not the tracked name state")
             }
@@ -977,9 +1001,16 @@ data class RegistryState(
                     predicted.add(i to Predicted.NameP(f.withOwner(to), n.name))
                     events.add(Event(txId = id, op = "sale", name = n.name, at = tx.at, from = n.owner, to = hex(to), price = maxOf(n.price, 0L)))
                 }
-                "renew" -> {
+                "extend" -> {
+                    // periodStart kept, expiresAt + years (the contract checked the 2-year cap)
                     val years = argInt(sp.args, 0)
-                    predicted.add(i to Predicted.NameP(f.withExpiry(f.expiresAt + years * KachatNames.YEAR_MS), n.name))
+                    predicted.add(i to Predicted.NameP(f.extended(years), n.name))
+                    events.add(Event(txId = id, op = "extend", name = n.name, at = tx.at, years = years))
+                }
+                "renew" -> {
+                    // a new period from the old expiry
+                    val years = argInt(sp.args, 0)
+                    predicted.add(i to Predicted.NameP(f.renewed(years), n.name))
                     events.add(Event(txId = id, op = "renew", name = n.name, at = tx.at, years = years))
                 }
                 "release" -> events.add(Event(txId = id, op = "release", name = n.name, at = tx.at, from = n.owner))
@@ -1035,7 +1066,7 @@ data class RegistryState(
                     newNames.add(
                         Name(
                             txid = id, index = idx, name = p.name, key = k, owner = hex(f.owner), price = f.price,
-                            expiresAt = f.expiresAt, value = value, registeredAt = before?.registeredAt ?: tx.at,
+                            periodStart = f.periodStart, expiresAt = f.expiresAt, value = value, registeredAt = before?.registeredAt ?: tx.at,
                             registeredTxId = before?.registeredTxId ?: id, updatedAt = tx.at
                         )
                     )
@@ -1142,7 +1173,8 @@ data class RegistryState(
     }
 
     companion object {
-        const val FORMAT_VERSION = 1
+        /** 2: registry v2 (names carry periodStart); an older cache is dropped and walked again. */
+        const val FORMAT_VERSION = 2
         const val APPLIED_KEEP = 4096
         const val EVENTS_KEEP = 1000
 
@@ -1169,7 +1201,14 @@ data class RegistryState(
             outpoint = outpoint(n.txid, n.index),
             registeredAt = n.registeredAt,
             registeredTxId = n.registeredTxId,
-            updatedAt = n.updatedAt
+            updatedAt = n.updatedAt,
+            periodStart = n.periodStart
+        )
+
+        /** A tracked name's on-chain state. */
+        fun fields(n: Name): NameFields = NameFields(
+            runCatching { unhex32(n.key) }.getOrNull() ?: KachatNames.ZERO32, Codec.padded(n.name),
+            runCatching { unhex32(n.owner) }.getOrNull() ?: KachatNames.ZERO32, n.price, n.periodStart, n.expiresAt
         )
 
         fun info(g: Gap): GapInfo = GapInfo(
@@ -1310,6 +1349,8 @@ object IndexerApi {
         val owner: String?,
         val ownerKey: String?,
         val price: String?,
+        /** registry v2: the start of the current paid period (unix ms); optional */
+        val periodStart: Long?,
         val expiresAt: Long?,
         val outpoint: OutpointJson?,
         val registeredAt: Long?,
@@ -1328,7 +1369,8 @@ object IndexerApi {
             if (ownerBytes.size != 32) return null
             return NameInfo(
                 name = n, key = Codec.key(n), owner = ownerBytes, price = price?.toLongOrNull() ?: 0, expiresAt = exp,
-                outpoint = op, registeredAt = registeredAt, registeredTxId = registeredTxId, updatedAt = updatedAt
+                outpoint = op, registeredAt = registeredAt, registeredTxId = registeredTxId, updatedAt = updatedAt,
+                periodStart = periodStart
             )
         }
 
@@ -1341,6 +1383,7 @@ object IndexerApi {
                 owner = o.str("owner"),
                 ownerKey = o.str("ownerKey"),
                 price = o.str("price"),
+                periodStart = o.long("periodStart"),
                 expiresAt = o.long("expiresAt"),
                 outpoint = o.obj("outpoint")?.let { OutpointJson.from(it) },
                 registeredAt = o.long("registeredAt"),

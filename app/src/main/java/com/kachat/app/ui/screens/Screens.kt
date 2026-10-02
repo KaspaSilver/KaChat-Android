@@ -684,7 +684,8 @@ fun ChatThreadScreen(
                 photoUri = conversation?.contact?.systemContactPhotoUri,
                 fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
                 name = conversation?.contact?.displayName
-                    ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                    ?: com.kachat.app.models.addressDisplayName(contactId),
+                address = contactId,
                 onClick = { navController.navigate("chat_info/$contactId") },
                 // statusBarsPadding, because the app bar applies its own inset and this card does
                 // not sit inside it - without this the avatar drew up into the status bar and
@@ -1719,6 +1720,7 @@ fun ChatThreadScreen(
                                 contactAvatarUrl = conversation?.contact?.knsAvatarUrl,
                                 contactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 contactAvatarFallback = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
+                                contactAddress = contactId,
                                 contactDisplayName = conversation?.contact?.displayName.orEmpty(),
                                 myAvatarUrl = myKnsProfile?.avatarUrl,
                                 myAvatarFallback = myAddress?.takeLast(8) ?: "",
@@ -2228,6 +2230,8 @@ fun MessageBubble(
     /** Device address-book photo of this contact — the fallback when they have no KNS avatar. */
     contactPhotoUri: String? = null,
     contactAvatarFallback: String = "",
+    /** The other side's address: on testnet their avatar is their .kachat one ([ContactAvatar]). */
+    contactAddress: String? = null,
     /** Who the other side is, by name: what a reply quote credits the original to when it was
      *  not written by us. Matches iOS, which names the person rather than saying "Them". */
     contactDisplayName: String = "",
@@ -2422,7 +2426,7 @@ fun MessageBubble(
             verticalAlignment = Alignment.Bottom
         ) {
         if (!isSent) {
-            ContactAvatar(imageUrl = contactAvatarUrl, deviceContactPhotoUri = contactPhotoUri, fallbackText = contactAvatarFallback, size = 32.dp)
+            ContactAvatar(imageUrl = contactAvatarUrl, deviceContactPhotoUri = contactPhotoUri, fallbackText = contactAvatarFallback, size = 32.dp, address = contactAddress)
             Spacer(Modifier.width(8.dp))
         }
         Column(
@@ -2878,7 +2882,7 @@ fun MessageBubble(
         }
         if (isSent) {
             Spacer(Modifier.width(8.dp))
-            ContactAvatar(imageUrl = myAvatarUrl, fallbackText = myAvatarFallback, size = 32.dp)
+            ContactAvatar(imageUrl = myAvatarUrl, fallbackText = myAvatarFallback, size = 32.dp, address = myReactorAddress)
         }
         }
     }
@@ -4070,7 +4074,9 @@ fun ProfileScreen(
                 Column {
                     // On testnet the .kachat profile (avatar, banner and bio looked up from its
                     // social link) comes first; the KNS one otherwise (iOS ad32798 / 1322216).
-                    val bannerUrl = kachatBanner ?: knsProfile?.bannerUrl
+                    // On testnet identity is .kachat only: no KNS fallback there (iOS e52357d).
+                    val bannerUrl = kachatBanner
+                        ?: knsProfile?.bannerUrl?.takeIf { !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled }
                     if (bannerUrl != null) {
                         SubcomposeAsyncImage(
                             model = bannerUrl,
@@ -4113,7 +4119,11 @@ fun ProfileScreen(
                                 modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
                                 contentAlignment = Alignment.Center
                             ) {
-                                ContactAvatar(imageUrl = kachatAvatar ?: knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
+                                ContactAvatar(
+                                    imageUrl = if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) kachatAvatar else knsProfile?.avatarUrl,
+                                    fallbackText = heroName,
+                                    size = 76.dp
+                                )
                             }
                         }
                         Spacer(Modifier.weight(1f))
@@ -4133,7 +4143,7 @@ fun ProfileScreen(
                     }
                     Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
                         Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-                        (kachatBio ?: knsProfile?.bio?.takeIf { it.isNotBlank() })?.let { bio ->
+                        (kachatBio ?: knsProfile?.bio?.takeIf { it.isNotBlank() && !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled })?.let { bio ->
                             Spacer(Modifier.height(4.dp))
                             Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
                         }
@@ -9574,7 +9584,8 @@ private fun ResyncChatPickerOverlay(
                         deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
                         backupPhotoBase64 = convo.contact.backupPhotoBase64,
                         fallbackText = convo.contact.avatarFallbackText,
-                        size = 48.dp
+                        size = 48.dp,
+                        address = convo.contact.id
                     )
                     Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -12930,7 +12941,44 @@ fun ChatInfoScreen(
     val knsProfile = chatViewModel.knsProfiles.collectAsState().value[contactId]
     val knsFields = knsProfile?.profile
     val ownedDomains = knsProfile?.ownedDomains.orEmpty()
-    val hasMoreInfo = knsFields != null && listOf(
+    // On testnet identity is .kachat only (iOS e52357d): no KNS profile is fetched there, and its
+    // pictures and bio are not shown. The address's .kachat label and profile take their place -
+    // your own straight from the registry (the record you saved), anyone else's through the
+    // names indexer once one is connected; without one, only their name shows.
+    val usesKnsProfile = !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled
+    val kachatRegistry = if (usesKnsProfile) null else com.kachat.app.services.kachatnames.KachatNamesRegistry.shared
+    val kachatRevision = kachatRegistry?.revision?.collectAsState()?.value
+    var kachatLabel by remember(contactId) { mutableStateOf<String?>(null) }
+    var kachatProfile by remember(contactId) { mutableStateOf<com.kachat.app.services.kachatnames.Profile?>(null) }
+    LaunchedEffect(contactId, kachatRevision, isSelf) {
+        val registry = kachatRegistry ?: return@LaunchedEffect
+        registry.refreshIfStale(300_000)
+        val identity = try {
+            registry.identity(contactId)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        kachatLabel = identity?.label
+        kachatProfile = (if (isSelf) registry.ownProfile(contactId)?.profile else null) ?: identity?.profile
+    }
+    // The .kachat profile's pieces, each looked up from its social link on this device.
+    val kachatSocial = if (usesKnsProfile) null else com.kachat.app.services.kachatnames.KachatSocialImageResolver.instance
+    val kachatSocialEntries = kachatSocial?.entries?.collectAsState()?.value
+    LaunchedEffect(kachatProfile) {
+        kachatProfile?.let { p -> listOf(p.avatar, p.banner, p.bio).forEach { kachatSocial?.refreshIfStale(it) } }
+    }
+    val kachatAvatar = kachatSocialEntries?.let { kachatSocial?.cached(kachatProfile?.avatar, it) }?.avatar
+    val kachatBanner = kachatSocialEntries?.let { kachatSocial?.cached(kachatProfile?.banner, it) }?.banner
+    val kachatBio = kachatSocialEntries?.let { kachatSocial?.cached(kachatProfile?.bio, it) }?.bio
+    // The address's active .kachat names, its primary (label) first.
+    val kachatNames = run {
+        val names = if (usesKnsProfile) emptyList() else com.kachat.app.services.kachatnames.KachatNamesRegistry.cachedIdentityOf(contactId)?.names.orEmpty()
+        val label = kachatLabel
+        if (label == null || label !in names) names else listOf(label) + names.filter { it != label }
+    }
+    val hasMoreInfo = usesKnsProfile && knsFields != null && listOf(
         knsFields.bio, knsFields.x, knsFields.website, knsFields.telegram,
         knsFields.discord, knsFields.contactEmail, knsFields.github, knsFields.redirectUrl
     ).any { !it.isNullOrBlank() }
@@ -12945,7 +12993,8 @@ fun ChatInfoScreen(
     }
 
     LaunchedEffect(contactId) {
-        chatViewModel.refreshKnsProfile(contactId)
+        // On testnet identity is .kachat (above); KNS isn't asked there.
+        if (usesKnsProfile) chatViewModel.refreshKnsProfile(contactId)
     }
 
     val scrollState = rememberScrollState()
@@ -13075,9 +13124,11 @@ fun ChatInfoScreen(
             // not loaded (or who owns none) got the stripped card with no banner, no bio and no
             // address - which is why User Info looked like it was missing its info card.
             run {
-                SettingsSection(title = stringResource(R.string.kns_profile)) {
+                // Testnet: no "KNS" header - the card is the .kachat profile (iOS shows none).
+                SettingsSection(title = if (usesKnsProfile) stringResource(R.string.kns_profile) else null) {
                     Column {
-                        val bannerUrl = knsFields?.bannerUrl?.takeIf { it.isNotBlank() }
+                        val bannerUrl = kachatBanner
+                            ?: knsFields?.bannerUrl?.takeIf { it.isNotBlank() && usesKnsProfile }
                         if (bannerUrl != null) {
                             SubcomposeAsyncImage(
                                 model = bannerUrl,
@@ -13092,7 +13143,7 @@ fun ChatInfoScreen(
                         }
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             ContactAvatar(
-                                imageUrl = knsFields?.avatarUrl,
+                                imageUrl = if (usesKnsProfile) knsFields?.avatarUrl else kachatAvatar,
                                 deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 fallbackText = knsProfile?.selectedDomain ?: contactId.takeLast(8),
                                 size = 48.dp
@@ -13105,7 +13156,8 @@ fun ChatInfoScreen(
                                 // looks like rather than being decoration next to the real target.
                                 val nameFocus = remember { androidx.compose.ui.focus.FocusRequester() }
                                 if (isSelf) Text(
-                                    text = contactName.ifBlank { knsProfile?.selectedDomain ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId) },
+                                    text = kachatLabel?.let { "$it.kachat" }
+                                        ?: contactName.ifBlank { knsProfile?.selectedDomain ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId) },
                                     color = LocalAppColors.current.textPrimary,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
@@ -13144,12 +13196,36 @@ fun ChatInfoScreen(
                                 }
                                 val bio = knsFields?.bio?.takeIf { it.isNotBlank() }
                                 when {
+                                    // Testnet: the .kachat bio, and its Linktree link under it.
+                                    kachatBio != null -> Column {
+                                        Text(
+                                            text = kachatBio,
+                                            color = LocalAppColors.current.textPrimary,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.clickable { clipboardManager.setText(AnnotatedString(kachatBio)) }
+                                        )
+                                        kachatProfile?.linktree?.let { linktree ->
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(top = 4.dp).clickable { runCatching { uriHandler.openUri(linktree) } }
+                                            ) {
+                                                Icon(Icons.Default.Link, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    linktree.removePrefix("https://"),
+                                                    color = KaspaTeal,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                            }
+                                        }
+                                    }
                                     // No domain means no profile to describe, so the address is
                                     // the useful caption - same fallback order as iOS.
                                     // The address, unless a profile supplies a bio. Since 5.2 .kas
                                     // profiles are not loaded, so this is what a .kas owner shows
                                     // until .kachat profiles exist (iOS d6ded9d).
-                                    ownedDomains.isEmpty() || bio == null -> Text(
+                                    !usesKnsProfile || ownedDomains.isEmpty() || bio == null -> Text(
                                         text = com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
                                         color = LocalAppColors.current.textSecondary,
                                         style = MaterialTheme.typography.bodySmall,
@@ -13260,10 +13336,17 @@ fun ChatInfoScreen(
 
                 // Someone's .kas names aren't shown since 5.2 (KnsService
                 // .SHOWS_DOMAIN_NAMES_AS_IDENTITY) - the card would only ever be empty.
-                if (com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) InfoSectionCard(
+                if (com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY && usesKnsProfile) InfoSectionCard(
                     title = stringResource(R.string.contact_kns_domains),
                     icon = Icons.Default.AlternateEmail,
                 ) { infoSheet = "domains" }
+
+                // On testnet: the address's .kachat names (its identity there, not KNS).
+                if (!usesKnsProfile) InfoSectionCard(
+                    title = stringResource(R.string.kn_kachat_names),
+                    icon = Icons.Default.AlternateEmail,
+                    enabled = kachatNames.isNotEmpty(),
+                ) { infoSheet = "kachatNames" }
 
                 if (!isSelf) {
                 InfoSectionCard(
@@ -13310,7 +13393,7 @@ fun ChatInfoScreen(
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, KaChatLink.profileWebUrl(contactId))
                         // Titles the share sheet only, as iOS's SharePreview does; not pasted.
-                        putExtra(Intent.EXTRA_TITLE, conversation?.contact?.displayName ?: KaspaAddress.shortDisplay(contactId))
+                        putExtra(Intent.EXTRA_TITLE, conversation?.contact?.displayName ?: com.kachat.app.models.addressDisplayName(contactId))
                     }
                     runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
                 }
@@ -13398,6 +13481,48 @@ fun ChatInfoScreen(
                     ) {
                         infoSheet = null
                         uriHandler.openUri(kaspaExplorer.addressUrl(contactId))
+                    }
+                }
+            }
+
+            // The address's .kachat names (testnet), its primary one marked (iOS e52357d).
+            if (infoSheet == "kachatNames") {
+                ActionSheetContainer(
+                    title = stringResource(R.string.kn_kachat_names),
+                    subtitle = null,
+                    onDismiss = { infoSheet = null },
+                ) {
+                    kachatNames.forEach { name ->
+                        val full = "$name.kachat"
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(LocalAppColors.current.surface)
+                                .clickable {
+                                    clipboardManager.setText(AnnotatedString(full))
+                                    Toast.makeText(context, "$full copied", Toast.LENGTH_SHORT).show()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                full,
+                                color = LocalAppColors.current.textPrimary,
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (name == kachatLabel) {
+                                Text(
+                                    stringResource(R.string.primary),
+                                    color = KaspaTeal,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -13929,6 +14054,8 @@ private fun InfoSectionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     /** Divider under the row - omitted on the last one in a group. */
     showDivider: Boolean = true,
+    /** Dimmed and not tappable when there is nothing to open (iOS `.disabled`). */
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -13936,7 +14063,8 @@ private fun InfoSectionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onClick() }
+                .clickable(enabled = enabled) { onClick() }
+                .alpha(if (enabled) 1f else 0.4f)
                 .padding(horizontal = 16.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -13974,6 +14102,8 @@ private fun ChatHeaderCard(
     name: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The contact's address: on testnet the avatar is its .kachat one ([ContactAvatar]). */
+    address: String? = null,
 ) {
     val colors = LocalAppColors.current
     // Wraps its content - NOT fillMaxWidth. Filling the width put a full-width tap target over
@@ -14021,6 +14151,7 @@ private fun ChatHeaderCard(
                 deviceContactPhotoUri = photoUri,
                 fallbackText = fallbackText,
                 size = 46.dp,
+                address = address,
             )
         }
     }

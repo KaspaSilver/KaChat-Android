@@ -1978,6 +1978,9 @@ class ChatViewModel @Inject constructor(
     val groupMemberNamesByAddress: StateFlow<Map<String, String>> =
         combine(contactAliasesByAddress, groupMemberPrimaryKnsByAddress, knsProfiles) { aliases, primaryKns, kns ->
             val merged = aliases.toMutableMap()
+            // On testnet identity is .kachat: KNS is not consulted, and the screens add each
+            // member's .kachat name when they read this map (liveNameFor; iOS e52357d).
+            if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) return@combine merged
             for (addr in (primaryKns.keys + kns.keys)) {
                 if (!merged[addr].isNullOrBlank()) continue
                 val name = primaryKns[addr]?.takeIf { it.isNotBlank() }

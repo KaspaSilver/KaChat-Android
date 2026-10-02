@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">वे नाम जिन्हें मालिकों ने व्यपगत होने दिया। कोई भी इन्हें वापस ले सकता है: बॉन्ड पिछले मालिक को लौटता है, मुक्त हुई जमा राशि इनाम के रूप में आपकी, और नाम लेने के लिए खाली हो जाता है।</string>
     <string name="kn_nothing_to_reclaim">वापस लेने को कुछ नहीं।</string>
     <string name="kn_reclaim">वापस लें</string>
-    <string name="kn_my_names_detail">नवीनीकरण करें, बिक्री पर रखें, ट्रांसफ़र करें या छोड़ दें, और चुनें कि KaChat आपके लिए कौन सा दिखाए।</string>
     <string name="kn_search_above">ऊपर कोई नाम खोजें और उसे लें।</string>
     <string name="kn_my_offers">मेरे ऑफ़र</string>
     <string name="kn_my_offers_detail">आपके दिए ऑफ़र। कभी भी वापस लें; रिफ़ंड का समय बीतने पर कोई भी उसे आपको लौटा सकता है।</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">कीमत माइनरों को जाती है - KaChat कुछ नहीं लेता। नाम छोड़ने पर बॉन्ड और जमा राशि वापस आती है।</string>
     <string name="kn_claim_step1">पहले एक छिपा कमिट चेन पर जाता है। कोई नहीं देख सकता कि यह किस नाम के लिए है।</string>
     <string name="kn_claim_step2">लगभग एक मिनट बाद KaChat खुद नाम रजिस्टर करता है। ऐप खुला रखें; अगर आप चले जाएँ तो अगली बार जारी रहेगा।</string>
-    <string name="kn_claim_step3">जितने वर्षों का भुगतान किया, उतने समय तक नाम आपका है। समाप्त होने से पहले कभी भी नवीनीकरण करें।</string>
     <string name="kn_how_claiming_works">नाम लेना कैसे काम करता है</string>
     <string name="kn_claim_name_button">%1$s.kachat लें</string>
     <string name="kn_claim_name_title">नाम लें</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">यह नाम आपके ऑफ़र से कम कीमत पर बिक्री पर है। कोई भी आपके ऑफ़र से इसे खरीद सकता है, इसलिए सीधे खरीदने पर विचार करें।</string>
     <string name="kn_offer_locked">आपके KAS चेन पर लॉक रहते हैं जब तक मालिक स्वीकार न करे, आप ऑफ़र वापस न लें, या यह समाप्त न हो - फिर कोई भी इसे आपको लौटा सकता है।</string>
     <string name="kn_refundable_after">इसके बाद लौटाया जा सकता है</string>
-    <string name="kn_renew_footer">नवीनीकरण मौजूदा समाप्ति में जुड़ता है, भले ही वह बीत चुकी हो। कीमत माइनरों को जाती है।</string>
     <string name="kn_price_per_year">प्रति वर्ष कीमत</string>
     <string name="kn_new_expiry">नई समाप्ति</string>
     <string name="kn_list_footer">कोई भी इसे इस कीमत पर खरीद सकता है: एक ही लेन-देन में भुगतान आपको और नाम खरीदार को मिलता है। कभी भी बिक्री से हटाएँ।</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">आपके चैट पते से उसी को ऑन-चेन सहेजा जाता है।</string>
     <string name="kn_profiles_public_note">प्रोफ़ाइल सार्वजनिक और ऑन-चेन होती हैं: कोई भी उन्हें पढ़ सकता है, और बदलने के बाद भी पुराने संस्करण पढ़े जा सकते हैं।</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">बढ़ाया गया</string>
+    <string name="kn_extend">बढ़ाएं</string>
+    <string name="kn_extend_to_years">%1$d साल तक बढ़ाएं</string>
+    <string name="kn_renewal_opens_on">नवीनीकरण %1$s को खुलेगा</string>
+    <string name="kn_paid_from_to">%1$s से %2$s तक भुगतान किया गया</string>
+    <string name="kn_new_period">नई अवधि</string>
+    <string name="kn_renewal_open">नवीनीकरण खुला</string>
+    <string name="kn_extend_footer">बढ़ाने से मौजूदा भुगतान की गई अवधि में साल जुड़ते हैं, जो अधिकतम 2 साल की होती है। कीमत माइनरों को जाती है।</string>
+    <string name="kn_renew_period_footer">नवीनीकरण अगली अवधि को मौजूदा समाप्ति से शुरू करता है, इसलिए कोई समय न घटता है न बढ़ता है, भले ही समाप्ति बीत चुकी हो। कीमत माइनरों को जाती है।</string>
+    <string name="kn_err_period_full">इस नाम का भुगतान उसकी अवधि की शुरुआत से पहले ही 2 साल के लिए हो चुका है। नवीनीकरण %1$s को खुलेगा।</string>
+    <string name="kn_err_period_unknown">नाम इंडेक्सर ने इस नाम की भुगतान की गई अवधि नहीं भेजी। रीफ़्रेश करने के लिए नीचे खींचें और फिर कोशिश करें।</string>
+    <string name="kn_my_names_extend_detail">उन्हें बढ़ाएं, नवीनीकृत करें, बिक्री के लिए सूचीबद्ध करें, ट्रांसफ़र करें या छोड़ें, और चुनें कि KaChat आपके लिए कौन सा दिखाए।</string>
+    <string name="kn_claim_step3_cap">जितने साल का भुगतान किया, नाम उतने साल आपका है, अधिकतम 2 साल आगे तक। 1 साल का नाम 2 साल तक बढ़ाया जा सकता है; समाप्ति से 10 दिन पहले से आप इसका नवीनीकरण कर सकते हैं।</string>
+    <string name="kn_setting_up">सेट अप हो रहा है</string>
+    <string name="kn_registry_upgrading">टेस्टनेट पर .kachat रजिस्ट्री अपग्रेड हो रही है। नई रजिस्ट्री लाइव होते ही नाम यहां फिर खुलेंगे।</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">.kachat नाम</string>
 </resources>

@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">যেসব নামের মালিক মেয়াদ পেরোতে দিয়েছেন। যে কেউ পুনরুদ্ধার করতে পারেন: বন্ড শেষ মালিকের কাছে ফেরে, মুক্ত হওয়া জমা পুরস্কার হিসেবে আপনি রাখেন, আর নামটি নেওয়ার জন্য খালি হয়।</string>
     <string name="kn_nothing_to_reclaim">পুনরুদ্ধার করার কিছু নেই।</string>
     <string name="kn_reclaim">পুনরুদ্ধার</string>
-    <string name="kn_my_names_detail">নবায়ন, বিক্রির তালিকা, হস্তান্তর বা ছেড়ে দিন, আর KaChat আপনার জন্য কোনটি দেখাবে তা বেছে নিন।</string>
     <string name="kn_search_above">ওপরে একটি নাম খুঁজে নিন।</string>
     <string name="kn_my_offers">আমার প্রস্তাব</string>
     <string name="kn_my_offers_detail">আপনার দেওয়া প্রস্তাব। যেকোনো সময় প্রত্যাহার করুন; ফেরতের সময় পেরোলে যে কেউ তা আপনাকে ফেরত দিতে পারে।</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">দাম যায় মাইনারদের কাছে - KaChat কিছুই নেয় না। নাম ছেড়ে দিলে বন্ড ও জমা ফেরত আসে।</string>
     <string name="kn_claim_step1">প্রথমে একটি লুকানো কমিট চেইনে যায়। কেউ দেখতে পায় না সেটি কোন নামের জন্য।</string>
     <string name="kn_claim_step2">প্রায় এক মিনিট পরে KaChat নিজেই নামটি নিবন্ধন করে। অ্যাপ খোলা রাখুন; বেরিয়ে গেলে পরের বার চালিয়ে যাবে।</string>
-    <string name="kn_claim_step3">যত বছরের জন্য দিয়েছেন তত বছর নামটি আপনার। মেয়াদ শেষ হওয়ার আগে যেকোনো সময় নবায়ন করুন।</string>
     <string name="kn_how_claiming_works">নাম নেওয়া যেভাবে কাজ করে</string>
     <string name="kn_claim_name_button">%1$s.kachat নিন</string>
     <string name="kn_claim_name_title">নাম নিন</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">এই নামটি আপনার প্রস্তাবের চেয়ে কম দামে তালিকাভুক্ত। যে কেউ আপনার প্রস্তাব দিয়ে সেটি কিনে নিতে পারে, তাই বরং সরাসরি কেনার কথা ভাবুন।</string>
     <string name="kn_offer_locked">মালিক গ্রহণ না করা, আপনি প্রস্তাব প্রত্যাহার না করা বা মেয়াদ শেষ না হওয়া পর্যন্ত আপনার KAS চেইনে আটকে থাকে - তারপর যে কেউ তা আপনাকে ফেরত পাঠাতে পারে।</string>
     <string name="kn_refundable_after">এর পরে ফেরতযোগ্য</string>
-    <string name="kn_renew_footer">নবায়ন বর্তমান মেয়াদের সঙ্গে যোগ হয়, মেয়াদ পেরিয়ে গেলেও। দাম যায় মাইনারদের কাছে।</string>
     <string name="kn_price_per_year">প্রতি বছরের দাম</string>
     <string name="kn_new_expiry">নতুন মেয়াদ</string>
     <string name="kn_list_footer">যে কেউ এই দামে কিনতে পারে: এক লেনদেনে পেমেন্ট আপনার কাছে আর নাম তার কাছে যায়। যেকোনো সময় তালিকা থেকে সরান।</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">আপনার চ্যাটিং ঠিকানা থেকে নিজের কাছেই অন-চেইনে সংরক্ষিত হয়।</string>
     <string name="kn_profiles_public_note">প্রোফাইল সর্বজনীন এবং অন-চেইন: যে কেউ পড়তে পারে, আর পরিবর্তনের পরও আগের সংস্করণগুলো পড়া যায়।</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">বাড়ানো হয়েছে</string>
+    <string name="kn_extend">বাড়ান</string>
+    <string name="kn_extend_to_years">%1$d বছর পর্যন্ত বাড়ান</string>
+    <string name="kn_renewal_opens_on">নবায়ন খুলবে %1$s</string>
+    <string name="kn_paid_from_to">%1$s থেকে %2$s পর্যন্ত পরিশোধিত</string>
+    <string name="kn_new_period">নতুন মেয়াদকাল</string>
+    <string name="kn_renewal_open">নবায়ন খোলা</string>
+    <string name="kn_extend_footer">বাড়ালে বর্তমান পরিশোধিত মেয়াদকালে বছর যোগ হয়, যা সর্বোচ্চ ২ বছর ধরে। দাম যায় মাইনারদের কাছে।</string>
+    <string name="kn_renew_period_footer">নবায়ন বর্তমান মেয়াদ শেষের দিন থেকে পরের মেয়াদকাল শুরু করে, তাই সময় হারায় না বা বাড়ে না, মেয়াদ পার হয়ে গেলেও। দাম যায় মাইনারদের কাছে।</string>
+    <string name="kn_err_period_full">এই নামটি মেয়াদকালের শুরু থেকে ইতিমধ্যে ২ বছরের জন্য পরিশোধিত। নবায়ন খুলবে %1$s।</string>
+    <string name="kn_err_period_unknown">নাম ইনডেক্সার এই নামের পরিশোধিত মেয়াদকাল পাঠায়নি। রিফ্রেশ করতে নিচে টানুন এবং আবার চেষ্টা করুন।</string>
+    <string name="kn_my_names_extend_detail">সেগুলো বাড়ান, নবায়ন করুন, বিক্রির জন্য তালিকাভুক্ত করুন, হস্তান্তর করুন বা ছেড়ে দিন, এবং KaChat আপনার জন্য কোনটি দেখাবে তা বেছে নিন।</string>
+    <string name="kn_claim_step3_cap">যত বছরের জন্য পরিশোধ করেছেন, নামটি তত বছর আপনার, সর্বোচ্চ ২ বছর আগাম। ১ বছরের নাম ২ বছর পর্যন্ত বাড়ানো যায়; মেয়াদ শেষের ১০ দিন আগে থেকে নবায়ন করতে পারবেন।</string>
+    <string name="kn_setting_up">সেট আপ হচ্ছে</string>
+    <string name="kn_registry_upgrading">টেস্টনেটে .kachat রেজিস্ট্রি আপগ্রেড হচ্ছে। নতুন রেজিস্ট্রি চালু হলে নামগুলো এখানে আবার খুলবে।</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">.kachat নাম</string>
 </resources>

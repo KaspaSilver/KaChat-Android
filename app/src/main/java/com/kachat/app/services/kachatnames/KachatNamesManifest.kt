@@ -11,7 +11,8 @@ import com.kachat.app.services.kachatnames.KachatNames.unhex
 import com.kachat.app.services.kachatnames.KachatNames.unhex32
 
 // The deployment manifest, ported from iOS KaChat/Services/KachatNames/KachatNamesManifest.swift
-// (KaChat 4c2c45d). JSON is read with Gson (pure Java) instead of JSONSerialization.
+// (KaChat 4c2c45d; registry v2 from 3ef2ec2). JSON is read with Gson (pure Java) instead of
+// JSONSerialization.
 
 /** A compiled contract: `redeem = prefix || state || suffix`. */
 class Template(
@@ -58,6 +59,8 @@ data class Params(
     val tCommit: Long,
     val maxYears: Long,
     val graceMs: Long,
+    /** `renew` is valid from `expiresAt - renewWindowMs` on (registry v2; 10 days) */
+    val renewWindowMs: Long,
     /** sompi per year for names of 1, 2, 3, 4, 5+ bytes */
     val prices: List<Long>,
     val renewPrices: List<Long>,
@@ -65,6 +68,25 @@ data class Params(
 ) {
     fun price(forLength: Int): Long = prices[Codec.tier(forLength)]
     fun renewPrice(forLength: Int): Long = renewPrices[Codec.tier(forLength)]
+
+    // The paid period (registry v2, KACHAT_NAMES.md 4.1; ops.rs; iOS 3ef2ec2)
+
+    /**
+     * The most years `extend` can add now: a period (from [periodStart]) holds at most [maxYears]
+     * (ops.rs `extendable_years`).
+     */
+    fun extendableYears(periodStart: Long, expiresAt: Long): Long {
+        val room = periodStart + maxYears * KachatNames.YEAR_MS - expiresAt
+        return if (room < 0) 0 else minOf(room / KachatNames.YEAR_MS, maxYears)
+    }
+
+    fun extendableYears(f: NameFields): Long = extendableYears(f.periodStart, f.expiresAt)
+
+    /**
+     * When `renew` becomes valid: `expiresAt - renewWindowMs` (unix ms). The transaction is final
+     * once the network's past median time passes its lock time, which is at least this.
+     */
+    fun renewOpens(expiresAt: Long): Long = expiresAt - renewWindowMs
 }
 
 /**
@@ -110,6 +132,7 @@ class Manifest(
             }
             val pinned = PINNED_TEMPLATE_HASHES[t.contract]
             if (pinned != null && hex(t.templateHash) != pinned) {
+                if (V1_TEMPLATE_HASHES[t.contract] == hex(t.templateHash)) throw Failure.OUTDATED_REGISTRY
                 throw Failure("manifest: ${t.contract} is not the pinned build")
             }
             for (e in ENTRIES[t.contract].orEmpty()) {
@@ -119,7 +142,9 @@ class Manifest(
         if (!KachatNames.contains(offer.suffix, registryCovenantId) || !KachatNames.contains(offer.suffix, name.templateHash)) {
             throw Failure("manifest: the offer is not built for this registry id and name template")
         }
-        if (params.prices.size != 5 || params.renewPrices.size != 5 || params.maxYears < 1 || params.maxYears > 31) {
+        if (params.prices.size != 5 || params.renewPrices.size != 5 || params.maxYears < 1 || params.maxYears > 31 ||
+            params.renewWindowMs <= 0 || params.renewWindowMs >= KachatNames.YEAR_MS
+        ) {
             throw Failure("manifest: params out of range")
         }
         if (!genesisState.first.contentEquals(KachatNames.ZERO32) || !genesisState.second.contentEquals(KachatNames.FF32)) {
@@ -143,18 +168,28 @@ class Manifest(
         const val ASSET_NAME = "$BUNDLE_RESOURCE.json"
 
         /**
-         * Template hashes of the pinned build (silverc v1.0.0 @ 3ed9733), the same on every
-         * network (README "Sizes and template hashes"). The offer bakes the registry id, so it
-         * is checked against the id instead.
+         * Template hashes of the pinned build - registry v2 (silverc v1.0.0 @ 3ed9733), the same
+         * on every network (kachat-domains README "Sizes and template hashes"). The offer bakes
+         * the registry id, so it is checked against the id instead.
          */
         val PINNED_TEMPLATE_HASHES: Map<String, String> = mapOf(
+            "KachatGap" to "182c463cf59f6d175f75339e4efc75d2065e8e7bb8dcc515e4769d3ff805dd46",
+            "KachatName" to "e8ded947687947b565e10cbf6e6fec60e5c90cf992c7bce2298e6dce8db29d16"
+        )
+
+        /**
+         * The registry v1 build (117-byte name state, no `extend`, no renewal window), which the
+         * first testnet-10 genesis runs. Recognised only to say "outdated", never trusted
+         * (iOS 3ef2ec2).
+         */
+        val V1_TEMPLATE_HASHES: Map<String, String> = mapOf(
             "KachatGap" to "a182d59bbf460baff5ec99ca850b990d45fbafee4dfbe9a3a7a1afe21e7ba8ca",
             "KachatName" to "42eddf19e7ea2bc78b9aa97937f21be0505ebcf964653508f74e179dd6c7e39d"
         )
-        val STATE_LENGTHS: Map<String, Int> = mapOf("KachatGap" to 66, "KachatName" to 117, "KachatOffer" to 75)
+        val STATE_LENGTHS: Map<String, Int> = mapOf("KachatGap" to 66, "KachatName" to 126, "KachatOffer" to 75)
         val ENTRIES: Map<String, List<String>> = mapOf(
             "KachatGap" to listOf("register", "merge", "absorbed"),
-            "KachatName" to listOf("transfer", "list", "buy", "renew", "release", "reclaim"),
+            "KachatName" to listOf("transfer", "list", "buy", "extend", "renew", "release", "reclaim"),
             "KachatOffer" to listOf("accept", "withdraw", "refund")
         )
 
@@ -226,12 +261,20 @@ class Manifest(
             val statusEl = root.get("status")
             val status = if (statusEl != null && statusEl.isJsonPrimitive && statusEl.asJsonPrimitive.isString) statusEl.asString else ""
             val p = obj(root.get("params")) ?: throw Failure("manifest: params missing")
+            // a registry v1 manifest (no renewal window, 117-byte name state) describes contracts
+            // this app no longer builds for: it waits for the v2 genesis
+            val nameHash = obj(obj(root.get("artifacts"))?.get("KachatName"))?.get("templateHash")
+                ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+            if (p.get("renewWindowMs") == null || nameHash == V1_TEMPLATE_HASHES["KachatName"]) {
+                throw Failure.OUTDATED_REGISTRY
+            }
             val params = Params(
                 bond = u64(p.get("bond"), "bond"),
                 gapValue = u64(p.get("gapValue"), "gapValue"),
                 tCommit = u64(p.get("tCommit"), "tCommit"),
                 maxYears = u64(p.get("maxYears"), "maxYears"),
                 graceMs = u64(p.get("graceMs"), "graceMs"),
+                renewWindowMs = u64(p.get("renewWindowMs"), "renewWindowMs"),
                 prices = tiers(p.get("prices"), "prices"),
                 renewPrices = tiers(p.get("renewPrices"), "renewPrices"),
                 offerMaxFee = u64(p.get("offerMaxFee"), "offerMaxFee")

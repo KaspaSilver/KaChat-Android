@@ -1,5 +1,6 @@
 package com.kachat.app.services.kachatnames
 
+import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -15,7 +16,8 @@ import org.junit.Test
 
 /**
  * The `.kachat` registry data layer's pure part (KachatNamesRegistryState.kt) - a port of iOS
- * scripts/test_kachat_names_registry.swift (KaChat 27edcd5) without its `--live` mode: the
+ * scripts/test_kachat_names_registry.swift (KaChat 27edcd5; registry v2 - extend, the new renew,
+ * periodStart, cache format 2 - from a1e38d6) without its `--live` mode: the
  * walker's transition decoder against the kachat-domains vectors (every e2e transaction applied in
  * order, every later step's records found in the walked state), the edge cases, refusals, the
  * walk loop over a simulated chain, the status / label / profile rules, the REST transaction
@@ -81,6 +83,13 @@ class KachatNamesRegistryTest {
 
     private fun outpointKey(u: JsonObject) = "${u.s("txid")}:${u.l("index")}"
 
+    /**
+     * The vectors' end-to-end plan (README "The end-to-end run", registry v2): commits, three
+     * registrations, extend, renew, transfer, list, buy, three offers (accept, refund, withdraw),
+     * release, reclaim. The steps after it are edge cases on their own synthetic records.
+     */
+    private val e2eCount = 19
+
     /** Every record a step was built from must be in the walked state, exactly. */
     private fun checkRecords(st: JsonObject, state: RegistryState, r: Report) {
         val label = st.s("label")
@@ -105,6 +114,7 @@ class KachatNamesRegistryTest {
                 r.eq(found.key, n.s("key"), "$label: key")
                 r.eq(found.owner, n.s("owner"), "$label: owner")
                 r.eq(found.price, n.l("price"), "$label: price")
+                r.eq(found.periodStart, n.l("periodStart"), "$label: periodStart")
                 r.eq(found.expiresAt, n.l("expiresAt"), "$label: expiresAt")
                 r.eq(found.value, n.l("value"), "$label: value")
             }
@@ -136,7 +146,8 @@ class KachatNamesRegistryTest {
         rec.optO("name")?.let { n ->
             val u = n.o("utxo")
             state.names = state.names + RegistryState.Name(
-                u.s("txid"), u.l("index").toInt(), n.s("name"), n.s("key"), n.s("owner"), n.l("price"), n.l("expiresAt"), n.l("value")
+                u.s("txid"), u.l("index").toInt(), n.s("name"), n.s("key"), n.s("owner"), n.l("price"), n.l("periodStart"),
+                n.l("expiresAt"), n.l("value")
             )
         }
         rec.optO("offer")?.let { o ->
@@ -158,7 +169,7 @@ class KachatNamesRegistryTest {
     fun walkerOverTheVectors() {
         val r = Report()
         val m = manifest()
-        val e2e = steps.take(18)
+        val e2e = steps.take(e2eCount)
         val state = RegistryState.atGenesis(m)
         val ops = ArrayList<String>()
         for ((i, st) in e2e.withIndex()) {
@@ -174,7 +185,7 @@ class KachatNamesRegistryTest {
         r.eq(
             ops,
             listOf(
-                "register alpha-tn", "register bravo-tn", "register lapse-tn", "renew alpha-tn", "transfer alpha-tn", "list alpha-tn",
+                "register alpha-tn", "register bravo-tn", "register lapse-tn", "extend alpha-tn", "renew lapse-tn", "transfer alpha-tn", "list alpha-tn",
                 "sale alpha-tn", "offer bravo-tn", "offer_accepted bravo-tn", "offer_accept bravo-tn", "offer alpha-tn", "offer_refund alpha-tn",
                 "offer alpha-tn", "offer_withdraw alpha-tn", "release bravo-tn", "reclaim lapse-tn"
             ),
@@ -189,15 +200,19 @@ class KachatNamesRegistryTest {
         val alpha = state.name("alpha-tn")
         r.check(alpha?.registeredTxId == e2e[3].o("expected").s("txid")) { "registration tx carried through every transition" }
         r.eq(alpha?.registeredAt, 1_003L, "registration time carried through every transition")
+        val alphaRegister = e2e[3].o("args")
+        r.eq(alpha?.periodStart, alphaRegister.l("now"), "alpha-tn: periodStart = register's now, kept by extend, transfer, list and buy")
+        r.eq(alpha?.expiresAt, alphaRegister.l("now") + 2 * KachatNames.YEAR_MS, "alpha-tn: registered for 1 year, extended by 1")
         // applying again changes nothing
         val snapshot = state.copy()
         for ((i, st) in e2e.withIndex()) runCatching { state.apply(view(st, 1_000L + i), m) }
         r.eq(state, snapshot, "re-applying is a no-op")
 
         // the edge cases, each on a state seeded with its own records
-        for (st in steps.drop(18)) {
+        for (st in steps.drop(e2eCount)) {
             val seededState = seeded(st, m)
             val label = st.s("label")
+            val before = st.o("records").optO("name")?.let { it.l("periodStart") to it.l("expiresAt") }
             try {
                 val events = seededState.apply(view(st, 5), m)
                 val op = st.s("op")
@@ -210,6 +225,15 @@ class KachatNamesRegistryTest {
                     "register" -> { r.eq(seededState.names.size, 1, "$label: name created"); r.eq(seededState.gaps.size, 2, "$label: gaps split") }
                     "reclaim" -> { r.eq(seededState.names.size, 0, "$label: name gone"); r.eq(seededState.gaps.size, 1, "$label: gaps merged") }
                     "acceptOffer" -> r.eq(seededState.offers.size, 0, "$label: offer gone")
+                    "extend", "renew" -> {
+                        val years = st.o("args").l("years")
+                        val after = seededState.names.firstOrNull()
+                        r.eq(events.firstOrNull()?.op, op, "$label: event")
+                        r.eq(events.firstOrNull()?.years, years, "$label: event years")
+                        r.eq(after?.expiresAt, before?.let { it.second + years * KachatNames.YEAR_MS }, "$label: expiresAt + years")
+                        // extend keeps the period; renew starts the next one at the old expiry
+                        r.eq(after?.periodStart, if (op == "extend") before?.first else before?.second, "$label: periodStart")
+                    }
                 }
                 if (op == "acceptOffer") {
                     val o = st.o("records").o("offer")
@@ -255,7 +279,7 @@ class KachatNamesRegistryTest {
     fun walkOverASimulatedChain() = runBlocking {
         val r = Report()
         val m = manifest()
-        val txs = steps.take(18).mapIndexed { i, st -> view(st, 1_000L + i) }
+        val txs = steps.take(e2eCount).mapIndexed { i, st -> view(st, 1_000L + i) }
         val created = HashMap<String, ByteArray>() // outpoint -> script
         val spentBy = HashMap<String, String>() // outpoint -> txid
         for (t in txs) {
@@ -265,7 +289,7 @@ class KachatNamesRegistryTest {
         // the genesis gap lives at the manifest's genesis outpoint
         created["${hex(m.genesisTxid)}:0"] = m.genesisOutput.script
 
-        for (upTo in listOf(3, 6, 10, 18)) {
+        for (upTo in listOf(3, 6, 7, 8, 11, e2eCount)) {
             val visible = txs.take(upTo)
             val visibleIds = visible.map { it.idHex }.toSet()
             val walked = RegistryState.atGenesis(m)
@@ -404,6 +428,35 @@ class KachatNamesRegistryTest {
         r.check(SocialSource.from("t.me/telegram", BIO) != null) { "bio source on Telegram" }
         r.eq(SocialSource.discordDescription("{\"guild\":{\"id\":\"1\",\"description\":\"Devs\"}}"), "Devs", "Discord server description")
 
+        // the paid period on a NameInfo (registry v2)
+        val params = Params(
+            bond = 1, gapValue = 1, tCommit = 600, maxYears = 2, graceMs = g, renewWindowMs = 864_000_000,
+            prices = listOf(1, 1, 1, 1, 1), renewPrices = listOf(1, 1, 1, 1, 1), offerMaxFee = 1
+        )
+        val unknown = info("period", now + KachatNames.YEAR_MS, 1)
+        r.eq(unknown.extendableYears(params), 0L, "period unknown: no extend")
+        r.eq(unknown.fields, null, "period unknown: no on-chain state")
+        fun period(start: Long, exp: Long) =
+            NameInfo("period", Codec.key("period"), me, 0, exp, Outpoint(KachatNames.ZERO32, 0), registeredAt = 1, periodStart = start)
+        val known = period(now, now + KachatNames.YEAR_MS)
+        r.eq(known.extendableYears(params), 1L, "1 year paid of 2: extend by 1")
+        r.eq(known.fields?.periodStart, now, "fields carry periodStart")
+        r.check(!known.renewOpen(params, nowMs = now)) { "renewal closed a year before expiry" }
+        r.eq(known.renewOpens(params), now + KachatNames.YEAR_MS - 864_000_000, "renewal opens 10 days before expiry")
+        r.check(known.renewOpen(params, nowMs = now + KachatNames.YEAR_MS - 864_000_000)) { "renewal open at the opening" }
+        r.eq(period(now, now + 2 * KachatNames.YEAR_MS).extendableYears(params), 0L, "2 years paid: no extend")
+
+        // a cache written before registry v2 (no periodStart, format 1) is dropped: Gson reads it
+        // (absent fields stay 0/null, unlike Swift's Decodable, which refuses it outright), but the
+        // registry keeps a cache only when it `matches` - the format version included
+        val m = manifest()
+        val v1Cache = "{\"version\":1,\"network\":\"testnet-10\",\"registryCovenantId\":\"${hex(m.registryCovenantId)}\",\"gaps\":[]," +
+            "\"names\":[{\"txid\":\"00\",\"index\":0,\"name\":\"a\",\"key\":\"00\",\"owner\":\"00\",\"price\":0,\"expiresAt\":1,\"value\":1}]," +
+            "\"offers\":[],\"applied\":[],\"events\":[]}"
+        val decoded = runCatching { Gson().fromJson(v1Cache, RegistryState::class.java) }.getOrNull()
+        r.check(decoded?.matches(m) != true) { "a registry v1 cache is kept" }
+        r.eq(RegistryState.FORMAT_VERSION, 2, "cache format 2 (registry v2)")
+
         val k = ByteArray(31) { 0x10 } + byteArrayOf(0x00)
         r.eq(KachatNames.step(k, -1)?.let { hex(it) }, hex(ByteArray(30) { 0x10 } + byteArrayOf(0x0f, 0xff.toByte())), "key - 1 borrows")
         r.eq(KachatNames.step(k, 1)?.let { hex(it) }, hex(ByteArray(31) { 0x10 } + byteArrayOf(0x01)), "key + 1")
@@ -473,6 +526,14 @@ class KachatNamesRegistryTest {
         r.eq(n?.price, 5_000_000_000L, "indexer price string")
         r.eq(n?.outpoint?.index, 2, "indexer outpoint")
         r.eq(n?.key?.let { hex(it) }, hex(Codec.key("alice")), "indexer key recomputed from the name")
+        r.eq(n?.periodStart, null, "indexer without periodStart: unknown")
+        val withPeriod = """
+            {"name":"alice","registered":true,"ownerKey":"${"ab".repeat(32)}","price":"0","periodStart":1790000000000,
+             "expiresAt":1822000000000,"outpoint":{"txId":"${"cd".repeat(32)}","index":0}}
+        """
+        val np = IndexerApi.NameJson.parse(JsonParser.parseString(withPeriod)).info { null }
+        r.eq(np?.periodStart, 1_790_000_000_000L, "indexer periodStart")
+        r.eq(np?.fields?.periodStart, 1_790_000_000_000L, "indexer record spendable with its periodStart")
         val free = """
             {"name":"bob","key":"00","registered":false,"gap":{"lo":"${"00".repeat(32)}","hi":"${"ff".repeat(32)}","outpoint":{"txId":"${"ee".repeat(32)}","index":0}}}
         """

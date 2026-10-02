@@ -189,11 +189,41 @@ data class ContactEntity(
  * reading it.
  */
 // A contact's stored .kas name is not shown since 5.2 (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY):
-// the name you gave them, else their address.
+// the name you gave them, else (testnet) their .kachat name, else their address.
 val ContactEntity.displayName: String
-    get() = alias?.takeIf { it.isNotBlank() }
-        ?: knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
-        ?: com.kachat.app.util.KaspaAddress.shortDisplay(id)
+    get() = addressDisplayName(
+        id, alias, knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
+    )
+
+/**
+ * The app's one display-name rule for an address (iOS `ContactsManager.displayName`, e52357d):
+ * the name you gave them ([alias]), else - on testnet - their `.kachat` name, where KNS is not
+ * consulted; elsewhere their KNS domain ([knsName], when the caller shows one); else [fallback],
+ * the short address. On testnet the `.kachat` name comes from the registry's identity cache
+ * ([com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName]): read in a composable,
+ * the name re-renders when it lands. Every place that names an address goes through this.
+ */
+fun addressDisplayName(
+    address: String,
+    alias: String? = null,
+    knsName: String? = null,
+    fallback: String = com.kachat.app.util.KaspaAddress.shortDisplay(address)
+): String {
+    alias?.takeIf { it.isNotBlank() }?.let { return it }
+    if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+        return com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address) ?: fallback
+    }
+    return knsName?.takeIf { it.isNotBlank() } ?: fallback
+}
+
+/**
+ * A live name for [address] from an address -> name map (contact aliases, the group members'
+ * names), else on testnet its `.kachat` name - the [addressDisplayName] rule for screens that
+ * keep a names map and their own fallback after it.
+ */
+fun Map<String, String>.liveNameFor(address: String): String? =
+    this[address]?.takeIf { it.isNotBlank() }
+        ?: com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address)
 
 /** Avatar initial source - same order, but the raw tail rather than the formatted short address. */
 val ContactEntity.avatarFallbackText: String

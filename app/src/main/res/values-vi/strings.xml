@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">Những tên mà chủ để mất hiệu lực. Ai cũng có thể thu hồi: tiền bảo đảm trả về chủ cuối, bạn giữ khoản ký quỹ được giải phóng làm thưởng, và tên trở nên trống.</string>
     <string name="kn_nothing_to_reclaim">Không có gì để thu hồi.</string>
     <string name="kn_reclaim">Thu hồi</string>
-    <string name="kn_my_names_detail">Gia hạn, rao bán, chuyển hoặc nhả tên, và chọn tên KaChat hiển thị cho bạn.</string>
     <string name="kn_search_above">Tìm một tên ở trên và nhận nó.</string>
     <string name="kn_my_offers">Đề nghị của tôi</string>
     <string name="kn_my_offers_detail">Các đề nghị bạn đã đưa. Rút bất cứ lúc nào; sau thời điểm hoàn, ai cũng có thể trả lại cho bạn.</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">Giá trả cho thợ đào - KaChat không lấy gì. Tiền bảo đảm và ký quỹ trả lại khi bạn nhả tên.</string>
     <string name="kn_claim_step1">Một cam kết ẩn được đưa lên chuỗi trước. Không ai thấy nó dành cho tên nào.</string>
     <string name="kn_claim_step2">Khoảng một phút sau KaChat tự đăng ký tên. Hãy để ứng dụng mở; nếu bạn rời đi, lần sau sẽ tiếp tục.</string>
-    <string name="kn_claim_step3">Tên là của bạn trong số năm đã trả. Gia hạn bất cứ lúc nào trước khi hết hạn.</string>
     <string name="kn_how_claiming_works">Cách nhận tên hoạt động</string>
     <string name="kn_claim_name_button">Nhận %1$s.kachat</string>
     <string name="kn_claim_name_title">Nhận tên</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">Tên này đang rao bán thấp hơn đề nghị của bạn. Ai cũng có thể dùng đề nghị của bạn để mua, nên hãy cân nhắc mua trực tiếp.</string>
     <string name="kn_offer_locked">KAS của bạn bị khóa trên chuỗi cho đến khi chủ chấp nhận, bạn rút đề nghị, hoặc đề nghị hết hạn - sau đó ai cũng có thể trả lại cho bạn.</string>
     <string name="kn_refundable_after">Có thể hoàn sau</string>
-    <string name="kn_renew_footer">Gia hạn được cộng vào hạn hiện tại, kể cả khi đã quá hạn. Giá trả cho thợ đào.</string>
     <string name="kn_price_per_year">Giá mỗi năm</string>
     <string name="kn_new_expiry">Hạn mới</string>
     <string name="kn_list_footer">Ai cũng có thể mua với giá này: tiền đến bạn và tên đến người mua trong một giao dịch. Gỡ bán bất cứ lúc nào.</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">Được lưu trên chuỗi từ địa chỉ trò chuyện của bạn gửi cho chính nó.</string>
     <string name="kn_profiles_public_note">Hồ sơ là công khai và nằm trên chuỗi: ai cũng có thể đọc, và các phiên bản trước vẫn đọc được sau khi bạn thay đổi.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">Đã kéo dài</string>
+    <string name="kn_extend">Kéo dài</string>
+    <string name="kn_extend_to_years">Kéo dài đến %1$d năm</string>
+    <string name="kn_renewal_opens_on">Mở gia hạn vào %1$s</string>
+    <string name="kn_paid_from_to">Đã trả từ %1$s đến %2$s</string>
+    <string name="kn_new_period">Kỳ mới</string>
+    <string name="kn_renewal_open">Đang mở gia hạn</string>
+    <string name="kn_extend_footer">Kéo dài thêm năm vào kỳ đã trả hiện tại, mỗi kỳ tối đa 2 năm. Giá trả cho thợ đào.</string>
+    <string name="kn_renew_period_footer">Gia hạn bắt đầu kỳ tiếp theo tại ngày hết hạn hiện tại, nên không mất hay thêm thời gian, kể cả khi đã quá hạn. Giá trả cho thợ đào.</string>
+    <string name="kn_err_period_full">Tên này đã được trả đủ 2 năm tính từ đầu kỳ. Mở gia hạn vào %1$s.</string>
+    <string name="kn_err_period_unknown">Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.</string>
+    <string name="kn_my_names_extend_detail">Kéo dài, gia hạn, rao bán, chuyển hoặc nhả tên, và chọn tên KaChat hiển thị cho bạn.</string>
+    <string name="kn_claim_step3_cap">Tên là của bạn trong số năm đã trả, tối đa trước 2 năm. Tên 1 năm có thể kéo dài thành 2 năm; từ 10 ngày trước khi hết hạn bạn có thể gia hạn.</string>
+    <string name="kn_setting_up">Đang thiết lập</string>
+    <string name="kn_registry_upgrading">Sổ đăng ký .kachat trên Testnet đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">Tên .kachat</string>
 </resources>

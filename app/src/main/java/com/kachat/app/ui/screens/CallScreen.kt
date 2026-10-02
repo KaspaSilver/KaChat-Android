@@ -279,6 +279,7 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                 fontSize = 40.sp,
                 deviceContactPhotoUri = call.contact.systemContactPhotoUri,
                 backupPhotoBase64 = call.contact.backupPhotoBase64,
+                address = call.contact.id,
             )
             Text(call.contact.displayName, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(statusText, color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp)
@@ -416,6 +417,7 @@ private fun VideoTile(
                         fontSize = 26.sp,
                         deviceContactPhotoUri = contact.systemContactPhotoUri,
                         backupPhotoBase64 = contact.backupPhotoBase64,
+                        address = contact.id,
                     )
                 } else {
                     Icon(Icons.Default.VideocamOff, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(34.dp))

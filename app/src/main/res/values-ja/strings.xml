@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">所有者が失効させた名前です。誰でも回収できます。保証金は最後の所有者に戻り、解放された預託金は報酬としてあなたのものになり、名前は取得可能になります。</string>
     <string name="kn_nothing_to_reclaim">回収できる名前はありません。</string>
     <string name="kn_reclaim">回収</string>
-    <string name="kn_my_names_detail">更新・出品・譲渡・解放ができ、KaChat であなたとして表示する名前を選べます。</string>
     <string name="kn_search_above">上で名前を検索して取得しましょう。</string>
     <string name="kn_my_offers">自分のオファー</string>
     <string name="kn_my_offers_detail">あなたが出したオファーです。いつでも取り下げられ、返金時刻を過ぎれば誰でもあなたに返せます。</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">価格はマイナーに渡り、KaChat は何も受け取りません。保証金と預託金は名前を解放すると戻ります。</string>
     <string name="kn_claim_step1">まず非公開のコミットがチェーンに送られます。どの名前のものかは誰にもわかりません。</string>
     <string name="kn_claim_step2">約 1 分後、KaChat が自動で名前を登録します。アプリを開いたままにしてください。離れても次回続きから進みます。</string>
-    <string name="kn_claim_step3">支払った年数の間、名前はあなたのものです。期限前ならいつでも更新できます。</string>
     <string name="kn_how_claiming_works">取得のしくみ</string>
     <string name="kn_claim_name_button">%1$s.kachat を取得</string>
     <string name="kn_claim_name_title">名前を取得</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">この名前はあなたのオファーより安く出品されています。誰でもあなたのオファーで購入できてしまうので、直接購入を検討してください。</string>
     <string name="kn_offer_locked">KAS は所有者が承諾するか、あなたが取り下げるか、期限が来るまでチェーン上にロックされます。その後は誰でもあなたに返せます。</string>
     <string name="kn_refundable_after">返金可能になるまで</string>
-    <string name="kn_renew_footer">更新は現在の期限に加算されます（期限を過ぎていても）。価格はマイナーに渡ります。</string>
     <string name="kn_price_per_year">1 年あたりの価格</string>
     <string name="kn_new_expiry">新しい有効期限</string>
     <string name="kn_list_footer">誰でもこの価格で購入できます。1 回の取引で支払いはあなたに、名前は購入者に届きます。いつでも取り下げ可能です。</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">チャットアドレスから自分自身宛てにオンチェーンで保存されます。</string>
     <string name="kn_profiles_public_note">プロフィールは公開され、オンチェーンに保存されます。誰でも読むことができ、変更後も以前のバージョンは読める状態で残ります。</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">延長しました</string>
+    <string name="kn_extend">延長</string>
+    <string name="kn_extend_to_years">%1$d 年に延長</string>
+    <string name="kn_renewal_opens_on">更新は %1$s から可能</string>
+    <string name="kn_paid_from_to">%1$s から %2$s まで支払い済み</string>
+    <string name="kn_new_period">新しい期間</string>
+    <string name="kn_renewal_open">更新受付中</string>
+    <string name="kn_extend_footer">延長すると現在の支払い済み期間に年数が加わります。期間は最長 2 年です。価格はマイナーに渡ります。</string>
+    <string name="kn_renew_period_footer">更新すると現在の有効期限から次の期間が始まるので、期限を過ぎていても時間が失われたり増えたりしません。価格はマイナーに渡ります。</string>
+    <string name="kn_err_period_full">この名前は期間の開始からすでに 2 年分支払われています。更新は %1$s から可能です。</string>
+    <string name="kn_err_period_unknown">名前インデクサーがこの名前の支払い済み期間を返しませんでした。引っ張って更新し、もう一度お試しください。</string>
+    <string name="kn_my_names_extend_detail">延長、更新、出品、譲渡、解放ができ、KaChat に表示する名前も選べます。</string>
+    <string name="kn_claim_step3_cap">名前は支払った年数の間あなたのものです（最長 2 年先まで）。1 年の名前は 2 年に延長でき、期限の 10 日前から更新できます。</string>
+    <string name="kn_setting_up">準備中</string>
+    <string name="kn_registry_upgrading">テストネットの .kachat レジストリをアップグレードしています。新しいレジストリが稼働すると、ここで名前が再び利用できるようになります。</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">.kachat ネーム</string>
 </resources>

@@ -96,6 +96,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.kachat.app.models.liveNameFor
 import com.kachat.app.models.GroupMember
 import com.kachat.app.models.displayName
 import com.kachat.app.models.avatarFallbackText
@@ -299,7 +300,7 @@ fun GroupChatThreadScreen(
     val primaryKnsByAddress by chatViewModel.groupMemberPrimaryKnsByAddress.collectAsState()
     val groupMembers = remember(group?.membersJson) { group?.let(::parseGroupMembers) ?: emptyList() }
     val resolveDisplayName: (String) -> String = { address ->
-        contactAliasesByAddress[address]?.takeIf { it.isNotBlank() }
+        contactAliasesByAddress.liveNameFor(address)
             ?: groupMembers.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
             ?: address.takeLast(10)
     }
@@ -635,7 +636,7 @@ fun GroupChatThreadScreen(
                                     } else {
                                         val address = reply.senderAddress
                                         val member = group?.let(::parseGroupMembers)?.firstOrNull { it.address == address }
-                                        contactAliasesByAddress[address]
+                                        address?.let { contactAliasesByAddress.liveNameFor(it) }
                                             ?: member?.displayName?.takeIf { it.isNotBlank() }
                                             ?: address?.takeLast(10)
                                             ?: "Unknown"
@@ -939,7 +940,7 @@ fun GroupChatThreadScreen(
                             avatarUrl = message.senderAddress?.let { contactAvatarsByAddress[it] },
                             avatarPhotoUri = message.senderAddress?.let { contactPhotoUrisByAddress[it] },
                             linkPreviewAutoFetch = message.senderAddress?.let { it == myAddress || it in acceptedContacts } ?: false,
-                            liveAlias = message.senderAddress?.let { contactAliasesByAddress[it] },
+                            liveAlias = message.senderAddress?.let { contactAliasesByAddress.liveNameFor(it) },
                             myAddress = myAddress,
                             myAvatarUrl = myKnsProfile?.avatarUrl,
                             navController = navController,
@@ -1701,7 +1702,8 @@ private fun groupAvatarButton(
         deviceContactPhotoUri = photoUri,
         fallbackText = fallbackText,
         size = 32.dp,
-        modifier = if (address != null) Modifier.clickable { onTap(address) } else Modifier
+        modifier = if (address != null) Modifier.clickable { onTap(address) } else Modifier,
+        address = address
     )
 }
 
@@ -1958,7 +1960,7 @@ fun GroupChatInfoScreen(
                         .background(LocalAppColors.current.surface)
                 ) {
                     members.forEachIndexed { index, member ->
-                        val memberLabel = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
+                        val memberLabel = contactAliasesByAddress.liveNameFor(member.address)
                             ?: member.displayName?.takeIf { it.isNotBlank() }
                             ?: member.address.takeLast(10)
                         Row(
@@ -1974,7 +1976,8 @@ fun GroupChatInfoScreen(
                                     imageUrl = contactAvatarsByAddress[member.address],
                                     deviceContactPhotoUri = contactPhotoUrisByAddress[member.address],
                                     fallbackText = memberLabel,
-                                    size = 32.dp
+                                    size = 32.dp,
+                                    address = member.address
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(text = memberLabel, color = LocalAppColors.current.textPrimary, maxLines = 1)
@@ -2160,7 +2163,7 @@ fun GroupChatInfoScreen(
 
     // Confirm resending one member's invite (Cancel / Send).
     memberToResend?.let { member ->
-        val label = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
+        val label = contactAliasesByAddress.liveNameFor(member.address)
             ?: member.displayName?.takeIf { it.isNotBlank() }
             ?: member.address.takeLast(10)
         com.kachat.app.ui.theme.IosAlertDialog(
@@ -2187,7 +2190,7 @@ fun GroupChatInfoScreen(
 
     // Confirm removing one member from the group (Cancel / Yes).
     memberToRemove?.let { member ->
-        val label = contactAliasesByAddress[member.address]?.takeIf { it.isNotBlank() }
+        val label = contactAliasesByAddress.liveNameFor(member.address)
             ?: member.displayName?.takeIf { it.isNotBlank() }
             ?: member.address.takeLast(10)
         com.kachat.app.ui.theme.IosAlertDialog(
@@ -2456,7 +2459,8 @@ fun GroupChatInfoScreen(
                                         deviceContactPhotoUri = contact.systemContactPhotoUri,
                                         backupPhotoBase64 = contact.backupPhotoBase64,
                                         fallbackText = contact.avatarFallbackText,
-                                        size = 36.dp
+                                        size = 36.dp,
+                                        address = contact.id
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
@@ -2550,7 +2554,7 @@ fun GroupChatInfoScreen(
                 } else {
                     Column {
                         hiddenAddresses.forEach { address ->
-                            val label = contactAliasesByAddress[address]?.takeIf { it.isNotBlank() }
+                            val label = contactAliasesByAddress.liveNameFor(address)
                                 ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
                                 ?: address.takeLast(10)
                             Row(

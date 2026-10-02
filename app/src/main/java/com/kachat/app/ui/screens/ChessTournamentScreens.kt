@@ -107,7 +107,6 @@ import com.kachat.app.util.ChessTournament
 import com.kachat.app.util.ChessTournamentCodec
 import com.kachat.app.util.ChessTournamentGame
 import com.kachat.app.util.ChessTournamentOutcome
-import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -167,8 +166,8 @@ private fun chessName(
     knsNames: Map<String, String> = emptyMap(),
 ): String {
     contacts[address]?.let { return it.displayName }
-    knsNames[address]?.takeIf { it.isNotBlank() }?.let { return it }
-    return KaspaAddress.shortDisplay(address)
+    // the app's one rule: on testnet the .kachat name, KNS elsewhere (iOS e52357d)
+    return com.kachat.app.models.addressDisplayName(address, knsName = knsNames[address])
 }
 
 @Composable
@@ -178,6 +177,7 @@ private fun ChessAvatar(address: String, contacts: Map<String, ContactEntity>, s
         imageUrl = contact?.knsAvatarUrl,
         fallbackText = contact?.displayName ?: address.removePrefix("kaspa:").take(2),
         size = size.dp,
+        address = address,
     )
 }
 

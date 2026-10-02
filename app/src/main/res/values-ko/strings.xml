@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">소유자가 소멸되도록 둔 이름이에요. 누구나 회수할 수 있어요. 보증금은 마지막 소유자에게 돌아가고, 풀려난 예치금은 보상으로 내가 갖고, 이름은 다시 받을 수 있게 돼요.</string>
     <string name="kn_nothing_to_reclaim">회수할 이름이 없어요.</string>
     <string name="kn_reclaim">회수</string>
-    <string name="kn_my_names_detail">갱신, 판매, 이전, 해제하고 KaChat이 나로 보여 줄 이름을 고르세요.</string>
     <string name="kn_search_above">위에서 이름을 검색해 받아 보세요.</string>
     <string name="kn_my_offers">내 제안</string>
     <string name="kn_my_offers_detail">내가 한 제안이에요. 언제든 철회할 수 있고, 환불 시간이 지나면 누구나 나에게 돌려줄 수 있어요.</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">가격은 채굴자에게 가고 KaChat은 아무것도 받지 않아요. 보증금과 예치금은 이름을 해제하면 돌아와요.</string>
     <string name="kn_claim_step1">먼저 숨겨진 커밋이 체인에 올라가요. 어떤 이름인지는 아무도 볼 수 없어요.</string>
     <string name="kn_claim_step2">약 1분 뒤 KaChat이 알아서 이름을 등록해요. 앱을 열어 두세요. 떠나도 다음에 이어서 진행돼요.</string>
-    <string name="kn_claim_step3">결제한 기간 동안 이름은 내 것이에요. 만료 전에 언제든 갱신하세요.</string>
     <string name="kn_how_claiming_works">이름 받기는 이렇게 진행돼요</string>
     <string name="kn_claim_name_button">%1$s.kachat 받기</string>
     <string name="kn_claim_name_title">이름 받기</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">이 이름은 내 제안보다 싸게 판매 중이에요. 누구나 내 제안으로 구매할 수 있으니 바로 구매하는 걸 고려하세요.</string>
     <string name="kn_offer_locked">내 KAS는 소유자가 수락하거나, 내가 제안을 철회하거나, 만료될 때까지 체인에 잠겨 있어요. 그 뒤에는 누구나 나에게 돌려줄 수 있어요.</string>
     <string name="kn_refundable_after">환불 가능 시점</string>
-    <string name="kn_renew_footer">갱신은 현재 만료일에 더해져요. 이미 지났어도 마찬가지예요. 가격은 채굴자에게 가요.</string>
     <string name="kn_price_per_year">연간 가격</string>
     <string name="kn_new_expiry">새 만료일</string>
     <string name="kn_list_footer">누구나 이 가격에 살 수 있어요. 한 번의 거래로 결제는 나에게, 이름은 구매자에게 가요. 언제든 판매를 취소할 수 있어요.</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">채팅 주소에서 자기 자신에게 보내는 방식으로 온체인에 저장됩니다.</string>
     <string name="kn_profiles_public_note">프로필은 공개되며 온체인에 저장됩니다. 누구나 읽을 수 있고, 변경한 뒤에도 이전 버전을 읽을 수 있습니다.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">연장됨</string>
+    <string name="kn_extend">연장</string>
+    <string name="kn_extend_to_years">%1$d년으로 연장</string>
+    <string name="kn_renewal_opens_on">갱신은 %1$s부터 가능</string>
+    <string name="kn_paid_from_to">%1$s부터 %2$s까지 결제됨</string>
+    <string name="kn_new_period">새 기간</string>
+    <string name="kn_renewal_open">갱신 가능</string>
+    <string name="kn_extend_footer">연장하면 현재 결제된 기간에 연수가 더해져요. 한 기간은 최대 2년이에요. 가격은 채굴자에게 가요.</string>
+    <string name="kn_renew_period_footer">갱신하면 현재 만료일부터 다음 기간이 시작되므로, 만료일이 지났더라도 시간을 잃거나 더 얻지 않아요. 가격은 채굴자에게 가요.</string>
+    <string name="kn_err_period_full">이 이름은 기간 시작부터 이미 2년치가 결제되었어요. 갱신은 %1$s부터 가능해요.</string>
+    <string name="kn_err_period_unknown">이름 인덱서가 이 이름의 결제 기간을 보내지 않았어요. 아래로 당겨 새로 고친 뒤 다시 시도하세요.</string>
+    <string name="kn_my_names_extend_detail">연장, 갱신, 판매 등록, 전송, 해제를 하고 KaChat이 보여 줄 이름을 고르세요.</string>
+    <string name="kn_claim_step3_cap">이름은 결제한 연수 동안 내 것이에요(최대 2년 앞까지). 1년 이름은 2년으로 연장할 수 있고, 만료 10일 전부터 갱신할 수 있어요.</string>
+    <string name="kn_setting_up">설정 중</string>
+    <string name="kn_registry_upgrading">테스트넷의 .kachat 레지스트리를 업그레이드하고 있어요. 새 레지스트리가 가동되면 여기서 이름이 다시 열려요.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">.kachat 이름</string>
 </resources>

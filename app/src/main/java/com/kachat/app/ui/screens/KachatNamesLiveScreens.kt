@@ -62,6 +62,7 @@ import com.kachat.app.services.kachatnames.KachatSocialImageResolver
 import com.kachat.app.services.kachatnames.Lookup
 import com.kachat.app.services.kachatnames.NameInfo
 import com.kachat.app.services.kachatnames.OfferInfo
+import com.kachat.app.services.kachatnames.Params
 import com.kachat.app.services.kachatnames.PendingRegistration
 import com.kachat.app.services.kachatnames.Plan
 import com.kachat.app.services.kachatnames.Profile
@@ -161,6 +162,7 @@ object KachatLive {
         "list" -> Icons.Default.Sell
         "delist" -> Icons.AutoMirrored.Filled.LabelOff
         "sale", "offer_accepted" -> Icons.Default.ShoppingCart
+        "extend" -> Icons.Default.MoreTime
         "renew" -> Icons.Default.Refresh
         "release" -> Icons.AutoMirrored.Filled.Undo
         "reclaim" -> Icons.Default.Recycling
@@ -175,6 +177,7 @@ object KachatLive {
         "delist" -> R.string.kn_ev_delisted
         "sale" -> R.string.kn_ev_sold
         "offer_accepted", "offer_accept" -> R.string.kn_ev_offer_accepted
+        "extend" -> R.string.kn_ev_extended
         "renew" -> R.string.kn_ev_renewed
         "release" -> R.string.kn_ev_released
         "reclaim" -> R.string.kn_ev_reclaimed
@@ -194,8 +197,19 @@ object KachatLive {
         return null
     }
 
-    /** iOS `.dateTime.year().month().day()` / `.formatted(date: .abbreviated)`: "Oct 2, 2026". */
+    /** iOS `.dateTime.year().month().day()` / `.formatted(date: .abbreviated)` / `KachatLive.day`:
+     *  "Oct 2, 2026". */
     fun date(ms: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(ms))
+
+    /** The registry parameters, once the manifest is verified (iOS `KachatLive.params`, bd2c54a). */
+    fun params(service: KachatNamesService): Params? = service.manifest.value?.params
+
+    /** Whether extending [info] by [years] fills its period to exactly `maxYears` (iOS
+     *  `KachatExtendSheet.fillsPeriod`, bd2c54a). */
+    fun fillsPeriod(info: NameInfo, years: Long, p: Params): Boolean {
+        val start = info.periodStart ?: return false
+        return info.expiresAt + years * KachatNames.YEAR_MS == start + p.maxYears * KachatNames.YEAR_MS
+    }
 
     /** iOS `.relative(presentation: .named)`: "2 hours ago", "yesterday". */
     fun relative(ms: Long): String =
@@ -231,6 +245,10 @@ fun Context.kachatErrorText(e: Throwable): String {
             }
             getString(R.string.kn_err_invalid_key, what)
         }
+        is KachatNamesActions.ActionError.RenewalNotOpen -> getString(R.string.kn_renewal_opens_on, KachatLive.date(e.opensMs))
+        is KachatNamesActions.ActionError.PeriodFull -> getString(R.string.kn_err_period_full, KachatLive.date(e.renewalOpensMs))
+        is KachatNamesActions.ActionError.PeriodUnknown -> getString(R.string.kn_err_period_unknown)
+        is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
         is KachatNamesActions.ActionError.NotRegisterable -> when {
             m == "An expired name can't be listed. Renew it first." -> getString(R.string.kn_err_expired_list)
             m.endsWith(" is already registered.") -> getString(R.string.kn_err_already_registered, m.removeSuffix(" is already registered."))
@@ -293,6 +311,8 @@ class KachatLiveViewModel @Inject constructor(
     /** null until the manifest is checked; false when it fails (the hub then stays a mockup). */
     var ready by mutableStateOf<Boolean?>(null); private set
     var setupError by mutableStateOf<Throwable?>(null); private set
+    /** The manifest is for the previous registry (v1): the hub says "Setting up", calmly (iOS d2e0673). */
+    var upgrading by mutableStateOf(false); private set
     var search by mutableStateOf<Search>(Search.Idle); private set
     var listings by mutableStateOf<List<NameInfo>>(emptyList()); private set
     var lapsed by mutableStateOf<List<NameInfo>>(emptyList()); private set
@@ -329,10 +349,12 @@ class KachatLiveViewModel @Inject constructor(
             registry.prepare(forceSourceCheck = true)
             ready = true
             setupError = null
+            upgrading = false
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             ready = false
+            upgrading = KachatNamesService.isRegistryUpgrading(e)
             setupError = e
             return
         }
@@ -723,7 +745,15 @@ private fun AmountField(value: String, onValueChange: (String) -> Unit) {
 
 /** One name in a list: the name, a line about it, and its price or status. */
 @Composable
-private fun KachatLiveNameRow(info: NameInfo, vm: KachatLiveViewModel, modifier: Modifier = Modifier, showPrice: Boolean = true, onClick: () -> Unit) {
+private fun KachatLiveNameRow(
+    info: NameInfo,
+    vm: KachatLiveViewModel,
+    modifier: Modifier = Modifier,
+    showPrice: Boolean = true,
+    /** My Names: say when an active name's renewal window is open (iOS bd2c54a). */
+    showRenewal: Boolean = false,
+    onClick: () -> Unit
+) {
     val colors = LocalAppColors.current
     val status = info.status(vm.graceMs)
     Row(modifier.clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -744,7 +774,16 @@ private fun KachatLiveNameRow(info: NameInfo, vm: KachatLiveViewModel, modifier:
             )
         }
         Spacer(Modifier.width(8.dp))
-        if (showPrice && info.isListed && status == Status.ACTIVE) {
+        val params = KachatLive.params(vm.service)
+        if (showRenewal && status == Status.ACTIVE && params != null && info.renewOpen(params)) {
+            Text(
+                stringResource(R.string.kn_renewal_open),
+                color = colors.warning,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(colors.warning.copy(alpha = 0.15f)).padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        } else if (showPrice && info.isListed && status == Status.ACTIVE) {
             Text(KaspaUnit.amount(info.price), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
         } else if (status != Status.ACTIVE) {
             KachatStatusPill(status)
@@ -1079,7 +1118,7 @@ fun KachatLiveMyNamesPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, o
     val colors = LocalAppColors.current
     val source by vm.registry.source.collectAsState()
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
-        KachatLiveSectionHeader(stringResource(R.string.km_my_names), stringResource(R.string.kn_my_names_detail))
+        KachatLiveSectionHeader(stringResource(R.string.km_my_names), stringResource(R.string.kn_my_names_extend_detail))
         if (vm.mine.isEmpty()) {
             Column(
                 Modifier.fillMaxWidth().padding(vertical = 18.dp),
@@ -1093,7 +1132,7 @@ fun KachatLiveMyNamesPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, o
         } else {
             KachatGlassList {
                 vm.mine.forEachIndexed { index, n ->
-                    KachatLiveNameRow(n, vm) { onOpen(n) }
+                    KachatLiveNameRow(n, vm, showRenewal = true) { onOpen(n) }
                     if (index < vm.mine.lastIndex) KachatRowDivider(62)
                 }
             }
@@ -1513,7 +1552,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         }
 
         FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
-            listOf(R.string.kn_claim_step1, R.string.kn_claim_step2, R.string.kn_claim_step3).forEachIndexed { index, res ->
+            listOf(R.string.kn_claim_step1, R.string.kn_claim_step2, R.string.kn_claim_step3_cap).forEachIndexed { index, res ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
                     Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
                         Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -1539,12 +1578,13 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
 
 // MARK: - Name detail
 
-private enum class KachatDetailSheet { BUY, OFFER, RENEW, LIST, DELIST, TRANSFER, RELEASE, RECLAIM }
+private enum class KachatDetailSheet { BUY, OFFER, EXTEND, RENEW, LIST, DELIST, TRANSFER, RELEASE, RECLAIM }
 
 /**
  * A registered name, live: who owns it, its status and expiry, its price, and what the person can
- * do with it - buy, offer or message the owner; or, for their own names, renew, list, transfer,
- * release and make it their primary name. Offers and history below (iOS `KachatLiveNameDetail`).
+ * do with it - buy, offer or message the owner; or, for their own names, extend or renew (registry
+ * v2, iOS bd2c54a), list, transfer, release and make it their primary name. Offers and history
+ * below (iOS `KachatLiveNameDetail`).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1601,6 +1641,7 @@ fun KachatLiveNameDetailScreen(
         when (s) {
             KachatDetailSheet.BUY -> KachatLiveBuySheet(info, close)
             KachatDetailSheet.OFFER -> KachatLiveOfferSheet(info.name, info, close)
+            KachatDetailSheet.EXTEND -> KachatExtendSheet(info, close)
             KachatDetailSheet.RENEW -> KachatRenewSheet(info, close)
             KachatDetailSheet.LIST -> KachatListSheet(info, close)
             KachatDetailSheet.DELIST -> KachatTxSheet(
@@ -1688,6 +1729,17 @@ fun KachatLiveNameDetailScreen(
                             Text(stringResource(R.string.kn_expires_on, KachatLive.date(info.expiresAt)), color = colors.textSecondary, fontSize = 12.sp)
                         }
                     }
+                    info.periodStart?.let { start ->
+                        // registry v2: the paid period, from its start to the expiry (at most 2 years)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.kn_paid_from_to, KachatLive.date(start), KachatLive.date(info.expiresAt)),
+                                color = colors.textSecondary, fontSize = 12.sp
+                            )
+                        }
+                    }
                     when {
                         status == Status.GRACE && mine -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
                         status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace), color = colors.warning, fontSize = 13.sp)
@@ -1702,27 +1754,20 @@ fun KachatLiveNameDetailScreen(
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         val big = Modifier.fillMaxWidth()
                         if (mine) {
+                            KachatPeriodActions(info, status, vm) { sheet = it }
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                KachatButton(stringResource(R.string.kn_renew), Modifier.weight(1f), Icons.Default.Refresh, prominent = status != Status.ACTIVE, large = true) { sheet = KachatDetailSheet.RENEW }
                                 KachatButton(
                                     stringResource(if (info.isListed) R.string.kn_change_price else R.string.kn_list_for_sale),
                                     Modifier.weight(1f), Icons.Default.Sell, enabled = status == Status.ACTIVE, large = true
                                 ) { sheet = KachatDetailSheet.LIST }
+                                KachatButton(stringResource(R.string.portfolio_type_transfer), Modifier.weight(1f), Icons.AutoMirrored.Filled.CompareArrows, large = true) { sheet = KachatDetailSheet.TRANSFER }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                KachatButton(stringResource(R.string.portfolio_type_transfer), Modifier.weight(1f), Icons.AutoMirrored.Filled.CompareArrows, large = true) { sheet = KachatDetailSheet.TRANSFER }
                                 if (info.isListed) {
                                     KachatButton(stringResource(R.string.kn_delist), Modifier.weight(1f), Icons.AutoMirrored.Filled.LabelOff, large = true) { sheet = KachatDetailSheet.DELIST }
-                                } else {
-                                    KachatButton(
-                                        stringResource(R.string.set_as_primary), Modifier.weight(1f), Icons.Default.HowToReg,
-                                        enabled = status == Status.ACTIVE, large = true
-                                    ) { confirmPrimary = true }
                                 }
-                            }
-                            if (info.isListed) {
                                 KachatButton(
-                                    stringResource(R.string.set_as_primary), big, Icons.Default.HowToReg,
+                                    stringResource(R.string.set_as_primary), Modifier.weight(1f), Icons.Default.HowToReg,
                                     enabled = status == Status.ACTIVE, large = true
                                 ) { confirmPrimary = true }
                             }
@@ -1818,6 +1863,45 @@ fun KachatLiveNameDetailScreen(
     }
 }
 
+/**
+ * Registry v2 (iOS bd2c54a `periodActions`): "Extend" while the paid period holds less than 2
+ * years (labelled "Extend to 2 years" when that fills it), "Renew" once the renewal window is open
+ * (10 days before the expiry, and on through grace and lapse), otherwise a disabled "Renewal opens
+ * on <date>".
+ */
+@Composable
+private fun KachatPeriodActions(info: NameInfo, status: Status, vm: KachatLiveViewModel, open: (KachatDetailSheet) -> Unit) {
+    val manifest by vm.service.manifest.collectAsState()
+    val p = manifest?.params ?: return
+    val extendable = info.extendableYears(p)
+    val renewOpen = info.renewOpen(p)
+    if (extendable > 0 || renewOpen) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (extendable > 0) {
+                val title = if (KachatLive.fillsPeriod(info, extendable, p)) {
+                    stringResource(R.string.kn_extend_to_years, p.maxYears.toInt())
+                } else {
+                    stringResource(R.string.kn_extend)
+                }
+                KachatButton(title, Modifier.weight(1f), Icons.Default.MoreTime, prominent = status != Status.ACTIVE && !renewOpen, large = true) {
+                    open(KachatDetailSheet.EXTEND)
+                }
+            }
+            if (renewOpen) {
+                KachatButton(stringResource(R.string.kn_renew), Modifier.weight(1f), Icons.Default.Refresh, prominent = status != Status.ACTIVE, large = true) {
+                    open(KachatDetailSheet.RENEW)
+                }
+            }
+        }
+    }
+    if (!renewOpen) {
+        KachatButton(
+            stringResource(R.string.kn_renewal_opens_on, KachatLive.date(info.renewOpens(p))),
+            Modifier.fillMaxWidth(), Icons.Default.Schedule, enabled = false, large = true
+        ) {}
+    }
+}
+
 // MARK: - Sheets with inputs
 
 @Composable
@@ -1873,6 +1957,50 @@ fun KachatLiveOfferSheet(name: String, info: NameInfo?, onClose: () -> Unit, vm:
     }
 }
 
+/**
+ * Registry v2 `extend` (iOS bd2c54a `KachatExtendSheet`): years added to the current paid period
+ * (periodStart kept), up to 2 years past its start - in practice a 1-year name extended to 2.
+ * Anyone may extend any name.
+ */
+@Composable
+fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
+    val manifest by vm.service.manifest.collectAsState()
+    val params = manifest?.params
+    var years by remember { mutableLongStateOf(1L) }
+    val maxYears = params?.maxYears ?: 2L
+    /** The years that still fit in the period (in practice 1). */
+    val available = maxOf(1L, params?.let { info.extendableYears(it) } ?: 1L)
+    val perYear = params?.renewPrice(info.name.toByteArray(Charsets.UTF_8).size) ?: 0L
+    val title = if (params != null && KachatLive.fillsPeriod(info, years, params)) {
+        stringResource(R.string.kn_extend_to_years, maxYears.toInt())
+    } else {
+        stringResource(R.string.kn_extend)
+    }
+    KachatTxSheet(
+        title = title, confirmTitle = stringResource(R.string.kn_extend),
+        doneTitle = R.string.kn_ev_extended,
+        footer = stringResource(R.string.kn_extend_footer),
+        rows = listOf(
+            KachatTxRow(stringResource(R.string.kl_name), info.display),
+            KachatTxRow(stringResource(R.string.kn_price_per_year), KaspaUnit.amount(perYear)),
+            KachatTxRow(stringResource(R.string.kn_expires), KachatLive.date(info.expiresAt)),
+            KachatTxRow(stringResource(R.string.kn_new_expiry), KachatLive.date(info.expiresAt + years * KachatNames.YEAR_MS)),
+        ),
+        operation = KachatNamesActions.Operation.Extend(info, minOf(years, available)), operationKey = "extend-$years",
+        onClose = onClose, vm = vm
+    ) {
+        if (available > 1) {
+            FormSection {
+                KachatSegmented((1..available.toInt()).map { yearsText(it) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+            }
+        }
+    }
+}
+
+/**
+ * Registry v2 `renew`: the next period, from the current expiry, for 1 or 2 years - only once the
+ * renewal window is open (10 days before the expiry; the detail screen says when; iOS bd2c54a).
+ */
 @Composable
 fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val manifest by vm.service.manifest.collectAsState()
@@ -1882,11 +2010,14 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     KachatTxSheet(
         title = stringResource(R.string.kn_renew), confirmTitle = stringResource(R.string.kn_renew),
         doneTitle = R.string.kn_ev_renewed,
-        footer = stringResource(R.string.kn_renew_footer),
+        footer = stringResource(R.string.kn_renew_period_footer),
         rows = listOf(
             KachatTxRow(stringResource(R.string.kl_name), info.display),
             KachatTxRow(stringResource(R.string.kn_price_per_year), KaspaUnit.amount(perYear)),
-            KachatTxRow(stringResource(R.string.kn_new_expiry), KachatLive.date(info.expiresAt + years * KachatNames.YEAR_MS)),
+            KachatTxRow(
+                stringResource(R.string.kn_new_period),
+                "${KachatLive.date(info.expiresAt)} – ${KachatLive.date(info.expiresAt + years * KachatNames.YEAR_MS)}"
+            ),
         ),
         operation = KachatNamesActions.Operation.Renew(info, years), operationKey = "renew-$years",
         onClose = onClose, vm = vm
@@ -2011,6 +2142,7 @@ fun KachatReclaimSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMo
 fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val colors = LocalAppColors.current
     val revision by vm.registry.revision.collectAsState()
+    val upgrading by vm.service.registryUpgrading.collectAsState()
     var names by remember { mutableStateOf<List<NameInfo>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
 
@@ -2045,6 +2177,16 @@ fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: 
         ) {
             when {
                 !loaded -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) { IosActivityIndicator(color = KaspaTeal) }
+                // the bundled manifest is for the previous registry: calm, no error (iOS d2e0673)
+                upgrading -> Column(
+                    Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.Construction, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(40.dp))
+                    Text(stringResource(R.string.kn_setting_up), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                    Text(stringResource(R.string.kn_registry_upgrading), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                }
                 names.isEmpty() -> Column(
                     Modifier.fillMaxWidth().padding(vertical = 40.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

@@ -46,7 +46,8 @@ import javax.inject.Singleton
  * gate, loading and verifying the manifest, the node's DAG point, the wallet's and the registry's
  * live UTXOs, Schnorr signing with the wallet key (BIP-340, SIGHASH_ALL over the version-1
  * sighash), the protowire conversion with the Toccata fields, and submission through the node
- * pool. A port of iOS KaChat/Services/KachatNames/KachatNamesService.swift (KaChat ede9417).
+ * pool. A port of iOS KaChat/Services/KachatNames/KachatNamesService.swift (KaChat ede9417; the
+ * registry-v1 "being upgraded" state from d2e0673).
  *
  * Testnet-10 only: every entry point refuses unless this launch runs on testnet
  * ([KaspaNetwork.isTestnet], iOS `AppSettings.networkType == .testnet`), and the manifest itself
@@ -76,6 +77,19 @@ class KachatNamesService @Inject constructor(
     /** Where the manifest came from: "bundle" or the indexer URL. */
     val manifestSource: StateFlow<String?> = _manifestSource.asStateFlow()
 
+    private val _registryUpgrading = MutableStateFlow(false)
+    /**
+     * The manifest describes the previous registry (v1): names wait for the v2 genesis manifest.
+     * The screens show "Setting up" instead of an error (iOS d2e0673).
+     */
+    val registryUpgrading: StateFlow<Boolean> = _registryUpgrading.asStateFlow()
+
+    /**
+     * Why the bundled manifest was refused. The bundle can't change while the app runs, so it is
+     * not read and verified again on every call (until [resetManifest]).
+     */
+    @Volatile private var bundleFailure: Exception? = null
+
     private val manifestMutex = Mutex()
 
     /** The service's errors; messages are English like iOS's (the screens show them as they are). */
@@ -88,6 +102,10 @@ class KachatNamesService @Inject constructor(
         class NotOnChain(what: String) : ServiceError("$what is not on chain (or not with the registry covenant id)")
         class BadProfile(why: String) : ServiceError("Profile: $why")
         class SubmitMismatch(expected: String, got: String) : ServiceError("The node accepted $got, expected $expected")
+        /** the manifest is for registry v1; this app builds for v2 and waits for its genesis (the
+         *  screens show it localized, `kn_registry_upgrading`) */
+        class RegistryUpgrading :
+            ServiceError("The .kachat registry on Testnet is being upgraded. Names open here again once the new registry is live.")
     }
 
     /** The virtual's DAA score and past median time (unix ms) and the node's network name. */
@@ -108,10 +126,26 @@ class KachatNamesService @Inject constructor(
     suspend fun loadManifest(allowDryRun: Boolean = false): Manifest = manifestMutex.withLock {
         requireTestnet()
         _manifest.value?.let { if (allowDryRun || !it.isDryRun) return@withLock it }
+        bundleFailure?.let { throw it }
         val (data, source) = manifestData()
-        val m = Manifest.decode(data)
-        m.verify()
+        val m = try {
+            Manifest.decode(data).also { it.verify() }
+        } catch (e: Exception) {
+            // A registry v1 manifest (the bundled one until the v2 genesis) is expected, not an
+            // error: say "being upgraded", once, and stop re-reading the bundle.
+            val upgrading = isRegistryUpgrading(e)
+            val refused: Exception = if (upgrading) ServiceError.RegistryUpgrading() else e
+            if (upgrading) {
+                if (!_registryUpgrading.value) {
+                    Log.i(TAG, "the $source manifest is registry v1; .kachat waits for the v2 genesis manifest")
+                }
+                _registryUpgrading.value = true
+            }
+            if (source == "bundle") bundleFailure = refused
+            throw refused
+        }
         if (m.isDryRun && !allowDryRun) throw ServiceError.DryRunManifest()
+        _registryUpgrading.value = false
         _manifest.value = m
         _manifestSource.value = source
         m
@@ -121,6 +155,8 @@ class KachatNamesService @Inject constructor(
     fun resetManifest() {
         _manifest.value = null
         _manifestSource.value = null
+        bundleFailure = null
+        _registryUpgrading.value = false
     }
 
     private suspend fun manifestData(): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
@@ -330,6 +366,10 @@ class KachatNamesService @Inject constructor(
 
         /** The only network names may run on until an audit: the network this launch runs on. */
         val isEnabled: Boolean get() = KaspaNetwork.isTestnet
+
+        /** Whether [error] means the registry is being upgraded (a v1 manifest), not a failure (iOS d2e0673). */
+        fun isRegistryUpgrading(error: Throwable): Boolean =
+            error is ServiceError.RegistryUpgrading || (error as? KachatNames.Failure)?.isOutdatedRegistry == true
 
         /** The signer's x-only key for a wallet private key. */
         fun xonlyKey(privateKey: ByteArray): ByteArray = Schnorr.publicKeyXOnly(privateKey)

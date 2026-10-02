@@ -123,6 +123,15 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var kachatNamesActions: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesActions>
 
+    // Testnet identity is .kachat everywhere (iOS e52357d): every contact name and avatar reads
+    // the registry's identity cache and the social image cache through their companions, so both
+    // are built at startup on testnet - lazily injected, so mainnet never builds them.
+    @Inject
+    lateinit var kachatNamesRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>
+
+    @Inject
+    lateinit var kachatSocialImages: dagger.Lazy<com.kachat.app.services.kachatnames.KachatSocialImageResolver>
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory()).build()
 
@@ -155,6 +164,14 @@ class KaChatApplication : Application(), Configuration.Provider {
         // Reserve the coins every still-waiting scheduled post is going to spend, before any
         // send can pick them (see the field above).
         runCatching { kaPostsScheduledStore.reloadIfNeeded() }
+
+        // Testnet: the .kachat identity caches the display rules read (see the fields above).
+        if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+            runCatching {
+                kachatNamesRegistry.get()
+                kachatSocialImages.get()
+            }.onFailure { android.util.Log.w("KaChatApplication", ".kachat identity caches not built", it) }
+        }
 
         // Background catch-up for GROUP chat only (see SyncWorker's doc comment): groups have no
         // remote push (the push registration is the LegacyV1 shape with no watched_group_ids), so

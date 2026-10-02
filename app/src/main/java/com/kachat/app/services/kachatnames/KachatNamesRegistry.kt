@@ -2,6 +2,9 @@ package com.kachat.app.services.kachatnames
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
@@ -106,11 +109,34 @@ class KachatNamesRegistry @Inject constructor(
 
     @Volatile private var cacheNetwork: String? = null
     private val ownProfiles = ConcurrentHashMap<String, OwnProfile>()
+    /** Addresses with no saved profile file: [ownProfile] is read while names render, so a miss
+     *  is remembered instead of touching the disk again (until [noteOwnProfile]). */
+    private val ownProfileMisses = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * `.kachat` identities by lowercased address, for the app's display rules (names, avatars,
+     * banners, bios everywhere - see [cachedIdentity]; iOS e52357d). Compose snapshot state, so a
+     * composable that read a name or avatar through it re-renders when an answer lands - iOS
+     * publishes the cache and tells ContactsManager. Written under [identityLock].
+     */
+    private var identities by mutableStateOf<Map<String, Identity>>(emptyMap())
+    /** When each identity was last asked: the registry revision and unix ms. Not state - a
+     *  re-asked answer that is unchanged re-renders nothing. */
+    private val identityAsked = ConcurrentHashMap<String, Pair<Int, Long>>()
+    private val identityLookups = ConcurrentHashMap.newKeySet<String>()
+    private val identityLock = Any()
     private val prepareMutex = Mutex()
     /** Serializes walker state changes (walk, offer tracking) - iOS's @MainActor. */
     private val stateMutex = Mutex()
 
     private fun bump() = _revision.update { it + 1 }
+
+    init {
+        // the display rules (ContactEntity.displayName, ContactAvatar) reach the cache through
+        // the companion, from code Hilt does not inject (built at startup on testnet, see
+        // KaChatApplication)
+        instance = this
+    }
 
     // Setup
 
@@ -135,6 +161,9 @@ class KachatNamesRegistry @Inject constructor(
         _chainState.value = null
         cacheNetwork = null
         ownProfiles.clear()
+        ownProfileMisses.clear()
+        synchronized(identityLock) { identities = emptyMap() }
+        identityAsked.clear()
         _lastError.value = null
         _refreshedAt.value = null
         bump()
@@ -164,19 +193,31 @@ class KachatNamesRegistry @Inject constructor(
     suspend fun refresh(forceSourceCheck: Boolean = false) {
         if (!KachatNamesService.isEnabled) return
         if (!_isRefreshing.compareAndSet(expect = false, update = true)) return
+        val previousError = _lastError.value
         try {
             val m = prepare(forceSourceCheck)
             if (_source.value == Source.Chain) walk(m)
             _lastError.value = null
             _refreshedAt.value = System.currentTimeMillis()
+            bump()
         } catch (e: kotlinx.coroutines.CancellationException) {
+            // nothing changed: no bump (a screen that refreshes on `revision` and is recomposed
+            // by the bump would cancel and restart itself)
             throw e
         } catch (e: Exception) {
-            _lastError.value = e.message ?: e.toString()
-            Log.w(TAG, "registry refresh failed: ${e.message}")
+            val message = e.message ?: e.toString()
+            _lastError.value = message
+            // A failed refresh counts as an attempt too: `refreshIfStale` waits `maxAge` before
+            // the next one, and screens that reload on `revision` (and refresh from there) are
+            // only nudged when the error changed - a refusal can't turn into a refresh loop
+            // (iOS d2e0673).
+            _refreshedAt.value = System.currentTimeMillis()
+            if (message != previousError) {
+                if (!KachatNamesService.isRegistryUpgrading(e)) Log.w(TAG, "registry refresh failed: $message")
+                bump()
+            }
         } finally {
             _isRefreshing.value = false
-            bump()
         }
     }
 
@@ -424,11 +465,49 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
+    /**
+     * The address's `.kachat` identity as the app shows it, from a cache that fills in the
+     * background: callable from any composable or thread (testnet only - null otherwise). An
+     * answer is re-asked once the registry moved on or after five minutes (a failed one after a
+     * minute), and this wallet's own saved profile always wins for its own address. When an answer
+     * lands, composables that read it re-render (iOS e52357d `cachedIdentity(for:)`).
+     */
+    fun cachedIdentity(address: String): Identity? {
+        if (!KachatNamesService.isEnabled) return null
+        val key = address.trim().lowercase()
+        if (!key.startsWith("kaspatest:")) return null
+        val known = identities[key]
+        val rev = _revision.value
+        val now = System.currentTimeMillis()
+        val asked = identityAsked[key]
+        val stale = asked == null || asked.first != rev || now - asked.second > (if (known == null) 60_000L else 300_000L)
+        if (stale && identityLookups.add(key)) {
+            identityAsked[key] = rev to now
+            scope.launch {
+                try {
+                    val found = identity(key)
+                    synchronized(identityLock) {
+                        if (identities[key] != found) identities = identities + (key to found)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // the registry is not there (being upgraded, offline): asked again in a minute
+                } finally {
+                    identityLookups.remove(key)
+                }
+            }
+        }
+        val own = ownProfile(key)?.profile ?: return known
+        return (known ?: Identity(key, null, emptyList(), null)).copy(profile = own)
+    }
+
     /** The profile record this device last wrote for [address]. */
     fun ownProfile(address: String): OwnProfile? {
         val a = address.lowercase()
         ownProfiles[a]?.let { return it }
-        val data = readFile(profileFile(a)) ?: return null
+        if (a in ownProfileMisses) return null
+        val data = readFile(profileFile(a)) ?: run { ownProfileMisses.add(a); return null }
         val p = runCatching { gson.fromJson(String(data, Charsets.UTF_8), OwnProfile::class.java) }.getOrNull() ?: return null
         // Gson leaves absent fields null whatever their Kotlin type: a damaged file is no record
         @Suppress("SENSELESS_COMPARISON")
@@ -440,6 +519,7 @@ class KachatNamesRegistry @Inject constructor(
     fun noteOwnProfile(profile: Profile, address: String, txId: String) {
         val record = OwnProfile(address.lowercase(), profile.sanitized(), txId, System.currentTimeMillis())
         ownProfiles[record.address] = record
+        ownProfileMisses.remove(record.address)
         writeFile(profileFile(record.address), gson.toJson(record).toByteArray(Charsets.UTF_8))
         bump()
     }
@@ -514,6 +594,21 @@ class KachatNamesRegistry @Inject constructor(
         private const val TAG = "KachatNames"
         private const val CACHE_FILE = "registry.json"
 
+        @Volatile private var instance: KachatNamesRegistry? = null
+
+        /** The app's registry once built (at startup on testnet, see KaChatApplication), for
+         *  screens outside the .kachat hub that show an address's identity (User Info). */
+        val shared: KachatNamesRegistry? get() = instance
+
+        // The display rules (iOS e52357d): testnet identity is .kachat everywhere
+
+        /** The address's cached `.kachat` identity ([cachedIdentity]); null on mainnet. */
+        fun cachedIdentityOf(address: String): Identity? = instance?.cachedIdentity(address)
+
+        /** Testnet: `<label>.kachat` for an address with an active name (its primary one), null
+         *  otherwise or while it is looked up; always null on mainnet. */
+        fun kachatName(address: String): String? = cachedIdentityOf(address)?.label?.let { "$it.kachat" }
+
         // Addresses
 
         /** The `kaspatest:` Schnorr address of an x-only key. */
@@ -580,6 +675,11 @@ class KachatSocialImageResolver @Inject constructor(
         .build()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        // ContactAvatar reads .kachat avatars through the companion (iOS e52357d)
+        instance = this
+    }
 
     private val _entries = MutableStateFlow(load())
     /** The cache by normalized link: screens collect it so a lookup that lands re-renders them
@@ -771,6 +871,11 @@ class KachatSocialImageResolver @Inject constructor(
     }
 
     companion object {
+        /** The app's resolver once built (at startup on testnet, see KaChatApplication), for the
+         *  avatar every list draws (ContactAvatar) - code Hilt does not inject. */
+        @Volatile var instance: KachatSocialImageResolver? = null
+            private set
+
         private const val TAG = "KachatSocial"
         private const val PREFS = "kachat_prefs"
         private const val CACHE_KEY = "kachat_social_profile_cache"

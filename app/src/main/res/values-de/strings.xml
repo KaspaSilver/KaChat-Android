@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">Namen, die ihre Inhaber verfallen ließen. Jeder darf einen zurückholen: Die Kaution geht an den letzten Inhaber, du behältst die freigewordene Einlage als Prämie, und der Name ist frei.</string>
     <string name="kn_nothing_to_reclaim">Nichts zum Zurückholen.</string>
     <string name="kn_reclaim">Zurückholen</string>
-    <string name="kn_my_names_detail">Verlängern, anbieten, übertragen oder freigeben - und wählen, welchen KaChat für dich zeigt.</string>
     <string name="kn_search_above">Such oben nach einem Namen und sichere ihn dir.</string>
     <string name="kn_my_offers">Meine Angebote</string>
     <string name="kn_my_offers_detail">Deine Angebote. Zieh eines jederzeit zurück; nach seiner Erstattungszeit kann es dir jeder zurückgeben.</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">Der Preis geht an die Miner - KaChat nimmt nichts. Kaution und Einlage kommen zurück, wenn du den Namen freigibst.</string>
     <string name="kn_claim_step1">Zuerst geht ein versteckter Commit auf die Chain. Niemand sieht, für welchen Namen er ist.</string>
     <string name="kn_claim_step2">Etwa eine Minute später registriert KaChat den Namen von selbst. Lass die App offen; wenn du gehst, macht sie beim nächsten Mal weiter.</string>
-    <string name="kn_claim_step3">Der Name gehört dir für die bezahlten Jahre. Verlängere ihn jederzeit vor dem Ablauf.</string>
     <string name="kn_how_claiming_works">So funktioniert die Registrierung</string>
     <string name="kn_claim_name_button">%1$s.kachat sichern</string>
     <string name="kn_claim_name_title">Namen sichern</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">Dieser Name ist günstiger angeboten als dein Angebot. Jeder könnte das Angebot mit deinem Angebot kaufen - kauf ihn lieber direkt.</string>
     <string name="kn_offer_locked">Deine KAS bleiben auf der Chain gesperrt, bis der Inhaber annimmt, du das Angebot zurückziehst oder es abläuft - dann kann sie dir jeder zurückschicken.</string>
     <string name="kn_refundable_after">Erstattbar nach</string>
-    <string name="kn_renew_footer">Eine Verlängerung zählt ab dem aktuellen Ablaufdatum, auch wenn es schon vorbei ist. Der Preis geht an die Miner.</string>
     <string name="kn_price_per_year">Preis pro Jahr</string>
     <string name="kn_new_expiry">Neues Ablaufdatum</string>
     <string name="kn_list_footer">Jeder kann ihn zu diesem Preis kaufen: Die Zahlung geht an dich und der Name an den Käufer, in einer Transaktion. Jederzeit zurücknehmbar.</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">Wird on-chain von deiner Chat-Adresse an sich selbst gespeichert.</string>
     <string name="kn_profiles_public_note">Profile sind öffentlich und on-chain: Jeder kann sie lesen, und frühere Versionen bleiben nach einer Änderung lesbar.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">Erweitert</string>
+    <string name="kn_extend">Erweitern</string>
+    <string name="kn_extend_to_years">Auf %1$d Jahre erweitern</string>
+    <string name="kn_renewal_opens_on">Verlängerung möglich ab %1$s</string>
+    <string name="kn_paid_from_to">Bezahlt vom %1$s bis %2$s</string>
+    <string name="kn_new_period">Neuer Zeitraum</string>
+    <string name="kn_renewal_open">Verlängerung offen</string>
+    <string name="kn_extend_footer">Erweitern fügt dem aktuellen bezahlten Zeitraum Jahre hinzu; er umfasst höchstens 2 Jahre. Der Preis geht an die Miner.</string>
+    <string name="kn_renew_period_footer">Eine Verlängerung beginnt den nächsten Zeitraum am aktuellen Ablaufdatum, so geht keine Zeit verloren oder dazu, auch wenn es schon vorbei ist. Der Preis geht an die Miner.</string>
+    <string name="kn_err_period_full">Dieser Name ist ab Beginn seines Zeitraums schon für 2 Jahre bezahlt. Verlängerung möglich ab %1$s.</string>
+    <string name="kn_err_period_unknown">Der Namens-Indexer hat den bezahlten Zeitraum dieses Namens nicht geschickt. Zum Aktualisieren nach unten ziehen und erneut versuchen.</string>
+    <string name="kn_my_names_extend_detail">Erweitere, verlängere, verkaufe, übertrage oder gib sie frei, und wähle den, den KaChat für dich zeigt.</string>
+    <string name="kn_claim_step3_cap">Der Name gehört dir für die bezahlten Jahre, höchstens 2 im Voraus. Ein Name für 1 Jahr lässt sich auf 2 Jahre erweitern; ab 10 Tagen vor Ablauf kannst du ihn verlängern.</string>
+    <string name="kn_setting_up">Wird eingerichtet</string>
+    <string name="kn_registry_upgrading">Die .kachat-Registry im Testnet wird aktualisiert. Namen sind hier wieder verfügbar, sobald die neue Registry live ist.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">.kachat-Namen</string>
 </resources>

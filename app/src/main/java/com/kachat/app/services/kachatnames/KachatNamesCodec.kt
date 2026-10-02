@@ -7,7 +7,8 @@ import java.io.ByteArrayOutputStream
 /**
  * `.kachat` names on Kaspa covenants: the transaction core (design: iOS KACHAT_NAMES.md, byte-level
  * reference: kachat-domains/README.md, source of truth: the kachat-domains Rust harness and CLI).
- * A one-to-one port of iOS `KaChat/Services/KachatNames/KachatNamesCodec.swift` (KaChat 4c2c45d).
+ * A one-to-one port of iOS `KaChat/Services/KachatNames/KachatNamesCodec.swift` (KaChat 4c2c45d;
+ * registry v2, the 126-byte name state with periodStart, from 3ef2ec2).
  *
  * Everything in this package is pure value code (Kotlin, [Blake3], BouncyCastle's BLAKE2b): codecs,
  * the manifest, the version-1 transaction with its hashes and masses, and the builders. No Android
@@ -25,6 +26,18 @@ object KachatNames {
     class Failure(message: String) : Exception(message) {
         override fun equals(other: Any?): Boolean = other is Failure && other.message == message
         override fun hashCode(): Int = message.hashCode()
+
+        /** True for [OUTDATED_REGISTRY] (compared by message, like every Failure). */
+        val isOutdatedRegistry: Boolean get() = this == OUTDATED_REGISTRY
+
+        companion object {
+            /**
+             * The manifest describes registry v1 (the first testnet-10 genesis): this app builds for
+             * registry v2 (the 2-year cap) and waits for its genesis manifest. Not an error to show
+             * as one: the screens say the registry is being set up (iOS 3ef2ec2).
+             */
+            val OUTDATED_REGISTRY = Failure("manifest: registry v1; this app needs the registry v2 manifest (new genesis pending)")
+        }
     }
 
     // Constants (rusty-kaspa a41a333, kachat-domains params)
@@ -43,7 +56,7 @@ object KachatNames {
     const val TARGET_CHANGE: Long = 100_000_000L
     /** Relay floor after Toccata: 100 sompi per gram of max(compute, normalized transient). */
     const val MIN_FEERATE: Double = 100.0
-    /** register and renew sum at most 8 inputs and 8 outputs (the contracts' bounded loops). */
+    /** register, extend and renew sum at most 8 inputs and 8 outputs (the contracts' bounded loops). */
     const val MAX_INPUTS_FEE_ENTRY = 8
     /** Every other operation: keep transactions small anyway. */
     const val MAX_INPUTS = 24
@@ -250,13 +263,18 @@ object KachatNames {
         fun gapState(lo: ByteArray, hi: ByteArray): ByteArray =
             Writer().u8(0x20).bytes(lo).u8(0x20).bytes(hi).toByteArray()
 
-        /** Name state, 117 bytes: `0x20 key 0x20 name 0x20 owner 0x08 price 0x08 expiresAt`. */
+        /**
+         * Name state (registry v2, iOS 3ef2ec2), 126 bytes:
+         * `0x20 key 0x20 name 0x20 owner 0x08 price 0x08 periodStart 0x08 expiresAt`
+         * (price at bytes 100..108, periodStart 109..117, expiresAt 118..126).
+         */
         fun nameState(f: NameFields): ByteArray =
             Writer()
                 .u8(0x20).bytes(f.key)
                 .u8(0x20).bytes(f.paddedName)
                 .u8(0x20).bytes(f.owner)
                 .u8(0x08).bytes(num8(f.price))
+                .u8(0x08).bytes(num8(f.periodStart))
                 .u8(0x08).bytes(num8(f.expiresAt))
                 .toByteArray()
 
@@ -275,14 +293,15 @@ object KachatNames {
         }
 
         fun decodeNameState(s: ByteArray): NameFields {
-            if (s.size != 117 || s[0].toInt() != 0x20 || s[33].toInt() != 0x20 || s[66].toInt() != 0x20 ||
-                s[99].toInt() != 0x08 || s[108].toInt() != 0x08
+            if (s.size != 126 || s[0].toInt() != 0x20 || s[33].toInt() != 0x20 || s[66].toInt() != 0x20 ||
+                s[99].toInt() != 0x08 || s[108].toInt() != 0x08 || s[117].toInt() != 0x08
             ) {
                 throw Failure("not a name state")
             }
             return NameFields(
                 key = s.copyOfRange(1, 33), paddedName = s.copyOfRange(34, 66), owner = s.copyOfRange(67, 99),
-                price = decodeNum8(s.copyOfRange(100, 108)), expiresAt = decodeNum8(s.copyOfRange(109, 117))
+                price = decodeNum8(s.copyOfRange(100, 108)), periodStart = decodeNum8(s.copyOfRange(109, 117)),
+                expiresAt = decodeNum8(s.copyOfRange(118, 126))
             )
         }
 
@@ -419,30 +438,46 @@ class NameFields(
     val paddedName: ByteArray,
     val owner: ByteArray,
     val price: Long,
+    /**
+     * unix ms, the start of the current paid period (registry v2, iOS 3ef2ec2): register sets it
+     * to `now`, `renew` to the old expiry; every other entry keeps it.
+     */
+    val periodStart: Long,
     val expiresAt: Long
 ) {
-    constructor(name: String, owner: ByteArray, price: Long, expiresAt: Long) :
-        this(KachatNames.Codec.key(name), KachatNames.Codec.padded(name), owner, price, expiresAt)
+    constructor(name: String, owner: ByteArray, price: Long, periodStart: Long, expiresAt: Long) :
+        this(KachatNames.Codec.key(name), KachatNames.Codec.padded(name), owner, price, periodStart, expiresAt)
 
     val name: String get() = KachatNames.Codec.unpadded(paddedName)
     val encoded: ByteArray get() = KachatNames.Codec.nameState(this)
 
-    /** transfer / buy: new owner, listing cleared, expiry kept. */
-    fun withOwner(owner: ByteArray): NameFields = NameFields(key, paddedName, owner, 0, expiresAt)
+    /** transfer / buy / offer accept: new owner, listing cleared, period and expiry kept. */
+    fun withOwner(owner: ByteArray): NameFields = NameFields(key, paddedName, owner, 0, periodStart, expiresAt)
 
-    fun withPrice(price: Long): NameFields = NameFields(key, paddedName, owner, price, expiresAt)
+    /** list: the price, period and expiry kept. */
+    fun withPrice(price: Long): NameFields = NameFields(key, paddedName, owner, price, periodStart, expiresAt)
 
-    fun withExpiry(expiresAt: Long): NameFields = NameFields(key, paddedName, owner, price, expiresAt)
+    /** What `extend(years)` leaves: the same period start, the expiry [years] later. */
+    fun extended(years: Long): NameFields =
+        NameFields(key, paddedName, owner, price, periodStart, expiresAt + years * KachatNames.YEAR_MS)
+
+    /** What `renew(years)` leaves: a new period from the old expiry, so no time is lost or gained. */
+    fun renewed(years: Long): NameFields =
+        NameFields(key, paddedName, owner, price, expiresAt, expiresAt + years * KachatNames.YEAR_MS)
 
     override fun equals(other: Any?): Boolean =
         other is NameFields && key.contentEquals(other.key) && paddedName.contentEquals(other.paddedName) &&
-            owner.contentEquals(other.owner) && price == other.price && expiresAt == other.expiresAt
+            owner.contentEquals(other.owner) && price == other.price && periodStart == other.periodStart &&
+            expiresAt == other.expiresAt
 
     override fun hashCode(): Int =
-        listOf(key.contentHashCode(), paddedName.contentHashCode(), owner.contentHashCode(), price.hashCode(), expiresAt.hashCode()).hashCode()
+        listOf(
+            key.contentHashCode(), paddedName.contentHashCode(), owner.contentHashCode(), price.hashCode(),
+            periodStart.hashCode(), expiresAt.hashCode()
+        ).hashCode()
 
     override fun toString(): String =
-        "NameFields(name=$name, owner=${KachatNames.hex(owner)}, price=$price, expiresAt=$expiresAt)"
+        "NameFields(name=$name, owner=${KachatNames.hex(owner)}, price=$price, periodStart=$periodStart, expiresAt=$expiresAt)"
 }
 
 class OfferFields(val key: ByteArray, val buyer: ByteArray, val refundAfter: Long) {

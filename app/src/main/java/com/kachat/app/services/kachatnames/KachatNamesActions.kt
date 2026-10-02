@@ -82,7 +82,8 @@ data class PendingRegistration(
  * the registration driver (commit, wait, register - resumable). Testnet-10 only: each entry goes
  * through [KachatNamesService.requireTestnet]. Every action returns its txid and refreshes the
  * registry once the transaction is accepted. A port of iOS
- * KaChat/Services/KachatNames/KachatNamesActions.swift (KaChat 1ed6e57, 5df42b4).
+ * KaChat/Services/KachatNames/KachatNamesActions.swift (KaChat 1ed6e57, 5df42b4; registry v2 extend and
+ * the renewal window from 5766c00).
  */
 @Singleton
 class KachatNamesActions @Inject constructor(
@@ -114,6 +115,16 @@ class KachatNamesActions @Inject constructor(
         class InvalidKey(what: String) : ActionError("$what is not a valid key (not on the secp256k1 curve).")
         class NoSalt : ActionError("The secret for this registration is missing on this device.")
         class NotRegisterable(why: String) : ActionError(why)
+
+        /** renew before its window: the network's time has not reached `expiresAt - renewWindowMs` (iOS 5766c00) */
+        class RenewalNotOpen(val opensMs: Long) : ActionError("Renewal opens at $opensMs (unix ms).")
+
+        /** extend past `periodStart + maxYears` (iOS 5766c00) */
+        class PeriodFull(val renewalOpensMs: Long) :
+            ActionError("This name is already paid for 2 years from the start of its period. Renewal opens at $renewalOpensMs (unix ms).")
+
+        /** the record has no periodStart (an indexer without the field), so its state is unknown (iOS 5766c00) */
+        class PeriodUnknown : ActionError("The names indexer didn't send this name's paid period. Pull to refresh and try again.")
     }
 
     // Wallet
@@ -174,9 +185,12 @@ class KachatNamesActions @Inject constructor(
 
     // Live records
 
+    /** A name record without a period start (an indexer without the field) is not spent: its
+     *  on-chain state is unknown (iOS 5766c00). */
     private suspend fun liveName(n: NameInfo, m: Manifest): NameRecord {
-        val u = service.liveRegistryUtxo(m.name.script(n.fields.encoded), n.outpoint)
-        return NameRecord(n.fields, u.entry.amount, u)
+        val fields = n.fields ?: throw ActionError.PeriodUnknown()
+        val u = service.liveRegistryUtxo(m.name.script(fields.encoded), n.outpoint)
+        return NameRecord(fields, u.entry.amount, u)
     }
 
     private suspend fun liveGap(g: GapInfo, m: Manifest): GapRecord {
@@ -192,6 +206,9 @@ class KachatNamesActions @Inject constructor(
     // Operations
 
     sealed class Operation {
+        /** add years to the current paid period (anyone, any time, up to 2 years past periodStart) */
+        data class Extend(val name: NameInfo, val years: Long) : Operation()
+        /** start the next period at the current expiry (anyone, once the renewal window opened) */
         data class Renew(val name: NameInfo, val years: Long) : Operation()
         class Transfer(val name: NameInfo, val to: ByteArray) : Operation()
         /** price 0 delists */
@@ -219,7 +236,21 @@ class KachatNamesActions @Inject constructor(
         val env = c.env
         val wallet = c.wallet
         val plan = when (op) {
-            is Operation.Renew -> b.renew(env, wallet, liveName(op.name, m), op.years)
+            is Operation.Extend -> {
+                if (op.name.periodStart == null) throw ActionError.PeriodUnknown()
+                if (op.years < 1 || op.years > op.name.extendableYears(m.params)) {
+                    throw ActionError.PeriodFull(op.name.renewOpens(m.params))
+                }
+                b.extend(env, wallet, liveName(op.name, m), op.years)
+            }
+            is Operation.Renew -> {
+                // Valid only once the network's median time passes the window opening (the mempool
+                // keeps no future-dated transactions): refuse before, and say when it opens.
+                if (!Builder.renewWindowOpen(env, m.params, op.name.expiresAt)) {
+                    throw ActionError.RenewalNotOpen(op.name.renewOpens(m.params))
+                }
+                b.renew(env, wallet, liveName(op.name, m), op.years)
+            }
             is Operation.Transfer -> {
                 validateKey(op.to, "The new owner")
                 b.transfer(env, wallet, liveName(op.name, m), op.to)
@@ -460,8 +491,9 @@ class KachatNamesActions @Inject constructor(
                 try {
                     while (isActive) {
                         val address = myAddress
+                        // stops while the registry is being upgraded (a v1 manifest, iOS d2e0673)
                         if (!KachatNamesService.isEnabled || address == null || address != pendingWallet ||
-                            _pending.value.none { it.needsDriving }
+                            service.registryUpgrading.value || _pending.value.none { it.needsDriving }
                         ) break
                         for (p in _pending.value.filter { it.needsDriving }) advance(p)
                         delay(5_000)

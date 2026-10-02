@@ -582,7 +582,6 @@
     <string name="kn_reclaimable_detail">Nama yang dibiarkan hangus oleh pemiliknya. Siapa pun boleh mengklaim ulang: jaminan kembali ke pemilik terakhir, Anda menyimpan deposit yang terlepas sebagai hadiah, dan nama bebas diklaim.</string>
     <string name="kn_nothing_to_reclaim">Tidak ada yang bisa diklaim ulang.</string>
     <string name="kn_reclaim">Klaim ulang</string>
-    <string name="kn_my_names_detail">Perpanjang, jual, pindahkan, atau lepaskan, dan pilih nama yang ditampilkan KaChat untuk Anda.</string>
     <string name="kn_search_above">Cari nama di atas dan klaim.</string>
     <string name="kn_my_offers">Penawaran Saya</string>
     <string name="kn_my_offers_detail">Penawaran yang Anda buat. Tarik kapan saja; setelah melewati waktu pengembalian, siapa pun bisa mengembalikannya kepada Anda.</string>
@@ -611,7 +610,6 @@
     <string name="kn_claim_footer">Harga diberikan ke penambang - KaChat tidak mengambil apa pun. Jaminan dan deposit kembali saat Anda melepas nama.</string>
     <string name="kn_claim_step1">Komitmen tersembunyi dikirim ke chain terlebih dahulu. Tidak ada yang bisa melihat untuk nama apa.</string>
     <string name="kn_claim_step2">Sekitar satu menit kemudian KaChat mendaftarkan nama sendiri. Biarkan aplikasi terbuka; jika Anda keluar, prosesnya berlanjut lain kali.</string>
-    <string name="kn_claim_step3">Nama menjadi milik Anda selama tahun yang Anda bayar. Perpanjang kapan saja sebelum kedaluwarsa.</string>
     <string name="kn_how_claiming_works">Cara kerja klaim</string>
     <string name="kn_claim_name_button">Klaim %1$s.kachat</string>
     <string name="kn_claim_name_title">Klaim Nama</string>
@@ -638,7 +636,6 @@
     <string name="kn_offer_below_listing">Nama ini dijual lebih murah dari penawaran Anda. Siapa pun bisa membelinya dengan penawaran Anda, jadi sebaiknya beli langsung.</string>
     <string name="kn_offer_locked">KAS Anda tetap terkunci di chain sampai pemilik menerima, Anda menarik penawaran, atau penawaran kedaluwarsa - lalu siapa pun bisa mengembalikannya kepada Anda.</string>
     <string name="kn_refundable_after">Bisa dikembalikan setelah</string>
-    <string name="kn_renew_footer">Perpanjangan ditambahkan ke tanggal kedaluwarsa saat ini, meski sudah lewat. Harga diberikan ke penambang.</string>
     <string name="kn_price_per_year">Harga per tahun</string>
     <string name="kn_new_expiry">Kedaluwarsa baru</string>
     <string name="kn_list_footer">Siapa pun bisa membelinya dengan harga ini: pembayaran sampai ke Anda dan nama ke pembeli dalam satu transaksi. Tarik kapan saja.</string>
@@ -719,4 +716,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">Disimpan on-chain dari alamat obrolan Anda ke dirinya sendiri.</string>
     <string name="kn_profiles_public_note">Profil bersifat publik dan on-chain: siapa pun bisa membacanya, dan versi sebelumnya tetap terbaca setelah Anda mengubahnya.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">Masa ditambah</string>
+    <string name="kn_extend">Tambah masa</string>
+    <string name="kn_extend_to_years">Tambah hingga %1$d tahun</string>
+    <string name="kn_renewal_opens_on">Perpanjangan dibuka %1$s</string>
+    <string name="kn_paid_from_to">Dibayar dari %1$s sampai %2$s</string>
+    <string name="kn_new_period">Periode baru</string>
+    <string name="kn_renewal_open">Perpanjangan dibuka</string>
+    <string name="kn_extend_footer">Menambah masa memberi tahun tambahan pada periode berbayar saat ini, yang paling lama 2 tahun. Harga diberikan ke penambang.</string>
+    <string name="kn_renew_period_footer">Perpanjangan memulai periode berikutnya pada tanggal kedaluwarsa saat ini, jadi tidak ada waktu yang hilang atau bertambah, meski sudah lewat. Harga diberikan ke penambang.</string>
+    <string name="kn_err_period_full">Nama ini sudah dibayar untuk 2 tahun sejak awal periodenya. Perpanjangan dibuka %1$s.</string>
+    <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
+    <string name="kn_my_names_extend_detail">Tambah masa, perpanjang, jual, transfer, atau lepas nama Anda, dan pilih yang ditampilkan KaChat untuk Anda.</string>
+    <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
+    <string name="kn_setting_up">Sedang disiapkan</string>
+    <string name="kn_registry_upgrading">Registri .kachat di Testnet sedang ditingkatkan. Nama dibuka lagi di sini setelah registri baru aktif.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">Nama .kachat</string>
 </resources>

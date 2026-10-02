@@ -5,7 +5,7 @@ import com.kachat.app.services.kachatnames.KachatNames.Failure
 import java.util.Locale
 
 // The builders, ported from iOS KaChat/Services/KachatNames/KachatNamesBuilder.swift (KaChat
-// 4c2c45d, cancelCommit from 2989ea1).
+// 4c2c45d, cancelCommit from 2989ea1, registry v2 extend / renew window from 3ef2ec2).
 
 // Compute budgets
 
@@ -19,6 +19,7 @@ enum class BudgetRole(val raw: String) {
     NAME_TRANSFER("name.transfer"),
     NAME_LIST("name.list"),
     NAME_BUY("name.buy"),
+    NAME_EXTEND("name.extend"),
     NAME_RENEW("name.renew"),
     NAME_RELEASE("name.release"),
     NAME_RECLAIM("name.reclaim"),
@@ -34,9 +35,9 @@ enum class BudgetRole(val raw: String) {
 /**
  * Per-input compute budgets (u16). The CLI measures each input in the script engine; the app has
  * no engine, so it commits a fixed budget per entry that covers every case (README "Cost per
- * operation"; the vector generator checks every measured budget fits this table). An input that
- * needs more than it committed fails, so these only ever err on the side of a slightly higher fee
- * (100 grams per unit).
+ * operation"; the vector generator checks every measured budget fits this table, the vectors'
+ * `recommendedBudgets`). An input that needs more than it committed fails, so these only ever err
+ * on the side of a slightly higher fee (100 grams per unit). Registry v2 (iOS 3ef2ec2).
  */
 data class Budgets(val table: Map<BudgetRole, Int>) {
     operator fun get(role: BudgetRole): Int = table[role] ?: RECOMMENDED.table[role] ?: 0
@@ -48,10 +49,11 @@ data class Budgets(val table: Map<BudgetRole, Int>) {
         val RECOMMENDED = Budgets(
             mapOf(
                 BudgetRole.P2PK to 10, BudgetRole.COMMIT to 10,
-                BudgetRole.GAP_REGISTER to 7, BudgetRole.GAP_MERGE to 3, BudgetRole.GAP_ABSORBED to 0,
-                BudgetRole.NAME_TRANSFER to 11, BudgetRole.NAME_LIST to 11, BudgetRole.NAME_BUY to 1,
-                BudgetRole.NAME_RENEW to 1, BudgetRole.NAME_RELEASE to 10, BudgetRole.NAME_RECLAIM to 0,
-                BudgetRole.OFFER_ACCEPT to 3, BudgetRole.OFFER_WITHDRAW to 10, BudgetRole.OFFER_REFUND to 0
+                BudgetRole.GAP_REGISTER to 8, BudgetRole.GAP_MERGE to 4, BudgetRole.GAP_ABSORBED to 0,
+                BudgetRole.NAME_TRANSFER to 12, BudgetRole.NAME_LIST to 12, BudgetRole.NAME_BUY to 2,
+                BudgetRole.NAME_EXTEND to 2, BudgetRole.NAME_RENEW to 2, BudgetRole.NAME_RELEASE to 10,
+                BudgetRole.NAME_RECLAIM to 0,
+                BudgetRole.OFFER_ACCEPT to 5, BudgetRole.OFFER_WITHDRAW to 10, BudgetRole.OFFER_REFUND to 0
             )
         )
     }
@@ -195,7 +197,7 @@ data class Plan(
     val unsignedTx: Tx,
     val entries: List<UtxoEntry>,
     val costs: Costs,
-    /** Price paid as miner fee (register / renew). */
+    /** Price paid as miner fee (register / extend / renew). */
     val priceFee: Long,
     val networkFee: Long,
     val notes: List<String>,
@@ -463,7 +465,8 @@ class Builder(val manifest: Manifest) {
 
     /**
      * Register `commit.name` for [years]: [gap.register, commit, funding] ->
-     * [gap (lo,key), gap (key,hi), name, change]; lock time [now], commit sequence `tCommit`.
+     * [gap (lo,key), gap (key,hi), name (periodStart = now), change]; lock time [now], commit
+     * sequence `tCommit`.
      */
     fun register(env: Env, wallet: List<Utxo>, gap: GapRecord, commit: CommitRecord, years: Long, now: Long): Plan {
         val name = commit.name
@@ -483,7 +486,7 @@ class Builder(val manifest: Manifest) {
         val nameLength = name.toByteArray(Charsets.UTF_8).size
         val price = params.price(nameLength) * years
         val expires = now + years * KachatNames.YEAR_MS
-        val fields = NameFields(name = name, owner = env.me, price = 0, expiresAt = expires)
+        val fields = NameFields(name = name, owner = env.me, price = 0, periodStart = now, expiresAt = expires)
         val notes = mutableListOf<String>()
         val matureAt = commitUtxo.entry.blockDaaScore + params.tCommit
         if (env.blockDaa < matureAt) {
@@ -546,24 +549,80 @@ class Builder(val manifest: Manifest) {
 
     // Name entries
 
-    /** Anyone renews: expiresAt += years from the old expiry; the renewal price is miner fee. */
+    /**
+     * Anyone extends the current period (a gift needs no signature): [name.extend(years),
+     * funding] -> [continuation (periodStart kept, expiresAt + years), change]. Lock time 0,
+     * every sequence 0. Valid any time while `expiresAt + years <= periodStart + maxYears`
+     * (iOS 3ef2ec2, ops.rs).
+     */
+    fun extend(env: Env, wallet: List<Utxo>, name: NameRecord, years: Long): Plan {
+        val n = name
+        yearsCheck(years)
+        checkLive(n.name, n.utxo, params.bond, registryId)
+        val f = n.fields
+        val room = params.extendableYears(f)
+        if (years > room) {
+            throw Failure(
+                "extend ${n.name} by $years y refused: its period (from ${f.periodStart}) may hold at most ${params.maxYears} y and it is " +
+                    "paid until ${f.expiresAt}, so $room y can be added now; renew opens at ${params.renewOpens(f.expiresAt)}"
+            )
+        }
+        val price = params.renewPrice(n.name.toByteArray(Charsets.UTF_8).size) * years
+        val nf = f.extended(years)
+        val d = Draft(
+            op = "extend ${n.name} ($years y)",
+            inputs = listOf(nameInput(n, "extend", listOf(Arg.Num(years)), BudgetRole.NAME_EXTEND, "name extend($years)")),
+            outputs = listOf(PlannedOutput(nameOutput(nf), "name ${n.name}"))
+        )
+        d.priceFee = price
+        d.notes = mutableListOf(
+            "extension price ${kas(price)} left as miner fee",
+            "expiresAt ${f.expiresAt} -> ${nf.expiresAt}; periodStart ${f.periodStart} kept (at most ${params.maxYears} y past it)"
+        )
+        d.payload = Codec.namePayload("extend", n.name)
+        return finish(d, wallet, FeeMode.Funded(KachatNames.MAX_INPUTS_FEE_ENTRY), env)
+    }
+
+    /**
+     * Anyone renews once the renewal window opened: [name.renew(years), funding] ->
+     * [continuation (periodStart = old expiresAt, expiresAt + years), change]. Lock time =
+     * [renewLockTime] (timestamp domain), every input sequence 0 (not final, as the CLTV needs).
+     * Before the window opens the plan is built but not valid (a note says so); the actions
+     * refuse to submit it (iOS 3ef2ec2, ops.rs).
+     */
     fun renew(env: Env, wallet: List<Utxo>, name: NameRecord, years: Long): Plan {
         val n = name
         yearsCheck(years)
         checkLive(n.name, n.utxo, params.bond, registryId)
+        val f = n.fields
+        val opens = params.renewOpens(f.expiresAt)
+        if (opens < KachatNames.LOCK_TIME_THRESHOLD) throw Failure("${n.name}: expiresAt - renewWindowMs is not a timestamp")
+        val lock = renewLockTime(env, params, f.expiresAt)
         val price = params.renewPrice(n.name.toByteArray(Charsets.UTF_8).size) * years
-        val nf = n.fields.withExpiry(n.fields.expiresAt + years * KachatNames.YEAR_MS)
+        val nf = f.renewed(years)
         val d = Draft(
             op = "renew ${n.name} ($years y)",
             inputs = listOf(nameInput(n, "renew", listOf(Arg.Num(years)), BudgetRole.NAME_RENEW, "name renew($years)")),
             outputs = listOf(PlannedOutput(nameOutput(nf), "name ${n.name}"))
         )
+        d.lockTime = lock
         d.priceFee = price
+        d.notes = mutableListOf(
+            "renewal price ${kas(price)} left as miner fee",
+            "new period: periodStart ${f.periodStart} -> ${nf.periodStart} (the old expiry), expiresAt -> ${nf.expiresAt}",
+            "lock time $lock >= window opening expiresAt - renewWindowMs = $opens"
+        )
+        if (!renewWindowOpen(env, params, f.expiresAt)) {
+            d.notes.add(
+                "renewal window not open: it opens at $opens (the network median time ${env.blockTimeMs} must pass it); " +
+                    "use extend to add years before"
+            )
+        }
         d.payload = Codec.namePayload("renew", n.name)
         return finish(d, wallet, FeeMode.Funded(KachatNames.MAX_INPUTS_FEE_ENTRY), env)
     }
 
-    /** The owner transfers: new owner, listing cleared, expiry kept. */
+    /** The owner transfers: new owner, listing cleared, period and expiry kept. */
     fun transfer(env: Env, wallet: List<Utxo>, name: NameRecord, newOwner: ByteArray): Plan {
         val n = name
         requireOwner(env, n)
@@ -782,6 +841,23 @@ class Builder(val manifest: Manifest) {
         /** `now` for a registration: wall clock - 3 min (the median time lags ~2.2 min), never at
          * or past the virtual's median time. */
         fun registerNow(env: Env): Long = minOf(env.wallMs - 180_000L, env.blockTimeMs - 1_000L)
+
+        /**
+         * The lock time of a renewal (ops.rs `renew_lock_time`, iOS 3ef2ec2): the
+         * registration-style `now`, but never before the window opens -
+         * `max(min(wall - 3 min, median time - 1 s), expiresAt - renewWindowMs)` (unix ms).
+         * Final (and so valid) only while it is below the median time, i.e. once the window opened.
+         */
+        fun renewLockTime(env: Env, params: Params, expiresAt: Long): Long =
+            maxOf(registerNow(env), params.renewOpens(expiresAt))
+
+        /**
+         * Whether the renewal window is open at [env] (ops.rs `renew_window_open`): the virtual's
+         * past median time is past `expiresAt - renewWindowMs`. Before that no renewal is valid
+         * (the mempool keeps no future-dated transactions), so the app refuses to submit one.
+         */
+        fun renewWindowOpen(env: Env, params: Params, expiresAt: Long): Boolean =
+            env.blockTimeMs > params.renewOpens(expiresAt)
 
         /**
          * Pick funding UTXOs (largest first, then lowest output index, skipping [used]) worth at

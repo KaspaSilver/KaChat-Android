@@ -751,7 +751,6 @@
     <string name="kn_reclaimable_detail">نام‌هایی که مالکانشان گذاشتند ساقط شوند. هر کسی می‌تواند بازپسشان بگیرد: وثیقه به آخرین مالک برمی‌گردد، سپردهٔ آزادشده به‌عنوان پاداش به شما می‌رسد و نام آزاد می‌شود.</string>
     <string name="kn_nothing_to_reclaim">چیزی برای بازپس‌گیری نیست.</string>
     <string name="kn_reclaim">بازپس‌گیری</string>
-    <string name="kn_my_names_detail">تمدید، فروش، انتقال یا رهایشان کنید و انتخاب کنید KaChat کدام را برای شما نشان دهد.</string>
     <string name="kn_search_above">بالا نامی را جستجو کنید و آن را بگیرید.</string>
     <string name="kn_my_offers">پیشنهادهای من</string>
     <string name="kn_my_offers_detail">پیشنهادهایی که داده‌اید. هر وقت خواستید پس بگیرید؛ پس از زمان بازپرداخت هر کسی می‌تواند آن را به شما برگرداند.</string>
@@ -780,7 +779,6 @@
     <string name="kn_claim_footer">قیمت به ماینرها می‌رسد - KaChat چیزی برنمی‌دارد. وثیقه و سپرده هنگام رها کردن نام برمی‌گردند.</string>
     <string name="kn_claim_step1">ابتدا یک کامیت پنهان روی زنجیره می‌رود. هیچ‌کس نمی‌بیند برای کدام نام است.</string>
     <string name="kn_claim_step2">حدود یک دقیقه بعد KaChat خودش نام را ثبت می‌کند. برنامه را باز نگه دارید؛ اگر بیرون بروید، دفعهٔ بعد ادامه می‌دهد.</string>
-    <string name="kn_claim_step3">نام برای سال‌هایی که پرداخته‌اید مال شماست. هر زمان پیش از انقضا تمدیدش کنید.</string>
     <string name="kn_how_claiming_works">ثبت نام چگونه کار می‌کند</string>
     <string name="kn_claim_name_button">گرفتن %1$s.kachat</string>
     <string name="kn_claim_name_title">گرفتن نام</string>
@@ -807,7 +805,6 @@
     <string name="kn_offer_below_listing">این نام کمتر از پیشنهاد شما قیمت خورده است. هر کسی می‌تواند با پیشنهاد شما آن را بخرد؛ بهتر است مستقیم بخریدش.</string>
     <string name="kn_offer_locked">KAS شما روی زنجیره قفل می‌ماند تا مالک بپذیرد، پیشنهاد را پس بگیرید یا منقضی شود - سپس هر کسی می‌تواند آن را به شما برگرداند.</string>
     <string name="kn_refundable_after">قابل بازپرداخت پس از</string>
-    <string name="kn_renew_footer">تمدید به تاریخ انقضای فعلی اضافه می‌شود، حتی اگر گذشته باشد. قیمت به ماینرها می‌رسد.</string>
     <string name="kn_price_per_year">قیمت سالانه</string>
     <string name="kn_new_expiry">انقضای جدید</string>
     <string name="kn_list_footer">هر کسی می‌تواند با این قیمت بخرد: پرداخت به شما و نام به خریدار در یک تراکنش می‌رسد. هر وقت خواستید از فروش بردارید.</string>
@@ -886,4 +883,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">روی زنجیره از آدرس گفتگوی شما به خودش ذخیره می‌شود.</string>
     <string name="kn_profiles_public_note">نمایه‌ها عمومی و روی زنجیره هستند: هر کسی می‌تواند آن‌ها را بخواند و نسخه‌های قبلی پس از تغییر هم خواندنی می‌مانند.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">مدت افزایش یافت</string>
+    <string name="kn_extend">افزایش مدت</string>
+    <string name="kn_extend_to_years">افزایش تا %1$d سال</string>
+    <string name="kn_renewal_opens_on">تمدید از %1$s باز می‌شود</string>
+    <string name="kn_paid_from_to">پرداخت‌شده از %1$s تا %2$s</string>
+    <string name="kn_new_period">دوره جدید</string>
+    <string name="kn_renewal_open">تمدید باز است</string>
+    <string name="kn_extend_footer">افزایش مدت، سال‌هایی به دوره پرداخت‌شده فعلی اضافه می‌کند که حداکثر ۲ سال است. قیمت به ماینرها می‌رسد.</string>
+    <string name="kn_renew_period_footer">تمدید، دوره بعدی را از تاریخ انقضای فعلی شروع می‌کند، پس هیچ زمانی از دست نمی‌رود یا اضافه نمی‌شود، حتی اگر گذشته باشد. قیمت به ماینرها می‌رسد.</string>
+    <string name="kn_err_period_full">این نام از ابتدای دوره‌اش برای ۲ سال پرداخت شده است. تمدید از %1$s باز می‌شود.</string>
+    <string name="kn_err_period_unknown">ایندکسر نام‌ها دوره پرداخت‌شده این نام را نفرستاد. برای تازه‌سازی به پایین بکشید و دوباره امتحان کنید.</string>
+    <string name="kn_my_names_extend_detail">مدتشان را افزایش دهید، تمدید کنید، برای فروش بگذارید، منتقل یا رها کنید، و نامی را که KaChat برای شما نشان می‌دهد انتخاب کنید.</string>
+    <string name="kn_claim_step3_cap">نام برای سال‌هایی که پرداخته‌اید مال شماست، حداکثر ۲ سال جلوتر. مدت نام ۱ ساله را می‌توان تا ۲ سال افزایش داد؛ از ۱۰ روز پیش از انقضا می‌توانید آن را تمدید کنید.</string>
+    <string name="kn_setting_up">در حال راه‌اندازی</string>
+    <string name="kn_registry_upgrading">رجیستری .kachat در تست‌نت در حال ارتقاست. نام‌ها به محض فعال شدن رجیستری جدید دوباره اینجا باز می‌شوند.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">نام‌های .kachat</string>
 </resources>

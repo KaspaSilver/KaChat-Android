@@ -185,6 +185,20 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 )
                 if (isLive) {
                     KachatTestnetBadge()
+                } else if (KachatLive.isEnabled && live?.upgrading == true) {
+                    // the bundled manifest is for the previous registry: a calm "setting up", no
+                    // error (iOS d2e0673)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        KachatTestnetBadge()
+                        SettingUpPill()
+                    }
+                    Text(
+                        stringResource(R.string.kn_registry_upgrading),
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
                 } else {
                     ComingSoonPill()
                     // Testnet, but the manifest did not verify: the mockup, and why.
@@ -307,6 +321,18 @@ private sealed class KachatHubSheet {
     class Claim(val target: KachatClaimTarget) : KachatHubSheet()
     class Reclaim(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
     class Offer(val action: KachatOfferAction) : KachatHubSheet()
+}
+
+@Composable
+private fun SettingUpPill() {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(KaspaTeal.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.Construction, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(12.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(stringResource(R.string.kn_setting_up), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    }
 }
 
 @Composable

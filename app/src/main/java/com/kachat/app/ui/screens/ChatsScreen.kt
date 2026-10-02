@@ -58,6 +58,7 @@ import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.ChatViewModel
 import com.kachat.app.models.avatarFallbackText
 import com.kachat.app.models.displayName
+import com.kachat.app.models.liveNameFor
 import com.kachat.app.models.Conversation
 import com.kachat.app.models.GroupMember
 import com.kachat.app.models.MessageEntity
@@ -785,8 +786,7 @@ fun ChatsScreen(
                                         .fromName(convo.contact.notificationOverride) ==
                                         com.kachat.app.models.ContactNotificationMode.OFF
                                     ActionSheetContainer(
-                                        title = convo.contact.alias
-                                            ?: com.kachat.app.util.KaspaAddress.shortDisplay(convo.contact.id),
+                                        title = convo.contact.displayName,
                                         subtitle = null,
                                         onDismiss = { menuContactId = null },
                                     ) {
@@ -1166,7 +1166,7 @@ fun GroupListBody(
                                     val reactorLabel = if (reaction.reactorAddress == myAddress) {
                                         "You"
                                     } else {
-                                        memberNamesByAddress[reaction.reactorAddress]?.takeIf { it.isNotBlank() }
+                                        memberNamesByAddress.liveNameFor(reaction.reactorAddress)
                                             ?: groupMembers.firstOrNull { it.address == reaction.reactorAddress }
                                                 ?.displayName?.takeIf { it.isNotBlank() }
                                             ?: com.kachat.app.util.KaspaAddress.shortDisplay(reaction.reactorAddress)
@@ -1320,7 +1320,7 @@ private fun groupMessagePreviewText(
 ): String? {
     val body = message?.content ?: return null
     val resolve: (String) -> String = { address ->
-        namesByAddress[address]?.takeIf { it.isNotBlank() }
+        namesByAddress.liveNameFor(address)
             ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
             ?: com.kachat.app.util.KaspaAddress.shortDisplay(address)
     }
@@ -1511,7 +1511,8 @@ internal fun ConversationRow(
             deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
             backupPhotoBase64 = convo.contact.backupPhotoBase64,
             fallbackText = convo.contact.avatarFallbackText,
-            size = 48.dp
+            size = 48.dp,
+            address = convo.contact.id
         )
 
         Spacer(Modifier.width(16.dp))
@@ -1629,6 +1630,11 @@ internal fun ConversationRow(
  *
  * Call sites should pass BOTH sources rather than pre-collapsing them, so the fallback order stays
  * defined here and can't drift per screen.
+ *
+ * On testnet identity is `.kachat`: for an [address] the first step is its `.kachat` avatar (from
+ * its profile's social link, looked up on this device), never the KNS [imageUrl] - one change for
+ * the chat list, chat header, groups, public chats, calls, chess and contacts (iOS e52357d
+ * `KNSAvatarView`). Mainnet, or no [address]: [imageUrl] as before.
  */
 @Composable
 fun ContactAvatar(
@@ -1639,11 +1645,18 @@ fun ContactAvatar(
     backgroundColor: Color = LocalAppColors.current.surface,
     fontSize: TextUnit = 16.sp,
     deviceContactPhotoUri: String? = null,
-    backupPhotoBase64: String? = null
+    backupPhotoBase64: String? = null,
+    /** Whose avatar this is (a `kaspa:` / `kaspatest:` address), for the testnet `.kachat` rule. */
+    address: String? = null
 ) {
-    val candidates = remember(imageUrl, deviceContactPhotoUri) {
+    val shownUrl = if (address != null && com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+        kachatAvatarUrl(address)
+    } else {
+        imageUrl
+    }
+    val candidates = remember(shownUrl, deviceContactPhotoUri) {
         listOfNotNull(
-            imageUrl?.takeIf { it.isNotBlank() },
+            shownUrl?.takeIf { it.isNotBlank() },
             deviceContactPhotoUri?.takeIf { it.isNotBlank() }
         )
     }
@@ -1669,6 +1682,20 @@ fun ContactAvatar(
     ) {
         AvatarImageChain(candidates, fallbackText, fontSize, backupBitmap)
     }
+}
+
+/**
+ * Testnet: [address]'s `.kachat` avatar - its profile's avatar link (the registry's cached
+ * identity) as the platform shows it (the social image cache, looked up when missing or stale).
+ * Re-renders when either answer lands. Null when it has none, or on mainnet (iOS e52357d).
+ */
+@Composable
+fun kachatAvatarUrl(address: String): String? {
+    val resolver = com.kachat.app.services.kachatnames.KachatSocialImageResolver.instance ?: return null
+    val entries by resolver.entries.collectAsState()
+    val link = com.kachat.app.services.kachatnames.KachatNamesRegistry.cachedIdentityOf(address)?.profile?.avatar
+    LaunchedEffect(link) { resolver.refreshIfStale(link) }
+    return resolver.cached(link, entries)?.avatar
 }
 
 private val backupAvatarCache = android.util.LruCache<String, ImageBitmap>(64)

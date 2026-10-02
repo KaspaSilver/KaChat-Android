@@ -501,6 +501,7 @@ fun ChatReactionsSheet(
                             imageUrl = avatarFor(row.reactorAddress),
                             fallbackText = label,
                             size = 28.dp,
+                            address = row.reactorAddress,
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(

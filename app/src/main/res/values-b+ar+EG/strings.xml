@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">أسماء تركها أصحابها تسقط. يمكن لأي شخص استردادها: يعود الضمان إلى آخر مالك، وتحتفظ أنت بالوديعة المحرَّرة كمكافأة، ويصبح الاسم متاحًا للتسجيل.</string>
     <string name="kn_nothing_to_reclaim">لا يوجد ما يُسترد.</string>
     <string name="kn_reclaim">استرداد</string>
-    <string name="kn_my_names_detail">جدّدها أو اعرضها للبيع أو انقلها أو تخلَّ عنها، واختر الاسم الذي يعرضه KaChat لك.</string>
     <string name="kn_search_above">ابحث عن اسم في الأعلى واحصل عليه.</string>
     <string name="kn_my_offers">عروضي</string>
     <string name="kn_my_offers_detail">العروض التي قدمتها. اسحب أيًا منها متى شئت؛ وبعد انقضاء وقت الاسترداد يمكن لأي شخص إعادته إليك.</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">يذهب السعر إلى المعدِّنين - لا يأخذ KaChat شيئًا. يعود الضمان والوديعة عندما تتخلى عن الاسم.</string>
     <string name="kn_claim_step1">يُرسل التزام مخفي إلى السلسلة أولًا. لا يمكن لأحد معرفة الاسم الذي يخصه.</string>
     <string name="kn_claim_step2">بعد نحو دقيقة يسجّل KaChat الاسم تلقائيًا. أبقِ التطبيق مفتوحًا؛ وإن غادرت فسيكمل في المرة القادمة.</string>
-    <string name="kn_claim_step3">الاسم لك طوال السنوات التي دفعت عنها. جدّده في أي وقت قبل انتهائه.</string>
     <string name="kn_how_claiming_works">كيف يتم الحصول على الاسم</string>
     <string name="kn_claim_name_button">احصل على %1$s.kachat</string>
     <string name="kn_claim_name_title">الحصول على اسم</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">هذا الاسم معروض بأقل من عرضك. يمكن لأي شخص شراء العرض المعروض بعرضك، لذا فكّر في شرائه مباشرة.</string>
     <string name="kn_offer_locked">تبقى KAS الخاصة بك مقفلة على السلسلة حتى يقبل المالك أو تسحب العرض أو تنتهي مدته - وعندها يمكن لأي شخص إعادتها إليك.</string>
     <string name="kn_refundable_after">قابل للاسترداد بعد</string>
-    <string name="kn_renew_footer">يُضاف التجديد إلى تاريخ الانتهاء الحالي حتى لو كان قد مضى. يذهب السعر إلى المعدِّنين.</string>
     <string name="kn_price_per_year">السعر لكل سنة</string>
     <string name="kn_new_expiry">تاريخ الانتهاء الجديد</string>
     <string name="kn_list_footer">يمكن لأي شخص شراؤه بهذا السعر: يصلك الدفع ويصله الاسم في معاملة واحدة. أزله من البيع متى شئت.</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">بيتحفظ على السلسلة من عنوان الشات بتاعك لنفسه.</string>
     <string name="kn_profiles_public_note">البروفايلات عامة وعلى السلسلة: أي حد يقدر يقراها، والنسخ القديمة بتفضل مقروءة بعد ما تغيرها.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">تم التمديد</string>
+    <string name="kn_extend">تمديد</string>
+    <string name="kn_extend_to_years">تمديد إلى %1$d سنوات</string>
+    <string name="kn_renewal_opens_on">يبدأ التجديد في %1$s</string>
+    <string name="kn_paid_from_to">مدفوع من %1$s إلى %2$s</string>
+    <string name="kn_new_period">فترة جديدة</string>
+    <string name="kn_renewal_open">التجديد متاح</string>
+    <string name="kn_extend_footer">يضيف التمديد سنوات إلى الفترة المدفوعة الحالية، التي لا تتجاوز سنتين. يذهب السعر إلى المعدِّنين.</string>
+    <string name="kn_renew_period_footer">يبدأ التجديد الفترة التالية عند تاريخ الانتهاء الحالي، فلا يضيع وقت ولا يُضاف، حتى بعد مروره. يذهب السعر إلى المعدِّنين.</string>
+    <string name="kn_err_period_full">هذا الاسم مدفوع بالفعل لسنتين من بداية فترته. يبدأ التجديد في %1$s.</string>
+    <string name="kn_err_period_unknown">لم يرسل مفهرس الأسماء الفترة المدفوعة لهذا الاسم. اسحب للتحديث وحاول مرة أخرى.</string>
+    <string name="kn_my_names_extend_detail">مدّدها أو جدّدها أو اعرضها للبيع أو انقلها أو تخلَّ عنها، واختر الاسم الذي يعرضه KaChat لك.</string>
+    <string name="kn_claim_step3_cap">الاسم لك طوال السنوات التي دفعتها، وسنتين مقدمًا كحد أقصى. يمكن تمديد اسم لسنة واحدة إلى سنتين؛ ومن 10 أيام قبل انتهائه يمكنك تجديده.</string>
+    <string name="kn_setting_up">جارٍ الإعداد</string>
+    <string name="kn_registry_upgrading">تتم ترقية سجل .kachat على الشبكة التجريبية. ستُفتح الأسماء هنا مجددًا بمجرد تشغيل السجل الجديد.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">أسماء .kachat</string>
 </resources>

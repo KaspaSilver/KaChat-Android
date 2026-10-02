@@ -712,7 +712,6 @@
     <string name="kn_reclaimable_detail">Sahiplerinin düşmeye bıraktığı adlar. Herkes geri alabilir: teminat son sahibine döner, açığa çıkan depozito ödül olarak sizde kalır ve ad kayda açılır.</string>
     <string name="kn_nothing_to_reclaim">Geri alınacak bir şey yok.</string>
     <string name="kn_reclaim">Geri al</string>
-    <string name="kn_my_names_detail">Yenileyin, satışa koyun, devredin veya bırakın; KaChat\'in sizi hangisiyle göstereceğini seçin.</string>
     <string name="kn_search_above">Yukarıda bir ad arayıp alın.</string>
     <string name="kn_my_offers">Tekliflerim</string>
     <string name="kn_my_offers_detail">Verdiğiniz teklifler. İstediğiniz zaman geri çekin; iade zamanı geçince herkes size geri gönderebilir.</string>
@@ -741,7 +740,6 @@
     <string name="kn_claim_footer">Fiyat madencilere gider - KaChat hiçbir şey almaz. Teminat ve depozito, adı bıraktığınızda geri gelir.</string>
     <string name="kn_claim_step1">Önce zincire gizli bir taahhüt gider. Hangi ad için olduğunu kimse göremez.</string>
     <string name="kn_claim_step2">Yaklaşık bir dakika sonra KaChat adı kendisi kaydeder. Uygulamayı açık tutun; çıkarsanız bir dahaki sefere devam eder.</string>
-    <string name="kn_claim_step3">Ad, ödediğiniz yıllar boyunca sizindir. Süresi dolmadan istediğiniz zaman yenileyin.</string>
     <string name="kn_how_claiming_works">Ad alma nasıl işler</string>
     <string name="kn_claim_name_button">%1$s.kachat adını al</string>
     <string name="kn_claim_name_title">Ad Al</string>
@@ -768,7 +766,6 @@
     <string name="kn_offer_below_listing">Bu ad teklifinizden daha ucuza satışta. Herkes teklifinizle satın alabilir; doğrudan satın almayı düşünün.</string>
     <string name="kn_offer_locked">KAS\'ınız sahibi kabul edene, teklifi geri çekene veya süresi dolana kadar zincirde kilitli kalır - sonra herkes size geri gönderebilir.</string>
     <string name="kn_refundable_after">Şu süreden sonra iade edilebilir</string>
-    <string name="kn_renew_footer">Yenileme, geçmiş olsa bile mevcut bitiş tarihine eklenir. Fiyat madencilere gider.</string>
     <string name="kn_price_per_year">Yıllık fiyat</string>
     <string name="kn_new_expiry">Yeni bitiş tarihi</string>
     <string name="kn_list_footer">Herkes bu fiyattan satın alabilir: ödeme size, ad alıcıya tek işlemde ulaşır. İstediğiniz zaman satıştan kaldırın.</string>
@@ -847,4 +844,22 @@
     <string name="kn_linktree">Linktree</string>
     <string name="kn_saved_on_chain_note">Sohbet adresinizden kendisine zincir üzerinde kaydedilir.</string>
     <string name="kn_profiles_public_note">Profiller herkese açıktır ve zincir üzerindedir: herkes okuyabilir ve değiştirdikten sonra önceki sürümler okunabilir kalır.</string>
+    <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
+    <string name="kn_ev_extended">Uzatıldı</string>
+    <string name="kn_extend">Uzat</string>
+    <string name="kn_extend_to_years">%1$d yıla uzat</string>
+    <string name="kn_renewal_opens_on">Yenileme %1$s tarihinde açılır</string>
+    <string name="kn_paid_from_to">%1$s - %2$s arası ödendi</string>
+    <string name="kn_new_period">Yeni dönem</string>
+    <string name="kn_renewal_open">Yenileme açık</string>
+    <string name="kn_extend_footer">Uzatma, en fazla 2 yıl kapsayan mevcut ödenmiş döneme yıl ekler. Fiyat madencilere gider.</string>
+    <string name="kn_renew_period_footer">Yenileme, sonraki dönemi mevcut bitiş tarihinde başlatır; tarih geçmiş olsa bile zaman kaybedilmez veya kazanılmaz. Fiyat madencilere gider.</string>
+    <string name="kn_err_period_full">Bu ad, dönemin başından itibaren zaten 2 yıl için ödendi. Yenileme %1$s tarihinde açılır.</string>
+    <string name="kn_err_period_unknown">Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.</string>
+    <string name="kn_my_names_extend_detail">Onları uzatın, yenileyin, satışa çıkarın, aktarın veya bırakın ve KaChat\'in sizin için gösterdiğini seçin.</string>
+    <string name="kn_claim_step3_cap">Ad, ödediğiniz yıllar boyunca sizindir, en fazla 2 yıl ileriye. 1 yıllık bir ad 2 yıla uzatılabilir; bitişinden 10 gün önceden itibaren yenileyebilirsiniz.</string>
+    <string name="kn_setting_up">Hazırlanıyor</string>
+    <string name="kn_registry_upgrading">Testnet\'teki .kachat kaydı güncelleniyor. Yeni kayıt yayına girince adlar burada yeniden açılır.</string>
+    <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
+    <string name="kn_kachat_names">.kachat Adları</string>
 </resources>
