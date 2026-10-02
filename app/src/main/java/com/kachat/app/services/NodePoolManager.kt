@@ -103,7 +103,10 @@ class NodePoolManager @Inject constructor(
     // IPs churn, which is why these are a last resort: the persisted last-known-good list
     // (see [persistKnownGoodNodes]) and the DNS seeders are always preferred, and this list
     // should be re-verified against the seeders' current answers whenever it is touched.
-    private val seeds = listOf(
+    private val seeds = if (com.kachat.app.util.KaspaNetwork.isTestnet) {
+        // Testnet has no hardcoded fallback IPs (iOS testnetBootstrapFallbackIPs = []).
+        emptyList()
+    } else listOf(
         "212.227.144.45:16110",
         "87.236.31.226:16110",
         "82.66.82.52:16110",
@@ -116,7 +119,10 @@ class NodePoolManager @Inject constructor(
     // mainnetDNSSeeds. Each hostname resolves to multiple A records run by independent
     // Kaspa community operators, so unlike the fixed IP list above this can recover on
     // its own if some/all of those hardcoded IPs go stale or become unreachable.
-    private val dnsSeedHostnames = listOf(
+    private val dnsSeedHostnames = if (com.kachat.app.util.KaspaNetwork.isTestnet) {
+        // Testnet-10's seeders (iOS NodeModels testnetDNSSeeds).
+        listOf("seeder1-testnet.kaspad.net", "seeder2-testnet.kaspad.net")
+    } else listOf(
         "n.seeder1.kaspad.net",
         "n.seeder2.kaspad.net",
         "n.seeder3.kaspad.net",
@@ -125,7 +131,8 @@ class NodePoolManager @Inject constructor(
         "n-mainnet.kaspa.ws",
         "kaspa.aspectron.org"
     )
-    private val dnsSeedPort = 16110
+    /** gRPC port: 16110 on mainnet, 16210 on testnet-10. */
+    private val dnsSeedPort = if (com.kachat.app.util.KaspaNetwork.isTestnet) 16210 else 16110
 
     private val manualEndpoints = mutableSetOf<String>()
     private val discoveredEndpoints = mutableSetOf<String>()

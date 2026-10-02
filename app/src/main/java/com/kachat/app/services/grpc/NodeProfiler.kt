@@ -70,6 +70,25 @@ suspend fun probeExisting(
         null
     }
 
+    // A node on the other network answers our address with the other chain's coins - the
+    // mainnet balance showed on testnet (iOS 8f98312). Treated as unreachable, so the pool never
+    // serves from it and it is not remembered as a known-good node.
+    val networkName = dagInfo?.networkName
+    if (!networkName.isNullOrBlank() && !belongsToRunningNetwork(networkName)) {
+        Log.w("NodeProfiler", "Dropping $address: it is on $networkName, not ${com.kachat.app.util.KaspaNetwork.launch.raw}")
+        return NodeProbeResult(
+            address = address,
+            reachable = false,
+            latencyMs = null,
+            isSynced = null,
+            isUtxoIndexed = null,
+            serverVersion = info.serverVersion,
+            networkName = networkName,
+            virtualDaaScore = null,
+            error = "Node is on $networkName"
+        )
+    }
+
     return NodeProbeResult(
         address = address,
         reachable = true,
@@ -80,4 +99,11 @@ suspend fun probeExisting(
         networkName = dagInfo?.networkName,
         virtualDaaScore = dagInfo?.virtualDaaScore
     )
+}
+
+/** Whether a node reporting [networkName] ("kaspa-mainnet", "kaspa-testnet-10") is on the network
+ *  this launch runs on (iOS NodeRegistry.belongs). */
+internal fun belongsToRunningNetwork(networkName: String): Boolean {
+    val name = networkName.lowercase()
+    return if (com.kachat.app.util.KaspaNetwork.isTestnet) name.startsWith("kaspa-testnet") else name == "kaspa-mainnet"
 }
