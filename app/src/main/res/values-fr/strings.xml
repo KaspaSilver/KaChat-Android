@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">Obtenir %1$s.kachat</string>
     <string name="kn_claim_name_title">Obtenir le nom</string>
     <string name="kn_name_gone">Ce nom a été libéré ou récupéré. Il est de nouveau libre.</string>
-    <string name="kn_make_primary_title">Faire de %1$s votre nom principal ?</string>
-    <string name="kn_make_primary_body">KaChat l’affiche comme votre nom. Il est enregistré dans votre profil sur la chaîne, contre des frais de réseau.</string>
     <string name="kn_not_for_sale">Pas à vendre</string>
     <string name="kn_expires_on">Expire le %1$s</string>
     <string name="kn_detail_grace_mine">Expiré - renouvelez-le pour le garder. Jusqu’à la fin du délai de grâce, personne d’autre ne peut le prendre.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">Pas encore d’historique.</string>
     <string name="kn_release">Libérer</string>
     <string name="kn_release_warning">Libérer le nom, c’est y renoncer pour de bon : n’importe qui pourra l’enregistrer, et le temps payé est perdu. Vous récupérez la caution et le dépôt du registre.</string>
-    <string name="kn_saved_tx">Enregistré. Transaction %1$s</string>
     <string name="kn_buy_soon">Ce nom expire dans moins de 30 jours. Il faudrait le renouveler bientôt.</string>
     <string name="kn_buy_footer">Le paiement parvient au vendeur et le nom vous parvient dans la même transaction : les deux ont lieu, ou aucun.</string>
     <string name="kn_price_to_seller">Prix (au vendeur)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat vous affiche par votre nom principal tant qu’il vous appartient et qu’il est actif ; sinon par votre plus ancien nom actif, ou votre adresse.</string>
     <string name="kn_save_profile">Enregistrer le profil</string>
     <string name="kn_save_footer">L’enregistrement écrit votre profil sur la chaîne, de votre adresse vers elle-même, contre des frais de réseau. Les profils sont publics.</string>
-    <string name="kn_save_title">Enregistrer votre profil ?</string>
-    <string name="kn_save_body">Il est écrit sur la chaîne contre des frais de réseau.</string>
-    <string name="kn_save_body_first">Les profils sont publics et sur la chaîne : tout le monde peut les lire, et les versions précédentes restent lisibles après modification. Il est écrit contre des frais de réseau.</string>
     <string name="kn_n_years">%1$d ans</string>
     <string name="kn_err_no_wallet">Aucun portefeuille testnet n’est ouvert.</string>
     <string name="kn_err_key_mismatch">La clé de ce portefeuille ne correspond pas à son adresse.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">Nom principal défini</string>
     <string name="kn_done_registered">Nom enregistré</string>
     <string name="kn_done_commit_cancelled">Engagement annulé</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Votre profil</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Enregistré on-chain depuis votre adresse de discussion vers elle-même.</string>
+    <string name="kn_profiles_public_note">Les profils sont publics et on-chain : tout le monde peut les lire, et les versions précédentes restent lisibles après modification.</string>
 </resources>

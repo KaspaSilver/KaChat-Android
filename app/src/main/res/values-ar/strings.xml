@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">احصل على %1$s.kachat</string>
     <string name="kn_claim_name_title">الحصول على اسم</string>
     <string name="kn_name_gone">تم التخلي عن هذا الاسم أو استرداده. يمكن الحصول عليه من جديد.</string>
-    <string name="kn_make_primary_title">هل تجعل %1$s اسمك الأساسي؟</string>
-    <string name="kn_make_primary_body">يعرضه KaChat كاسمك. يُحفظ في سجل ملفك الشخصي على السلسلة مقابل رسوم الشبكة.</string>
     <string name="kn_not_for_sale">ليس للبيع</string>
     <string name="kn_expires_on">ينتهي في %1$s</string>
     <string name="kn_detail_grace_mine">منتهي - جدّده لتحتفظ به. حتى انتهاء فترة السماح لا يمكن لأحد غيرك أخذه.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">لا يوجد سجل بعد.</string>
     <string name="kn_release">تخلٍّ</string>
     <string name="kn_release_warning">التخلي يعني التنازل عن الاسم نهائيًا: يصبح متاحًا لأي شخص لتسجيله، وتضيع المدة التي دفعت عنها. يعود إليك الضمان ووديعة السجل.</string>
-    <string name="kn_saved_tx">تم الحفظ. المعاملة %1$s</string>
     <string name="kn_buy_soon">تبقّى أقل من 30 يومًا على انتهاء هذا الاسم. ستحتاج إلى تجديده قريبًا.</string>
     <string name="kn_buy_footer">يصل الدفع إلى البائع والاسم إليك في المعاملة نفسها - إما أن يحدث الأمران أو لا يحدث أي منهما.</string>
     <string name="kn_price_to_seller">السعر (للبائع)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">يعرضك KaChat باسمك الأساسي ما دمت تملكه وهو نشط؛ وإلا فبأقدم اسم نشط لديك، أو بعنوانك.</string>
     <string name="kn_save_profile">حفظ الملف الشخصي</string>
     <string name="kn_save_footer">الحفظ يكتب ملفك الشخصي على السلسلة من عنوانك إلى نفسه، مقابل رسوم الشبكة. الملفات الشخصية عامة.</string>
-    <string name="kn_save_title">حفظ ملفك الشخصي؟</string>
-    <string name="kn_save_body">يُكتب على السلسلة مقابل رسوم الشبكة.</string>
-    <string name="kn_save_body_first">الملفات الشخصية عامة وعلى السلسلة: يمكن لأي شخص قراءتها، وتبقى النسخ السابقة مقروءة بعد تغييرها. يُكتب مقابل رسوم الشبكة.</string>
     <string name="kn_n_years">%1$d سنوات</string>
     <string name="kn_err_no_wallet">لا توجد محفظة مفتوحة على الشبكة التجريبية.</string>
     <string name="kn_err_key_mismatch">مفتاح هذه المحفظة لا يطابق عنوانها.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">تم تعيين الاسم الأساسي</string>
     <string name="kn_done_registered">تم تسجيل الاسم</string>
     <string name="kn_done_commit_cancelled">تم إلغاء الالتزام</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">ملفك الشخصي</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">يُحفظ على السلسلة من عنوان الدردشة الخاص بك إلى نفسه.</string>
+    <string name="kn_profiles_public_note">الملفات الشخصية عامة وعلى السلسلة: يمكن لأي شخص قراءتها، وتبقى الإصدارات السابقة قابلة للقراءة بعد تغييرها.</string>
 </resources>

@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">%1$s.kachat adını al</string>
     <string name="kn_claim_name_title">Ad Al</string>
     <string name="kn_name_gone">Bu ad bırakıldı veya geri alındı. Yeniden alınabilir.</string>
-    <string name="kn_make_primary_title">%1$s ana adınız olsun mu?</string>
-    <string name="kn_make_primary_body">KaChat bunu adınız olarak gösterir. Bir ağ ücretiyle zincirdeki profil kaydınıza yazılır.</string>
     <string name="kn_not_for_sale">Satılık değil</string>
     <string name="kn_expires_on">%1$s tarihinde sona erer</string>
     <string name="kn_detail_grace_mine">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar başkası alamaz.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">Henüz geçmiş yok.</string>
     <string name="kn_release">Bırak</string>
     <string name="kn_release_warning">Bırakmak adı kalıcı olarak vermek demektir: herkes kaydedebilir ve ödediğiniz süre boşa gider. Teminat ve kayıt depozitosu size geri döner.</string>
-    <string name="kn_saved_tx">Kaydedildi. İşlem %1$s</string>
     <string name="kn_buy_soon">Bu adın süresinin dolmasına 30 günden az kaldı. Yakında yenilemeniz gerekir.</string>
     <string name="kn_buy_footer">Ödeme satıcıya, ad size aynı işlemde ulaşır - ya ikisi de olur ya hiçbiri.</string>
     <string name="kn_price_to_seller">Fiyat (satıcıya)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat, ana adınız size ait ve etkin olduğu sürece sizi onunla gösterir; yoksa en eski etkin adınızla veya adresinizle.</string>
     <string name="kn_save_profile">Profili Kaydet</string>
     <string name="kn_save_footer">Kaydetmek profilinizi bir ağ ücretiyle adresinizden kendisine bir işlemle zincire yazar. Profiller herkese açıktır.</string>
-    <string name="kn_save_title">Profiliniz kaydedilsin mi?</string>
-    <string name="kn_save_body">Bir ağ ücretiyle zincire yazılır.</string>
-    <string name="kn_save_body_first">Profiller herkese açık ve zincirdedir: herkes okuyabilir, değiştirdikten sonra da eski sürümler okunabilir kalır. Bir ağ ücretiyle yazılır.</string>
     <string name="kn_n_years">%1$d yıl</string>
     <string name="kn_err_no_wallet">Açık bir testnet cüzdanı yok.</string>
     <string name="kn_err_key_mismatch">Bu cüzdanın anahtarı adresiyle eşleşmiyor.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">Ana ad ayarlandı</string>
     <string name="kn_done_registered">Ad kaydedildi</string>
     <string name="kn_done_commit_cancelled">Taahhüt iptal edildi</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Profiliniz</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Sohbet adresinizden kendisine zincir üzerinde kaydedilir.</string>
+    <string name="kn_profiles_public_note">Profiller herkese açıktır ve zincir üzerindedir: herkes okuyabilir ve değiştirdikten sonra önceki sürümler okunabilir kalır.</string>
 </resources>

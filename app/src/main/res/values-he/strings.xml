@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">רישום %1$s.kachat</string>
     <string name="kn_claim_name_title">רישום שם</string>
     <string name="kn_name_gone">השם שוחרר או נדרש מחדש. אפשר לרשום אותו שוב.</string>
-    <string name="kn_make_primary_title">להפוך את %1$s לשם הראשי שלך?</string>
-    <string name="kn_make_primary_body">KaChat יציג אותו כשם שלך. הוא נשמר ברשומת הפרופיל שלך בשרשרת, תמורת עמלת רשת.</string>
     <string name="kn_not_for_sale">לא למכירה</string>
     <string name="kn_expires_on">פג ב-%1$s</string>
     <string name="kn_detail_grace_mine">פג תוקף - חדשו כדי לשמור עליו. עד סוף תקופת החסד אף אחד אחר לא יכול לקחת אותו.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">אין היסטוריה עדיין.</string>
     <string name="kn_release">שחרור</string>
     <string name="kn_release_warning">שחרור מוותר על השם לתמיד: כל אחד יוכל לרשום אותו, והזמן ששילמת עליו יאבד. הערבון ופיקדון הרישום יחזרו אליך.</string>
-    <string name="kn_saved_tx">נשמר. עסקה %1$s</string>
     <string name="kn_buy_soon">נותרו פחות מ-30 יום עד שהשם יפוג. תצטרכו לחדש אותו בקרוב.</string>
     <string name="kn_buy_footer">התשלום מגיע למוכר והשם מגיע אליך באותה עסקה - שניהם קורים, או אף אחד מהם.</string>
     <string name="kn_price_to_seller">מחיר (למוכר)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat מציג אותך לפי השם הראשי כל עוד הוא שלך ופעיל; אחרת לפי השם הפעיל הוותיק ביותר, או לפי הכתובת שלך.</string>
     <string name="kn_save_profile">שמירת הפרופיל</string>
     <string name="kn_save_footer">שמירה כותבת את הפרופיל לשרשרת מהכתובת שלך לעצמה, תמורת עמלת רשת. פרופילים הם ציבוריים.</string>
-    <string name="kn_save_title">לשמור את הפרופיל?</string>
-    <string name="kn_save_body">הוא נכתב לשרשרת תמורת עמלת רשת.</string>
-    <string name="kn_save_body_first">פרופילים הם ציבוריים ובשרשרת: כל אחד יכול לקרוא אותם, וגרסאות קודמות נשארות קריאות גם אחרי שינוי. הוא נכתב תמורת עמלת רשת.</string>
     <string name="kn_n_years">%1$d שנים</string>
     <string name="kn_err_no_wallet">אין ארנק Testnet פתוח.</string>
     <string name="kn_err_key_mismatch">המפתח של הארנק לא תואם לכתובת שלו.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">השם הראשי הוגדר</string>
     <string name="kn_done_registered">השם נרשם</string>
     <string name="kn_done_commit_cancelled">ההתחייבות בוטלה</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">הפרופיל שלך</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">נשמר על השרשרת מכתובת הצ\'אט שלך אל עצמה.</string>
+    <string name="kn_profiles_public_note">פרופילים הם ציבוריים ועל השרשרת: כל אחד יכול לקרוא אותם, וגרסאות קודמות נשארות קריאות גם אחרי שינוי.</string>
 </resources>

@@ -1567,9 +1567,6 @@ fun KachatLiveNameDetailScreen(
     var history by remember { mutableStateOf<List<Event>>(emptyList()) }
     var gone by remember { mutableStateOf(false) }
     var confirmPrimary by remember { mutableStateOf(false) }
-    var primaryWorking by remember { mutableStateOf(false) }
-    var primaryMessage by remember { mutableStateOf<String?>(null) }
-    var primaryDone by remember { mutableStateOf<KachatTxDone?>(null) }
 
     val mine = vm.isMine(info.owner)
     val status = info.status(vm.graceMs)
@@ -1627,33 +1624,27 @@ fun KachatLiveNameDetailScreen(
         return
     }
 
-    fun setPrimary() {
-        context.kachatAuthorize {
-            primaryWorking = true
-            primaryMessage = null
-            vm.launch {
-                try {
-                    var profile = Profile()
-                    val address = vm.actions.myAddress
-                    if (address != null) {
-                        val own = vm.registry.ownProfile(address)?.profile
-                        profile = own ?: runCatching { vm.registry.identity(address).profile }.getOrNull() ?: profile
-                    }
-                    val tx = vm.actions.saveProfile(profile.copy(primaryName = info.name))
-                    primaryDone = KachatTxDone(tx, R.string.kn_done_primary_set)
-                    view.successHaptic()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    primaryMessage = context.kachatErrorText(e)
+    // Set as Primary: the profile save review (iOS 7e238e5) - your current profile with this name
+    // as the primary one, since setting it rewrites the whole record.
+    if (confirmPrimary) {
+        KachatProfileSaveSheet(
+            title = stringResource(R.string.set_as_primary), confirmTitle = stringResource(R.string.set_as_primary),
+            doneTitle = R.string.kn_done_primary_set,
+            makeProfile = {
+                var profile = Profile()
+                val address = vm.actions.myAddress
+                if (address != null) {
+                    profile = vm.registry.ownProfile(address)?.profile
+                        ?: runCatching { vm.registry.identity(address).profile }.getOrNull() ?: profile
                 }
-                primaryWorking = false
-            }
-        }
+                profile.copy(primaryName = info.name)
+            },
+            onClose = { confirmPrimary = false }, vm = vm
+        )
+        return
     }
 
     BackHandler(onBack = onBack)
-    primaryDone?.let { KachatTxDoneSheet(it, onDismiss = { primaryDone = null }, vm = vm) }
     val pullState = rememberPullToRefreshState()
     LaunchedEffect(pullState.isRefreshing) {
         if (pullState.isRefreshing) {
@@ -1725,14 +1716,14 @@ fun KachatLiveNameDetailScreen(
                                 } else {
                                     KachatButton(
                                         stringResource(R.string.set_as_primary), Modifier.weight(1f), Icons.Default.HowToReg,
-                                        enabled = status == Status.ACTIVE && !primaryWorking, large = true
+                                        enabled = status == Status.ACTIVE, large = true
                                     ) { confirmPrimary = true }
                                 }
                             }
                             if (info.isListed) {
                                 KachatButton(
                                     stringResource(R.string.set_as_primary), big, Icons.Default.HowToReg,
-                                    enabled = status == Status.ACTIVE && !primaryWorking, large = true
+                                    enabled = status == Status.ACTIVE, large = true
                                 ) { confirmPrimary = true }
                             }
                             KachatButton(stringResource(R.string.kn_release_name), big, Icons.Default.Delete, destructive = true, large = true) { sheet = KachatDetailSheet.RELEASE }
@@ -1746,9 +1737,6 @@ fun KachatLiveNameDetailScreen(
                                 KachatButton(stringResource(R.string.kl_make_offer), Modifier.weight(1f), Icons.Default.PanTool, large = true) { sheet = KachatDetailSheet.OFFER }
                             }
                         }
-                    }
-                    primaryMessage?.let {
-                        Text(it, color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp))
                     }
 
                     // Owner
@@ -1827,22 +1815,6 @@ fun KachatLiveNameDetailScreen(
             }
             PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
         }
-    }
-
-    if (confirmPrimary) {
-        IosAlertDialog(
-            onDismissRequest = { confirmPrimary = false },
-            title = { Text(stringResource(R.string.kn_make_primary_title, info.display)) },
-            text = { Text(stringResource(R.string.kn_make_primary_body)) },
-            confirmButton = {
-                TextButton(onClick = { confirmPrimary = false; setPrimary() }) {
-                    Text(stringResource(R.string.set_as_primary), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmPrimary = false }) { Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.SemiBold) }
-            }
-        )
     }
 }
 
@@ -2290,8 +2262,6 @@ private fun KachatSourceField(
 @Composable
 fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val colors = LocalAppColors.current
-    val context = LocalContext.current
-    val view = LocalView.current
     // Each piece's source: a platform from the picker plus the handle typed after its prefix.
     var avatarIn by remember { mutableStateOf(KachatSourceInput()) }
     var bannerIn by remember { mutableStateOf(KachatSourceInput()) }
@@ -2303,14 +2273,9 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
     var primary by remember { mutableStateOf("") }
     var activeNames by remember { mutableStateOf<List<String>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
-    var confirmSave by remember { mutableStateOf(false) }
-    var savedTx by remember { mutableStateOf<String?>(null) }
-    var done by remember { mutableStateOf<KachatTxDone?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    // Save Profile opens the review sheet (iOS 7e238e5), which saves and then closes the editor.
+    var showSave by remember { mutableStateOf(false) }
     var pickPrimary by remember { mutableStateOf(false) }
-    val prefs = remember { context.getSharedPreferences("kachat_prefs", Context.MODE_PRIVATE) }
-    var privacySeen by remember { mutableStateOf(prefs.getBoolean(PRIVACY_SEEN_KEY, false)) }
 
     LaunchedEffect(Unit) {
         val address = vm.actions.myAddress
@@ -2360,33 +2325,19 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
         primaryName = primary.ifEmpty { null }
     ).sanitized()
 
-    fun authorizeSave() {
-        privacySeen = true
-        prefs.edit().putBoolean(PRIVACY_SEEN_KEY, true).apply()
-        context.kachatAuthorize {
-            saving = true
-            error = null
-            val p = profile()
-            vm.launch {
-                try {
-                    val tx = vm.actions.saveProfile(p)
-                    savedTx = tx
-                    done = KachatTxDone(tx, R.string.kn_done_profile_saved)
-                    view.successHaptic()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    error = context.kachatErrorText(e)
-                }
-                saving = false
-            }
-        }
+    if (showSave) {
+        KachatProfileSaveSheet(
+            title = stringResource(R.string.kn_save_profile), confirmTitle = stringResource(R.string.kn_save_profile),
+            doneTitle = R.string.kn_done_profile_saved, makeProfile = { profile() },
+            onClose = { showSave = false }, onSaved = onBack, vm = vm
+        )
+        return
     }
 
     @Composable
     fun invalidHandleNote() = FormFooter(stringResource(R.string.kn_handle_bad), colors.danger)
 
-    KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack, finished = savedTx != null) {
+    KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack) {
         FormSection(footer = { FormFooter(stringResource(R.string.kn_profile_pieces_footer)) }) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
                 Icon(Icons.Default.ContactPage, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
@@ -2434,37 +2385,127 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
                 }
             }
         }
-        FormSection(footer = {
-            val tx = savedTx
-            val err = error
-            when {
-                tx != null -> FormFooter(stringResource(R.string.kn_saved_tx, tx.take(16) + "..."), colors.success)
-                err != null -> FormFooter(err, colors.danger)
-                else -> FormFooter(stringResource(R.string.kn_save_footer))
-            }
-        }) {
-            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = !saving && loaded && !blocked, busy = saving) { confirmSave = true }
+        FormSection(footer = { FormFooter(stringResource(R.string.kn_save_footer)) }) {
+            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked) { showSave = true }
+        }
+    }
+}
+
+/**
+ * Review before a profile record goes out - what will be saved, the network fee, the chatting
+ * address's balance before and after - the same confirmation every other name action shows; then
+ * the device lock, the save, and the finished-transaction half sheet. Used by Edit .kachat
+ * Profile and by Set as Primary (iOS `KachatProfileSaveSheet`, 7e238e5). A full-screen swap with
+ * Cancel top left, as every sheet in this port.
+ */
+@Composable
+fun KachatProfileSaveSheet(
+    title: String,
+    confirmTitle: String,
+    @StringRes doneTitle: Int,
+    /** Builds the record to save when the sheet opens (Set as Primary reads your current profile). */
+    makeProfile: suspend () -> Profile,
+    onClose: () -> Unit,
+    onSaved: () -> Unit = {},
+    vm: KachatLiveViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    val view = LocalView.current
+    val prefs = remember { context.getSharedPreferences("kachat_prefs", Context.MODE_PRIVATE) }
+    var privacySeen by remember { mutableStateOf(prefs.getBoolean(PRIVACY_SEEN_KEY, false)) }
+    var profile by remember { mutableStateOf<Profile?>(null) }
+    var fee by remember { mutableStateOf<Long?>(null) }
+    var quoteError by remember { mutableStateOf<String?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    var sendError by remember { mutableStateOf<String?>(null) }
+    var done by remember { mutableStateOf<KachatTxDone?>(null) }
+    val chattingBalance by vm.wallet.balance.collectAsState()
+    val chattingBalanceKnown by vm.wallet.balanceKnown.collectAsState()
+    val currentMakeProfile by rememberUpdatedState(makeProfile)
+    val none = stringResource(R.string.kn_none)
+
+    LaunchedEffect(Unit) {
+        val p = currentMakeProfile()
+        profile = p
+        try {
+            fee = vm.actions.profileFee(p)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            quoteError = context.kachatErrorText(e)
         }
     }
 
-    // Closing the finished-transaction sheet closes the editor (iOS onDismiss: dismiss()).
-    done?.let { KachatTxDoneSheet(it, onDismiss = { done = null; onBack() }, vm = vm) }
+    fun source(link: String?, kind: SocialSource.Kind): String =
+        SocialSource.from(link ?: "", kind)?.let { "${it.platform.displayName} · ${it.platform.prefix}${it.displayHandle}" } ?: none
 
-    if (confirmSave) {
-        IosAlertDialog(
-            onDismissRequest = { confirmSave = false },
-            title = { Text(stringResource(R.string.kn_save_title)) },
-            text = { Text(stringResource(if (privacySeen) R.string.kn_save_body else R.string.kn_save_body_first)) },
-            confirmButton = {
-                TextButton(onClick = { confirmSave = false; authorizeSave() }) {
-                    Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+    fun authorize() {
+        val p = profile ?: return
+        context.kachatAuthorize {
+            sending = true
+            sendError = null
+            vm.launch {
+                try {
+                    val tx = vm.actions.saveProfile(p)
+                    privacySeen = true
+                    prefs.edit().putBoolean(PRIVACY_SEEN_KEY, true).apply()
+                    done = KachatTxDone(tx, doneTitle)
+                    view.successHaptic()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    sendError = context.kachatErrorText(e)
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmSave = false }) { Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.SemiBold) }
+                sending = false
             }
-        )
+        }
     }
+
+    KachatLiveForm(title = title, onClose = onClose) {
+        profile?.let { p ->
+            FormSection(header = stringResource(R.string.kn_your_profile)) {
+                LabeledRow(stringResource(R.string.avatar), source(p.avatar, SocialSource.Kind.AVATAR)); SettingsDivider()
+                LabeledRow(stringResource(R.string.banner), source(p.banner, SocialSource.Kind.BANNER)); SettingsDivider()
+                LabeledRow(stringResource(R.string.bio), source(p.bio, SocialSource.Kind.BIO)); SettingsDivider()
+                LabeledRow(stringResource(R.string.kn_linktree), p.linktree?.replace("https://", "") ?: none); SettingsDivider()
+                LabeledRow(stringResource(R.string.kn_primary_name), p.primaryName?.let { "$it.kachat" } ?: none)
+            }
+        }
+        val f = fee
+        val qe = quoteError
+        if (f != null || qe == null) {
+            FormSection(footer = {
+                when {
+                    qe != null -> FormFooter(qe, colors.danger)
+                    privacySeen -> FormFooter(stringResource(R.string.kn_saved_on_chain_note))
+                    else -> FormFooter(stringResource(R.string.kn_profiles_public_note))
+                }
+            }) {
+                if (f != null) {
+                    LabeledRow(stringResource(R.string.kl_network_fee), KaspaUnit.amount(f))
+                    if (chattingBalanceKnown) {
+                        SettingsDivider()
+                        LabeledRow(stringResource(R.string.kn_chatting_balance), KaspaUnit.amount(chattingBalance))
+                        SettingsDivider()
+                        LabeledRow(stringResource(R.string.kn_balance_after), KaspaUnit.amount(maxOf(0L, chattingBalance - f)), bold = true)
+                    }
+                } else {
+                    LoadingRow(stringResource(R.string.kl_network_fee))
+                }
+            }
+        } else {
+            // iOS: an empty section whose footer carries the quote's error.
+            FormFooter(qe, colors.danger)
+        }
+        FormSection(footer = { sendError?.let { FormFooter(it, colors.danger) } }) {
+            FormButtonRow(confirmTitle, enabled = f != null && profile != null && !sending && done == null, busy = sending) { authorize() }
+        }
+    }
+
+    // Closing the finished-transaction sheet closes this sheet, and then the caller's (iOS
+    // onDismiss: dismiss(); onSaved()).
+    done?.let { KachatTxDoneSheet(it, onDismiss = { done = null; onClose(); onSaved() }, vm = vm) }
 }
 
 /** iOS `@AppStorage("kachat_profile_privacy_seen")`: the first save says profiles are public. */

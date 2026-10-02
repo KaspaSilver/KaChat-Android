@@ -275,6 +275,17 @@ class KachatNamesActions @Inject constructor(
     // Profile record
 
     /** Writes the address profile (`kchat:1:profile:`): a self-transfer, network fee only. */
+    /**
+     * What saving [profile] will cost: the profile record is a self-transfer from the chatting
+     * address, so the network fee is all it spends. Built (and signed) the way [saveProfile]
+     * builds it, never sent: spent inputs minus outputs (iOS `profileFee`, 7e238e5).
+     */
+    suspend fun profileFee(profile: Profile): Long = withContext(Dispatchers.IO) {
+        val s = signer()
+        val json = profile.sanitized().recordJSON()
+        service.profileRecordFee(s.address, s.privateKey, json)
+    }
+
     suspend fun saveProfile(profile: Profile): String = withContext(Dispatchers.IO) {
         val s = signer()
         val clean = profile.sanitized()

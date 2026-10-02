@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">%1$s.kachat sichern</string>
     <string name="kn_claim_name_title">Namen sichern</string>
     <string name="kn_name_gone">Dieser Name wurde freigegeben oder zurückgeholt. Er ist wieder frei.</string>
-    <string name="kn_make_primary_title">%1$s zu deinem Hauptnamen machen?</string>
-    <string name="kn_make_primary_body">KaChat zeigt ihn als deinen Namen. Er wird gegen eine Netzwerkgebühr in deinem Profil-Eintrag auf der Chain gespeichert.</string>
     <string name="kn_not_for_sale">Nicht zu verkaufen</string>
     <string name="kn_expires_on">Läuft ab am %1$s</string>
     <string name="kn_detail_grace_mine">Abgelaufen - verlängere ihn, um ihn zu behalten. Bis die Schonfrist endet, kann ihn niemand sonst nehmen.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">Noch kein Verlauf.</string>
     <string name="kn_release">Freigeben</string>
     <string name="kn_release_warning">Mit der Freigabe gibst du den Namen endgültig auf: Jeder kann ihn registrieren, und die bezahlte Zeit ist verloren. Kaution und Registry-Einlage bekommst du zurück.</string>
-    <string name="kn_saved_tx">Gespeichert. Transaktion %1$s</string>
     <string name="kn_buy_soon">Bis dieser Name abläuft, sind es weniger als 30 Tage. Du müsstest ihn bald verlängern.</string>
     <string name="kn_buy_footer">Die Zahlung geht an den Verkäufer und der Name an dich in derselben Transaktion - beides passiert, oder nichts davon.</string>
     <string name="kn_price_to_seller">Preis (an den Verkäufer)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat zeigt dich mit deinem Hauptnamen, solange er dir gehört und aktiv ist; sonst mit deinem ältesten aktiven Namen oder deiner Adresse.</string>
     <string name="kn_save_profile">Profil speichern</string>
     <string name="kn_save_footer">Beim Speichern wird dein Profil von deiner Adresse an sich selbst auf die Chain geschrieben, gegen eine Netzwerkgebühr. Profile sind öffentlich.</string>
-    <string name="kn_save_title">Profil speichern?</string>
-    <string name="kn_save_body">Es wird gegen eine Netzwerkgebühr auf die Chain geschrieben.</string>
-    <string name="kn_save_body_first">Profile sind öffentlich und auf der Chain: Jeder kann sie lesen, und frühere Versionen bleiben auch nach Änderungen lesbar. Gespeichert wird gegen eine Netzwerkgebühr.</string>
     <string name="kn_n_years">%1$d Jahre</string>
     <string name="kn_err_no_wallet">Es ist keine Testnet-Wallet geöffnet.</string>
     <string name="kn_err_key_mismatch">Der Schlüssel dieser Wallet passt nicht zu ihrer Adresse.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">Hauptname festgelegt</string>
     <string name="kn_done_registered">Name registriert</string>
     <string name="kn_done_commit_cancelled">Commit storniert</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Dein Profil</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Wird on-chain von deiner Chat-Adresse an sich selbst gespeichert.</string>
+    <string name="kn_profiles_public_note">Profile sind öffentlich und on-chain: Jeder kann sie lesen, und frühere Versionen bleiben nach einer Änderung lesbar.</string>
 </resources>

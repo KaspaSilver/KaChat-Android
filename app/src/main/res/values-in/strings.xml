@@ -616,8 +616,6 @@
     <string name="kn_claim_name_button">Klaim %1$s.kachat</string>
     <string name="kn_claim_name_title">Klaim Nama</string>
     <string name="kn_name_gone">Nama ini telah dilepas atau diklaim ulang. Bisa diklaim lagi.</string>
-    <string name="kn_make_primary_title">Jadikan %1$s nama utama Anda?</string>
-    <string name="kn_make_primary_body">KaChat menampilkannya sebagai nama Anda. Disimpan di catatan profil Anda di chain, dengan biaya jaringan.</string>
     <string name="kn_not_for_sale">Tidak dijual</string>
     <string name="kn_expires_on">Kedaluwarsa %1$s</string>
     <string name="kn_detail_grace_mine">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, tidak ada orang lain yang bisa mengambilnya.</string>
@@ -634,7 +632,6 @@
     <string name="kn_no_history">Belum ada riwayat.</string>
     <string name="kn_release">Lepas</string>
     <string name="kn_release_warning">Melepas berarti menyerahkan nama untuk selamanya: siapa pun bisa mendaftarkannya, dan waktu yang sudah Anda bayar hilang. Jaminan dan deposit registri dikembalikan kepada Anda.</string>
-    <string name="kn_saved_tx">Tersimpan. Transaksi %1$s</string>
     <string name="kn_buy_soon">Kurang dari 30 hari lagi nama ini kedaluwarsa. Anda perlu memperpanjangnya segera.</string>
     <string name="kn_buy_footer">Pembayaran sampai ke penjual dan nama sampai ke Anda dalam transaksi yang sama - keduanya terjadi, atau tidak sama sekali.</string>
     <string name="kn_price_to_seller">Harga (untuk penjual)</string>
@@ -664,9 +661,6 @@
     <string name="kn_primary_footer">KaChat menampilkan Anda dengan nama utama selama Anda memilikinya dan masih aktif; jika tidak, dengan nama aktif tertua Anda, atau alamat Anda.</string>
     <string name="kn_save_profile">Simpan Profil</string>
     <string name="kn_save_footer">Menyimpan akan menulis profil Anda ke chain dari alamat Anda ke dirinya sendiri, dengan biaya jaringan. Profil bersifat publik.</string>
-    <string name="kn_save_title">Simpan profil Anda?</string>
-    <string name="kn_save_body">Ditulis ke chain dengan biaya jaringan.</string>
-    <string name="kn_save_body_first">Profil bersifat publik dan ada di chain: siapa pun bisa membacanya, dan versi sebelumnya tetap terbaca setelah Anda mengubahnya. Ditulis dengan biaya jaringan.</string>
     <string name="kn_n_years">%1$d tahun</string>
     <string name="kn_err_no_wallet">Tidak ada dompet testnet yang terbuka.</string>
     <string name="kn_err_key_mismatch">Kunci dompet ini tidak cocok dengan alamatnya.</string>
@@ -720,4 +714,9 @@
     <string name="kn_done_primary_set">Nama utama diatur</string>
     <string name="kn_done_registered">Nama terdaftar</string>
     <string name="kn_done_commit_cancelled">Komitmen dibatalkan</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Profil Anda</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Disimpan on-chain dari alamat obrolan Anda ke dirinya sendiri.</string>
+    <string name="kn_profiles_public_note">Profil bersifat publik dan on-chain: siapa pun bisa membacanya, dan versi sebelumnya tetap terbaca setelah Anda mengubahnya.</string>
 </resources>

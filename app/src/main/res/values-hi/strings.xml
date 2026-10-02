@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">%1$s.kachat लें</string>
     <string name="kn_claim_name_title">नाम लें</string>
     <string name="kn_name_gone">यह नाम छोड़ दिया गया या वापस लिया गया। इसे फिर से लिया जा सकता है।</string>
-    <string name="kn_make_primary_title">%1$s को अपना मुख्य नाम बनाएँ?</string>
-    <string name="kn_make_primary_body">KaChat इसे आपके नाम के रूप में दिखाता है। यह नेटवर्क शुल्क देकर चेन पर आपके प्रोफ़ाइल रिकॉर्ड में सहेजा जाता है।</string>
     <string name="kn_not_for_sale">बिक्री के लिए नहीं</string>
     <string name="kn_expires_on">%1$s को समाप्त</string>
     <string name="kn_detail_grace_mine">समाप्त - रखने के लिए नवीनीकरण करें। ग्रेस अवधि खत्म होने तक कोई और इसे नहीं ले सकता।</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">अभी कोई इतिहास नहीं।</string>
     <string name="kn_release">छोड़ें</string>
     <string name="kn_release_warning">छोड़ने का मतलब नाम हमेशा के लिए छोड़ देना है: कोई भी इसे रजिस्टर कर सकता है, और जिस समय का भुगतान किया था वह चला जाता है। बॉन्ड और रजिस्ट्री जमा आपको वापस मिलते हैं।</string>
-    <string name="kn_saved_tx">सहेजा गया। लेन-देन %1$s</string>
     <string name="kn_buy_soon">इस नाम के समाप्त होने में 30 दिन से कम बचे हैं। आपको जल्द नवीनीकरण करना होगा।</string>
     <string name="kn_buy_footer">भुगतान विक्रेता तक और नाम आप तक एक ही लेन-देन में पहुँचता है - दोनों होते हैं, या कोई नहीं।</string>
     <string name="kn_price_to_seller">कीमत (विक्रेता को)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">जब तक मुख्य नाम आपका है और सक्रिय है, KaChat आपको उसी से दिखाता है; वरना आपके सबसे पुराने सक्रिय नाम या आपके पते से।</string>
     <string name="kn_save_profile">प्रोफ़ाइल सहेजें</string>
     <string name="kn_save_footer">सहेजने पर नेटवर्क शुल्क देकर आपकी प्रोफ़ाइल आपके पते से खुद को भेजे लेन-देन में चेन पर लिखी जाती है। प्रोफ़ाइल सार्वजनिक होती हैं।</string>
-    <string name="kn_save_title">प्रोफ़ाइल सहेजें?</string>
-    <string name="kn_save_body">यह नेटवर्क शुल्क देकर चेन पर लिखा जाता है।</string>
-    <string name="kn_save_body_first">प्रोफ़ाइल सार्वजनिक और चेन पर होती हैं: कोई भी पढ़ सकता है, और बदलने के बाद भी पुराने संस्करण पढ़े जा सकते हैं। यह नेटवर्क शुल्क देकर लिखी जाती है।</string>
     <string name="kn_n_years">%1$d वर्ष</string>
     <string name="kn_err_no_wallet">कोई टेस्टनेट वॉलेट खुला नहीं है।</string>
     <string name="kn_err_key_mismatch">इस वॉलेट की कुंजी उसके पते से मेल नहीं खाती।</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">मुख्य नाम सेट किया गया</string>
     <string name="kn_done_registered">नाम पंजीकृत हुआ</string>
     <string name="kn_done_commit_cancelled">कमिट रद्द हुआ</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">आपकी प्रोफ़ाइल</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">आपके चैट पते से उसी को ऑन-चेन सहेजा जाता है।</string>
+    <string name="kn_profiles_public_note">प्रोफ़ाइल सार्वजनिक और ऑन-चेन होती हैं: कोई भी उन्हें पढ़ सकता है, और बदलने के बाद भी पुराने संस्करण पढ़े जा सकते हैं।</string>
 </resources>

@@ -310,6 +310,21 @@ class KachatNamesService @Inject constructor(
         ).getOrThrow()
     }
 
+    /**
+     * What [submitProfileRecord] would pay in network fee for [json] from [address]: the same
+     * checks and the same self-send, built and signed but never sent (iOS 7e238e5).
+     */
+    suspend fun profileRecordFee(address: String, privateKey: ByteArray, json: ByteArray): Long {
+        requireTestnet()
+        if (!address.lowercase().startsWith("kaspatest:")) throw ServiceError.TestnetOnly()
+        if (json.size > Codec.MAX_PROFILE_JSON_BYTES) throw ServiceError.BadProfile("over 2 KB")
+        return walletEngine.quotePayloadSelfSendFee(
+            payloadBytes = Codec.profilePayload(json),
+            fromAddress = address,
+            signingPrivateKey = privateKey
+        )
+    }
+
     companion object {
         private const val TAG = "KachatNames"
 

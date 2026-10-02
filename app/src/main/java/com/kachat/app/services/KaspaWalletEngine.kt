@@ -625,6 +625,69 @@ class KaspaWalletEngine @Inject constructor(
     }
 
     /**
+     * The network fee a payload-carrying self-send from [fromAddress] would pay right now: the
+     * transaction [sendKaspa] would build for `sendKaspa(toAddress = fromAddress, amountSompi = 0,
+     * payloadBytes)` - the same coins (reconciled, mature), the same fee rate, the same selection,
+     * the same change rule - signed, and never submitted. The fee is what it spends minus what it
+     * pays back. The `.kachat` profile record's quote (iOS `KachatNamesActions.profileFee`,
+     * KaChat 7e238e5); a send moments later may still pick other coins if the wallet changed.
+     */
+    suspend fun quotePayloadSelfSendFee(
+        payloadBytes: ByteArray,
+        fromAddress: String = walletManager.getAddress(),
+        signingPrivateKey: ByteArray = walletManager.getPrivateKeyBytes(),
+    ): Long = sendMutex.withLock {
+        val api = networkService.kaspaRestApi.value ?: throw IllegalStateException("Network service unavailable")
+        val fetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
+        val utxos = filterSpendableCoinbase(reconcileUtxos(fromAddress, fetched))
+        if (utxos.isEmpty()) throw IllegalStateException("Insufficient funds: No UTXOs found")
+        val feeRate = fetchQuotedFeeRateSompiPerGram()
+        val scriptHex = KaspaAddress.getScriptPublicKey(fromAddress)
+        val selection = selectUtxosAndCalculateFee(
+            utxos = utxos,
+            amountSompi = 0,
+            feeRateSompiPerGram = feeRate,
+            payloadBytes = payloadBytes,
+            recipientScriptLen = scriptHex.length / 2,
+            changeScriptLen = scriptHex.length / 2,
+        )
+        if (selection.totalSelected < selection.requiredAmount) {
+            throw IllegalStateException("Insufficient funds: Needed ${selection.requiredAmount}, have ${selection.totalSelected}")
+        }
+        if (selection.selectedUtxos.size > KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION) {
+            throw IllegalStateException(
+                "This send needs more than ${KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION} inputs. Compound (consolidate) this address's UTXOs first, then try again."
+            )
+        }
+        // sendKaspa's output rule for a zero amount: no recipient output, the change kept when
+        // storage mass allows it, dust folded into the fee, real change that can't stand refused.
+        val inputAmounts = selection.selectedUtxos.map { it.utxoEntry.amount }
+        val change = selection.changeAmount
+        if (selection.storageMassBlocked ||
+            (change > 0 && !KaspaUtxoSelector.changeIsKeptOrFoldable(inputAmounts, emptyList(), change))
+        ) {
+            throw IllegalStateException(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE)
+        }
+        val outputs = if (change > 0 && KaspaMass.fitsStorageMass(inputAmounts, listOf(change))) {
+            listOf(RawOutputWithVersion(amount = change, scriptPublicKey = ScriptPublicKeyWithVersion(scriptHex, 0)))
+        } else {
+            emptyList()
+        }
+        if (outputs.isEmpty()) throw IllegalStateException("Insufficient funds to cover network fee")
+        val rawTx = RawTransaction(
+            inputs = selection.selectedUtxos.map { RawInput(previousOutpoint = it.outpoint, signatureScript = "") },
+            outputs = outputs,
+            gas = 0,
+            payload = payloadBytes.joinToString("") { "%02x".format(it) },
+        )
+        // Signed as the save signs it, so what is quoted is a transaction that would be valid.
+        val signed = KaspaTransactionSigner.signTransaction(rawTx = rawTx, utxos = selection.selectedUtxos, privateKey = signingPrivateKey)
+        val spent = selection.selectedUtxos.sumOf { it.utxoEntry.amount }
+        val back = signed.outputs.sumOf { it.amount }
+        maxOf(0L, spent - back)
+    }
+
+    /**
      * Submits a transaction that was signed earlier - the phone's own fallback for a scheduled
      * post the indexer never took. Returns the id the node gives it.
      */

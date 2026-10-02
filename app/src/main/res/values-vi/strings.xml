@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">Nhận %1$s.kachat</string>
     <string name="kn_claim_name_title">Nhận tên</string>
     <string name="kn_name_gone">Tên này đã được nhả hoặc thu hồi. Có thể nhận lại.</string>
-    <string name="kn_make_primary_title">Đặt %1$s làm tên chính của bạn?</string>
-    <string name="kn_make_primary_body">KaChat hiển thị đây là tên của bạn. Tên được lưu trong hồ sơ của bạn trên chuỗi, với một khoản phí mạng.</string>
     <string name="kn_not_for_sale">Không bán</string>
     <string name="kn_expires_on">Hết hạn %1$s</string>
     <string name="kn_detail_grace_mine">Đã hết hạn - gia hạn để giữ tên. Cho đến hết thời gian ân hạn, không ai khác lấy được.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">Chưa có lịch sử.</string>
     <string name="kn_release">Nhả</string>
     <string name="kn_release_warning">Nhả tên là từ bỏ vĩnh viễn: ai cũng có thể đăng ký, và thời gian bạn đã trả sẽ mất. Bạn nhận lại tiền bảo đảm và ký quỹ sổ đăng ký.</string>
-    <string name="kn_saved_tx">Đã lưu. Giao dịch %1$s</string>
     <string name="kn_buy_soon">Còn chưa đến 30 ngày nữa tên này hết hạn. Bạn sẽ cần gia hạn sớm.</string>
     <string name="kn_buy_footer">Khoản thanh toán đến người bán và tên đến bạn trong cùng một giao dịch - cả hai cùng xảy ra, hoặc không gì cả.</string>
     <string name="kn_price_to_seller">Giá (trả cho người bán)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat hiển thị bạn bằng tên chính khi bạn còn sở hữu và tên còn hiệu lực; nếu không thì bằng tên còn hiệu lực lâu nhất, hoặc địa chỉ của bạn.</string>
     <string name="kn_save_profile">Lưu hồ sơ</string>
     <string name="kn_save_footer">Lưu sẽ ghi hồ sơ của bạn lên chuỗi bằng giao dịch từ địa chỉ của bạn về chính nó, với phí mạng. Hồ sơ là công khai.</string>
-    <string name="kn_save_title">Lưu hồ sơ của bạn?</string>
-    <string name="kn_save_body">Được ghi lên chuỗi với một khoản phí mạng.</string>
-    <string name="kn_save_body_first">Hồ sơ là công khai và nằm trên chuỗi: ai cũng đọc được, và các phiên bản trước vẫn đọc được sau khi bạn thay đổi. Được ghi với một khoản phí mạng.</string>
     <string name="kn_n_years">%1$d năm</string>
     <string name="kn_err_no_wallet">Chưa mở ví testnet nào.</string>
     <string name="kn_err_key_mismatch">Khóa của ví này không khớp với địa chỉ.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">Đã đặt tên chính</string>
     <string name="kn_done_registered">Đã đăng ký tên</string>
     <string name="kn_done_commit_cancelled">Đã hủy cam kết</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Hồ sơ của bạn</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Được lưu trên chuỗi từ địa chỉ trò chuyện của bạn gửi cho chính nó.</string>
+    <string name="kn_profiles_public_note">Hồ sơ là công khai và nằm trên chuỗi: ai cũng có thể đọc, và các phiên bản trước vẫn đọc được sau khi bạn thay đổi.</string>
 </resources>

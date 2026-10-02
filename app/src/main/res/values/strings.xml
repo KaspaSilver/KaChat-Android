@@ -924,8 +924,6 @@
     <string name="kn_claim_name_button">Claim %1$s.kachat</string>
     <string name="kn_claim_name_title">Claim Name</string>
     <string name="kn_name_gone">This name was released or reclaimed. It\'s free to claim again.</string>
-    <string name="kn_make_primary_title">Make %1$s your primary name?</string>
-    <string name="kn_make_primary_body">KaChat shows it as your name. It\'s saved in your profile record on chain, for a network fee.</string>
     <string name="kn_not_for_sale">Not for sale</string>
     <string name="kn_expires_on">Expires %1$s</string>
     <string name="kn_detail_grace_mine">Expired - renew to keep it. Until the grace period ends nobody else can take it.</string>
@@ -942,7 +940,6 @@
     <string name="kn_no_history">No history yet.</string>
     <string name="kn_release">Release</string>
     <string name="kn_release_warning">Releasing gives the name up for good: it becomes free for anyone to register, and the time you paid for is lost. You get the bond and the registry deposit back.</string>
-    <string name="kn_saved_tx">Saved. Transaction %1$s</string>
     <string name="kn_buy_soon">Less than 30 days are left before this name expires. You\'d have to renew it soon.</string>
     <string name="kn_buy_footer">The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does.</string>
     <string name="kn_price_to_seller">Price (to the seller)</string>
@@ -972,9 +969,6 @@
     <string name="kn_primary_footer">KaChat shows you by your primary name while you own it and it\'s active; otherwise by your oldest active name, or your address.</string>
     <string name="kn_save_profile">Save Profile</string>
     <string name="kn_save_footer">Saving writes your profile to the chain from your address to itself, for a network fee. Profiles are public.</string>
-    <string name="kn_save_title">Save your profile?</string>
-    <string name="kn_save_body">It\'s written to the chain for a network fee.</string>
-    <string name="kn_save_body_first">Profiles are public and on chain: anyone can read them, and earlier versions stay readable after you change them. It\'s written for a network fee.</string>
     <string name="kn_n_years">%1$d years</string>
     <string name="kn_err_no_wallet">No testnet wallet is open.</string>
     <string name="kn_err_key_mismatch">This wallet\'s key does not match its address.</string>
@@ -1026,4 +1020,9 @@
     <string name="kn_done_primary_set">Primary name set</string>
     <string name="kn_done_registered">Name registered</string>
     <string name="kn_done_commit_cancelled">Commit cancelled</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Your Profile</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Saved on chain from your chatting address to itself.</string>
+    <string name="kn_profiles_public_note">Profiles are public and on chain: anyone can read them, and earlier versions stay readable after you change them.</string>
 </resources>

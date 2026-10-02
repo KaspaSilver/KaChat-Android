@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">%1$s.kachat を取得</string>
     <string name="kn_claim_name_title">名前を取得</string>
     <string name="kn_name_gone">この名前は解放または回収されました。再び取得できます。</string>
-    <string name="kn_make_primary_title">%1$s をメインの名前にしますか？</string>
-    <string name="kn_make_primary_body">KaChat はこれをあなたの名前として表示します。ネットワーク手数料でチェーン上のプロフィール記録に保存されます。</string>
     <string name="kn_not_for_sale">非売品</string>
     <string name="kn_expires_on">有効期限 %1$s</string>
     <string name="kn_detail_grace_mine">期限切れです。保持するには更新してください。猶予期間が終わるまで他の人は取得できません。</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">まだ履歴はありません。</string>
     <string name="kn_release">解放</string>
     <string name="kn_release_warning">解放すると名前を完全に手放します。誰でも登録できるようになり、支払った期間は失われます。保証金とレジストリ預託金は戻ります。</string>
-    <string name="kn_saved_tx">保存しました。取引 %1$s</string>
     <string name="kn_buy_soon">この名前の期限まで 30 日を切っています。すぐに更新が必要です。</string>
     <string name="kn_buy_footer">支払いは売り手に、名前はあなたに同じ取引で届きます。両方が成立するか、どちらも成立しないかです。</string>
     <string name="kn_price_to_seller">価格（売り手へ）</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat は、メインの名前を所有していて有効な間はその名前で表示します。そうでなければ最も古い有効な名前、またはアドレスで表示します。</string>
     <string name="kn_save_profile">プロフィールを保存</string>
     <string name="kn_save_footer">保存すると、ネットワーク手数料でアドレスから自分宛ての取引としてプロフィールがチェーンに書き込まれます。プロフィールは公開です。</string>
-    <string name="kn_save_title">プロフィールを保存しますか？</string>
-    <string name="kn_save_body">ネットワーク手数料でチェーンに書き込まれます。</string>
-    <string name="kn_save_body_first">プロフィールは公開され、チェーン上にあります。誰でも読め、変更後も以前の版は読めるままです。ネットワーク手数料で書き込まれます。</string>
     <string name="kn_n_years">%1$d 年</string>
     <string name="kn_err_no_wallet">テストネットのウォレットが開かれていません。</string>
     <string name="kn_err_key_mismatch">このウォレットの鍵がアドレスと一致しません。</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">メインの名前を設定しました</string>
     <string name="kn_done_registered">名前を登録しました</string>
     <string name="kn_done_commit_cancelled">コミットを取り消しました</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">あなたのプロフィール</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">チャットアドレスから自分自身宛てにオンチェーンで保存されます。</string>
+    <string name="kn_profiles_public_note">プロフィールは公開され、オンチェーンに保存されます。誰でも読むことができ、変更後も以前のバージョンは読める状態で残ります。</string>
 </resources>

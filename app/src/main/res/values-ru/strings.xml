@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">Зарегистрировать %1$s.kachat</string>
     <string name="kn_claim_name_title">Регистрация имени</string>
     <string name="kn_name_gone">Это имя освобождено или возвращено. Его снова можно зарегистрировать.</string>
-    <string name="kn_make_primary_title">Сделать %1$s основным именем?</string>
-    <string name="kn_make_primary_body">KaChat показывает его как ваше имя. Оно сохраняется в записи профиля в сети за сетевую комиссию.</string>
     <string name="kn_not_for_sale">Не продаётся</string>
     <string name="kn_expires_on">Истекает %1$s</string>
     <string name="kn_detail_grace_mine">Истекло — продлите, чтобы сохранить. До конца льготного периода никто другой не может его забрать.</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">Истории пока нет.</string>
     <string name="kn_release">Освободить</string>
     <string name="kn_release_warning">Освобождение — это отказ от имени навсегда: его сможет зарегистрировать любой, а оплаченное время пропадёт. Залог и депозит реестра вернутся вам.</string>
-    <string name="kn_saved_tx">Сохранено. Транзакция %1$s</string>
     <string name="kn_buy_soon">До истечения этого имени меньше 30 дней. Его скоро придётся продлить.</string>
     <string name="kn_buy_footer">Платёж доходит до продавца, а имя — до вас в одной транзакции: либо оба, либо ничего.</string>
     <string name="kn_price_to_seller">Цена (продавцу)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">KaChat показывает вас по основному имени, пока оно ваше и активно; иначе — по самому старому активному имени или по адресу.</string>
     <string name="kn_save_profile">Сохранить профиль</string>
     <string name="kn_save_footer">При сохранении профиль записывается в сеть транзакцией с вашего адреса на него же за сетевую комиссию. Профили публичны.</string>
-    <string name="kn_save_title">Сохранить профиль?</string>
-    <string name="kn_save_body">Записывается в сеть за сетевую комиссию.</string>
-    <string name="kn_save_body_first">Профили публичны и хранятся в сети: их может прочитать любой, а прежние версии остаются доступными после изменений. Запись стоит сетевую комиссию.</string>
     <string name="kn_n_years">%1$d года</string>
     <string name="kn_err_no_wallet">Нет открытого кошелька тестнета.</string>
     <string name="kn_err_key_mismatch">Ключ этого кошелька не соответствует его адресу.</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">Основное имя задано</string>
     <string name="kn_done_registered">Имя зарегистрировано</string>
     <string name="kn_done_commit_cancelled">Коммит отменён</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">Ваш профиль</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">Сохраняется в блокчейне переводом с вашего адреса для чата на него же.</string>
+    <string name="kn_profiles_public_note">Профили публичны и хранятся в блокчейне: их может прочитать кто угодно, а прежние версии остаются доступными после изменения.</string>
 </resources>

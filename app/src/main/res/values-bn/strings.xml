@@ -746,8 +746,6 @@
     <string name="kn_claim_name_button">%1$s.kachat নিন</string>
     <string name="kn_claim_name_title">নাম নিন</string>
     <string name="kn_name_gone">এই নামটি ছেড়ে দেওয়া বা পুনরুদ্ধার করা হয়েছে। আবার নেওয়া যাবে।</string>
-    <string name="kn_make_primary_title">%1$s কি আপনার প্রধান নাম করবেন?</string>
-    <string name="kn_make_primary_body">KaChat এটিকে আপনার নাম হিসেবে দেখাবে। এটি চেইনে আপনার প্রোফাইল রেকর্ডে নেটওয়ার্ক ফি দিয়ে সংরক্ষিত হয়।</string>
     <string name="kn_not_for_sale">বিক্রির জন্য নয়</string>
     <string name="kn_expires_on">মেয়াদ শেষ %1$s</string>
     <string name="kn_detail_grace_mine">মেয়াদ শেষ - রাখতে নবায়ন করুন। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত অন্য কেউ নিতে পারবে না।</string>
@@ -764,7 +762,6 @@
     <string name="kn_no_history">এখনও কোনো ইতিহাস নেই।</string>
     <string name="kn_release">ছেড়ে দিন</string>
     <string name="kn_release_warning">ছেড়ে দিলে নামটি চিরতরে চলে যায়: যে কেউ এটি নিবন্ধন করতে পারবে, আর যে সময়ের জন্য টাকা দিয়েছিলেন তা হারাবেন। বন্ড ও রেজিস্ট্রি জমা আপনি ফেরত পাবেন।</string>
-    <string name="kn_saved_tx">সংরক্ষিত। লেনদেন %1$s</string>
     <string name="kn_buy_soon">এই নামের মেয়াদ শেষ হতে ৩০ দিনেরও কম বাকি। শিগগিরই নবায়ন করতে হবে।</string>
     <string name="kn_buy_footer">পেমেন্ট বিক্রেতার কাছে আর নাম আপনার কাছে একই লেনদেনে পৌঁছায় - দুটোই ঘটে, নয়তো কোনোটাই নয়।</string>
     <string name="kn_price_to_seller">দাম (বিক্রেতার জন্য)</string>
@@ -794,9 +791,6 @@
     <string name="kn_primary_footer">প্রধান নামটি আপনার থাকলে ও সক্রিয় থাকলে KaChat আপনাকে সেই নামে দেখায়; নইলে আপনার সবচেয়ে পুরোনো সক্রিয় নামে, বা আপনার ঠিকানায়।</string>
     <string name="kn_save_profile">প্রোফাইল সংরক্ষণ</string>
     <string name="kn_save_footer">সংরক্ষণ করলে নেটওয়ার্ক ফি দিয়ে আপনার ঠিকানা থেকে নিজের কাছে একটি লেনদেনে প্রোফাইলটি চেইনে লেখা হয়। প্রোফাইল সর্বজনীন।</string>
-    <string name="kn_save_title">প্রোফাইল সংরক্ষণ করবেন?</string>
-    <string name="kn_save_body">নেটওয়ার্ক ফি দিয়ে এটি চেইনে লেখা হয়।</string>
-    <string name="kn_save_body_first">প্রোফাইল সর্বজনীন ও চেইনে থাকে: যে কেউ পড়তে পারে, আর বদলানোর পরেও আগের সংস্করণ পড়া যায়। নেটওয়ার্ক ফি দিয়ে এটি লেখা হয়।</string>
     <string name="kn_n_years">%1$d বছর</string>
     <string name="kn_err_no_wallet">কোনো টেস্টনেট ওয়ালেট খোলা নেই।</string>
     <string name="kn_err_key_mismatch">এই ওয়ালেটের কী এর ঠিকানার সঙ্গে মেলে না।</string>
@@ -848,4 +842,9 @@
     <string name="kn_done_primary_set">প্রাথমিক নাম সেট হয়েছে</string>
     <string name="kn_done_registered">নাম নিবন্ধিত হয়েছে</string>
     <string name="kn_done_commit_cancelled">কমিট বাতিল হয়েছে</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">আপনার প্রোফাইল</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">আপনার চ্যাটিং ঠিকানা থেকে নিজের কাছেই অন-চেইনে সংরক্ষিত হয়।</string>
+    <string name="kn_profiles_public_note">প্রোফাইল সর্বজনীন এবং অন-চেইন: যে কেউ পড়তে পারে, আর পরিবর্তনের পরও আগের সংস্করণগুলো পড়া যায়।</string>
 </resources>

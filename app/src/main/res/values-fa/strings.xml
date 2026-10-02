@@ -785,8 +785,6 @@
     <string name="kn_claim_name_button">گرفتن %1$s.kachat</string>
     <string name="kn_claim_name_title">گرفتن نام</string>
     <string name="kn_name_gone">این نام رها یا بازپس گرفته شد. دوباره آزاد است.</string>
-    <string name="kn_make_primary_title">%1$s نام اصلی شما شود؟</string>
-    <string name="kn_make_primary_body">KaChat آن را به‌عنوان نام شما نشان می‌دهد. با پرداخت کارمزد شبکه در رکورد پروفایل شما روی زنجیره ذخیره می‌شود.</string>
     <string name="kn_not_for_sale">برای فروش نیست</string>
     <string name="kn_expires_on">انقضا: %1$s</string>
     <string name="kn_detail_grace_mine">منقضی شده - برای نگه داشتنش تمدید کنید. تا پایان مهلت، کس دیگری نمی‌تواند آن را بگیرد.</string>
@@ -803,7 +801,6 @@
     <string name="kn_no_history">هنوز تاریخچه‌ای نیست.</string>
     <string name="kn_release">رها کردن</string>
     <string name="kn_release_warning">رها کردن یعنی کنار گذاشتن همیشگی نام: هر کسی می‌تواند ثبتش کند و زمانی که برایش پرداخته‌اید از دست می‌رود. وثیقه و سپردهٔ رجیستری به شما برمی‌گردد.</string>
-    <string name="kn_saved_tx">ذخیره شد. تراکنش %1$s</string>
     <string name="kn_buy_soon">کمتر از ۳۰ روز تا انقضای این نام مانده است. باید به‌زودی تمدیدش کنید.</string>
     <string name="kn_buy_footer">پرداخت به فروشنده و نام به شما در همان تراکنش می‌رسد - یا هر دو انجام می‌شوند یا هیچ‌کدام.</string>
     <string name="kn_price_to_seller">قیمت (به فروشنده)</string>
@@ -833,9 +830,6 @@
     <string name="kn_primary_footer">تا وقتی نام اصلی مال شما و فعال است، KaChat شما را با آن نشان می‌دهد؛ وگرنه با قدیمی‌ترین نام فعال یا نشانی‌تان.</string>
     <string name="kn_save_profile">ذخیرهٔ پروفایل</string>
     <string name="kn_save_footer">ذخیره، پروفایل شما را از نشانی‌تان به خودش روی زنجیره می‌نویسد، با کارمزد شبکه. پروفایل‌ها عمومی‌اند.</string>
-    <string name="kn_save_title">پروفایل ذخیره شود؟</string>
-    <string name="kn_save_body">با کارمزد شبکه روی زنجیره نوشته می‌شود.</string>
-    <string name="kn_save_body_first">پروفایل‌ها عمومی و روی زنجیره‌اند: هر کسی می‌تواند بخواند و نسخه‌های قبلی پس از تغییر هم خواندنی می‌مانند. با کارمزد شبکه نوشته می‌شود.</string>
     <string name="kn_n_years">%1$d سال</string>
     <string name="kn_err_no_wallet">هیچ کیف‌پول تست‌نتی باز نیست.</string>
     <string name="kn_err_key_mismatch">کلید این کیف‌پول با نشانی‌اش جور نیست.</string>
@@ -887,4 +881,9 @@
     <string name="kn_done_primary_set">نام اصلی تنظیم شد</string>
     <string name="kn_done_registered">نام ثبت شد</string>
     <string name="kn_done_commit_cancelled">تعهد لغو شد</string>
+    <!-- .kachat: the profile save review (iOS 7e238e5) -->
+    <string name="kn_your_profile">نمایهٔ شما</string>
+    <string name="kn_linktree">Linktree</string>
+    <string name="kn_saved_on_chain_note">روی زنجیره از آدرس گفتگوی شما به خودش ذخیره می‌شود.</string>
+    <string name="kn_profiles_public_note">نمایه‌ها عمومی و روی زنجیره هستند: هر کسی می‌تواند آن‌ها را بخواند و نسخه‌های قبلی پس از تغییر هم خواندنی می‌مانند.</string>
 </resources>
