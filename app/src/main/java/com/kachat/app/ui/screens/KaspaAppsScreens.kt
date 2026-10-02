@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
@@ -67,6 +68,8 @@ val KASPA_APPS = listOf(
     KaspaApp("Kaspalytics", "https://www.kaspalytics.com"),
     KaspaApp("Kas-Smiths", "https://kas-smiths.org"),
     KaspaApp("Kaspa Core R&D", "https://t.me/kasparnd"),
+    // Free testnet-10 KAS for the app's testnet mode (Settings > Connection > Testnet uses TN10).
+    KaspaApp("TN10 Faucet", "https://faucet-tn10.kaspanet.io", Icons.Default.WaterDrop),
 )
 
 /** Full Apps page - Profile > Apps navigates here (its own screen, matching iOS's ProfileAppsView). */

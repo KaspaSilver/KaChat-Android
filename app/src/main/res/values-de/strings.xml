@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">Schließe KaChat vollständig und öffne es erneut, um den Wechsel zum Testnet abzuschließen.</string>
     <string name="testnet_restart_to_mainnet">Schließe KaChat vollständig und öffne es erneut, um den Wechsel zurück zum Mainnet abzuschließen.</string>
     <string name="no_testnet_indexer_yet">Noch kein Testnet-Indexer</string>
-    <string name="no_indexer_for_network">Für dieses Netzwerk ist kein Indexer eingestellt</string>
-    <string name="no_indexer_for_network_sub">Füge unter Einstellungen > Verbindungseinstellungen einen hinzu, um KaChat-Statistiken zu sehen.</string>
     <string name="kaposts_not_on_testnet">KaPosts ist im Testnet noch nicht verfügbar</string>
     <string name="kaposts_not_on_testnet_sub">Für das Testnet gibt es keinen KaPost-Indexer. Schalte Testnet unter Einstellungen > Verbindung aus, um im Mainnet zu lesen und zu posten.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud ist aus, solange Testnet an ist.</string>

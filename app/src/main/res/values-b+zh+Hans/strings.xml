@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">请完全关闭 KaChat 后重新打开，以完成切换到测试网。</string>
     <string name="testnet_restart_to_mainnet">请完全关闭 KaChat 后重新打开，以完成切换回主网。</string>
     <string name="no_testnet_indexer_yet">尚无测试网索引器</string>
-    <string name="no_indexer_for_network">此网络未设置索引器</string>
-    <string name="no_indexer_for_network_sub">请在 设置 > 连接设置 中添加一个以查看 KaChat 统计。</string>
     <string name="kaposts_not_on_testnet">KaPosts 暂不支持测试网</string>
     <string name="kaposts_not_on_testnet_sub">测试网还没有 KaPost 索引器。在“设置 > 连接”中关闭测试网，即可在主网阅读和发帖。</string>
     <string name="nextcloud_off_on_testnet">测试网开启时，Nextcloud 处于关闭状态。</string>

@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام التبديل إلى الشبكة التجريبية.</string>
     <string name="testnet_restart_to_mainnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام العودة إلى الشبكة الرئيسية.</string>
     <string name="no_testnet_indexer_yet">لا يوجد مفهرس للشبكة التجريبية بعد</string>
-    <string name="no_indexer_for_network">لم يتم تعيين مفهرس لهذه الشبكة</string>
-    <string name="no_indexer_for_network_sub">أضف واحدًا في الإعدادات > إعدادات الاتصال لرؤية إحصاءات KaChat.</string>
     <string name="kaposts_not_on_testnet">KaPosts لسه مش متاحة على الشبكة التجريبية</string>
     <string name="kaposts_not_on_testnet_sub">مفيش مفهرس KaPost للشبكة التجريبية. اقفل الشبكة التجريبية من الإعدادات > الاتصال علشان تقرا وتنشر على الشبكة الرئيسية.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud مقفول طول ما الشبكة التجريبية شغالة.</string>

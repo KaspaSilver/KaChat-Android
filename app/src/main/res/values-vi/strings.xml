@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">Đóng hẳn KaChat rồi mở lại để hoàn tất chuyển sang Testnet.</string>
     <string name="testnet_restart_to_mainnet">Đóng hẳn KaChat rồi mở lại để hoàn tất quay về Mainnet.</string>
     <string name="no_testnet_indexer_yet">Chưa có trình lập chỉ mục testnet</string>
-    <string name="no_indexer_for_network">Chưa đặt indexer cho mạng này</string>
-    <string name="no_indexer_for_network_sub">Thêm một indexer trong Cài đặt > Cài đặt kết nối để xem thống kê KaChat.</string>
     <string name="kaposts_not_on_testnet">KaPosts chưa khả dụng trên Testnet</string>
     <string name="kaposts_not_on_testnet_sub">Chưa có trình lập chỉ mục KaPost cho testnet. Tắt Testnet trong Cài đặt > Kết nối để đọc và đăng trên mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud tắt khi Testnet đang bật.</string>

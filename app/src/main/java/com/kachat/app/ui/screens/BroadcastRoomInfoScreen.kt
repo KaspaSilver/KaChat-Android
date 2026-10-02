@@ -89,7 +89,9 @@ fun BroadcastRoomInfoScreen(
     val messages by broadcastViewModel.getMessages(normalized).collectAsState(initial = emptyList())
     val joinedChannels by broadcastViewModel.joinedChannels.collectAsState()
     val hiddenSenders by broadcastViewModel.hiddenSenders.collectAsState()
-    val appWideIndexer by broadcastViewModel.appWideBroadcastIndexer.collectAsState()
+    val appWideIndexerUrl by broadcastViewModel.appWideBroadcastIndexer.collectAsState()
+    // Blank on testnet: there is no testnet public chat indexer yet (iOS 421a832).
+    val appWideIndexer = appWideIndexerUrl.ifBlank { androidx.compose.ui.res.stringResource(R.string.no_testnet_indexer_yet) }
     val storedOverride by broadcastViewModel.indexerOverrideFor(normalized)
         .collectAsState(initial = "")
 

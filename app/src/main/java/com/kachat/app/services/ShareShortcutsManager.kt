@@ -112,6 +112,8 @@ class ShareShortcutsManager @Inject constructor(
         val top = conversations
             .asSequence()
             .filter { it.contact.conversationStatus != "rejected" }
+            // Only the running network's chats are share targets (iOS 421a832).
+            .filter { com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(it.contact.id) }
             .sortedByDescending {
                 if (it.contact.id == promoteContactId) Long.MAX_VALUE
                 else it.lastMessage?.blockTimestamp ?: 0L

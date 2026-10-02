@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">テストネットへの切り替えを完了するには、KaChat を完全に終了して開き直してください。</string>
     <string name="testnet_restart_to_mainnet">メインネットへの切り替えを完了するには、KaChat を完全に終了して開き直してください。</string>
     <string name="no_testnet_indexer_yet">テストネット用インデクサはまだありません</string>
-    <string name="no_indexer_for_network">このネットワークにはインデクサーが設定されていません</string>
-    <string name="no_indexer_for_network_sub">KaChat の統計を見るには、設定 > 接続設定 で追加してください。</string>
     <string name="kaposts_not_on_testnet">KaPosts はまだテストネットでは利用できません</string>
     <string name="kaposts_not_on_testnet_sub">テストネット用の KaPost インデクサーはありません。メインネットで閲覧・投稿するには、設定 > 接続 でテストネットをオフにしてください。</string>
     <string name="nextcloud_off_on_testnet">テストネットがオンの間、Nextcloud はオフになります。</string>

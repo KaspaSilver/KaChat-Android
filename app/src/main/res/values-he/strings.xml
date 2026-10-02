@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את המעבר לטסטנט.</string>
     <string name="testnet_restart_to_mainnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את החזרה לרשת הראשית.</string>
     <string name="no_testnet_indexer_yet">עדיין אין אינדקסר לטסטנט</string>
-    <string name="no_indexer_for_network">לא הוגדר אינדקסר לרשת הזו</string>
-    <string name="no_indexer_for_network_sub">הוסיפו אחד בהגדרות > הגדרות חיבור כדי לראות את הסטטיסטיקה של KaChat.</string>
     <string name="kaposts_not_on_testnet">KaPosts עדיין לא זמין ברשת הבדיקה</string>
     <string name="kaposts_not_on_testnet_sub">אין אינדקסר KaPost לרשת הבדיקה. כבה את רשת הבדיקה בהגדרות > חיבור כדי לקרוא ולפרסם ברשת הראשית.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud כבוי כל עוד רשת הבדיקה פועלת.</string>

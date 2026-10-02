@@ -715,6 +715,22 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
         if (account != null) chatViewModel.refreshNextcloudBackupInfo()
     }
 
+    // Testnet: Nextcloud is off until mainnet is back (iOS af8ec68).
+    if (service.isOffForTestnet) {
+        SettingsSection(title = null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.CloudOff, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(16.dp))
+                Text(stringResource(R.string.nextcloud_off_on_testnet), color = LocalAppColors.current.textPrimary, fontSize = androidx.compose.ui.unit.TextUnit(17f, androidx.compose.ui.unit.TextUnitType.Sp))
+            }
+        }
+        SettingsFooter(stringResource(R.string.nextcloud_off_on_testnet_footer))
+        return
+    }
+
     SettingsSection(title = null) {
         val connected = account
         if (connected == null) {

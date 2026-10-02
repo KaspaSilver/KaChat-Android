@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">Testnet\'e geçişi tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
     <string name="testnet_restart_to_mainnet">Mainnet\'e dönüşü tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
     <string name="no_testnet_indexer_yet">Henüz testnet dizinleyici yok</string>
-    <string name="no_indexer_for_network">Bu ağ için ayarlanmış bir indexer yok</string>
-    <string name="no_indexer_for_network_sub">KaChat istatistiklerini görmek için Ayarlar > Bağlantı Ayarları\'ndan bir tane ekle.</string>
     <string name="kaposts_not_on_testnet">KaPosts henüz Testnet\'te kullanılamıyor</string>
     <string name="kaposts_not_on_testnet_sub">Testnet için bir KaPost dizinleyicisi yok. Mainnet\'te okumak ve paylaşmak için Ayarlar > Bağlantı bölümünden Testnet\'i kapatın.</string>
     <string name="nextcloud_off_on_testnet">Testnet açıkken Nextcloud kapalıdır.</string>

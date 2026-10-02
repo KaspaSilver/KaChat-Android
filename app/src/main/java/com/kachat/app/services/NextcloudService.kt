@@ -256,6 +256,15 @@ class NextcloudService @Inject constructor(
 
     val isConnected: Boolean get() = _account.value != null
 
+    /**
+     * Off for the whole testnet launch (iOS af8ec68): the backup archive, media folder and Talk
+     * calls are one per account across both networks, so testnet could otherwise write testnet
+     * history over the mainnet backup or import mainnet history into testnet. With no account
+     * nothing syncs, restores, watches, uploads or rings, and every Nextcloud option hides as if
+     * disconnected. The mainnet login is untouched and comes back on the next mainnet launch.
+     */
+    val isOffForTestnet: Boolean get() = com.kachat.app.util.KaspaNetwork.isTestnet
+
     /** The folder backups actually go to — the user's chosen folder, or "KaChat" by default. */
     val backupFolderPath: String get() = _account.value?.backupFolder ?: BACKUP_FOLDER_NAME
 
@@ -274,7 +283,8 @@ class NextcloudService @Inject constructor(
      * null. Driven by [WalletManager.activeAddressFlow], which fires on every wallet load,
      * account switch, logout and delete. Cancels any in-flight automatic backup first.
      */
-    private fun setCurrentWallet(walletAddress: String?, force: Boolean = false) {
+    private fun setCurrentWallet(requestedAddress: String?, force: Boolean = false) {
+        val walletAddress = if (isOffForTestnet) null else requestedAddress
         if (!force && walletAddress == currentWalletAddress) return
 
         currentWalletAddress = walletAddress
@@ -467,6 +477,7 @@ class NextcloudService @Inject constructor(
      * then persists them. Throws with a user-facing message — a 401 says exactly what's wrong.
      */
     suspend fun connect(serverInput: String, username: String, appPassword: String) {
+        if (isOffForTestnet) throw IOException(context.getString(com.kachat.app.R.string.nextcloud_off_on_testnet))
         if (currentWalletAddress == null) throw IOException("Open a wallet account before connecting to Nextcloud.")
         val server = normalizeServer(serverInput)
             ?: throw IOException("That doesn't look like a valid server URL.")

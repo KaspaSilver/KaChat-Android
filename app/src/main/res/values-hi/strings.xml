@@ -659,8 +659,6 @@
     <string name="testnet_restart_to_testnet">टेस्टनेट पर स्विच पूरा करने के लिए KaChat को पूरी तरह बंद करके फिर खोलें।</string>
     <string name="testnet_restart_to_mainnet">मेननेट पर वापस जाने के लिए KaChat को पूरी तरह बंद करके फिर खोलें।</string>
     <string name="no_testnet_indexer_yet">अभी कोई टेस्टनेट इंडेक्सर नहीं</string>
-    <string name="no_indexer_for_network">इस नेटवर्क के लिए कोई इंडेक्सर सेट नहीं है</string>
-    <string name="no_indexer_for_network_sub">KaChat आँकड़े देखने के लिए सेटिंग्स > कनेक्शन सेटिंग्स में एक जोड़ें।</string>
     <string name="kaposts_not_on_testnet">KaPosts अभी टेस्टनेट पर उपलब्ध नहीं है</string>
     <string name="kaposts_not_on_testnet_sub">टेस्टनेट के लिए कोई KaPost इंडेक्सर नहीं है। मेननेट पर पढ़ने और पोस्ट करने के लिए सेटिंग्स > कनेक्शन में टेस्टनेट बंद करें।</string>
     <string name="nextcloud_off_on_testnet">टेस्टनेट चालू रहने तक Nextcloud बंद है।</string>
