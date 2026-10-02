@@ -42,7 +42,9 @@ object KaspaNetwork {
 
     fun init(context: Context) {
         if (prefs != null) return
-        val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        // applicationContext is null while the Application is still attaching; the base context
+        // reads the same prefs file.
+        val p = (context.applicationContext ?: context).getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs = p
         val stored = Type.fromRaw(p.getString(KEY_NETWORK, null))
         launch = stored

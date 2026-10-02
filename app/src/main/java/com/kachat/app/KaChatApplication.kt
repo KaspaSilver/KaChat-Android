@@ -39,7 +39,9 @@ class KaChatApplication : Application(), Configuration.Provider {
         CrashRecorder.install(this)
         // The network this launch runs on (Settings > Connection > Testnet), known before Hilt
         // starts any service - the node pool, wallet and indexers are all set up for it.
-        com.kachat.app.util.KaspaNetwork.init(this)
+        // [base], not `this`: inside attachBaseContext the Application's own applicationContext
+        // is still null, and reading prefs through it crashed every launch.
+        com.kachat.app.util.KaspaNetwork.init(base)
     }
 
     // @Singleton instances are otherwise only created lazily the first time something actually
@@ -122,7 +124,26 @@ class KaChatApplication : Application(), Configuration.Provider {
     lateinit var kachatNamesActions: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesActions>
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder().setWorkerFactory(hiltWorkerFactory).build()
+        get() = Configuration.Builder().setWorkerFactory(workerFactory()).build()
+
+    /**
+     * WorkManager initializes itself the first time anything asks for it - and a singleton built
+     * during field injection (NextcloudSyncService's init cancels or schedules its work on a
+     * background thread) can ask before the [hiltWorkerFactory] field below has been injected,
+     * which crashed with an uninitialized lateinit. The Hilt component already exists by then, so
+     * the factory is read straight from it in that window.
+     */
+    private fun workerFactory(): HiltWorkerFactory =
+        if (::hiltWorkerFactory.isInitialized) hiltWorkerFactory
+        else dagger.hilt.android.EntryPointAccessors
+            .fromApplication(this, WorkerFactoryEntryPoint::class.java)
+            .hiltWorkerFactory()
+
+    @dagger.hilt.EntryPoint
+    @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+    interface WorkerFactoryEntryPoint {
+        fun hiltWorkerFactory(): HiltWorkerFactory
+    }
 
     override fun onCreate() {
         super.onCreate()
