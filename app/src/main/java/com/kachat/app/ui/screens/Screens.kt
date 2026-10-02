@@ -170,6 +170,7 @@ import com.kachat.app.util.rememberCameraCaptureLauncher
 import com.kachat.app.util.authenticateWithDeviceCredential
 import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.ImagePrep
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.TextLinkify
 import com.kachat.app.util.MessageProtocol
@@ -763,7 +764,7 @@ fun ChatThreadScreen(
                                     modifier = Modifier.clickable { openFeeEditor(estimatedFee ?: 0L) }
                                 ) {
                                     Text(
-                                        text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} KAS",
+                                        text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
                                         color = KaspaTeal,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
@@ -829,7 +830,7 @@ fun ChatThreadScreen(
                                 onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
                                 placeholder = {
                                     Text(
-                                        if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else stringResource(R.string.amount_kas),
+                                        if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else KaspaUnit.label(stringResource(R.string.amount_kas)),
                                         color = LocalAppColors.current.textTertiary
                                     )
                                 },
@@ -965,7 +966,7 @@ fun ChatThreadScreen(
                                     .clickable { openFeeEditor(estimatedFee ?: 0L) }
                             ) {
                                 Text(
-                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} KAS",
+                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
                                     color = KaspaTeal,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
@@ -1044,7 +1045,7 @@ fun ChatThreadScreen(
                                     .clickable { openFeeEditor(estimatedFee ?: 0L) }
                             ) {
                                 Text(
-                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} KAS",
+                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
                                     color = KaspaTeal,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
@@ -1187,7 +1188,7 @@ fun ChatThreadScreen(
                                     .clickable { openFeeEditor(estimatedFee ?: 0L) }
                             ) {
                                 Text(
-                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} KAS",
+                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
                                     color = KaspaTeal,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
@@ -1847,7 +1848,7 @@ fun ChatThreadScreen(
                     com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
-                        label = { Text(stringResource(R.string.fee_kas)) },
+                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -1988,7 +1989,7 @@ private fun UnnotifiedMessageBanner(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = stringResource(R.string.the_recipient_wont_see_your_messages),
+                text = KaspaUnit.label(stringResource(R.string.the_recipient_wont_see_your_messages)),
                 color = colors.textSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -2191,7 +2192,7 @@ internal fun PaymentCardBubble(
                 color = if (isSent) Color.White.copy(alpha = 0.85f) else LocalAppColors.current.textSecondary
             )
             Text(
-                text = "$amountText KAS",
+                text = "$amountText ${KaspaUnit.symbol}",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -5008,7 +5009,7 @@ fun KnsDomainSendScreen(
                                     isEditingFee = true
                                 }
                             ) {
-                                Text("${trimmedKas(priorityFeeSompi)} KAS", color = KaspaTeal, textDecoration = TextDecoration.Underline)
+                                Text("${trimmedKas(priorityFeeSompi)} ${KaspaUnit.symbol}", color = KaspaTeal, textDecoration = TextDecoration.Underline)
                                 Spacer(Modifier.width(4.dp))
                                 Icon(Icons.Default.Edit, null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
                             }
@@ -5334,7 +5335,7 @@ fun ManageAddressesScreen(
                     ) {
                         Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         Text(
-                            "%.8f KAS".format(java.util.Locale.US, visibleAddresses.sumOf { it.balanceSompi } / 100_000_000.0),
+                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, visibleAddresses.sumOf { it.balanceSompi } / 100_000_000.0),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
@@ -5905,7 +5906,7 @@ fun AddressVisibilityScreen(
                             fontWeight = FontWeight.Bold
                         )
                         funded -> Text(
-                            "%.4f KAS".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
+                            "%.4f ${KaspaUnit.symbol}".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
                             color = KaspaTeal,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -6278,7 +6279,7 @@ fun SpendingAddressSendFlow(
             }
 
             Text(
-                stringResource(R.string.amount_kas).uppercase(),
+                KaspaUnit.label(stringResource(R.string.amount_kas)).uppercase(),
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
@@ -6286,7 +6287,7 @@ fun SpendingAddressSendFlow(
             com.kachat.app.ui.theme.IosTextField(
                 value = fiatAmountState.displayText,
                 onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
-                placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else stringResource(R.string.amount_kas)) },
+                placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else KaspaUnit.label(stringResource(R.string.amount_kas))) },
                 singleLine = true,
                 enabled = !isSending,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -6399,7 +6400,7 @@ fun SpendingAddressSendFlow(
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                "Available: %.8f KAS".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
+                "Available: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -6448,7 +6449,7 @@ fun SpendingAddressSendFlow(
             ) {
                 Text(stringResource(R.string.network_fee), color = LocalAppColors.current.textPrimary)
                 Text(
-                    "%.8f KAS".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0),
+                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0),
                     color = KaspaTeal,
                     fontWeight = FontWeight.Bold,
                     textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -6503,7 +6504,7 @@ fun SpendingAddressSendFlow(
                     com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
-                        label = { Text(stringResource(R.string.fee_kas)) },
+                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -6520,7 +6521,7 @@ fun SpendingAddressSendFlow(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Default: %.8f KAS".format(java.util.Locale.US, defaultFeeSompi / 100_000_000.0),
+                        "Default: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, defaultFeeSompi / 100_000_000.0),
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -6726,7 +6727,7 @@ fun SpendingAddressTxHistoryScreen(
                     style = MaterialTheme.typography.labelMedium
                 )
                 Text(
-                    "%.8f KAS".format(java.util.Locale.US, (entry?.balanceSompi ?: 0L) / 100_000_000.0),
+                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (entry?.balanceSompi ?: 0L) / 100_000_000.0),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium
@@ -7077,7 +7078,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                     style = MaterialTheme.typography.labelMedium
                 )
                 Text(
-                    "%.8f KAS".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
+                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium
@@ -7658,7 +7659,7 @@ private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressT
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            "${if (tx.sent) "-" else "+"}%.8f KAS".format(java.util.Locale.US, kas),
+            "${if (tx.sent) "-" else "+"}%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
             color = directionColor,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall
@@ -7687,7 +7688,7 @@ private fun SpendingAddressUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo
                 )
             }
             Text(
-                "%.8f KAS".format(java.util.Locale.US, kas),
+                "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
                 color = LocalAppColors.current.textPrimary,
                 fontWeight = FontWeight.Bold
             )
@@ -7796,7 +7797,7 @@ private fun ManageAddressRow(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "%.8f KAS".format(java.util.Locale.US, kas),
+                text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
                 color = LocalAppColors.current.textPrimary,
                 fontSize = 14.sp
             )
@@ -7975,7 +7976,7 @@ private fun ChatPrivacyAddressRow(
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "%.8f KAS".format(java.util.Locale.US, kas),
+                        text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
                         color = KaspaTeal,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
@@ -8675,7 +8676,7 @@ fun EditKnsProfileScreen(
                         pendingChanges.forEach { Text("• $it", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall) }
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            stringResource(R.string.each_transaction_temporarily_uses_2_kas),
+                            KaspaUnit.label(stringResource(R.string.each_transaction_temporarily_uses_2_kas)),
                             color = LocalAppColors.current.textSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -11773,7 +11774,7 @@ fun CreateChatScreen(
             title = { Text("Create group", color = LocalAppColors.current.textPrimary) },
             text = {
                 Text(
-                    "Create \"${groupName.trim()}\" and invite $k member${if (k == 1) "" else "s"}?\n\nEstimated network fee ≈ ${com.kachat.app.repository.ChatRepository.formatKas(fee)} KAS across $txCount transaction${if (txCount == 1) "" else "s"}.",
+                    "Create \"${groupName.trim()}\" and invite $k member${if (k == 1) "" else "s"}?\n\nEstimated network fee ≈ ${com.kachat.app.repository.ChatRepository.formatKas(fee)} ${KaspaUnit.symbol} across $txCount transaction${if (txCount == 1) "" else "s"}.",
                     color = LocalAppColors.current.textSecondary
                 )
             },
@@ -14096,7 +14097,7 @@ fun ChatPrivacyAddressActionsSheet(
         title = "Address ${entry.index}",
         subtitle = entry.address,
         detail = if (funded) {
-            "Holding ${"%.8f".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0)} KAS"
+            "Holding ${"%.8f".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0)} ${KaspaUnit.symbol}"
         } else null,
         onDismiss = onDismiss,
     ) {

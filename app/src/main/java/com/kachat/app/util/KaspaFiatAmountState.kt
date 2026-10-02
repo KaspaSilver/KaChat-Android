@@ -76,7 +76,7 @@ class KaspaFiatAmountState internal constructor(private val onKasTextChange: (St
     fun conversionLabelText(priceInCurrency: Double?, currencyCode: String): String? {
         val kas = kasFromDisplay(priceInCurrency) ?: return null
         return if (isFiatMode) {
-            "${formatKasAmount(kas)} KAS"
+            "${formatKasAmount(kas)} ${KaspaUnit.symbol}"
         } else {
             if (priceInCurrency == null || priceInCurrency <= 0.0) null else formatFiatAmount(kas * priceInCurrency, currencyCode)
         }

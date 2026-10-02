@@ -8,6 +8,7 @@ import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.services.database.KaChatDatabase
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.PaymentPoolProtocol
 import kotlinx.coroutines.CoroutineScope
@@ -633,7 +634,7 @@ class PaymentPoolService @Inject constructor(
         // insert it already-read and skip the notification, matching every other backfill insert
         // path (ChatRepository.isBackfill).
         val backfill = noticeBlockTime < settingsRepository.liveNotificationBaseline(myAddress)
-        val displayText = "Received ${ChatRepository.formatKas(content.amountSompi)} KAS"
+        val displayText = "Received ${ChatRepository.formatKas(content.amountSompi)} ${KaspaUnit.symbol}"
         chatRepositoryLazy.get().insertMessage(
             MessageEntity(
                 id = txId,
@@ -673,7 +674,7 @@ class PaymentPoolService @Inject constructor(
             database.messageDao().updatePaymentVerification(
                 id = txId,
                 walletAddress = myAddress,
-                body = "Received ${ChatRepository.formatKas(claimedAmount)} KAS",
+                body = "Received ${ChatRepository.formatKas(claimedAmount)} ${KaspaUnit.symbol}",
                 amountSompi = claimedAmount,
                 status = "warning"
             )
@@ -682,7 +683,7 @@ class PaymentPoolService @Inject constructor(
             database.messageDao().updatePaymentVerification(
                 id = txId,
                 walletAddress = myAddress,
-                body = "Received ${ChatRepository.formatKas(paidToClaimed)} KAS",
+                body = "Received ${ChatRepository.formatKas(paidToClaimed)} ${KaspaUnit.symbol}",
                 amountSompi = paidToClaimed,
                 status = "sent"
             )

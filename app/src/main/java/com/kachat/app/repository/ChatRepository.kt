@@ -26,6 +26,7 @@ import com.kachat.app.services.database.KaChatDatabase
 import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KasiaCipher
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
@@ -1913,7 +1914,7 @@ class ChatRepository @Inject constructor(
 
         val existingContact = database.contactDao().getContact(sender, myAddress)
         var conversationId = sender
-        var displayText = "Received ${formatKas(receivedSompi)} KAS"
+        var displayText = "Received ${formatKas(receivedSompi)} ${KaspaUnit.symbol}"
         if (existingContact == null) {
             // A plain payment from an address we have NO contact for must not open a chat
             // with the stranger. Internal moves from our own spending chain surface nowhere

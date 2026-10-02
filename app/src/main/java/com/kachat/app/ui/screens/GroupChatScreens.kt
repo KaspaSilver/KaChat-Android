@@ -121,6 +121,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.kachat.app.util.ImagePrep
+import com.kachat.app.util.KaspaUnit
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -1056,7 +1057,7 @@ fun GroupChatThreadScreen(
                     com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
-                        label = { Text(stringResource(R.string.fee_kas)) },
+                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -1145,7 +1146,7 @@ private fun groupFeePill(feeSompi: Long?, modifier: Modifier = Modifier, onClick
         modifier = modifier.padding(bottom = 8.dp).let { if (onClick != null) it.clickable(onClick = onClick) else it }
     ) {
         Text(
-            text = "fee: ${ChatRepository.formatKas(feeSompi)} KAS",
+            text = "fee: ${ChatRepository.formatKas(feeSompi)} ${KaspaUnit.symbol}",
             color = KaspaTeal,
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
@@ -1857,7 +1858,7 @@ fun GroupChatInfoScreen(
         val perPhoto = if (photoTx > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * ((group?.photoHex?.length ?: 0) + 300)) else 0L
         val totalSompi = perControl * controlTx + perPhoto * photoTx
         val n = controlTx + photoTx
-        "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(totalSompi)} KAS across $n transaction${if (n == 1) "" else "s"}."
+        "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(totalSompi)} ${KaspaUnit.symbol} across $n transaction${if (n == 1) "" else "s"}."
     }
 
     Scaffold(
@@ -2231,7 +2232,7 @@ fun GroupChatInfoScreen(
     pendingPhotoHex?.let { hex ->
         val others = (members.size - 1).coerceAtLeast(0)
         val perPhoto = if (others > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * (hex.length + 300)) else 0L
-        val feeLine = "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(perPhoto * others)} KAS across $others transaction${if (others == 1) "" else "s"}."
+        val feeLine = "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(perPhoto * others)} ${KaspaUnit.symbol} across $others transaction${if (others == 1) "" else "s"}."
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { pendingPhotoHex = null },
             containerColor = LocalAppColors.current.surface,

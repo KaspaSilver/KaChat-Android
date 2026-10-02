@@ -54,6 +54,7 @@ import com.kachat.app.services.WalletService
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
+import com.kachat.app.util.KaspaUnit
 
 /**
  * Where a ChangeNOW swap should pay its KAS out. Mirrors iOS's `SwapAddressPickerView`.
@@ -197,7 +198,7 @@ fun SwapAddressPickerScreen(
                         )
                     }
                     Text(
-                        "${ChatRepository.formatKas(entry.balanceSompi)} KAS",
+                        "${ChatRepository.formatKas(entry.balanceSompi)} ${KaspaUnit.symbol}",
                         color = colors.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,

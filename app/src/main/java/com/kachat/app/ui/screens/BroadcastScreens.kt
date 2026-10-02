@@ -116,6 +116,7 @@ import com.kachat.app.repository.ChatRepository
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.ChatTimeFormat
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.TextLinkify
 import com.kachat.app.util.VoiceMessage
@@ -1053,7 +1054,7 @@ fun BroadcastChannelScreen(
                                 .clickable { openFeeEditor(estimatedFee ?: 0L) }
                         ) {
                             Text(
-                                text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} KAS",
+                                text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
                                 color = KaspaTeal,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
@@ -1099,7 +1100,7 @@ fun BroadcastChannelScreen(
                                 .clickable { openFeeEditor(estimatedFee ?: 0L) }
                         ) {
                             Text(
-                                text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} KAS",
+                                text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
                                 color = KaspaTeal,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
@@ -1844,7 +1845,7 @@ fun BroadcastChannelScreen(
                     com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
-                        label = { Text(stringResource(R.string.fee_kas)) },
+                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal

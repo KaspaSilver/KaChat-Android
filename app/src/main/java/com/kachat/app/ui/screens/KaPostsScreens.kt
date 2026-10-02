@@ -223,6 +223,7 @@ import com.kachat.app.models.KaPostDraft
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaPostsMarkdown
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.services.PostTranslationService
 import com.kachat.app.viewmodels.KaPostsViewModel
 import com.kachat.app.viewmodels.WalletViewModel
@@ -683,7 +684,7 @@ private fun KaPostsFeedScreen(
             val kasText = kasAmountText(amount)
             chatViewModel.sendPayment(address, kasText) { ok, error, txId ->
                 if (ok) {
-                    viewModel.showTipToast("Tipped $kasText KAS to $name", txId.orEmpty())
+                    viewModel.showTipToast("Tipped $kasText ${KaspaUnit.symbol} to $name", txId.orEmpty())
                 } else {
                     viewModel.showFeedError(error ?: "Tip didn't send.")
                     tipTarget = address to name
@@ -3618,7 +3619,7 @@ fun KaPostComposerDialog(
             if (showFeeEstimate && trimmedForFee.isNotEmpty() && viewModel != null) {
                 val fee = remember(trimmedForFee) { viewModel.estimatePostFeeSompi(trimmedForFee) }
                 Text(
-                    "Est. fee: ${"%.8f".format(java.util.Locale.US, fee / 100_000_000.0)} KAS",
+                    "Est. fee: ${"%.8f".format(java.util.Locale.US, fee / 100_000_000.0)} ${KaspaUnit.symbol}",
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                     textAlign = TextAlign.End,
@@ -5557,7 +5558,7 @@ fun KaPostTipDialog(
                 com.kachat.app.ui.theme.IosTextField(
                     value = amountText,
                     onValueChange = { amountText = it; errorText = null },
-                    label = { Text("Amount (KAS)") },
+                    label = { Text("Amount (${KaspaUnit.symbol})") },
                     singleLine = true,
                     leadingIcon = {
                         androidx.compose.foundation.Image(
@@ -5570,7 +5571,7 @@ fun KaPostTipDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "Available: ${"%.8f".format(availableKas).trimEnd('0').trimEnd('.')} KAS from your " +
+                    "Available: ${"%.8f".format(availableKas).trimEnd('0').trimEnd('.')} ${KaspaUnit.symbol} from your " +
                         (if (paysFromSpending) "primary spending address" else "chatting address"),
                     color = colors.textSecondary,
                     fontSize = 12.sp,
@@ -5607,7 +5608,7 @@ fun KaPostTipDialog(
                         // estimatedFeeSompi already reflects the tier (the estimator combines
                         // the fee-rate override) - display it as-is, never re-multiply.
                         estimatedFee?.let { fee ->
-                            "${"%.8f".format(fee / 100_000_000.0).trimEnd('0').trimEnd('.')} KAS"
+                            "${"%.8f".format(fee / 100_000_000.0).trimEnd('0').trimEnd('.')} ${KaspaUnit.symbol}"
                         } ?: "—",
                         color = colors.textSecondary,
                         fontSize = 13.sp,
@@ -6294,7 +6295,7 @@ fun KaPostsSettingsOverlay(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f),
                         )
-                        Text("KAS", color = colors.textSecondary, fontSize = 15.sp)
+                        Text(KaspaUnit.symbol, color = colors.textSecondary, fontSize = 15.sp)
                     }
                 }
                 SettingsFooter(

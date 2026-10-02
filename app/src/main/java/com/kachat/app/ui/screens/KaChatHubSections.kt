@@ -62,6 +62,7 @@ import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kachat.app.util.KaspaUnit
 
 // ---------------------------------------------------------------------------------------------
 // Kaspa Hub > .kachat - the marketplace for KaChat's own names (iOS b064468, KachatMarketView).
@@ -194,7 +195,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?) {
             HowRow(Icons.Default.AlternateEmail, stringResource(R.string.km_claim), stringResource(R.string.km_claim_detail))
             HowRow(Icons.Default.Sell, stringResource(R.string.km_list), stringResource(R.string.km_list_detail))
             HowRow(Icons.Default.ShoppingCart, stringResource(R.string.km_buy), stringResource(R.string.km_buy_detail))
-            HowRow(Icons.Default.PanTool, stringResource(R.string.kl_offer), stringResource(R.string.kl_offer_detail))
+            HowRow(Icons.Default.PanTool, stringResource(R.string.kl_offer), KaspaUnit.label(stringResource(R.string.kl_offer_detail)))
             HowRow(Icons.Default.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
             Text(
                 stringResource(R.string.km_nothing_live),
@@ -918,7 +919,7 @@ private fun KachatListingScreen(onBack: () -> Unit, onBuy: () -> Unit, onOffer: 
                     Row(verticalAlignment = Alignment.Top) {
                         Icon(icon, null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(text), color = colors.textSecondary, fontSize = 13.sp)
+                        Text(KaspaUnit.label(stringResource(text)), color = colors.textSecondary, fontSize = 13.sp)
                     }
                 }
             }
@@ -1031,10 +1032,10 @@ private fun KachatOfferScreen(onClose: () -> Unit) {
                     ),
                     modifier = Modifier.weight(1f)
                 )
-                Text("KAS", color = colors.textSecondary)
+                Text(KaspaUnit.symbol, color = colors.textSecondary)
             }
         }
-        SettingsFooter(stringResource(R.string.kl_your_offer_footer))
+        SettingsFooter(KaspaUnit.label(stringResource(R.string.kl_your_offer_footer)))
         Spacer(Modifier.height(16.dp))
         SettingsSection(title = stringResource(R.string.kl_expires_after)) {
             // iOS's segmented control.

@@ -26,6 +26,7 @@ import com.kachat.app.services.SystemContactsSyncService
 import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.ImagePrep
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.VoiceMessage
@@ -2939,7 +2940,7 @@ class ChatViewModel @Inject constructor(
                         walletAddress = myAddress,
                         type = "pay",
                         direction = "sent",
-                        plaintextBody = "Sent $amount KAS",
+                        plaintextBody = "Sent $amount ${KaspaUnit.symbol}",
                         encryptedPayload = "",
                         amountSompi = sompi,
                         blockTimestamp = System.currentTimeMillis(),
@@ -2997,7 +2998,7 @@ class ChatViewModel @Inject constructor(
                         walletAddress = myAddress,
                         type = "pay",
                         direction = "sent",
-                        plaintextBody = "Sent $amount KAS",
+                        plaintextBody = "Sent $amount ${KaspaUnit.symbol}",
                         encryptedPayload = "",
                         amountSompi = sompi,
                         blockTimestamp = System.currentTimeMillis(),

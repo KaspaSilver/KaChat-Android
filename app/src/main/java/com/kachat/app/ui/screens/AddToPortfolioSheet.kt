@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import com.kachat.app.services.ColdStorageAddressDiscovery
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.formatFiatAmount
 import com.kachat.app.util.formatKasAmount
 import com.kachat.app.viewmodels.PortfolioViewModel
@@ -267,7 +268,7 @@ fun AddToPortfolioSheet(
                 com.kachat.app.ui.theme.IosTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
-                    label = { Text("Amount (KAS)", color = colors.textSecondary) },
+                    label = { Text("Amount (${KaspaUnit.symbol})", color = colors.textSecondary) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()

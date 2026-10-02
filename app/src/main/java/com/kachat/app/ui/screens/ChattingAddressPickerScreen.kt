@@ -63,6 +63,7 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.CHATTING_ADDRESS_SCAN_BATCH
 import com.kachat.app.viewmodels.ChatViewModel
 import com.kachat.app.viewmodels.WalletViewModel
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.showAddressCopiedToast
 
 /**
@@ -262,7 +263,7 @@ private fun ChattingAddressRow(
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "${formatKas(candidate.balanceSompi)} KAS",
+                        "${formatKas(candidate.balanceSompi)} ${KaspaUnit.symbol}",
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -421,7 +422,7 @@ private fun ChattingAddressDetailScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "${formatKas(candidate.balanceSompi)} KAS",
+                            "${formatKas(candidate.balanceSompi)} ${KaspaUnit.symbol}",
                             color = LocalAppColors.current.textSecondary,
                             fontFamily = FontFamily.Monospace
                         )

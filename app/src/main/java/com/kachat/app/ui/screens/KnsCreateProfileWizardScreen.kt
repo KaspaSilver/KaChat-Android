@@ -63,6 +63,7 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.launch
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.showAddressCopiedToast
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -355,7 +356,7 @@ private fun KnsFundingGateStep(
         Spacer(Modifier.height(24.dp))
         Text(stringResource(R.string.current_balance), style = MaterialTheme.typography.bodySmall, color = LocalAppColors.current.textSecondary)
         Text(
-            "${formatKasWizard(balanceKas)} KAS",
+            "${formatKasWizard(balanceKas)} ${KaspaUnit.symbol}",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = LocalAppColors.current.textPrimary
@@ -594,7 +595,7 @@ private fun KnsDomainCreationStep(
                             Spacer(Modifier.height(8.dp))
                             val revealKas = preview.revealKas ?: 0.0
                             Text(
-                                "Registration fee: ${"%.2f".format(revealKas)} KAS",
+                                "Registration fee: ${"%.2f".format(revealKas)} ${KaspaUnit.symbol}",
                                 color = LocalAppColors.current.textPrimary,
                                 fontWeight = FontWeight.Bold
                             )
@@ -833,7 +834,7 @@ private fun KnsDetailsStep(
             color = LocalAppColors.current.textPrimary
         )
         Text(
-            "You need at least ${formatKasWizard(COST_PER_FIELD_KAS)} KAS to fill in all fields.",
+            "You need at least ${formatKasWizard(COST_PER_FIELD_KAS)} ${KaspaUnit.symbol} to fill in all fields.",
             style = MaterialTheme.typography.bodySmall,
             color = LocalAppColors.current.textSecondary
         )

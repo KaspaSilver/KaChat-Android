@@ -86,6 +86,7 @@ import com.kachat.app.services.UtxoEntry
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.KsptCodec
 import com.kachat.app.viewmodels.ColdStorageViewModel
 import com.kachat.app.viewmodels.WalletViewModel
@@ -623,7 +624,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                 ) {
                     Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                     Text(
-                        "%.8f KAS".format(java.util.Locale.US, totalBalanceKas),
+                        "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, totalBalanceKas),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
@@ -1007,7 +1008,7 @@ fun ColdStorageAddressVisibilityScreen(
                     Spacer(Modifier.width(8.dp))
                     when {
                         funded -> Text(
-                            "%.4f KAS".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
+                            "%.4f ${KaspaUnit.symbol}".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
                             color = KaspaTeal,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -1081,7 +1082,7 @@ private fun ColdAddressRow(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "%.8f KAS".format(java.util.Locale.US, kas),
+                    text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
                     color = LocalAppColors.current.textPrimary,
                     fontSize = 14.sp
                 )
@@ -1426,7 +1427,7 @@ private fun ColdSendFlow(
                 Text(stringResource(R.string.from), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                 Text(fromAddress, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(4.dp))
-                Text("Available: %.8f KAS".format(java.util.Locale.US, availableKas), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                Text("Available: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, availableKas), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
             }
 
             when (sendState.step) {
@@ -1549,7 +1550,7 @@ private fun ColdSendFlow(
 
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        stringResource(R.string.amount_kas).uppercase(),
+                        KaspaUnit.label(stringResource(R.string.amount_kas)).uppercase(),
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
@@ -1557,7 +1558,7 @@ private fun ColdSendFlow(
                     com.kachat.app.ui.theme.IosTextField(
                         value = fiatAmountState.displayText,
                         onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
-                        placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else stringResource(R.string.amount_kas)) },
+                        placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else KaspaUnit.label(stringResource(R.string.amount_kas))) },
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -1691,7 +1692,7 @@ private fun ColdSendFlow(
                     ) {
                         Text(stringResource(R.string.network_fee), color = LocalAppColors.current.textPrimary)
                         Text(
-                            "%.8f KAS".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0),
+                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0),
                             color = KaspaTeal,
                             fontWeight = FontWeight.Bold,
                             textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -1763,7 +1764,7 @@ private fun ColdSendFlow(
                         }
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "Network fee: ~%.8f KAS".format(java.util.Locale.US, sendState.feeSompi / 100_000_000.0),
+                            "Network fee: ~%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, sendState.feeSompi / 100_000_000.0),
                             color = LocalAppColors.current.textSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -1854,7 +1855,7 @@ private fun ColdSendFlow(
                     com.kachat.app.ui.theme.IosTextField(
                         value = feeEditorInput,
                         onValueChange = { feeEditorInput = it },
-                        label = { Text(stringResource(R.string.fee_kas)) },
+                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -1871,7 +1872,7 @@ private fun ColdSendFlow(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Default: %.8f KAS".format(java.util.Locale.US, defaultFeeSompi / 100_000_000.0),
+                        "Default: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, defaultFeeSompi / 100_000_000.0),
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -2009,7 +2010,7 @@ fun CoinControlScreen(
                     if (selectedKeys.isNotEmpty()) {
                         item {
                             Text(
-                                "%s: %.8f KAS (%d)".format(
+                                "%s: %.8f ${KaspaUnit.symbol} (%d)".format(
                                     Locale.US,
                                     stringResource(R.string.selected),
                                     selectedTotalSompi / 100_000_000.0,
@@ -2042,7 +2043,7 @@ fun CoinControlScreen(
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    "%.8f KAS".format(Locale.US, utxo.utxoEntry.amount / 100_000_000.0),
+                                    "%.8f ${KaspaUnit.symbol}".format(Locale.US, utxo.utxoEntry.amount / 100_000_000.0),
                                     color = LocalAppColors.current.textPrimary,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -2213,7 +2214,7 @@ fun ColdStorageTxHistoryScreen(
                     // addressRow.balanceSompi, which is null whenever the account's address list
                     // is not loaded in this ViewModel - so the page showed 0.00000000 KAS above
                     // a UTXOs (1) tab holding real coins. The UTXO set IS the balance.
-                    "%.8f KAS".format(Locale.US, addressBalanceSompi / 100_000_000.0),
+                    "%.8f ${KaspaUnit.symbol}".format(Locale.US, addressBalanceSompi / 100_000_000.0),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium
@@ -2394,7 +2395,7 @@ private fun ColdUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo, label: St
                 )
             }
             Text(
-                "%.8f KAS".format(Locale.US, kas),
+                "%.8f ${KaspaUnit.symbol}".format(Locale.US, kas),
                 color = LocalAppColors.current.textPrimary,
                 fontWeight = FontWeight.Bold
             )
@@ -2427,7 +2428,7 @@ fun transactionFeeText(feeSompi: Long?): String? {
     val fee = feeSompi ?: return null
     val kas = fee / 100_000_000.0
     val text = if (kas >= 0.001) "%.4f".format(kas) else "%.8f".format(kas)
-    return "Fee $text KAS"
+    return "Fee $text ${KaspaUnit.symbol}"
 }
 
 @Composable
@@ -2479,7 +2480,7 @@ private fun ColdTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction,
         }
         Spacer(Modifier.width(8.dp))
         Text(
-            "${if (tx.sent) "-" else "+"}%.8f KAS".format(java.util.Locale.US, kas),
+            "${if (tx.sent) "-" else "+"}%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
             color = directionColor,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodySmall

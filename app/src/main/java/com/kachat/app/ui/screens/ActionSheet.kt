@@ -88,6 +88,7 @@ import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.FormatQuote
+import com.kachat.app.util.KaspaUnit
 
 /**
  * The frame every "..." menu in the app now uses: a half sheet with a title, a line of context,
@@ -445,7 +446,7 @@ private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction): String 
     val time = tx.blockTimeMillis?.let {
         SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(it))
     }
-    return if (time == null) "$direction $amount KAS" else "$direction $amount KAS on $time"
+    return if (time == null) "$direction $amount ${KaspaUnit.symbol}" else "$direction $amount ${KaspaUnit.symbol} on $time"
 }
 
 /**
@@ -779,7 +780,7 @@ private fun trimmedKasAmount(sompi: Long): String {
     var text = "%.8f".format(java.util.Locale.US, sompi / 100_000_000.0)
     while (text.endsWith("0")) text = text.dropLast(1)
     if (text.endsWith(".")) text = text.dropLast(1)
-    return "$text KAS"
+    return "$text ${KaspaUnit.symbol}"
 }
 
 /** What a sent message's delivery row is reporting. Mirrors iOS's `DeliveryStatusLabel.Status`. */

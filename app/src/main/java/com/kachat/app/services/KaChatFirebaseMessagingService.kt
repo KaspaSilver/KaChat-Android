@@ -8,6 +8,7 @@ import com.kachat.app.repository.ChatRepository
 import com.kachat.app.util.ChessMessage
 import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.KasiaCipher
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
@@ -408,7 +409,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // (iOS paymentNoticePreviewText).
         (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext) as? com.kachat.app.util.PaymentPoolProtocol.Envelope.Notice)?.let { notice ->
             val sompi = notice.content.amountSompi
-            return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f KAS", sompi / 100_000_000.0) else "Received payment"
+            return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f %s", sompi / 100_000_000.0, KaspaUnit.symbol) else "Received payment"
         }
         com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
         MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }

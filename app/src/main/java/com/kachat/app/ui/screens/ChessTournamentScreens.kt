@@ -108,6 +108,7 @@ import com.kachat.app.util.ChessTournamentCodec
 import com.kachat.app.util.ChessTournamentGame
 import com.kachat.app.util.ChessTournamentOutcome
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -370,8 +371,8 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                     )
                 }
                 Text(
-                    if (duel) "Join and you are paired with the next person who joins. When a room fills, the game starts and the next room opens. Five minutes a side; every move is a Kaspa transaction (about 0.0017 KAS each). Games here count on the leaderboard."
-                    else "There is always a public room waiting for players. When it fills, it starts and the next one opens. Eight players, single elimination, five minutes a side. Every move is a Kaspa transaction (about 0.0017 KAS each).",
+                    if (duel) "Join and you are paired with the next person who joins. When a room fills, the game starts and the next room opens. Five minutes a side; every move is a Kaspa transaction (about 0.0017 ${KaspaUnit.symbol} each). Games here count on the leaderboard."
+                    else "There is always a public room waiting for players. When it fills, it starts and the next one opens. Eight players, single elimination, five minutes a side. Every move is a Kaspa transaction (about 0.0017 ${KaspaUnit.symbol} each).",
                     color = colors.textSecondary, fontSize = 12.sp,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                 )

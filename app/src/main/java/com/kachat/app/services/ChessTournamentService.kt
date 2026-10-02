@@ -15,6 +15,7 @@ import com.kachat.app.util.ChessTournamentCodec
 import com.kachat.app.util.ChessTournamentEngine
 import com.kachat.app.util.ChessTournamentGame
 import com.kachat.app.util.ChessTournamentMessage
+import com.kachat.app.util.KaspaUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -496,7 +497,7 @@ class ChessTournamentService @Inject constructor(
             mass, com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toLong(),
         )
         // Four decimals: "0.0017 KAS" reads at a glance; the exact sompi is in the transaction.
-        "%.4f KAS".format(sompi / 100_000_000.0)
+        "%.4f %s".format(sompi / 100_000_000.0, KaspaUnit.symbol)
     }.getOrNull()
 
     /** The join button's label: "Join (Fee: 0.0017 KAS)". */

@@ -22,6 +22,7 @@ import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaUtxoSelector
 import com.kachat.app.util.ImagePrep
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -144,13 +145,13 @@ class WalletViewModel @Inject constructor(
 
     val balance: StateFlow<String> = walletService.balance.map { 
         val kAs = it.toDouble() / 100_000_000.0
-        "%.2f KAS".format(kAs)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00 KAS")
+        "%.2f %s".format(kAs, KaspaUnit.symbol)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00 ${KaspaUnit.symbol}")
 
     val fullBalance: StateFlow<String> = walletService.balance.map {
         val kAs = it.toDouble() / 100_000_000.0
-        "%.8f KAS".format(java.util.Locale.US, kAs)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00000000 KAS")
+        "%.8f %s".format(java.util.Locale.US, kAs, KaspaUnit.symbol)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00000000 ${KaspaUnit.symbol}")
 
     val balanceSompi: StateFlow<Long> = walletService.balance
 
@@ -160,8 +161,8 @@ class WalletViewModel @Inject constructor(
 
     val spendingBalance: StateFlow<String> = walletService.spendingBalance.map {
         val kAs = it.toDouble() / 100_000_000.0
-        "%.8f KAS".format(java.util.Locale.US, kAs)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00000000 KAS")
+        "%.8f %s".format(java.util.Locale.US, kAs, KaspaUnit.symbol)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00000000 ${KaspaUnit.symbol}")
 
     val spendingBalanceSompi: StateFlow<Long> = walletService.spendingBalance
 
@@ -169,7 +170,7 @@ class WalletViewModel @Inject constructor(
      *  Profile row's balance: that row says what the address you are about to spend FROM holds,
      *  which after a few payments is a long way from what the account has. */
     val spendingTotalBalance: StateFlow<String?> = walletService.spendingTotalBalance.map { sompi ->
-        sompi?.let { "Total: %.8f KAS".format(java.util.Locale.US, it.toDouble() / 100_000_000.0) }
+        sompi?.let { "Total: %.8f %s".format(java.util.Locale.US, it.toDouble() / 100_000_000.0, KaspaUnit.symbol) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     /** Re-derives the current spending address and refreshes its balance — safe to call anytime the Profile screen appears, since the underlying index only ever changes via a successful send. */

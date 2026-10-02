@@ -7,6 +7,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.util.KaspaExtendedPublicKey
+import com.kachat.app.util.KaspaUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -282,13 +283,13 @@ class AddressActivityNotifier @Inject constructor(
     private suspend fun postReceive(totalSompi: Long, address: String, coldLabels: Map<String, String>, dedupeKey: String) {
         if (totalSompi <= 0) return
         notificationHelper.showAddressActivity(
-            title = "Received ${formatKas(totalSompi)} KAS",
+            title = "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}",
             text = describe(address, coldLabels),
             dedupeKey = dedupeKey,
             kind = kindOf(address, coldLabels)
         )
         // Also list it in the Profile notifications bell.
-        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} KAS", describe(address, coldLabels), System.currentTimeMillis(), null)
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), null)
         Log.i(TAG, "Notified external receive $dedupeKey")
     }
 
@@ -296,12 +297,12 @@ class AddressActivityNotifier @Inject constructor(
         if (delta <= 0) return
         val dedupeKey = "bal-${address.takeLast(12)}-${System.currentTimeMillis()}"
         notificationHelper.showAddressActivity(
-            title = "Balance increased by ${formatKas(delta)} KAS",
+            title = "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}",
             text = describe(address, coldLabels),
             dedupeKey = dedupeKey,
             kind = kindOf(address, coldLabels)
         )
-        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} KAS", describe(address, coldLabels), System.currentTimeMillis(), null)
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), null)
     }
 
     /** Which wallet screen the notification's tap should open - mirrors iOS's `kindKey(for:)`,

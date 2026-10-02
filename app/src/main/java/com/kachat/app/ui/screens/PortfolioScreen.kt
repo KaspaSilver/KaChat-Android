@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.UserFacingError
 import android.content.ActivityNotFoundException
 import android.content.ClipData
@@ -1688,8 +1689,8 @@ private fun money(value: Double, currencyCode: String): String =
 @Composable
 private fun kas(value: Double, grouped: Boolean = false): String = when {
     LocalPortfolioValuesHidden.current -> MASKED_AMOUNT
-    grouped -> "${formatKasAmountGrouped(value)} KAS"
-    else -> "${formatKasAmount(value)} KAS"
+    grouped -> "${formatKasAmountGrouped(value)} ${KaspaUnit.symbol}"
+    else -> "${formatKasAmount(value)} ${KaspaUnit.symbol}"
 }
 
 @Composable
@@ -2544,7 +2545,7 @@ private fun TransactionDialog(
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(R.string.kaspa), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text(stringResource(R.string.kas_2), color = LocalAppColors.current.textSecondary)
+                    Text(KaspaUnit.label(stringResource(R.string.kas_2)), color = LocalAppColors.current.textSecondary)
                 }
                 Spacer(Modifier.height(12.dp))
 
@@ -3018,7 +3019,7 @@ private fun FeesSpentCard(fees: com.kachat.app.models.PortfolioFeeSummary, curre
 /** Fees are fractions of a KAS - up to eight places, so a month of messages doesn't read 0. */
 private fun formatFeeKas(value: Double): String {
     val format = java.text.DecimalFormat("#,##0.00######", java.text.DecimalFormatSymbols(Locale.US))
-    return format.format(value) + " KAS"
+    return format.format(value) + " " + KaspaUnit.symbol
 }
 
 /** The Realized P&L / Fees Spent card shape: an accent glyph, then a column of lines. */
@@ -3201,9 +3202,9 @@ fun PortfolioHashrateChartScreen(
                     .background(colors.surface)
                     .padding(vertical = 4.dp)
             ) {
-                BlockRewardRow("Block Reward", blockReward?.let { "${formatKasAmountGrouped(it)} KAS" } ?: "-")
+                BlockRewardRow("Block Reward", blockReward?.let { "${formatKasAmountGrouped(it)} ${KaspaUnit.symbol}" } ?: "-")
                 HorizontalDivider(color = colors.divider)
-                BlockRewardRow("Next Block Reward", nextBlockReward?.let { "${formatKasAmountGrouped(it)} KAS" } ?: "-")
+                BlockRewardRow("Next Block Reward", nextBlockReward?.let { "${formatKasAmountGrouped(it)} ${KaspaUnit.symbol}" } ?: "-")
                 HorizontalDivider(color = colors.divider)
                 BlockRewardRow(
                     "Next Block Reward Reduction",
@@ -3333,7 +3334,7 @@ private fun MiningEstimateCard(
 
             Text(
                 text = "At ${formatHashrate(networkHashratePHs!!)} network hashrate and a " +
-                    "${String.format(Locale.US, "%.4f", blockRewardKas!!)} KAS block reward. " +
+                    "${String.format(Locale.US, "%.4f", blockRewardKas!!)} ${KaspaUnit.symbol} block reward. " +
                     "Before pool fees, power and luck, and both figures move.",
                 color = colors.textSecondary,
                 fontSize = 12.sp,
