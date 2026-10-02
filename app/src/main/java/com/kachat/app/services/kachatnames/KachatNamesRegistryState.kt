@@ -173,42 +173,32 @@ fun KachatNames.resolvedOwner(lookup: Lookup, graceMs: Long, nowMs: Long = nowMs
 
 // Profile record (KACHAT_NAMES.md section 7, KACHAT_NAMES_INDEXER.md Part C)
 
+/**
+ * The address profile as written on chain: `{social, linktree, primaryName, v}` (iOS 1322216). No
+ * picture and no free text is ever written: the avatar, banner and bio all come from [social],
+ * looked up on each device ([KachatSocialImageResolver]), so the platform's moderation applies to
+ * all three. iOS and Android read each other's records, so the shape, the normalization and the
+ * JSON must stay exactly iOS's.
+ */
 data class Profile(
     val v: Int = 1,
-    val avatar: String? = null,
-    val banner: String? = null,
-    val bio: String? = null,
-    val links: Links? = null,
+    /** Your profile on a social platform ([SocialSource]): KaChat shows its avatar, banner and
+     *  bio. Stored normalized (`https://x.com/name`). */
+    val social: String? = null,
+    /** A Linktree page (`https://linktr.ee/<name>`): the one way to link anything else. */
+    val linktree: String? = null,
     val primaryName: String? = null
 ) {
-    data class Links(
-        val website: String? = null,
-        val x: String? = null,
-        val github: String? = null,
-        val telegram: String? = null,
-        val discord: String? = null,
-        val nostr: String? = null
-    ) {
-        val isEmpty: Boolean get() = listOf(website, x, github, telegram, discord, nostr).all { it == null }
-    }
-
     /**
-     * The record as the indexer accepts it: blanks dropped, image URLs of another scheme dropped,
-     * the bio cut to 280 characters, the primary name normalized.
+     * The record as the indexer accepts it: a supported social link and a Linktree link,
+     * normalized, anything else dropped; the primary name normalized.
      */
-    fun sanitized(): Profile {
-        val l = links?.let {
-            Links(clean(it.website), clean(it.x), clean(it.github), clean(it.telegram), clean(it.discord), clean(it.nostr))
-        }
-        return Profile(
-            v = 1,
-            avatar = clean(avatar)?.takeIf { isImageURL(it) },
-            banner = clean(banner)?.takeIf { isImageURL(it) },
-            bio = clean(bio)?.let { prefixCharacters(it, MAX_BIO) },
-            links = l?.takeUnless { it.isEmpty },
-            primaryName = clean(primaryName)?.let { Codec.normalize(it) }?.takeIf { Codec.isValid(it) }
-        )
-    }
+    fun sanitized(): Profile = Profile(
+        v = 1,
+        social = clean(social)?.let { SocialSource.from(it, SocialSource.Kind.AVATAR)?.link },
+        linktree = linktreeLink(linktree),
+        primaryName = clean(primaryName)?.let { Codec.normalize(it) }?.takeIf { Codec.isValid(it) }
+    )
 
     /**
      * The JSON of the record: compact, keys sorted, null fields left out (Swift's JSONEncoder with
@@ -217,20 +207,9 @@ data class Profile(
     fun recordJSON(): ByteArray {
         val p = sanitized()
         val o = JsonObject()
-        p.avatar?.let { o.addProperty("avatar", it) }
-        p.banner?.let { o.addProperty("banner", it) }
-        p.bio?.let { o.addProperty("bio", it) }
-        p.links?.let { l ->
-            val lo = JsonObject()
-            l.discord?.let { lo.addProperty("discord", it) }
-            l.github?.let { lo.addProperty("github", it) }
-            l.nostr?.let { lo.addProperty("nostr", it) }
-            l.telegram?.let { lo.addProperty("telegram", it) }
-            l.website?.let { lo.addProperty("website", it) }
-            l.x?.let { lo.addProperty("x", it) }
-            o.add("links", lo)
-        }
+        p.linktree?.let { o.addProperty("linktree", it) }
         p.primaryName?.let { o.addProperty("primaryName", it) }
+        p.social?.let { o.addProperty("social", it) }
         o.addProperty("v", p.v)
         val data = JSON.toJson(o).toByteArray(Charsets.UTF_8)
         if (data.size > Codec.MAX_PROFILE_JSON_BYTES) throw Failure("the profile is over 2 KB")
@@ -238,31 +217,25 @@ data class Profile(
     }
 
     companion object {
+        /** A bio as shown is cut to this many characters (the platform's own text, see
+         *  [SocialSource.trimmedBio]). */
         const val MAX_BIO = 280
 
         private val JSON = GsonBuilder().disableHtmlEscaping().create()
 
-        /** Image URLs must be `https://` or `ipfs://`. */
-        fun isImageURL(s: String): Boolean {
-            val l = s.lowercase()
-            return (l.startsWith("https://") && l.length > 8) || (l.startsWith("ipfs://") && l.length > 7)
-        }
+        internal fun clean(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }
 
-        private fun clean(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }
-
-        /** The first [n] user-perceived characters (Swift `String.prefix` counts graphemes). */
-        private fun prefixCharacters(s: String, n: Int): String {
-            val it = BreakIterator.getCharacterInstance()
-            it.setText(s)
-            var count = 0
-            var end = 0
-            while (count < n) {
-                val next = it.next()
-                if (next == BreakIterator.DONE) return s
-                end = next
-                count++
-            }
-            return s.substring(0, end)
+        /** A pasted Linktree link, normalized to `https://linktr.ee/<name>`; null for anything else. */
+        fun linktreeLink(raw: String?): String? {
+            var t = clean(raw) ?: return null
+            if (!t.lowercase().startsWith("http://") && !t.lowercase().startsWith("https://")) t = "https://$t"
+            val (rawHost, path) = SocialSource.hostAndPath(t) ?: return null
+            val host = rawHost.removePrefix("www.")
+            if (host != "linktr.ee") return null
+            val parts = path.split('/').filter { it.isNotEmpty() }
+            val handle = parts.singleOrNull() ?: return null
+            if (characterCount(handle) > 60 || !handle.codePoints().allMatch { isLetterOrNumber(it) || (it < 0x80 && it.toChar() in "._-") }) return null
+            return "https://linktr.ee/$handle"
         }
 
         /** A record's JSON as the indexer reads it (unknown fields dropped, then sanitized). */
@@ -275,7 +248,8 @@ data class Profile(
 
         /**
          * Strict like Swift's synthesized Decodable: `v` is required, every known field must have
-         * its type (or be null/absent), unknown fields are ignored. Null for anything else.
+         * its type (or be null/absent), unknown fields - the old record's avatar, banner, bio and
+         * links among them - are ignored. Null for anything else.
          */
         fun decode(e: JsonElement?): Profile? {
             if (e == null || !e.isJsonObject) return null
@@ -283,40 +257,297 @@ data class Profile(
             val v = o.get("v")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asJsonPrimitive ?: return null
             val vd = v.asDouble
             if (vd != Math.floor(vd)) return null
-            fun str(obj: JsonObject, k: String): Result<String?> {
-                val x = obj.get(k)
+            fun str(k: String): Result<String?> {
+                val x = o.get(k)
                 return when {
                     x == null || x.isJsonNull -> Result.success(null)
                     x.isJsonPrimitive && x.asJsonPrimitive.isString -> Result.success(x.asString)
-                    else -> Result.failure(Failure("$k"))
+                    else -> Result.failure(Failure(k))
                 }
             }
             return try {
-                val linksEl = o.get("links")
-                val links = when {
-                    linksEl == null || linksEl.isJsonNull -> null
-                    linksEl.isJsonObject -> {
-                        val l = linksEl.asJsonObject
-                        Links(
-                            str(l, "website").getOrThrow(), str(l, "x").getOrThrow(), str(l, "github").getOrThrow(),
-                            str(l, "telegram").getOrThrow(), str(l, "discord").getOrThrow(), str(l, "nostr").getOrThrow()
-                        )
-                    }
-                    else -> return null
-                }
                 Profile(
                     v = vd.toInt(),
-                    avatar = str(o, "avatar").getOrThrow(),
-                    banner = str(o, "banner").getOrThrow(),
-                    bio = str(o, "bio").getOrThrow(),
-                    links = links,
-                    primaryName = str(o, "primaryName").getOrThrow()
+                    social = str("social").getOrThrow(),
+                    linktree = str("linktree").getOrThrow(),
+                    primaryName = str("primaryName").getOrThrow()
                 )
             } catch (_: Exception) {
                 null
             }
         }
     }
+}
+
+/** The first [n] user-perceived characters (Swift `String.prefix` counts graphemes). */
+internal fun prefixCharacters(s: String, n: Int): String {
+    val it = BreakIterator.getCharacterInstance()
+    it.setText(s)
+    var count = 0
+    var end = 0
+    while (count < n) {
+        val next = it.next()
+        if (next == BreakIterator.DONE) return s
+        end = next
+        count++
+    }
+    return s.substring(0, end)
+}
+
+/** Swift's `String.count`: user-perceived characters. */
+internal fun characterCount(s: String): Int {
+    val it = BreakIterator.getCharacterInstance()
+    it.setText(s)
+    var count = 0
+    while (it.next() != BreakIterator.DONE) count++
+    return count
+}
+
+/** Swift's `Character.isLetter || Character.isNumber` for one code point. */
+internal fun isLetterOrNumber(cp: Int): Boolean = Character.isLetter(cp) || Character.isAlphabetic(cp) ||
+    when (Character.getType(cp).toByte()) {
+        Character.DECIMAL_DIGIT_NUMBER, Character.LETTER_NUMBER, Character.OTHER_NUMBER -> true
+        else -> false
+    }
+
+/**
+ * Where a profile's avatar, banner and bio come from: a profile link on a platform that moderates
+ * what it shows (X, YouTube, Facebook, ...). The record stores only the link; each device looks
+ * the current avatar, banner and bio up and caches them ([KachatSocialImageResolver]), so anything
+ * the platform takes down disappears here too. Nothing is ever uploaded. iOS
+ * `KachatNames.SocialSource` (ad32798, 1322216, 169f6a0).
+ */
+data class SocialSource(
+    val platform: Platform,
+    /** The normalized profile link, e.g. `https://x.com/name`. */
+    val link: String,
+    /** The handle, channel path or invite code inside it. */
+    val handle: String
+) {
+    enum class Kind { AVATAR, BANNER }
+
+    enum class Platform(
+        /** The platform's own name (not translated: a brand). */
+        val displayName: String
+    ) {
+        X("X"), YOUTUBE("YouTube"), FACEBOOK("Facebook"), INSTAGRAM("Instagram"), TIKTOK("TikTok"),
+        TWITCH("Twitch"), KICK("Kick"), GITHUB("GitHub"), TELEGRAM("Telegram"), LINKEDIN("LinkedIn"),
+        DISCORD("Discord");
+
+        /** Platforms whose banner can be read without signing in. */
+        val hasBanner: Boolean get() = this == X || this == YOUTUBE || this == DISCORD
+
+        /** Platforms whose preview carries the person's own bio (see [SocialSource.bio]). */
+        val hasBio: Boolean get() = this in setOf(X, YOUTUBE, TELEGRAM, TWITCH, KICK, GITHUB, DISCORD)
+    }
+
+    companion object {
+        /**
+         * Accepts a pasted profile link (with or without `https://`, `www.`, `m.`, trailing slash
+         * or query). Null for an unsupported site, a post rather than a profile, or a banner from a
+         * platform that has none (Swift's failable `init?(link:for:)`).
+         */
+        fun from(raw: String, kind: Kind): SocialSource? {
+            var t = raw.trim()
+            if (t.isEmpty()) return null
+            if (!t.lowercase().startsWith("http://") && !t.lowercase().startsWith("https://")) t = "https://$t"
+            val (h, path) = hostAndPath(t) ?: return null
+            var host = h
+            for (prefix in listOf("www.", "m.", "mobile.")) if (host.startsWith(prefix)) host = host.removePrefix(prefix)
+            val parts = path.split('/').filter { it.isNotEmpty() }
+            fun ok(s: String): Boolean =
+                s.isNotEmpty() && characterCount(s) <= 100 && s.codePoints().allMatch { isLetterOrNumber(it) || (it < 0x80 && it.toChar() in "._-@") }
+
+            var platform: Platform? = null
+            var handle = ""
+            var link = ""
+            when (host) {
+                "x.com", "twitter.com" ->
+                    if (parts.size == 1 && ok(parts[0]) && parts[0].lowercase() !in setOf("home", "explore", "search", "i", "settings")) {
+                        platform = Platform.X; handle = parts[0]; link = "https://x.com/$handle"
+                    }
+                "youtube.com" ->
+                    if (parts.isNotEmpty() && parts[0].startsWith("@") && ok(parts[0])) {
+                        platform = Platform.YOUTUBE; handle = parts[0]; link = "https://www.youtube.com/$handle"
+                    } else if (parts.size >= 2 && parts[0] in setOf("channel", "c", "user") && ok(parts[1])) {
+                        platform = Platform.YOUTUBE; handle = "${parts[0]}/${parts[1]}"; link = "https://www.youtube.com/$handle"
+                    }
+                "facebook.com", "fb.com" ->
+                    if (parts.size == 1 && ok(parts[0]) && parts[0].lowercase() !in setOf("profile.php", "groups", "watch", "events")) {
+                        platform = Platform.FACEBOOK; handle = parts[0]; link = "https://www.facebook.com/$handle"
+                    }
+                "instagram.com" ->
+                    if (parts.size == 1 && ok(parts[0]) && parts[0].lowercase() !in setOf("p", "reel", "reels", "explore", "stories")) {
+                        platform = Platform.INSTAGRAM; handle = parts[0]; link = "https://www.instagram.com/$handle/"
+                    }
+                "tiktok.com" ->
+                    if (parts.size == 1 && parts[0].startsWith("@") && ok(parts[0])) {
+                        platform = Platform.TIKTOK; handle = parts[0]; link = "https://www.tiktok.com/$handle"
+                    }
+                "twitch.tv" ->
+                    if (parts.size == 1 && ok(parts[0])) { platform = Platform.TWITCH; handle = parts[0]; link = "https://www.twitch.tv/$handle" }
+                "kick.com" ->
+                    if (parts.size == 1 && ok(parts[0])) { platform = Platform.KICK; handle = parts[0]; link = "https://kick.com/$handle" }
+                "github.com" ->
+                    if (parts.size == 1 && ok(parts[0])) { platform = Platform.GITHUB; handle = parts[0]; link = "https://github.com/$handle" }
+                "t.me", "telegram.me" ->
+                    if (parts.size == 1 && ok(parts[0]) && !parts[0].startsWith("+")) {
+                        platform = Platform.TELEGRAM; handle = parts[0]; link = "https://t.me/$handle"
+                    }
+                "linkedin.com" ->
+                    if (parts.size >= 2 && parts[0] in setOf("in", "company") && ok(parts[1])) {
+                        platform = Platform.LINKEDIN; handle = "${parts[0]}/${parts[1]}"; link = "https://www.linkedin.com/$handle"
+                    }
+                "discord.gg" ->
+                    if (parts.size == 1 && ok(parts[0])) { platform = Platform.DISCORD; handle = parts[0]; link = "https://discord.gg/$handle" }
+                "discord.com", "discordapp.com" ->
+                    if (parts.size == 2 && parts[0] == "invite" && ok(parts[1])) {
+                        platform = Platform.DISCORD; handle = parts[1]; link = "https://discord.gg/$handle"
+                    }
+            }
+            val p = platform ?: return null
+            if (kind == Kind.BANNER && !p.hasBanner) return null
+            return SocialSource(p, link, handle)
+        }
+
+        /**
+         * The lowercased host and the decoded path of a URL - what Swift reads from
+         * `URLComponents(string:)`'s `host` and `path`. Null when it doesn't parse or has no host.
+         */
+        internal fun hostAndPath(url: String): Pair<String, String>? {
+            val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return null
+            val host = uri.host?.lowercase() ?: return null
+            return host to (uri.path ?: "")
+        }
+
+        // Reading the profile out of what the platform serves (pure, tested on the JVM)
+
+        private fun metaTag(html: String, key: String): String? =
+            Regex("<meta[^>]+(?:property|name)=[\"']${Regex.escape(key)}[\"'][^>]*>", RegexOption.IGNORE_CASE).find(html)?.value
+
+        /** The `og:image` (or `twitter:image`) of an HTML page, entities decoded. */
+        fun openGraphImage(html: String): String? {
+            for (key in listOf("og:image", "og:image:secure_url", "twitter:image")) {
+                val tag = metaTag(html, key) ?: continue
+                val c = Regex("content=[\"']([^\"']+)[\"']").find(tag) ?: continue
+                val value = decodeEntities(c.value.replace("content=", "").trim('"', '\''))
+                if (value.lowercase().startsWith("https://")) return value
+            }
+            return null
+        }
+
+        /** The page's `og:description` (or `description`), entities decoded. */
+        fun openGraphDescription(html: String): String? {
+            for (key in listOf("og:description", "description", "twitter:description")) {
+                val tag = metaTag(html, key) ?: continue
+                val c = Regex("content=\"([^\"]*)\"").find(tag) ?: Regex("content='([^']*)'").find(tag) ?: continue
+                val value = decodeEntities(c.groupValues[1]).trim()
+                if (value.isNotEmpty()) return value
+            }
+            return null
+        }
+
+        /**
+         * The bio a platform shows in its preview, where that text really is the person's own (X,
+         * YouTube, Telegram, Kick, and Twitch without its boilerplate). Instagram, TikTok, Facebook
+         * and LinkedIn only put follower counts or site text there: no bio from them. GitHub and
+         * Discord come from their APIs instead.
+         */
+        fun bio(platform: Platform, openGraphDescription: String?): String? {
+            val d = openGraphDescription
+            if (d.isNullOrEmpty()) return null
+            val text = when (platform) {
+                Platform.X, Platform.YOUTUBE, Platform.TELEGRAM, Platform.KICK -> d
+                // "<description> — Twitch streams live on Twitch! Check out their videos ..."
+                Platform.TWITCH -> d.split(" — ").first()
+                else -> return null
+            }
+            return trimmedBio(text)
+        }
+
+        fun trimmedBio(s: String?): String? {
+            val t = s?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            return prefixCharacters(t, Profile.MAX_BIO)
+        }
+
+        private fun jsonObject(json: String): JsonObject? =
+            runCatching { JsonParser.parseString(json) }.getOrNull()?.takeIf { it.isJsonObject }?.asJsonObject
+
+        /** Swift's `dict[k] as? String`: a JSON string, else null. */
+        private fun JsonObject.string(k: String): String? =
+            get(k)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+
+        /** GitHub's public user API (`api.github.com/users/<name>`): avatar and bio. */
+        fun githubProfile(json: String): Pair<String?, String?> {
+            val root = jsonObject(json) ?: return null to null
+            return root.string("avatar_url") to trimmedBio(root.string("bio"))
+        }
+
+        /** A Discord invite's server description. */
+        fun discordDescription(inviteJson: String): String? {
+            val guild = jsonObject(inviteJson)?.get("guild")?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
+            return trimmedBio(guild.string("description"))
+        }
+
+        /** Discord invite -> the server's icon or banner (`/api/v10/invites/{code}`). */
+        fun discordImage(inviteJson: String, kind: Kind): String? {
+            val guild = jsonObject(inviteJson)?.get("guild")?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
+            val id = guild.string("id") ?: return null
+            return when (kind) {
+                Kind.AVATAR -> guild.string("icon")?.takeIf { it.isNotEmpty() }?.let { "https://cdn.discordapp.com/icons/$id/$it.png?size=256" }
+                Kind.BANNER -> guild.string("banner")?.takeIf { it.isNotEmpty() }?.let { "https://cdn.discordapp.com/banners/$id/$it.png?size=1024" }
+            }
+        }
+
+        private val NUMERIC_ENTITY = Regex("&#(x[0-9a-fA-F]+|[0-9]+);")
+
+        /** HTML entities as they appear in meta tags: named basics plus decimal and hex numbers. */
+        fun decodeEntities(s: String): String {
+            if (!s.contains("&")) return s
+            var out = s
+            for ((k, v) in listOf("&quot;" to "\"", "&apos;" to "'", "&lt;" to "<", "&gt;" to ">", "&nbsp;" to " ")) {
+                out = out.replace(k, v)
+            }
+            // From the start each time, as iOS does (a decoded "&" can start the next entity).
+            while (true) {
+                val m = NUMERIC_ENTITY.find(out) ?: break
+                val body = m.groupValues[1]
+                val n = if (body.startsWith("x")) body.drop(1).toLongOrNull(16) else body.toLongOrNull()
+                // Swift: UInt32(...) then Unicode.Scalar(...) - nothing for overflow or a surrogate
+                val scalar = n?.takeIf { it <= 0x10FFFF && it !in 0xD800L..0xDFFFL }?.toInt()
+                out = out.replaceRange(m.range, scalar?.let { String(Character.toChars(it)) } ?: "")
+            }
+            // last, so "&amp;#39;" (double-encoded, as LinkedIn sends) decodes one level only
+            return out.replace("&amp;", "&")
+        }
+
+        /** X's avatar from its page, upgraded from the 200px thumbnail to 400px. */
+        fun xAvatar(openGraphImage: String): String = openGraphImage.replace("_200x200.", "_400x400.")
+
+        /** X's banner: the page names it as `profile_banners/<user id>/<version>`. */
+        fun xBanner(html: String): String? =
+            Regex("profile_banners/[0-9]+/[0-9]+").find(html)?.let { "https://pbs.twimg.com/${it.value}/1500x500" }
+
+        /** YouTube's channel banner from the page's embedded data, when the channel has one. */
+        fun youtubeBanner(html: String): String? {
+            // The object itself (the bare name also appears earlier, in a list of renderer types).
+            val marker = "\"imageBannerViewModel\":{"
+            val start = html.indexOf(marker)
+            if (start < 0) return null
+            val from = start + marker.length
+            val window = html.substring(from, minOf(html.length, from + 4000))
+            return Regex("https://yt3\\.googleusercontent\\.com/[^\"\\\\]+").find(window)?.value
+        }
+    }
+}
+
+/** What a social profile link shows right now: avatar, banner (X, YouTube, Discord) and bio. */
+data class SocialProfile(
+    val avatar: String? = null,
+    val banner: String? = null,
+    val bio: String? = null
+) {
+    val isEmpty: Boolean get() = avatar == null && banner == null && bio == null
 }
 
 data class Identity(

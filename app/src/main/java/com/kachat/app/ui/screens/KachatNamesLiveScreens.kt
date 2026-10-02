@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -57,12 +58,15 @@ import com.kachat.app.services.kachatnames.KachatNames
 import com.kachat.app.services.kachatnames.KachatNamesActions
 import com.kachat.app.services.kachatnames.KachatNamesRegistry
 import com.kachat.app.services.kachatnames.KachatNamesService
+import com.kachat.app.services.kachatnames.KachatSocialImageResolver
 import com.kachat.app.services.kachatnames.Lookup
 import com.kachat.app.services.kachatnames.NameInfo
 import com.kachat.app.services.kachatnames.OfferInfo
 import com.kachat.app.services.kachatnames.PendingRegistration
 import com.kachat.app.services.kachatnames.Plan
 import com.kachat.app.services.kachatnames.Profile
+import com.kachat.app.services.kachatnames.SocialProfile
+import com.kachat.app.services.kachatnames.SocialSource
 import com.kachat.app.services.kachatnames.Status
 import com.kachat.app.services.kachatnames.nowMs
 import com.kachat.app.ui.theme.IosActivityIndicator
@@ -76,7 +80,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import java.text.BreakIterator
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -266,6 +269,9 @@ class KachatLiveViewModel @Inject constructor(
     val service: KachatNamesService,
     val registry: KachatNamesRegistry,
     val actions: KachatNamesActions,
+    /** Social profiles (avatar, banner, bio) looked up on this device (iOS
+     *  `KachatSocialImageResolver.shared`, ad32798). */
+    val social: KachatSocialImageResolver,
     private val chatRepository: ChatRepository,
     private val walletManager: WalletManager,
 ) : ViewModel() {
@@ -378,18 +384,27 @@ class KachatLiveViewModel @Inject constructor(
 
     fun pricePerYear(name: String): Long? = service.manifest.value?.params?.price(name.toByteArray(Charsets.UTF_8).size)
 
-    /** Testnet only: the `.kachat` label of [address] (primary name, else oldest active name) for
-     *  the profile hero (iOS ContactsView `loadKachatLabel`, 5df42b4); null on mainnet. */
-    suspend fun label(address: String): String? {
+    /** The profile hero's `.kachat` part: your label, and your profile's social and Linktree links. */
+    data class Hero(val label: String?, val social: String?, val linktree: String?)
+
+    /**
+     * Testnet only: the `.kachat` label of [address] (primary name, else oldest active name) and
+     * its address profile's social and Linktree links, for the profile hero (iOS ContactsView
+     * `loadKachatLabel`, 5df42b4 / ad32798 / 1322216) - the record this wallet last wrote first,
+     * else the one the source knows. Null on mainnet.
+     */
+    suspend fun hero(address: String): Hero? {
         if (!KachatNamesService.isEnabled) return null
         registry.refreshIfStale(300_000)
-        return try {
-            registry.identity(address).label
+        val identity = try {
+            registry.identity(address)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             null
         }
+        val profile = registry.ownProfile(address)?.profile ?: identity?.profile
+        return Hero(identity?.label, profile?.social, profile?.linktree)
     }
 
     /** Runs [block] past the screen's life: a send must not be cancelled by closing its sheet
@@ -1947,32 +1962,116 @@ fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: 
 
 // MARK: - Edit .kachat Profile
 
-/** Swift `String.count`: user-perceived characters. */
-private fun graphemeCount(s: String): Int {
-    val breaks = BreakIterator.getCharacterInstance()
-    breaks.setText(s)
-    var n = 0
-    while (breaks.next() != BreakIterator.DONE) n++
-    return n
-}
+/**
+ * Where a social link's lookup stands - the editor saves only a profile that was looked up and
+ * shows something, so what gets saved is what was reviewed (iOS `KachatSocialLookup`, 169f6a0).
+ */
+enum class KachatSocialLookup { NONE, LOOKING, FOUND, EMPTY }
 
-private fun graphemePrefix(s: String, n: Int): String {
-    val breaks = BreakIterator.getCharacterInstance()
-    breaks.setText(s)
-    var end = 0
-    repeat(n) {
-        val next = breaks.next()
-        if (next == BreakIterator.DONE) return s
-        end = next
-    }
-    return s.substring(0, end)
+/** iOS `.padding(.top, -32)`: drawn [dy] higher and taking that much less room, so what follows
+ *  moves up with it (an offset alone would leave the gap). */
+private fun Modifier.pullUp(dy: androidx.compose.ui.unit.Dp): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val px = dy.roundToPx()
+    layout(placeable.width, (placeable.height - px).coerceAtLeast(0)) { placeable.place(0, -px) }
 }
 
 /**
- * The address profile (KACHAT_NAMES.md section 7): avatar, banner, bio, links and which of your
- * names labels you - written as a `kchat:1:profile:` self-transfer. No display name: the label is
- * always a name you own or your address (iOS `KachatLiveProfileEditor`, 5df42b4 - image links
- * are https/ipfs URLs).
+ * What a pasted social link shows - banner, avatar, bio - looked up on this device and laid out
+ * like the profile header: exactly what other people will see (iOS `KachatSocialPreview`,
+ * ad32798 / 1322216 / 169f6a0). Nothing until the link is a supported one; [lookup] tells the
+ * editor where the lookup stands. Debounced: one lookup once typing pauses, not one per keystroke.
+ */
+@Composable
+private fun KachatSocialPreview(
+    link: String,
+    lookup: KachatSocialLookup,
+    onLookup: (KachatSocialLookup) -> Unit,
+    resolver: KachatSocialImageResolver,
+) {
+    val colors = LocalAppColors.current
+    val source = remember(link) { SocialSource.from(link, SocialSource.Kind.AVATAR) }
+    var resolved by remember { mutableStateOf<SocialProfile?>(null) }
+
+    LaunchedEffect(source?.link) {
+        resolved = null
+        if (source == null) { onLookup(KachatSocialLookup.NONE); return@LaunchedEffect }
+        onLookup(KachatSocialLookup.LOOKING)
+        delay(600)
+        // Leaving the effect (the link changed) cancels this, as iOS's Task.isCancelled checks do.
+        val result = resolver.resolve(source)
+        resolved = result
+        onLookup(if (result == null || result.isEmpty) KachatSocialLookup.EMPTY else KachatSocialLookup.FOUND)
+    }
+
+    if (source == null) return
+    SettingsDivider()
+    when (lookup) {
+        KachatSocialLookup.LOOKING, KachatSocialLookup.NONE ->
+            Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                IosActivityIndicator(modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(stringResource(R.string.kn_social_looking), color = colors.textSecondary, fontSize = 13.sp)
+            }
+        KachatSocialLookup.EMPTY ->
+            Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.NoAccounts, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(stringResource(R.string.kn_social_nothing), color = colors.textSecondary, fontSize = 13.sp)
+            }
+        KachatSocialLookup.FOUND -> resolved?.let { KachatSocialCard(it, source.platform) }
+    }
+}
+
+/** The review card: banner, avatar over it, bio, where it came from and why a piece is missing. */
+@Composable
+private fun KachatSocialCard(p: SocialProfile, platform: SocialSource.Platform) {
+    val colors = LocalAppColors.current
+    val name = platform.displayName
+    // Why a piece is missing: the platform never shows it, or this profile has none.
+    val missing = buildList {
+        if (p.avatar == null) add(stringResource(R.string.kn_social_no_avatar, name))
+        if (p.banner == null) add(stringResource(if (platform.hasBanner) R.string.kn_social_no_banner else R.string.kn_social_no_banners, name))
+        if (p.bio == null) add(stringResource(if (platform.hasBio) R.string.kn_social_no_bio else R.string.kn_social_no_bios, name))
+    }
+    val gradient = androidx.compose.ui.graphics.Brush.linearGradient(listOf(KaspaTeal.copy(alpha = 0.55f), KaspaTeal.copy(alpha = 0.15f)))
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(12.dp)).background(colors.surfaceVariant)
+    ) {
+        val banner = p.banner
+        if (banner != null) {
+            coil.compose.SubcomposeAsyncImage(
+                model = banner,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(96.dp),
+                loading = { Box(Modifier.fillMaxSize().background(gradient)) },
+                error = { Box(Modifier.fillMaxSize().background(gradient)) }
+            )
+        } else {
+            Box(Modifier.fillMaxWidth().height(96.dp).background(gradient))
+        }
+        // The avatar overlaps the banner, ringed in the row's colour (iOS 3pt stroke).
+        Box(
+            Modifier.padding(start = 12.dp).pullUp(32.dp).size(70.dp).clip(CircleShape).background(colors.surface),
+            contentAlignment = Alignment.Center
+        ) {
+            ContactAvatar(imageUrl = p.avatar, fallbackText = "", size = 64.dp)
+        }
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            p.bio?.let { Text(it, color = colors.textPrimary, fontSize = 15.sp) }
+            Text(stringResource(R.string.kn_social_from, name), color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            missing.forEach { Text(it, color = colors.textSecondary, fontSize = 12.sp) }
+        }
+    }
+}
+
+/**
+ * The address profile (KACHAT_NAMES.md section 7): a social link (whose avatar, banner and bio
+ * KaChat shows), a Linktree link, and which of your names labels you - written as a
+ * `kchat:1:profile:` self-transfer. No free text and no uploads: what shows comes from a platform
+ * that moderates it (iOS `KachatLiveProfileEditor`, 5df42b4 / 1322216 / 169f6a0).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1980,15 +2079,9 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
     val colors = LocalAppColors.current
     val context = LocalContext.current
     val view = LocalView.current
-    var avatar by remember { mutableStateOf("") }
-    var banner by remember { mutableStateOf("") }
-    var bio by remember { mutableStateOf("") }
-    var website by remember { mutableStateOf("") }
-    var x by remember { mutableStateOf("") }
-    var github by remember { mutableStateOf("") }
-    var telegram by remember { mutableStateOf("") }
-    var discord by remember { mutableStateOf("") }
-    var nostr by remember { mutableStateOf("") }
+    var social by remember { mutableStateOf("") }
+    var socialLookup by remember { mutableStateOf(KachatSocialLookup.NONE) }
+    var linktree by remember { mutableStateOf("") }
     var primary by remember { mutableStateOf("") }
     var activeNames by remember { mutableStateOf<List<String>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
@@ -2007,15 +2100,8 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
         val p = vm.registry.ownProfile(address)?.profile
             ?: runCatching { vm.registry.identity(address).profile }.getOrNull()
         if (p != null) {
-            avatar = p.avatar ?: ""
-            banner = p.banner ?: ""
-            bio = p.bio ?: ""
-            website = p.links?.website ?: ""
-            x = p.links?.x ?: ""
-            github = p.links?.github ?: ""
-            telegram = p.links?.telegram ?: ""
-            discord = p.links?.discord ?: ""
-            nostr = p.links?.nostr ?: ""
+            social = p.social ?: ""
+            linktree = p.linktree ?: ""
         }
         KachatNamesRegistry.keyOf(address)?.let { key ->
             activeNames = (runCatching { vm.registry.names(key, includeInactive = false) }.getOrNull() ?: emptyList()).map { it.name }
@@ -2024,13 +2110,14 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
         loaded = true
     }
 
-    val badImage = listOf(avatar, banner).any { s -> val t = s.trim(); t.isNotEmpty() && !Profile.isImageURL(t) }
+    val badSocial = social.trim().let { it.isNotEmpty() && SocialSource.from(it, SocialSource.Kind.AVATAR) == null }
+    // A social link is saved only once its lookup found something to show - what you reviewed.
+    val socialNotReviewed = social.trim().isNotEmpty() && socialLookup != KachatSocialLookup.FOUND
+    val badLinktree = linktree.trim().let { it.isNotEmpty() && Profile.linktreeLink(it) == null }
 
     fun profile(): Profile = Profile(
-        avatar = avatar,
-        banner = banner,
-        bio = bio,
-        links = Profile.Links(website = website, x = x, github = github, telegram = telegram, discord = discord, nostr = nostr),
+        social = social,
+        linktree = linktree,
         primaryName = primary.ifEmpty { null }
     ).sanitized()
 
@@ -2055,14 +2142,6 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
         }
     }
 
-    @Composable
-    fun linkField(title: String, value: String, onChange: (String) -> Unit) {
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, color = colors.textPrimary)
-            FormTextField(value, onChange, "", Modifier.weight(1f), textAlign = TextAlign.End)
-        }
-    }
-
     KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack, finished = savedTx != null) {
         FormSection {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
@@ -2071,33 +2150,25 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
                 Text(stringResource(R.string.kn_profile_belongs), color = colors.textPrimary, fontSize = 15.sp)
             }
         }
-        FormSection(header = stringResource(R.string.avatar)) {
-            FormTextField(avatar, { avatar = it }, stringResource(R.string.kn_image_placeholder), Modifier.fillMaxWidth(), keyboardType = KeyboardType.Uri)
+        FormSection(
+            header = stringResource(R.string.kn_social_profile),
+            footer = {
+                if (badSocial) FormFooter(stringResource(R.string.kn_social_bad), colors.danger)
+                else FormFooter(stringResource(R.string.kn_social_footer))
+            }
+        ) {
+            // iOS's placeholder is a sample link, the same in every language.
+            FormTextField(social, { social = it }, "x.com/yourname", Modifier.fillMaxWidth(), keyboardType = KeyboardType.Uri)
+            KachatSocialPreview(social, socialLookup, { socialLookup = it }, vm.social)
         }
         FormSection(
-            header = stringResource(R.string.banner),
-            footer = { if (badImage) FormFooter(stringResource(R.string.kn_image_error), colors.danger) }
+            header = stringResource(R.string.kn_links),
+            footer = {
+                if (badLinktree) FormFooter(stringResource(R.string.kn_linktree_bad), colors.danger)
+                else FormFooter(stringResource(R.string.kn_linktree_footer))
+            }
         ) {
-            FormTextField(banner, { banner = it }, stringResource(R.string.kn_image_placeholder), Modifier.fillMaxWidth(), keyboardType = KeyboardType.Uri)
-        }
-        FormSection(header = stringResource(R.string.bio), footer = { FormFooter("${graphemeCount(bio)}/${Profile.MAX_BIO}") }) {
-            FormTextField(
-                bio,
-                { v -> bio = if (graphemeCount(v) > Profile.MAX_BIO) graphemePrefix(v, Profile.MAX_BIO) else v },
-                stringResource(R.string.bio),
-                Modifier.fillMaxWidth(),
-                singleLine = false,
-                minLines = 3,
-                maxLines = 8
-            )
-        }
-        FormSection(header = stringResource(R.string.kn_links)) {
-            linkField(stringResource(R.string.website), website) { website = it }; SettingsDivider()
-            linkField(stringResource(R.string.x), x) { x = it }; SettingsDivider()
-            linkField(stringResource(R.string.github), github) { github = it }; SettingsDivider()
-            linkField(stringResource(R.string.telegram), telegram) { telegram = it }; SettingsDivider()
-            linkField(stringResource(R.string.discord), discord) { discord = it }; SettingsDivider()
-            linkField(stringResource(R.string.kn_nostr), nostr) { nostr = it }
+            FormTextField(linktree, { linktree = it }, "linktr.ee/yourname", Modifier.fillMaxWidth(), keyboardType = KeyboardType.Uri)
         }
         FormSection(header = stringResource(R.string.kachat_name_section), footer = { FormFooter(stringResource(R.string.kn_primary_footer)) }) {
             // iOS's menu Picker: the label, the choice on the right, the choices in a menu.
@@ -2127,7 +2198,11 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
                 else -> FormFooter(stringResource(R.string.kn_save_footer))
             }
         }) {
-            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = !saving && loaded && !badImage, busy = saving) { confirmSave = true }
+            FormButtonRow(
+                stringResource(R.string.kn_save_profile),
+                enabled = !saving && loaded && !badSocial && !badLinktree && !socialNotReviewed,
+                busy = saving
+            ) { confirmSave = true }
         }
     }
 

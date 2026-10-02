@@ -828,9 +828,6 @@
     <string name="kn_bond_to_last_owner">وثیقه به آخرین مالک</string>
     <string name="kn_domains_claim_hint">از Kaspa Hub > .kachat یکی بگیرید.</string>
     <string name="kn_profile_belongs">پروفایل شما متعلق به نشانی شماست، نه یک نام: وقتی نامی را می‌خرید، می‌فروشید یا رها می‌کنید، تغییری نمی‌کند.</string>
-    <string name="kn_image_placeholder">https://... یا ipfs://...</string>
-    <string name="kn_image_error">پیوند تصویر باید با https:// یا ipfs:// شروع شود.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">پیوندها</string>
     <string name="kn_primary_name">نام اصلی</string>
     <string name="kn_none">هیچ</string>
@@ -857,4 +854,18 @@
     <string name="kn_available">موجود</string>
     <string name="kn_expires">انقضا</string>
     <string name="kn_one_year">1 سال</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">نمایهٔ اجتماعی</string>
+    <string name="kn_social_bad">پیوند یک نمایه از X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram یا LinkedIn، یا دعوت‌نامهٔ یک سرور Discord را جای‌گذاری کنید.</string>
+    <string name="kn_social_footer">آواتار، بنر و بیوگرافی شما از این نمایه می‌آیند، دقیقاً همان‌طور که آن پلتفرم نشان می‌دهد، پس نظارت آن اینجا هم اعمال می‌شود. بنرها از X، YouTube و Discord و بیوگرافی‌ها از X, YouTube, Telegram, Twitch, Kick, GitHub و Discord می‌آیند.</string>
+    <string name="kn_linktree_bad">فقط پیوند Linktree (linktr.ee/yourname) قابل افزودن است.</string>
+    <string name="kn_linktree_footer">Linktree خود را اضافه کنید تا دیگران را به حساب‌ها و وب‌سایت‌های دیگرتان راهنمایی کنید.</string>
+    <string name="kn_social_looking">در حال یافتن نمایه...</string>
+    <string name="kn_social_nothing">چیزی برای این پیوند پیدا نشد.</string>
+    <string name="kn_social_from">از %1$s</string>
+    <string name="kn_social_no_avatar">این نمایهٔ %1$s آواتار ندارد.</string>
+    <string name="kn_social_no_banner">این نمایهٔ %1$s بنر ندارد.</string>
+    <string name="kn_social_no_banners">%1$s بنر را به اشتراک نمی‌گذارد.</string>
+    <string name="kn_social_no_bio">این نمایهٔ %1$s بیوگرافی ندارد.</string>
+    <string name="kn_social_no_bios">%1$s بیوگرافی را به اشتراک نمی‌گذارد.</string>
 </resources>

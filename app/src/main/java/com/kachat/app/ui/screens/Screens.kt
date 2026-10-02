@@ -3693,11 +3693,23 @@ fun ProfileScreen(
     val kachatLive: KachatLiveViewModel? =
         if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) hiltViewModel() else null
     var kachatLabel by remember { mutableStateOf<String?>(null) }
+    // The address profile's social link (avatar, banner and bio looked up on this device) and
+    // Linktree link - testnet (iOS ad32798 / 1322216).
+    var kachatSocialLink by remember { mutableStateOf<String?>(null) }
+    var kachatLinktree by remember { mutableStateOf<String?>(null) }
     val kachatRevision = kachatLive?.registry?.revision?.collectAsState()?.value
     LaunchedEffect(address, kachatRevision) {
         val a = address
-        kachatLabel = if (kachatLive != null && a != null) kachatLive.label(a) else null
+        val hero = if (kachatLive != null && a != null) kachatLive.hero(a) else null
+        kachatLabel = hero?.label
+        kachatSocialLink = hero?.social
+        kachatLinktree = hero?.linktree
     }
+    // What the social link shows, from the device's cache; a missing or stale answer is looked
+    // up again and lands here through the collected cache (iOS `socialImages.profile(for:)`).
+    val kachatSocialEntries = kachatLive?.social?.entries?.collectAsState()?.value
+    LaunchedEffect(kachatSocialLink) { kachatLive?.social?.refreshIfStale(kachatSocialLink) }
+    val kachatSocial = kachatSocialEntries?.let { kachatLive?.social?.cached(kachatSocialLink, it) }
     val activeProfileDomainName = viewModel.activeProfileDomainName.collectAsState().value
     val hasAnyProfileData = knsProfile != null && listOf(
         knsProfile?.bio, knsProfile?.x, knsProfile?.website, knsProfile?.telegram,
@@ -4048,7 +4060,9 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column {
-                    val bannerUrl = knsProfile?.bannerUrl
+                    // On testnet the .kachat profile (avatar, banner and bio looked up from its
+                    // social link) comes first; the KNS one otherwise (iOS ad32798 / 1322216).
+                    val bannerUrl = kachatSocial?.banner ?: knsProfile?.bannerUrl
                     if (bannerUrl != null) {
                         SubcomposeAsyncImage(
                             model = bannerUrl,
@@ -4091,7 +4105,7 @@ fun ProfileScreen(
                                 modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
                                 contentAlignment = Alignment.Center
                             ) {
-                                ContactAvatar(imageUrl = knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
+                                ContactAvatar(imageUrl = kachatSocial?.avatar ?: knsProfile?.avatarUrl, fallbackText = heroName, size = 76.dp)
                             }
                         }
                         Spacer(Modifier.weight(1f))
@@ -4111,9 +4125,28 @@ fun ProfileScreen(
                     }
                     Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
                         Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-                        knsProfile?.bio?.takeIf { it.isNotBlank() }?.let { bio ->
+                        (kachatSocial?.bio ?: knsProfile?.bio?.takeIf { it.isNotBlank() })?.let { bio ->
                             Spacer(Modifier.height(4.dp))
                             Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        // The Linktree link: the one way a .kachat profile links anything else.
+                        kachatLinktree?.let { linktree ->
+                            val linktreeUriHandler = LocalUriHandler.current
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { runCatching { linktreeUriHandler.openUri(linktree) } }
+                            ) {
+                                Icon(Icons.Default.Link, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    linktree.replace("https://", ""),
+                                    color = KaspaTeal,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }

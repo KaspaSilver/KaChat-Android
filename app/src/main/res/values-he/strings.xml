@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">ערבון לבעלים האחרון</string>
     <string name="kn_domains_claim_hint">קבלו שם ב-Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">הפרופיל שלך שייך לכתובת שלך, לא לשם: הוא נשאר זהה כשקונים, מוכרים או מוותרים על שם.</string>
-    <string name="kn_image_placeholder">https://... או ipfs://...</string>
-    <string name="kn_image_error">קישורי תמונה חייבים להתחיל ב-https:// או ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">קישורים</string>
     <string name="kn_primary_name">שם ראשי</string>
     <string name="kn_none">ללא</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">זמין</string>
     <string name="kn_expires">תפוגה</string>
     <string name="kn_one_year">שנה אחת</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">פרופיל ברשת חברתית</string>
+    <string name="kn_social_bad">הדבק קישור לפרופיל ב-X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram או LinkedIn, או הזמנה לשרת Discord.</string>
+    <string name="kn_social_footer">האווטאר, הבאנר והביו שלך מגיעים מהפרופיל הזה, בדיוק כפי שהפלטפורמה מציגה אותם, כך שהפיקוח שלה חל גם כאן. באנרים מגיעים מ-X, YouTube ו-Discord; ביו מ-X, YouTube, Telegram, Twitch, Kick, GitHub ו-Discord.</string>
+    <string name="kn_linktree_bad">ניתן להוסיף רק קישור Linktree ‏(linktr.ee/yourname).</string>
+    <string name="kn_linktree_footer">הוסף את ה-Linktree שלך כדי להפנות אנשים לחשבונות ולאתרים האחרים שלך.</string>
+    <string name="kn_social_looking">מחפש את הפרופיל...</string>
+    <string name="kn_social_nothing">לא נמצא דבר לקישור הזה.</string>
+    <string name="kn_social_from">מ-%1$s</string>
+    <string name="kn_social_no_avatar">לפרופיל ה-%1$s הזה אין אווטאר.</string>
+    <string name="kn_social_no_banner">לפרופיל ה-%1$s הזה אין באנר.</string>
+    <string name="kn_social_no_banners">%1$s לא משתף באנרים.</string>
+    <string name="kn_social_no_bio">לפרופיל ה-%1$s הזה אין ביו.</string>
+    <string name="kn_social_no_bios">%1$s לא משתף ביו.</string>
 </resources>

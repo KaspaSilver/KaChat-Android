@@ -11,8 +11,10 @@ import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.util.KaspaAddress
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -536,5 +538,198 @@ class KachatNamesRegistry @Inject constructor(
         fun walletSuffix(address: String): String =
             MessageDigest.getInstance("SHA-256").digest(address.lowercase().toByteArray(Charsets.UTF_8))
                 .take(8).joinToString("") { "%02x".format(it) }
+    }
+}
+
+// Social profile: avatar, banner and bio (looked up on the device)
+
+/**
+ * Turns a profile's social link ([SocialSource]) into what that platform shows right now - avatar,
+ * banner, bio - and caches the answer on this device; no indexer involved. iOS
+ * `KachatSocialImageResolver` (KachatNamesRegistry.swift, ad32798 / 1322216).
+ *
+ * The cache holds the picture URLs and the bio; Coil downloads and keeps the images. An answer is
+ * fresh for 24 hours; a stale one is still shown while it is looked up again. When the platform
+ * answers but no longer shows something (taken down, account gone), it is dropped at once, so the
+ * platform's moderation carries over. When the platform can't be reached, the last answer stays.
+ *
+ * One cache for every network, as on iOS (UserDefaults `kachat_social_profile_cache`): it is keyed
+ * by the normalized social link, which means the same thing on any network.
+ */
+@Singleton
+class KachatSocialImageResolver @Inject constructor(
+    @ApplicationContext context: Context,
+    okHttpClient: OkHttpClient
+) {
+    data class Entry(val profile: SocialProfile, val checkedAt: Long)
+
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /** iOS `timeoutInterval = 15`. Redirects are followed, as URLSession does. */
+    private val http: OkHttpClient = okHttpClient.newBuilder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .callTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val _entries = MutableStateFlow(load())
+    /** The cache by normalized link: screens collect it so a lookup that lands re-renders them
+     *  (iOS `@Published entries`). */
+    val entries: StateFlow<Map<String, Entry>> = _entries.asStateFlow()
+
+    private val inFlight = HashMap<String, Deferred<SocialProfile?>>()
+    private val lock = Any()
+
+    /** The cached profile for [link] in [entries] (a snapshot screens collected), null when
+     *  there is none or the link isn't a supported one. */
+    fun cached(link: String?, entries: Map<String, Entry> = _entries.value): SocialProfile? =
+        key(link)?.let { entries[it]?.profile }
+
+    /** Starts a lookup for [link] when there is no answer or it is stale (iOS `profile(for:)`'s
+     *  side; screens call it when the link appears and read [cached]). */
+    fun refreshIfStale(link: String?) {
+        val source = link?.let { SocialSource.from(it, SocialSource.Kind.AVATAR) } ?: return
+        val entry = _entries.value[source.link]
+        if (entry == null || System.currentTimeMillis() - entry.checkedAt > FRESH_FOR_MS) {
+            scope.launch { resolve(source) }
+        }
+    }
+
+    /** Looks the profile up now (the editor's preview), sharing a lookup in flight. */
+    suspend fun resolve(source: SocialSource): SocialProfile? {
+        val key = source.link
+        val deferred = synchronized(lock) {
+            inFlight[key] ?: scope.async {
+                val answered = lookUp(source)
+                    ?: return@async _entries.value[key]?.profile // couldn't reach it: keep the last answer
+                // The platform answered - with something, or with nothing (taken down, account gone).
+                _entries.update { it + (key to Entry(answered, System.currentTimeMillis())) }
+                persist()
+                answered
+            }.also { d ->
+                inFlight[key] = d
+                d.invokeOnCompletion { synchronized(lock) { if (inFlight[key] === d) inFlight.remove(key) } }
+            }
+        }
+        return deferred.await()
+    }
+
+    private fun load(): Map<String, Entry> = runCatching {
+        val raw = prefs.getString(CACHE_KEY, null) ?: return emptyMap()
+        val root = JsonParser.parseString(raw).asJsonObject
+        val out = HashMap<String, Entry>()
+        for ((k, v) in root.entrySet()) {
+            if (!v.isJsonObject) continue
+            val o = v.asJsonObject
+            fun s(name: String): String? = o.get(name)?.takeIf { it.isJsonPrimitive }?.asString
+            val at = o.get("checkedAt")?.takeIf { it.isJsonPrimitive }?.asLong ?: continue
+            out[k] = Entry(SocialProfile(s("avatar"), s("banner"), s("bio")), at)
+        }
+        out
+    }.getOrElse { emptyMap() }
+
+    private fun persist() {
+        synchronized(lock) {
+            var all = _entries.value
+            if (all.size > MAX_ENTRIES) {
+                val oldest = all.entries.sortedBy { it.value.checkedAt }.take(all.size - MAX_ENTRIES).map { it.key }.toSet()
+                all = all - oldest
+                _entries.value = all
+            }
+            val root = com.google.gson.JsonObject()
+            for ((k, e) in all) {
+                val o = com.google.gson.JsonObject()
+                e.profile.avatar?.let { o.addProperty("avatar", it) }
+                e.profile.banner?.let { o.addProperty("banner", it) }
+                e.profile.bio?.let { o.addProperty("bio", it) }
+                o.addProperty("checkedAt", e.checkedAt)
+                root.add(k, o)
+            }
+            prefs.edit().putString(CACHE_KEY, root.toString()).apply()
+        }
+    }
+
+    /**
+     * The platform's answer (possibly empty: taken down, account gone), or null when it couldn't
+     * be reached or answered with an error - nothing is known then.
+     */
+    private fun lookUp(source: SocialSource): SocialProfile? {
+        when (source.platform) {
+            SocialSource.Platform.DISCORD -> {
+                val (body, status) = fetch("https://discord.com/api/v10/invites/${source.handle}", BROWSER_AGENT) ?: return null
+                if (status == 404) return SocialProfile()
+                if (status != 200) return null
+                return SocialProfile(
+                    avatar = SocialSource.discordImage(body, SocialSource.Kind.AVATAR),
+                    banner = SocialSource.discordImage(body, SocialSource.Kind.BANNER),
+                    bio = SocialSource.discordDescription(body)
+                )
+            }
+            SocialSource.Platform.GITHUB -> {
+                val (body, status) = fetch("https://api.github.com/users/${source.handle}", BROWSER_AGENT) ?: return null
+                if (status == 404) return SocialProfile()
+                if (status != 200) return null
+                val (avatar, bio) = SocialSource.githubProfile(body)
+                return SocialProfile(avatar = avatar, banner = null, bio = bio)
+            }
+            else -> Unit
+        }
+        val (html, status) = fetch(source.link, CRAWLER_AGENT) ?: return null
+        if (status == 404 || status == 410) return SocialProfile()
+        if (status != 200) return null
+        val image = SocialSource.openGraphImage(html)
+        val banner = when (source.platform) {
+            SocialSource.Platform.X -> SocialSource.xBanner(html)
+            SocialSource.Platform.YOUTUBE -> fetch(source.link, BROWSER_AGENT, cookie = "CONSENT=YES+1")
+                ?.takeIf { it.second == 200 }?.let { SocialSource.youtubeBanner(it.first) }
+            else -> null
+        }
+        return SocialProfile(
+            avatar = image?.let { if (source.platform == SocialSource.Platform.X) SocialSource.xAvatar(it) else it },
+            banner = banner,
+            bio = SocialSource.bio(source.platform, SocialSource.openGraphDescription(html))
+        )
+    }
+
+    /** The body (first 3 MB, as text) and status, or null when nothing came back. */
+    private fun fetch(url: String, agent: String, cookie: String? = null): Pair<String, Int>? = try {
+        val request = Request.Builder().url(url)
+            .header("User-Agent", agent)
+            .header("Accept-Language", "en-US,en;q=0.8")
+            .apply { if (cookie != null) header("Cookie", cookie) }
+            .build()
+        http.newCall(request).execute().use { response ->
+            val source = response.body?.source()
+            val buffer = okio.Buffer()
+            if (source != null) {
+                while (buffer.size < MAX_BODY_BYTES) {
+                    if (source.read(buffer, MAX_BODY_BYTES - buffer.size) == -1L) break
+                }
+            }
+            buffer.readString(Charsets.UTF_8) to response.code
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
+
+    companion object {
+        private const val PREFS = "kachat_prefs"
+        private const val CACHE_KEY = "kachat_social_profile_cache"
+        private const val FRESH_FOR_MS = 24L * 3600 * 1000
+        private const val MAX_ENTRIES = 500
+        private const val MAX_BODY_BYTES = 3_000_000L
+        /** The link-preview crawler user agent: X, TikTok and others serve their Open Graph tags to it. */
+        private const val CRAWLER_AGENT = "facebookexternalhit/1.1"
+        /** A desktop browser: YouTube's desktop channel page carries the banner in plain form (the
+         *  mobile page escapes it); GitHub's API wants a User-Agent. iOS's exact string. */
+        private const val BROWSER_AGENT =
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+
+        /** The cache key of a social link: its normalized form; null for an unsupported link. */
+        fun key(link: String?): String? = link?.let { SocialSource.from(it, SocialSource.Kind.AVATAR)?.link }
     }
 }

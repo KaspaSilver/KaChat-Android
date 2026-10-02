@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">Cauzione all’ultimo proprietario</string>
     <string name="kn_domains_claim_hint">Prendine uno in Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Il tuo profilo appartiene al tuo indirizzo, non a un nome: resta uguale quando compri, vendi o lasci un nome.</string>
-    <string name="kn_image_placeholder">https://... o ipfs://...</string>
-    <string name="kn_image_error">I link delle immagini devono iniziare con https:// o ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">Link</string>
     <string name="kn_primary_name">Nome principale</string>
     <string name="kn_none">Nessuno</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">Disponibile</string>
     <string name="kn_expires">Scade</string>
     <string name="kn_one_year">1 anno</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">Profilo social</string>
+    <string name="kn_social_bad">Incolla un link a un profilo X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram o LinkedIn, oppure un invito a un server Discord.</string>
+    <string name="kn_social_footer">Avatar, banner e bio provengono da questo profilo, esattamente come li mostra quella piattaforma, quindi la sua moderazione vale anche qui. I banner provengono da X, YouTube e Discord; le bio da X, YouTube, Telegram, Twitch, Kick, GitHub e Discord.</string>
+    <string name="kn_linktree_bad">Si può aggiungere solo un link Linktree (linktr.ee/tuonome).</string>
+    <string name="kn_linktree_footer">Aggiungi il tuo Linktree per indirizzare le persone ai tuoi altri account e siti.</string>
+    <string name="kn_social_looking">Ricerca del profilo...</string>
+    <string name="kn_social_nothing">Niente trovato per questo link.</string>
+    <string name="kn_social_from">Da %1$s</string>
+    <string name="kn_social_no_avatar">Questo profilo %1$s non ha un avatar.</string>
+    <string name="kn_social_no_banner">Questo profilo %1$s non ha un banner.</string>
+    <string name="kn_social_no_banners">%1$s non condivide i banner.</string>
+    <string name="kn_social_no_bio">Questo profilo %1$s non ha una bio.</string>
+    <string name="kn_social_no_bios">%1$s non condivide le bio.</string>
 </resources>

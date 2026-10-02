@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">الضمان لآخر مالك</string>
     <string name="kn_domains_claim_hint">احصل على اسم من Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">ملفك الشخصي مرتبط بعنوانك، لا باسم: يبقى كما هو عندما تشتري اسمًا أو تبيعه أو تتركه.</string>
-    <string name="kn_image_placeholder">https://... أو ipfs://...</string>
-    <string name="kn_image_error">يجب أن تبدأ روابط الصور بـ https:// أو ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">الروابط</string>
     <string name="kn_primary_name">الاسم الأساسي</string>
     <string name="kn_none">لا شيء</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">متاح</string>
     <string name="kn_expires">تنتهي</string>
     <string name="kn_one_year">1 سنة</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">البروفايل الاجتماعي</string>
+    <string name="kn_social_bad">الصق رابط بروفايل من X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram أو LinkedIn، أو دعوة لسيرفر Discord.</string>
+    <string name="kn_social_footer">صورتك وغلافك ونبذتك بييجوا من البروفايل ده، زي ما المنصة دي بتعرضهم بالظبط، فإشرافها بيتطبق هنا كمان. الأغلفة بتيجي من X وYouTube وDiscord، والنبذات من X, YouTube, Telegram, Twitch, Kick, GitHub وDiscord.</string>
+    <string name="kn_linktree_bad">ممكن تضيف رابط Linktree بس (linktr.ee/yourname).</string>
+    <string name="kn_linktree_footer">ضيف Linktree بتاعك علشان توجّه الناس لحساباتك ومواقعك التانية.</string>
+    <string name="kn_social_looking">بندوّر على البروفايل...</string>
+    <string name="kn_social_nothing">مفيش حاجة للرابط ده.</string>
+    <string name="kn_social_from">من %1$s</string>
+    <string name="kn_social_no_avatar">مفيش صورة في بروفايل %1$s ده.</string>
+    <string name="kn_social_no_banner">مفيش غلاف في بروفايل %1$s ده.</string>
+    <string name="kn_social_no_banners">%1$s مبيشاركش صور الغلاف.</string>
+    <string name="kn_social_no_bio">مفيش نبذة في بروفايل %1$s ده.</string>
+    <string name="kn_social_no_bios">%1$s مبيشاركش النبذات.</string>
 </resources>

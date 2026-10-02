@@ -659,9 +659,6 @@
     <string name="kn_bond_to_last_owner">Jaminan untuk pemilik terakhir</string>
     <string name="kn_domains_claim_hint">Klaim satu di Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
-    <string name="kn_image_placeholder">https://... atau ipfs://...</string>
-    <string name="kn_image_error">Tautan gambar harus diawali https:// atau ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">Tautan</string>
     <string name="kn_primary_name">Nama utama</string>
     <string name="kn_none">Tidak ada</string>
@@ -688,4 +685,18 @@
     <string name="kn_available">Tersedia</string>
     <string name="kn_expires">Kedaluwarsa</string>
     <string name="kn_one_year">1 tahun</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">Profil Sosial</string>
+    <string name="kn_social_bad">Tempel tautan profil dari X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram atau LinkedIn, atau undangan server Discord.</string>
+    <string name="kn_social_footer">Avatar, banner, dan bio Anda berasal dari profil ini, persis seperti yang ditampilkan platform itu, jadi moderasinya juga berlaku di sini. Banner berasal dari X, YouTube, dan Discord; bio dari X, YouTube, Telegram, Twitch, Kick, GitHub, dan Discord.</string>
+    <string name="kn_linktree_bad">Hanya tautan Linktree (linktr.ee/namaanda) yang bisa ditambahkan.</string>
+    <string name="kn_linktree_footer">Tambahkan Linktree Anda untuk mengarahkan orang ke akun dan situs web Anda yang lain.</string>
+    <string name="kn_social_looking">Mencari profil...</string>
+    <string name="kn_social_nothing">Tidak ada yang ditemukan untuk tautan ini.</string>
+    <string name="kn_social_from">Dari %1$s</string>
+    <string name="kn_social_no_avatar">Profil %1$s ini tidak punya avatar.</string>
+    <string name="kn_social_no_banner">Profil %1$s ini tidak punya banner.</string>
+    <string name="kn_social_no_banners">%1$s tidak membagikan banner.</string>
+    <string name="kn_social_no_bio">Profil %1$s ini tidak punya bio.</string>
+    <string name="kn_social_no_bios">%1$s tidak membagikan bio.</string>
 </resources>

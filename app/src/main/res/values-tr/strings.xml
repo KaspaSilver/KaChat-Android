@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">Teminat son sahibine</string>
     <string name="kn_domains_claim_hint">Kaspa Hub > .kachat bölümünden bir tane alın.</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
-    <string name="kn_image_placeholder">https://... veya ipfs://...</string>
-    <string name="kn_image_error">Görsel bağlantıları https:// veya ipfs:// ile başlamalı.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">Bağlantılar</string>
     <string name="kn_primary_name">Ana ad</string>
     <string name="kn_none">Yok</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">Musait</string>
     <string name="kn_expires">Süre</string>
     <string name="kn_one_year">1 yıl</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">Sosyal Profil</string>
+    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram veya LinkedIn profil bağlantısı ya da bir Discord sunucu daveti yapıştırın.</string>
+    <string name="kn_social_footer">Avatarınız, kapak görseliniz ve biyografiniz bu profilden, o platformun gösterdiği şekliyle gelir; bu yüzden onun moderasyonu burada da geçerlidir. Kapak görselleri X, YouTube ve Discord\'dan; biyografiler X, YouTube, Telegram, Twitch, Kick, GitHub ve Discord\'dan gelir.</string>
+    <string name="kn_linktree_bad">Yalnızca bir Linktree bağlantısı (linktr.ee/adiniz) eklenebilir.</string>
+    <string name="kn_linktree_footer">İnsanları diğer hesaplarınıza ve web sitelerinize yönlendirmek için Linktree\'nizi ekleyin.</string>
+    <string name="kn_social_looking">Profil aranıyor...</string>
+    <string name="kn_social_nothing">Bu bağlantı için bir şey bulunamadı.</string>
+    <string name="kn_social_from">%1$s üzerinden</string>
+    <string name="kn_social_no_avatar">Bu %1$s profilinde avatar yok.</string>
+    <string name="kn_social_no_banner">Bu %1$s profilinde kapak görseli yok.</string>
+    <string name="kn_social_no_banners">%1$s kapak görsellerini paylaşmıyor.</string>
+    <string name="kn_social_no_bio">Bu %1$s profilinde biyografi yok.</string>
+    <string name="kn_social_no_bios">%1$s biyografileri paylaşmıyor.</string>
 </resources>

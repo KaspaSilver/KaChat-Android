@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">Kaution an den letzten Inhaber</string>
     <string name="kn_domains_claim_hint">Sichere dir einen unter Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Dein Profil gehört zu deiner Adresse, nicht zu einem Namen: Es bleibt gleich, wenn du einen Namen kaufst, verkaufst oder aufgibst.</string>
-    <string name="kn_image_placeholder">https://... oder ipfs://...</string>
-    <string name="kn_image_error">Bildlinks müssen mit https:// oder ipfs:// beginnen.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">Links</string>
     <string name="kn_primary_name">Hauptname</string>
     <string name="kn_none">Keiner</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">Verfügbar</string>
     <string name="kn_expires">Läuft ab</string>
     <string name="kn_one_year">1 Jahr</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">Social-Media-Profil</string>
+    <string name="kn_social_bad">Füge einen Profillink von X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram oder LinkedIn ein, oder eine Einladung zu einem Discord-Server.</string>
+    <string name="kn_social_footer">Avatar, Banner und Bio kommen aus diesem Profil – genau so, wie die Plattform sie zeigt. Ihre Moderation gilt also auch hier. Banner kommen von X, YouTube und Discord, Bios von X, YouTube, Telegram, Twitch, Kick, GitHub und Discord.</string>
+    <string name="kn_linktree_bad">Es kann nur ein Linktree-Link (linktr.ee/deinname) hinzugefügt werden.</string>
+    <string name="kn_linktree_footer">Füge deinen Linktree hinzu, um andere zu deinen weiteren Konten und Websites zu führen.</string>
+    <string name="kn_social_looking">Profil wird gesucht …</string>
+    <string name="kn_social_nothing">Für diesen Link wurde nichts gefunden.</string>
+    <string name="kn_social_from">Von %1$s</string>
+    <string name="kn_social_no_avatar">Dieses %1$s-Profil hat keinen Avatar.</string>
+    <string name="kn_social_no_banner">Dieses %1$s-Profil hat kein Banner.</string>
+    <string name="kn_social_no_banners">%1$s gibt keine Banner weiter.</string>
+    <string name="kn_social_no_bio">Dieses %1$s-Profil hat keine Bio.</string>
+    <string name="kn_social_no_bios">%1$s gibt keine Bios weiter.</string>
 </resources>

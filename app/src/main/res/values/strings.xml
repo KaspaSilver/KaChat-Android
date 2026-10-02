@@ -967,9 +967,6 @@
     <string name="kn_bond_to_last_owner">Bond to the last owner</string>
     <string name="kn_domains_claim_hint">Claim one in Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Your profile belongs to your address, not to a name: it stays the same when you buy, sell or let a name go.</string>
-    <string name="kn_image_placeholder">https://... or ipfs://...</string>
-    <string name="kn_image_error">Image links must start with https:// or ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">Links</string>
     <string name="kn_primary_name">Primary name</string>
     <string name="kn_none">None</string>
@@ -996,4 +993,18 @@
     <string name="kn_available">Available</string>
     <string name="kn_expires">Expires</string>
     <string name="kn_one_year">1 year</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">Social Profile</string>
+    <string name="kn_social_bad">Paste a profile link from X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram or LinkedIn, or a Discord server invite.</string>
+    <string name="kn_social_footer">Your avatar, banner and bio come from this profile, exactly as that platform shows them, so its moderation applies here too. Banners come from X, YouTube and Discord; bios from X, YouTube, Telegram, Twitch, Kick, GitHub and Discord.</string>
+    <string name="kn_linktree_bad">Only a Linktree link (linktr.ee/yourname) can be added.</string>
+    <string name="kn_linktree_footer">Add your Linktree to point people to your other accounts and websites.</string>
+    <string name="kn_social_looking">Looking up the profile...</string>
+    <string name="kn_social_nothing">Nothing found for this link.</string>
+    <string name="kn_social_from">From %1$s</string>
+    <string name="kn_social_no_avatar">No avatar on this %1$s profile.</string>
+    <string name="kn_social_no_banner">No banner on this %1$s profile.</string>
+    <string name="kn_social_no_banners">%1$s doesn\'t share banners.</string>
+    <string name="kn_social_no_bio">No bio on this %1$s profile.</string>
+    <string name="kn_social_no_bios">%1$s doesn\'t share bios.</string>
 </resources>

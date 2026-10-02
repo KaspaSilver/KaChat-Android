@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">বন্ড শেষ মালিকের কাছে</string>
     <string name="kn_domains_claim_hint">Kaspa Hub > .kachat থেকে একটি নিন।</string>
     <string name="kn_profile_belongs">আপনার প্রোফাইল আপনার ঠিকানার, কোনো নামের নয়: নাম কিনলে, বেচলে বা ছেড়ে দিলেও এটি একই থাকে।</string>
-    <string name="kn_image_placeholder">https://... বা ipfs://...</string>
-    <string name="kn_image_error">ছবির লিংক https:// বা ipfs:// দিয়ে শুরু হতে হবে।</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">লিংক</string>
     <string name="kn_primary_name">প্রধান নাম</string>
     <string name="kn_none">কোনোটি নয়</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">উপলব্ধ</string>
     <string name="kn_expires">মেয়াদ</string>
     <string name="kn_one_year">1 বছর</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">সোশ্যাল প্রোফাইল</string>
+    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram বা LinkedIn থেকে একটি প্রোফাইল লিংক, অথবা একটি Discord সার্ভারের আমন্ত্রণ পেস্ট করুন।</string>
+    <string name="kn_social_footer">আপনার অবতার, ব্যানার ও বায়ো এই প্রোফাইল থেকে আসে, ঠিক যেভাবে ওই প্ল্যাটফর্ম দেখায়, তাই তাদের মডারেশন এখানেও প্রযোজ্য। ব্যানার আসে X, YouTube ও Discord থেকে; বায়ো আসে X, YouTube, Telegram, Twitch, Kick, GitHub ও Discord থেকে।</string>
+    <string name="kn_linktree_bad">শুধু একটি Linktree লিংক (linktr.ee/yourname) যোগ করা যায়।</string>
+    <string name="kn_linktree_footer">আপনার অন্যান্য অ্যাকাউন্ট ও ওয়েবসাইটে মানুষকে পাঠাতে আপনার Linktree যোগ করুন।</string>
+    <string name="kn_social_looking">প্রোফাইল খোঁজা হচ্ছে...</string>
+    <string name="kn_social_nothing">এই লিংকের জন্য কিছু পাওয়া যায়নি।</string>
+    <string name="kn_social_from">%1$s থেকে</string>
+    <string name="kn_social_no_avatar">এই %1$s প্রোফাইলে কোনো অবতার নেই।</string>
+    <string name="kn_social_no_banner">এই %1$s প্রোফাইলে কোনো ব্যানার নেই।</string>
+    <string name="kn_social_no_banners">%1$s ব্যানার শেয়ার করে না।</string>
+    <string name="kn_social_no_bio">এই %1$s প্রোফাইলে কোনো বায়ো নেই।</string>
+    <string name="kn_social_no_bios">%1$s বায়ো শেয়ার করে না।</string>
 </resources>

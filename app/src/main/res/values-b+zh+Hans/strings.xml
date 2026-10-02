@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">保证金退还最后所有者</string>
     <string name="kn_domains_claim_hint">可在 Kaspa Hub > .kachat 领取一个。</string>
     <string name="kn_profile_belongs">你的个人资料属于你的地址，而不是某个名称：买入、卖出或放弃名称时都不会改变。</string>
-    <string name="kn_image_placeholder">https://... 或 ipfs://...</string>
-    <string name="kn_image_error">图片链接必须以 https:// 或 ipfs:// 开头。</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">链接</string>
     <string name="kn_primary_name">主名称</string>
     <string name="kn_none">无</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">可用</string>
     <string name="kn_expires">有效期</string>
     <string name="kn_one_year">1年</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">社交主页</string>
+    <string name="kn_social_bad">粘贴来自 X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram 或 LinkedIn 的个人主页链接，或 Discord 服务器邀请链接。</string>
+    <string name="kn_social_footer">你的头像、横幅和简介都来自这个主页，与该平台显示的完全一致，因此该平台的审核在这里同样适用。横幅来自 X、YouTube 和 Discord；简介来自 X, YouTube, Telegram, Twitch, Kick, GitHub 和 Discord。</string>
+    <string name="kn_linktree_bad">只能添加 Linktree 链接（linktr.ee/yourname）。</string>
+    <string name="kn_linktree_footer">添加你的 Linktree，把大家引导到你的其他账号和网站。</string>
+    <string name="kn_social_looking">正在查找个人主页...</string>
+    <string name="kn_social_nothing">此链接没有找到任何内容。</string>
+    <string name="kn_social_from">来自 %1$s</string>
+    <string name="kn_social_no_avatar">这个 %1$s 主页没有头像。</string>
+    <string name="kn_social_no_banner">这个 %1$s 主页没有横幅。</string>
+    <string name="kn_social_no_banners">%1$s 不公开横幅。</string>
+    <string name="kn_social_no_bio">这个 %1$s 主页没有简介。</string>
+    <string name="kn_social_no_bios">%1$s 不公开简介。</string>
 </resources>

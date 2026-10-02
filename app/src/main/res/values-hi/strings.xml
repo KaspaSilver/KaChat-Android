@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">बॉन्ड पिछले मालिक को</string>
     <string name="kn_domains_claim_hint">Kaspa Hub > .kachat में एक लें।</string>
     <string name="kn_profile_belongs">आपकी प्रोफ़ाइल आपके पते की है, किसी नाम की नहीं: नाम खरीदने, बेचने या छोड़ने पर भी यह वही रहती है।</string>
-    <string name="kn_image_placeholder">https://... या ipfs://...</string>
-    <string name="kn_image_error">इमेज लिंक https:// या ipfs:// से शुरू होने चाहिए।</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">लिंक</string>
     <string name="kn_primary_name">मुख्य नाम</string>
     <string name="kn_none">कोई नहीं</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">उपलब्ध</string>
     <string name="kn_expires">समाप्ति</string>
     <string name="kn_one_year">1 वर्ष</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">सोशल प्रोफ़ाइल</string>
+    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram या LinkedIn का प्रोफ़ाइल लिंक, या किसी Discord सर्वर का इनवाइट पेस्ट करें।</string>
+    <string name="kn_social_footer">आपका अवतार, बैनर और बायो इसी प्रोफ़ाइल से आते हैं, ठीक वैसे ही जैसे वह प्लेटफ़ॉर्म दिखाता है, इसलिए उसका मॉडरेशन यहाँ भी लागू होता है। बैनर X, YouTube और Discord से आते हैं; बायो X, YouTube, Telegram, Twitch, Kick, GitHub और Discord से।</string>
+    <string name="kn_linktree_bad">सिर्फ़ एक Linktree लिंक (linktr.ee/yourname) जोड़ा जा सकता है।</string>
+    <string name="kn_linktree_footer">लोगों को अपने दूसरे अकाउंट और वेबसाइट तक ले जाने के लिए अपना Linktree जोड़ें।</string>
+    <string name="kn_social_looking">प्रोफ़ाइल खोजी जा रही है...</string>
+    <string name="kn_social_nothing">इस लिंक के लिए कुछ नहीं मिला।</string>
+    <string name="kn_social_from">%1$s से</string>
+    <string name="kn_social_no_avatar">इस %1$s प्रोफ़ाइल पर कोई अवतार नहीं है।</string>
+    <string name="kn_social_no_banner">इस %1$s प्रोफ़ाइल पर कोई बैनर नहीं है।</string>
+    <string name="kn_social_no_banners">%1$s बैनर साझा नहीं करता।</string>
+    <string name="kn_social_no_bio">इस %1$s प्रोफ़ाइल पर कोई बायो नहीं है।</string>
+    <string name="kn_social_no_bios">%1$s बायो साझा नहीं करता।</string>
 </resources>

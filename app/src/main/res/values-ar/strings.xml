@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">الضمان لآخر مالك</string>
     <string name="kn_domains_claim_hint">احصل على اسم من Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">ملفك الشخصي مرتبط بعنوانك، لا باسم: يبقى كما هو عندما تشتري اسمًا أو تبيعه أو تتركه.</string>
-    <string name="kn_image_placeholder">https://... أو ipfs://...</string>
-    <string name="kn_image_error">يجب أن تبدأ روابط الصور بـ https:// أو ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">الروابط</string>
     <string name="kn_primary_name">الاسم الأساسي</string>
     <string name="kn_none">لا شيء</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">متاح</string>
     <string name="kn_expires">تنتهي</string>
     <string name="kn_one_year">1 سنة</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">الملف الشخصي الاجتماعي</string>
+    <string name="kn_social_bad">الصق رابط ملف شخصي من X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram أو LinkedIn، أو دعوة لخادم Discord.</string>
+    <string name="kn_social_footer">تأتي صورتك الرمزية وغلافك ونبذتك من هذا الملف الشخصي، كما تعرضها تلك المنصة تمامًا، لذا ينطبق إشرافها هنا أيضًا. تأتي أغلفة الصفحات من X وYouTube وDiscord، والنبذات من X, YouTube, Telegram, Twitch, Kick, GitHub وDiscord.</string>
+    <string name="kn_linktree_bad">يمكن إضافة رابط Linktree فقط (linktr.ee/yourname).</string>
+    <string name="kn_linktree_footer">أضف Linktree الخاص بك لتوجيه الناس إلى حساباتك ومواقعك الأخرى.</string>
+    <string name="kn_social_looking">جارٍ البحث عن الملف الشخصي...</string>
+    <string name="kn_social_nothing">لم يُعثر على شيء لهذا الرابط.</string>
+    <string name="kn_social_from">من %1$s</string>
+    <string name="kn_social_no_avatar">لا توجد صورة رمزية في ملف %1$s هذا.</string>
+    <string name="kn_social_no_banner">لا يوجد غلاف في ملف %1$s هذا.</string>
+    <string name="kn_social_no_banners">لا يشارك %1$s صور الغلاف.</string>
+    <string name="kn_social_no_bio">لا توجد نبذة في ملف %1$s هذا.</string>
+    <string name="kn_social_no_bios">لا يشارك %1$s النبذات.</string>
 </resources>

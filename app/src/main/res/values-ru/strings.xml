@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">Залог последнему владельцу</string>
     <string name="kn_domains_claim_hint">Получите имя в Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Профиль принадлежит вашему адресу, а не имени: он не меняется, когда вы покупаете, продаёте или отпускаете имя.</string>
-    <string name="kn_image_placeholder">https://... или ipfs://...</string>
-    <string name="kn_image_error">Ссылки на изображения должны начинаться с https:// или ipfs://.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">Ссылки</string>
     <string name="kn_primary_name">Основное имя</string>
     <string name="kn_none">Нет</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">Доступно</string>
     <string name="kn_expires">Истекает</string>
     <string name="kn_one_year">1 год</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">Профиль в соцсети</string>
+    <string name="kn_social_bad">Вставьте ссылку на профиль в X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram или LinkedIn либо приглашение на сервер Discord.</string>
+    <string name="kn_social_footer">Аватар, баннер и описание берутся из этого профиля — ровно так, как их показывает платформа, поэтому её модерация действует и здесь. Баннеры берутся из X, YouTube и Discord, описания — из X, YouTube, Telegram, Twitch, Kick, GitHub и Discord.</string>
+    <string name="kn_linktree_bad">Можно добавить только ссылку Linktree (linktr.ee/yourname).</string>
+    <string name="kn_linktree_footer">Добавьте свой Linktree, чтобы направлять людей к другим вашим аккаунтам и сайтам.</string>
+    <string name="kn_social_looking">Ищем профиль...</string>
+    <string name="kn_social_nothing">По этой ссылке ничего не найдено.</string>
+    <string name="kn_social_from">Из %1$s</string>
+    <string name="kn_social_no_avatar">В этом профиле %1$s нет аватара.</string>
+    <string name="kn_social_no_banner">В этом профиле %1$s нет баннера.</string>
+    <string name="kn_social_no_banners">%1$s не показывает баннеры.</string>
+    <string name="kn_social_no_bio">В этом профиле %1$s нет описания.</string>
+    <string name="kn_social_no_bios">%1$s не показывает описания.</string>
 </resources>

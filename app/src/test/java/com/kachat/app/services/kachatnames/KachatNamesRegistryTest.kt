@@ -324,35 +324,54 @@ class KachatNamesRegistryTest {
         r.eq(KachatNames.label(owned, "notmine", g, now), "zeta", "label: a primary name not owned is skipped")
         r.eq(KachatNames.label(listOf(owned[2]), null, g, now), null, "label: no active name")
 
-        val p = Profile(
-            avatar = " https://example.com/a.png ",
-            banner = "http://example.com/b.png",
-            bio = "x".repeat(300),
-            links = Profile.Links(website = "https://k.app", x = "", github = null, telegram = "  ", discord = null, nostr = "npub1"),
-            primaryName = "Alice.kachat"
-        )
+        // The record is {social, linktree, primaryName} (iOS 1322216): what shows comes from the
+        // social link, looked up on each device; nothing typed or uploaded is on chain.
+        val p = Profile(social = " x.com/KaspaCurrency/ ", linktree = "https://www.linktr.ee/kaspa?utm=1", primaryName = "Alice.kachat")
         val clean = p.sanitized()
-        r.eq(clean.avatar, "https://example.com/a.png", "profile: avatar kept and trimmed")
-        r.eq(clean.banner, null, "profile: http banner dropped")
-        r.eq(clean.bio?.length, 280, "profile: bio cut to 280")
-        r.eq(clean.links, Profile.Links(website = "https://k.app", nostr = "npub1"), "profile: blank links dropped")
+        r.eq(clean.social, "https://x.com/KaspaCurrency", "profile: social link normalized")
+        r.eq(clean.linktree, "https://linktr.ee/kaspa", "profile: Linktree link normalized")
         r.eq(clean.primaryName, "alice", "profile: primary name normalized")
+        r.eq(
+            Profile(social = "https://example.com/me", linktree = "https://example.com/links").sanitized(), Profile(),
+            "profile: unsupported social site and non-Linktree link dropped"
+        )
         val json = p.recordJSON()
         r.check(json.size <= 2048) { "profile JSON within 2 KB" }
-        val text = String(json, Charsets.UTF_8)
-        r.check(text.startsWith("{\"avatar\":\"https://example.com/a.png\",\"bio\":")) { "profile JSON compact with sorted keys: $text" }
-        r.check(text.endsWith(",\"links\":{\"nostr\":\"npub1\",\"website\":\"https://k.app\"},\"primaryName\":\"alice\",\"v\":1}")) {
-            "profile JSON keys sorted to the end: $text"
-        }
+        r.eq(
+            String(json, Charsets.UTF_8),
+            "{\"linktree\":\"https://linktr.ee/kaspa\",\"primaryName\":\"alice\",\"social\":\"https://x.com/KaspaCurrency\",\"v\":1}",
+            "profile JSON compact with sorted keys"
+        )
         r.eq(Profile.parse(json), clean, "profile JSON round trip")
-        r.eq(Profile.parse("{\"v\":1,\"displayName\":\"x\",\"avatar\":\"ftp://a\"}".toByteArray()), Profile(), "profile: unknown fields and bad schemes dropped")
+        r.eq(
+            Profile.parse("{\"v\":1,\"displayName\":\"x\",\"bio\":\"free text\",\"social\":\"ftp://a\"}".toByteArray()), Profile(),
+            "profile: unknown fields (bio, display name) and bad links dropped"
+        )
         r.eq(Profile.parse("{\"v\":2}".toByteArray()), null, "profile: only v 1")
-        r.eq(Profile.parse("{\"avatar\":\"https://a.b\"}".toByteArray()), null, "profile: v is required")
-        r.eq(Profile.parse("{\"v\":1,\"bio\":5}".toByteArray()), null, "profile: a field of the wrong type refuses the record")
-        val big = Profile(links = Profile.Links(website = "w".repeat(1500), x = "x".repeat(600)))
-        r.check(runCatching { big.recordJSON() }.isFailure) { "profile over 2 KB refused" }
-        // no HTML escaping (Swift's JSONEncoder writes these as they are)
-        r.check(String(Profile(bio = "a<b>&'=").recordJSON(), Charsets.UTF_8).contains("a<b>&'=")) { "profile JSON not HTML-escaped" }
+        r.eq(Profile.parse("{\"social\":\"https://x.com/a\"}".toByteArray()), null, "profile: v is required")
+        r.eq(Profile.parse("{\"v\":1,\"social\":5}".toByteArray()), null, "profile: a field of the wrong type refuses the record")
+        // The record before 1322216 (avatar/banner/bio/links) reads as an empty one, primary name kept.
+        r.eq(
+            Profile.parse("{\"avatar\":\"https://a.b/c.png\",\"bio\":\"hi\",\"links\":{\"x\":\"k\"},\"primaryName\":\"bob\",\"v\":1}".toByteArray()),
+            Profile(primaryName = "bob"),
+            "profile: an old record keeps only its primary name"
+        )
+
+        // what a social link shows
+        r.eq(
+            SocialSource.decodeEntities("a &amp; b &#39;c&#x27; &#064;d &quot;e&quot; &amp;#39;"), "a & b 'c' @d \"e\" &#39;",
+            "entities decoded one level"
+        )
+        val html = "<meta property=\"og:image\" content=\"https://pbs.twimg.com/profile_images/1/a_200x200.jpg\"/>" +
+            "<meta property=\"og:description\" content=\"Builder &amp; miner\"/>"
+        r.eq(SocialSource.openGraphImage(html)?.let { SocialSource.xAvatar(it) }, "https://pbs.twimg.com/profile_images/1/a_400x400.jpg", "X avatar upgraded to 400px")
+        r.eq(SocialSource.bio(SocialSource.Platform.X, SocialSource.openGraphDescription(html)), "Builder & miner", "X bio from og:description")
+        r.eq(SocialSource.bio(SocialSource.Platform.TWITCH, "Speedruns — Twitch streams live on Twitch!"), "Speedruns", "Twitch boilerplate cut")
+        r.eq(SocialSource.bio(SocialSource.Platform.INSTAGRAM, "687M Followers, 305 Following"), null, "no bio from Instagram's counts")
+        r.eq(SocialSource.bio(SocialSource.Platform.X, "b".repeat(400))?.length, 280, "bio cut to 280")
+        val gh = SocialSource.githubProfile("{\"avatar_url\":\"https://avatars.githubusercontent.com/u/1\",\"bio\":\" hi \"}")
+        r.check(gh.first == "https://avatars.githubusercontent.com/u/1" && gh.second == "hi") { "GitHub avatar and bio: $gh" }
+        r.eq(SocialSource.discordDescription("{\"guild\":{\"id\":\"1\",\"description\":\"Devs\"}}"), "Devs", "Discord server description")
 
         val k = ByteArray(31) { 0x10 } + byteArrayOf(0x00)
         r.eq(KachatNames.step(k, -1)?.let { hex(it) }, hex(ByteArray(30) { 0x10 } + byteArrayOf(0x0f, 0xff.toByte())), "key - 1 borrows")
@@ -525,5 +544,96 @@ class KachatNamesRegistryTest {
         val noPoint = ByteArray(31) + byteArrayOf(5)
         assertTrue(runCatching { KachatNamesActions.validateKey(noPoint, "x=5") }.isFailure)
         assertTrue(runCatching { KachatNamesActions.validateKey(KachatNames.FF32, "ff") }.isFailure)
+    }
+
+    /**
+     * The social link rules and the parsing behind [KachatSocialImageResolver] (iOS
+     * `KachatNames.SocialSource`, ad32798 / 1322216 / 169f6a0) - pure, so they run here; the
+     * fetches themselves are not tested.
+     */
+    @Test
+    fun socialSource() {
+        val r = Report()
+        val A = SocialSource.Kind.AVATAR
+        val B = SocialSource.Kind.BANNER
+        fun link(s: String, kind: SocialSource.Kind = A) = SocialSource.from(s, kind)?.link
+        fun platform(s: String) = SocialSource.from(s, A)?.platform
+
+        // every platform, pasted the ways people paste them
+        r.eq(link("x.com/KaspaCurrency/"), "https://x.com/KaspaCurrency", "X without scheme, trailing slash")
+        r.eq(link("https://twitter.com/kaspa?lang=en"), "https://x.com/kaspa", "twitter.com becomes x.com, query dropped")
+        r.eq(link("http://mobile.twitter.com/kaspa"), "https://x.com/kaspa", "mobile. stripped, http upgraded")
+        r.eq(link("https://x.com/home"), null, "X's own pages are not profiles")
+        r.eq(link("https://x.com/kaspa/status/1"), null, "a post is not a profile")
+        r.eq(link("https://m.youtube.com/@Kaspa/videos"), "https://www.youtube.com/@Kaspa", "YouTube @handle, tab dropped")
+        r.eq(link("youtube.com/channel/UC123"), "https://www.youtube.com/channel/UC123", "YouTube channel id")
+        r.eq(link("youtube.com/watch?v=1"), null, "a YouTube video is not a channel")
+        r.eq(link("fb.com/kaspa"), "https://www.facebook.com/kaspa", "Facebook")
+        r.eq(link("facebook.com/groups"), null, "Facebook groups refused")
+        r.eq(link("instagram.com/kaspa"), "https://www.instagram.com/kaspa/", "Instagram keeps its trailing slash")
+        r.eq(link("instagram.com/p/abc"), null, "an Instagram post refused")
+        r.eq(link("tiktok.com/@kaspa"), "https://www.tiktok.com/@kaspa", "TikTok")
+        r.eq(link("tiktok.com/kaspa"), null, "TikTok needs the @")
+        r.eq(link("twitch.tv/kaspa"), "https://www.twitch.tv/kaspa", "Twitch")
+        r.eq(link("www.kick.com/kaspa"), "https://kick.com/kaspa", "Kick")
+        r.eq(link("github.com/kaspanet"), "https://github.com/kaspanet", "GitHub")
+        r.eq(link("github.com/kaspanet/rusty-kaspa"), null, "a GitHub repo is not a profile")
+        r.eq(link("telegram.me/kaspa"), "https://t.me/kaspa", "Telegram")
+        r.eq(link("t.me/+abcdef"), null, "a private Telegram invite refused")
+        r.eq(link("linkedin.com/in/someone/"), "https://www.linkedin.com/in/someone", "LinkedIn person")
+        r.eq(link("linkedin.com/company/kaspa"), "https://www.linkedin.com/company/kaspa", "LinkedIn company")
+        r.eq(link("discord.gg/kaspa"), "https://discord.gg/kaspa", "Discord invite")
+        r.eq(link("https://discord.com/invite/kaspa"), "https://discord.gg/kaspa", "discord.com invite normalized")
+        r.eq(link("discord.com/channels/1/2"), null, "a Discord channel is not an invite")
+        r.eq(link("reddit.com/u/kaspa"), null, "Reddit unsupported")
+        r.eq(link("   "), null, "blank")
+        r.eq(link("x.com/bad name"), null, "a space is not a handle character")
+        r.eq(link("x.com/" + "a".repeat(101)), null, "handle over 100 characters")
+        r.eq(platform("youtube.com/@k"), SocialSource.Platform.YOUTUBE, "platform detected")
+        r.eq(SocialSource.from("youtube.com/c/kaspa", A)?.handle, "c/kaspa", "handle keeps the channel path")
+
+        // banners only where the platform shares one
+        r.eq(link("x.com/kaspa", B), "https://x.com/kaspa", "X banner")
+        r.eq(link("youtube.com/@kaspa", B), "https://www.youtube.com/@kaspa", "YouTube banner")
+        r.eq(link("discord.gg/kaspa", B), "https://discord.gg/kaspa", "Discord banner")
+        r.eq(link("github.com/kaspanet", B), null, "no GitHub banner")
+        r.eq(SocialSource.Platform.values().filter { it.hasBanner }.toSet(),
+            setOf(SocialSource.Platform.X, SocialSource.Platform.YOUTUBE, SocialSource.Platform.DISCORD), "banner platforms")
+        r.eq(SocialSource.Platform.values().filter { !it.hasBio }.toSet(),
+            setOf(SocialSource.Platform.FACEBOOK, SocialSource.Platform.INSTAGRAM, SocialSource.Platform.TIKTOK, SocialSource.Platform.LINKEDIN),
+            "platforms without bios")
+
+        // Linktree
+        r.eq(Profile.linktreeLink("linktr.ee/kaspa"), "https://linktr.ee/kaspa", "Linktree without scheme")
+        r.eq(Profile.linktreeLink("https://linktr.ee/kaspa/extra"), null, "Linktree sub-path refused")
+        r.eq(Profile.linktreeLink("https://linktr.ee/ka@spa"), null, "Linktree handle characters")
+        r.eq(Profile.linktreeLink("https://linktr.ee/" + "a".repeat(61)), null, "Linktree handle over 60")
+        r.eq(Profile.linktreeLink("https://evil.com/linktr.ee"), null, "only linktr.ee")
+
+        // reading the pages
+        r.eq(SocialSource.openGraphImage("<META NAME='twitter:image' CONTENT='https://a.b/c.png?x=1&amp;y=2'>"), null,
+            "content= is matched as written (lowercase), as on iOS")
+        r.eq(SocialSource.openGraphImage("<meta name='twitter:image' content='https://a.b/c.png?x=1&amp;y=2'>"), "https://a.b/c.png?x=1&y=2",
+            "twitter:image fallback, single quotes, entities")
+        r.eq(SocialSource.openGraphImage("<meta property=\"og:image\" content=\"http://a.b/c.png\">"), null, "an http image is refused")
+        r.eq(SocialSource.openGraphDescription("<meta name=\"description\" content=\"  \"><meta property=\"twitter:description\" content=\"It's me\">"),
+            "It's me", "an empty description falls through")
+        r.eq(SocialSource.bio(SocialSource.Platform.TWITCH, "Just a streamer"), "Just a streamer", "Twitch without boilerplate")
+        r.eq(SocialSource.bio(SocialSource.Platform.GITHUB, "from the page"), null, "GitHub's bio comes from its API, not the page")
+        r.eq(SocialSource.decodeEntities("&#xD800;x&#99999999999;"), "x", "invalid scalars dropped")
+        r.eq(SocialSource.xBanner("..\"https://pbs.twimg.com/profile_banners/123/456\".."), "https://pbs.twimg.com/profile_banners/123/456/1500x500", "X banner")
+        r.eq(
+            SocialSource.youtubeBanner("\"imageBannerViewModel\" \"imageBannerViewModel\":{\"image\":{\"sources\":[{\"url\":\"https://yt3.googleusercontent.com/abc=w1060\"}]}}"),
+            "https://yt3.googleusercontent.com/abc=w1060", "YouTube banner from the object"
+        )
+        r.eq(SocialSource.youtubeBanner("<html>no banner</html>"), null, "no YouTube banner")
+        val invite = "{\"guild\":{\"id\":\"42\",\"icon\":\"ic\",\"banner\":null,\"description\":\" \"}}"
+        r.eq(SocialSource.discordImage(invite, A), "https://cdn.discordapp.com/icons/42/ic.png?size=256", "Discord server icon")
+        r.eq(SocialSource.discordImage(invite, B), null, "no Discord banner")
+        r.eq(SocialSource.discordDescription(invite), null, "a blank Discord description is none")
+        r.eq(SocialSource.githubProfile("not json"), null to null, "GitHub garbage")
+        r.check(SocialProfile().isEmpty && !SocialProfile(bio = "x").isEmpty) { "SocialProfile.isEmpty" }
+        r.eq(KachatSocialImageResolver.key(" X.com/kaspa "), "https://x.com/kaspa", "cache keyed by the normalized link")
+        r.assertClean()
     }
 }

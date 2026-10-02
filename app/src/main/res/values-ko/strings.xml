@@ -789,9 +789,6 @@
     <string name="kn_bond_to_last_owner">보증금 (마지막 소유자에게)</string>
     <string name="kn_domains_claim_hint">Kaspa Hub > .kachat에서 받아 보세요.</string>
     <string name="kn_profile_belongs">프로필은 이름이 아니라 내 주소에 속해요. 이름을 사거나 팔거나 놓아도 그대로예요.</string>
-    <string name="kn_image_placeholder">https://... 또는 ipfs://...</string>
-    <string name="kn_image_error">이미지 링크는 https:// 또는 ipfs://로 시작해야 해요.</string>
-    <string name="kn_nostr">Nostr</string>
     <string name="kn_links">링크</string>
     <string name="kn_primary_name">대표 이름</string>
     <string name="kn_none">없음</string>
@@ -818,4 +815,18 @@
     <string name="kn_available">사용 가능</string>
     <string name="kn_expires">만료</string>
     <string name="kn_one_year">1년</string>
+    <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
+    <string name="kn_social_profile">소셜 프로필</string>
+    <string name="kn_social_bad">X, YouTube, Facebook, Instagram, TikTok, Twitch, Kick, GitHub, Telegram 또는 LinkedIn 프로필 링크나 Discord 서버 초대 링크를 붙여넣으세요.</string>
+    <string name="kn_social_footer">아바타, 배너, 소개는 이 프로필에서 해당 플랫폼이 보여주는 그대로 가져오므로 그 플랫폼의 관리 기준이 여기에도 적용됩니다. 배너는 X, YouTube, Discord에서, 소개는 X, YouTube, Telegram, Twitch, Kick, GitHub, Discord에서 가져옵니다.</string>
+    <string name="kn_linktree_bad">Linktree 링크(linktr.ee/yourname)만 추가할 수 있습니다.</string>
+    <string name="kn_linktree_footer">Linktree를 추가해 다른 계정과 웹사이트로 사람들을 안내하세요.</string>
+    <string name="kn_social_looking">프로필을 찾는 중...</string>
+    <string name="kn_social_nothing">이 링크에서 아무것도 찾지 못했습니다.</string>
+    <string name="kn_social_from">%1$s에서</string>
+    <string name="kn_social_no_avatar">이 %1$s 프로필에는 아바타가 없습니다.</string>
+    <string name="kn_social_no_banner">이 %1$s 프로필에는 배너가 없습니다.</string>
+    <string name="kn_social_no_banners">%1$s은(는) 배너를 공유하지 않습니다.</string>
+    <string name="kn_social_no_bio">이 %1$s 프로필에는 소개가 없습니다.</string>
+    <string name="kn_social_no_bios">%1$s은(는) 소개를 공유하지 않습니다.</string>
 </resources>
