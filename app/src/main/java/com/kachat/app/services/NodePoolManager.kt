@@ -120,8 +120,9 @@ class NodePoolManager @Inject constructor(
     // Kaspa community operators, so unlike the fixed IP list above this can recover on
     // its own if some/all of those hardcoded IPs go stale or become unreachable.
     private val dnsSeedHostnames = if (com.kachat.app.util.KaspaNetwork.isTestnet) {
-        // Testnet-10's seeders (iOS NodeModels testnetDNSSeeds).
-        listOf("seeder1-testnet.kaspad.net", "seeder2-testnet.kaspad.net")
+        // Testnet-10's seeders - rusty-kaspa's own TESTNET_PARAMS.dns_seeders (the older
+        // seeder1/2-testnet.kaspad.net names no longer resolve; iOS 76068bf).
+        listOf("seeder1-tn.kaspad.net", "dnsseeder-kaspa-testnet.x-con.at", "n-testnet-10.kaspa.ws")
     } else listOf(
         "n.seeder1.kaspad.net",
         "n.seeder2.kaspad.net",
