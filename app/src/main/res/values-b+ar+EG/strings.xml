@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">للدردشة مع شخص ما، اضغط إنشاء محادثة وأدخل عنوان Kaspa الخاص به أو اسم ‎.kachat. تصل رسالتك الأولى إليه كطلب رسالة يمكنه قبوله. لأقصى خصوصية، فعّل المحادثة الخاصة: لا شيء يربطكما على السلسلة، وسيرى رسائلك عندما يبدأ هو أيضًا محادثة خاصة معك.</string>
     <string name="welcome_fund_chatting_body">يُنصح بـ 50 Kaspa للبدء - ما يكفي للحصول على اسم ‎.kachat والدردشة لفترة. تكفي 5 Kaspa لنحو 2500 رسالة.</string>
     <string name="welcome_chatting_address_caption">هويتك العامة للمراسلة. موّلها بمبلغ صغير لدفع رسوم الرسائل واسم ‎.kachat الخاص بك - لا ترسل إلى هنا أبدًا أموالًا تنوي إنفاقها.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">الشبكة التجريبية</string>
+    <string name="testnet_hub_footer">الشبكة التجريبية للاختبار فقط - عملات KAS التجريبية بلا قيمة. على الشبكة التجريبية يستخدم حسابك عنوان kaspatest: برصيد ومحادثات خاصة به، وتحمل إعدادات الاتصال قيم الشبكة التجريبية: مستكشف الشبكة التجريبية، واكتشاف العقد تلقائيًا، ودون مفهرسات KaChat حتى تتوفر للشبكة التجريبية. إيقافها يعيد إعدادات الشبكة الرئيسية.</string>
+    <string name="testnet_restart_to_testnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام التبديل إلى الشبكة التجريبية.</string>
+    <string name="testnet_restart_to_mainnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام العودة إلى الشبكة الرئيسية.</string>
+    <string name="no_testnet_indexer_yet">لا يوجد مفهرس للشبكة التجريبية بعد</string>
+    <string name="no_indexer_for_network">لم يتم تعيين مفهرس لهذه الشبكة</string>
+    <string name="no_indexer_for_network_sub">أضف واحدًا في الإعدادات > إعدادات الاتصال لرؤية إحصاءات KaChat.</string>
+    <string name="kaposts_not_on_testnet">KaPosts لسه مش متاحة على الشبكة التجريبية</string>
+    <string name="kaposts_not_on_testnet_sub">مفيش مفهرس KaPost للشبكة التجريبية. اقفل الشبكة التجريبية من الإعدادات > الاتصال علشان تقرا وتنشر على الشبكة الرئيسية.</string>
+    <string name="nextcloud_off_on_testnet">Nextcloud مقفول طول ما الشبكة التجريبية شغالة.</string>
+    <string name="nextcloud_off_on_testnet_footer">النسخ الاحتياطي والمزامنة والوسائط والمكالمات عن طريق Nextcloud بتشتغل على الشبكة الرئيسية بس، علشان الشبكة التجريبية متكتبش أبدًا فوق نسختك الاحتياطية. اقفل الشبكة التجريبية من الإعدادات > الاتصال واتصال Nextcloud هيرجع زي ما كان.</string>
 </resources>

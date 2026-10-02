@@ -37,6 +37,9 @@ class KaChatApplication : Application(), Configuration.Provider {
         // there is exactly the "closes on the splash screen" a user cannot describe. The record
         // is bundled into the diagnostics archive and offered for sharing on the next launch.
         CrashRecorder.install(this)
+        // The network this launch runs on (Settings > Connection > Testnet), known before Hilt
+        // starts any service - the node pool, wallet and indexers are all set up for it.
+        com.kachat.app.util.KaspaNetwork.init(this)
     }
 
     // @Singleton instances are otherwise only created lazily the first time something actually

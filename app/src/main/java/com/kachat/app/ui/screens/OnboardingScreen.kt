@@ -175,8 +175,20 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
             // are device-global (ChildModeService's EncryptedSharedPreferences + DataStore).
             ChildModeSettingsScreen(onBack = { navController.popBackStack() })
         }
+        // The same Connection page as in-account Settings (iOS ConnectionHubPage): Connection
+        // Settings, the Testnet switch, Kaspa Explorer.
         composable("app_settings_connection") {
+            AppConnectionScreen(
+                onBack = { navController.popBackStack() },
+                onOpenConnectionSettings = { navController.navigate("app_settings_connection_settings") },
+                onOpenExplorer = { navController.navigate("app_settings_explorer") },
+            )
+        }
+        composable("app_settings_connection_settings") {
             ConnectionSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("app_settings_explorer") {
+            KaspaExplorerSettingsScreen(onBack = { navController.popBackStack() })
         }
         composable("app_settings_diagnostics") {
             AppDiagnosticsScreen(onBack = { navController.popBackStack() })

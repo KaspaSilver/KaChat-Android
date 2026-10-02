@@ -9173,15 +9173,11 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "connection") {
-            SettingsSection(title = stringResource(R.string.connection)) {
-                SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, "Mainnet", onClick = {
-                    navController.navigate("connection_settings")
-                })
-                SettingsDivider()
-                SettingsNavigationItem(stringResource(R.string.kaspa_explorer), Icons.Default.Explore, kaspaExplorer.displayName, onClick = {
-                    navController.navigate("kaspa_explorer_settings")
-                })
-            }
+                ConnectionHubSections(
+                    explorerName = kaspaExplorer.displayName,
+                    onOpenConnectionSettings = { navController.navigate("connection_settings") },
+                    onOpenExplorer = { navController.navigate("kaspa_explorer_settings") },
+                )
             }
 
             if (sectionKey == "notifications") {
@@ -9826,6 +9822,76 @@ fun SettingsInfoItem(label: String, value: String, valueColor: Color = LocalAppC
 fun SettingsDivider(inset: androidx.compose.ui.unit.Dp = 16.dp) {
     // iOS separators start where the row's text starts and stop short of the right edge.
     HorizontalDivider(modifier = Modifier.padding(start = inset, end = 16.dp), color = LocalAppColors.current.divider, thickness = 0.5.dp)
+}
+
+/**
+ * Settings > Connection (iOS `ConnectionHubPage`, 0c1af03): Connection Settings, the Testnet
+ * switch right under it - with the restart note while the running network differs, and a footer
+ * on what testnet changes - then Kaspa Explorer in its own section. Shared by the in-account
+ * Settings page and the accounts screen's App Settings.
+ */
+@Composable
+fun ConnectionHubSections(
+    explorerName: String,
+    onOpenConnectionSettings: () -> Unit,
+    onOpenExplorer: () -> Unit,
+    connectionViewModel: com.kachat.app.viewmodels.ConnectionViewModel = hiltViewModel(),
+) {
+    val selected by com.kachat.app.util.KaspaNetwork.selected.collectAsState()
+    val isTestnet = selected == com.kachat.app.util.KaspaNetwork.Type.TESTNET
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val colors = LocalAppColors.current
+    SettingsSection(title = stringResource(R.string.connection)) {
+        SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, onClick = onOpenConnectionSettings)
+        SettingsDivider(inset = IosRowTextInset)
+        // Mainnet <-> testnet. Each network keeps its own connection settings, so Connection
+        // Settings above shows the testnet values while this is on, and the mainnet ones come
+        // back when it's off.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Science, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(16.dp))
+            Text(
+                stringResource(R.string.testnet),
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            com.kachat.app.ui.theme.IosSwitch(
+                checked = isTestnet,
+                onCheckedChange = { on ->
+                    connectionViewModel.switchNetwork(if (on) com.kachat.app.util.KaspaNetwork.Type.TESTNET else com.kachat.app.util.KaspaNetwork.Type.MAINNET)
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                },
+                onColor = colors.warning,
+            )
+        }
+        if (selected != com.kachat.app.util.KaspaNetwork.launch) {
+            SettingsDivider(inset = IosRowTextInset)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = colors.warning, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    stringResource(if (isTestnet) R.string.testnet_restart_to_testnet else R.string.testnet_restart_to_mainnet),
+                    color = colors.textPrimary,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+    SettingsFooter(stringResource(R.string.testnet_hub_footer))
+    Spacer(Modifier.height(8.dp))
+    SettingsSection(title = null) {
+        SettingsNavigationItem(stringResource(R.string.kaspa_explorer), Icons.Default.Explore, explorerName, onClick = onOpenExplorer)
+    }
 }
 
 @Composable
@@ -10687,6 +10753,9 @@ private fun KaspaNodeQuickAccessSection(viewModel: ConnectionViewModel) {
                 Icon(Icons.Default.ArrowDropDown, null, tint = LocalAppColors.current.textSecondary)
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                // The shipped default node is a mainnet node - not offered on testnet (iOS bdae4b7).
+                val selectedNetwork by com.kachat.app.util.KaspaNetwork.selected.collectAsState()
+                if (selectedNetwork == com.kachat.app.util.KaspaNetwork.Type.MAINNET || normalizedTrusted == defaultAddress.trim()) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.default_recommended)) },
                     onClick = {
@@ -10694,6 +10763,7 @@ private fun KaspaNodeQuickAccessSection(viewModel: ConnectionViewModel) {
                         viewModel.setTrustedNodeAddress(defaultAddress)
                     }
                 )
+                }
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.automatic_scan)) },
                     onClick = {
@@ -10872,6 +10942,10 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
     val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
     val scrollState = rememberScrollState()
+    // Testnet has no KaChat indexers yet: a blank field there means none (iOS indexerPlaceholder).
+    val noTestnetIndexer = stringResource(R.string.no_testnet_indexer_yet)
+    fun shownIndexer(value: String) = value.ifBlank { noTestnetIndexer }
+    val onMainnetSettings = network.equals("mainnet", ignoreCase = true)
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -10926,7 +11000,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             when (selectedConnectionTab) {
             0 -> {
             SettingsSection(title = stringResource(R.string.message_indexer)) {
-                ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
+                ConnectionUrlField(label = "Indexer URL", value = shownIndexer(indexerUrl))
                 SettingsFooter(stringResource(R.string.message_indexer_service_for_chat_functionality))
             }
 
@@ -10934,19 +11008,19 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 // Editable, as on iOS: someone running their own K indexer points the app at it.
                 ConnectionUrlField(
                     label = "KaPost Indexer URL",
-                    value = kapostIndexerUrl,
+                    value = shownIndexer(kapostIndexerUrl),
                     onClick = { editingKapostIndexerUrl = true }
                 )
                 SettingsFooter(stringResource(R.string.kapost_indexer_footer))
             }
 
             SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
-                ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
+                ConnectionUrlField(label = "Public Chats Indexer URL", value = shownIndexer(broadcastIndexerUrl))
                 SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
             }
 
             SettingsSection(title = "Push Registration") {
-                ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
+                ConnectionUrlField(label = "Push Indexer URL", value = shownIndexer(pushIndexerUrl))
                 SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
             }
 
@@ -10969,7 +11043,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 // that someone can run their own translator and point the app at it.
                 ConnectionUrlField(
                     label = "Translation Service URL",
-                    value = translationServiceUrl,
+                    value = shownIndexer(translationServiceUrl),
                     onClick = { editingTranslationUrl = true }
                 )
                 SettingsFooter(
@@ -11030,6 +11104,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     Spacer(Modifier.height(8.dp))
                     Text(
                         if (rejected) "The URL must start with https://"
+                        else if (!onMainnetSettings) noTestnetIndexer
                         else "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL}",
                         color = if (rejected) Color(0xFFE57373) else LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
@@ -11065,7 +11140,8 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL}",
+                        if (!onMainnetSettings) noTestnetIndexer
+                        else "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL}",
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )

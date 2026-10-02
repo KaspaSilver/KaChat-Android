@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">किसी से चैट करने के लिए चैट बनाएँ दबाएँ और उनका Kaspa पता या .kachat नाम दर्ज करें। आपका पहला मैसेज उन्हें मैसेज अनुरोध के रूप में मिलता है, जिसे वे स्वीकार कर सकते हैं। सबसे ज़्यादा प्राइवेसी के लिए प्राइवेट चैट चालू करें: चेन पर आप दोनों को कुछ नहीं जोड़ता, और जब वे भी आपके साथ प्राइवेट चैट शुरू करेंगे तब आपके मैसेज देख पाएँगे।</string>
     <string name="welcome_fund_chatting_body">शुरुआत के लिए 50 Kaspa की सलाह दी जाती है - इतना कि एक .kachat नाम ले सकें और कुछ समय चैट कर सकें। 5 Kaspa लगभग 2500 मैसेज के लिए काफ़ी हैं।</string>
     <string name="welcome_chatting_address_caption">आपकी सार्वजनिक मैसेजिंग पहचान। मैसेज शुल्क और अपने .kachat नाम के लिए इसमें थोड़ी राशि डालें - जो पैसा खर्च करना हो उसे यहाँ कभी न भेजें।</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">टेस्टनेट</string>
+    <string name="testnet_hub_footer">टेस्टनेट केवल परीक्षण के लिए है - टेस्टनेट KAS का कोई मूल्य नहीं। टेस्टनेट पर आपका खाता अपने अलग बैलेंस और चैट के साथ kaspatest: पता उपयोग करता है, और कनेक्शन सेटिंग्स में टेस्टनेट मान होते हैं: टेस्टनेट एक्सप्लोरर, स्वचालित नोड खोज, और टेस्टनेट के लिए बनने तक कोई KaChat इंडेक्सर नहीं। बंद करने पर आपकी मेननेट सेटिंग्स लौट आती हैं।</string>
+    <string name="testnet_restart_to_testnet">टेस्टनेट पर स्विच पूरा करने के लिए KaChat को पूरी तरह बंद करके फिर खोलें।</string>
+    <string name="testnet_restart_to_mainnet">मेननेट पर वापस जाने के लिए KaChat को पूरी तरह बंद करके फिर खोलें।</string>
+    <string name="no_testnet_indexer_yet">अभी कोई टेस्टनेट इंडेक्सर नहीं</string>
+    <string name="no_indexer_for_network">इस नेटवर्क के लिए कोई इंडेक्सर सेट नहीं है</string>
+    <string name="no_indexer_for_network_sub">KaChat आँकड़े देखने के लिए सेटिंग्स > कनेक्शन सेटिंग्स में एक जोड़ें।</string>
+    <string name="kaposts_not_on_testnet">KaPosts अभी टेस्टनेट पर उपलब्ध नहीं है</string>
+    <string name="kaposts_not_on_testnet_sub">टेस्टनेट के लिए कोई KaPost इंडेक्सर नहीं है। मेननेट पर पढ़ने और पोस्ट करने के लिए सेटिंग्स > कनेक्शन में टेस्टनेट बंद करें।</string>
+    <string name="nextcloud_off_on_testnet">टेस्टनेट चालू रहने तक Nextcloud बंद है।</string>
+    <string name="nextcloud_off_on_testnet_footer">Nextcloud के ज़रिए बैकअप, सिंक, मीडिया और कॉल सिर्फ़ मेननेट पर काम करते हैं, ताकि टेस्टनेट कभी आपके मेननेट बैकअप को ओवरराइट न कर सके। सेटिंग्स > कनेक्शन में टेस्टनेट बंद करें और आपका Nextcloud कनेक्शन पहले जैसा वापस आ जाएगा।</string>
 </resources>

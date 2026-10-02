@@ -50,7 +50,6 @@ class SettingsViewModel @Inject constructor(
     val quickReactionEmojis = settings.quickReactionEmojis
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
 
-    fun saveNetwork(value: String) = viewModelScope.launch { settings.setNetwork(value) }
     fun saveIndexerUrl(value: String) = viewModelScope.launch { settings.setIndexerUrl(value) }
     fun saveKaspaRestUrl(value: String) = viewModelScope.launch { settings.setKaspaRestUrl(value) }
     fun setNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationsEnabled(value) }

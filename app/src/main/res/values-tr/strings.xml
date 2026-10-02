@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">Biriyle sohbet etmek için Sohbet Oluştur\'a dokun ve Kaspa adresini ya da .kachat adını gir. İlk mesajın ona kabul edebileceği bir Mesaj İsteği olarak ulaşır. En fazla gizlilik için Özel Sohbet\'i aç: zincirde sizi hiçbir şey bağlamaz ve o da seninle özel sohbet başlattığında mesajlarını görür.</string>
     <string name="welcome_fund_chatting_body">Başlamak için 50 Kaspa önerilir - bir .kachat adı almaya ve bir süre sohbet etmeye yeter. 5 Kaspa yaklaşık 2500 mesaja yeter.</string>
     <string name="welcome_chatting_address_caption">Herkese açık mesajlaşma kimliğin. Mesaj ücretleri ve .kachat adın için küçük bir miktar yükle - harcamayı düşündüğün parayı asla buraya gönderme.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">Testnet</string>
+    <string name="testnet_hub_footer">Testnet yalnızca test içindir; testnet KAS\'ın değeri yoktur. Testnet\'te hesabın kendi bakiyesi ve sohbetleriyle kaspatest: adresini kullanır ve Bağlantı Ayarları testnet değerlerini tutar: testnet gezgini, otomatik düğüm keşfi ve testnet için olana dek KaChat dizinleyicisi yok. Kapatınca mainnet ayarların geri gelir.</string>
+    <string name="testnet_restart_to_testnet">Testnet\'e geçişi tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
+    <string name="testnet_restart_to_mainnet">Mainnet\'e dönüşü tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
+    <string name="no_testnet_indexer_yet">Henüz testnet dizinleyici yok</string>
+    <string name="no_indexer_for_network">Bu ağ için ayarlanmış bir indexer yok</string>
+    <string name="no_indexer_for_network_sub">KaChat istatistiklerini görmek için Ayarlar > Bağlantı Ayarları\'ndan bir tane ekle.</string>
+    <string name="kaposts_not_on_testnet">KaPosts henüz Testnet\'te kullanılamıyor</string>
+    <string name="kaposts_not_on_testnet_sub">Testnet için bir KaPost dizinleyicisi yok. Mainnet\'te okumak ve paylaşmak için Ayarlar > Bağlantı bölümünden Testnet\'i kapatın.</string>
+    <string name="nextcloud_off_on_testnet">Testnet açıkken Nextcloud kapalıdır.</string>
+    <string name="nextcloud_off_on_testnet_footer">Nextcloud üzerinden yedekleme, eşitleme, medya ve aramalar yalnızca mainnet\'te çalışır; böylece testnet mainnet yedeğinizin üzerine asla yazamaz. Ayarlar > Bağlantı bölümünden Testnet\'i kapatın, Nextcloud bağlantınız olduğu gibi geri gelir.</string>
 </resources>

@@ -125,6 +125,24 @@ fun AppSecurityScreen(
     }
 }
 
+/** App-wide Connection page - same sections as in-account Settings > Connection. */
+@Composable
+fun AppConnectionScreen(
+    onBack: () -> Unit,
+    onOpenConnectionSettings: () -> Unit,
+    onOpenExplorer: () -> Unit,
+    chatViewModel: com.kachat.app.viewmodels.ChatViewModel = hiltViewModel(),
+) {
+    val explorer by chatViewModel.kaspaExplorer.collectAsState()
+    AppSettingsPageScaffold(title = stringResource(R.string.connection), onBack = onBack) {
+        ConnectionHubSections(
+            explorerName = explorer.displayName,
+            onOpenConnectionSettings = onOpenConnectionSettings,
+            onOpenExplorer = onOpenExplorer,
+        )
+    }
+}
+
 /** App-wide Diagnostics page — same rows as in-account Settings > Diagnostics via [DiagnosticsSettingsItems]. */
 @Composable
 fun AppDiagnosticsScreen(onBack: () -> Unit) {

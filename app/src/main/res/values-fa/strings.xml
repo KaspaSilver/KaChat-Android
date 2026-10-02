@@ -692,4 +692,16 @@
     <string name="welcome_starting_conversation_body">برای گفتگو با کسی، روی ایجاد گفتگو بزنید و نشانی Kaspa یا نام ‎.kachat او را وارد کنید. اولین پیام شما به‌صورت درخواست پیامی به او می‌رسد که می‌تواند بپذیرد. برای بیشترین حریم خصوصی، گفتگوی خصوصی را روشن کنید: روی زنجیره چیزی شما را به هم مرتبط نمی‌کند و او وقتی با شما گفتگوی خصوصی شروع کند پیام‌هایتان را می‌بیند.</string>
     <string name="welcome_fund_chatting_body">برای شروع ۵۰ Kaspa توصیه می‌شود - کافی برای گرفتن یک نام ‎.kachat و مدتی گفتگو. ۵ Kaspa برای حدود ۲۵۰۰ پیام کافی است.</string>
     <string name="welcome_chatting_address_caption">هویت عمومی پیام‌رسانی شما. مبلغ کمی واریز کنید تا کارمزد پیام‌ها و نام ‎.kachat شما پرداخت شود - هرگز پولی را که قصد خرج کردنش را دارید به اینجا نفرستید.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">تست‌نت</string>
+    <string name="testnet_hub_footer">تست‌نت فقط برای آزمایش است - KAS تست‌نت ارزشی ندارد. در تست‌نت حساب شما از آدرس kaspatest: با موجودی و گفتگوهای جداگانه استفاده می‌کند و تنظیمات اتصال مقادیر تست‌نت را دارد: کاوشگر تست‌نت، کشف خودکار گره و بدون نمایه‌ساز KaChat تا زمانی که برای تست‌نت ساخته شود. خاموش کردن آن تنظیمات شبکه اصلی را برمی‌گرداند.</string>
+    <string name="testnet_restart_to_testnet">برای تکمیل تغییر به تست‌نت، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
+    <string name="testnet_restart_to_mainnet">برای تکمیل بازگشت به شبکه اصلی، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
+    <string name="no_testnet_indexer_yet">هنوز نمایه‌ساز تست‌نت وجود ندارد</string>
+    <string name="no_indexer_for_network">برای این شبکه ایندکسری تنظیم نشده است</string>
+    <string name="no_indexer_for_network_sub">برای دیدن آمار KaChat یکی را در تنظیمات > تنظیمات اتصال اضافه کنید.</string>
+    <string name="kaposts_not_on_testnet">KaPosts هنوز در شبکه آزمایشی در دسترس نیست</string>
+    <string name="kaposts_not_on_testnet_sub">برای شبکه آزمایشی هیچ ایندکسر KaPost وجود ندارد. برای خواندن و ارسال در شبکه اصلی، شبکه آزمایشی را در تنظیمات > اتصال خاموش کنید.</string>
+    <string name="nextcloud_off_on_testnet">تا وقتی شبکه آزمایشی روشن است، Nextcloud خاموش است.</string>
+    <string name="nextcloud_off_on_testnet_footer">پشتیبان‌گیری، همگام‌سازی، رسانه و تماس از طریق Nextcloud فقط در شبکه اصلی کار می‌کند، تا شبکه آزمایشی هرگز نسخه پشتیبان شبکه اصلی شما را بازنویسی نکند. شبکه آزمایشی را در تنظیمات > اتصال خاموش کنید تا اتصال Nextcloud شما همان‌طور که بود برگردد.</string>
 </resources>

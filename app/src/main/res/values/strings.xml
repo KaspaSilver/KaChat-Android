@@ -831,4 +831,16 @@
     <string name="welcome_starting_conversation_body">To chat with someone, press Create Chat and enter their Kaspa address or .kachat name. Your first message reaches them as a Message Request they can accept. For the most privacy, turn on Private Chat: nothing links you on chain, and they see your messages once they start a private chat with you too.</string>
     <string name="welcome_fund_chatting_body">50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages.</string>
     <string name="welcome_chatting_address_caption">Your public messaging identity. Fund it with a small amount to pay message fees and for your .kachat name - never send money here that you intend to spend.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">Testnet</string>
+    <string name="testnet_hub_footer">Testnet is for testing only - testnet KAS has no value. On testnet your account uses its kaspatest: address, with its own balance and chats, and Connection Settings holds testnet values: the testnet explorer, automatic node discovery, and no KaChat indexers until testnet ones exist. Turning it off brings your mainnet settings back.</string>
+    <string name="testnet_restart_to_testnet">Close KaChat completely and open it again to finish switching to Testnet.</string>
+    <string name="testnet_restart_to_mainnet">Close KaChat completely and open it again to finish switching back to Mainnet.</string>
+    <string name="no_testnet_indexer_yet">No testnet indexer yet</string>
+    <string name="no_indexer_for_network">No indexer is set for this network</string>
+    <string name="no_indexer_for_network_sub">Add one in Settings > Connection Settings to see KaChat stats.</string>
+    <string name="kaposts_not_on_testnet">KaPosts isn\'t available on Testnet yet</string>
+    <string name="kaposts_not_on_testnet_sub">There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet.</string>
+    <string name="nextcloud_off_on_testnet">Nextcloud is off while Testnet is on.</string>
+    <string name="nextcloud_off_on_testnet_footer">Backups, sync, media and calls through Nextcloud work on mainnet only, so testnet can never overwrite your mainnet backup. Turn off Testnet in Settings > Connection and your Nextcloud connection comes back as it was.</string>
 </resources>

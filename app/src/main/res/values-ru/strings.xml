@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">Чтобы написать кому-то, нажмите «Создать чат» и введите его адрес Kaspa или имя .kachat. Ваше первое сообщение придёт ему как запрос на переписку, который можно принять. Для максимальной приватности включите «Приватный чат»: в блокчейне вас ничто не связывает, а ваши сообщения станут видны, когда собеседник тоже начнёт приватный чат с вами.</string>
     <string name="welcome_fund_chatting_body">Для начала рекомендуется 50 Kaspa — этого хватит, чтобы получить имя .kachat и какое-то время общаться. 5 Kaspa хватает примерно на 2500 сообщений.</string>
     <string name="welcome_chatting_address_caption">Ваша публичная личность для переписки. Пополните её небольшой суммой на комиссии за сообщения и на имя .kachat — никогда не отправляйте сюда деньги, которые собираетесь тратить.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">Testnet</string>
+    <string name="testnet_hub_footer">Testnet только для тестов — KAS в testnet ничего не стоят. В testnet ваш аккаунт использует адрес kaspatest: со своим балансом и чатами, а настройки подключения содержат значения testnet: обозреватель testnet, автоматический поиск узлов и никаких индексаторов KaChat, пока их нет для testnet. При выключении возвращаются настройки mainnet.</string>
+    <string name="testnet_restart_to_testnet">Полностью закройте KaChat и откройте снова, чтобы завершить переход на Testnet.</string>
+    <string name="testnet_restart_to_mainnet">Полностью закройте KaChat и откройте снова, чтобы завершить возврат на Mainnet.</string>
+    <string name="no_testnet_indexer_yet">Индексатора для testnet пока нет</string>
+    <string name="no_indexer_for_network">Для этой сети не задан индексатор</string>
+    <string name="no_indexer_for_network_sub">Добавьте его в Настройки > Настройки подключения, чтобы видеть статистику KaChat.</string>
+    <string name="kaposts_not_on_testnet">KaPosts пока недоступен в тестовой сети</string>
+    <string name="kaposts_not_on_testnet_sub">Для тестовой сети нет индексатора KaPost. Выключите тестовую сеть в Настройки > Подключение, чтобы читать и публиковать в основной сети.</string>
+    <string name="nextcloud_off_on_testnet">Nextcloud отключён, пока включена тестовая сеть.</string>
+    <string name="nextcloud_off_on_testnet_footer">Резервные копии, синхронизация, медиа и звонки через Nextcloud работают только в основной сети, поэтому тестовая сеть никогда не перезапишет вашу резервную копию. Выключите тестовую сеть в Настройки > Подключение, и подключение к Nextcloud вернётся как было.</string>
 </resources>

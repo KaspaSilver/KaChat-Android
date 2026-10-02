@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">Para conversar com alguém, toque em Criar chat e digite o endereço Kaspa ou o nome .kachat da pessoa. Sua primeira mensagem chega como uma solicitação de mensagem que ela pode aceitar. Para mais privacidade, ative Chat privado: nada liga vocês na blockchain, e ela verá suas mensagens quando também iniciar um chat privado com você.</string>
     <string name="welcome_fund_chatting_body">Recomenda-se 50 Kaspa para começar - o suficiente para reivindicar um nome .kachat e conversar por um tempo. 5 Kaspa bastam para cerca de 2500 mensagens.</string>
     <string name="welcome_chatting_address_caption">Sua identidade pública de mensagens. Coloque um valor pequeno para pagar as taxas das mensagens e seu nome .kachat - nunca envie para cá dinheiro que pretende gastar.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">Testnet</string>
+    <string name="testnet_hub_footer">A testnet é só para testes: KAS de testnet não têm valor. Na testnet sua conta usa o endereço kaspatest:, com saldo e chats próprios, e as configurações de conexão têm valores de testnet: o explorador de testnet, descoberta automática de nós e nenhum indexador do KaChat até existirem para a testnet. Desativar traz de volta suas configurações de mainnet.</string>
+    <string name="testnet_restart_to_testnet">Feche o KaChat completamente e abra de novo para concluir a mudança para a Testnet.</string>
+    <string name="testnet_restart_to_mainnet">Feche o KaChat completamente e abra de novo para concluir a volta para a Mainnet.</string>
+    <string name="no_testnet_indexer_yet">Ainda sem indexador de testnet</string>
+    <string name="no_indexer_for_network">Nenhum indexador definido para esta rede</string>
+    <string name="no_indexer_for_network_sub">Adicione um em Configurações > Configurações de conexão para ver as estatísticas do KaChat.</string>
+    <string name="kaposts_not_on_testnet">O KaPosts ainda não está disponível na Testnet</string>
+    <string name="kaposts_not_on_testnet_sub">Não há um indexador KaPost para a testnet. Desative a Testnet em Ajustes > Conexão para ler e publicar na mainnet.</string>
+    <string name="nextcloud_off_on_testnet">O Nextcloud fica desligado enquanto a Testnet estiver ligada.</string>
+    <string name="nextcloud_off_on_testnet_footer">Backups, sincronização, mídia e chamadas pelo Nextcloud funcionam só na mainnet, então a testnet nunca sobrescreve seu backup da mainnet. Desative a Testnet em Ajustes > Conexão e sua conexão com o Nextcloud volta como estava.</string>
 </resources>

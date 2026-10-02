@@ -179,7 +179,9 @@ class ConnectionViewModel @Inject constructor(
     private val _discoverNewPeers = MutableStateFlow(true)
     val discoverNewPeers: StateFlow<Boolean> = _discoverNewPeers
 
-    fun setNetwork(value: String) { viewModelScope.launch { settings.setNetwork(value) } }
+    /** Settings > Connection > Testnet: keeps each network's connection settings (iOS
+     *  `SettingsViewModel.switchNetwork(to:)`); takes effect on the next launch. */
+    fun switchNetwork(to: com.kachat.app.util.KaspaNetwork.Type) { viewModelScope.launch { settings.switchNetwork(to) } }
     fun setIndexerUrl(value: String) { viewModelScope.launch { settings.setIndexerUrl(value) } }
     fun setKaspaRestApiUrl(value: String) { viewModelScope.launch { settings.setKaspaRestUrl(value) } }
 
@@ -191,7 +193,7 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             val trimmed = value.trim().trimEnd('/')
             settings.setTranslationServiceUrl(
-                trimmed.ifBlank { AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL }
+                trimmed.ifBlank { if (onTestnetSettings) "" else AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL }
             )
         }
     }
@@ -204,10 +206,14 @@ class ConnectionViewModel @Inject constructor(
         val trimmed = value.trim().trimEnd('/')
         if (trimmed.isNotEmpty() && !trimmed.startsWith("https://", ignoreCase = true)) return false
         viewModelScope.launch {
-            settings.setKapostIndexerUrl(trimmed.ifBlank { AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL })
+            // Blank on testnet is "none", never the mainnet default (iOS ConnectionProfile.defaults).
+            settings.setKapostIndexerUrl(trimmed.ifBlank { if (onTestnetSettings) "" else AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL })
         }
         return true
     }
+    private val onTestnetSettings: Boolean
+        get() = com.kachat.app.util.KaspaNetwork.selected.value == com.kachat.app.util.KaspaNetwork.Type.TESTNET
+
     fun setTrustedNodeAddress(value: String) { viewModelScope.launch { settings.setTrustedNodeAddress(value) } }
     fun setDiscoverNewPeers(value: Boolean) { _discoverNewPeers.value = value }
     fun setVerboseApiLogging(value: Boolean) { viewModelScope.launch { settings.setVerboseApiLogging(value) } }

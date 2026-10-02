@@ -53,7 +53,9 @@ class NetworkService @Inject constructor(
         }
         scope.launch {
             settings.indexerUrl.collectLatest { url ->
-                createApi<KasiaIndexerApi>(url)?.let { _indexerApi.value = it }
+                // Blank = no server (testnet has no KaChat indexers yet) - never keep the
+                // other network's client.
+                if (url.isBlank()) _indexerApi.value = null else createApi<KasiaIndexerApi>(url)?.let { _indexerApi.value = it }
             }
         }
         scope.launch {
@@ -63,19 +65,25 @@ class NetworkService @Inject constructor(
         }
         scope.launch {
             settings.kapostIndexerUrl.collectLatest { url ->
-                createApi<KaPostApi>(url)?.let { _kapostApi.value = it }
+                // Blank = no server (testnet has no KaChat indexers yet) - never keep the
+                // other network's client.
+                if (url.isBlank()) _kapostApi.value = null else createApi<KaPostApi>(url)?.let { _kapostApi.value = it }
             }
         }
         scope.launch {
             // Push registration has its own configurable host (mirrors iOS's pushIndexerURL),
             // defaulting to the same kachat.duckdns.org.
             settings.pushIndexerUrl.collectLatest { url ->
-                createApi<PushApi>(url)?.let { _pushApi.value = it }
+                // Blank = no server (testnet has no KaChat indexers yet) - never keep the
+                // other network's client.
+                if (url.isBlank()) _pushApi.value = null else createApi<PushApi>(url)?.let { _pushApi.value = it }
             }
         }
         scope.launch {
             settings.broadcastIndexerUrl.collectLatest { url ->
-                createApi<BroadcastIndexerApi>(url)?.let { _broadcastIndexerApi.value = it }
+                // Blank = no server (testnet has no KaChat indexers yet) - never keep the
+                // other network's client.
+                if (url.isBlank()) _broadcastIndexerApi.value = null else createApi<BroadcastIndexerApi>(url)?.let { _broadcastIndexerApi.value = it }
             }
         }
     }

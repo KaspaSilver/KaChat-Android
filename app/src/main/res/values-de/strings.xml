@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">Um mit jemandem zu chatten, tippe auf Chat erstellen und gib die Kaspa-Adresse oder den .kachat-Namen ein. Deine erste Nachricht kommt als Nachrichtenanfrage an, die angenommen werden kann. Für die meiste Privatsphäre aktiviere Privater Chat: Nichts verbindet euch on-chain, und deine Nachrichten werden sichtbar, sobald auch dort ein privater Chat mit dir gestartet wird.</string>
     <string name="welcome_fund_chatting_body">Zum Start werden 50 Kaspa empfohlen - genug, um dir einen .kachat-Namen zu sichern und eine Weile zu chatten. 5 Kaspa reichen für etwa 2500 Nachrichten.</string>
     <string name="welcome_chatting_address_caption">Deine öffentliche Chat-Identität. Lade sie mit einem kleinen Betrag auf, um Nachrichtengebühren und deinen .kachat-Namen zu bezahlen - schicke hierher nie Geld, das du ausgeben willst.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">Testnet</string>
+    <string name="testnet_hub_footer">Testnet dient nur zum Testen - Testnet-KAS haben keinen Wert. Im Testnet nutzt dein Konto seine kaspatest:-Adresse mit eigenem Guthaben und eigenen Chats, und die Verbindungseinstellungen enthalten Testnet-Werte: den Testnet-Explorer, automatische Node-Suche und keine KaChat-Indexer, bis es welche fürs Testnet gibt. Beim Ausschalten kommen deine Mainnet-Einstellungen zurück.</string>
+    <string name="testnet_restart_to_testnet">Schließe KaChat vollständig und öffne es erneut, um den Wechsel zum Testnet abzuschließen.</string>
+    <string name="testnet_restart_to_mainnet">Schließe KaChat vollständig und öffne es erneut, um den Wechsel zurück zum Mainnet abzuschließen.</string>
+    <string name="no_testnet_indexer_yet">Noch kein Testnet-Indexer</string>
+    <string name="no_indexer_for_network">Für dieses Netzwerk ist kein Indexer eingestellt</string>
+    <string name="no_indexer_for_network_sub">Füge unter Einstellungen > Verbindungseinstellungen einen hinzu, um KaChat-Statistiken zu sehen.</string>
+    <string name="kaposts_not_on_testnet">KaPosts ist im Testnet noch nicht verfügbar</string>
+    <string name="kaposts_not_on_testnet_sub">Für das Testnet gibt es keinen KaPost-Indexer. Schalte Testnet unter Einstellungen > Verbindung aus, um im Mainnet zu lesen und zu posten.</string>
+    <string name="nextcloud_off_on_testnet">Nextcloud ist aus, solange Testnet an ist.</string>
+    <string name="nextcloud_off_on_testnet_footer">Backups, Sync, Medien und Anrufe über Nextcloud funktionieren nur im Mainnet, damit das Testnet dein Mainnet-Backup nie überschreiben kann. Schalte Testnet unter Einstellungen > Verbindung aus, und deine Nextcloud-Verbindung ist wieder wie zuvor da.</string>
 </resources>

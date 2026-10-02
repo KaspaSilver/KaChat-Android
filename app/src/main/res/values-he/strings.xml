@@ -653,4 +653,16 @@
     <string name="welcome_starting_conversation_body">כדי לשוחח עם מישהו, הקישו צור צ\'אט והזינו את כתובת ה-Kaspa או את שם ה-‎.kachat שלו. ההודעה הראשונה שלכם תגיע אליו כבקשת הודעה שאפשר לאשר. לפרטיות מרבית, הפעילו צ\'אט פרטי: שום דבר לא מקשר ביניכם בשרשרת, והוא יראה את ההודעות כשגם הוא יפתח איתכם צ\'אט פרטי.</string>
     <string name="welcome_fund_chatting_body">מומלץ להתחיל עם 50 Kaspa - מספיק כדי לקבל שם ‎.kachat ולשוחח לזמן מה. 5 Kaspa מספיקים לכ-2500 הודעות.</string>
     <string name="welcome_chatting_address_caption">הזהות הציבורית שלכם להודעות. טענו סכום קטן כדי לשלם עמלות הודעה ואת שם ה-‎.kachat שלכם - לעולם אל תשלחו לכאן כסף שאתם מתכוונים להוציא.</string>
+    <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
+    <string name="testnet">טסטנט</string>
+    <string name="testnet_hub_footer">טסטנט מיועד לבדיקות בלבד - ל-KAS של טסטנט אין ערך. בטסטנט החשבון משתמש בכתובת kaspatest: עם יתרה וצ\'אטים משלו, והגדרות החיבור מכילות ערכי טסטנט: סייר טסטנט, איתור צמתים אוטומטי וללא אינדקסרים של KaChat עד שיהיו לטסטנט. כיבוי מחזיר את הגדרות הרשת הראשית.</string>
+    <string name="testnet_restart_to_testnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את המעבר לטסטנט.</string>
+    <string name="testnet_restart_to_mainnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את החזרה לרשת הראשית.</string>
+    <string name="no_testnet_indexer_yet">עדיין אין אינדקסר לטסטנט</string>
+    <string name="no_indexer_for_network">לא הוגדר אינדקסר לרשת הזו</string>
+    <string name="no_indexer_for_network_sub">הוסיפו אחד בהגדרות > הגדרות חיבור כדי לראות את הסטטיסטיקה של KaChat.</string>
+    <string name="kaposts_not_on_testnet">KaPosts עדיין לא זמין ברשת הבדיקה</string>
+    <string name="kaposts_not_on_testnet_sub">אין אינדקסר KaPost לרשת הבדיקה. כבה את רשת הבדיקה בהגדרות > חיבור כדי לקרוא ולפרסם ברשת הראשית.</string>
+    <string name="nextcloud_off_on_testnet">Nextcloud כבוי כל עוד רשת הבדיקה פועלת.</string>
+    <string name="nextcloud_off_on_testnet_footer">גיבויים, סנכרון, מדיה ושיחות דרך Nextcloud פועלים רק ברשת הראשית, כך שרשת הבדיקה לעולם לא תדרוס את הגיבוי של הרשת הראשית. כבה את רשת הבדיקה בהגדרות > חיבור והחיבור ל-Nextcloud יחזור כפי שהיה.</string>
 </resources>

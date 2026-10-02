@@ -60,10 +60,13 @@ fun IosSwitch(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** The on-track colour, when it isn't the accent - the Testnet switch is orange (iOS
+     *  `.tint(.orange)`). */
+    onColor: Color? = null,
 ) {
     val dark = LocalAppColors.current.isDark
     val track by animateColorAsState(
-        if (checked) LocalAppColors.current.accent else if (dark) Color(0xFF39393D) else Color(0xFFE9E9EA),
+        if (checked) onColor ?: LocalAppColors.current.accent else if (dark) Color(0xFF39393D) else Color(0xFFE9E9EA),
         label = "iosSwitchTrack",
     )
     val knobOffset by animateDpAsState(if (checked) 22.dp else 2.dp, spring(dampingRatio = 0.75f, stiffness = 600f), label = "iosSwitchKnob")

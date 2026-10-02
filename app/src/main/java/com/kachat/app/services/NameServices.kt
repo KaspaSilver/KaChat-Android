@@ -206,7 +206,7 @@ class NameServicesClient @Inject constructor(
     @Volatile private var ownerAddress: String? = null
 
     /** The network the app runs on. Mainnet unless a testnet launch is in effect. */
-    @Volatile var mainnet: Boolean = true
+    val mainnet: Boolean get() = !com.kachat.app.util.KaspaNetwork.isTestnet
 
     /** Every name [address] owns on .k and .kaspa. A lookup that fails keeps what the service
      *  last answered and marks it failed. */
