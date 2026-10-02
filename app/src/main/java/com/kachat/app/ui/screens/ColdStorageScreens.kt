@@ -1377,7 +1377,7 @@ private fun ColdSendFlow(
     if (showRecipientScanner) {
         BackHandler { showRecipientScanner = false }
         QrScannerOverlay(
-            onScanned = { scanned -> toAddress = scanned.trim(); showRecipientScanner = false },
+            onScanned = { scanned -> toAddress = com.kachat.app.util.KaspaAddress.fromScanned(scanned); showRecipientScanner = false },
             onDismiss = { showRecipientScanner = false }
         )
         return
@@ -1534,7 +1534,7 @@ private fun ColdSendFlow(
                             AddressResolutionCard(input = toAddress)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(onClick = { clipboardManager.getText()?.text?.let { toAddress = it.trim() } }) {
+                            TextButton(onClick = { clipboardManager.getText()?.text?.let { toAddress = com.kachat.app.util.KaspaAddress.fromScanned(it) } }) {
                                 Icon(Icons.Default.ContentPaste, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(stringResource(R.string.paste_from_clipboard), color = KaspaTeal, style = MaterialTheme.typography.bodySmall)

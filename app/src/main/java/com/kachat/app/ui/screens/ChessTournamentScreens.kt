@@ -175,7 +175,9 @@ private fun ChessAvatar(address: String, contacts: Map<String, ContactEntity>, s
     val contact = contacts[address]
     ContactAvatar(
         imageUrl = contact?.knsAvatarUrl,
-        fallbackText = contact?.displayName ?: address.removePrefix("kaspa:").take(2),
+        // The one name rule (your name for them, else their .kachat name on testnet, else the
+        // short address) - stripping only "kaspa:" left every testnet initial as "ka".
+        fallbackText = contact?.displayName ?: com.kachat.app.models.addressDisplayName(address),
         size = size.dp,
         address = address,
     )

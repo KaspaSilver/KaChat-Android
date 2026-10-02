@@ -802,7 +802,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     if (showInfo) {
         ActionSheetContainer(title = stringResource(R.string.ks_what_counts), subtitle = stringResource(R.string.ks_info_header), onDismiss = { showInfo = false }) {
             KaChatStatCategory.entries.forEach { category ->
-                HowRow(category.icon, stringResource(category.title), stringResource(category.detail), tint = category.color)
+                HowRow(category.icon, stringResource(category.title), KaspaUnit.label(stringResource(category.detail)), tint = category.color)
             }
             Text(
                 stringResource(R.string.ks_info_footer),
@@ -828,7 +828,7 @@ private fun StatsRow(category: KaChatStatCategory, value: @Composable () -> Unit
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(stringResource(category.title), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Text(stringResource(category.detail), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 2)
+            Text(KaspaUnit.label(stringResource(category.detail)), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 2)
         }
         Spacer(Modifier.width(8.dp))
         value()

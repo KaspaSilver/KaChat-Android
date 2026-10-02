@@ -961,7 +961,7 @@ private fun AddressEntryDialog(
         ) {
             QrScannerOverlay(
                 onScanned = { scanned ->
-                    addressText = scanned.trim()
+                    addressText = com.kachat.app.util.KaspaAddress.fromScanned(scanned)
                     showScanner = false
                 },
                 onDismiss = { showScanner = false }
@@ -1030,7 +1030,7 @@ private fun AddressEntryDialog(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { clipboardManager.getText()?.text?.let { addressText = it.trim() } }) {
+                    TextButton(onClick = { clipboardManager.getText()?.text?.let { addressText = com.kachat.app.util.KaspaAddress.fromScanned(it) } }) {
                         Icon(Icons.Default.ContentPaste, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.paste_from_clipboard), color = KaspaTeal, fontSize = 12.sp)
@@ -2524,7 +2524,7 @@ private fun TransactionDialog(
                 if (isTransfer) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        stringResource(R.string.portfolio_transfer_footer),
+                        com.kachat.app.util.KaspaUnit.label(stringResource(R.string.portfolio_transfer_footer)),
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(horizontal = 4.dp)

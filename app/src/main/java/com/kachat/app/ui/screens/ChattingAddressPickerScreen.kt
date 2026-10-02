@@ -528,8 +528,9 @@ private fun ChattingAddressDetailScreen(
     }
 }
 
-private fun shortAddress(address: String): String =
-    if (address.length > 16) "${address.take(10)}...${address.takeLast(6)}" else address
+// The shared short form: a fixed take(10) is exactly "kaspatest:" on testnet, which showed
+// none of the address itself.
+private fun shortAddress(address: String): String = com.kachat.app.util.KaspaAddress.shortDisplay(address)
 
 private fun formatKas(sompi: Long): String {
     var text = String.format(java.util.Locale.US, "%.8f", sompi / 100_000_000.0)

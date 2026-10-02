@@ -885,6 +885,9 @@ private fun WelcomeGuideNodeConnectionStep(
         )
         Spacer(Modifier.height(20.dp))
 
+        // The shipped default node is a mainnet node: on testnet it isn't offered, as in
+        // Connection Settings (picking it would pin a node the pool drops as the wrong network).
+        if (!com.kachat.app.util.KaspaNetwork.isTestnet) {
         NodeChoiceRow(
             selected = nodeChoice == NodeChoice.DEFAULT_NODE,
             title = stringResource(R.string.default_option),
@@ -893,6 +896,7 @@ private fun WelcomeGuideNodeConnectionStep(
             onClick = { onNodeChoiceChange(NodeChoice.DEFAULT_NODE) }
         )
         Spacer(Modifier.height(10.dp))
+        }
         NodeChoiceRow(
             selected = nodeChoice == NodeChoice.OWN_NODE,
             title = stringResource(R.string.connect_your_own_node),

@@ -37,6 +37,24 @@ object KaspaAddress {
     /**
      * Basic validation of a Kaspa address string.
      */
+    /**
+     * What a scanned QR code (or a pasted payment link) holds, as an address to put in a field
+     * (iOS handleScannedQRCode):
+     * trimmed, and a payment URI's query (`kaspa:ADDRESS?amount=X`, `kaspatest:...`) dropped -
+     * wallets and faucets put those in their QR codes, and the raw text never validated, so a
+     * scanned address sat in the field with Add greyed out. A code written all in capitals
+     * (QR alphanumeric mode) is lowercased, since bech32 addresses are lowercase.
+     */
+    fun fromScanned(code: String): String {
+        var address = code.trim()
+        val lower = address.lowercase()
+        if (lower.startsWith("kaspa:") || lower.startsWith("kaspatest:")) {
+            address = address.substringBefore('?')
+            if (address == address.uppercase()) address = address.lowercase()
+        }
+        return address
+    }
+
     fun isValid(address: String): Boolean {
         return try {
             decode(address)

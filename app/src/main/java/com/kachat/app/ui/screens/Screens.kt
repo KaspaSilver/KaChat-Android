@@ -6193,7 +6193,7 @@ fun SpendingAddressSendFlow(
     if (showScanner) {
         BackHandler { showScanner = false }
         QrScannerOverlay(
-            onScanned = { scanned -> recipientInput = scanned.trim(); showScanner = false },
+            onScanned = { scanned -> recipientInput = KaspaAddress.fromScanned(scanned); showScanner = false },
             onDismiss = { showScanner = false }
         )
         return
@@ -6338,7 +6338,7 @@ fun SpendingAddressSendFlow(
                     AddressResolutionCard(input = recipientInput)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { clipboardManager.getText()?.text?.let { recipientInput = it.trim() } }, enabled = !isSending) {
+                    TextButton(onClick = { clipboardManager.getText()?.text?.let { recipientInput = KaspaAddress.fromScanned(it) } }, enabled = !isSending) {
                         Icon(Icons.Default.ContentPaste, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.paste_from_clipboard), color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
@@ -7295,7 +7295,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
         QrCodeOverlay(
             value = qrAddress,
             onDismiss = { showQr = false },
-            message = "Just send 5-10 KAS at a time, that's plenty to cover chat fees for a while (about 500 messages per KAS)",
+            message = com.kachat.app.util.KaspaUnit.label("Just send 5-10 KAS at a time, that's plenty to cover chat fees for a while (about 500 messages per KAS)"),
             borderColor = KaspaTeal,
             borderWidth = 4.dp
         )
@@ -11652,7 +11652,8 @@ fun CreateChatScreen(
     val createGroupError by chatViewModel.createGroupError.collectAsState()
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
-    val isValidRawAddress = remember(address) { KaspaAddress.isValid(address) }
+    // Trimmed: a pasted address often carries a stray space or newline, which failed the check.
+    val isValidRawAddress = remember(address) { KaspaAddress.isValid(address.trim()) }
     // A name on any service - .kachat, .kas, .k, .kaspa - typed with or without its ending (iOS a0dbc15).
     val looksLikeKnsDomain = remember(address) { com.kachat.app.services.NameServicesClient.looksLikeName(address) }
     val nameResolutions by chatViewModel.nameResolutions.collectAsState()
@@ -11818,14 +11819,14 @@ fun CreateChatScreen(
 
     // The address actually used to create the contact — the resolved owner address
     // when the input is a KNS domain, otherwise whatever was typed directly.
-    val effectiveAddress = if (looksLikeKnsDomain) knsResolvedAddress else address
+    val effectiveAddress = if (looksLikeKnsDomain) knsResolvedAddress else address.trim()
     val isValidAddress = if (looksLikeKnsDomain) knsResolvedAddress != null else isValidRawAddress
 
     if (showScanner) {
         BackHandler { showScanner = false }
         QrScannerOverlay(
             onScanned = { scanned ->
-                address = scanned
+                address = KaspaAddress.fromScanned(scanned)
                 showScanner = false
             },
             onDismiss = { showScanner = false }
@@ -11838,7 +11839,7 @@ fun CreateChatScreen(
         QrScannerOverlay(
             onScanned = { scanned ->
                 groupAddressRows = groupAddressRows.map {
-                    if (it.id == rowId) it.copy(text = scanned.trim()) else it
+                    if (it.id == rowId) it.copy(text = KaspaAddress.fromScanned(scanned)) else it
                 }
                 scanningGroupRowId = null
             },
@@ -12094,7 +12095,7 @@ fun CreateChatScreen(
                             pickContactForImportLauncher.launch(null)
                         }
                         CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
-                            clipboardManager.getText()?.text?.let { address = it.trim() }
+                            clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
                         }
                         CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
                     }
@@ -12290,7 +12291,7 @@ fun CreateChatScreen(
                         pickContactForImportLauncher.launch(null)
                     }
                     CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
-                        clipboardManager.getText()?.text?.let { address = it.trim() }
+                        clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
                     }
                     CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
                 }
