@@ -398,16 +398,40 @@ class KaPostsViewModel @Inject constructor(
     fun isHidden(address: String, mutedSet: Set<String> = muted.value, blockedSet: Set<String> = blocked.value): Boolean =
         address in mutedSet || address in blockedSet
 
-    /** Session posts first, then remote posts deduped by remote id, muted/blocked authors dropped. */
+    /** Session posts merged into the remote feed by time (deduped by remote id), muted/blocked
+     *  authors dropped. They used to be stacked on top of the whole feed, which pinned a just-sent
+     *  post above everything posted after it until the session ended (iOS 77c2a89). */
     private fun overlayLocal(
         local: List<KaPostDraft>,
         remote: List<KaPostDraft>,
         hiddenSet: Set<String>,
     ): List<KaPostDraft> {
-        val combined = local + remote.filter { r ->
+        val combined = mergeNewestFirst(local, remote.filter { r ->
             local.none { it.remoteId != null && it.remoteId == r.remoteId }
-        }
+        })
         return combined.filter { it.posterAddress !in hiddenSet }
+    }
+
+    /**
+     * Interleaves session posts into the remote feed, newest first. The remote list keeps the
+     * server's order exactly (it is already reverse-chronological, and re-sorting it could shuffle
+     * rows the server ordered by block); each local post goes in just above the first remote post
+     * older than it. A local post older than the whole loaded window goes last (iOS 77c2a89).
+     */
+    internal fun mergeNewestFirst(local: List<KaPostDraft>, remote: List<KaPostDraft>): List<KaPostDraft> {
+        if (local.isEmpty()) return remote
+        val localSorted = local.sortedByDescending { it.timestamp }
+        val merged = ArrayList<KaPostDraft>(localSorted.size + remote.size)
+        var li = 0
+        for (post in remote) {
+            while (li < localSorted.size && localSorted[li].timestamp >= post.timestamp) {
+                merged.add(localSorted[li])
+                li++
+            }
+            merged.add(post)
+        }
+        while (li < localSorted.size) merged.add(localSorted[li++])
+        return merged
     }
 
     /** The global stream as rendered: backs the Feed and Popular tabs. */
