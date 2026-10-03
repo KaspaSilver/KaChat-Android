@@ -658,7 +658,6 @@
     <string name="testnet_hub_footer">Il testnet serve solo per i test: i KAS di testnet non hanno valore. Sul testnet il tuo account usa il suo indirizzo kaspatest:, con saldo e chat propri, e le impostazioni di connessione contengono valori testnet: l\'explorer testnet, la ricerca automatica dei nodi e nessun indicizzatore KaChat finché non ne esistono per il testnet. Disattivandolo tornano le impostazioni mainnet.</string>
     <string name="testnet_restart_to_testnet">Chiudi completamente KaChat e riaprilo per completare il passaggio al Testnet.</string>
     <string name="testnet_restart_to_mainnet">Chiudi completamente KaChat e riaprilo per completare il ritorno al Mainnet.</string>
-    <string name="no_testnet_indexer_yet">Ancora nessun indicizzatore testnet</string>
     <string name="kaposts_not_on_testnet">KaPosts non è ancora disponibile sulla Testnet</string>
     <string name="kaposts_not_on_testnet_sub">Non esiste un indicizzatore KaPost per la testnet. Disattiva Testnet in Impostazioni > Connessione per leggere e pubblicare sulla mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud è disattivato finché la Testnet è attiva.</string>

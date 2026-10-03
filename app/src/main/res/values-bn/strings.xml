@@ -658,7 +658,6 @@
     <string name="testnet_hub_footer">টেস্টনেট শুধু পরীক্ষার জন্য - টেস্টনেট KAS-এর কোনো মূল্য নেই। টেস্টনেটে আপনার অ্যাকাউন্ট নিজস্ব ব্যালান্স ও চ্যাটসহ kaspatest: ঠিকানা ব্যবহার করে, আর সংযোগ সেটিংসে টেস্টনেটের মান থাকে: টেস্টনেট এক্সপ্লোরার, স্বয়ংক্রিয় নোড খোঁজা, এবং টেস্টনেটের জন্য না আসা পর্যন্ত কোনো KaChat ইনডেক্সার নেই। বন্ধ করলে আপনার মেইননেট সেটিংস ফিরে আসে।</string>
     <string name="testnet_restart_to_testnet">টেস্টনেটে বদল শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।</string>
     <string name="testnet_restart_to_mainnet">মেইননেটে ফেরা শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।</string>
-    <string name="no_testnet_indexer_yet">এখনো কোনো টেস্টনেট ইনডেক্সার নেই</string>
     <string name="kaposts_not_on_testnet">KaPosts এখনও টেস্টনেটে উপলব্ধ নয়</string>
     <string name="kaposts_not_on_testnet_sub">টেস্টনেটের জন্য কোনো KaPost ইনডেক্সার নেই। মেইননেটে পড়তে ও পোস্ট করতে সেটিংস > সংযোগ থেকে টেস্টনেট বন্ধ করুন।</string>
     <string name="nextcloud_off_on_testnet">টেস্টনেট চালু থাকলে Nextcloud বন্ধ থাকে।</string>

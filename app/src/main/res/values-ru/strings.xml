@@ -658,7 +658,6 @@
     <string name="testnet_hub_footer">Testnet только для тестов — KAS в testnet ничего не стоят. В testnet ваш аккаунт использует адрес kaspatest: со своим балансом и чатами, а настройки подключения содержат значения testnet: обозреватель testnet, автоматический поиск узлов и никаких индексаторов KaChat, пока их нет для testnet. При выключении возвращаются настройки mainnet.</string>
     <string name="testnet_restart_to_testnet">Полностью закройте KaChat и откройте снова, чтобы завершить переход на Testnet.</string>
     <string name="testnet_restart_to_mainnet">Полностью закройте KaChat и откройте снова, чтобы завершить возврат на Mainnet.</string>
-    <string name="no_testnet_indexer_yet">Индексатора для testnet пока нет</string>
     <string name="kaposts_not_on_testnet">KaPosts пока недоступен в тестовой сети</string>
     <string name="kaposts_not_on_testnet_sub">Для тестовой сети нет индексатора KaPost. Выключите тестовую сеть в Настройки > Подключение, чтобы читать и публиковать в основной сети.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud отключён, пока включена тестовая сеть.</string>

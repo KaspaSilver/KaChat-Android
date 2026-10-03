@@ -658,7 +658,6 @@
     <string name="testnet_hub_footer">测试网仅用于测试——测试网 KAS 没有价值。在测试网上，你的账户使用 kaspatest: 地址，有独立的余额和聊天；连接设置使用测试网的值：测试网浏览器、自动发现节点，并且在测试网索引器出现前没有 KaChat 索引器。关闭后会恢复主网设置。</string>
     <string name="testnet_restart_to_testnet">请完全关闭 KaChat 后重新打开，以完成切换到测试网。</string>
     <string name="testnet_restart_to_mainnet">请完全关闭 KaChat 后重新打开，以完成切换回主网。</string>
-    <string name="no_testnet_indexer_yet">尚无测试网索引器</string>
     <string name="kaposts_not_on_testnet">KaPosts 暂不支持测试网</string>
     <string name="kaposts_not_on_testnet_sub">测试网还没有 KaPost 索引器。在“设置 > 连接”中关闭测试网，即可在主网阅读和发帖。</string>
     <string name="nextcloud_off_on_testnet">测试网开启时，Nextcloud 处于关闭状态。</string>

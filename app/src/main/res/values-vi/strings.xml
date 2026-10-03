@@ -658,7 +658,6 @@
     <string name="testnet_hub_footer">Testnet chỉ để thử nghiệm - KAS testnet không có giá trị. Trên testnet, tài khoản của bạn dùng địa chỉ kaspatest: với số dư và cuộc trò chuyện riêng, và Cài đặt kết nối chứa giá trị testnet: trình khám phá testnet, tự động tìm node và không có trình lập chỉ mục KaChat cho đến khi có bản testnet. Tắt đi sẽ khôi phục cài đặt mainnet.</string>
     <string name="testnet_restart_to_testnet">Đóng hẳn KaChat rồi mở lại để hoàn tất chuyển sang Testnet.</string>
     <string name="testnet_restart_to_mainnet">Đóng hẳn KaChat rồi mở lại để hoàn tất quay về Mainnet.</string>
-    <string name="no_testnet_indexer_yet">Chưa có trình lập chỉ mục testnet</string>
     <string name="kaposts_not_on_testnet">KaPosts chưa khả dụng trên Testnet</string>
     <string name="kaposts_not_on_testnet_sub">Chưa có trình lập chỉ mục KaPost cho testnet. Tắt Testnet trong Cài đặt > Kết nối để đọc và đăng trên mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud tắt khi Testnet đang bật.</string>

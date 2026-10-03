@@ -11023,9 +11023,6 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
     val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
     val scrollState = rememberScrollState()
-    // Testnet has no KaChat indexers yet: a blank field there means none (iOS indexerPlaceholder).
-    val noTestnetIndexer = stringResource(R.string.no_testnet_indexer_yet)
-    fun shownIndexer(value: String) = value.ifBlank { noTestnetIndexer }
     val onMainnetSettings = network.equals("mainnet", ignoreCase = true)
 
     Scaffold(
@@ -11081,7 +11078,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             when (selectedConnectionTab) {
             0 -> {
             SettingsSection(title = stringResource(R.string.message_indexer)) {
-                ConnectionUrlField(label = "Indexer URL", value = shownIndexer(indexerUrl))
+                ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
                 SettingsFooter(stringResource(R.string.message_indexer_service_for_chat_functionality))
             }
 
@@ -11089,19 +11086,19 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 // Editable, as on iOS: someone running their own K indexer points the app at it.
                 ConnectionUrlField(
                     label = "KaPost Indexer URL",
-                    value = shownIndexer(kapostIndexerUrl),
+                    value = kapostIndexerUrl,
                     onClick = { editingKapostIndexerUrl = true }
                 )
                 SettingsFooter(stringResource(R.string.kapost_indexer_footer))
             }
 
             SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
-                ConnectionUrlField(label = "Public Chats Indexer URL", value = shownIndexer(broadcastIndexerUrl))
+                ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
                 SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
             }
 
             SettingsSection(title = "Push Registration") {
-                ConnectionUrlField(label = "Push Indexer URL", value = shownIndexer(pushIndexerUrl))
+                ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
                 SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
             }
 
@@ -11190,8 +11187,8 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     Spacer(Modifier.height(8.dp))
                     Text(
                         if (rejected) "The URL must start with https://"
-                        else if (!onMainnetSettings) noTestnetIndexer
-                        else "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL}",
+                        // The network's default: the testnet-10 indexer on testnet (iOS 5463ab7).
+                        else "Leave blank to use ${if (onMainnetSettings) com.kachat.app.repository.AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL else com.kachat.app.repository.AppSettingsRepository.DEFAULT_TESTNET_INDEXER_URL}",
                         color = if (rejected) Color(0xFFE57373) else LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )

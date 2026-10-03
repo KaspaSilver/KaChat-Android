@@ -88,6 +88,10 @@ class AppSettingsRepository @Inject constructor(
         /** Retired TN11 (503) - migrated forward on read (iOS a67a1c2). */
         const val LEGACY_DEFAULT_KASPA_TESTNET_REST_URL = "https://api-tn11.kaspa.org"
         const val DEFAULT_KNS_TESTNET_API_URL = "https://api.knsdomains.org/tn10/api/v1"
+        /** The testnet-10 KaChat indexer (Kaspa-Quick-Start's `kachat-testnet` target): chat,
+         *  push, KaPosts, public chats and `.kachat` names on one name. Port 7443: 443 on that
+         *  address is answered by another proxy (iOS 5463ab7). */
+        const val DEFAULT_TESTNET_INDEXER_URL = "https://tnkachat.duckdns.org:7443"
 
         fun defaultKaspaRestUrl(network: com.kachat.app.util.KaspaNetwork.Type) =
             if (network == com.kachat.app.util.KaspaNetwork.Type.MAINNET) DEFAULT_KASPA_REST_URL else DEFAULT_KASPA_TESTNET_REST_URL
@@ -275,14 +279,15 @@ class AppSettingsRepository @Inject constructor(
      *  (iOS bdae4b7). Its own store (KaspaNetwork): it must be known before any service starts. */
     val network: Flow<String> = com.kachat.app.util.KaspaNetwork.selected.map { it.raw }
 
-    /** Testnet has no KaChat indexer infrastructure yet, so on testnet a blank field means "none"
-     *  - not the mainnet default a blank means on mainnet (iOS AppSettings decode). */
+    /** A blank field means the network's own default: the mainnet host on mainnet, the testnet-10
+     *  indexer on testnet - so a blank left from before testnet had an indexer becomes it, and a
+     *  custom URL is kept (iOS 5463ab7). */
     private val onTestnetSettings: Boolean
         get() = com.kachat.app.util.KaspaNetwork.selected.value == com.kachat.app.util.KaspaNetwork.Type.TESTNET
 
     private fun indexerOrDefault(stored: String?, default: String): String {
         val value = stored?.takeIf { it.isNotBlank() }
-        return if (onTestnetSettings) value ?: "" else value ?: default
+        return value ?: if (onTestnetSettings) DEFAULT_TESTNET_INDEXER_URL else default
     }
 
     // Transforms away superseded default indexers on read (rather than a one-time write-back
@@ -291,7 +296,7 @@ class AppSettingsRepository @Inject constructor(
     // indexers the user typed are kept as-is.
     val indexerUrl: Flow<String> = dataStore.data.map {
         val stored = it[KEY_INDEXER_URL]?.takeIf { url -> url.isNotBlank() }
-        if (onTestnetSettings) return@map stored ?: ""
+        if (onTestnetSettings) return@map stored ?: DEFAULT_TESTNET_INDEXER_URL
         if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
     }
 
@@ -1067,17 +1072,18 @@ data class ConnectionProfile(
     val savedNodeAddresses: String? = null,
 ) {
     companion object {
-        /** What a network starts with. Testnet: the public testnet-10 REST API and automatic node
-         *  discovery; KaChat's own indexers blank, because there is no testnet infrastructure yet. */
+        /** What a network starts with. Testnet: the public testnet-10 REST API, automatic node
+         *  discovery, and KaChat's testnet-10 indexer (unset = the network's default) for chat,
+         *  push, KaPosts and public chats (iOS 5463ab7). */
         fun defaults(network: com.kachat.app.util.KaspaNetwork.Type): ConnectionProfile =
             if (network == com.kachat.app.util.KaspaNetwork.Type.MAINNET) {
                 ConnectionProfile()
             } else {
                 ConnectionProfile(
-                    indexerUrl = "",
-                    kapostIndexerUrl = "",
-                    broadcastIndexerUrl = "",
-                    pushIndexerUrl = "",
+                    indexerUrl = null,
+                    kapostIndexerUrl = null,
+                    broadcastIndexerUrl = null,
+                    pushIndexerUrl = null,
                     // Translation is the same service on both networks (iOS 2ca41aa).
                     translationServiceUrl = null,
                     kaspaRestUrl = AppSettingsRepository.DEFAULT_KASPA_TESTNET_REST_URL,

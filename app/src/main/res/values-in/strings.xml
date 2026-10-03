@@ -528,7 +528,6 @@
     <string name="testnet_hub_footer">Testnet hanya untuk pengujian - KAS testnet tidak bernilai. Di testnet akunmu memakai alamat kaspatest: dengan saldo dan obrolannya sendiri, dan Pengaturan Koneksi berisi nilai testnet: penjelajah testnet, penemuan node otomatis, dan tanpa pengindeks KaChat sampai ada untuk testnet. Mematikannya mengembalikan pengaturan mainnet-mu.</string>
     <string name="testnet_restart_to_testnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.</string>
     <string name="testnet_restart_to_mainnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan kembali ke Mainnet.</string>
-    <string name="no_testnet_indexer_yet">Belum ada pengindeks testnet</string>
     <string name="kaposts_not_on_testnet">KaPosts belum tersedia di Testnet</string>
     <string name="kaposts_not_on_testnet_sub">Belum ada indexer KaPost untuk testnet. Matikan Testnet di Pengaturan > Koneksi untuk membaca dan memposting di mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud nonaktif selama Testnet aktif.</string>
