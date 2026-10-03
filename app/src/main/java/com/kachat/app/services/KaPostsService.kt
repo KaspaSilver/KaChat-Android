@@ -383,7 +383,12 @@ class KaPostsService @Inject constructor(
         }
     }
 
-    private suspend fun api(): KaPostApi = networkService.kapostApi.filterNotNull().first()
+    /** The KaPost indexer client. A network with no KaPost indexer (testnet) never builds one, so
+     *  this gives up after a moment with an error instead of suspending forever - every caller
+     *  already handles a failed request (iOS 1ae83d8, KasiaAPIClient .noIndexer). */
+    private suspend fun api(): KaPostApi = networkService.kapostApi.value
+        ?: kotlinx.coroutines.withTimeoutOrNull(10_000) { networkService.kapostApi.filterNotNull().first() }
+        ?: throw java.io.IOException("KaPosts isn't available on this network")
 
     // MARK: - Requester identity (own compressed pubkey, derived once per wallet)
 
