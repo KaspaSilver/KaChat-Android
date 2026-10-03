@@ -952,7 +952,6 @@
     <string name="kn_err_lookup">Couldn\'t look that name up.</string>
     <string name="kn_reclaim_footer">The name\'s bond goes back to its last owner, you keep the freed registry deposit (less the fee) as a bounty, and the name is free. To own it, claim it afterwards.</string>
     <string name="kn_bond_to_last_owner">Bond to the last owner</string>
-    <string name="kn_domains_claim_hint">Claim one in Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Your profile belongs to your address, not to a name: it stays the same when you buy, sell or let a name go.</string>
     <string name="kn_links">Links</string>
     <string name="kn_primary_name">Primary name</string>
@@ -1095,4 +1094,6 @@
     <string name="payment_copy_txid_subtitle">Copies the transaction ID to your clipboard.</string>
     <string name="transaction_id_copied">Transaction ID copied</string>
     <string name="payment_not_on_chain_yet">This payment isn\'t on chain yet.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">Opens the .kachat marketplace</string>
 </resources>

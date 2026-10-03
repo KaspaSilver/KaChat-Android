@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">Bu ad aranamadı.</string>
     <string name="kn_reclaim_footer">Adın teminatı son sahibine döner, açığa çıkan kayıt depozitosu (ücret düşülerek) ödül olarak sizde kalır ve ad boşa çıkar. Sahibi olmak için ardından kaydedin.</string>
     <string name="kn_bond_to_last_owner">Teminat son sahibine</string>
-    <string name="kn_domains_claim_hint">Kaspa Hub > .kachat bölümünden bir tane alın.</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
     <string name="kn_links">Bağlantılar</string>
     <string name="kn_primary_name">Ana ad</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">İşlem kimliğini panoya kopyalar.</string>
     <string name="transaction_id_copied">İşlem kimliği kopyalandı</string>
     <string name="payment_not_on_chain_yet">Bu ödeme henüz zincirde değil.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">.kachat pazar yerini açar</string>
 </resources>

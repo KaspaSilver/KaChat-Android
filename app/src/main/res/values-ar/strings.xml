@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">تعذر البحث عن هذا الاسم.</string>
     <string name="kn_reclaim_footer">يعود ضمان الاسم إلى آخر مالك، وتحتفظ أنت بوديعة السجل المحرَّرة (مطروحًا منها الرسوم) كمكافأة، ويصبح الاسم متاحًا. لامتلاكه، احصل عليه بعد ذلك.</string>
     <string name="kn_bond_to_last_owner">الضمان لآخر مالك</string>
-    <string name="kn_domains_claim_hint">احصل على اسم من Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">ملفك الشخصي مرتبط بعنوانك، لا باسم: يبقى كما هو عندما تشتري اسمًا أو تبيعه أو تتركه.</string>
     <string name="kn_links">الروابط</string>
     <string name="kn_primary_name">الاسم الأساسي</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">ينسخ معرّف المعاملة إلى الحافظة.</string>
     <string name="transaction_id_copied">تم نسخ معرّف المعاملة</string>
     <string name="payment_not_on_chain_yet">هذه الدفعة ليست على السلسلة بعد.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">يفتح سوق .kachat</string>
 </resources>

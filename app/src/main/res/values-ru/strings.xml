@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">Не удалось найти это имя.</string>
     <string name="kn_reclaim_footer">Залог имени уходит последнему владельцу, освободившийся депозит реестра (за вычетом комиссии) вы забираете как награду, и имя становится свободным. Чтобы владеть им, зарегистрируйте его после.</string>
     <string name="kn_bond_to_last_owner">Залог последнему владельцу</string>
-    <string name="kn_domains_claim_hint">Получите имя в Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Профиль принадлежит вашему адресу, а не имени: он не меняется, когда вы покупаете, продаёте или отпускаете имя.</string>
     <string name="kn_links">Ссылки</string>
     <string name="kn_primary_name">Основное имя</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">Копирует ID транзакции в буфер обмена.</string>
     <string name="transaction_id_copied">ID транзакции скопирован</string>
     <string name="payment_not_on_chain_yet">Этот платёж ещё не в блокчейне.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">Открывает маркетплейс .kachat</string>
 </resources>

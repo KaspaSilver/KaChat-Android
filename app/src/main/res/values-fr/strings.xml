@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">Impossible de rechercher ce nom.</string>
     <string name="kn_reclaim_footer">La caution du nom revient à son dernier propriétaire, vous gardez le dépôt de registre libéré (moins les frais) comme prime, et le nom est libre. Pour le posséder, obtenez-le ensuite.</string>
     <string name="kn_bond_to_last_owner">Caution au dernier propriétaire</string>
-    <string name="kn_domains_claim_hint">Obtenez-en un dans Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Votre profil appartient à votre adresse, pas à un nom : il reste le même quand vous achetez, vendez ou abandonnez un nom.</string>
     <string name="kn_links">Liens</string>
     <string name="kn_primary_name">Nom principal</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">Copie l\'ID de transaction dans le presse-papiers.</string>
     <string name="transaction_id_copied">ID de transaction copié</string>
     <string name="payment_not_on_chain_yet">Ce paiement n\'est pas encore on-chain.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">Ouvre la place de marché .kachat</string>
 </resources>

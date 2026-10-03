@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">无法查询该名称。</string>
     <string name="kn_reclaim_footer">名称的保证金退还给最后的所有者，释放出的注册表押金（扣除费用）作为奖励归你，名称变为可注册。想拥有它，之后再注册即可。</string>
     <string name="kn_bond_to_last_owner">保证金退还最后所有者</string>
-    <string name="kn_domains_claim_hint">可在 Kaspa Hub > .kachat 领取一个。</string>
     <string name="kn_profile_belongs">你的个人资料属于你的地址，而不是某个名称：买入、卖出或放弃名称时都不会改变。</string>
     <string name="kn_links">链接</string>
     <string name="kn_primary_name">主名称</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">将交易 ID 复制到剪贴板。</string>
     <string name="transaction_id_copied">已复制交易 ID</string>
     <string name="payment_not_on_chain_yet">此付款尚未上链。</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">打开 .kachat 市场</string>
 </resources>

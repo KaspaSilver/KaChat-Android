@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">그 이름을 조회하지 못했어요.</string>
     <string name="kn_reclaim_footer">이름의 보증금은 마지막 소유자에게 돌아가고, 풀려난 레지스트리 예치금(수수료 제외)은 보상으로 내가 갖고, 이름은 비게 돼요. 내 것으로 하려면 그다음에 받으세요.</string>
     <string name="kn_bond_to_last_owner">보증금 (마지막 소유자에게)</string>
-    <string name="kn_domains_claim_hint">Kaspa Hub > .kachat에서 받아 보세요.</string>
     <string name="kn_profile_belongs">프로필은 이름이 아니라 내 주소에 속해요. 이름을 사거나 팔거나 놓아도 그대로예요.</string>
     <string name="kn_links">링크</string>
     <string name="kn_primary_name">대표 이름</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">거래 ID를 클립보드에 복사합니다.</string>
     <string name="transaction_id_copied">거래 ID가 복사되었습니다</string>
     <string name="payment_not_on_chain_yet">이 결제는 아직 온체인에 없습니다.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">.kachat 마켓플레이스를 엽니다</string>
 </resources>

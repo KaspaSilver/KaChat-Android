@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">その名前を検索できませんでした。</string>
     <string name="kn_reclaim_footer">名前の保証金は最後の所有者に戻り、解放されたレジストリ預託金（手数料差引）は報酬としてあなたのものになり、名前は空きます。自分のものにするには、その後で取得してください。</string>
     <string name="kn_bond_to_last_owner">保証金（最後の所有者へ）</string>
-    <string name="kn_domains_claim_hint">Kaspa Hub > .kachat で取得できます。</string>
     <string name="kn_profile_belongs">プロフィールは名前ではなくアドレスに属します。名前を買っても、売っても、手放しても変わりません。</string>
     <string name="kn_links">リンク</string>
     <string name="kn_primary_name">メインの名前</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">トランザクションIDをクリップボードにコピーします。</string>
     <string name="transaction_id_copied">トランザクションIDをコピーしました</string>
     <string name="payment_not_on_chain_yet">この支払いはまだオンチェーンにありません。</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">.kachatマーケットプレイスを開きます</string>
 </resources>

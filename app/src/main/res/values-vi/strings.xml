@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">Không tra cứu được tên đó.</string>
     <string name="kn_reclaim_footer">Tiền bảo đảm của tên trả về chủ cuối, bạn giữ khoản ký quỹ sổ đăng ký được giải phóng (trừ phí) làm thưởng, và tên trở nên trống. Để sở hữu, hãy nhận tên sau đó.</string>
     <string name="kn_bond_to_last_owner">Tiền bảo đảm về chủ cuối</string>
-    <string name="kn_domains_claim_hint">Nhận một tên tại Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Hồ sơ thuộc về địa chỉ của bạn, không thuộc về tên: vẫn giữ nguyên khi bạn mua, bán hay bỏ một tên.</string>
     <string name="kn_links">Liên kết</string>
     <string name="kn_primary_name">Tên chính</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">Sao chép ID giao dịch vào bộ nhớ tạm.</string>
     <string name="transaction_id_copied">Đã sao chép ID giao dịch</string>
     <string name="payment_not_on_chain_yet">Khoản thanh toán này chưa lên chuỗi.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">Mở chợ .kachat</string>
 </resources>

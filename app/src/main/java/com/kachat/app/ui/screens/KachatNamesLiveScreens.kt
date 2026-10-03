@@ -7,6 +7,7 @@ import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -2139,7 +2140,16 @@ fun KachatReclaimSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMo
 /** Your Domains > .kachat on testnet: the wallet's names (iOS `KachatLiveDomainsTab`). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
+fun KachatLiveDomainsTab(
+    walletAddress: String,
+    onOpen: (NameInfo) -> Unit,
+    /** Inscribe: the .kachat marketplace over Your Domains (iOS e4da63d). */
+    onInscribe: () -> Unit = {},
+    /** Set when the marketplace was just closed: the list refreshes so a new name shows at once. */
+    refreshRequested: Boolean = false,
+    onRefreshHandled: () -> Unit = {},
+    vm: KachatLiveViewModel = hiltViewModel(),
+) {
     val colors = LocalAppColors.current
     val revision by vm.registry.revision.collectAsState()
     val upgrading by vm.service.registryUpgrading.collectAsState()
@@ -2160,6 +2170,13 @@ fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: 
         loaded = true
     }
 
+    LaunchedEffect(refreshRequested) {
+        if (refreshRequested) {
+            onRefreshHandled()
+            vm.registry.refresh()
+        }
+    }
+
     val pullState = rememberPullToRefreshState()
     LaunchedEffect(pullState.isRefreshing) {
         if (pullState.isRefreshing) {
@@ -2170,7 +2187,8 @@ fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: 
     val listed = stringResource(R.string.kn_ev_listed)
     val expired = stringResource(R.string.kn_status_expired)
     val lapsed = stringResource(R.string.kn_status_lapsed)
-    Box(Modifier.fillMaxSize().nestedScroll(pullState.nestedScrollConnection)) {
+    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(pullState.nestedScrollConnection)) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -2194,7 +2212,6 @@ fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: 
                 ) {
                     Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
                     Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    Text(stringResource(R.string.kn_domains_claim_hint), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
                 else -> names.forEach { n ->
                     val badge = when (n.status(vm.graceMs)) {
@@ -2207,6 +2224,25 @@ fun KachatLiveDomainsTab(walletAddress: String, onOpen: (NameInfo) -> Unit, vm: 
             }
         }
         PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
+    }
+    // Pinned under the list like the other name services' "Get a domain" button - the same
+    // outlined capsule - whenever the registry is live (iOS e4da63d).
+    if (loaded && !upgrading) {
+        val hint = stringResource(R.string.kn_opens_marketplace)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(colors.surface)
+                .border(androidx.compose.foundation.BorderStroke(1.5.dp, KaspaTeal), RoundedCornerShape(28.dp))
+                .clickable(onClickLabel = hint) { onInscribe() }
+                .padding(vertical = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(stringResource(R.string.inscribe), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        }
+    }
     }
 }
 

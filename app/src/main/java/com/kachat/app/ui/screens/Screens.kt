@@ -4331,6 +4331,18 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
     // Testnet: a .kachat name opened from the .kachat tab - its live detail (iOS 5df42b4).
     var selectedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
+    // Inscribe: the .kachat marketplace over Your Domains, whether or not .kachat is in the dock
+    // or Kaspa Hub; the list refreshes when it closes (iOS e4da63d).
+    var showKachatMarket by remember { mutableStateOf(false) }
+    var kachatRefreshRequested by remember { mutableStateOf(false) }
+    if (showKachatMarket) {
+        androidx.activity.compose.BackHandler { showKachatMarket = false; kachatRefreshRequested = true }
+        KachatMarketScreen(
+            onBack = { showKachatMarket = false; kachatRefreshRequested = true },
+            onOpenChat = onOpenChat,
+        )
+        return
+    }
     val walletAddress by viewModel.address.collectAsState()
     val primaryDomainName by viewModel.primaryDomainName.collectAsState()
     val setPrimaryState by viewModel.setPrimaryState.collectAsState()
@@ -4440,7 +4452,13 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
                 // Live on testnet (the testnet-10 registry); mainnet keeps "coming" (iOS 5df42b4).
                 com.kachat.app.services.NameServiceTLD.KACHAT ->
                     if (KachatLive.isEnabled) {
-                        KachatLiveDomainsTab(walletAddress = walletAddress ?: "", onOpen = { selectedKachat = it })
+                        KachatLiveDomainsTab(
+                            walletAddress = walletAddress ?: "",
+                            onOpen = { selectedKachat = it },
+                            onInscribe = { showKachatMarket = true },
+                            refreshRequested = kachatRefreshRequested,
+                            onRefreshHandled = { kachatRefreshRequested = false },
+                        )
                     } else {
                         KachatNamesComingSoon()
                     }

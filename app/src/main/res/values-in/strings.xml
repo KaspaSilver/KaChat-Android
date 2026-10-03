@@ -647,7 +647,6 @@
     <string name="kn_err_lookup">Tidak dapat mencari nama itu.</string>
     <string name="kn_reclaim_footer">Jaminan nama kembali ke pemilik terakhir, Anda menyimpan deposit registri yang terlepas (dikurangi biaya) sebagai hadiah, dan nama menjadi bebas. Untuk memilikinya, klaim setelahnya.</string>
     <string name="kn_bond_to_last_owner">Jaminan untuk pemilik terakhir</string>
-    <string name="kn_domains_claim_hint">Klaim satu di Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
     <string name="kn_links">Tautan</string>
     <string name="kn_primary_name">Nama utama</string>
@@ -776,4 +775,6 @@
     <string name="payment_copy_txid_subtitle">Menyalin ID transaksi ke papan klip.</string>
     <string name="transaction_id_copied">ID transaksi disalin</string>
     <string name="payment_not_on_chain_yet">Pembayaran ini belum on-chain.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">Membuka marketplace .kachat</string>
 </resources>

@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">לא ניתן היה לחפש את השם.</string>
     <string name="kn_reclaim_footer">הערבון של השם חוזר לבעלים האחרון, את פיקדון הרישום שהשתחרר (פחות העמלה) תשמרו כפרס, והשם מתפנה. כדי שיהיה שלכם, רשמו אותו אחר כך.</string>
     <string name="kn_bond_to_last_owner">ערבון לבעלים האחרון</string>
-    <string name="kn_domains_claim_hint">קבלו שם ב-Kaspa Hub > .kachat.</string>
     <string name="kn_profile_belongs">הפרופיל שלך שייך לכתובת שלך, לא לשם: הוא נשאר זהה כשקונים, מוכרים או מוותרים על שם.</string>
     <string name="kn_links">קישורים</string>
     <string name="kn_primary_name">שם ראשי</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">מעתיק את מזהה העסקה ללוח.</string>
     <string name="transaction_id_copied">מזהה העסקה הועתק</string>
     <string name="payment_not_on_chain_yet">התשלום הזה עדיין לא על השרשרת.</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">פותח את שוק ‎.kachat</string>
 </resources>

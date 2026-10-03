@@ -776,7 +776,6 @@
     <string name="kn_err_lookup">নামটি খুঁজে দেখা যায়নি।</string>
     <string name="kn_reclaim_footer">নামের বন্ড শেষ মালিকের কাছে ফেরে, মুক্ত রেজিস্ট্রি জমা (ফি বাদে) পুরস্কার হিসেবে আপনি রাখেন, আর নামটি খালি হয়। নিজের করতে, পরে নামটি নিন।</string>
     <string name="kn_bond_to_last_owner">বন্ড শেষ মালিকের কাছে</string>
-    <string name="kn_domains_claim_hint">Kaspa Hub > .kachat থেকে একটি নিন।</string>
     <string name="kn_profile_belongs">আপনার প্রোফাইল আপনার ঠিকানার, কোনো নামের নয়: নাম কিনলে, বেচলে বা ছেড়ে দিলেও এটি একই থাকে।</string>
     <string name="kn_links">লিংক</string>
     <string name="kn_primary_name">প্রধান নাম</string>
@@ -919,4 +918,6 @@
     <string name="payment_copy_txid_subtitle">লেনদেন আইডি ক্লিপবোর্ডে কপি করে।</string>
     <string name="transaction_id_copied">লেনদেন আইডি কপি হয়েছে</string>
     <string name="payment_not_on_chain_yet">এই পেমেন্টটি এখনও অন-চেইনে নেই।</string>
+    <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
+    <string name="kn_opens_marketplace">.kachat মার্কেটপ্লেস খোলে</string>
 </resources>
