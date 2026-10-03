@@ -11652,7 +11652,7 @@ fun CreateChatScreen(
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
     // Trimmed: a pasted address often carries a stray space or newline, which failed the check.
-    val isValidRawAddress = remember(address) { KaspaAddress.isValid(address.trim()) }
+    val isValidRawAddress = remember(address) { KaspaAddress.isValid(KaspaAddress.fromScanned(address)) }
     // A name on any service - .kachat, .kas, .k, .kaspa - typed with or without its ending (iOS a0dbc15).
     val looksLikeKnsDomain = remember(address) { com.kachat.app.services.NameServicesClient.looksLikeName(address) }
     val nameResolutions by chatViewModel.nameResolutions.collectAsState()
@@ -11818,7 +11818,9 @@ fun CreateChatScreen(
 
     // The address actually used to create the contact — the resolved owner address
     // when the input is a KNS domain, otherwise whatever was typed directly.
-    val effectiveAddress = if (looksLikeKnsDomain) knsResolvedAddress else address.trim()
+    // Cleaned the same way a scan is - a pasted payment link or a doubled "kaspa:kaspatest:"
+    // prefix (iPhone QR codes on testnet) still names a valid address.
+    val effectiveAddress = if (looksLikeKnsDomain) knsResolvedAddress else KaspaAddress.fromScanned(address)
     val isValidAddress = if (looksLikeKnsDomain) knsResolvedAddress != null else isValidRawAddress
 
     if (showScanner) {

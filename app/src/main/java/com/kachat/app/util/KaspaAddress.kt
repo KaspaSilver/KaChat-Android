@@ -47,6 +47,15 @@ object KaspaAddress {
      */
     fun fromScanned(code: String): String {
         var address = code.trim()
+        // KaChat for iPhone writes its receive / chatting-address QR codes as "kaspa:" + address
+        // unless the address already starts with "kaspa:" - a testnet address doesn't, so its
+        // code reads "kaspa:kaspatest:...". A "kaspa:" in front of another prefix is dropped.
+        while (true) {
+            val l = address.lowercase()
+            if (l.startsWith("kaspa:") && (l.startsWith("kaspa:kaspatest:") || l.startsWith("kaspa:kaspa:"))) {
+                address = address.substring("kaspa:".length)
+            } else break
+        }
         val lower = address.lowercase()
         if (lower.startsWith("kaspa:") || lower.startsWith("kaspatest:")) {
             address = address.substringBefore('?')

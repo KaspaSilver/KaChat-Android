@@ -34,4 +34,19 @@ class KaspaNetworkTest {
         assertFalse(KaspaNetwork.isOnActiveNetwork(testnet))
         assertTrue(KaspaNetwork.isOnActiveNetwork("no-prefix"))
     }
+
+    @Test
+    fun `a scanned code becomes the bare address`() {
+        // A payment URI from a wallet or faucet, with whitespace around it.
+        assertEquals(testnet, KaspaAddress.fromScanned("  $testnet?amount=1.5\n"))
+        assertTrue(KaspaAddress.isValid(KaspaAddress.fromScanned("$testnet?amount=2&label=x")))
+        // A code written in capitals (QR alphanumeric mode).
+        assertEquals(mainnet, KaspaAddress.fromScanned(mainnet.uppercase()))
+        // KaChat for iPhone's testnet QR codes: "kaspa:" in front of the kaspatest: address.
+        assertEquals(testnet, KaspaAddress.fromScanned("kaspa:$testnet"))
+        assertTrue(KaspaAddress.isValid(KaspaAddress.fromScanned("kaspa:$testnet")))
+        assertEquals(mainnet, KaspaAddress.fromScanned(mainnet))
+        // Not an address: only trimmed.
+        assertEquals("kpubXYZ", KaspaAddress.fromScanned(" kpubXYZ "))
+    }
 }
