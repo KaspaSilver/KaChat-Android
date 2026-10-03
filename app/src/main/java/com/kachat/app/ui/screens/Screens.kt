@@ -11124,7 +11124,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 // that someone can run their own translator and point the app at it.
                 ConnectionUrlField(
                     label = "Translation Service URL",
-                    value = shownIndexer(translationServiceUrl),
+                    value = translationServiceUrl,
                     onClick = { editingTranslationUrl = true }
                 )
                 SettingsFooter(
@@ -11226,8 +11226,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        if (!onMainnetSettings) noTestnetIndexer
-                        else "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL}",
+                        "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL}",
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )

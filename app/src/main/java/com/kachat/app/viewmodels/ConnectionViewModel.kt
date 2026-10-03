@@ -193,7 +193,7 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             val trimmed = value.trim().trimEnd('/')
             settings.setTranslationServiceUrl(
-                trimmed.ifBlank { if (onTestnetSettings) "" else AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL }
+                trimmed.ifBlank { AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL }
             )
         }
     }

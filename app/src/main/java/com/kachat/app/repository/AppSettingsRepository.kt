@@ -327,8 +327,10 @@ class AppSettingsRepository @Inject constructor(
      * their own KaPosts indexer as well - and the reverse. Blank falls back to the default: an
      * empty base URL builds a request that fails and reads as the server being down.
      */
+    // Translating a post has nothing to do with which chain the app is on: blank means the
+    // shipped service on both networks (iOS 2ca41aa).
     val translationServiceUrl: Flow<String> = dataStore.data.map {
-        indexerOrDefault(it[KEY_TRANSLATION_SERVICE_URL], DEFAULT_TRANSLATION_SERVICE_URL)
+        it[KEY_TRANSLATION_SERVICE_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_TRANSLATION_SERVICE_URL
     }
 
     val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
@@ -1076,7 +1078,8 @@ data class ConnectionProfile(
                     kapostIndexerUrl = "",
                     broadcastIndexerUrl = "",
                     pushIndexerUrl = "",
-                    translationServiceUrl = "",
+                    // Translation is the same service on both networks (iOS 2ca41aa).
+                    translationServiceUrl = null,
                     kaspaRestUrl = AppSettingsRepository.DEFAULT_KASPA_TESTNET_REST_URL,
                     // "" = Automatic Scan: the shipped default node is a mainnet node.
                     trustedNodeAddress = "",
