@@ -229,8 +229,6 @@
     <string name="select_group">اختيار المجموعة</string>
     <string name="send">إرسال</string>
     <string name="send_all_kaspa_to_primary_spend">إرسال كل الكاسبا إلى عنوان الإنفاق الرئيسي</string>
-    <string name="send_kaspa">إرسال كاسبا</string>
-    <string name="send_payment">إرسال الدفعة</string>
     <string name="send_from_cold_storage">إرسال من التخزين البارد</string>
     <string name="send_photo">إرسال صورة</string>
     <string name="sending">جارٍ الإرسال</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">حفظ الصورة</string>
     <string name="save_your_own_node_addresses_here">احفظ عناوين عقدك الخاصة هنا، ثم اضغط على واحدة لنسخها ولصقها في حقل عقدة كاسبا أعلاه.</string>
     <string name="security">الأمان</string>
-    <string name="send_audio_message">إرسال رسالة صوتية</string>
     <string name="send_handshake">إرسال طلب تواصل</string>
     <string name="send_photo_2">إرسال صورة</string>
     <string name="sending_2">جارٍ الإرسال...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">جدّده خلال 10 أيام وإلا أي حد يقدر ياخده.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">الاسم ده مش متسجل دلوقتي.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">رسالة صوتية</string>
+    <string name="composer_file">ملف</string>
+    <string name="media_take_on_chain_photo">صوّر على السلسلة</string>
+    <string name="media_send_photo_on_chain">ابعت الصورة على السلسلة</string>
+    <string name="media_record_on_chain">سجّل على السلسلة</string>
+    <string name="media_take_on_chain_photo_subtitle">صوّر صورة وابعتها على السلسلة، متضغطة عشان تكفي.</string>
+    <string name="media_send_photo_on_chain_subtitle">اختار صورة وابعتها على السلسلة، متضغطة عشان تكفي.</string>
+    <string name="media_record_on_chain_subtitle">لحد 10 ثواني، بتتبعت على السلسلة.</string>
+    <string name="media_take_photo_via_nextcloud">صوّر عن طريق Nextcloud</string>
+    <string name="media_record_via_nextcloud">سجّل عن طريق Nextcloud</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">جودة كاملة. بتترفع على Nextcloud بتاعك؛ والشات فيه اللينك.</string>
+    <string name="media_record_via_nextcloud_subtitle">لحد 5 دقايق. بتترفع على Nextcloud بتاعك؛ والشات فيه اللينك.</string>
+    <string name="composer_pay_subtitle">ابعت Kaspa لجهة الاتصال دي.</string>
+    <string name="composer_camera_subtitle">صوّر صورة وابعتها.</string>
+    <string name="composer_photo_subtitle">اختار صورة من مكتبتك وابعتها.</string>
+    <string name="composer_voice_subtitle">سجّل رسالة صوتية وابعتها.</string>
+    <string name="composer_file_subtitle">ابعت أي ملف من Nextcloud بتاعك. بيظهر كمعاينة.</string>
+    <string name="group_composer_camera_subtitle">صوّر صورة وابعتها للجروب.</string>
+    <string name="group_composer_photo_subtitle">اختار صورة من مكتبتك وابعتها للجروب.</string>
+    <string name="group_composer_voice_subtitle">سجّل رسالة صوتية وابعتها للجروب.</string>
+    <string name="nextcloud_file_folder_footer">\"ملف\" في قائمة + بتاعة الشات بيفتح الفولدر ده الأول.</string>
+    <string name="nextcloud_media_route_footer">في قائمة + بتاعة الشات، الكاميرا والصورة والرسالة الصوتية بيسألوك تبعت على السلسلة ولا عن طريق Nextcloud. عن طريق Nextcloud، الملف بيترفع بجودة كاملة على فولدر %1$s في السيرفر ده والشات فيه لينك مشاركة (الرسايل الصوتية لحد 5 دقايق). الرسالة اللي فيها اللينك بتفضل متشفرة من طرف لطرف، بس الملف نفسه متخزن من غير تشفير على السيرفر بتاعك وأي حد معاه اللينك اللي مستحيل يتخمن يقدر يوصله.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">إرسال KAS</string>
+    <string name="payment_to_name">لـ %1$s</string>
+    <string name="hold_to_send">اضغط مطوّل عشان تبعت</string>
+    <string name="payment_memo_placeholder">ضيف ملاحظة (متشفرة)</string>
+    <string name="payment_switch_currency">بدّل بين Kaspa وعملتك</string>
+    <string name="payment_dust_warning">قد يفشل إرسال أقل من 0.1 KAS بسبب حد حماية الغبار في الشبكة.</string>
+    <string name="payment_small_amount">مبلغ صغير</string>
+    <string name="payment_send_anyway">إرسال على أي حال</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">ابعت صورة أو فيديو عن طريق Nextcloud</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">جودة كاملة، أو فيديو. بتترفع على Nextcloud بتاعك؛ والشات فيه اللينك.</string>
+    <string name="media_video_load_failed">مقدرناش نحمّل الفيديو ده. جرّب واحد تاني.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">تلقى</string>
+    <string name="copy_transaction_id">نسخ معرف المعاملة</string>
+    <string name="payment_explorer_subtitle">بيفتح المعاملة دي في مستكشف البلوكات.</string>
+    <string name="payment_copy_txid_subtitle">بينسخ رقم المعاملة للحافظة.</string>
+    <string name="transaction_id_copied">اتنسخ رقم المعاملة</string>
+    <string name="payment_not_on_chain_yet">الدفعة دي لسه مش على السلسلة.</string>
 </resources>

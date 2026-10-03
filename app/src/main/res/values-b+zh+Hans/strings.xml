@@ -229,8 +229,6 @@
     <string name="select_group">选择群组</string>
     <string name="send">发送</string>
     <string name="send_all_kaspa_to_primary_spend">将所有 Kaspa 发送到主消费地址</string>
-    <string name="send_kaspa">发送 Kaspa</string>
-    <string name="send_payment">发送付款</string>
     <string name="send_from_cold_storage">从冷存储发送</string>
     <string name="send_photo">发送照片</string>
     <string name="sending">正在发送</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">保存照片</string>
     <string name="save_your_own_node_addresses_here">在此保存您自己的节点地址,然后点击一个即可复制并粘贴到上方的 Kaspa 节点字段中。</string>
     <string name="security">安全</string>
-    <string name="send_audio_message">发送语音消息</string>
     <string name="send_handshake">发送通信请求</string>
     <string name="send_photo_2">发送照片</string>
     <string name="sending_2">正在发送...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">请在 10 天内续期，否则任何人都可以领取。</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">这个名称目前未注册。</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">语音消息</string>
+    <string name="composer_file">文件</string>
+    <string name="media_take_on_chain_photo">拍摄链上照片</string>
+    <string name="media_send_photo_on_chain">链上发送照片</string>
+    <string name="media_record_on_chain">链上录音</string>
+    <string name="media_take_on_chain_photo_subtitle">拍一张照片并链上发送，会压缩到合适大小。</string>
+    <string name="media_send_photo_on_chain_subtitle">选择一张图片并链上发送，会压缩到合适大小。</string>
+    <string name="media_record_on_chain_subtitle">最长 10 秒，链上发送。</string>
+    <string name="media_take_photo_via_nextcloud">通过 Nextcloud 拍照</string>
+    <string name="media_record_via_nextcloud">通过 Nextcloud 录音</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">原画质。上传到你的 Nextcloud，聊天中发送链接。</string>
+    <string name="media_record_via_nextcloud_subtitle">最长 5 分钟。上传到你的 Nextcloud，聊天中发送链接。</string>
+    <string name="composer_pay_subtitle">向此联系人发送 Kaspa。</string>
+    <string name="composer_camera_subtitle">拍一张照片并发送。</string>
+    <string name="composer_photo_subtitle">从相册选择一张图片并发送。</string>
+    <string name="composer_voice_subtitle">录制一条语音消息并发送。</string>
+    <string name="composer_file_subtitle">发送你 Nextcloud 中的任意文件，会以预览形式显示。</string>
+    <string name="group_composer_camera_subtitle">拍一张照片并发送到群组。</string>
+    <string name="group_composer_photo_subtitle">从相册选择一张图片并发送到群组。</string>
+    <string name="group_composer_voice_subtitle">录制一条语音消息并发送到群组。</string>
+    <string name="nextcloud_file_folder_footer">聊天 + 菜单中的“文件”会先打开此文件夹。</string>
+    <string name="nextcloud_media_route_footer">在聊天的 + 菜单中，相机、照片和语音消息每次都会询问是链上发送还是通过 Nextcloud 发送。通过 Nextcloud 时，文件以原画质上传到此服务器的 %1$s 文件夹，聊天中发送分享链接（语音消息最长 5 分钟）。包含链接的消息仍保持端到端加密，但文件本身在你的服务器上未加密存储，任何拥有这个无法猜测的链接的人都能访问。</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">发送 KAS</string>
+    <string name="payment_to_name">发送给 %1$s</string>
+    <string name="hold_to_send">按住发送</string>
+    <string name="payment_memo_placeholder">添加备注（已加密）</string>
+    <string name="payment_switch_currency">在 Kaspa 和你的货币之间切换</string>
+    <string name="payment_dust_warning">发送少于 0.1 KAS 的金额可能因网络 dust 保护限制而失败。</string>
+    <string name="payment_small_amount">小额转账</string>
+    <string name="payment_send_anyway">仍然发送</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">通过 Nextcloud 发送照片或视频</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">原画质或视频。上传到你的 Nextcloud，聊天中发送链接。</string>
+    <string name="media_video_load_failed">无法加载该视频，请换一个试试。</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">已收到</string>
+    <string name="copy_transaction_id">复制交易 ID</string>
+    <string name="payment_explorer_subtitle">在区块浏览器中打开此交易。</string>
+    <string name="payment_copy_txid_subtitle">将交易 ID 复制到剪贴板。</string>
+    <string name="transaction_id_copied">已复制交易 ID</string>
+    <string name="payment_not_on_chain_yet">此付款尚未上链。</string>
 </resources>

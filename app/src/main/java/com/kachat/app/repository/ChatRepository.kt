@@ -1883,7 +1883,11 @@ class ChatRepository @Inject constructor(
      *  for the transient no-input-address-resolved gap, which the next poll must retry. */
     private suspend fun processPayment(myAddress: String, tx: TransactionResponse): Boolean {
         val payloadBytes = tx.payload?.hexToBytes() ?: ByteArray(0)
-        if (MessageProtocol.isKaChatPayload(payloadBytes)) return true // real message/handshake, not a plain payment
+        // A KaChat payment carries `kchat:1:pay:` with its memo encrypted to us (iOS always
+        // writes one; Android writes one when there is a memo, iOS 8d208b2). It is still a
+        // payment - only messages and handshakes are someone else's job.
+        val isPaymentPayload = MessageProtocol.isPaymentPayload(payloadBytes)
+        if (!isPaymentPayload && MessageProtocol.isKaChatPayload(payloadBytes)) return true // real message/handshake, not a plain payment
 
         // Checks every input for a resolved address, not just the first — the REST API's
         // resolve_previous_outpoints=light can leave an individual input's address unresolved
@@ -1914,7 +1918,13 @@ class ChatRepository @Inject constructor(
 
         val existingContact = database.contactDao().getContact(sender, myAddress)
         var conversationId = sender
-        var displayText = "Received ${formatKas(receivedSompi)} ${KaspaUnit.symbol}"
+        // The memo, in the "Received X KAS — memo" form the payment card splits on (iOS
+        // paymentContent). A payload that can't be opened just leaves the memo out.
+        val memo = if (isPaymentPayload) {
+            runCatching { MessageProtocol.decryptPaymentPayload(payloadBytes, walletManager.getPrivateKeyBytes())?.message }
+                .getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+        } else null
+        var displayText = "Received ${formatKas(receivedSompi)} ${KaspaUnit.symbol}" + (memo?.let { " — $it" } ?: "")
         if (existingContact == null) {
             // A plain payment from an address we have NO contact for must not open a chat
             // with the stranger. Internal moves from our own spending chain surface nowhere

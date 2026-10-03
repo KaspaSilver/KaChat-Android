@@ -229,8 +229,6 @@
     <string name="select_group">Grup sec</string>
     <string name="send">Gonder</string>
     <string name="send_all_kaspa_to_primary_spend">Tum Kaspa\'yi Ana Harcama Adresine Gonder</string>
-    <string name="send_kaspa">Kaspa Gonder</string>
-    <string name="send_payment">Odeme Gonder</string>
     <string name="send_from_cold_storage">Soguk Depolamadan Gonder</string>
     <string name="send_photo">Fotograf gonder</string>
     <string name="sending">Gonderiliyor</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">Fotografi Kaydet</string>
     <string name="save_your_own_node_addresses_here">Kendi dugum adreslerinizi buraya kaydedin, ardindan kopyalayip yukaridaki Kaspa Dugumu alanina yapistirmak icin birine dokunun.</string>
     <string name="security">Guvenlik</string>
-    <string name="send_audio_message">Sesli Mesaj Gonder</string>
     <string name="send_handshake">Iletisim Istegi Gonder</string>
     <string name="send_photo_2">Fotograf Gonder</string>
     <string name="sending_2">Gonderiliyor...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">10 gün içinde yenileyin, yoksa herkes alabilir.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Bu ad şu anda kayıtlı değil.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">Sesli Mesaj</string>
+    <string name="composer_file">Dosya</string>
+    <string name="media_take_on_chain_photo">Zincir Üstü Fotoğraf Çek</string>
+    <string name="media_send_photo_on_chain">Fotoğrafı Zincir Üstü Gönder</string>
+    <string name="media_record_on_chain">Zincir Üstü Kaydet</string>
+    <string name="media_take_on_chain_photo_subtitle">Bir fotoğraf çekip zincir üstü gönder, sığacak şekilde sıkıştırılır.</string>
+    <string name="media_send_photo_on_chain_subtitle">Bir görsel seçip zincir üstü gönder, sığacak şekilde sıkıştırılır.</string>
+    <string name="media_record_on_chain_subtitle">En fazla 10 saniye, zincir üstü gönderilir.</string>
+    <string name="media_take_photo_via_nextcloud">Nextcloud ile Fotoğraf Çek</string>
+    <string name="media_record_via_nextcloud">Nextcloud ile Kaydet</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">Tam kalite. Nextcloud\'unuza yüklenir; sohbette bağlantı yer alır.</string>
+    <string name="media_record_via_nextcloud_subtitle">En fazla 5 dakika. Nextcloud\'unuza yüklenir; sohbette bağlantı yer alır.</string>
+    <string name="composer_pay_subtitle">Bu kişiye Kaspa gönder.</string>
+    <string name="composer_camera_subtitle">Bir fotoğraf çekip gönder.</string>
+    <string name="composer_photo_subtitle">Kitaplığından bir görsel seçip gönder.</string>
+    <string name="composer_voice_subtitle">Bir sesli mesaj kaydedip gönder.</string>
+    <string name="composer_file_subtitle">Nextcloud\'unuzdan herhangi bir dosya gönderin. Önizleme olarak görünür.</string>
+    <string name="group_composer_camera_subtitle">Bir fotoğraf çekip gruba gönder.</string>
+    <string name="group_composer_photo_subtitle">Kitaplığından bir görsel seçip gruba gönder.</string>
+    <string name="group_composer_voice_subtitle">Bir sesli mesaj kaydedip gruba gönder.</string>
+    <string name="nextcloud_file_folder_footer">Bir sohbetin + menüsündeki \"Dosya\" önce bu klasörü açar.</string>
+    <string name="nextcloud_media_route_footer">Bir sohbetin + menüsünde Kamera, Fotoğraf ve Sesli Mesaj, zincir üstü mü yoksa Nextcloud ile mi gönderileceğini sorar. Nextcloud ile dosya tam kalitede bu sunucunun %1$s klasörüne yüklenir ve sohbette bir paylaşım bağlantısı yer alır (sesli mesajlar en fazla 5 dakika). Bağlantıyı içeren mesaj uçtan uca şifreli kalır, ancak dosyanın kendisi sunucunuzda şifresiz saklanır ve tahmin edilemeyen bağlantıya sahip herkes tarafından erişilebilir.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">KAS gönder</string>
+    <string name="payment_to_name">%1$s kişisine</string>
+    <string name="hold_to_send">Göndermek için basılı tut</string>
+    <string name="payment_memo_placeholder">Not ekle (şifreli)</string>
+    <string name="payment_switch_currency">Kaspa ile para biriminiz arasında geçiş yap</string>
+    <string name="payment_dust_warning">0,1 KAS\'tan az göndermek, ağın dust koruma limiti nedeniyle başarısız olabilir.</string>
+    <string name="payment_small_amount">Küçük Tutar</string>
+    <string name="payment_send_anyway">Yine de Gönder</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">Fotoğraf veya Videoyu Nextcloud ile Gönder</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">Tam kalite veya video. Nextcloud\'unuza yüklenir; sohbette bağlantı yer alır.</string>
+    <string name="media_video_load_failed">Bu video yüklenemedi. Lütfen başka birini deneyin.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">Kabul edilmiş</string>
+    <string name="copy_transaction_id">İşlem ID\'sini Kopyala</string>
+    <string name="payment_explorer_subtitle">Bu işlemi blok gezgininde açar.</string>
+    <string name="payment_copy_txid_subtitle">İşlem kimliğini panoya kopyalar.</string>
+    <string name="transaction_id_copied">İşlem kimliği kopyalandı</string>
+    <string name="payment_not_on_chain_yet">Bu ödeme henüz zincirde değil.</string>
 </resources>

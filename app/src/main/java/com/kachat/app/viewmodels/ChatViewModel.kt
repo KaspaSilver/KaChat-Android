@@ -27,6 +27,9 @@ import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.ImagePrep
 import com.kachat.app.util.KaspaUnit
+import com.kachat.app.util.MessageProtocol
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okio.source
 import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
 import com.kachat.app.util.VoiceMessage
@@ -919,6 +922,10 @@ class ChatViewModel @Inject constructor(
     private val _paymentAmount = MutableStateFlow("")
     val paymentAmount: StateFlow<String> = _paymentAmount.asStateFlow()
 
+    /** The Send KAS sheet's memo (iOS 8d208b2): rides encrypted in the payment's `kchat:1:pay:`
+     *  payload, so the fee preview below prices it in. Empty outside the sheet. */
+    private val _paymentNote = MutableStateFlow("")
+
     private val _messageText = MutableStateFlow("")
     val messageText: StateFlow<String> = _messageText.asStateFlow()
 
@@ -946,27 +953,32 @@ class ChatViewModel @Inject constructor(
     val pendingPhotoUri: StateFlow<Uri?> = _pendingPhotoUri.asStateFlow()
 
     /**
-     * The photo or voice note being composed came from the "+" menu's on-chain rows. Those mean
-     * exactly what they say: the bytes go on chain even while "Send Media via Nextcloud" is on.
-     * Cleared when the attachment is sent or discarded; a recording started from the composer
-     * bar's own microphone resets the voice flag.
+     * The photo or voice note being composed was sent "via Nextcloud" from the "+" sheet's
+     * second step (ComposerMediaRouteSheet). Everything else - the on-chain choice, a camera shot
+     * or library pick with no server connected, a shared photo - goes on chain. This replaced the
+     * "Send Media via Nextcloud" setting (iOS 8b13460): the route is chosen per send now. Cleared
+     * when the attachment is sent or discarded. StateFlows, so the live fee preview prices the
+     * ~100-byte share link while one is staged.
      */
-    private var onChainPhotoRequested = false
-    private var onChainVoiceRequested = false
-    private var groupOnChainPhotoRequested = false
-    private var groupOnChainVoiceRequested = false
+    private val _nextcloudPhotoRequested = MutableStateFlow(false)
+    private val _nextcloudVoiceRequested = MutableStateFlow(false)
+    private val _groupNextcloudPhotoRequested = MutableStateFlow(false)
+    private val _groupNextcloudVoiceRequested = MutableStateFlow(false)
 
-    /** Whether the photo waiting in the composer is one the chain must carry. */
-    val photoGoesOnChain: Boolean get() = onChainPhotoRequested
-    val groupPhotoGoesOnChain: Boolean get() = groupOnChainPhotoRequested
+    /** Via Nextcloud only while the server is still connected - a disconnect in between sends
+     *  on chain, as iOS's `photoViaNextcloud` / `voiceViaNextcloud` do. */
+    private val photoViaNextcloud: Boolean get() = _nextcloudPhotoRequested.value && nextcloudService.isConnected
+    private val voiceViaNextcloud: Boolean get() = _nextcloudVoiceRequested.value && nextcloudService.isConnected
+    private val groupPhotoViaNextcloud: Boolean get() = _groupNextcloudPhotoRequested.value && nextcloudService.isConnected
+    private val groupVoiceViaNextcloud: Boolean get() = _groupNextcloudVoiceRequested.value && nextcloudService.isConnected
 
-    fun setPendingPhoto(uri: Uri?, onChain: Boolean = false) {
-        onChainPhotoRequested = onChain && uri != null
+    fun setPendingPhoto(uri: Uri?, viaNextcloud: Boolean = false) {
+        _nextcloudPhotoRequested.value = viaNextcloud && uri != null
         _pendingPhotoUri.value = uri
     }
 
     fun cancelPendingPhoto() {
-        onChainPhotoRequested = false
+        _nextcloudPhotoRequested.value = false
         _pendingPhotoUri.value = null
     }
 
@@ -979,13 +991,13 @@ class ChatViewModel @Inject constructor(
     private val _groupPendingPhotoUri = MutableStateFlow<Uri?>(null)
     val groupPendingPhotoUri: StateFlow<Uri?> = _groupPendingPhotoUri.asStateFlow()
 
-    fun setGroupPendingPhoto(uri: Uri?, onChain: Boolean = false) {
-        groupOnChainPhotoRequested = onChain && uri != null
+    fun setGroupPendingPhoto(uri: Uri?, viaNextcloud: Boolean = false) {
+        _groupNextcloudPhotoRequested.value = viaNextcloud && uri != null
         _groupPendingPhotoUri.value = uri
     }
 
     fun cancelGroupPendingPhoto() {
-        groupOnChainPhotoRequested = false
+        _groupNextcloudPhotoRequested.value = false
         _groupPendingPhotoUri.value = null
     }
 
@@ -996,17 +1008,21 @@ class ChatViewModel @Inject constructor(
      * photo — same shape as [VoiceMessage.estimatedWirePayloadSize]: the real send always measures
      * the actual encoded bytes exactly, this is only ever used for the live preview.
      */
-    private val previewPayloadSize: Flow<Int> = combine(_messageText, voiceRecordingState, pendingPhotoUri, nextcloudService.mediaSendEnabled) { text, recording, photoUri, mediaSend ->
-        // Via Nextcloud, the chain only carries the ~100-byte share link regardless of media
-        // size — mirrors groupPreviewPayloadSize's identical branch.
-        val nextcloudMode = mediaSend && nextcloudService.isConnected
+    private val previewPayloadSize: Flow<Int> = combine(
+        combine(_messageText, voiceRecordingState, pendingPhotoUri) { text, recording, photoUri -> Triple(text, recording, photoUri) },
+        _nextcloudPhotoRequested,
+        _nextcloudVoiceRequested,
+    ) { (text, recording, photoUri), photoNextcloud, voiceNextcloud ->
+        // Via Nextcloud (chosen in the "+" sheet), the chain only carries the ~100-byte share
+        // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
+        val connected = nextcloudService.isConnected
         if (recording.status == VoiceRecordingStatus.RECORDING) {
-            if (nextcloudMode) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
+            if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
         } else if (photoUri != null) {
             // Compressed image bytes -> inner base64 (+33%) -> JSON envelope overhead -> encryption
             // + outer base64 (+33%) -- rough multiplier, calibrated the same way VoiceMessage's
             // estimate is: never used for the real fee, only this live preview.
-            if (nextcloudMode) NEXTCLOUD_LINK_PREVIEW_BYTES else (ImagePrep.DEFAULT_CHAT_TARGET_BYTES * 1.33 * 1.33).toInt() + 150
+            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else (ImagePrep.DEFAULT_CHAT_TARGET_BYTES * 1.33 * 1.33).toInt() + 150
         } else {
             text.toByteArray().size
         }
@@ -1015,7 +1031,10 @@ class ChatViewModel @Inject constructor(
     private val utxosForFeeEstimate: Flow<Pair<List<com.kachat.app.services.UtxoEntry>, List<com.kachat.app.services.UtxoEntry>>> =
         combine(_currentUtxos, _spendingUtxos) { identity, spending -> identity to spending }
 
-    val estimatedFeeSompi: StateFlow<Long?> = combine(paymentAmount, previewPayloadSize, utxosForFeeEstimate, _networkFeeRate, _feeRateOverride) { amount, textPayloadSize, utxosPair, networkRate, overrideRate ->
+    val estimatedFeeSompi: StateFlow<Long?> = combine(
+        combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
+        previewPayloadSize, utxosForFeeEstimate, _networkFeeRate, _feeRateOverride
+    ) { (amount, paymentNote), textPayloadSize, utxosPair, networkRate, overrideRate ->
         val rate = overrideRate?.toDouble() ?: networkRate
         if (amount.isEmpty() && textPayloadSize == 0) return@combine null
 
@@ -1037,7 +1056,14 @@ class ChatViewModel @Inject constructor(
         
         if (total < sompiNeeded && isPayment) return@combine null
         
-        val payloadSize = if (isPayment) "Sent $amount KAS".toByteArray().size else textPayloadSize
+        // A payment carries a payload only when it has a memo (see sendPayment) - and then the
+        // whole sealed memo is on chain, so the fee prices it (iOS estimatePaymentFee(note:)).
+        val payloadSize = if (isPayment) {
+            val note = paymentNote.trim()
+            if (note.isEmpty()) 0 else MessageProtocol.estimatedPaymentPayloadSize(note, sompiNeeded)
+        } else {
+            textPayloadSize
+        }
 
         // Preview only — a payment gets 2 standard 34-byte P2PK outputs (recipient + change).
         // A message (isPayment=false) is a zero-amount self-stash send, and KaspaWalletEngine
@@ -1086,15 +1112,20 @@ class ChatViewModel @Inject constructor(
         return (elapsedSeconds * 1_150.0).toInt()
     }
 
-    private val groupPreviewPayloadSize: Flow<Int> = combine(_groupMessageText, groupVoiceRecordingState, groupPendingPhotoUri, nextcloudService.mediaSendEnabled, nextcloudService.account) { text, recording, photoUri, mediaSendEnabled, account ->
-        // With "Send Media via Nextcloud" on (and connected), staged media goes out as just a
-        // short share-link text message (see sendPendingGroupPhoto/stopAndSendGroupVoiceRecording),
-        // so the fee pill prices a link-sized payload instead of the embedded media envelope.
-        val nextcloudMode = mediaSendEnabled && account != null
+    private val groupPreviewPayloadSize: Flow<Int> = combine(
+        combine(_groupMessageText, groupVoiceRecordingState, groupPendingPhotoUri) { text, recording, photoUri -> Triple(text, recording, photoUri) },
+        _groupNextcloudPhotoRequested,
+        _groupNextcloudVoiceRequested,
+        nextcloudService.account,
+    ) { (text, recording, photoUri), photoNextcloud, voiceNextcloud, account ->
+        // Media sent "via Nextcloud" from the "+" sheet goes out as just a short share-link text
+        // message (see sendPendingGroupPhoto/stopAndSendGroupVoiceRecording), so the fee pill
+        // prices a link-sized payload instead of the embedded media envelope.
+        val connected = account != null
         when {
-            recording.status == VoiceRecordingStatus.RECORDING && nextcloudMode -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
+            recording.status == VoiceRecordingStatus.RECORDING && voiceNextcloud && connected -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
             recording.status == VoiceRecordingStatus.RECORDING -> estimatedGroupWirePayloadSize(estimatedGroupAudioRawBytes(recording.elapsedMs), isMediaEnvelope = true)
-            photoUri != null && nextcloudMode -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
+            photoUri != null && photoNextcloud && connected -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
             photoUri != null -> estimatedGroupWirePayloadSize(GROUP_PHOTO_TARGET_BYTES, isMediaEnvelope = true)
             else -> estimatedGroupWirePayloadSize(text.toByteArray().size, isMediaEnvelope = false)
         }
@@ -1172,6 +1203,10 @@ class ChatViewModel @Inject constructor(
 
     fun setPaymentAmount(amount: String) {
         _paymentAmount.value = amount
+    }
+
+    fun setPaymentNote(note: String) {
+        _paymentNote.value = note
     }
 
     fun refreshUtxos() {
@@ -2445,24 +2480,11 @@ class ChatViewModel @Inject constructor(
         return allOk
     }
 
-    /** The message payload for one shared image: a Nextcloud share link when media-send is on and
-     *  connected, otherwise the embedded on-chain [ImageMessage] envelope — the same two paths
-     *  [sendPendingPhoto] picks between, with the same on-failure fallback to on-chain. */
+    /** The message payload for one shared image: always the embedded on-chain [ImageMessage]
+     *  envelope. Shared, pasted and dropped photos go on chain - the on-chain-or-Nextcloud choice
+     *  is only asked from the "+" sheet now that the "Send Media via Nextcloud" setting is gone
+     *  (iOS 8b13460). */
     private suspend fun prepareSharedImagePayload(uri: Uri): String? {
-        if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
-            try {
-                return withContext(Dispatchers.IO) {
-                    val resolver = appContext.contentResolver
-                    val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: throw java.io.IOException("Could not read the shared photo.")
-                    val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
-                    val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
-                    nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
-                }
-            } catch (e: Exception) {
-                Log.w("ChatViewModel", "Nextcloud upload failed for shared photo, falling back to on-chain", e)
-            }
-        }
         return try {
             val prepared = withContext(Dispatchers.Default) {
                 ImagePrep.prepareForChatMessage(appContext, uri)
@@ -2600,8 +2622,8 @@ class ChatViewModel @Inject constructor(
     /** Recording (not playback) needs Android 10+ — the mic button should be disabled below that. */
     val voiceRecordingSupported: Boolean get() = voiceRecorderService.isSupported
 
-    fun startVoiceRecording(contactId: String, onChain: Boolean = false) {
-        onChainVoiceRequested = onChain
+    fun startVoiceRecording(contactId: String, viaNextcloud: Boolean = false) {
+        _nextcloudVoiceRequested.value = viaNextcloud
         if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
         try {
             voiceRecorderService.startRecording()
@@ -2611,9 +2633,9 @@ class ChatViewModel @Inject constructor(
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
-        // On-chain notes are payload-capped at 10s; a Nextcloud-uploaded note only needs to
-        // fit the server, so the ceiling relaxes to 10 minutes while the toggle is on.
-        val maxDurationMs = if (!onChainVoiceRequested && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+        // On-chain notes are payload-capped at 10s; a "Record via Nextcloud" note only needs to
+        // fit the server, so it runs to the app-wide Nextcloud ceiling (5 minutes, iOS 8b13460).
+        val maxDurationMs = if (voiceViaNextcloud) {
             VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
         } else {
             VoiceRecorderService.MAX_RECORDING_DURATION_MS
@@ -2633,9 +2655,10 @@ class ChatViewModel @Inject constructor(
 
     /** Stops recording and sends it — unless it was too short to be a real message (a stray tap), in which case it's discarded silently, same as a cancel. */
     fun stopAndSendVoiceRecording(contactId: String) {
-        // Read before it is cleared: what was asked for is what gets sent.
-        val onChainOnly = onChainVoiceRequested
-        onChainVoiceRequested = false
+        // Read before it is cleared: what was asked for is what gets sent. Snapshot once, so a
+        // disconnect mid-send can't change the route.
+        val viaNextcloud = voiceViaNextcloud
+        _nextcloudVoiceRequested.value = false
         if (_voiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
         val elapsed = _voiceRecordingState.value.elapsedMs
         recordingTickerJob?.cancel()
@@ -2647,11 +2670,11 @@ class ChatViewModel @Inject constructor(
             file?.delete()
             return
         }
-        sendVoiceMessage(contactId, file, onChainOnly)
+        sendVoiceMessage(contactId, file, viaNextcloud)
     }
 
     fun cancelVoiceRecording() {
-        onChainVoiceRequested = false
+        _nextcloudVoiceRequested.value = false
         recordingTickerJob?.cancel()
         recordingTickerJob = null
         _voiceRecordingState.value = VoiceRecordingState()
@@ -2673,8 +2696,8 @@ class ChatViewModel @Inject constructor(
 
     private var groupRecordingTickerJob: Job? = null
 
-    fun startGroupVoiceRecording(groupId: String, onChain: Boolean = false) {
-        groupOnChainVoiceRequested = onChain
+    fun startGroupVoiceRecording(groupId: String, viaNextcloud: Boolean = false) {
+        _groupNextcloudVoiceRequested.value = viaNextcloud
         if (_groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
         try {
             voiceRecorderService.startRecording()
@@ -2685,9 +2708,9 @@ class ChatViewModel @Inject constructor(
         _groupVoiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
         // Same dynamic ceiling as 1:1's startVoiceRecording: on-chain group notes are
-        // payload-capped at 10s, but a Nextcloud-uploaded note only needs to fit the server,
-        // so the cap relaxes to 10 minutes while the toggle is on.
-        val maxDurationMs = if (!groupOnChainVoiceRequested && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+        // payload-capped at 10s, but a "Record via Nextcloud" note only needs to fit the server,
+        // so it runs to the app-wide Nextcloud ceiling.
+        val maxDurationMs = if (groupVoiceViaNextcloud) {
             VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
         } else {
             VoiceRecorderService.MAX_RECORDING_DURATION_MS
@@ -2705,15 +2728,15 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Group twin of the 1:1 [sendVoiceMessage] Nextcloud gate: with "Send Media via Nextcloud"
-     *  on (and an account connected), the recorded file (Opus-in-WebM, exactly as captured — no
+    /** Group twin of the 1:1 [sendVoiceMessage] Nextcloud gate: recorded "via Nextcloud" (and
+     *  still connected), the recorded file (Opus-in-WebM, exactly as captured — no
      *  re-encode, so the full relaxed-cap length ships byte-for-byte) uploads to the server and
      *  the group message is just the public share link; any upload/share failure falls back to
      *  the embedded on-chain gcomm envelope below, with a toast so the sender knows. */
     fun stopAndSendGroupVoiceRecording(groupId: String) {
         // Read before it is cleared: what was asked for is what gets sent.
-        val onChainOnly = groupOnChainVoiceRequested
-        groupOnChainVoiceRequested = false
+        val viaNextcloud = groupVoiceViaNextcloud
+        _groupNextcloudVoiceRequested.value = false
         if (_groupVoiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
         val elapsed = _groupVoiceRecordingState.value.elapsedMs
         groupRecordingTickerJob?.cancel()
@@ -2728,7 +2751,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
-                if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                if (viaNextcloud) {
                     try {
                         val extension = file.extension.ifEmpty { "webm" }
                         val mimeType = when (extension.lowercase()) {
@@ -2756,7 +2779,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun cancelGroupVoiceRecording() {
-        groupOnChainVoiceRequested = false
+        _groupNextcloudVoiceRequested.value = false
         groupRecordingTickerJob?.cancel()
         groupRecordingTickerJob = null
         _groupVoiceRecordingState.value = VoiceRecordingState()
@@ -2765,19 +2788,19 @@ class ChatViewModel @Inject constructor(
 
     /** Mirrors [sendPendingPhoto] for the group's own staged photo - smaller default target than 1:1's preset since group's `gcomm` payload hex-encodes the ciphertext (vs. 1:1's base64) plus extra fixed per-message fields, so the same raw photo lands as a noticeably larger on-chain payload.
      *
-     *  Same Nextcloud gate as 1:1's [sendPendingPhoto]: with "Send Media via Nextcloud" on (and an
-     *  account connected), the ORIGINAL picked image uploads to the server at full quality and the
+     *  Same Nextcloud gate as 1:1's [sendPendingPhoto]: sent "via Nextcloud" from the "+" sheet
+     *  (and still connected), the ORIGINAL picked image uploads to the server at full quality and the
      *  group message is just the public share link — recipients' link-preview cards render it as a
      *  photo. Any upload/share failure falls back to the compressed on-chain gcomm envelope below,
      *  with a toast so the sender knows. */
     fun sendPendingGroupPhoto(groupId: String) {
         val uri = _groupPendingPhotoUri.value ?: return
         // Read before it is cleared: the send below runs after this returns.
-        val onChainOnly = groupOnChainPhotoRequested
+        val viaNextcloud = groupPhotoViaNextcloud
         _groupPendingPhotoUri.value = null
-        groupOnChainPhotoRequested = false
+        _groupNextcloudPhotoRequested.value = false
         viewModelScope.launch {
-            if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            if (viaNextcloud) {
                 try {
                     val url = withContext(Dispatchers.IO) {
                         val resolver = appContext.contentResolver
@@ -2805,7 +2828,7 @@ class ChatViewModel @Inject constructor(
 
     /** Compresses and sends the currently staged [pendingPhotoUri] — clears the staged photo either way, matching the picker-cancel UX (a failed compression just drops back to the empty input bar, same as [sendVoiceMessage] logging and moving on rather than surfacing a dedicated error).
      *
-     *  With "Send Media via Nextcloud" on (and an account connected), the ORIGINAL picked image
+     *  Sent "via Nextcloud" from the "+" sheet (and still connected), the ORIGINAL picked image
      *  uploads to the server at full quality and the chat message is just the public share link —
      *  the recipient's link preview renders it as a photo bubble. Any upload/share failure falls
      *  back to the embedded on-chain envelope below, with a toast so the sender knows the photo
@@ -2814,11 +2837,11 @@ class ChatViewModel @Inject constructor(
     fun sendPendingPhoto(contactId: String) {
         val uri = _pendingPhotoUri.value ?: return
         // Read before it is cleared: the send below runs after this returns.
-        val onChainOnly = onChainPhotoRequested
+        val viaNextcloud = photoViaNextcloud
         _pendingPhotoUri.value = null
-        onChainPhotoRequested = false
+        _nextcloudPhotoRequested.value = false
         viewModelScope.launch {
-            if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+            if (viaNextcloud) {
                 try {
                     val url = withContext(Dispatchers.IO) {
                         val resolver = appContext.contentResolver
@@ -2846,15 +2869,67 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** With "Send Media via Nextcloud" on, the recorded file (Opus-in-WebM, exactly as captured —
-     *  no duration cap pressure from on-chain payload size) uploads to the server and the message
+    /**
+     * A video picked from the library with "Send Photo or Video via Nextcloud" (iOS a890102):
+     * uploaded to the Nextcloud media folder and sent as its share link, which the recipient's
+     * link preview renders as a video. There is no on-chain path that fits a video, so a failure
+     * says so instead of falling back. [send] delivers the link - a 1:1 or a group message.
+     */
+    private fun sendNextcloudVideo(uri: Uri, send: suspend (String) -> Unit) {
+        viewModelScope.launch {
+            val url = try {
+                val resolver = appContext.contentResolver
+                val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("video/") } ?: "video/mp4"
+                val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "mp4"
+                val length = runCatching {
+                    resolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+                }.getOrNull()?.takeIf { it >= 0 } ?: -1L
+                // Streamed from the content provider into the PUT: a phone video can be far larger
+                // than is sensible to hold in memory.
+                val body = object : okhttp3.RequestBody() {
+                    override fun contentType() = mimeType.toMediaTypeOrNull()
+                    override fun contentLength(): Long = length
+                    override fun writeTo(sink: okio.BufferedSink) {
+                        val input = resolver.openInputStream(uri)
+                            ?: throw java.io.IOException("Couldn't load that video. Please try another.")
+                        input.use { stream -> sink.writeAll(stream.source()) }
+                    }
+                }
+                nextcloudService.uploadMediaAndShare(body, "video_${System.currentTimeMillis() / 1000}.$extension")
+            } catch (e: Exception) {
+                Log.w("ChatViewModel", "Nextcloud video upload failed", e)
+                android.widget.Toast.makeText(
+                    appContext,
+                    e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+            // Warm the preview cache so the sender's own bubble shows the video card at once.
+            launch { com.kachat.app.services.LinkPreviewService.fetchPreview(url) }
+            try {
+                send(url)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error sending Nextcloud video link", e)
+            }
+        }
+    }
+
+    /** 1:1 entry to [sendNextcloudVideo]. */
+    fun sendNextcloudVideo(contactId: String, uri: Uri) = sendNextcloudVideo(uri) { url -> sendMessage(contactId, url) }
+
+    /** Group entry to [sendNextcloudVideo] - the link goes out as a normal group text message. */
+    fun sendGroupNextcloudVideo(groupId: String, uri: Uri) = sendNextcloudVideo(uri) { url -> groupRepository.sendGroupMessage(url, groupId) }
+
+    /** Recorded "via Nextcloud", the recorded file (Opus-in-WebM, exactly as captured — no
+     *  duration cap pressure from on-chain payload size) uploads to the server and the message
      *  is the share link; any failure falls back to the embedded on-chain envelope with a toast.
      *  1:1 only — the group voice path is untouched. */
-    private fun sendVoiceMessage(contactId: String, file: java.io.File, onChainOnly: Boolean) {
+    private fun sendVoiceMessage(contactId: String, file: java.io.File, viaNextcloud: Boolean) {
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
-                if (!onChainOnly && nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                if (viaNextcloud) {
                     try {
                         val extension = file.extension.ifEmpty { "webm" }
                         val mimeType = when (extension.lowercase()) {
@@ -2923,13 +2998,21 @@ class ChatViewModel @Inject constructor(
         _feeRateOverride.value = if (multiplier <= 1) null else (_networkFeeRate.value * multiplier).toLong()
     }
 
-    /** [onResult] is (succeeded, errorMessage, txId). The txId is what the sent-confirmation
-     *  sheet links to on the explorer; it is null on failure. */
-    fun sendPayment(contactId: String, amount: String, onResult: ((Boolean, String?, String?) -> Unit)? = null) {
+    /** [onResult] is (succeeded, errorMessage, txId). The txId is what a sent-confirmation sheet
+     *  links to on the explorer (KaPosts tips; a 1:1 chat payment has none any more - its bubble
+     *  is the confirmation, iOS 80a6aae); it is null on failure.
+     *
+     *  [note] is the Send KAS sheet's memo (iOS 8d208b2): sealed to the recipient in a
+     *  `kchat:1:pay:` payload, so only they can read it back from the chain - which is why the
+     *  sender's own bubble keeps it from send time ("Sent X KAS — memo", iOS 2be75ed). A payment
+     *  with no memo carries no payload at all, as before. */
+    fun sendPayment(contactId: String, amount: String, note: String = "", onResult: ((Boolean, String?, String?) -> Unit)? = null) {
         val amountKas = amount.toDoubleOrNull() ?: run { onResult?.invoke(false, "Enter a valid amount.", null); return }
         val sompi = (amountKas * 100_000_000).toLong()
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
+        val memo = note.trim()
+        val bubbleText = "Sent $amount ${KaspaUnit.symbol}" + if (memo.isEmpty()) "" else " — $memo"
         viewModelScope.launch {
             // Paying someone is reaching out to them, like writing to them.
             if (!contactId.equals(walletManager.getAddress(), ignoreCase = true)) chatRepository.acceptChat(contactId)
@@ -2943,7 +3026,7 @@ class ChatViewModel @Inject constructor(
                         walletAddress = myAddress,
                         type = "pay",
                         direction = "sent",
-                        plaintextBody = "Sent $amount ${KaspaUnit.symbol}",
+                        plaintextBody = bubbleText,
                         encryptedPayload = "",
                         amountSompi = sompi,
                         blockTimestamp = System.currentTimeMillis(),
@@ -2965,10 +3048,17 @@ class ChatViewModel @Inject constructor(
                 // (KaspaWalletEngine's pending-spent tracking), so an immediately-following
                 // message can't race onto the just-spent outpoints.
                 val privacyOn = paymentPoolService.isChatsPrivacyEnabled()
+                // Sealed to the contact's chatting key even when paying a pool address - the same
+                // key iOS seals it to (KaspaAddress.publicKey(from: contact.address)).
+                val payload = if (memo.isEmpty()) null else MessageProtocol.buildPaymentPayload(
+                    note = memo,
+                    amountSompi = sompi,
+                    recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
+                )
                 val txId = if (privacyOn) {
-                    walletService.payInKaspa(toAddress = destination, amountSompi = sompi, feeRateOverride = feeRate)
+                    walletService.payInKaspa(toAddress = destination, amountSompi = sompi, feeRateOverride = feeRate, payloadBytes = payload)
                 } else {
-                    walletService.sendKaspa(toAddress = destination, amountSompi = sompi, feeRateOverride = feeRate)
+                    walletService.sendKaspa(toAddress = destination, amountSompi = sompi, payloadBytes = payload, feeRateOverride = feeRate)
                 }
 
                 // Pool-address payments announce themselves to the recipient (payment_notice) -
@@ -3001,7 +3091,7 @@ class ChatViewModel @Inject constructor(
                         walletAddress = myAddress,
                         type = "pay",
                         direction = "sent",
-                        plaintextBody = "Sent $amount ${KaspaUnit.symbol}",
+                        plaintextBody = bubbleText,
                         encryptedPayload = "",
                         amountSompi = sompi,
                         blockTimestamp = System.currentTimeMillis(),

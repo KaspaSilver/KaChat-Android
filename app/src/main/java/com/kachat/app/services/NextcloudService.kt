@@ -137,6 +137,9 @@ class NextcloudService @Inject constructor(
         // ALL_PREF_BASES so disconnect/purge/migration still clean it up. NextcloudSyncService
         // owns the last-synced stamp now (DataStore).
         private const val PREF_LAST_AUTO_BACKUP_MS = "last_auto_backup_ms"
+        // The retired "Send Media via Nextcloud" switch (iOS 8b13460 replaced it with an on chain
+        // or via Nextcloud choice per send). Never read any more; kept in ALL_PREF_BASES so
+        // disconnect/purge still clean up a value stored by an older build.
         private const val PREF_MEDIA_SEND_ENABLED = "media_send_enabled"
         /** The last capabilities probe's answer, per wallet, so a launch knows at once whether
          *  this account can host a call - a push that starts the app cannot wait for the network. */
@@ -218,10 +221,6 @@ class NextcloudService @Inject constructor(
     private val _autoBackupEnabled = MutableStateFlow(false)
     val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
 
-    private val _mediaSendEnabled = MutableStateFlow(false)
-    /** "Send Media via Nextcloud": photos/voice notes upload to the server and the chat message is the share link. */
-    val mediaSendEnabled: StateFlow<Boolean> = _mediaSendEnabled.asStateFlow()
-
     /** Whether the connected server has Nextcloud Talk with calls enabled - what makes the call
      *  button appear in 1:1 chats (see CallService.canCall). Read from the server's capabilities
      *  on connect and on every wallet activation; false until known. */
@@ -293,7 +292,6 @@ class NextcloudService @Inject constructor(
         if (walletAddress == null) {
             _account.value = null
             _autoBackupEnabled.value = false
-            _mediaSendEnabled.value = false
             _talkCallsAvailable.value = false
             return
         }
@@ -302,7 +300,6 @@ class NextcloudService @Inject constructor(
 
         _account.value = loadAccount()
         _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = _account.value != null)
-        _mediaSendEnabled.value = scopedKey(PREF_MEDIA_SEND_ENABLED)?.let { prefs.getBoolean(it, false) } ?: false
         // What the last probe said, until this one answers. A call arriving seconds after the
         // app was woken by a push would otherwise be turned away as "cannot host" simply because
         // the capabilities lookup had not come back yet.
@@ -408,9 +405,7 @@ class NextcloudService @Inject constructor(
             migratedAnything = true
         }
         if (prefs.contains(PREF_MEDIA_SEND_ENABLED)) {
-            if (!prefs.contains(scopedKey(PREF_MEDIA_SEND_ENABLED, suffix))) {
-                editor.putBoolean(scopedKey(PREF_MEDIA_SEND_ENABLED, suffix), prefs.getBoolean(PREF_MEDIA_SEND_ENABLED, false))
-            }
+            // The retired media-send switch: nothing to carry over, only to clear (below).
             migratedAnything = true
         }
         if (prefs.contains(PREF_LAST_AUTO_BACKUP_MS)) {
@@ -441,7 +436,6 @@ class NextcloudService @Inject constructor(
         if (walletAddress == currentWalletAddress) {
             _account.value = null
             _autoBackupEnabled.value = false
-            _mediaSendEnabled.value = false
         }
     }
 
@@ -533,7 +527,6 @@ class NextcloudService @Inject constructor(
         editor.apply()
         _account.value = null
         _autoBackupEnabled.value = false
-        _mediaSendEnabled.value = false
         _talkCallsAvailable.value = false
     }
 
@@ -603,12 +596,6 @@ class NextcloudService @Inject constructor(
         val suffix = walletHashSuffix(walletAddress)
         val connected = prefs.contains(scopedKey(PREF_SERVER, suffix)) && prefs.contains(scopedKey(PREF_APP_PASSWORD, suffix))
         return resolveAutoBackupEnabled(suffix, connected)
-    }
-
-    fun setMediaSendEnabled(enabled: Boolean) {
-        val key = scopedKey(PREF_MEDIA_SEND_ENABLED) ?: return
-        prefs.edit().putBoolean(key, enabled).apply()
-        _mediaSendEnabled.value = enabled
     }
 
     private fun basicAuth(account: NextcloudAccount): String =
@@ -906,6 +893,16 @@ class NextcloudService @Inject constructor(
      * back to the embedded on-chain envelope.
      */
     suspend fun uploadMediaAndShare(bytes: ByteArray, filename: String, contentType: String): String {
+        val mediaType = contentType.toMediaTypeOrNull() ?: "application/octet-stream".toMediaType()
+        return uploadMediaAndShare(bytes.toRequestBody(mediaType), filename)
+    }
+
+    /**
+     * The same upload-and-share for a file too large to hold in memory - a video picked from the
+     * library with "Send Photo or Video via Nextcloud" (iOS a890102). [body] streams the bytes
+     * straight from wherever they live into the PUT.
+     */
+    suspend fun uploadMediaAndShare(body: okhttp3.RequestBody, filename: String): String {
         val relativePath = withContext(Dispatchers.IO) {
             val account = requireAccount()
 
@@ -929,10 +926,9 @@ class NextcloudService @Inject constructor(
             val uniqueName = "${java.util.UUID.randomUUID().toString().replace("-", "").take(8)}_$sanitized"
             val path = "$MEDIA_FOLDER_PATH/$uniqueName"
 
-            val mediaType = contentType.toMediaTypeOrNull() ?: "application/octet-stream".toMediaType()
             val put = Request.Builder()
                 .url(davUrl(account, path))
-                .put(bytes.toRequestBody(mediaType))
+                .put(body)
                 .header("Authorization", basicAuth(account))
                 .build()
             client.newCall(put).execute().use { response ->

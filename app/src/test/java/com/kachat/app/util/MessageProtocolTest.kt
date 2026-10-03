@@ -131,4 +131,49 @@ class MessageProtocolTest {
         assertTrue(!MessageProtocol.isValidChannelName("a".repeat(37)))
         assertTrue(MessageProtocol.isValidChannelName("a".repeat(36)))
     }
+
+    // Payment memo (iOS 8d208b2): `kchat:1:pay:` + the PaymentPayload JSON sealed to the recipient.
+
+    @Test
+    fun `payment payload carries the memo and amount to the recipient only`() {
+        val recipientPriv = randomScalarBytes()
+        val recipientPub = Schnorr.publicKeyXOnly(recipientPriv)
+
+        val payload = MessageProtocol.buildPaymentPayload("thanks for lunch", 12_345_678L, recipientPub)
+
+        assertTrue(String(payload.copyOfRange(0, 12), Charsets.US_ASCII) == "kchat:1:pay:")
+        assertTrue(MessageProtocol.isPaymentPayload(payload))
+        // Still a KaChat payload, but not a handshake.
+        assertTrue(MessageProtocol.isKaChatPayload(payload))
+        assertTrue(!MessageProtocol.isHandshakePayload(payload))
+
+        val opened = MessageProtocol.decryptPaymentPayload(payload, recipientPriv)!!
+        assertEquals("payment", opened.type)
+        assertEquals("thanks for lunch", opened.message)
+        assertEquals(12_345_678L, opened.amount)
+        assertEquals(1, opened.version)
+
+        // Anyone else - the sender included - cannot read it back.
+        assertNull(MessageProtocol.decryptPaymentPayload(payload, randomScalarBytes()))
+    }
+
+    @Test
+    fun `payment payload size estimate matches the built payload`() {
+        val recipientPub = Schnorr.publicKeyXOnly(randomScalarBytes())
+        val payload = MessageProtocol.buildPaymentPayload("memo", 100_000_000L, recipientPub)
+        assertEquals(payload.size, MessageProtocol.estimatedPaymentPayloadSize("memo", 100_000_000L))
+    }
+
+    @Test
+    fun `legacy ciph_msg payment roots are still read`() {
+        val recipientPriv = randomScalarBytes()
+        val recipientPub = Schnorr.publicKeyXOnly(recipientPriv)
+        val sealed = MessageProtocol.buildPaymentPayload("old", 1L, recipientPub).let { it.copyOfRange(12, it.size) }
+        for (root in listOf("ciph_msg:1:pay:", "ciph_msg:pay:")) {
+            val legacy = root.toByteArray(Charsets.US_ASCII) + sealed
+            assertTrue(MessageProtocol.isPaymentPayload(legacy))
+            assertEquals("old", MessageProtocol.decryptPaymentPayload(legacy, recipientPriv)?.message)
+        }
+        assertTrue(!MessageProtocol.isPaymentPayload("kchat:1:comm:a:b".toByteArray()))
+    }
 }

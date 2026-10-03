@@ -784,17 +784,27 @@ fun BroadcastChannelScreen(
     }
 
     val micContext = LocalContext.current
+    // With a Nextcloud server linked, the mic asks on chain or via Nextcloud, mirroring the
+    // 1:1/group "+" sheet (iOS 8b13460): via Nextcloud, the recording uploads to the server and
+    // the room only carries the share link. The choice has to survive the permission prompt.
+    val nextcloudAccount by broadcastViewModel.nextcloudAccount.collectAsState()
+    var showVoiceRouteSheet by remember { mutableStateOf(false) }
+    var voiceViaNextcloud by remember { mutableStateOf(false) }
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) broadcastViewModel.startVoiceRecording(channelName)
+        if (granted) broadcastViewModel.startVoiceRecording(channelName, viaNextcloud = voiceViaNextcloud)
     }
-    val startVoiceRecordingIfPermitted = {
+    val startVoiceRecordingIfPermitted = { viaNextcloud: Boolean ->
+        voiceViaNextcloud = viaNextcloud
         if (broadcastViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                broadcastViewModel.startVoiceRecording(channelName)
+                broadcastViewModel.startVoiceRecording(channelName, viaNextcloud = viaNextcloud)
             } else {
                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
+    }
+    val startVoiceMessage = {
+        if (nextcloudAccount != null) showVoiceRouteSheet = true else startVoiceRecordingIfPermitted(false)
     }
 
     // First fill JUMPS to the newest message instantly - featured rooms hold the whole 30-day
@@ -1137,8 +1147,19 @@ fun BroadcastChannelScreen(
                         )
                         val sending = sendState.status == BroadcastViewModel.SendBroadcastStatus.SENDING
                         if (messageText.isEmpty()) {
-                            IconButton(onClick = { startVoiceRecordingIfPermitted() }) {
+                            IconButton(onClick = { startVoiceMessage() }) {
                                 Icon(Icons.Default.Mic, "Record voice message", tint = KaspaTeal)
+                            }
+                            if (showVoiceRouteSheet) {
+                                ComposerMediaRouteSheet(
+                                    kind = ComposerMediaKind.VOICE,
+                                    onChoose = { viaNextcloud ->
+                                        showVoiceRouteSheet = false
+                                        startVoiceRecordingIfPermitted(viaNextcloud)
+                                    },
+                                    onBack = { showVoiceRouteSheet = false },
+                                    onDismiss = { showVoiceRouteSheet = false },
+                                )
                             }
                         } else {
                             IconButton(

@@ -229,8 +229,6 @@
     <string name="select_group">Chọn nhóm</string>
     <string name="send">Gửi</string>
     <string name="send_all_kaspa_to_primary_spend">Gửi toàn bộ Kaspa đến địa chỉ chi tiêu chính</string>
-    <string name="send_kaspa">Gửi Kaspa</string>
-    <string name="send_payment">Gửi thanh toán</string>
     <string name="send_from_cold_storage">Gửi từ lưu trữ lạnh</string>
     <string name="send_photo">Gửi ảnh</string>
     <string name="sending">Đang gửi</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">Lưu ảnh</string>
     <string name="save_your_own_node_addresses_here">Lưu địa chỉ nút của riêng bạn tại đây, sau đó chạm vào một địa chỉ để sao chép và dán vào trường Nút Kaspa ở trên.</string>
     <string name="security">Bảo mật</string>
-    <string name="send_audio_message">Gửi tin nhắn thoại</string>
     <string name="send_handshake">Gửi yêu cầu liên lạc</string>
     <string name="send_photo_2">Gửi ảnh</string>
     <string name="sending_2">Đang gửi...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">Gia hạn trong 10 ngày, nếu không ai cũng có thể lấy.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Tên này hiện chưa được đăng ký.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">Tin nhắn thoại</string>
+    <string name="composer_file">Tệp</string>
+    <string name="media_take_on_chain_photo">Chụp ảnh on-chain</string>
+    <string name="media_send_photo_on_chain">Gửi ảnh on-chain</string>
+    <string name="media_record_on_chain">Ghi âm on-chain</string>
+    <string name="media_take_on_chain_photo_subtitle">Chụp ảnh và gửi on-chain, được nén cho vừa.</string>
+    <string name="media_send_photo_on_chain_subtitle">Chọn ảnh và gửi on-chain, được nén cho vừa.</string>
+    <string name="media_record_on_chain_subtitle">Tối đa 10 giây, gửi on-chain.</string>
+    <string name="media_take_photo_via_nextcloud">Chụp ảnh qua Nextcloud</string>
+    <string name="media_record_via_nextcloud">Ghi âm qua Nextcloud</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">Chất lượng gốc. Tải lên Nextcloud của bạn; cuộc trò chuyện mang liên kết.</string>
+    <string name="media_record_via_nextcloud_subtitle">Tối đa 5 phút. Tải lên Nextcloud của bạn; cuộc trò chuyện mang liên kết.</string>
+    <string name="composer_pay_subtitle">Gửi Kaspa cho liên hệ này.</string>
+    <string name="composer_camera_subtitle">Chụp ảnh và gửi.</string>
+    <string name="composer_photo_subtitle">Chọn ảnh từ thư viện và gửi.</string>
+    <string name="composer_voice_subtitle">Ghi âm tin nhắn thoại và gửi.</string>
+    <string name="composer_file_subtitle">Gửi bất kỳ tệp nào từ Nextcloud của bạn. Tệp hiển thị dưới dạng xem trước.</string>
+    <string name="group_composer_camera_subtitle">Chụp ảnh và gửi vào nhóm.</string>
+    <string name="group_composer_photo_subtitle">Chọn ảnh từ thư viện và gửi vào nhóm.</string>
+    <string name="group_composer_voice_subtitle">Ghi âm tin nhắn thoại và gửi vào nhóm.</string>
+    <string name="nextcloud_file_folder_footer">\"Tệp\" trong menu + của cuộc trò chuyện sẽ mở thư mục này trước.</string>
+    <string name="nextcloud_media_route_footer">Trong menu + của cuộc trò chuyện, Máy ảnh, Ảnh và Tin nhắn thoại sẽ hỏi gửi on-chain hay qua Nextcloud. Qua Nextcloud, tệp được tải lên với chất lượng gốc vào thư mục %1$s của máy chủ này và cuộc trò chuyện mang một liên kết chia sẻ (tin nhắn thoại tối đa 5 phút). Tin nhắn chứa liên kết vẫn được mã hóa đầu cuối, nhưng bản thân tệp được lưu không mã hóa trên máy chủ của bạn và bất kỳ ai có liên kết không thể đoán này đều truy cập được.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">Gửi KAS</string>
+    <string name="payment_to_name">tới %1$s</string>
+    <string name="hold_to_send">Giữ để gửi</string>
+    <string name="payment_memo_placeholder">Thêm ghi chú (đã mã hóa)</string>
+    <string name="payment_switch_currency">Chuyển giữa Kaspa và tiền tệ của bạn</string>
+    <string name="payment_dust_warning">Gửi dưới 0,1 KAS có thể thất bại do giới hạn bảo vệ dust của mạng.</string>
+    <string name="payment_small_amount">Số tiền nhỏ</string>
+    <string name="payment_send_anyway">Vẫn gửi</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">Gửi ảnh hoặc video qua Nextcloud</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">Chất lượng gốc, hoặc video. Tải lên Nextcloud của bạn; cuộc trò chuyện mang liên kết.</string>
+    <string name="media_video_load_failed">Không thể tải video đó. Vui lòng thử video khác.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">Đã nhận</string>
+    <string name="copy_transaction_id">Sao chép ID giao dịch</string>
+    <string name="payment_explorer_subtitle">Mở giao dịch này trong trình khám phá khối.</string>
+    <string name="payment_copy_txid_subtitle">Sao chép ID giao dịch vào bộ nhớ tạm.</string>
+    <string name="transaction_id_copied">Đã sao chép ID giao dịch</string>
+    <string name="payment_not_on_chain_yet">Khoản thanh toán này chưa lên chuỗi.</string>
 </resources>

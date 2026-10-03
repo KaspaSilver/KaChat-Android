@@ -701,7 +701,6 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     val account by service.account.collectAsState()
     val autoBackupEnabled by service.autoBackupEnabled.collectAsState()
     val lastAutoSyncMs by chatViewModel.nextcloudLastAutoSyncMs.collectAsState()
-    val mediaSendEnabled by service.mediaSendEnabled.collectAsState()
     val connectState by chatViewModel.nextcloudConnectState.collectAsState()
     val backupState by chatViewModel.nextcloudBackupState.collectAsState()
     val restorePhase by chatViewModel.restoreCoordinator.phase.collectAsState()
@@ -819,6 +818,13 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 value = connected.startFolder?.substringAfterLast('/') ?: "All Files",
                 onClick = { showStartFolderPicker = true }
             )
+            // The old "Send Media via Nextcloud" switch is gone: Camera, Photo and Voice Message in
+            // a chat's + menu ask on chain or via Nextcloud every time. What that choice means for
+            // privacy still belongs here (iOS 8b13460).
+            SettingsFooter(
+                stringResource(R.string.nextcloud_file_folder_footer) + "\n\n" +
+                    stringResource(R.string.nextcloud_media_route_footer, com.kachat.app.services.NextcloudService.MEDIA_FOLDER_PATH)
+            )
             SettingsDivider()
             SettingsInfoItem(
                 label = "Backup Folder",
@@ -839,13 +845,6 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 } else {
                     "Turn on to keep this server's backup current automatically and to mirror new messages between your devices in near real time while the app is open."
                 }) + " Automatic sync works with one cloud service at a time."
-            )
-            SettingsDivider()
-            SettingsSwitchItem("Send Media via Nextcloud", mediaSendEnabled) { enabled ->
-                service.setMediaSendEnabled(enabled)
-            }
-            SettingsFooter(
-                "When on, photos and voice messages you send in chats upload to your Nextcloud at full quality and the chat carries a share link instead. The file is stored unencrypted on your own server behind an unguessable link — the message carrying the link stays end-to-end encrypted. When off, media is embedded in the encrypted on-chain payload as before."
             )
 
             val backupInFlight = backupState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS

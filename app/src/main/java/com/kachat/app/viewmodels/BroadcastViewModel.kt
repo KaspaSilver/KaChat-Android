@@ -208,9 +208,18 @@ class BroadcastViewModel @Inject constructor(
      * Via Nextcloud, the chain only carries the ~100-byte share link regardless of recording
      * length — mirrors ChatViewModel.previewPayloadSize's identical branch.
      */
-    private val previewPayloadSize = combine(_messageText, voiceRecordingState, nextcloudService.mediaSendEnabled) { text, recording, mediaSend ->
+    /** This recording was started "via Nextcloud" from the mic's route step - the room then
+     *  carries only the share link. Replaced the "Send Media via Nextcloud" setting (iOS 8b13460).
+     *  Declared ahead of [previewPayloadSize], which reads it. */
+    private val _nextcloudVoiceRequested = MutableStateFlow(false)
+    /** The connected Nextcloud account, or null - with one, the mic asks on chain or via
+     *  Nextcloud first. */
+    val nextcloudAccount get() = nextcloudService.account
+    private val voiceViaNextcloud: Boolean get() = _nextcloudVoiceRequested.value && nextcloudService.isConnected
+
+    private val previewPayloadSize = combine(_messageText, voiceRecordingState, _nextcloudVoiceRequested) { text, recording, voiceNextcloud ->
         if (recording.status == VoiceRecordingStatus.RECORDING) {
-            if (mediaSend && nextcloudService.isConnected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
+            if (voiceNextcloud && nextcloudService.isConnected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
         } else {
             text.toByteArray().size
         }
@@ -814,8 +823,9 @@ class BroadcastViewModel @Inject constructor(
     /** Recording (not playback) needs Android 10+ — the mic button should be disabled below that. */
     val voiceRecordingSupported: Boolean get() = voiceRecorderService.isSupported
 
-    fun startVoiceRecording(channelName: String) {
+    fun startVoiceRecording(channelName: String, viaNextcloud: Boolean = false) {
         if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
+        _nextcloudVoiceRequested.value = viaNextcloud
         try {
             voiceRecorderService.startRecording()
         } catch (e: Exception) {
@@ -825,9 +835,9 @@ class BroadcastViewModel @Inject constructor(
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
         // Same dynamic ceiling as 1:1/group chats: on-chain broadcast notes are payload-capped
-        // at 10s, but a Nextcloud-uploaded note only needs to fit the server, so the cap
-        // relaxes to 10 minutes while the toggle is on.
-        val maxDurationMs = if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+        // at 10s, but a "Record via Nextcloud" note only needs to fit the server, so it runs to
+        // the app-wide Nextcloud ceiling.
+        val maxDurationMs = if (voiceViaNextcloud) {
             VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
         } else {
             VoiceRecorderService.MAX_RECORDING_DURATION_MS
@@ -848,6 +858,10 @@ class BroadcastViewModel @Inject constructor(
     /** Stops recording and sends it — unless it was too short to be a real message (a stray tap), in which case it's discarded silently, same as a cancel. */
     fun stopAndSendVoiceRecording(channelName: String) {
         if (_voiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
+        // Snapshot once, so a disconnect mid-send can't change the route (iOS
+        // PublicChatChannelView.stopAndSendRecording).
+        val viaNextcloud = voiceViaNextcloud
+        _nextcloudVoiceRequested.value = false
         val elapsed = _voiceRecordingState.value.elapsedMs
         recordingTickerJob?.cancel()
         recordingTickerJob = null
@@ -858,27 +872,28 @@ class BroadcastViewModel @Inject constructor(
             file?.delete()
             return
         }
-        sendVoiceMessage(channelName, file)
+        sendVoiceMessage(channelName, file, viaNextcloud)
     }
 
     fun cancelVoiceRecording() {
+        _nextcloudVoiceRequested.value = false
         recordingTickerJob?.cancel()
         recordingTickerJob = null
         _voiceRecordingState.value = VoiceRecordingState()
         voiceRecorderService.cancelRecording()
     }
 
-    /** With "Send Media via Nextcloud" on (and an account connected), the recorded file (exactly
-     *  as captured — no re-encode, so the full relaxed-cap length ships byte-for-byte) uploads to
+    /** Recorded "via Nextcloud" (the mic's on-chain-or-Nextcloud step, iOS 8b13460) and still
+     *  connected, the recorded file (exactly as captured — no re-encode, so the full relaxed-cap length ships byte-for-byte) uploads to
      *  the server and the broadcast is just the public share link, sent as plain text through the
      *  normal [sendBroadcast] pipeline; any upload/share failure falls back to the embedded
      *  on-chain audio envelope below, with a toast so the sender knows. Mirrors ChatViewModel's
      *  1:1/group Nextcloud voice gates exactly. */
-    private fun sendVoiceMessage(channelName: String, file: java.io.File) {
+    private fun sendVoiceMessage(channelName: String, file: java.io.File, viaNextcloud: Boolean) {
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
-                if (nextcloudService.mediaSendEnabled.value && nextcloudService.isConnected) {
+                if (viaNextcloud) {
                     try {
                         val extension = file.extension.ifEmpty { "webm" }
                         val mimeType = when (extension.lowercase()) {

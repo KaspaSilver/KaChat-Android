@@ -299,20 +299,53 @@ fun ChatThreadScreen(
     // broadcast rooms and KaPosts — see ZeroBalanceFundingUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
 
-    // rememberSaveable (not remember) so payment mode survives a push to Manage Spending
-    // Addresses from the Available pill and back — iOS keeps payment mode alive by presenting
-    // that screen as a sheet; on Android the nav round-trip must not silently drop the mode.
-    var paymentMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(startInPaymentMode) }
-    /// Why a payment could not be sent. Shown as a dialog, because a failed payment leaves no row
-    /// in the thread to carry the reason.
+    // The "Send KAS" sheet (amount, encrypted memo, hold to send - iOS 8d208b2). It replaced the
+    // composer's payment mode; every way into a payment opens it: the "+" sheet's Pay in Kaspa,
+    // and the paymentMode chat route ("Pay in Kaspa" from a group or public chat's sender sheet).
+    // rememberSaveable (not remember) so the sheet survives a push to Manage Spending Addresses
+    // from its Available pill and back - iOS presents that screen over the sheet.
+    var showPaymentSheet by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    // Opened with the paymentMode route: presented once the push has landed, not mid-transition,
+    // and only the first time (not again after a rotation).
+    var startPaymentConsumed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    /** The payment's memo, encrypted to the recipient with the payment (shown in its bubble). */
+    var paymentNote by remember { mutableStateOf("") }
+    /** Why the payment could not be sent - shown in the Send KAS sheet, which is still up. */
     var paymentError by remember { mutableStateOf<String?>(null) }
-    /// The completed payment, driving the sent-confirmation half sheet.
-    var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
+    var paymentSending by remember { mutableStateOf(false) }
+    /** The payment bubble that was tapped, driving its details half sheet (amount, memo, View in
+     *  Explorer, Copy Transaction ID). It replaced the sent-confirmation sheet after a chat
+     *  payment (iOS 80a6aae). */
+    var paymentDetailMessage by remember { mutableStateOf<MessageEntity?>(null) }
+    val openPaymentSheet: () -> Unit = {
+        chatViewModel.setPaymentAmount("")
+        chatViewModel.setPaymentNote("")
+        paymentNote = ""
+        paymentError = null
+        showPaymentSheet = true
+    }
+    val closePaymentSheet: () -> Unit = {
+        showPaymentSheet = false
+        chatViewModel.setPaymentAmount("")
+        chatViewModel.setPaymentNote("")
+        paymentNote = ""
+        paymentError = null
+    }
+    LaunchedEffect(Unit) {
+        if (startInPaymentMode && !startPaymentConsumed) {
+            startPaymentConsumed = true
+            delay(350)
+            openPaymentSheet()
+        }
+    }
     val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
     val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val identityFullBalance by walletViewModel.fullBalance.collectAsState()
     val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     var showComposerMenu by remember { mutableStateOf(false) }
+    // The "+" sheet's second step for Camera / Photo / Voice Message - on chain or via Nextcloud -
+    // shown only while a server is connected (iOS 8b13460 ComposerSheetStep.media).
+    var composerMediaStep by remember { mutableStateOf<ComposerMediaKind?>(null) }
     // The voice-or-video half sheet behind the header's call button, and the microphone (and
     // camera) permission ask that starting a call may need first.
     var showCallOptions by remember { mutableStateOf(false) }
@@ -385,26 +418,63 @@ fun ChatThreadScreen(
         showFeeEditor = true
     }
     val micContext = LocalContext.current
-    // Which row asked for the recording, kept across the permission prompt: "Send On-Chain
-    // Voice Message" means the chain carries it whatever the Nextcloud switch says, while the
-    // composer bar's own microphone follows the switch.
-    var voiceGoesOnChain by remember { mutableStateOf(false) }
+    // Where the media chosen in the "+" sheet goes - on chain or via Nextcloud - kept across the
+    // permission prompt and the camera/picker round trip (iOS nextcloudVoiceRequested /
+    // nextcloudPhotoRequested, 8b13460).
+    var voiceViaNextcloud by remember { mutableStateOf(false) }
+    var cameraViaNextcloud by remember { mutableStateOf(false) }
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) chatViewModel.startVoiceRecording(contactId, onChain = voiceGoesOnChain)
+        if (granted) chatViewModel.startVoiceRecording(contactId, viaNextcloud = voiceViaNextcloud)
     }
-    // Only "Send On-Chain Photo" opens the library picker, so what it picks goes on chain.
+    // Photo on chain: images only - no on-chain path fits a video.
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) chatViewModel.setPendingPhoto(uri, onChain = true)
+        if (uri != null) chatViewModel.setPendingPhoto(uri)
     }
-    val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setPendingPhoto(uri) }
-    val startVoiceRecordingIfPermitted = { onChain: Boolean ->
-        voiceGoesOnChain = onChain
+    // "Send Photo or Video via Nextcloud": the library picker offers videos too, and a picked
+    // video goes straight out as an upload-and-share link (iOS a890102).
+    val nextcloudMediaPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (micContext.contentResolver.getType(uri)?.startsWith("video/") == true) {
+            chatViewModel.sendNextcloudVideo(contactId, uri)
+        } else {
+            chatViewModel.setPendingPhoto(uri, viaNextcloud = true)
+        }
+    }
+    val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setPendingPhoto(uri, viaNextcloud = cameraViaNextcloud) }
+    val startVoiceRecordingIfPermitted = { viaNextcloud: Boolean ->
+        voiceViaNextcloud = viaNextcloud
         if (chatViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                chatViewModel.startVoiceRecording(contactId, onChain = onChain)
+                chatViewModel.startVoiceRecording(contactId, viaNextcloud = viaNextcloud)
             } else {
                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
+        }
+    }
+    val startMedia: (ComposerMediaKind, Boolean) -> Unit = { kind, viaNextcloud ->
+        when (kind) {
+            ComposerMediaKind.CAMERA -> {
+                cameraViaNextcloud = viaNextcloud
+                startCameraCapture()
+            }
+            ComposerMediaKind.PHOTO -> if (viaNextcloud) {
+                nextcloudMediaPickerLauncher.launch(
+                    androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                )
+            } else {
+                photoPickerLauncher.launch("image/*")
+            }
+            ComposerMediaKind.VOICE -> startVoiceRecordingIfPermitted(viaNextcloud)
+        }
+    }
+    // A "+" sheet media row: asks on chain or via Nextcloud when a server is connected, otherwise
+    // goes straight to the on-chain path (iOS chooseMedia).
+    val chooseMedia: (ComposerMediaKind) -> Unit = { kind ->
+        if (nextcloudAccount != null) {
+            composerMediaStep = kind
+        } else {
+            showComposerMenu = false
+            startMedia(kind, false)
         }
     }
 
@@ -463,8 +533,8 @@ fun ChatThreadScreen(
         if (share.targetContactId != null && share.targetContactId != contactId) return@LaunchedEffect
         com.kachat.app.services.ShareIntake.pending.value = null
         if (share.isExpired()) return@LaunchedEffect
-        // A share always lands in the message composer flow, never the payment-entry UI.
-        paymentMode = false
+        // A share always lands in the message composer flow, never the payment sheet.
+        closePaymentSheet()
         com.kachat.app.services.ShareIntake.compose.value = com.kachat.app.services.ShareCompose(
             contactId = contactId,
             text = share.text,
@@ -472,8 +542,8 @@ fun ChatThreadScreen(
         )
     }
 
-    LaunchedEffect(paymentMode) {
-        if (paymentMode) {
+    LaunchedEffect(showPaymentSheet) {
+        if (showPaymentSheet) {
             chatViewModel.refreshSpendingUtxos()
             walletViewModel.refreshSpendingAddress()
             // Privacy OFF funds payments from the chatting address — keep its balance fresh too.
@@ -485,8 +555,8 @@ fun ChatThreadScreen(
     // The Available pill tracks rotation change landing after a private-mode send: whenever an
     // own-address balance change involves the current spending address (AddressActivityNotifier's
     // always-on UI event, separate from its notification decision), re-fetch the shown balance.
-    LaunchedEffect(paymentMode) {
-        if (!paymentMode) return@LaunchedEffect
+    LaunchedEffect(showPaymentSheet) {
+        if (!showPaymentSheet) return@LaunchedEffect
         chatViewModel.ownAddressUtxoActivityEvents.collect { involved ->
             val currentSpending = walletViewModel.spendingAddress.value
             if (currentSpending == null || involved.contains(currentSpending)) {
@@ -747,215 +817,9 @@ fun ChatThreadScreen(
                         displayName = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
                     )
                 }
-                if (paymentMode) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (showFeeEstimate && estimatedFee != null) {
-                                Surface(
-                                    color = LocalAppColors.current.surface,
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.clickable { openFeeEditor(estimatedFee ?: 0L) }
-                                ) {
-                                    Text(
-                                        text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
-                                        color = KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                            
-                            // Available pill: primary spending balance when Chats Payment Privacy
-                            // is ON (underlined + tappable, opens Manage Spending Addresses),
-                            // chatting balance when OFF (plain, not tappable). The fresh-address
-                            // indicator is merged into this pill (a small accent arrow) so the
-                            // helper row never clips on narrow screens; the pill itself absorbs
-                            // any squeeze by tail-truncating.
-                            Surface(
-                                color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f, fill = false)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier
-                                        .then(
-                                            if (paymentPrivacyOn) Modifier.clickable { navController.navigate("manage_addresses") }
-                                            else Modifier
-                                        )
-                                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "available: ${if (paymentPrivacyOn) spendingBalance else identityFullBalance}",
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textDecoration = if (paymentPrivacyOn) androidx.compose.ui.text.style.TextDecoration.Underline else null
-                                    )
-                                    if (paymentPrivacyOn && paysToFreshPoolAddress) {
-                                        Icon(
-                                            Icons.Filled.ArrowForward,
-                                            contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
-                                            tint = KaspaTeal,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(
-                                onKasTextChange = { chatViewModel.setPaymentAmount(it) }
-                            )
-                            TextField(
-                                value = fiatAmountState.displayText,
-                                onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
-                                placeholder = {
-                                    Text(
-                                        if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else KaspaUnit.label(stringResource(R.string.amount_kas)),
-                                        color = LocalAppColors.current.textTertiary
-                                    )
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(50.dp)
-                                    .clip(RoundedCornerShape(25.dp)),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = LocalAppColors.current.surface,
-                                    unfocusedContainerColor = LocalAppColors.current.surface,
-                                    focusedTextColor = LocalAppColors.current.textPrimary,
-                                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                    cursorColor = KaspaTeal,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                // Toggles KAS/fiat entry mode, matching Cold Storage's send flow -
-                                // the leading icon is the toggle now, so the conversion label in
-                                // trailingIcon below is purely informational.
-                                leadingIcon = {
-                                    IconButton(onClick = { fiatAmountState.toggleMode(fiatPriceInCurrency) }) {
-                                        if (fiatAmountState.isFiatMode) {
-                                            Text(
-                                                com.kachat.app.util.currencySymbolFor(fiatCurrencyCode),
-                                                color = KaspaTeal,
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        } else {
-                                            Icon(
-                                                painterResource(R.drawable.ic_kaspa_logo),
-                                                stringResource(R.string.switch_between_kas_and_fiat),
-                                                tint = Color.Unspecified,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                trailingIcon = {
-                                    // Spending-chain UTXOs (what a payment actually spends from),
-                                    // not chatViewModel.currentUtxos (the identity address's) -
-                                    // using the wrong set here made "Max" compute against the
-                                    // wrong balance whenever the two addresses' UTXOs differed.
-                                    val spendingUtxos by chatViewModel.spendingUtxos.collectAsState()
-                                    val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        fiatAmountState.conversionLabelText(fiatPriceInCurrency, fiatCurrencyCode)?.let { label ->
-                                            Text(
-                                                label,
-                                                color = LocalAppColors.current.textSecondary,
-                                                fontSize = 12.sp,
-                                                modifier = Modifier.padding(end = 8.dp)
-                                            )
-                                        }
-                                        TextButton(onClick = {
-                                            // Mirror KaspaWalletEngine's own fee calculation exactly
-                                            // (real Kaspa mass model, assuming a recipient + change
-                                            // output) so the amount filled in here is always actually
-                                            // sendable — the previous naive formula (300 + count*100)
-                                            // didn't match the real fee, so "Max" sends kept failing
-                                            // with "insufficient funds".
-                                            val mass = com.kachat.app.util.KaspaMass.calculateMass(
-                                                numInputs = spendingUtxos.size.coerceAtLeast(1),
-                                                outputScriptLens = listOf(34, 34),
-                                                payloadSize = 0
-                                            )
-                                            val fee = com.kachat.app.util.KaspaMass.calculateFee(mass, networkFeeRate.toLong())
-
-                                            // Same source the send will use: primary spending
-                                            // balance with privacy ON, chatting balance with
-                                            // privacy OFF (spendingUtxos already tracks the same
-                                            // funding source - see refreshSpendingUtxos).
-                                            val sourceBalanceSompi = if (paymentPrivacyOn) spendingBalanceSompi else identityBalanceSompi
-                                            val maxSendableSompi = (sourceBalanceSompi - fee).coerceAtLeast(0L)
-                                            val maxSendableKas = maxSendableSompi.toDouble() / 100_000_000.0
-                                            fiatAmountState.setMaxKas(maxSendableKas, fiatPriceInCurrency)
-                                        }) {
-                                            Text(stringResource(R.string.max), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true
-                            )
-                            
-                            // Deliberately no mic in payment mode (matches iOS): the message
-                            // button is the only mode exit — audio stays reachable through
-                            // message mode's "+" menu as usual.
-                            ChatActionButton(Icons.AutoMirrored.Filled.Chat, onClick = {
-                                paymentMode = false
-                                chatViewModel.setPaymentAmount("")
-                            })
-                        }
-
-                        Button(
-                            onClick = {
-                                if (paymentAmount.isNotEmpty()) {
-                                    val paidSompi = ((paymentAmount.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
-                                    chatViewModel.sendPayment(contactId, paymentAmount) { ok, message, txId ->
-                                        // A payment that never reached the network leaves no
-                                        // trace in the thread, so the reason has to be said here
-                                        // (iOS parity - it alerts and inserts nothing).
-                                        if (!ok) {
-                                            paymentError = message ?: "The payment could not be sent."
-                                        } else if (txId != null) {
-                                            sentTransaction = SentTransaction(
-                                                txId = txId,
-                                                amountSompi = paidSompi,
-                                                recipient = conversation?.contact?.displayName,
-                                            )
-                                        }
-                                    }
-                                    chatViewModel.setPaymentAmount("")
-                                    paymentMode = false
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(stringResource(R.string.send_payment), color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                } else if (pendingPhotoUri != null) {
+                // The payment entry that used to replace this composer is the Send KAS sheet now
+                // (iOS 8d208b2) - see SendKasSheet at the end of this screen.
+                if (pendingPhotoUri != null) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         if (showFeeEstimate && estimatedFee != null) {
                             Surface(
@@ -1221,40 +1085,8 @@ fun ChatThreadScreen(
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent
                                 ),
-                                // Quick-access camera, replacing what used to be a "Camera" entry
-                                // in the "+" menu - living right in the message bubble instead
-                                // since it's the most common non-text action. The Kaspa logo
-                                // beside it jumps straight into payment mode - the exact same
-                                // switch the "+" menu's Send Kaspa entry flips, one tap instead
-                                // of two (iOS places the same shortcut inside its input bubble).
-                                trailingIcon = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(onClick = { startCameraCapture() }) {
-                                            Icon(
-                                                Icons.Default.CameraAlt,
-                                                contentDescription = stringResource(R.string.camera),
-                                                tint = LocalAppColors.current.textSecondary,
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                        IconButton(onClick = { startVoiceRecordingIfPermitted(false) }) {
-                                            Icon(
-                                                Icons.Default.Mic,
-                                                contentDescription = stringResource(R.string.send_audio_message),
-                                                tint = LocalAppColors.current.textSecondary,
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                        IconButton(onClick = { paymentMode = true }) {
-                                            Icon(
-                                                painterResource(R.drawable.ic_kaspa_logo),
-                                                contentDescription = stringResource(R.string.send_kaspa),
-                                                tint = Color.Unspecified,
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                    }
-                                },
+                                // The input bubble is the text field only: the camera, mic and
+                                // Kaspa logo moved into the "+" sheet (iOS 8b13460).
                                 maxLines = 4
                             )
 
@@ -1267,54 +1099,64 @@ fun ChatThreadScreen(
                                         composerMenuAnchor = coords.positionInWindow()
                                     }
                                 ) {
-                                    // Slightly smaller than the stock 40dp so the input bubble gets the width.
-                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true }, size = 34.dp, iconSize = 18.dp)
+                                    // The same size as the group chat's + (iOS 2332d30) - the input
+                                    // bubble no longer carries the camera, mic and Kaspa logo, so it
+                                    // has the width to spare.
+                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true })
                                 }
-                                // Not while the chess step is up: they are two steps of ONE
-                                // sheet, and rendering both would stack two sheets on screen.
-                                if (showComposerMenu && !showChessTimeControlMenu) {
+                                // Not while the chess or media step is up: they are steps of
+                                // ONE sheet, and rendering both would stack two sheets on screen.
+                                if (showComposerMenu && !showChessTimeControlMenu && composerMediaStep == null) {
                                     // A sheet, not a popup: each option gets a line saying what
-                                    // it does. Matches iOS's composerPlusSheet.
+                                    // it does. Matches iOS's composerPlusSheet. Five to seven rows;
+                                    // ActionSheetContainer opens expanded and wraps them, scrolling
+                                    // from the top, so the "Send" title always shows (iOS 1969c1a
+                                    // had to size its detent to the rows for the same result).
                                     ActionSheetContainer(
-                                        title = "Send",
+                                        title = stringResource(R.string.send),
                                         subtitle = null,
                                         onDismiss = { showComposerMenu = false },
                                     ) {
-                                        // The on-chain photo and voice options are ALWAYS
-                                        // offered, named for what they do: a photo or a voice
-                                        // note that uploads to Nextcloud and one that lives on
-                                        // chain are different things, and the composer bar's
-                                        // own camera and mic only cover the server one. Order
-                                        // matches iOS: on-chain photo, on-chain voice, then
-                                        // Nextcloud when a server is connected.
+                                        // Pay first: the Kaspa logo left the input bubble, so this
+                                        // is the way into a payment (iOS 8b13460) - it opens the
+                                        // Send KAS sheet (8d208b2).
+                                        ActionSheetRow(
+                                            icon = painterResource(R.drawable.ic_kaspa_logo),
+                                            title = stringResource(R.string.pay_in_kaspa),
+                                            subtitle = stringResource(R.string.composer_pay_subtitle),
+                                        ) {
+                                            showComposerMenu = false
+                                            openPaymentSheet()
+                                        }
+                                        // Camera, Photo and Voice Message each ask on chain or via
+                                        // Nextcloud when a server is connected (that choice replaced
+                                        // the "Send Media via Nextcloud" setting), and go straight
+                                        // on chain when none is.
+                                        ActionSheetRow(
+                                            icon = Icons.Default.CameraAlt,
+                                            title = stringResource(R.string.camera),
+                                            subtitle = stringResource(R.string.composer_camera_subtitle),
+                                        ) { chooseMedia(ComposerMediaKind.CAMERA) }
                                         ActionSheetRow(
                                             icon = Icons.Default.Image,
-                                            title = stringResource(R.string.send_on_chain_photo),
-                                            subtitle = "Pick an image from your library and send it on chain.",
-                                        ) {
-                                            showComposerMenu = false
-                                            photoPickerLauncher.launch("image/*")
-                                        }
+                                            title = stringResource(R.string.photo),
+                                            subtitle = stringResource(R.string.composer_photo_subtitle),
+                                        ) { chooseMedia(ComposerMediaKind.PHOTO) }
                                         ActionSheetRow(
                                             icon = Icons.Default.Mic,
-                                            title = stringResource(R.string.send_on_chain_voice_message),
-                                            subtitle = "Record a voice message and send it on chain.",
-                                        ) {
-                                            showComposerMenu = false
-                                            startVoiceRecordingIfPermitted(true)
-                                        }
+                                            title = stringResource(R.string.composer_voice_message),
+                                            subtitle = stringResource(R.string.composer_voice_subtitle),
+                                        ) { chooseMedia(ComposerMediaKind.VOICE) }
                                         if (nextcloudAccount != null) {
                                             ActionSheetRow(
-                                                icon = Icons.Default.Cloud,
-                                                title = "Send from Nextcloud",
-                                                subtitle = "Pick a file from your connected server.",
+                                                icon = Icons.Default.Description,
+                                                title = stringResource(R.string.composer_file),
+                                                subtitle = stringResource(R.string.composer_file_subtitle),
                                             ) {
                                                 showComposerMenu = false
                                                 showNextcloudPicker = true
                                             }
                                         }
-                                        // Send Kaspa left this menu: the Kaspa logo inside the
-                                        // input bubble is the one entry point to payment mode now.
                                         ActionSheetRow(
                                             icon = Icons.Default.Apps,
                                             title = stringResource(R.string.play_chess),
@@ -1351,6 +1193,23 @@ fun ChatThreadScreen(
                                             }
                                         }
                                     }
+                                }
+                                composerMediaStep?.let { kind ->
+                                    // The sheet's other second step: where this camera shot /
+                                    // photo / voice note goes (iOS ComposerMediaRouteStep).
+                                    ComposerMediaRouteSheet(
+                                        kind = kind,
+                                        onChoose = { viaNextcloud ->
+                                            composerMediaStep = null
+                                            showComposerMenu = false
+                                            startMedia(kind, viaNextcloud)
+                                        },
+                                        onBack = { composerMediaStep = null },
+                                        onDismiss = {
+                                            composerMediaStep = null
+                                            showComposerMenu = false
+                                        },
+                                    )
                                 }
                                 if (showChessTimeControlMenu) {
                                     // The composer sheet's second step. Timed options carry the
@@ -1768,7 +1627,8 @@ fun ChatThreadScreen(
                                 onSelect = {
                                     isSelectingMessages = true
                                     selectedMessageIds = selectedMessageIds + msg.id
-                                }
+                                },
+                                onOpenPayment = if (msg.type == "pay") ({ paymentDetailMessage = msg }) else null
                             )
                             // Selection-mode tap catcher - sits on top (Box's later children draw
                             // over earlier ones, and Compose dispatches touches to the topmost
@@ -1928,31 +1788,72 @@ fun ChatThreadScreen(
         )
     }
 
-    // A payment that never reached the network leaves no row in the thread, so this is the only
-    // place the reason gets said (iOS parity - it alerts and inserts nothing).
-    paymentError?.let { message ->
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { paymentError = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Payment Failed", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text(message, color = LocalAppColors.current.textSecondary) },
-            confirmButton = {
-                TextButton(onClick = { paymentError = null }) {
-                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
+    if (showPaymentSheet) {
+        // Spending-chain UTXOs (what a payment actually spends from), not the identity address's.
+        val spendingUtxos by chatViewModel.spendingUtxos.collectAsState()
+        // The memo rides in the payload, so the fee preview prices it (iOS 8d208b2).
+        LaunchedEffect(paymentNote) { chatViewModel.setPaymentNote(paymentNote) }
+        val amountSompi = ((paymentAmount.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
+        SendKasSheet(
+            recipientName = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+            amountSompi = amountSompi,
+            onAmountKasChange = { chatViewModel.setPaymentAmount(it) },
+            priceInCurrency = fiatPriceInCurrency,
+            currencyCode = fiatCurrencyCode,
+            note = paymentNote,
+            onNoteChange = { paymentNote = it },
+            feeSompi = estimatedFee,
+            // Primary spending balance when Chats Payment Privacy is ON (underlined + tappable,
+            // opens Manage Spending Addresses), chatting balance when OFF (plain, not tappable).
+            availableText = "available: ${if (paymentPrivacyOn) spendingBalance else identityFullBalance}",
+            availableTappable = paymentPrivacyOn,
+            onAvailableClick = { navController.navigate("manage_addresses") },
+            paysToFreshAddress = paysToFreshPoolAddress,
+            maxKas = {
+                // Mirror KaspaWalletEngine's own fee calculation exactly (real Kaspa mass model,
+                // a recipient + change output) so the amount filled in is always sendable.
+                val mass = com.kachat.app.util.KaspaMass.calculateMass(
+                    numInputs = spendingUtxos.size.coerceAtLeast(1),
+                    outputScriptLens = listOf(34, 34),
+                    payloadSize = 0
+                )
+                val fee = com.kachat.app.util.KaspaMass.calculateFee(mass, networkFeeRate.toLong())
+                // Same source the send will use: primary spending balance with privacy ON,
+                // chatting balance with privacy OFF.
+                val sourceBalanceSompi = if (paymentPrivacyOn) spendingBalanceSompi else identityBalanceSompi
+                (sourceBalanceSompi - fee).coerceAtLeast(0L).toDouble() / 100_000_000.0
+            },
+            error = paymentError,
+            isSending = paymentSending,
+            onSend = {
+                if (paymentAmount.isNotEmpty() && !paymentSending) {
+                    paymentSending = true
+                    paymentError = null
+                    chatViewModel.sendPayment(contactId, paymentAmount, paymentNote) { ok, message, _ ->
+                        paymentSending = false
+                        if (ok) {
+                            // No confirmation sheet: the payment bubble in the chat is the
+                            // confirmation, and its transaction is a tap away (iOS 80a6aae).
+                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            closePaymentSheet()
+                        } else {
+                            // A payment that never reached the network leaves no row in the
+                            // thread, so the sheet - still up - says why.
+                            paymentError = message ?: "The payment could not be sent."
+                        }
+                    }
                 }
-            }
+            },
+            onDismiss = closePaymentSheet,
         )
     }
 
-    sentTransaction?.let { sent ->
-        val explorer by walletViewModel.kaspaExplorer.collectAsState()
-        SentConfirmationSheet(
-            transaction = sent,
-            explorerName = explorer.displayName,
-            explorerUrl = explorer.txUrl(sent.txId),
-        ) {
-            sentTransaction = null
-        }
+    paymentDetailMessage?.let { message ->
+        PaymentDetailSheet(
+            message = message,
+            explorer = kaspaExplorer,
+            onDismiss = { paymentDetailMessage = null },
+        )
     }
 }
 
@@ -2147,6 +2048,8 @@ internal fun PaymentCardBubble(
     note: String?,
     isSent: Boolean,
     isWarning: Boolean = false,
+    /** A single tap - the payment's details sheet, where the host has one. */
+    onClick: (() -> Unit)? = null,
     onLongPress: () -> Unit = {},
     onDoubleClick: () -> Unit = {}
 ) {
@@ -2170,7 +2073,7 @@ internal fun PaymentCardBubble(
             .clip(shape)
             .then(background)
             .border(0.8.dp, strokeColor, shape)
-            .combinedClickable(onClick = {}, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
+            .combinedClickable(onClick = { onClick?.invoke() }, onLongClick = onLongPress, onDoubleClick = onDoubleClick)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Box(
@@ -2279,7 +2182,11 @@ fun MessageBubble(
     /** Enters the chat's message multi-select mode with this message pre-selected - null disables
      *  the "Select" long-press menu option entirely (matches onReply's always-present convention,
      *  just optional since not every caller of this composable is inside a selectable chat thread). */
-    onSelect: (() -> Unit)? = null
+    onSelect: (() -> Unit)? = null,
+    /** Tapping a payment card opens its details (View in Explorer, Copy Transaction ID - iOS
+     *  80a6aae). Null where the host has no such sheet - the card then only takes the double tap
+     *  to react. */
+    onOpenPayment: (() -> Unit)? = null
 ) {
     // Retry, unless this is a chess action the game has since moved past (iOS dd03c4e).
     val retryOffered = remember(message.deliveryStatus, message.direction, message.type, message.plaintextBody, chessSummary) {
@@ -2480,6 +2387,8 @@ fun MessageBubble(
                         note = cardParts.second,
                         isSent = isSent,
                         isWarning = message.deliveryStatus == "warning",
+                        // One tap opens its details, two still react (iOS PaymentCardTaps).
+                        onClick = onOpenPayment,
                         onLongPress = { showMenu = true },
                         onDoubleClick = { showQuickReactionBar = true }
                     )

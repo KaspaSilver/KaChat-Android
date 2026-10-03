@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -280,6 +281,9 @@ fun GroupChatThreadScreen(
     }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showComposerMenu by remember { mutableStateOf(false) }
+    // The "+" sheet's second step (on chain or via Nextcloud), or null for the options - iOS
+    // GroupChatDetailView.plusSheetMediaStep (8b13460).
+    var composerMediaStep by remember { mutableStateOf<ComposerMediaKind?>(null) }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     // The sender whose avatar was tapped. One sheet serves every row - the parent presents it
     // for whichever sender was tapped, rather than a menu attached to each avatar in the list.
@@ -388,25 +392,60 @@ fun GroupChatThreadScreen(
     }
 
     val micContext = LocalContext.current
-    // See the 1:1 composer: the on-chain row means the chain carries it whatever the Nextcloud
-    // switch says, and the intent has to survive the permission prompt.
-    var voiceGoesOnChain by remember { mutableStateOf(false) }
+    // See the 1:1 composer: where the media chosen in the "+" sheet goes - on chain or via
+    // Nextcloud - has to survive the permission prompt and the camera/picker round trip.
+    var voiceViaNextcloud by remember { mutableStateOf(false) }
+    var cameraViaNextcloud by remember { mutableStateOf(false) }
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) chatViewModel.startGroupVoiceRecording(groupId, onChain = voiceGoesOnChain)
+        if (granted) chatViewModel.startGroupVoiceRecording(groupId, viaNextcloud = voiceViaNextcloud)
     }
-    // Only "Send On-Chain Photo" opens the library picker, so what it picks goes on chain.
+    // Photo on chain: images only - no on-chain path fits a video.
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) chatViewModel.setGroupPendingPhoto(uri, onChain = true)
+        if (uri != null) chatViewModel.setGroupPendingPhoto(uri)
     }
-    val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setGroupPendingPhoto(uri) }
-    val startVoiceRecordingIfPermitted = { onChain: Boolean ->
-        voiceGoesOnChain = onChain
+    // "Send Photo or Video via Nextcloud": videos too, sent as an upload-and-share link (iOS a890102).
+    val nextcloudMediaPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (micContext.contentResolver.getType(uri)?.startsWith("video/") == true) {
+            chatViewModel.sendGroupNextcloudVideo(groupId, uri)
+        } else {
+            chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = true)
+        }
+    }
+    val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = cameraViaNextcloud) }
+    val startVoiceRecordingIfPermitted = { viaNextcloud: Boolean ->
+        voiceViaNextcloud = viaNextcloud
         if (chatViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                chatViewModel.startGroupVoiceRecording(groupId, onChain = onChain)
+                chatViewModel.startGroupVoiceRecording(groupId, viaNextcloud = viaNextcloud)
             } else {
                 recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
+        }
+    }
+    val startMedia: (ComposerMediaKind, Boolean) -> Unit = { kind, viaNextcloud ->
+        when (kind) {
+            ComposerMediaKind.CAMERA -> {
+                cameraViaNextcloud = viaNextcloud
+                startCameraCapture()
+            }
+            ComposerMediaKind.PHOTO -> if (viaNextcloud) {
+                nextcloudMediaPickerLauncher.launch(
+                    androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                )
+            } else {
+                photoPickerLauncher.launch("image/*")
+            }
+            ComposerMediaKind.VOICE -> startVoiceRecordingIfPermitted(viaNextcloud)
+        }
+    }
+    // Asks on chain or via Nextcloud when a server is connected, otherwise goes straight on chain.
+    val chooseMedia: (ComposerMediaKind) -> Unit = { kind ->
+        if (nextcloudAccount != null) {
+            composerMediaStep = kind
+        } else {
+            showComposerMenu = false
+            startMedia(kind, false)
         }
     }
 
@@ -742,18 +781,8 @@ fun GroupChatThreadScreen(
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent
                                 ),
-                                // Quick-access camera, replacing what used to be a "Camera" entry
-                                // in the "+" menu - living right in the message bubble instead
-                                // since it's the most common non-text action. Matches 1:1 chat.
-                                trailingIcon = {
-                                    IconButton(onClick = { startCameraCapture() }) {
-                                        Icon(
-                                            Icons.Default.CameraAlt,
-                                            contentDescription = stringResource(R.string.camera),
-                                            tint = LocalAppColors.current.textSecondary
-                                        )
-                                    }
-                                },
+                                // The input bubble is the text field only: the camera moved
+                                // into the "+" sheet, as in 1:1 chats (iOS 8b13460).
                                 maxLines = 5
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -765,43 +794,60 @@ fun GroupChatThreadScreen(
                                 ) {
                                     ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true })
                                 }
-                                if (showComposerMenu) {
-                                    // A sheet, not a popup - matches the 1:1 composer and iOS.
+                                if (showComposerMenu && composerMediaStep == null) {
+                                    // A sheet, not a popup - matches the 1:1 composer and iOS,
+                                    // minus Pay in Kaspa and chess (a group has no single
+                                    // recipient for either).
                                     ActionSheetContainer(
-                                        title = "Send",
+                                        title = stringResource(R.string.send),
                                         subtitle = null,
                                         onDismiss = { showComposerMenu = false },
                                     ) {
-                                        // Always offered, named for what they do - see the 1:1
-                                        // composer's sheet. On-chain photo, on-chain voice, then
-                                        // Nextcloud when a server is connected, as on iOS.
+                                        // Camera, Photo and Voice Message each ask on chain or via
+                                        // Nextcloud when a server is connected (that choice
+                                        // replaced the "Send Media via Nextcloud" setting), and go
+                                        // straight on chain when none is.
+                                        ActionSheetRow(
+                                            icon = Icons.Default.CameraAlt,
+                                            title = stringResource(R.string.camera),
+                                            subtitle = stringResource(R.string.group_composer_camera_subtitle),
+                                        ) { chooseMedia(ComposerMediaKind.CAMERA) }
                                         ActionSheetRow(
                                             icon = Icons.Default.Image,
-                                            title = stringResource(R.string.send_on_chain_photo),
-                                            subtitle = "Pick an image from your library and send it on chain.",
-                                        ) {
-                                            showComposerMenu = false
-                                            photoPickerLauncher.launch("image/*")
-                                        }
+                                            title = stringResource(R.string.photo),
+                                            subtitle = stringResource(R.string.group_composer_photo_subtitle),
+                                        ) { chooseMedia(ComposerMediaKind.PHOTO) }
                                         ActionSheetRow(
                                             icon = Icons.Default.Mic,
-                                            title = stringResource(R.string.send_on_chain_voice_message),
-                                            subtitle = "Record a voice message and send it to the group on chain.",
-                                        ) {
-                                            showComposerMenu = false
-                                            startVoiceRecordingIfPermitted(true)
-                                        }
+                                            title = stringResource(R.string.composer_voice_message),
+                                            subtitle = stringResource(R.string.group_composer_voice_subtitle),
+                                        ) { chooseMedia(ComposerMediaKind.VOICE) }
                                         if (nextcloudAccount != null) {
                                             ActionSheetRow(
-                                                icon = Icons.Default.Cloud,
-                                                title = "Send from Nextcloud",
-                                                subtitle = "Pick a file from your connected server.",
+                                                icon = Icons.Default.Description,
+                                                title = stringResource(R.string.composer_file),
+                                                subtitle = stringResource(R.string.composer_file_subtitle),
                                             ) {
                                                 showComposerMenu = false
                                                 showNextcloudPicker = true
                                             }
                                         }
                                     }
+                                }
+                                composerMediaStep?.let { kind ->
+                                    ComposerMediaRouteSheet(
+                                        kind = kind,
+                                        onChoose = { viaNextcloud ->
+                                            composerMediaStep = null
+                                            showComposerMenu = false
+                                            startMedia(kind, viaNextcloud)
+                                        },
+                                        onBack = { composerMediaStep = null },
+                                        onDismiss = {
+                                            composerMediaStep = null
+                                            showComposerMenu = false
+                                        },
+                                    )
                                 }
                                 if (showNextcloudPicker) {
                                     NextcloudPickerDialog(

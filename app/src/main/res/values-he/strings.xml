@@ -229,8 +229,6 @@
     <string name="select_group">בחר קבוצה</string>
     <string name="send">שלח</string>
     <string name="send_all_kaspa_to_primary_spend">שלח את כל הקספה לכתובת ההוצאה הראשית</string>
-    <string name="send_kaspa">שלח קספה</string>
-    <string name="send_payment">שלח תשלום</string>
     <string name="send_from_cold_storage">שלח מאחסון קר</string>
     <string name="send_photo">שלח תמונה</string>
     <string name="sending">שולח</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">שמור תמונה</string>
     <string name="save_your_own_node_addresses_here">שמור כאן את כתובות הצומת שלך, ואז הקש על אחת כדי להעתיק ולהדביק אותה בשדה צומת קספה למעלה.</string>
     <string name="security">אבטחה</string>
-    <string name="send_audio_message">שלח הודעה קולית</string>
     <string name="send_handshake">שלח בקשת תקשורת</string>
     <string name="send_photo_2">שלח תמונה</string>
     <string name="sending_2">שולח...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">חדש תוך 10 ימים, אחרת כל אחד יוכל לתבוע אותו.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">השם הזה לא רשום כרגע.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">הודעה קולית</string>
+    <string name="composer_file">קובץ</string>
+    <string name="media_take_on_chain_photo">צילום תמונה על השרשרת</string>
+    <string name="media_send_photo_on_chain">שליחת תמונה על השרשרת</string>
+    <string name="media_record_on_chain">הקלטה על השרשרת</string>
+    <string name="media_take_on_chain_photo_subtitle">צלמו תמונה ושלחו אותה על השרשרת, דחוסה כדי שתתאים.</string>
+    <string name="media_send_photo_on_chain_subtitle">בחרו תמונה ושלחו אותה על השרשרת, דחוסה כדי שתתאים.</string>
+    <string name="media_record_on_chain_subtitle">עד 10 שניות, נשלח על השרשרת.</string>
+    <string name="media_take_photo_via_nextcloud">צילום תמונה דרך Nextcloud</string>
+    <string name="media_record_via_nextcloud">הקלטה דרך Nextcloud</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">איכות מלאה. עולה ל-Nextcloud שלכם; הצ\'אט נושא את הקישור.</string>
+    <string name="media_record_via_nextcloud_subtitle">עד 5 דקות. עולה ל-Nextcloud שלכם; הצ\'אט נושא את הקישור.</string>
+    <string name="composer_pay_subtitle">שליחת Kaspa לאיש הקשר הזה.</string>
+    <string name="composer_camera_subtitle">צלמו תמונה ושלחו אותה.</string>
+    <string name="composer_photo_subtitle">בחרו תמונה מהספרייה ושלחו אותה.</string>
+    <string name="composer_voice_subtitle">הקליטו הודעה קולית ושלחו אותה.</string>
+    <string name="composer_file_subtitle">שלחו כל קובץ מה-Nextcloud שלכם. הוא מוצג כתצוגה מקדימה.</string>
+    <string name="group_composer_camera_subtitle">צלמו תמונה ושלחו אותה לקבוצה.</string>
+    <string name="group_composer_photo_subtitle">בחרו תמונה מהספרייה ושלחו אותה לקבוצה.</string>
+    <string name="group_composer_voice_subtitle">הקליטו הודעה קולית ושלחו אותה לקבוצה.</string>
+    <string name="nextcloud_file_folder_footer">\"קובץ\" בתפריט + של צ\'אט פותח קודם את התיקייה הזו.</string>
+    <string name="nextcloud_media_route_footer">בתפריט + של צ\'אט, מצלמה, תמונה והודעה קולית שואלות אם לשלוח על השרשרת או דרך Nextcloud. דרך Nextcloud, הקובץ עולה באיכות מלאה לתיקייה %1$s בשרת הזה והצ\'אט נושא קישור שיתוף (הודעות קוליות עד 5 דקות). ההודעה עם הקישור נשארת מוצפנת מקצה לקצה, אבל הקובץ עצמו נשמר בשרת שלכם ללא הצפנה ונגיש לכל מי שיש לו את הקישור שאי אפשר לנחש.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">שלח KAS</string>
+    <string name="payment_to_name">אל %1$s</string>
+    <string name="hold_to_send">החזיקו כדי לשלוח</string>
+    <string name="payment_memo_placeholder">הוסיפו הערה (מוצפנת)</string>
+    <string name="payment_switch_currency">מעבר בין Kaspa למטבע שלכם</string>
+    <string name="payment_dust_warning">שליחת פחות מ-0.1 KAS עלולה להיכשל בגלל מגבלת הגנת הדאסט של הרשת.</string>
+    <string name="payment_small_amount">סכום קטן</string>
+    <string name="payment_send_anyway">שלח בכל זאת</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">שליחת תמונה או וידאו דרך Nextcloud</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">איכות מלאה, או וידאו. עולה ל-Nextcloud שלכם; הצ\'אט נושא את הקישור.</string>
+    <string name="media_video_load_failed">לא ניתן היה לטעון את הסרטון. נסו סרטון אחר.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">התקבל</string>
+    <string name="copy_transaction_id">העתק מזהה עסקה</string>
+    <string name="payment_explorer_subtitle">פותח את העסקה הזו בסייר הבלוקים.</string>
+    <string name="payment_copy_txid_subtitle">מעתיק את מזהה העסקה ללוח.</string>
+    <string name="transaction_id_copied">מזהה העסקה הועתק</string>
+    <string name="payment_not_on_chain_yet">התשלום הזה עדיין לא על השרשרת.</string>
 </resources>

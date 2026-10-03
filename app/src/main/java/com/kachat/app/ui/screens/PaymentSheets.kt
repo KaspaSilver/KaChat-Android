@@ -1,0 +1,568 @@
+package com.kachat.app.ui.screens
+
+import android.widget.Toast
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.kachat.app.R
+import com.kachat.app.models.KaspaExplorer
+import com.kachat.app.models.MessageEntity
+import com.kachat.app.repository.ChatRepository
+import com.kachat.app.ui.theme.KaspaTeal
+import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.KaspaUnit
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
+
+/** Longest memo a payment carries. It rides encrypted in the payment payload and shows in the
+ *  payment bubble, so it stays note-sized (iOS `maxPaymentMemoLength`, 8d208b2). */
+const val MAX_PAYMENT_MEMO_LENGTH = 140
+
+/** 0.10000001 KAS - the network dust limit below which a payment may be refused. */
+private const val DUST_LIMIT_SOMPI = 10_000_001L
+
+/**
+ * "Send KAS": who it goes to, the exact amount (KAS or fiat), an encrypted memo, the fee and
+ * available balance, and a hold-to-send button - holding rather than tapping, so a payment can't
+ * go out on a stray touch. It replaced the composer's payment mode; every way into a payment (the
+ * "+" sheet's Pay in Kaspa, "Pay in Kaspa" from a group or public chat's sender sheet) opens it.
+ * Mirrors iOS's `ChatDetailView.paymentSheet` (8d208b2).
+ *
+ * The amount itself lives in the view model ([onAmountKasChange] feeds `setPaymentAmount`), so
+ * the fee preview prices exactly what is typed; [amountSompi] is that amount read back.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SendKasSheet(
+    recipientName: String,
+    amountSompi: Long,
+    onAmountKasChange: (String) -> Unit,
+    priceInCurrency: Double?,
+    currencyCode: String,
+    note: String,
+    onNoteChange: (String) -> Unit,
+    feeSompi: Long?,
+    availableText: String,
+    /** Chats Payment Privacy on: the Available pill is the spending balance, underlined, and
+     *  opens Manage Spending Addresses. */
+    availableTappable: Boolean,
+    onAvailableClick: () -> Unit,
+    /** The payment goes to a fresh pool address the contact shared (privacy on only). */
+    paysToFreshAddress: Boolean,
+    /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
+    maxKas: () -> Double,
+    error: String?,
+    isSending: Boolean,
+    onSend: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val currentlySending by rememberUpdatedState(isSending)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        // Not while the payment is going out (iOS interactiveDismissDisabled(isSending)).
+        confirmValueChange = { it != SheetValue.Hidden || !currentlySending },
+    )
+    val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = onAmountKasChange)
+    val amountFocus = remember { FocusRequester() }
+    var showDustConfirm by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+
+    // The amount is the first thing to type.
+    LaunchedEffect(Unit) {
+        delay(300)
+        runCatching { amountFocus.requestFocus() }
+    }
+
+    val submit = {
+        if (amountSompi > 0 && !isSending) {
+            if (amountSompi < DUST_LIMIT_SOMPI) showDustConfirm = true else onSend()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = { if (!isSending) onDismiss() },
+        sheetState = sheetState,
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    KaspaUnit.label(stringResource(R.string.send_kas_title)),
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                )
+                Text(
+                    stringResource(R.string.payment_to_name, recipientName),
+                    color = colors.textSecondary,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            // The big centred amount with its unit, and under it the KAS/fiat switch (showing the
+            // converted value) and Max.
+            val display = fiatAmountState.displayText
+            val fontSize = when {
+                display.length <= 7 -> 52.sp
+                display.length <= 10 -> 40.sp
+                else -> 30.sp
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                            runCatching { amountFocus.requestFocus() }
+                        },
+                ) {
+                    val amountLabel = KaspaUnit.label(stringResource(R.string.amount_kas))
+                    BasicTextField(
+                        value = display,
+                        onValueChange = { raw ->
+                            // Digits and one decimal separator, as iOS's sanitizedAmount keeps.
+                            val normalized = raw.replace(',', '.')
+                            val filtered = buildString {
+                                var seenDot = false
+                                for (c in normalized) {
+                                    if (c.isDigit()) append(c)
+                                    else if (c == '.' && !seenDot) { append(c); seenDot = true }
+                                }
+                            }
+                            fiatAmountState.onDisplayTextChange(filtered, priceInCurrency)
+                        },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = colors.textPrimary,
+                            fontSize = fontSize,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                        ),
+                        cursorBrush = SolidColor(KaspaTeal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .widthIn(min = 40.dp, max = 260.dp)
+                            .focusRequester(amountFocus)
+                            .clearAndSetSemantics { contentDescription = amountLabel },
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.Center) {
+                                if (display.isEmpty()) {
+                                    Text("0", color = colors.textTertiary, fontSize = fontSize, fontWeight = FontWeight.Bold)
+                                }
+                                inner()
+                            }
+                        },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (fiatAmountState.isFiatMode) currencyCode.uppercase() else KaspaUnit.symbol,
+                        color = colors.textSecondary,
+                        fontSize = fontSize * 0.55f,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (priceInCurrency != null) {
+                        val switchLabel = stringResource(R.string.payment_switch_currency)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(colors.surface)
+                                .clickable { fiatAmountState.toggleMode(priceInCurrency) }
+                                .clearAndSetSemantics {
+                                    contentDescription = switchLabel
+                                    role = Role.Button
+                                }
+                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                        ) {
+                            Icon(Icons.Default.SwapVert, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(14.dp))
+                            Text(
+                                fiatAmountState.conversionLabelText(priceInCurrency, currencyCode)
+                                    ?: if (fiatAmountState.isFiatMode) KaspaUnit.symbol else currencyCode.uppercase(),
+                                color = colors.textPrimary,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.max),
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(colors.surface)
+                            .clickable { fiatAmountState.setMaxKas(maxKas(), priceInCurrency) }
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                    )
+                }
+            }
+
+            // The memo, encrypted to the recipient with the payment and shown in its bubble.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(colors.surface)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                Icon(Icons.Default.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                BasicTextField(
+                    value = note,
+                    onValueChange = { onNoteChange(it.take(MAX_PAYMENT_MEMO_LENGTH)) },
+                    maxLines = 3,
+                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp),
+                    cursorBrush = SolidColor(KaspaTeal),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        Box {
+                            if (note.isEmpty()) {
+                                Text(stringResource(R.string.payment_memo_placeholder), color = colors.textTertiary, fontSize = 16.sp)
+                            }
+                            inner()
+                        }
+                    },
+                )
+            }
+
+            // Fee and available pills.
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (feeSompi != null) "fee: ${ChatRepository.formatKas(feeSompi)} ${KaspaUnit.symbol}" else "fee: -- ${KaspaUnit.symbol}",
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.surface)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.surface)
+                        .then(if (availableTappable) Modifier.clickable { onAvailableClick() } else Modifier)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        availableText,
+                        color = colors.textSecondary,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textDecoration = if (availableTappable) TextDecoration.Underline else null,
+                    )
+                    if (availableTappable && paysToFreshAddress) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
+                            tint = KaspaTeal,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                }
+            }
+
+            if (error != null) {
+                Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+            } else if (amountSompi in 1 until DUST_LIMIT_SOMPI) {
+                Text(
+                    KaspaUnit.label(stringResource(R.string.payment_dust_warning)),
+                    color = colors.warning,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            HoldToSendButton(
+                title = stringResource(R.string.hold_to_send),
+                isBusy = isSending,
+                isEnabled = amountSompi > 0 && !isSending,
+                onSend = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    submit()
+                },
+            )
+        }
+    }
+
+    if (showDustConfirm) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showDustConfirm = false },
+            title = { Text(stringResource(R.string.payment_small_amount), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text(KaspaUnit.label(stringResource(R.string.payment_dust_warning)), color = colors.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDustConfirm = false
+                    onSend()
+                }) { Text(stringResource(R.string.payment_send_anyway), color = KaspaTeal, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDustConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = KaspaTeal)
+                }
+            },
+        )
+    }
+}
+
+/**
+ * A send button that fires only after a press is held (0.8 s): the fill sweeps across while
+ * holding and resets if released early. Accessibility services get a plain click action instead.
+ * Mirrors iOS's `HoldToSendButton` (8d208b2).
+ */
+@Composable
+fun HoldToSendButton(
+    title: String,
+    isBusy: Boolean,
+    isEnabled: Boolean,
+    onSend: () -> Unit,
+) {
+    val progress = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val currentOnSend by rememberUpdatedState(onSend)
+    val shape = RoundedCornerShape(28.dp)
+    BoxWithConstraints(
+        contentAlignment = Alignment.CenterStart,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(shape)
+            .background(KaspaTeal.copy(alpha = if (isEnabled || isBusy) 1f else 0.4f))
+            .pointerInput(isEnabled, isBusy) {
+                detectTapGestures(onPress = {
+                    if (!isEnabled || isBusy) return@detectTapGestures
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    val hold = scope.launch {
+                        progress.animateTo(1f, tween(durationMillis = 800, easing = LinearEasing))
+                        currentOnSend()
+                    }
+                    tryAwaitRelease()
+                    if (hold.isActive) hold.cancel()
+                    scope.launch { progress.animateTo(0f, tween(durationMillis = 200)) }
+                })
+            }
+            .clearAndSetSemantics {
+                contentDescription = title
+                role = Role.Button
+                onClick(label = title) {
+                    if (isEnabled && !isBusy) currentOnSend()
+                    true
+                }
+            },
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(maxWidth * progress.value)
+                .background(Color.White.copy(alpha = 0.28f)),
+        )
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+            if (isBusy) {
+                CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+            } else {
+                Text(title, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+        }
+    }
+}
+
+/**
+ * A tapped payment bubble: what moved (amount, direction, memo, when), and the transaction - View
+ * in Explorer (the explorer chosen in Settings) and Copy Transaction ID. A payment still waiting to
+ * go on chain has no transaction yet, so it says so instead. It replaced the sent-confirmation
+ * sheet after a chat payment: the bubble is the confirmation, and its transaction is a tap away.
+ * Mirrors iOS's `ChatDetailView.paymentDetailSheet` (80a6aae).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PaymentDetailSheet(
+    message: MessageEntity,
+    explorer: KaspaExplorer,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val clipboard = LocalClipboardManager.current
+    val isSent = message.direction == "sent"
+    val parts = remember(message.plaintextBody) { parsePaymentCardParts(message.plaintextBody) }
+    val isOnChain = !message.id.startsWith("pending_") &&
+        message.deliveryStatus != "pending" && message.deliveryStatus != "failed"
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    painterResource(R.drawable.ic_kaspa_logo),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(40.dp),
+                )
+                Text(
+                    stringResource(if (isSent) R.string.sent else R.string.payment_received),
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                )
+                if (parts != null) {
+                    Text(
+                        "${parts.first} ${KaspaUnit.symbol}",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 34.sp,
+                        maxLines = 1,
+                    )
+                    parts.second?.let { note ->
+                        Text(note, color = colors.textPrimary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    }
+                } else {
+                    Text(
+                        message.plaintextBody.orEmpty(),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Text(
+                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(message.blockTimestamp)),
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                )
+            }
+
+            if (isOnChain) {
+                ActionSheetRow(
+                    icon = Icons.Default.Public,
+                    title = stringResource(R.string.view_in_explorer),
+                    subtitle = stringResource(R.string.payment_explorer_subtitle),
+                ) {
+                    onDismiss()
+                    uriHandler.openUri(explorer.txUrl(message.id))
+                }
+                val copiedText = stringResource(R.string.transaction_id_copied)
+                ActionSheetRow(
+                    icon = Icons.Default.ContentCopy,
+                    title = stringResource(R.string.copy_transaction_id),
+                    subtitle = stringResource(R.string.payment_copy_txid_subtitle),
+                ) {
+                    clipboard.setText(AnnotatedString(message.id))
+                    onDismiss()
+                    Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Text(stringResource(R.string.payment_not_on_chain_yet), color = colors.textSecondary, fontSize = 13.sp)
+            }
+        }
+    }
+}

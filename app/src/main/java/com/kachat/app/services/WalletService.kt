@@ -193,8 +193,8 @@ class WalletService @Inject constructor(
      * doesn't go through [sendKaspa] above; messaging/handshakes are unaffected.
      * @return The transaction ID if successful.
      */
-    suspend fun payInKaspa(toAddress: String, amountSompi: Long, feeRateOverride: Long? = null): String {
-        val result = walletEngine.sendSpendingPayment(toAddress, amountSompi, feeRateOverride)
+    suspend fun payInKaspa(toAddress: String, amountSompi: Long, feeRateOverride: Long? = null, payloadBytes: ByteArray? = null): String {
+        val result = walletEngine.sendSpendingPayment(toAddress, amountSompi, feeRateOverride, payloadBytes)
 
         if (result.isSuccess) {
             refreshSpendingBalance()

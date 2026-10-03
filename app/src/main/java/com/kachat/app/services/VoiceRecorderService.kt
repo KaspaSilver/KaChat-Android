@@ -99,9 +99,10 @@ class VoiceRecorderService @Inject constructor(
         private const val SAMPLE_RATE_HZ = 48_000
         private const val BIT_RATE_BPS = 6_000
         const val MAX_RECORDING_DURATION_MS = 10_000L
-        /** Nextcloud-uploaded voice notes aren't payload-bound — the server carries them —
-         *  so 1:1 recording relaxes to this while "Send Media via Nextcloud" is active. */
-        const val MAX_NEXTCLOUD_RECORDING_DURATION_MS = 600_000L
+        /** Nextcloud-uploaded voice notes aren't payload-bound — the server carries them — so a
+         *  "Record via Nextcloud" note runs to this, everywhere in the app (1:1, groups and
+         *  public chats). 5 minutes, down from 10 (iOS 8b13460 `ComposerMediaLimits`). */
+        const val MAX_NEXTCLOUD_RECORDING_DURATION_MS = 300_000L
         const val MIN_RECORDING_DURATION_MS = 500L
     }
 }

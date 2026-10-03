@@ -119,6 +119,75 @@ object MessageProtocol {
         return KasiaCipher.EncryptedMessage.fromBytes(remainder)
     }
 
+    // -------------------------------------------------------------------------
+    // Payment memo: `kchat:1:pay:<sealed>` (iOS KasiaTransactionBuilder.buildPaymentPayload)
+    // -------------------------------------------------------------------------
+
+    /**
+     * The encrypted JSON a payment's payload carries - field for field iOS's `PaymentPayload`
+     * (declaration order is the wire order Gson writes). [message] is the memo typed in the Send
+     * KAS sheet (iOS 8d208b2); [amount] is in sompi.
+     */
+    data class PaymentPayload(
+        val type: String = "payment",
+        val message: String,
+        val amount: Long,
+        val timestamp: Long,
+        val version: Int = 1,
+    )
+
+    private val PAY_PREFIX_BYTES = "$PREFIX:$VERSION:$TYPE_PAY:".toByteArray(Charsets.US_ASCII)
+    /** Read-only roots an older iOS build wrote (iOS decryptPaymentPayloadFromRawPayloadSync). */
+    private val LEGACY_PAY_PREFIXES = listOf("$LEGACY_PREFIX:$VERSION:$TYPE_PAY:", "$LEGACY_PREFIX:$TYPE_PAY:")
+        .map { it.toByteArray(Charsets.US_ASCII) }
+
+    private fun paymentPrefixLength(rawBytes: ByteArray): Int? =
+        (listOf(PAY_PREFIX_BYTES) + LEGACY_PAY_PREFIXES).firstOrNull { prefix ->
+            rawBytes.size > prefix.size && rawBytes.copyOfRange(0, prefix.size).contentEquals(prefix)
+        }?.size
+
+    /**
+     * Builds `kchat:1:pay:<raw sealed bytes>` - the [PaymentPayload] JSON encrypted to the
+     * recipient's chatting key, appended after the ASCII prefix exactly as a handshake is (iOS hex
+     * encodes the prefix and the sealed bytes and decodes the whole back into raw bytes). Only the
+     * recipient can read the memo, so the sender's own bubble keeps it from send time (iOS 2be75ed).
+     */
+    fun buildPaymentPayload(note: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): ByteArray {
+        val json = com.google.gson.Gson().toJson(
+            PaymentPayload(message = note, amount = amountSompi, timestamp = System.currentTimeMillis())
+        )
+        return PAY_PREFIX_BYTES + encrypt(json, recipientXOnlyPubKey).toBytes()
+    }
+
+    /** True for a payment payload of any root (new or legacy). */
+    fun isPaymentPayload(rawBytes: ByteArray): Boolean = paymentPrefixLength(rawBytes) != null
+
+    /** The decrypted [PaymentPayload] of a payment addressed to [privateKey]'s owner, or null
+     *  when it isn't one or can't be opened (sent to someone else, corrupt). */
+    fun decryptPaymentPayload(rawBytes: ByteArray, privateKey: ByteArray): PaymentPayload? {
+        val prefixLen = paymentPrefixLength(rawBytes) ?: return null
+        val sealed = KasiaCipher.EncryptedMessage.fromBytes(rawBytes.copyOfRange(prefixLen, rawBytes.size)) ?: return null
+        return try {
+            val payload = com.google.gson.Gson().fromJson(decrypt(sealed, privateKey), PaymentPayload::class.java)
+            // Gson leaves a missing field null rather than failing - a payload without its memo
+            // field is treated as unreadable, not as a crash later on.
+            @Suppress("SENSELESS_COMPARISON")
+            if (payload == null || payload.message == null) null else payload
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** The on-chain payload size of a memo-carrying payment, for the Send KAS sheet's fee pill
+     *  (iOS estimatePaymentFee prices the memo in). Exact up to the timestamp's digit count. */
+    fun estimatedPaymentPayloadSize(note: String, amountSompi: Long): Int {
+        val json = com.google.gson.Gson().toJson(
+            PaymentPayload(message = note, amount = amountSompi, timestamp = System.currentTimeMillis())
+        )
+        // nonce(12) + compressed ephemeral key(33) + ciphertext + Poly1305 tag(16)
+        return PAY_PREFIX_BYTES.size + 12 + 33 + json.toByteArray(Charsets.UTF_8).size + 16
+    }
+
     fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray): KasiaCipher.EncryptedMessage =
         KasiaCipher.encrypt(plaintext, recipientXOnlyPubKey)
 

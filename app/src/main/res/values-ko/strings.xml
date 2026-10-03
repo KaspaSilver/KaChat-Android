@@ -229,8 +229,6 @@
     <string name="select_group">그룹 선택</string>
     <string name="send">보내기</string>
     <string name="send_all_kaspa_to_primary_spend">모든 Kaspa를 기본 지출 주소로 보내기</string>
-    <string name="send_kaspa">Kaspa 보내기</string>
-    <string name="send_payment">결제 보내기</string>
     <string name="send_from_cold_storage">콜드 스토리지에서 보내기</string>
     <string name="send_photo">사진 보내기</string>
     <string name="sending">보내는 중</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">사진 저장</string>
     <string name="save_your_own_node_addresses_here">여기에 자신의 노드 주소를 저장한 다음, 위의 Kaspa 노드 필드에 복사하여 붙여넣으려면 하나를 탭하세요.</string>
     <string name="security">보안</string>
-    <string name="send_audio_message">음성 메시지 보내기</string>
     <string name="send_handshake">통신 요청 보내기</string>
     <string name="send_photo_2">사진 보내기</string>
     <string name="sending_2">보내는 중...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">10일 안에 갱신하지 않으면 누구나 가져갈 수 있습니다.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">이 이름은 현재 등록되어 있지 않습니다.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">음성 메시지</string>
+    <string name="composer_file">파일</string>
+    <string name="media_take_on_chain_photo">온체인 사진 촬영</string>
+    <string name="media_send_photo_on_chain">사진 온체인 전송</string>
+    <string name="media_record_on_chain">온체인 녹음</string>
+    <string name="media_take_on_chain_photo_subtitle">사진을 찍어 온체인으로 보냅니다. 크기에 맞게 압축됩니다.</string>
+    <string name="media_send_photo_on_chain_subtitle">이미지를 골라 온체인으로 보냅니다. 크기에 맞게 압축됩니다.</string>
+    <string name="media_record_on_chain_subtitle">최대 10초, 온체인으로 전송됩니다.</string>
+    <string name="media_take_photo_via_nextcloud">Nextcloud로 사진 촬영</string>
+    <string name="media_record_via_nextcloud">Nextcloud로 녹음</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">원본 화질. Nextcloud에 업로드되고 채팅에는 링크가 전송됩니다.</string>
+    <string name="media_record_via_nextcloud_subtitle">최대 5분. Nextcloud에 업로드되고 채팅에는 링크가 전송됩니다.</string>
+    <string name="composer_pay_subtitle">이 연락처에 Kaspa를 보냅니다.</string>
+    <string name="composer_camera_subtitle">사진을 찍어 보냅니다.</string>
+    <string name="composer_photo_subtitle">보관함에서 이미지를 골라 보냅니다.</string>
+    <string name="composer_voice_subtitle">음성 메시지를 녹음해 보냅니다.</string>
+    <string name="composer_file_subtitle">Nextcloud의 아무 파일이나 보냅니다. 미리보기로 표시됩니다.</string>
+    <string name="group_composer_camera_subtitle">사진을 찍어 그룹에 보냅니다.</string>
+    <string name="group_composer_photo_subtitle">보관함에서 이미지를 골라 그룹에 보냅니다.</string>
+    <string name="group_composer_voice_subtitle">음성 메시지를 녹음해 그룹에 보냅니다.</string>
+    <string name="nextcloud_file_folder_footer">채팅 + 메뉴의 \"파일\"은 이 폴더를 먼저 엽니다.</string>
+    <string name="nextcloud_media_route_footer">채팅의 + 메뉴에서 카메라, 사진, 음성 메시지는 온체인으로 보낼지 Nextcloud로 보낼지 매번 묻습니다. Nextcloud로 보내면 파일이 원본 화질로 이 서버의 %1$s 폴더에 업로드되고 채팅에는 공유 링크가 전송됩니다(음성 메시지는 최대 5분). 링크가 담긴 메시지는 종단 간 암호화되지만, 파일 자체는 서버에 암호화되지 않은 채 저장되며 추측할 수 없는 링크를 가진 누구나 접근할 수 있습니다.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">KAS 보내기</string>
+    <string name="payment_to_name">%1$s에게</string>
+    <string name="hold_to_send">길게 눌러 보내기</string>
+    <string name="payment_memo_placeholder">메모 추가(암호화됨)</string>
+    <string name="payment_switch_currency">Kaspa와 통화 간 전환</string>
+    <string name="payment_dust_warning">0.1 KAS 미만 전송은 네트워크 dust 보호 제한으로 인해 실패할 수 있습니다.</string>
+    <string name="payment_small_amount">소액 송금</string>
+    <string name="payment_send_anyway">그래도 보내기</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">Nextcloud로 사진 또는 동영상 전송</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">원본 화질 또는 동영상. Nextcloud에 업로드되고 채팅에는 링크가 전송됩니다.</string>
+    <string name="media_video_load_failed">해당 동영상을 불러올 수 없습니다. 다른 동영상을 시도해 주세요.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">받았다</string>
+    <string name="copy_transaction_id">트랜잭션 ID 복사</string>
+    <string name="payment_explorer_subtitle">블록 탐색기에서 이 거래를 엽니다.</string>
+    <string name="payment_copy_txid_subtitle">거래 ID를 클립보드에 복사합니다.</string>
+    <string name="transaction_id_copied">거래 ID가 복사되었습니다</string>
+    <string name="payment_not_on_chain_yet">이 결제는 아직 온체인에 없습니다.</string>
 </resources>

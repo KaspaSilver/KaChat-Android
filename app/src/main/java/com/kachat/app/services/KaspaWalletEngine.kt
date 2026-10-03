@@ -420,7 +420,14 @@ class KaspaWalletEngine @Inject constructor(
      * The stored index only advances after the send actually succeeds — a failed/rejected send
      * leaves the current spending address exactly as it was, safe to retry.
      */
-    suspend fun sendSpendingPayment(toAddress: String, amountSompi: Long, feeRateOverride: Long? = null): Result<String> {
+    suspend fun sendSpendingPayment(
+        toAddress: String,
+        amountSompi: Long,
+        feeRateOverride: Long? = null,
+        /** The payment's `kchat:1:pay:` payload when it carries a memo (see
+         *  [com.kachat.app.util.MessageProtocol.buildPaymentPayload]); null for a plain payment. */
+        payloadBytes: ByteArray? = null,
+    ): Result<String> {
         val identityAddress = walletManager.getAddress()
         val currentIndex = walletManager.getActiveAccount()?.spendingAddressIndex
             ?: return Result.failure(IllegalStateException("No active account"))
@@ -438,6 +445,7 @@ class KaspaWalletEngine @Inject constructor(
         val result = sendKaspa(
             toAddress = toAddress,
             amountSompi = amountSompi,
+            payloadBytes = payloadBytes,
             fromAddress = currentSpendingAddress,
             signingPrivateKey = spendingPrivateKey,
             changeAddress = nextSpendingAddress,

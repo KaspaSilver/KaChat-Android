@@ -229,8 +229,6 @@
     <string name="select_group">グループを選択</string>
     <string name="send">送信</string>
     <string name="send_all_kaspa_to_primary_spend">すべてのKaspaをメインの使用アドレスに送信</string>
-    <string name="send_kaspa">Kaspaを送信</string>
-    <string name="send_payment">支払いを送信</string>
     <string name="send_from_cold_storage">コールドストレージから送信</string>
     <string name="send_photo">写真を送信</string>
     <string name="sending">送信中</string>
@@ -354,7 +352,6 @@
     <string name="save_photo">写真を保存</string>
     <string name="save_your_own_node_addresses_here">ここに自分のノードアドレスを保存し、コピーして上のKaspaノードフィールドに貼り付けるには1つをタップしてください。</string>
     <string name="security">セキュリティ</string>
-    <string name="send_audio_message">音声メッセージを送信</string>
     <string name="send_handshake">通信リクエストを送信</string>
     <string name="send_photo_2">写真を送信</string>
     <string name="sending_2">送信中...</string>
@@ -879,4 +876,47 @@
     <string name="kn_push_grace">10 日以内に更新しないと、誰でも取得できるようになります。</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">この名前は現在登録されていません。</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">ボイスメッセージ</string>
+    <string name="composer_file">ファイル</string>
+    <string name="media_take_on_chain_photo">オンチェーンで写真を撮る</string>
+    <string name="media_send_photo_on_chain">写真をオンチェーンで送信</string>
+    <string name="media_record_on_chain">オンチェーンで録音</string>
+    <string name="media_take_on_chain_photo_subtitle">写真を撮ってオンチェーンで送信します（収まるよう圧縮）。</string>
+    <string name="media_send_photo_on_chain_subtitle">画像を選んでオンチェーンで送信します（収まるよう圧縮）。</string>
+    <string name="media_record_on_chain_subtitle">最大10秒、オンチェーンで送信。</string>
+    <string name="media_take_photo_via_nextcloud">Nextcloudで写真を撮る</string>
+    <string name="media_record_via_nextcloud">Nextcloudで録音</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">フル画質。Nextcloudにアップロードされ、チャットにはリンクが送られます。</string>
+    <string name="media_record_via_nextcloud_subtitle">最大5分。Nextcloudにアップロードされ、チャットにはリンクが送られます。</string>
+    <string name="composer_pay_subtitle">この連絡先にKaspaを送ります。</string>
+    <string name="composer_camera_subtitle">写真を撮って送信します。</string>
+    <string name="composer_photo_subtitle">ライブラリから画像を選んで送信します。</string>
+    <string name="composer_voice_subtitle">ボイスメッセージを録音して送信します。</string>
+    <string name="composer_file_subtitle">Nextcloudの任意のファイルを送信します。プレビューとして表示されます。</string>
+    <string name="group_composer_camera_subtitle">写真を撮ってグループに送信します。</string>
+    <string name="group_composer_photo_subtitle">ライブラリから画像を選んでグループに送信します。</string>
+    <string name="group_composer_voice_subtitle">ボイスメッセージを録音してグループに送信します。</string>
+    <string name="nextcloud_file_folder_footer">チャットの＋メニューの「ファイル」は最初にこのフォルダを開きます。</string>
+    <string name="nextcloud_media_route_footer">チャットの＋メニューでは、カメラ・写真・ボイスメッセージを選ぶたびに、オンチェーンで送るかNextcloudで送るかを尋ねます。Nextcloudの場合、ファイルはこのサーバーの%1$sフォルダにフル画質でアップロードされ、チャットには共有リンクが送られます（ボイスメッセージは最大5分）。リンクを含むメッセージはエンドツーエンドで暗号化されたままですが、ファイル自体はサーバー上に暗号化されずに保存され、推測できないリンクを知っている人なら誰でもアクセスできます。</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">KASを送信</string>
+    <string name="payment_to_name">%1$s へ</string>
+    <string name="hold_to_send">長押しで送信</string>
+    <string name="payment_memo_placeholder">メモを追加（暗号化）</string>
+    <string name="payment_switch_currency">Kaspaと通貨を切り替え</string>
+    <string name="payment_dust_warning">0.1 KAS 未満の送金はネットワークのdust保護制限により失敗する可能性があります。</string>
+    <string name="payment_small_amount">少額送金</string>
+    <string name="payment_send_anyway">送金する</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">Nextcloudで写真または動画を送信</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">フル画質、または動画。Nextcloudにアップロードされ、チャットにはリンクが送られます。</string>
+    <string name="media_video_load_failed">その動画を読み込めませんでした。別の動画をお試しください。</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">受け取った</string>
+    <string name="copy_transaction_id">トランザクションIDをコピー</string>
+    <string name="payment_explorer_subtitle">このトランザクションをブロックエクスプローラで開きます。</string>
+    <string name="payment_copy_txid_subtitle">トランザクションIDをクリップボードにコピーします。</string>
+    <string name="transaction_id_copied">トランザクションIDをコピーしました</string>
+    <string name="payment_not_on_chain_yet">この支払いはまだオンチェーンにありません。</string>
 </resources>

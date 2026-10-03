@@ -158,7 +158,6 @@
     <string name="seed_phrase_length">Panjang Frasa Pemulihan</string>
     <string name="send">Kirim</string>
     <string name="send_all_kaspa_to_primary_spend">Kirim Semua Kaspa ke Alamat Pengeluaran Utama</string>
-    <string name="send_kaspa">Kirim Kaspa</string>
     <string name="send_from_cold_storage">Kirim dari Penyimpanan Dingin</string>
     <string name="send_photo">Kirim Foto</string>
     <string name="sent">Terkirim</string>
@@ -237,7 +236,6 @@
     <string name="reply">Balas</string>
     <string name="retry_send">Coba Kirim Lagi</string>
     <string name="save_your_own_node_addresses_here">Simpan alamat node Anda di sini, lalu ketuk salah satu untuk menyalin dan menempelkannya ke bidang Node Kaspa di atas.</string>
-    <string name="send_audio_message">Kirim Pesan Audio</string>
     <string name="send_handshake">Kirim Handshake</string>
     <string name="send_photo_2">Kirim Foto</string>
     <string name="set_as_primary_address">Atur sebagai Alamat Utama</string>
@@ -735,4 +733,47 @@
     <string name="kn_kachat_names">Nama .kachat</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Nama ini sedang tidak terdaftar.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">Pesan Suara</string>
+    <string name="composer_file">File</string>
+    <string name="media_take_on_chain_photo">Ambil Foto On-Chain</string>
+    <string name="media_send_photo_on_chain">Kirim Foto On-Chain</string>
+    <string name="media_record_on_chain">Rekam On-Chain</string>
+    <string name="media_take_on_chain_photo_subtitle">Ambil foto dan kirim on-chain, dikompres agar muat.</string>
+    <string name="media_send_photo_on_chain_subtitle">Pilih gambar dan kirim on-chain, dikompres agar muat.</string>
+    <string name="media_record_on_chain_subtitle">Hingga 10 detik, dikirim on-chain.</string>
+    <string name="media_take_photo_via_nextcloud">Ambil Foto via Nextcloud</string>
+    <string name="media_record_via_nextcloud">Rekam via Nextcloud</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">Kualitas penuh. Diunggah ke Nextcloud Anda; chat membawa tautannya.</string>
+    <string name="media_record_via_nextcloud_subtitle">Hingga 5 menit. Diunggah ke Nextcloud Anda; chat membawa tautannya.</string>
+    <string name="composer_pay_subtitle">Kirim Kaspa ke kontak ini.</string>
+    <string name="composer_camera_subtitle">Ambil foto dan kirim.</string>
+    <string name="composer_photo_subtitle">Pilih gambar dari pustaka Anda dan kirim.</string>
+    <string name="composer_voice_subtitle">Rekam pesan suara dan kirim.</string>
+    <string name="composer_file_subtitle">Kirim file apa pun dari Nextcloud Anda. Tampil sebagai pratinjau.</string>
+    <string name="group_composer_camera_subtitle">Ambil foto dan kirim ke grup.</string>
+    <string name="group_composer_photo_subtitle">Pilih gambar dari pustaka Anda dan kirim ke grup.</string>
+    <string name="group_composer_voice_subtitle">Rekam pesan suara dan kirim ke grup.</string>
+    <string name="nextcloud_file_folder_footer">\"File\" di menu + chat membuka folder ini terlebih dahulu.</string>
+    <string name="nextcloud_media_route_footer">Di menu + chat, Kamera, Foto, dan Pesan Suara menanyakan apakah dikirim on-chain atau via Nextcloud. Via Nextcloud, file diunggah dalam kualitas penuh ke folder %1$s di server ini dan chat membawa tautan berbagi (pesan suara hingga 5 menit). Pesan berisi tautan tetap terenkripsi end-to-end, tetapi file itu sendiri disimpan tanpa enkripsi di server Anda dan dapat diakses siapa saja yang memiliki tautan yang tak bisa ditebak itu.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">Kirim KAS</string>
+    <string name="payment_to_name">ke %1$s</string>
+    <string name="hold_to_send">Tahan untuk Mengirim</string>
+    <string name="payment_memo_placeholder">Tambahkan catatan (terenkripsi)</string>
+    <string name="payment_switch_currency">Beralih antara Kaspa dan mata uang Anda</string>
+    <string name="payment_dust_warning">Mengirim kurang dari 0,1 KAS dapat gagal karena batas perlindungan dust jaringan.</string>
+    <string name="payment_small_amount">Jumlah Kecil</string>
+    <string name="payment_send_anyway">Tetap Kirim</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">Kirim Foto atau Video via Nextcloud</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">Kualitas penuh, atau video. Diunggah ke Nextcloud Anda; chat membawa tautannya.</string>
+    <string name="media_video_load_failed">Tidak dapat memuat video itu. Silakan coba yang lain.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">Diterima</string>
+    <string name="copy_transaction_id">Salin ID Transaksi</string>
+    <string name="payment_explorer_subtitle">Membuka transaksi ini di penjelajah blok.</string>
+    <string name="payment_copy_txid_subtitle">Menyalin ID transaksi ke papan klip.</string>
+    <string name="transaction_id_copied">ID transaksi disalin</string>
+    <string name="payment_not_on_chain_yet">Pembayaran ini belum on-chain.</string>
 </resources>

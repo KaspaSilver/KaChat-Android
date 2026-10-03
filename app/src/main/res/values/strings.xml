@@ -345,8 +345,6 @@
     <string name="selected">Selected</string>
     <string name="send">Send</string>
     <string name="send_all_kaspa_to_primary_spend">Send All Kaspa To Primary Spend Address</string>
-    <string name="send_kaspa">Send Kaspa</string>
-    <string name="send_payment">Send Payment</string>
     <string name="send_from_cold_storage">Send from Cold Storage</string>
     <string name="send_photo">Send photo</string>
     <string name="sending">Sending</string>
@@ -476,12 +474,9 @@
     <string name="save_photo">Save Photo</string>
     <string name="save_your_own_node_addresses_here">Save your own node addresses here, then tap one to copy it and paste into the Kaspa Node field above.</string>
     <string name="security">Security</string>
-    <string name="send_audio_message">Send Audio Message</string>
     <string name="send_handshake">Send Handshake</string>
     <string name="handshake_sent">Handshake sent</string>
     <string name="send_photo_2">Send Photo</string>
-    <string name="send_on_chain_photo">Send On-Chain Photo</string>
-    <string name="send_on_chain_voice_message">Send On-Chain Voice Message</string>
     <string name="sending_2">Sending...</string>
     <string name="set_as_primary_address">Set as Primary Address</string>
     <string name="setup_guide">Setup Guide</string>
@@ -1057,4 +1052,47 @@
     <string name="kn_push_grace">Renew within 10 days or anyone can claim it.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">This name isn\'t registered right now.</string>
+    <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
+    <string name="composer_voice_message">Voice Message</string>
+    <string name="composer_file">File</string>
+    <string name="media_take_on_chain_photo">Take On-Chain Photo</string>
+    <string name="media_send_photo_on_chain">Send Photo On-Chain</string>
+    <string name="media_record_on_chain">Record On-Chain</string>
+    <string name="media_take_on_chain_photo_subtitle">Take a photo and send it on chain, compressed to fit.</string>
+    <string name="media_send_photo_on_chain_subtitle">Pick an image and send it on chain, compressed to fit.</string>
+    <string name="media_record_on_chain_subtitle">Up to 10 seconds, sent on chain.</string>
+    <string name="media_take_photo_via_nextcloud">Take Photo via Nextcloud</string>
+    <string name="media_record_via_nextcloud">Record via Nextcloud</string>
+    <string name="media_take_photo_via_nextcloud_subtitle">Full quality. Uploads to your Nextcloud; the chat carries the link.</string>
+    <string name="media_record_via_nextcloud_subtitle">Up to 5 minutes. Uploads to your Nextcloud; the chat carries the link.</string>
+    <string name="composer_pay_subtitle">Send Kaspa to this contact.</string>
+    <string name="composer_camera_subtitle">Take a photo and send it.</string>
+    <string name="composer_photo_subtitle">Pick an image from your library and send it.</string>
+    <string name="composer_voice_subtitle">Record a voice message and send it.</string>
+    <string name="composer_file_subtitle">Send any file from your Nextcloud. It shows as a preview.</string>
+    <string name="group_composer_camera_subtitle">Take a photo and send it to the group.</string>
+    <string name="group_composer_photo_subtitle">Pick an image from your library and send it to the group.</string>
+    <string name="group_composer_voice_subtitle">Record a voice message and send it to the group.</string>
+    <string name="nextcloud_file_folder_footer">\"File\" in a chat\'s + menu opens this folder first.</string>
+    <string name="nextcloud_media_route_footer">In a chat\'s + menu, Camera, Photo and Voice Message ask whether to send on chain or via Nextcloud. Via Nextcloud, the file uploads in full quality to this server\'s %1$s folder and the chat carries a share link (voice messages up to 5 minutes). The message with the link stays end-to-end encrypted, but the file itself is stored unencrypted on your server and is reachable by anyone who has the unguessable link.</string>
+    <!-- Send KAS sheet (iOS 8d208b2) -->
+    <string name="send_kas_title">Send KAS</string>
+    <string name="payment_to_name">to %1$s</string>
+    <string name="hold_to_send">Hold to Send</string>
+    <string name="payment_memo_placeholder">Add a memo (encrypted)</string>
+    <string name="payment_switch_currency">Switch between Kaspa and your currency</string>
+    <string name="payment_dust_warning">Sending less than 0.1 KAS may fail due to the network dust protection limit.</string>
+    <string name="payment_small_amount">Small Amount</string>
+    <string name="payment_send_anyway">Send Anyway</string>
+    <!-- Photo or video via Nextcloud (iOS a890102) -->
+    <string name="media_send_photo_or_video_via_nextcloud">Send Photo or Video via Nextcloud</string>
+    <string name="media_photo_or_video_via_nextcloud_subtitle">Full quality, or a video. Uploads to your Nextcloud; the chat carries the link.</string>
+    <string name="media_video_load_failed">Couldn\'t load that video. Please try another.</string>
+    <!-- Payment details sheet (iOS 80a6aae) -->
+    <string name="payment_received">Received</string>
+    <string name="copy_transaction_id">Copy Transaction ID</string>
+    <string name="payment_explorer_subtitle">Opens this transaction in the block explorer.</string>
+    <string name="payment_copy_txid_subtitle">Copies the transaction ID to your clipboard.</string>
+    <string name="transaction_id_copied">Transaction ID copied</string>
+    <string name="payment_not_on_chain_yet">This payment isn\'t on chain yet.</string>
 </resources>
