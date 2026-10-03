@@ -70,6 +70,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         runBlocking {
             try {
                 when (type) {
+                    // .kachat name events (KACHAT_NAMES_INDEXER.md Part E): offers, sales,
+                    // renewal reminders, written in the device's language (iOS beeedd4).
+                    "name_event" -> handleNameEvent(data)
+
                     "broadcast" -> {
                         val channel = data["channel"] ?: return@runBlocking
                         // An edit changes an earlier message in place - nothing to announce. The
@@ -341,6 +345,41 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      * -> the normal notification. Anyone else -> "New message request", once; the app then looks
      * the sender up in the inbox so the request is there when the user opens it.
      */
+    /**
+     * A `.kachat` name event, written in the device's language (iOS NotificationService
+     * handleNameEvent). Payload (indexer Part E): `event` (name_offer, name_sold,
+     * name_offer_accepted, name_renewal_open, name_expiring, name_grace), `name` (without
+     * .kachat), optional `amount` (sompi) and `days`. An event this build doesn't know keeps the
+     * server's own text. Tapping it opens the name.
+     */
+    private suspend fun handleNameEvent(data: Map<String, String>) {
+        val rawName = data["name"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return
+        val bare = rawName.removeSuffix(".kachat")
+        val name = "$bare.kachat"
+        val amount = data["amount"]?.trim()?.toLongOrNull()?.let { sompi ->
+            kasText(sompi) + " " + com.kachat.app.util.KaspaUnit.symbol
+        }
+        val days = data["days"]?.trim()?.toIntOrNull()
+        val (title, body) = when (data["event"]) {
+            "name_offer" -> getString(com.kachat.app.R.string.kn_push_new_offer, name) to
+                (amount?.let { getString(com.kachat.app.R.string.kn_push_offered, it) } ?: getString(com.kachat.app.R.string.kn_push_offer_no_amount))
+            "name_sold" -> getString(com.kachat.app.R.string.kn_push_sold, name) to
+                (amount?.let { getString(com.kachat.app.R.string.kn_push_paid, it) } ?: getString(com.kachat.app.R.string.kn_push_listing_bought))
+            "name_offer_accepted" -> getString(com.kachat.app.R.string.kn_push_offer_accepted) to getString(com.kachat.app.R.string.kn_push_yours_now, name)
+            "name_renewal_open" -> getString(com.kachat.app.R.string.kn_push_renew, name) to getString(com.kachat.app.R.string.kn_push_renewal_open)
+            "name_expiring" -> getString(com.kachat.app.R.string.kn_push_expires_soon, name) to
+                (if (days != null && days > 1) getString(com.kachat.app.R.string.kn_push_days_left, days) else getString(com.kachat.app.R.string.kn_push_one_day_left))
+            "name_grace" -> getString(com.kachat.app.R.string.kn_push_expired, name) to getString(com.kachat.app.R.string.kn_push_grace)
+            else -> data["title"].orEmpty().ifEmpty { name } to data["body"].orEmpty()
+        }
+        val dedupeKey = data["tx_id"]?.takeIf { it.isNotBlank() } ?: "${data["event"]}:$bare:${data["amount"]}:${data["days"]}"
+        notificationHelper.showKachatName(title = title, text = body, name = bare, dedupeKey = dedupeKey)
+    }
+
+    /** Sompi as KAS text: up to 8 decimals, trailing zeros dropped (iOS kasText). */
+    private fun kasText(sompi: Long): String =
+        String.format(java.util.Locale.US, "%.8f", sompi / 100_000_000.0).trimEnd('0').trimEnd('.')
+
     /**
      * A push about the other network's address - the mainnet service still pushing a device that
      * has moved to testnet - is silenced and not filed; the same key would decrypt it into the

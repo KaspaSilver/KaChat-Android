@@ -633,6 +633,15 @@ fun MainShell(
     // KaPosts share/deep links (kachat://kapost/<txid>, https://kachat.app/post/…):
     // surface the KaPosts tab; KaPostsScreen itself consumes the pending txid and opens the
     // post's thread once visible.
+    // A .kachat name notification: the .kachat screen opens the name (iOS beeedd4). The name stays
+    // pending until that screen takes it, so a cold start lands on it too.
+    val pendingKachatName by com.kachat.app.ui.screens.KachatDeepLink.pendingName.collectAsState()
+    LaunchedEffect(pendingKachatName) {
+        if (pendingKachatName != null && com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+            navController.navigate(Screen.KachatNames.route) { launchSingleTop = true }
+        }
+    }
+
     val pendingKaPostTxId by KaPostsDeepLink.pendingPostTxId.collectAsState()
     LaunchedEffect(pendingKaPostTxId) {
         if (pendingKaPostTxId != null) {

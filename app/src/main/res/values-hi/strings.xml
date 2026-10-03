@@ -862,4 +862,22 @@
     <string name="kn_registry_upgrading">टेस्टनेट पर .kachat रजिस्ट्री अपग्रेड हो रही है। नई रजिस्ट्री लाइव होते ही नाम यहां फिर खुलेंगे।</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat नाम</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">%1$s पर नया ऑफ़र</string>
+    <string name="kn_push_offered">इसके लिए %1$s का ऑफ़र मिला।</string>
+    <string name="kn_push_offer_no_amount">किसी ने इसके लिए ऑफ़र दिया।</string>
+    <string name="kn_push_sold">%1$s बिक गया</string>
+    <string name="kn_push_paid">आपको %1$s का भुगतान हुआ।</string>
+    <string name="kn_push_listing_bought">आपका बिक्री वाला नाम खरीद लिया गया।</string>
+    <string name="kn_push_offer_accepted">ऑफ़र स्वीकार हुआ</string>
+    <string name="kn_push_yours_now">%1$s अब आपका है।</string>
+    <string name="kn_push_renew">%1$s नवीनीकृत करें</string>
+    <string name="kn_push_renewal_open">नवीनीकरण खुला है: इसे रखने के लिए अभी नवीनीकृत करें।</string>
+    <string name="kn_push_expires_soon">%1$s जल्द समाप्त होगा</string>
+    <string name="kn_push_days_left">नवीनीकरण के लिए %1$d दिन बचे हैं।</string>
+    <string name="kn_push_one_day_left">नवीनीकरण के लिए 1 दिन बचा है।</string>
+    <string name="kn_push_expired">%1$s समाप्त हो गया</string>
+    <string name="kn_push_grace">10 दिनों में नवीनीकृत करें, नहीं तो कोई भी इसे ले सकता है।</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">यह नाम अभी पंजीकृत नहीं है।</string>
 </resources>

@@ -259,6 +259,40 @@ class NotificationHelper @Inject constructor(
     /** KaPosts social ping ("alice liked your post") - a tap deep-opens the exact
      *  post/comment when [postTxId] is known, else just the KaPosts tab. [focusTxId] is the
      *  acting content's txid (a reply's own transaction) - the opened thread scrolls to it. */
+    /**
+     * A `.kachat` name event (an offer, a sale, an accepted offer, a renewal reminder - iOS
+     * thread "kachat-names"): tapping it opens that name (iOS beeedd4).
+     */
+    suspend fun showKachatName(title: String, text: String, name: String, dedupeKey: String) {
+        if (!settings.notificationsEnabled.first()) return
+        if (!claimTxId("kachat_name_$dedupeKey")) return
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_KACHAT_NAME, name)
+        }
+        val notificationId = "kachat_name_$dedupeKey".hashCode()
+        val pendingIntent = PendingIntent.getActivity(
+            context, notificationId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val soundEnabled = settings.notificationSoundEnabled.first()
+        val vibrationEnabled = settings.notificationVibrationEnabled.first()
+        val notification = NotificationCompat.Builder(context, channelFor(soundEnabled, vibrationEnabled))
+            .setSmallIcon(R.drawable.ic_kachat_logo)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSilent(!soundEnabled && !vibrationEnabled)
+            .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
+            .apply { if (!soundEnabled) setSound(null) }
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) {}
+    }
+
     suspend fun showKaPosts(text: String, actionTxId: String, postTxId: String? = null, focusTxId: String? = null) {
         if (!settings.notificationsEnabled.first()) return
         if (!claimTxId("kaposts_$actionTxId")) return // poller and FCM push can both see the same action
@@ -491,6 +525,8 @@ class NotificationHelper @Inject constructor(
         const val EXTRA_CHANNEL_NAME = "channel_name"
         const val EXTRA_GROUP_ID = "group_id"
         const val EXTRA_OPEN_KAPOSTS = "open_kaposts"
+        /** A `.kachat` name notification: the name (without `.kachat`) a tap opens (iOS beeedd4). */
+        const val EXTRA_KACHAT_NAME = "kachat_name"
         const val EXTRA_KAPOST_TXID = "kapost_txid"
         const val EXTRA_KAPOST_FOCUS_TXID = "kapost_focus_txid"
 

@@ -862,4 +862,22 @@
     <string name="kn_registry_upgrading">تتم ترقية سجل .kachat على الشبكة التجريبية. ستُفتح الأسماء هنا مجددًا بمجرد تشغيل السجل الجديد.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">أسماء .kachat</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">عرض جديد على %1$s</string>
+    <string name="kn_push_offered">اتعرض %1$s عليه.</string>
+    <string name="kn_push_offer_no_amount">حد قدّم عرض عليه.</string>
+    <string name="kn_push_sold">%1$s اتباع</string>
+    <string name="kn_push_paid">اتدفعلك %1$s.</string>
+    <string name="kn_push_listing_bought">الاسم المعروض بتاعك اتشرى.</string>
+    <string name="kn_push_offer_accepted">العرض اتقبل</string>
+    <string name="kn_push_yours_now">%1$s بقى بتاعك.</string>
+    <string name="kn_push_renew">جدّد %1$s</string>
+    <string name="kn_push_renewal_open">التجديد مفتوح: جدّد دلوقتي علشان تحتفظ بيه.</string>
+    <string name="kn_push_expires_soon">%1$s هيخلص قريب</string>
+    <string name="kn_push_days_left">فاضل %1$d أيام علشان تجدده.</string>
+    <string name="kn_push_one_day_left">فاضل يوم واحد علشان تجدده.</string>
+    <string name="kn_push_expired">%1$s خلص</string>
+    <string name="kn_push_grace">جدّده خلال 10 أيام وإلا أي حد يقدر ياخده.</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">الاسم ده مش متسجل دلوقتي.</string>
 </resources>

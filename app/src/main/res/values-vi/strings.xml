@@ -862,4 +862,22 @@
     <string name="kn_registry_upgrading">Sổ đăng ký .kachat trên Testnet đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Tên .kachat</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">Đề nghị mới cho %1$s</string>
+    <string name="kn_push_offered">Có người đề nghị %1$s cho tên này.</string>
+    <string name="kn_push_offer_no_amount">Có người đã gửi đề nghị cho tên này.</string>
+    <string name="kn_push_sold">%1$s đã bán</string>
+    <string name="kn_push_paid">Bạn đã nhận %1$s.</string>
+    <string name="kn_push_listing_bought">Tên bạn đăng bán đã được mua.</string>
+    <string name="kn_push_offer_accepted">Đề nghị đã được chấp nhận</string>
+    <string name="kn_push_yours_now">%1$s giờ là của bạn.</string>
+    <string name="kn_push_renew">Gia hạn %1$s</string>
+    <string name="kn_push_renewal_open">Đã mở gia hạn: gia hạn ngay để giữ tên.</string>
+    <string name="kn_push_expires_soon">%1$s sắp hết hạn</string>
+    <string name="kn_push_days_left">Còn %1$d ngày để gia hạn.</string>
+    <string name="kn_push_one_day_left">Còn 1 ngày để gia hạn.</string>
+    <string name="kn_push_expired">%1$s đã hết hạn</string>
+    <string name="kn_push_grace">Gia hạn trong 10 ngày, nếu không ai cũng có thể lấy.</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">Tên này hiện chưa được đăng ký.</string>
 </resources>

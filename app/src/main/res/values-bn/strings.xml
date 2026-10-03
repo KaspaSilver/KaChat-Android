@@ -862,4 +862,22 @@
     <string name="kn_registry_upgrading">টেস্টনেটে .kachat রেজিস্ট্রি আপগ্রেড হচ্ছে। নতুন রেজিস্ট্রি চালু হলে নামগুলো এখানে আবার খুলবে।</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat নাম</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">%1$s-এ নতুন অফার</string>
+    <string name="kn_push_offered">এর জন্য %1$s অফার করা হয়েছে।</string>
+    <string name="kn_push_offer_no_amount">কেউ এর জন্য একটি অফার করেছে।</string>
+    <string name="kn_push_sold">%1$s বিক্রি হয়েছে</string>
+    <string name="kn_push_paid">আপনাকে %1$s পরিশোধ করা হয়েছে।</string>
+    <string name="kn_push_listing_bought">আপনার তালিকাভুক্ত নাম কেনা হয়েছে।</string>
+    <string name="kn_push_offer_accepted">অফার গৃহীত হয়েছে</string>
+    <string name="kn_push_yours_now">%1$s এখন আপনার।</string>
+    <string name="kn_push_renew">%1$s নবায়ন করুন</string>
+    <string name="kn_push_renewal_open">নবায়ন খোলা: রাখতে এখনই নবায়ন করুন।</string>
+    <string name="kn_push_expires_soon">%1$s শীঘ্রই মেয়াদোত্তীর্ণ হবে</string>
+    <string name="kn_push_days_left">নবায়নের জন্য %1$d দিন বাকি।</string>
+    <string name="kn_push_one_day_left">নবায়নের জন্য ১ দিন বাকি।</string>
+    <string name="kn_push_expired">%1$s-এর মেয়াদ শেষ</string>
+    <string name="kn_push_grace">১০ দিনের মধ্যে নবায়ন করুন, নইলে যে কেউ দাবি করতে পারবে।</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">এই নামটি এখন নিবন্ধিত নয়।</string>
 </resources>

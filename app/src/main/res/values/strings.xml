@@ -1040,4 +1040,22 @@
     <string name="kn_registry_upgrading">The .kachat registry on Testnet is being upgraded. Names open here again once the new registry is live.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat Names</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">New offer on %1$s</string>
+    <string name="kn_push_offered">%1$s offered for it.</string>
+    <string name="kn_push_offer_no_amount">Someone made an offer for it.</string>
+    <string name="kn_push_sold">%1$s sold</string>
+    <string name="kn_push_paid">%1$s was paid to you.</string>
+    <string name="kn_push_listing_bought">Your listing was bought.</string>
+    <string name="kn_push_offer_accepted">Offer accepted</string>
+    <string name="kn_push_yours_now">%1$s is yours now.</string>
+    <string name="kn_push_renew">Renew %1$s</string>
+    <string name="kn_push_renewal_open">Renewal is open: renew now to keep it.</string>
+    <string name="kn_push_expires_soon">%1$s expires soon</string>
+    <string name="kn_push_days_left">%1$d days left to renew it.</string>
+    <string name="kn_push_one_day_left">1 day left to renew it.</string>
+    <string name="kn_push_expired">%1$s has expired</string>
+    <string name="kn_push_grace">Renew within 10 days or anyone can claim it.</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">This name isn\'t registered right now.</string>
 </resources>

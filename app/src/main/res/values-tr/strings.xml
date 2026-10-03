@@ -862,4 +862,22 @@
     <string name="kn_registry_upgrading">Testnet\'teki .kachat kaydı güncelleniyor. Yeni kayıt yayına girince adlar burada yeniden açılır.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat Adları</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">%1$s için yeni teklif</string>
+    <string name="kn_push_offered">Bunun için %1$s teklif edildi.</string>
+    <string name="kn_push_offer_no_amount">Biri bunun için teklif verdi.</string>
+    <string name="kn_push_sold">%1$s satıldı</string>
+    <string name="kn_push_paid">Size %1$s ödendi.</string>
+    <string name="kn_push_listing_bought">Satıştaki adınız satın alındı.</string>
+    <string name="kn_push_offer_accepted">Teklif kabul edildi</string>
+    <string name="kn_push_yours_now">%1$s artık sizin.</string>
+    <string name="kn_push_renew">%1$s adını yenileyin</string>
+    <string name="kn_push_renewal_open">Yenileme açık: korumak için şimdi yenileyin.</string>
+    <string name="kn_push_expires_soon">%1$s yakında sona eriyor</string>
+    <string name="kn_push_days_left">Yenilemek için %1$d gün kaldı.</string>
+    <string name="kn_push_one_day_left">Yenilemek için 1 gün kaldı.</string>
+    <string name="kn_push_expired">%1$s sona erdi</string>
+    <string name="kn_push_grace">10 gün içinde yenileyin, yoksa herkes alabilir.</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">Bu ad şu anda kayıtlı değil.</string>
 </resources>

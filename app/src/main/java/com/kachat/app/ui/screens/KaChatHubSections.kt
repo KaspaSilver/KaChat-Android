@@ -96,6 +96,21 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     if (live != null) {
         LaunchedEffect(Unit) { live.start() }
     }
+    // A name a tapped notification pointed at (testnet only, where names are live).
+    var nameRoute by remember { mutableStateOf<String?>(null) }
+    val pendingName by KachatDeepLink.pendingName.collectAsState()
+    LaunchedEffect(pendingName) {
+        val name = pendingName ?: return@LaunchedEffect
+        if (live == null) return@LaunchedEffect
+        KachatDeepLink.pendingName.value = null
+        nameRoute = name
+    }
+    if (live != null) {
+        nameRoute?.let { name ->
+            KachatNameRouteScreen(name, onBack = { nameRoute = null }, onOpenChat = onOpenChat, vm = live)
+            return
+        }
+    }
     // A listing opens over the market, and Buy / Make an Offer over the listing (iOS cd9e10c).
     var openListing by remember { mutableStateOf(false) }
     var listingSheet by remember { mutableStateOf<String?>(null) }
@@ -316,11 +331,49 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
 
 /** What the live hub shows over itself (iOS NavigationLink / .sheet): a name's detail, the claim
  *  sheet, a reclaim, or an offer action. */
+/**
+ * Where a tapped `.kachat` name notification lands (iOS KachatDeepLink, beeedd4): the name, kept
+ * until the `.kachat` screen is on screen to take it, so a cold start from the notification still
+ * opens the name.
+ */
+object KachatDeepLink {
+    val pendingName = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+}
+
 private sealed class KachatHubSheet {
     class Detail(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
     class Claim(val target: KachatClaimTarget) : KachatHubSheet()
     class Reclaim(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
     class Offer(val action: KachatOfferAction) : KachatHubSheet()
+}
+
+/** The name a notification pointed at: its live detail once looked up (iOS KachatNameRouteView). */
+@Composable
+private fun KachatNameRouteScreen(name: String, onBack: () -> Unit, onOpenChat: (String) -> Unit, vm: KachatLiveViewModel) {
+    var info by remember(name) { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
+    var missing by remember(name) { mutableStateOf(false) }
+    LaunchedEffect(name) {
+        val found = runCatching { vm.registry.lookup(name) }.getOrNull()
+        if (found is com.kachat.app.services.kachatnames.Lookup.Registered) info = found.info else missing = true
+    }
+    androidx.activity.compose.BackHandler(onBack = onBack)
+    val resolved = info
+    if (resolved != null) {
+        KachatLiveNameDetailScreen(resolved, onBack = onBack, onOpenChat = onOpenChat, vm = vm)
+        return
+    }
+    val colors = LocalAppColors.current
+    Box(Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
+        if (missing) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                Text("$name.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Spacer(Modifier.height(10.dp))
+                Text(stringResource(R.string.kn_name_not_registered), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            }
+        } else {
+            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+        }
+    }
 }
 
 @Composable

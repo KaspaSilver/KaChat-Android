@@ -734,4 +734,6 @@
     <string name="kn_registry_upgrading">Registri .kachat di Testnet sedang ditingkatkan. Nama dibuka lagi di sini setelah registri baru aktif.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Nama .kachat</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">Nama ini sedang tidak terdaftar.</string>
 </resources>

@@ -862,4 +862,22 @@
     <string name="kn_registry_upgrading">Le registre .kachat sur le Testnet est en cours de mise à niveau. Les noms rouvrent ici dès que le nouveau registre est en ligne.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Noms .kachat</string>
+    <!-- .kachat name notifications (iOS beeedd4) -->
+    <string name="kn_push_new_offer">Nouvelle offre pour %1$s</string>
+    <string name="kn_push_offered">%1$s proposés pour ce nom.</string>
+    <string name="kn_push_offer_no_amount">Quelqu\'un a fait une offre pour ce nom.</string>
+    <string name="kn_push_sold">%1$s vendu</string>
+    <string name="kn_push_paid">%1$s vous ont été versés.</string>
+    <string name="kn_push_listing_bought">Votre nom en vente a été acheté.</string>
+    <string name="kn_push_offer_accepted">Offre acceptée</string>
+    <string name="kn_push_yours_now">%1$s est à vous.</string>
+    <string name="kn_push_renew">Renouveler %1$s</string>
+    <string name="kn_push_renewal_open">Le renouvellement est ouvert : renouvelez maintenant pour le garder.</string>
+    <string name="kn_push_expires_soon">%1$s expire bientôt</string>
+    <string name="kn_push_days_left">Il reste %1$d jours pour le renouveler.</string>
+    <string name="kn_push_one_day_left">Il reste 1 jour pour le renouveler.</string>
+    <string name="kn_push_expired">%1$s a expiré</string>
+    <string name="kn_push_grace">Renouvelez-le sous 10 jours, sinon n\'importe qui pourra le prendre.</string>
+    <!-- .kachat name from a notification (iOS beeedd4) -->
+    <string name="kn_name_not_registered">Ce nom n\'est pas enregistré pour le moment.</string>
 </resources>
