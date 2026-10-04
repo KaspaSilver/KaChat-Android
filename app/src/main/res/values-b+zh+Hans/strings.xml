@@ -625,8 +625,6 @@
     <string name="portfolio_fees_count_loading">交易：%1$d 笔。部分价格仍在加载。</string>
     <string name="portfolio_fees_count_priced">交易：%1$d 笔，按当日价格计算。</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">一个全新的、从未使用过的地址。发送到这里的 Kaspa 会进入此账户，并计入你的可支出总额。除聊天以外的所有用途都请使用这个地址。</string>
-    <string name="qr_chatting_address_subtitle">这个地址用于聊天。存入约 50 Kaspa 就足够长时间发送消息。</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">如果这个助记词已在另一个地址上持有你的身份——一个域名（.kas、.k 或 .kaspa）或有余额的聊天地址——请在这里选择。只显示有余额或域名的地址。</string>
     <string name="chatting_picker_other_names_count">.k 和 .kaspa 名称（%1$d）</string>
@@ -920,4 +918,21 @@
     <string name="payment_not_on_chain_yet">此付款尚未上链。</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">打开 .kachat 市场</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">此地址拥有的名称会显示在这里。</string>
+    <string name="kn_your_spending_address">你的支出地址 #%1$d</string>
+    <string name="kn_your_kassigner_address">你的 KasSigner 地址（%1$s #%2$d）</string>
+    <string name="chats_new">新建</string>
+    <string name="chats_new_chat">新聊天</string>
+    <string name="chats_new_group_chat">新群聊</string>
+    <string name="chats_new_public_chat">新公共聊天</string>
+    <string name="chats_fund_chatting_address">为聊天地址充值</string>
+    <string name="chats_new_chat_subtitle">通过地址或名称给某人发消息。</string>
+    <string name="chats_new_group_subtitle">与多人创建加密群组。</string>
+    <string name="chats_new_public_subtitle">加入公共聊天室，或创建一个。</string>
+    <string name="chats_fund_subtitle">显示二维码，添加用于发送消息的 Kaspa。</string>
+    <string name="chats_receive_subtitle">显示一个新地址用于收款。</string>
+    <string name="qr_receive_address_subtitle">一个从未使用过的新地址。发送到这里的 Kaspa 会进入此账户，并计入你的可用余额。与聊天或域名无关的一切都应使用此地址。</string>
+    <string name="qr_chatting_address_subtitle">此地址仅用于聊天和域名。1 Kaspa 足够在应用内进行约 500 次操作。域名价格为 35 至 4,000 Kaspa，取决于名称。</string>
+    <string name="kn_profiles_saved_once_launched">.kachat 在主网上线后即可保存个人资料。</string>
 </resources>

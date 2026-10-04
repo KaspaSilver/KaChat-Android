@@ -625,8 +625,6 @@
     <string name="portfolio_fees_count_loading">লেনদেন: %1$d। কিছু দাম এখনো লোড হচ্ছে।</string>
     <string name="portfolio_fees_count_priced">লেনদেন: %1$d, প্রতিদিনের দামে।</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">একটি নতুন, কখনো ব্যবহার না হওয়া ঠিকানা। এখানে পাঠানো Kaspa এই অ্যাকাউন্টে আসে এবং খরচযোগ্য মোটে দেখা যায়। চ্যাট ছাড়া অন্য সব কাজে এই ঠিকানা ব্যবহার করুন।</string>
-    <string name="qr_chatting_address_subtitle">এই ঠিকানা চ্যাটের জন্য। প্রায় ৫০ Kaspa দিয়ে অনেক দিন মেসেজ পাঠানো যায়।</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">এই সিড যদি আগে থেকেই অন্য কোনো ঠিকানায় আপনার পরিচয় রাখে - একটি ডোমেইন (.kas, .k বা .kaspa) বা ব্যালেন্সসহ চ্যাট ঠিকানা - তবে এখানে বেছে নিন। শুধু ব্যালেন্স বা ডোমেইন থাকা ঠিকানা দেখানো হয়।</string>
     <string name="chatting_picker_other_names_count">.k ও .kaspa নাম (%1$d)</string>
@@ -920,4 +918,21 @@
     <string name="payment_not_on_chain_yet">এই পেমেন্টটি এখনও অন-চেইনে নেই।</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">.kachat মার্কেটপ্লেস খোলে</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">এই ঠিকানার নামগুলো এখানে দেখা যায়।</string>
+    <string name="kn_your_spending_address">আপনার খরচের ঠিকানা #%1$d</string>
+    <string name="kn_your_kassigner_address">আপনার KasSigner ঠিকানা (%1$s #%2$d)</string>
+    <string name="chats_new">নতুন</string>
+    <string name="chats_new_chat">নতুন চ্যাট</string>
+    <string name="chats_new_group_chat">নতুন গ্রুপ চ্যাট</string>
+    <string name="chats_new_public_chat">নতুন পাবলিক চ্যাট</string>
+    <string name="chats_fund_chatting_address">চ্যাটিং ঠিকানায় অর্থ যোগ করুন</string>
+    <string name="chats_new_chat_subtitle">ঠিকানা বা নাম দিয়ে কাউকে মেসেজ করুন।</string>
+    <string name="chats_new_group_subtitle">কয়েকজনকে নিয়ে একটি এনক্রিপ্টেড গ্রুপ শুরু করুন।</string>
+    <string name="chats_new_public_subtitle">একটি পাবলিক রুমে যোগ দিন, বা নতুন তৈরি করুন।</string>
+    <string name="chats_fund_subtitle">মেসেজ পাঠানোর জন্য Kaspa যোগ করার QR কোড দেখায়।</string>
+    <string name="chats_receive_subtitle">পেমেন্ট পেতে একটি নতুন ঠিকানা দেখায়।</string>
+    <string name="qr_receive_address_subtitle">একটি নতুন ঠিকানা, আগে কখনও ব্যবহার হয়নি। এখানে পাঠানো Kaspa এই অ্যাকাউন্টে আসে এবং আপনার খরচযোগ্য ব্যালান্সে দেখায়। চ্যাট বা ডোমেইনের সাথে সম্পর্কহীন সবকিছুর জন্য এই ঠিকানা ব্যবহার করুন।</string>
+    <string name="qr_chatting_address_subtitle">এই ঠিকানাটি শুধু চ্যাট ও ডোমেইনের জন্য। 1 Kaspa দিয়ে অ্যাপে প্রায় 500টি কাজ করা যায়। নাম অনুযায়ী ডোমেইনের দাম 35 থেকে 4,000 Kaspa।</string>
+    <string name="kn_profiles_saved_once_launched">.kachat মেইননেটে চালু হলে প্রোফাইল সেভ করা যাবে।</string>
 </resources>

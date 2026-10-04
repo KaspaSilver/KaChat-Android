@@ -191,7 +191,8 @@ class KachatNamesRegistry @Inject constructor(
 
     /** Walks the chain forward (no indexer) or just marks fresh data (indexer). Safe to call often. */
     suspend fun refresh(forceSourceCheck: Boolean = false) {
-        if (!KachatNamesService.isEnabled) return
+        // Launched networks only (iOS 7227d69): mainnet never reads a registry.
+        if (!KachatNamesService.isLaunched) return
         if (!_isRefreshing.compareAndSet(expect = false, update = true)) return
         val previousError = _lastError.value
         try {
@@ -321,6 +322,30 @@ class KachatNamesRegistry @Inject constructor(
                     ?: Lookup.Free(name, st.gap(Codec.key(name))?.let { RegistryState.info(it) })
             }
         }
+    }
+
+    /**
+     * Which of [addresses] own at least one .kachat name (active, in grace or lapsed - the same set
+     * Your Domains lists). Drives the "Contains domain" tag (and the funded-first sort) on Manage
+     * Addresses and KasSigner. Empty where the registry isn't launched; an address whose lookup
+     * fails just isn't tagged (iOS 881ada6 `ownersOfNames(among:)`, gated by 7227d69).
+     */
+    suspend fun ownersOfNames(addresses: List<String>): Set<String> {
+        if (!KachatNamesService.isLaunched || addresses.isEmpty()) return emptySet()
+        if (refreshedAt.value == null) refresh()
+        val owners = mutableSetOf<String>()
+        for (address in addresses) {
+            val key = keyOf(address) ?: continue
+            val owned = try {
+                names(key, includeInactive = true)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                continue
+            }
+            if (owned.isNotEmpty()) owners.add(address)
+        }
+        return owners
     }
 
     /** The names an owner holds, oldest first; [includeInactive] adds grace and lapsed ones. */
@@ -473,7 +498,9 @@ class KachatNamesRegistry @Inject constructor(
      * lands, composables that read it re-render (iOS e52357d `cachedIdentity(for:)`).
      */
     fun cachedIdentity(address: String): Identity? {
-        if (!KachatNamesService.isEnabled) return null
+        // Launched networks only (iOS 7227d69): the UI shows .kachat identity everywhere, but
+        // mainnet has no registry to ask yet, so every address falls back to its short form.
+        if (!KachatNamesService.isLaunched) return null
         val key = address.trim().lowercase()
         if (!key.startsWith("kaspatest:")) return null
         val known = identities[key]

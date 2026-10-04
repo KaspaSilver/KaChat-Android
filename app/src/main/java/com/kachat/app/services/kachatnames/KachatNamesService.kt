@@ -49,9 +49,11 @@ import javax.inject.Singleton
  * pool. A port of iOS KaChat/Services/KachatNames/KachatNamesService.swift (KaChat ede9417; the
  * registry-v1 "being upgraded" state from d2e0673).
  *
- * Testnet-10 only: every entry point refuses unless this launch runs on testnet
+ * Transactions are testnet-10 only: every entry point refuses unless this launch runs on testnet
  * ([KaspaNetwork.isTestnet], iOS `AppSettings.networkType == .testnet`), and the manifest itself
- * must be for testnet-10. Mainnet stays off until the contracts are audited.
+ * must be for testnet-10. The mainnet registry stays off until the contracts are audited - but
+ * the .kachat UI and identity are on for every network (see [isEnabled] / [isLaunched], iOS
+ * 7227d69).
  *
  * Callers: `KachatNamesRegistry` (reads) and `KachatNamesActions` (every operation).
  */
@@ -114,7 +116,9 @@ class KachatNamesService @Inject constructor(
     // Gate
 
     fun requireTestnet() {
-        if (!isEnabled) throw ServiceError.TestnetOnly()
+        // On [isLaunched], not [isEnabled]: since iOS 7227d69 isEnabled is true everywhere, so
+        // gating on it would no longer stop anything. Only a launched registry is transacted with.
+        if (!isLaunched) throw ServiceError.TestnetOnly()
     }
 
     // Manifest
@@ -364,8 +368,22 @@ class KachatNamesService @Inject constructor(
     companion object {
         private const val TAG = "KachatNames"
 
-        /** The only network names may run on until an audit: the network this launch runs on. */
-        val isEnabled: Boolean get() = KaspaNetwork.isTestnet
+        /**
+         * The .kachat UI and identity - on every network since iOS 7227d69 (2026-10-04): mainnet
+         * shows the same screens as testnet (and people by their .kachat name, not KNS), in a
+         * "Coming soon" state until its registry launches. Every UI change lands on both
+         * networks. The KNS branches this guards are kept, unreachable, as a switch-back.
+         */
+        val isEnabled: Boolean get() = true
+
+        /**
+         * Whether this network has a live registry the app reads and transacts with (lookups,
+         * listings, registrations, profile saves, resolving typed names): testnet-10 only for now
+         * - the network this launch runs on (iOS 7227d69). Off it, nothing builds the registry
+         * stack at all: the names service, registry and actions are injected lazily or only
+         * behind this gate.
+         */
+        val isLaunched: Boolean get() = KaspaNetwork.isTestnet
 
         /** Whether [error] means the registry is being upgraded (a v1 manifest), not a failure (iOS d2e0673). */
         fun isRegistryUpgrading(error: Throwable): Boolean =

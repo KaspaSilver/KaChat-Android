@@ -60,6 +60,9 @@ class WalletViewModel @Inject constructor(
     private val nextcloudService: com.kachat.app.services.NextcloudService,
     /** The .k and .kaspa name services (Your Domains tabs, name resolution) - iOS NameServicesClient. */
     val nameServices: com.kachat.app.services.NameServicesClient,
+    /** .kachat owners count toward the "Contains domain" tag (iOS 881ada6). Lazy, and only asked
+     *  where the registry is launched, so mainnet never builds it (iOS 7227d69). */
+    private val kachatRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>,
 ) : ViewModel() {
 
     /** Refreshes what the active account owns on .k and .kaspa. */
@@ -1674,7 +1677,8 @@ class WalletViewModel @Inject constructor(
         }
     }
 
-    /** Addresses in the Manage Addresses list that own at least one KNS domain — batched cached
+    /** Addresses in the Manage Addresses list that own at least one KNS domain (or, where it is
+     *  live, a .kachat name - iOS 881ada6) — batched cached
      *  lookups fired AFTER the rows are already visible, so tags fill in without blocking. */
     private val _domainOwningAddresses = MutableStateFlow<Set<String>>(emptySet())
     val domainOwningAddresses: StateFlow<Set<String>> = _domainOwningAddresses.asStateFlow()
@@ -1682,7 +1686,19 @@ class WalletViewModel @Inject constructor(
     private fun refreshDomainOwningAddresses(addresses: List<String>) {
         if (addresses.isEmpty()) return
         viewModelScope.launch {
-            _domainOwningAddresses.value = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
+            val kns = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
+            _domainOwningAddresses.value = kns
+            // .kachat names count too, where the registry is live (testnet) - iOS 881ada6.
+            if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
+                val kachat = try {
+                    kachatRegistry.get().ownersOfNames(addresses)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emptySet()
+                }
+                if (kachat.isNotEmpty()) _domainOwningAddresses.value = kns + kachat
+            }
         }
     }
 

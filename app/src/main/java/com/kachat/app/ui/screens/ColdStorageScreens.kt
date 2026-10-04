@@ -2069,6 +2069,8 @@ fun ColdStorageTxHistoryScreen(
     onBack: () -> Unit,
     viewModel: ColdStorageViewModel = hiltViewModel(),
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    /** Message on a .kachat name's owner, from its detail. */
+    onOpenChat: (String) -> Unit = {},
 ) {
     val txHistory by viewModel.txHistory.collectAsState()
     val isLoading by viewModel.isLoadingTxHistory.collectAsState()
@@ -2110,11 +2112,20 @@ fun ColdStorageTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
+    // The .kachat name opened from the .kachat tab (iOS 881ada6).
+    var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
 
     LaunchedEffect(address) {
         viewModel.loadTxHistory(address)
         viewModel.loadUtxos(address)
         utxoLabels = viewModel.getUtxoLabels(address)
+    }
+
+    // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
+    // your addresses holds it (iOS 881ada6).
+    openedKachat?.let { info ->
+        KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        return
     }
 
     if (showSendFlow) {
@@ -2229,7 +2240,7 @@ fun ColdStorageTxHistoryScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             when (selectedTab) {
-                2 -> KachatAddressDomainsList()
+                2 -> KachatAddressDomainsList(address, onOpen = { openedKachat = it })
                 0 -> when {
                     isLoading && txHistory.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

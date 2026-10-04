@@ -1138,7 +1138,8 @@ class CallService @Inject constructor(
 
     private suspend fun ownDisplayName(): String {
         val address = runCatching { walletManager.getAddress() }.getOrNull() ?: return "KaChat"
-        // On testnet identity is .kachat: your .kachat name, never a KNS one (iOS e52357d).
+        // Identity is .kachat: your .kachat name, never a KNS one (iOS e52357d) - on every network
+        // since iOS 7227d69, so on mainnet (no launched registry yet) it is the short form.
         if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
             return com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address) ?: "KaChat ${address.takeLast(6)}"
         }

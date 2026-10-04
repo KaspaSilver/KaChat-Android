@@ -3602,9 +3602,10 @@ fun ProfileScreen(
     val knsProfile by viewModel.knsProfile.collectAsState()
     // Testnet: your `.kachat` label (KACHAT_NAMES.md section 7 - your primary name while you own it
     // and it is active, else your oldest active name), shown as your name on the hero (iOS
-    // 5df42b4). Mainnet never builds the names model.
+    // 5df42b4). Mainnet never builds the names model: identity lookups need a launched registry
+    // (iOS 7227d69), so there you show by your short address, with no KNS picture or bio.
     val kachatLive: KachatLiveViewModel? =
-        if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) hiltViewModel() else null
+        if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) hiltViewModel() else null
     var kachatLabel by remember { mutableStateOf<String?>(null) }
     // The address profile's sources (a social link each for avatar, banner and bio, looked up on
     // this device) and Linktree link - testnet (iOS ad32798 / 1322216 / c124cb3).
@@ -4267,40 +4268,12 @@ fun ProfileScreen(
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
+        // The same two QR pages the Chats New sheet opens (iOS 5da8ccf / e6400d6).
         if (showFundIdentityQr) {
-            QrCodeOverlay(
-                value = address ?: "",
-                onDismiss = { showFundIdentityQr = false },
-                message = stringResource(R.string.qr_chatting_address_subtitle),
-                borderColor = KaspaTeal,
-                borderWidth = 4.dp
-            )
+            ChattingAddressQrOverlay(address = address ?: "", onDismiss = { showFundIdentityQr = false })
         }
         if (showAcceptPaymentQr) {
-            val resolved = receiveQrAddress
-            if (resolved == null) {
-                // Nothing to draw yet - showing the old address for a frame and swapping it is
-                // worse than a moment of "preparing", since a QR is scanned the instant it appears.
-                Box(
-                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f))
-                        .clickable { showAcceptPaymentQr = false },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp)
-                        Spacer(Modifier.height(12.dp))
-                        Text("Preparing a fresh address", color = Color.White, fontSize = 14.sp)
-                    }
-                }
-            } else {
-                QrCodeOverlay(
-                    value = resolved,
-                    onDismiss = { showAcceptPaymentQr = false },
-                    message = stringResource(R.string.qr_receive_address_subtitle),
-                    borderColor = KaspaTeal,
-                    borderWidth = 4.dp
-                )
-            }
+            ReceiveKaspaQrOverlay(address = receiveQrAddress, onDismiss = { showAcceptPaymentQr = false })
         }
         }
     }
@@ -4406,7 +4379,7 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
 
     // One tab per name ending, KaChat's own first: .kachat (not live yet), KNS (.kas), dotk (.k),
     // Kaspa Names (.kaspa) - iOS df23b6f, 256e1c0, f9a8750. A sideways swipe changes the name
-    // service (7e5fa39). Opens on .kachat once it is live, on .kas until then.
+    // service (7e5fa39). Opens on .kachat - its UI is on everywhere (iOS 7227d69).
     val tabs = com.kachat.app.services.NameServiceTLD.entries
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(
         initialPage = tabs.indexOf(com.kachat.app.services.NameServiceTLD.defaultTab),
@@ -4449,9 +4422,10 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
                 )
                 com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA ->
                     ServiceNameListTab(tld = tld, viewModel = viewModel)
-                // Live on testnet (the testnet-10 registry); mainnet keeps "coming" (iOS 5df42b4).
+                // The live tab on every network (iOS 7227d69): empty with its Inscribe button where
+                // the registry isn't launched yet (mainnet). The "coming" note stays, unreachable.
                 com.kachat.app.services.NameServiceTLD.KACHAT ->
-                    if (KachatLive.isEnabled) {
+                    if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
                         KachatLiveDomainsTab(
                             walletAddress = walletAddress ?: "",
                             onOpen = { selectedKachat = it },
@@ -6574,7 +6548,9 @@ fun SpendingAddressTxHistoryScreen(
     // KaspaFiatAmountState.toggleMode silently no-ops until a price has arrived - gets a head
     // start of however long the user spends on this screen before ever tapping Send, instead of
     // starting from zero the instant the send flow itself first composes.
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
+    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    /** Message on a .kachat name's owner, from its detail. */
+    onOpenChat: (String) -> Unit = {},
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     // Looked up from the already-loaded address list (shared with ManageAddressesScreen) rather
@@ -6606,6 +6582,8 @@ fun SpendingAddressTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
+    // The .kachat name opened from the .kachat tab (iOS 881ada6).
+    var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
 
     LaunchedEffect(address) {
         if (address.isNotEmpty()) {
@@ -6618,6 +6596,13 @@ fun SpendingAddressTxHistoryScreen(
     // In-place full-screen swap - not a nav route, not an overlay dialog - mirroring
     // ColdStorageTxHistoryScreen's own `if (showSendFlow) { ...; return }` idiom exactly, so Send
     // takes over the whole screen the same way on both the spending and Cold Storage paths.
+    // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
+    // your addresses holds it (iOS 881ada6).
+    openedKachat?.let { info ->
+        KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        return
+    }
+
     if (showWithdraw && entry != null) {
         SpendingAddressSendFlow(
             fromAddress = entry.address,
@@ -6791,7 +6776,7 @@ fun SpendingAddressTxHistoryScreen(
                         }
                     }
                 }
-                2 -> KachatAddressDomainsList()
+                2 -> KachatAddressDomainsList(address.takeIf { it.isNotEmpty() }, onOpen = { openedKachat = it })
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -6943,7 +6928,13 @@ fun SpendingAddressTxHistoryScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()) {
+fun IdentityAddressDetailScreen(
+    onBack: () -> Unit,
+    viewModel: WalletViewModel,
+    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    /** Message on a .kachat name's owner, from its detail. */
+    onOpenChat: (String) -> Unit = {},
+) {
     val address by viewModel.address.collectAsState()
     val balanceSompi by viewModel.balanceSompi.collectAsState()
 
@@ -6976,6 +6967,8 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
+    // The .kachat name opened from the .kachat tab (iOS 881ada6).
+    var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
 
     LaunchedEffect(address) {
         val addr = address
@@ -6984,6 +6977,13 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
             viewModel.loadSpendingAddressUtxos(addr)
             utxoLabels = viewModel.getSpendingUtxoLabels(addr)
         }
+    }
+
+    // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
+    // your addresses holds it (iOS 881ada6).
+    openedKachat?.let { info ->
+        KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        return
     }
 
     val flowAddress = address
@@ -7153,7 +7153,7 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
                         }
                     }
                 }
-                2 -> KachatAddressDomainsList()
+                2 -> KachatAddressDomainsList(address?.takeIf { it.isNotEmpty() }, onOpen = { openedKachat = it })
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -7219,13 +7219,9 @@ fun IdentityAddressDetailScreen(onBack: () -> Unit, viewModel: WalletViewModel, 
 
     val qrAddress = address
     if (showQr && !qrAddress.isNullOrEmpty()) {
-        QrCodeOverlay(
-            value = qrAddress,
-            onDismiss = { showQr = false },
-            message = com.kachat.app.util.KaspaUnit.label("Just send 5-10 KAS at a time, that's plenty to cover chat fees for a while (about 500 messages per KAS)"),
-            borderColor = KaspaTeal,
-            borderWidth = 4.dp
-        )
+        // iOS ChattingAddressManageView shows ChattingAddressQRView with its default caption -
+        // the chatting caption Profile uses (since 492aa53: "for chatting and domains only").
+        ChattingAddressQrOverlay(address = qrAddress, onDismiss = { showQr = false })
     }
 
     if (showAddressActions) {
@@ -8320,7 +8316,9 @@ fun KachatProfileEditorScreen(
     showSetupGuides: Boolean = true,
     onSetupGuide: () -> Unit = {},
 ) {
-    if (KachatLive.isEnabled) {
+    // The live editor on every network since iOS 7227d69 - on mainnet Save stays off until .kachat
+    // launches there. The placeholder below is kept, unreachable, as the switch-back.
+    if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
         KachatLiveProfileEditorScreen(onBack = onBack)
         return
     }
@@ -11434,6 +11432,63 @@ fun AnimatedQrDisplay(frames: List<ByteArray>, modifier: Modifier = Modifier, fr
     }
 }
 
+/**
+ * The chatting address's QR page: the full white [QrCodeOverlay] with the chatting caption (iOS
+ * `ChattingAddressQRView`). Profile's "Fund chatting address", and the Chats New sheet's "Fund
+ * Chatting Address" (iOS 5da8ccf / e6400d6), which dismisses with Done.
+ */
+@Composable
+fun ChattingAddressQrOverlay(address: String, onDismiss: () -> Unit, dismissAsDone: Boolean = false) {
+    QrCodeOverlay(
+        value = address,
+        onDismiss = onDismiss,
+        message = stringResource(R.string.qr_chatting_address_subtitle),
+        borderColor = KaspaTeal,
+        borderWidth = 4.dp,
+        dismissAsDone = dismissAsDone,
+    )
+}
+
+/**
+ * Receive Kaspa's QR page: a fresh, never-used receive address ([address], resolved by the caller
+ * with WalletViewModel.resolveFreshReceiveAddress) on the full white [QrCodeOverlay] (iOS
+ * `ReceiveKaspaQRView`). Profile's "Receive Kaspa" and the Chats New sheet's (iOS 5da8ccf /
+ * e6400d6). While [address] is null it says it is preparing one - showing an old address for a
+ * frame and swapping it is worse, since a QR is scanned the instant it appears.
+ */
+@Composable
+fun ReceiveKaspaQrOverlay(address: String?, onDismiss: () -> Unit, dismissAsDone: Boolean = false) {
+    if (address == null) {
+        // Its own window, like the QR page it turns into, so nothing on the screen below (the
+        // floating dock) sits over it.
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f))
+                    .clickable { onDismiss() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Preparing a fresh address", color = Color.White, fontSize = 14.sp)
+                }
+            }
+        }
+    } else {
+        QrCodeOverlay(
+            value = address,
+            onDismiss = onDismiss,
+            message = stringResource(R.string.qr_receive_address_subtitle),
+            borderColor = KaspaTeal,
+            borderWidth = 4.dp,
+            dismissAsDone = dismissAsDone,
+        )
+    }
+}
+
 /** Full-bleed QR overlay over the current screen's content area — matches iOS's push-navigated
  *  QR screens (full-screen white, dismissed via a back arrow/system back, never by a stray tap).
  *  Tapping anywhere on the overlay content copies the address — the whole screen is the copy
@@ -11451,7 +11506,10 @@ fun QrCodeOverlay(
      * long and would be silently truncated, which is worse than wrapping when someone is
      * comparing one by eye.
      */
-    valueMaxLines: Int = 2
+    valueMaxLines: Int = 2,
+    /** "Done" top right instead of "Close" top left - the Chats New sheet's QR pages, which iOS
+     *  shows in a sheet of their own with a Done button (e6400d6). */
+    dismissAsDone: Boolean = false,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -11484,12 +11542,12 @@ fun QrCodeOverlay(
         TextButton(
             onClick = onDismiss,
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(if (dismissAsDone) Alignment.TopEnd else Alignment.TopStart)
                 .statusBarsPadding()
                 .padding(4.dp)
         ) {
             Text(
-                stringResource(R.string.close),
+                stringResource(if (dismissAsDone) R.string.done else R.string.close),
                 color = KaspaTeal,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
@@ -11554,7 +11612,13 @@ fun CreateChatScreen(
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit = {},
     startInGroupMode: Boolean = false,
-    chatViewModel: ChatViewModel = hiltViewModel()
+    chatViewModel: ChatViewModel = hiltViewModel(),
+    /**
+     * Set when this screen is inside the Chats New sheet: Cancel goes back to that sheet's menu
+     * instead of closing it, and the bars take no system insets of their own - the sheet already
+     * sits clear of them (iOS be0857a `AddContactView(onCancel:)`).
+     */
+    onCancel: (() -> Unit)? = null,
 ) {
     var address by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
@@ -11807,8 +11871,10 @@ fun CreateChatScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        contentWindowInsets = if (onCancel != null) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = if (onCancel != null) WindowInsets(0, 0, 0, 0) else TopAppBarDefaults.windowInsets,
                 title = {
                     Text(
                         if (isGroupMode) "New Group Chat" else "Create chat",
@@ -11817,7 +11883,7 @@ fun CreateChatScreen(
                     )
                 },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
+                    TextButton(onClick = onCancel ?: onBack) {
                         Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
                     }
                 },
@@ -12863,8 +12929,8 @@ fun ChatInfoScreen(
     val knsProfile = chatViewModel.knsProfiles.collectAsState().value[contactId]
     val knsFields = knsProfile?.profile
     val ownedDomains = knsProfile?.ownedDomains.orEmpty()
-    // On testnet identity is .kachat only (iOS e52357d): no KNS profile is fetched there, and its
-    // pictures and bio are not shown. The address's .kachat label and profile take their place -
+    // Identity is .kachat only (iOS e52357d; every network since 7227d69): no KNS profile is
+    // fetched, and its pictures and bio are not shown. The address's .kachat label and profile take their place -
     // your own straight from the registry (the record you saved), anyone else's through the
     // names indexer once one is connected; without one, only their name shows.
     val usesKnsProfile = !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled

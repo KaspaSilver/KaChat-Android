@@ -34,6 +34,9 @@ class ColdStorageViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     private val knsService: KnsService,
     private val nameServices: com.kachat.app.services.NameServicesClient,
+    /** .kachat owners count toward the "Contains domain" tag (iOS 881ada6). Lazy, and only asked
+     *  where the registry is launched, so mainnet never builds it (iOS 7227d69). */
+    private val kachatRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>,
 ) : ViewModel() {
 
     /** Forward KNS domain resolution for the send form's recipient field - lets typing "name.kas"
@@ -349,7 +352,19 @@ class ColdStorageViewModel @Inject constructor(
     private fun refreshDomainOwningAddresses(addresses: List<String>) {
         if (addresses.isEmpty()) return
         viewModelScope.launch {
-            _domainOwningAddresses.value = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
+            val kns = try { knsService.domainOwningAddresses(addresses) } catch (e: Exception) { emptySet() }
+            _domainOwningAddresses.value = kns
+            // .kachat names count too, where the registry is live (testnet) - iOS 881ada6.
+            if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
+                val kachat = try {
+                    kachatRegistry.get().ownersOfNames(addresses)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emptySet()
+                }
+                if (kachat.isNotEmpty()) _domainOwningAddresses.value = kns + kachat
+            }
         }
     }
 

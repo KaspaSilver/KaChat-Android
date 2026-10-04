@@ -91,7 +91,10 @@ class KachatNamesActions @Inject constructor(
     private val service: KachatNamesService,
     private val registry: KachatNamesRegistry,
     private val walletManager: WalletManager,
-    private val networkService: NetworkService
+    private val networkService: NetworkService,
+    /** KasSigner (watch-only) accounts, to tell which of this wallet's addresses holds a name
+     *  ([ownAddress], iOS 881ada6). Read only: their keys never live here. */
+    private val coldStorageManager: com.kachat.app.services.ColdStorageManager
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -140,6 +143,73 @@ class KachatNamesActions @Inject constructor(
         val me = KachatNamesService.xonlyKey(key)
         if (!me.contentEquals(KachatNamesRegistry.keyOf(address))) throw ActionError.KeyMismatch()
         return Signer(address, key, me)
+    }
+
+    /** Which of this wallet's own addresses holds a name (iOS 881ada6 `OwnAddress`). */
+    sealed class OwnAddress {
+        object Chatting : OwnAddress()
+        /** A spending address: the app derives its key, so owner actions sign with it. */
+        data class Spending(val index: Int, val address: String) : OwnAddress()
+        /** A KasSigner (watch-only) address: owner actions need the device to sign. */
+        data class KasSigner(val account: String, val index: Int, val address: String) : OwnAddress()
+    }
+
+    /**
+     * Whether [owner] (an x-only key) is one of this wallet's addresses, and which: the chatting
+     * address, a revealed spending address, or a KasSigner account address. Null = someone else.
+     * Derives addresses (the spending chain from the seed, the KasSigner ones from their kpubs),
+     * so it runs off the main thread (iOS 881ada6 `ownAddress(of:)`).
+     */
+    suspend fun ownAddress(owner: ByteArray): OwnAddress? = withContext(Dispatchers.IO) {
+        if (myKey?.contentEquals(owner) == true) return@withContext OwnAddress.Chatting
+        val account = walletManager.getActiveAccount()
+        if (account != null) {
+            val max = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
+            val spending = runCatching { walletManager.deriveSpendingAddresses(0..max) }.getOrNull().orEmpty()
+            for ((index, address) in spending.entries.sortedBy { it.key }) {
+                if (KachatNamesRegistry.keyOf(address)?.contentEquals(owner) == true) {
+                    return@withContext OwnAddress.Spending(index, address)
+                }
+            }
+        }
+        val cold = runCatching { coldStorageManager.getAccounts() }.getOrNull().orEmpty()
+        for (c in cold) {
+            val root = com.kachat.app.util.KaspaExtendedPublicKey.parse(c.kpub).getOrNull()
+                ?.let { com.kachat.app.util.KaspaExtendedPublicKey.toDeterministicKey(it) } ?: continue
+            for (index in 0..maxOf(0, c.maxDerivedIndex)) {
+                val address = runCatching { com.kachat.app.util.KaspaExtendedPublicKey.deriveChildAddress(root, chain = 0, index = index) }.getOrNull()
+                    ?: continue
+                if (KachatNamesRegistry.keyOf(address)?.contentEquals(owner) == true) {
+                    return@withContext OwnAddress.KasSigner(c.name, index, address)
+                }
+            }
+        }
+        null
+    }
+
+    /**
+     * The signer for [op]. Owner-only actions (transfer, list/delist, accept, release) on a name
+     * held by one of this wallet's spending addresses sign - and pay their fee - from that
+     * address. Everything else, including extend and renew (anyone may pay those), uses the
+     * chatting address (iOS 881ada6 `signer(for:)`).
+     */
+    private suspend fun signer(op: Operation): Signer {
+        val held: NameInfo? = when (op) {
+            is Operation.Transfer -> op.name
+            is Operation.List -> op.name
+            is Operation.Release -> op.name
+            is Operation.Accept -> op.name
+            else -> null
+        }
+        val spending = held?.let { ownAddress(it.owner) } as? OwnAddress.Spending
+        if (held != null && spending != null) {
+            service.requireTestnet()
+            val key = try { walletManager.getSpendingPrivateKeyBytes(spending.index) } catch (_: Exception) { throw ActionError.NoWallet() }
+            val me = KachatNamesService.xonlyKey(key)
+            if (!me.contentEquals(held.owner)) throw ActionError.KeyMismatch()
+            return Signer(spending.address.lowercase(), key, me)
+        }
+        return signer()
     }
 
     /** The current wallet's x-only key, without touching the private key. */
@@ -225,7 +295,7 @@ class KachatNamesActions @Inject constructor(
     /** Builds [op] against live UTXOs without submitting anything: the fee and outputs a sheet
      *  shows before the person confirms. */
     suspend fun plan(op: Operation): Plan = withContext(Dispatchers.IO) {
-        val s = signer()
+        val s = signer(op)
         build(op, s).first
     }
 
@@ -290,7 +360,7 @@ class KachatNamesActions @Inject constructor(
     /** Builds, signs and submits [op]; returns the txid. The registry refreshes once the
      *  transaction is accepted. */
     suspend fun perform(op: Operation): String = withContext(Dispatchers.IO) {
-        val s = signer()
+        val s = signer(op)
         val (plan, env) = build(op, s)
         val txId = service.signAndSubmit(plan, s.privateKey, env)
         val o = plan.newOffer
@@ -471,7 +541,8 @@ class KachatNamesActions @Inject constructor(
      */
     fun resume() {
         val address = myAddress
-        if (!KachatNamesService.isEnabled || address == null) {
+        // Launched networks only (iOS 7227d69): mainnet never drives a registration.
+        if (!KachatNamesService.isLaunched || address == null) {
             driver?.cancel()
             driver = null
             synchronized(lock) {
@@ -492,7 +563,7 @@ class KachatNamesActions @Inject constructor(
                     while (isActive) {
                         val address = myAddress
                         // stops while the registry is being upgraded (a v1 manifest, iOS d2e0673)
-                        if (!KachatNamesService.isEnabled || address == null || address != pendingWallet ||
+                        if (!KachatNamesService.isLaunched || address == null || address != pendingWallet ||
                             service.registryUpgrading.value || _pending.value.none { it.needsDriving }
                         ) break
                         for (p in _pending.value.filter { it.needsDriving }) advance(p)

@@ -74,9 +74,10 @@ import com.kachat.app.util.KaspaUnit
  * to peer and trustless (the name and the payment settle together on chain, no one holds either
  * in between).
  *
- * On mainnet it is UI only. Nothing is wired yet: search answers "not live yet", listings and
- * activity show placeholder shapes, and every action is disabled. No invented names or prices
- * anywhere - the placeholders are blank shapes, so nothing here can be mistaken for a real listing.
+ * On mainnet it is the live screen, empty, under "Coming soon" (iOS 7227d69): search answers
+ * that registration isn't open, the tabs are the live pages with nothing in them, and nothing
+ * reads or writes a registry. The placeholder pages (blank shapes, never invented names or prices)
+ * remain only for a testnet registry that is setting up.
  *
  * On TESTNET (testnet-10, with the bundled registry manifest verified) it is live
  * (KachatNamesLiveScreens.kt, iOS 5df42b4): search shows real availability and the price, Claim
@@ -286,7 +287,10 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 selectedIndex = page,
                 onSelect = { page = it },
             )
-            if (isLive) {
+            // Live, or not launched here (mainnet): the same pages - empty on mainnet, where `live`
+            // is null (iOS 7227d69). The placeholder pages remain only for a testnet registry that
+            // is setting up.
+            if (isLive || !com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                 when (page) {
                     0 -> KachatLiveMarketPage(
                         live,
@@ -1257,10 +1261,109 @@ private fun KachatOfferScreen(onClose: () -> Unit) {
 /**
  * The ".kachat" tab of every screen that shows an address's history - Manage Addresses, Cold
  * Storage and the chatting address: the .kachat names that address holds. It replaced the KNS
- * Domains tab (iOS b96d727, 5.2), and is empty until .kachat names launch.
+ * Domains tab (iOS b96d727, 5.2). With an [address] it is that address's own live list
+ * ([KachatAddressLiveNamesList], iOS 881ada6) - on every network since iOS 7227d69, empty where
+ * the registry isn't launched; without one, the "coming" note (kept, unreachable).
  */
 @Composable
-fun KachatAddressDomainsList() {
+fun KachatAddressDomainsList(address: String? = null, onOpen: (com.kachat.app.services.kachatnames.NameInfo) -> Unit = {}) {
+    if (address != null && com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+        KachatAddressLiveNamesList(address, onOpen)
+    } else {
+        KachatAddressComingNote()
+    }
+}
+
+/**
+ * One address's .kachat names - Manage Addresses (spending), the chatting address and KasSigner
+ * each show their own address's names in its .kachat tab, with the same cards and detail screen as
+ * Your Domains > .kachat; [onOpen] opens the detail, which knows which of your addresses holds the
+ * name (a KasSigner one is read-only). Where the registry isn't launched (mainnet) nothing is read:
+ * the tab is its empty state (iOS 881ada6 `KachatAddressLiveNamesList`, 7227d69).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KachatAddressLiveNamesList(
+    address: String,
+    onOpen: (com.kachat.app.services.kachatnames.NameInfo) -> Unit,
+    vm: KachatLiveViewModel? = if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) hiltViewModel() else null,
+) {
+    val colors = LocalAppColors.current
+    // `vm` is null for the screen's whole life on mainnet, so these calls are never conditional in practice.
+    val revision = vm?.registry?.revision?.collectAsState()?.value
+    val upgrading = vm?.service?.registryUpgrading?.collectAsState()?.value == true
+    var names by remember { mutableStateOf<List<com.kachat.app.services.kachatnames.NameInfo>>(emptyList()) }
+    var loaded by remember { mutableStateOf(vm == null) }
+    LaunchedEffect(address, revision) {
+        val key = com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(address)
+        if (vm == null || key == null) { loaded = true; return@LaunchedEffect }
+        if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
+        names = try {
+            vm.registry.names(key, includeInactive = true)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
+        loaded = true
+    }
+    val pullState = rememberPullToRefreshState(enabled = { vm != null })
+    LaunchedEffect(pullState.isRefreshing) {
+        if (pullState.isRefreshing) {
+            vm?.registry?.refresh()
+            pullState.endRefresh()
+        }
+    }
+    Box(Modifier.fillMaxSize().nestedScroll(pullState.nestedScrollConnection)) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            when {
+                !loaded -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+                }
+                upgrading || names.isEmpty() -> Column(
+                    Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        painter = com.kachat.app.ui.Screen.KachatNames.tabIconPainter(),
+                        contentDescription = null,
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(width = 120.dp, height = 40.dp),
+                    )
+                    Text(
+                        stringResource(R.string.kachat_no_names_on_address),
+                        color = colors.textPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        stringResource(R.string.kachat_names_this_address_owns),
+                        color = colors.textSecondary,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                else -> names.forEach { n ->
+                    DomainNameCard(
+                        title = n.display,
+                        badge = kachatNameBadge(n, vm?.graceMs ?: 0L),
+                        modifier = Modifier.clickable { onOpen(n) }
+                    )
+                }
+            }
+        }
+        if (vm != null) PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
+    }
+}
+
+/** The tab before .kachat names were live on any network - kept, unreachable, as the switch-back. */
+@Composable
+private fun KachatAddressComingNote() {
     val colors = LocalAppColors.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

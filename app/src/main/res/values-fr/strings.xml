@@ -625,8 +625,6 @@
     <string name="portfolio_fees_count_loading">Transactions : %1$d. Certains prix sont encore en chargement.</string>
     <string name="portfolio_fees_count_priced">Transactions : %1$d, au prix de chaque jour.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">Une adresse neuve, jamais utilisée. Les Kaspa envoyés ici arrivent sur ce compte et s\'ajoutent à votre total disponible. Utilisez cette adresse pour tout ce qui ne concerne pas les discussions.</string>
-    <string name="qr_chatting_address_subtitle">Cette adresse sert aux discussions. Environ 50 Kaspa suffisent pour envoyer des messages pendant longtemps.</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Si cette phrase de récupération porte déjà votre identité à une autre adresse - un domaine (.kas, .k ou .kaspa) ou un solde de discussion -, choisissez-la ici. Seules les adresses avec un solde ou des domaines sont affichées.</string>
     <string name="chatting_picker_other_names_count">Noms .k et .kaspa (%1$d)</string>
@@ -920,4 +918,21 @@
     <string name="payment_not_on_chain_yet">Ce paiement n\'est pas encore on-chain.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">Ouvre la place de marché .kachat</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">Les noms détenus par cette adresse s\'affichent ici.</string>
+    <string name="kn_your_spending_address">Votre adresse de dépense n°%1$d</string>
+    <string name="kn_your_kassigner_address">Votre adresse KasSigner (%1$s n°%2$d)</string>
+    <string name="chats_new">Nouveau</string>
+    <string name="chats_new_chat">Nouvelle discussion</string>
+    <string name="chats_new_group_chat">Nouveau groupe</string>
+    <string name="chats_new_public_chat">Nouveau salon public</string>
+    <string name="chats_fund_chatting_address">Approvisionner l\'adresse de chat</string>
+    <string name="chats_new_chat_subtitle">Écrivez à quelqu\'un par son adresse ou son nom.</string>
+    <string name="chats_new_group_subtitle">Créez un groupe chiffré à plusieurs.</string>
+    <string name="chats_new_public_subtitle">Rejoignez un salon public ou créez-en un.</string>
+    <string name="chats_fund_subtitle">Affiche le QR code pour ajouter des Kaspa servant à envoyer des messages.</string>
+    <string name="chats_receive_subtitle">Affiche une nouvelle adresse pour être payé.</string>
+    <string name="qr_receive_address_subtitle">Une adresse neuve, jamais utilisée. Les Kaspa envoyés ici arrivent sur ce compte et s\'ajoutent à votre solde disponible. Utilisez cette adresse pour tout ce qui ne concerne ni les discussions ni les domaines.</string>
+    <string name="qr_chatting_address_subtitle">Cette adresse doit servir uniquement aux discussions et aux domaines. 1 Kaspa suffit pour environ 500 interactions dans l\'app. Les domaines coûtent de 35 à 4 000 Kaspa selon le nom.</string>
+    <string name="kn_profiles_saved_once_launched">Les profils pourront être enregistrés dès le lancement de .kachat sur le mainnet.</string>
 </resources>

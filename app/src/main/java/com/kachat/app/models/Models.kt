@@ -197,9 +197,10 @@ val ContactEntity.displayName: String
 
 /**
  * The app's one display-name rule for an address (iOS `ContactsManager.displayName`, e52357d):
- * the name you gave them ([alias]), else - on testnet - their `.kachat` name, where KNS is not
- * consulted; elsewhere their KNS domain ([knsName], when the caller shows one); else [fallback],
- * the short address. On testnet the `.kachat` name comes from the registry's identity cache
+ * the name you gave them ([alias]), else their `.kachat` name - KNS is not consulted, on any
+ * network since iOS 7227d69 (mainnet has no launched registry yet, so there it is always the
+ * short address); the KNS branch ([knsName]) is kept, unreachable; else [fallback], the short
+ * address. The `.kachat` name comes from the registry's identity cache
  * ([com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName]): read in a composable,
  * the name re-renders when it lands. Every place that names an address goes through this.
  */

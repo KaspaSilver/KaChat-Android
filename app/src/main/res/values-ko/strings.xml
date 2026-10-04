@@ -625,8 +625,6 @@
     <string name="portfolio_fees_count_loading">거래: %1$d건. 일부 가격을 아직 불러오는 중입니다.</string>
     <string name="portfolio_fees_count_priced">거래: %1$d건, 각 날짜의 가격 기준.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">한 번도 사용하지 않은 새 주소입니다. 여기로 보낸 Kaspa는 이 계정에 들어오며 지출 가능 합계에 표시됩니다. 채팅과 관련 없는 모든 용도에는 이 주소를 사용하세요.</string>
-    <string name="qr_chatting_address_subtitle">이 주소는 채팅용입니다. 50 Kaspa 정도면 오랫동안 메시지를 보낼 수 있습니다.</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">이 시드가 이미 다른 주소에 내 신원(.kas, .k, .kaspa 도메인 또는 잔액이 있는 채팅 주소)을 가지고 있다면 여기서 선택하세요. 잔액이나 도메인이 있는 주소만 표시됩니다.</string>
     <string name="chatting_picker_other_names_count">.k 및 .kaspa 이름 (%1$d)</string>
@@ -920,4 +918,21 @@
     <string name="payment_not_on_chain_yet">이 결제는 아직 온체인에 없습니다.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">.kachat 마켓플레이스를 엽니다</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">이 주소가 소유한 이름이 여기에 표시됩니다.</string>
+    <string name="kn_your_spending_address">내 지출 주소 #%1$d</string>
+    <string name="kn_your_kassigner_address">내 KasSigner 주소 (%1$s #%2$d)</string>
+    <string name="chats_new">새로 만들기</string>
+    <string name="chats_new_chat">새 채팅</string>
+    <string name="chats_new_group_chat">새 그룹 채팅</string>
+    <string name="chats_new_public_chat">새 공개 채팅</string>
+    <string name="chats_fund_chatting_address">채팅 주소 충전</string>
+    <string name="chats_new_chat_subtitle">주소나 이름으로 메시지를 보냅니다.</string>
+    <string name="chats_new_group_subtitle">여러 사람과 암호화된 그룹을 시작합니다.</string>
+    <string name="chats_new_public_subtitle">공개 방에 참여하거나 새로 만듭니다.</string>
+    <string name="chats_fund_subtitle">메시지 전송용 Kaspa를 추가할 QR 코드를 보여줍니다.</string>
+    <string name="chats_receive_subtitle">결제를 받을 새 주소를 보여줍니다.</string>
+    <string name="qr_receive_address_subtitle">한 번도 사용하지 않은 새 주소입니다. 여기로 보낸 Kaspa는 이 계정에 들어오며 지출 잔액에 표시됩니다. 채팅이나 도메인과 관련 없는 모든 용도에 이 주소를 사용하세요.</string>
+    <string name="qr_chatting_address_subtitle">이 주소는 채팅과 도메인 전용입니다. 1 Kaspa로 앱에서 약 500번의 활동을 할 수 있습니다. 도메인은 이름에 따라 35~4,000 Kaspa입니다.</string>
+    <string name="kn_profiles_saved_once_launched">.kachat이 메인넷에 출시되면 프로필을 저장할 수 있습니다.</string>
 </resources>

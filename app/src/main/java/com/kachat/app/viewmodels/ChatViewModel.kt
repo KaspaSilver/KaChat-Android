@@ -2014,8 +2014,9 @@ class ChatViewModel @Inject constructor(
     val groupMemberNamesByAddress: StateFlow<Map<String, String>> =
         combine(contactAliasesByAddress, groupMemberPrimaryKnsByAddress, knsProfiles) { aliases, primaryKns, kns ->
             val merged = aliases.toMutableMap()
-            // On testnet identity is .kachat: KNS is not consulted, and the screens add each
-            // member's .kachat name when they read this map (liveNameFor; iOS e52357d).
+            // Identity is .kachat (on every network since iOS 7227d69): KNS is not consulted, and
+            // the screens add each member's .kachat name when they read this map (liveNameFor;
+            // iOS e52357d) - on mainnet, with no launched registry, that is the short address.
             if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) return@combine merged
             for (addr in (primaryKns.keys + kns.keys)) {
                 if (!merged[addr].isNullOrBlank()) continue

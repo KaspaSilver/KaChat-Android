@@ -166,7 +166,9 @@ class KaChatApplication : Application(), Configuration.Provider {
         runCatching { kaPostsScheduledStore.reloadIfNeeded() }
 
         // Testnet: the .kachat identity caches the display rules read (see the fields above).
-        if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+        // isLaunched, not isEnabled (iOS 7227d69): the UI is on everywhere, but only a launched
+        // registry has identities to cache - mainnet never builds the names stack.
+        if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
             runCatching {
                 kachatNamesRegistry.get()
                 kachatSocialImages.get()
@@ -248,7 +250,7 @@ class KaChatApplication : Application(), Configuration.Provider {
                 nodePoolManager.reconnectStaleConnections()
                 // .kachat registrations in flight (testnet only; nothing on mainnet) resume after a
                 // relaunch: commit -> wait -> register continues by itself.
-                if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+                if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                     try {
                         kachatNamesActions.get().resume()
                     } catch (e: Exception) {

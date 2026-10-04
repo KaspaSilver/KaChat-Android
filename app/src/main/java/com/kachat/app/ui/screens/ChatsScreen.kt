@@ -69,6 +69,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.gestures.Orientation
@@ -148,11 +154,23 @@ fun ChatsScreen(
     // either strand a selection the visible list can't act on, or blend Chats and Group Chats
     // selections together, so the other tab is blocked while editing (matches iOS).
     val isOnGroupsTab = pagerState.currentPage == 1
-    /** The rooms page brings its own join and create entry points; its rooms are selectable in
-     *  bulk like chats and groups (iOS e08c4cc). */
+    /** The rooms page; its rooms are selectable in bulk like chats and groups (iOS e08c4cc). */
     val isOnPublicChatsTab = pagerState.currentPage == 2
     var showPublicChatsSettings by remember { mutableStateOf(false) }
     val tabCoroutineScope = rememberCoroutineScope()
+    // The bottom-right + : one New sheet for every page instead of a button that did something
+    // different on each (iOS 5da8ccf), and the QR page one of its options leaves for, shown once
+    // the sheet has gone (iOS e6400d6).
+    var showNewSheet by remember { mutableStateOf(false) }
+    var newSheetQr by remember { mutableStateOf<ChatsNewQr?>(null) }
+    // Receive Kaspa's fresh address: decided as the sheet opens (the check is a network round
+    // trip) and re-confirmed when the QR page comes up - the same two steps as Profile's.
+    var receiveQrAddress by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(showNewSheet, newSheetQr) {
+        if (showNewSheet || newSheetQr == ChatsNewQr.RECEIVE) {
+            walletViewModel.resolveFreshReceiveAddress { address -> if (address != null) receiveQrAddress = address }
+        }
+    }
 
     // A group notification with no openable thread asked for the Group Chats tab — see
     // [ChatsTabIntake]. Consumed once, so a later manual swipe back to Chats sticks.
@@ -485,14 +503,17 @@ fun ChatsScreen(
             // Same style/placement as Portfolio's add-transaction FAB (see PortfolioScreen.kt) —
             // sits above the app-wide floating tab bar for free, since this screen's own content
             // region is already reserved above it before this Scaffold is even composed.
-            // No create button on the rooms page: it carries its own join and create row.
-            if (isOnPublicChatsTab) return@Scaffold
-            // Tab-aware: opens the group builder on the Group Chats tab, the 1:1 create screen
-            // on the Chats tab. iOS's glass corner button.
+            // One glass + on every page, in the same corner, opening the New sheet (iOS 5da8ccf);
+            // the rooms page no longer draws its own when embedded here. Not while selecting.
+            if (isSelectionMode) return@Scaffold
+            val fabView = androidx.compose.ui.platform.LocalView.current
             com.kachat.app.ui.theme.IosGlassFab(
-                onClick = { navController.navigate(if (isOnGroupsTab) "create_chat?group=true" else "create_chat") },
-                icon = Icons.Default.PersonAddAlt1,
-                contentDescription = "Create chat",
+                onClick = {
+                    fabView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    showNewSheet = true
+                },
+                icon = Icons.Default.Add,
+                contentDescription = stringResource(R.string.chats_new),
             )
         },
         bottomBar = {
@@ -579,8 +600,8 @@ fun ChatsScreen(
             modifier = Modifier.fillMaxSize().padding(padding)
         ) { page ->
         when (page) {
-            // The rooms screen, whole, as the third page - its own join and create affordances
-            // come with it.
+            // The rooms screen, whole, as the third page. Joining or creating a room is the New
+            // sheet's "New Public Chat" here (iOS 5da8ccf).
             2 -> BroadcastListScreen(
                 navController = navController,
                 onBack = {},
@@ -955,6 +976,45 @@ fun ChatsScreen(
                 }
             )
         }
+    }
+
+    // The New sheet (iOS 5da8ccf -> e6400d6): New Chat / New Group Chat swap it to the create
+    // screen, New Public Chat pushes a room name inside it, and the two QR options close it and
+    // then bring up Profile's white QR page.
+    if (showNewSheet) {
+        ChatsNewSheet(
+            chatViewModel = chatViewModel,
+            broadcastViewModel = broadcastViewModel,
+            onDismiss = { showNewSheet = false },
+            onChatCreated = { address ->
+                tabCoroutineScope.launch { pagerState.scrollToPage(0) }
+                navController.navigate("chat/$address")
+            },
+            onGroupCreated = { groupId ->
+                tabCoroutineScope.launch { pagerState.scrollToPage(1) }
+                navController.navigate("group_chat/$groupId")
+            },
+            onRoomJoined = { name ->
+                tabCoroutineScope.launch { pagerState.scrollToPage(2) }
+                // Opened like a tapped row when the name is safe in a route; otherwise the joined
+                // room waits on the Public Chats page.
+                if (KaChatLink.sanitizeChannelName(name) == name) navController.navigate("broadcast_channel/$name")
+            },
+            onShowQr = { newSheetQr = it },
+        )
+    }
+    when (newSheetQr) {
+        ChatsNewQr.FUND_CHATTING -> ChattingAddressQrOverlay(
+            address = myAddress ?: "",
+            onDismiss = { newSheetQr = null },
+            dismissAsDone = true,
+        )
+        ChatsNewQr.RECEIVE -> ReceiveKaspaQrOverlay(
+            address = receiveQrAddress,
+            onDismiss = { newSheetQr = null },
+            dismissAsDone = true,
+        )
+        null -> Unit
     }
 }
 
@@ -1880,6 +1940,252 @@ fun MessageRequestsScreen(
                         modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+/** The QR pages the Chats New sheet opens (iOS e6400d6 `ChatsQRScreen`). */
+private enum class ChatsNewQr { FUND_CHATTING, RECEIVE }
+
+/** What the Chats New sheet shows: its menu, the room name pushed inside it, or a create screen
+ *  swapped in (iOS be0857a / e6400d6). */
+private enum class ChatsNewPage { MENU, JOIN_ROOM, NEW_CHAT, NEW_GROUP }
+
+/**
+ * The Chats screen's New sheet, wherever you are in Chats (iOS 5da8ccf, then be0857a, f508292,
+ * 231c05e and e6400d6 - this is where they ended): a half sheet of New Chat, New Group Chat, New
+ * Public Chat, Fund Chatting Address and Receive Kaspa. Everything but the QR codes happens in
+ * this one sheet, so there is no close-then-open wait:
+ * - New Chat / New Group Chat swap the sheet to the create screen, full height ([CreateChatScreen],
+ *   whose Cancel comes back to the menu);
+ * - New Public Chat pushes a room-name field inside the sheet, at the menu's height; joining opens
+ *   the room on the Public Chats page, and an invalid name says why in place;
+ * - Fund Chatting Address / Receive Kaspa close the sheet and then bring up Profile's full white QR
+ *   page ([onShowQr]) - a white page inside a dark sheet never fit (231c05e, undone by e6400d6).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatsNewSheet(
+    chatViewModel: ChatViewModel,
+    broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel,
+    onDismiss: () -> Unit,
+    onChatCreated: (String) -> Unit,
+    onGroupCreated: (String) -> Unit,
+    onRoomJoined: (String) -> Unit,
+    onShowQr: (ChatsNewQr) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var page by remember { mutableStateOf(ChatsNewPage.MENU) }
+    var roomName by remember { mutableStateOf("") }
+    /** A join this sheet asked for, so a success elsewhere (the rooms page) is not taken for it. */
+    var joining by remember { mutableStateOf<String?>(null) }
+    val joinState by broadcastViewModel.joinChannelState.collectAsState()
+
+    /** Closes the sheet and runs [then] once it has gone (iOS `closeCreateSheet(then:)`). */
+    fun close(then: () -> Unit = {}) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            onDismiss()
+            then()
+        }
+    }
+
+    LaunchedEffect(joinState) {
+        val name = joining ?: return@LaunchedEffect
+        when (joinState.status) {
+            com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.SUCCESS -> {
+                joining = null
+                close { onRoomJoined(name) }
+            }
+            com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED -> joining = null
+            else -> Unit
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+    ) {
+        when (page) {
+            ChatsNewPage.NEW_CHAT, ChatsNewPage.NEW_GROUP -> Box(Modifier.fillMaxHeight()) {
+                CreateChatScreen(
+                    onBack = { close() },
+                    onCancel = { page = ChatsNewPage.MENU },
+                    onChatCreated = { address -> close { onChatCreated(address) } },
+                    onGroupCreated = { groupId -> close { onGroupCreated(groupId) } },
+                    startInGroupMode = page == ChatsNewPage.NEW_GROUP,
+                    chatViewModel = chatViewModel,
+                )
+            }
+            ChatsNewPage.JOIN_ROOM -> ChatsNewJoinRoom(
+                name = roomName,
+                onNameChange = {
+                    roomName = it
+                    if (joinState.status != com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.IDLE) {
+                        broadcastViewModel.resetJoinChannelState()
+                    }
+                },
+                error = joinState.message?.takeIf { joinState.status == com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED },
+                onBack = { page = ChatsNewPage.MENU },
+                onJoin = {
+                    if (roomName.isNotBlank()) {
+                        joining = com.kachat.app.util.MessageProtocol.normalizeChannelName(roomName)
+                        broadcastViewModel.joinChannel(roomName)
+                    }
+                },
+            )
+            ChatsNewPage.MENU -> Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(ChatsNewSheetHeight)
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.chats_new),
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                )
+                ActionSheetRow(
+                    icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
+                    title = stringResource(R.string.chats_new_chat),
+                    subtitle = stringResource(R.string.chats_new_chat_subtitle),
+                ) { page = ChatsNewPage.NEW_CHAT }
+                ActionSheetRow(
+                    icon = Icons.Default.Groups,
+                    title = stringResource(R.string.chats_new_group_chat),
+                    subtitle = stringResource(R.string.chats_new_group_subtitle),
+                ) { page = ChatsNewPage.NEW_GROUP }
+                ActionSheetRow(
+                    icon = Icons.Default.Tag,
+                    title = stringResource(R.string.chats_new_public_chat),
+                    subtitle = stringResource(R.string.chats_new_public_subtitle),
+                ) {
+                    roomName = ""
+                    joining = null
+                    broadcastViewModel.resetJoinChannelState()
+                    page = ChatsNewPage.JOIN_ROOM
+                }
+                ActionSheetRow(
+                    icon = Icons.Default.QrCode,
+                    title = stringResource(R.string.chats_fund_chatting_address),
+                    subtitle = stringResource(R.string.chats_fund_subtitle),
+                ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
+                ActionSheetRow(
+                    icon = painterResource(R.drawable.ic_kaspa_logo),
+                    title = stringResource(R.string.receive_kaspa),
+                    subtitle = stringResource(R.string.chats_receive_subtitle),
+                ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** The menu and the room name share one height, so moving between them is a plain push; the
+ *  create screens open at full height (iOS e6400d6 `createSheetHeight`, 580 pt). */
+private val ChatsNewSheetHeight = 580.dp
+
+/**
+ * Join or create a public room, right in the New sheet (iOS be0857a `createJoinRoom`): the same
+ * rules as the rooms page's own join sheet, with the error in place.
+ */
+@Composable
+private fun ChatsNewJoinRoom(
+    name: String,
+    onNameChange: (String) -> Unit,
+    error: String?,
+    onBack: () -> Unit,
+    onJoin: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    // A turn later: the field doesn't exist yet on the push that showed it.
+    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(ChatsNewSheetHeight)
+            .padding(bottom = 24.dp),
+    ) {
+        // The pushed page's bar: back to the menu, and its title.
+        Box(Modifier.fillMaxWidth().height(44.dp)) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
+            }
+            Text(
+                stringResource(R.string.chats_new_public_chat),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 17.sp,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(R.string.anyone_who_joins_the_same_channel),
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.surface)
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("#", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                TextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    placeholder = { Text(stringResource(R.string.channel_name), color = colors.textTertiary) },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.None,
+                        autoCorrect = false,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Go,
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { onJoin() }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        cursorColor = KaspaTeal,
+                    ),
+                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                )
+            }
+            if (error != null) {
+                Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+            }
+            val empty = name.isBlank()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(KaspaTeal.copy(alpha = if (empty) 0.4f else 1f))
+                    .clickable(enabled = !empty) { onJoin() }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(stringResource(R.string.join), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }

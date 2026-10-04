@@ -212,9 +212,11 @@ fun BroadcastListScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        // The same floating button the Chats and Group Chats pages carry, here for joining or
-        // creating a room (iOS 6639a0b). Drawn by this page because it owns the join dialog.
+        // Its own floating button for joining or creating a room (iOS 6639a0b) - only standalone
+        // (Kaspa Hub). Inside Chats, the Chats screen's + covers it ("New Public Chat", in its New
+        // sheet - iOS 5da8ccf / be0857a). Not while selecting.
         floatingActionButton = {
+            if (embeddedInChats || isSelectionMode) return@Scaffold
             com.kachat.app.ui.theme.IosGlassFab(
                 onClick = {
                     channelInput = ""

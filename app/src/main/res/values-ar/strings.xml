@@ -625,8 +625,6 @@
     <string name="portfolio_fees_count_loading">المعاملات: %1$d. لا تزال بعض الأسعار قيد التحميل.</string>
     <string name="portfolio_fees_count_priced">المعاملات: %1$d، بسعر كل يوم.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">عنوان جديد لم يُستخدم من قبل. تصل Kaspa المرسلة إلى هنا إلى هذا الحساب وتظهر في إجمالي الإنفاق. استخدم هذا العنوان لكل ما لا يتعلق بالمحادثة.</string>
-    <string name="qr_chatting_address_subtitle">هذا العنوان مخصص للمحادثة. يكفي تمويله بنحو 50 Kaspa لإرسال الرسائل لفترة طويلة.</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">إذا كانت عبارة الاسترداد هذه تحمل هويتك بالفعل في عنوان آخر - نطاق (.kas أو .k أو .kaspa) أو رصيد محادثة - فاختره هنا. تظهر فقط العناوين التي لديها رصيد أو نطاقات.</string>
     <string name="chatting_picker_other_names_count">أسماء .k و.kaspa (%1$d)</string>
@@ -920,4 +918,21 @@
     <string name="payment_not_on_chain_yet">هذه الدفعة ليست على السلسلة بعد.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">يفتح سوق .kachat</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">تظهر هنا الأسماء التي يملكها هذا العنوان.</string>
+    <string name="kn_your_spending_address">عنوان الإنفاق الخاص بك #%1$d</string>
+    <string name="kn_your_kassigner_address">عنوان KasSigner الخاص بك (%1$s #%2$d)</string>
+    <string name="chats_new">جديد</string>
+    <string name="chats_new_chat">دردشة جديدة</string>
+    <string name="chats_new_group_chat">دردشة جماعية جديدة</string>
+    <string name="chats_new_public_chat">دردشة عامة جديدة</string>
+    <string name="chats_fund_chatting_address">تمويل عنوان الدردشة</string>
+    <string name="chats_new_chat_subtitle">راسل شخصًا عبر عنوانه أو اسمه.</string>
+    <string name="chats_new_group_subtitle">ابدأ مجموعة مشفّرة مع عدة أشخاص.</string>
+    <string name="chats_new_public_subtitle">انضم إلى غرفة عامة أو أنشئ واحدة.</string>
+    <string name="chats_fund_subtitle">يعرض رمز QR لإضافة Kaspa لإرسال الرسائل.</string>
+    <string name="chats_receive_subtitle">يعرض عنوانًا جديدًا لتلقي المدفوعات.</string>
+    <string name="qr_receive_address_subtitle">عنوان جديد لم يُستخدم من قبل. تصل عملات Kaspa المرسلة إليه إلى هذا الحساب وتظهر في رصيد الإنفاق. استخدم هذا العنوان لكل ما لا يتعلق بالدردشة أو النطاقات.</string>
+    <string name="qr_chatting_address_subtitle">يجب أن يكون هذا العنوان للدردشة والنطاقات فقط. يكفي 1 Kaspa لنحو 500 تفاعل في التطبيق. تتراوح تكلفة النطاقات بين 35 و4000 Kaspa حسب الاسم.</string>
+    <string name="kn_profiles_saved_once_launched">يمكن حفظ الملفات الشخصية بعد إطلاق ‎.kachat على الشبكة الرئيسية.</string>
 </resources>

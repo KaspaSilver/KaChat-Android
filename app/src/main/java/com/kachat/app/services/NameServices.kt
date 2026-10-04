@@ -84,12 +84,14 @@ enum class NameServiceTLD(val raw: String) {
         KAS, KACHAT -> null
     }
 
-    /** Whether the app can read this service yet. `.kachat` only on testnet (testnet-10 registry). */
-    val isLive: Boolean get() = this != KACHAT || KachatNamesService.isEnabled
+    /** Whether the app can read this service yet. `.kachat` only where its registry is launched
+     *  (testnet-10 for now, iOS 7227d69): typed-name resolution never asks a registry on mainnet. */
+    val isLive: Boolean get() = this != KACHAT || KachatNamesService.isLaunched
 
     companion object {
-        /** The tab Your Domains opens on: `.kachat` once it is live, KNS until then. */
-        val defaultTab: NameServiceTLD get() = if (KACHAT.isLive) KACHAT else KAS
+        /** The tab Your Domains opens on: `.kachat` - its UI is on everywhere, live or not (iOS
+         *  7227d69). KNS only if that UI were ever switched back off. */
+        val defaultTab: NameServiceTLD get() = if (KachatNamesService.isEnabled) KACHAT else KAS
 
         /** The order a bare name ("bob") is tried in: KaChat's own .kachat always first, then
          *  KNS, dotk and Kaspa Names. The first that resolves is the answer; the rest are

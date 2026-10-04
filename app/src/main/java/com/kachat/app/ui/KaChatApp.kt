@@ -637,7 +637,8 @@ fun MainShell(
     // pending until that screen takes it, so a cold start lands on it too.
     val pendingKachatName by com.kachat.app.ui.screens.KachatDeepLink.pendingName.collectAsState()
     LaunchedEffect(pendingKachatName) {
-        if (pendingKachatName != null && com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+        // Only where names are live (iOS 7227d69 `KachatLive.isEnabled` = isLaunched).
+        if (pendingKachatName != null && com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
             navController.navigate(Screen.KachatNames.route) { launchSingleTop = true }
         }
     }
@@ -1365,7 +1366,8 @@ fun MainShell(
                     ColdStorageTxHistoryScreen(
                         address = backStackEntry.arguments?.getString("address") ?: "",
                         onBack = { navController.popBackStack() },
-                        viewModel = sharedViewModel
+                        viewModel = sharedViewModel,
+                        onOpenChat = { address -> navController.navigate("chat/$address") },
                     )
                 }
             }
@@ -1401,7 +1403,8 @@ fun MainShell(
                 SpendingAddressTxHistoryScreen(
                     index = backStackEntry.arguments?.getInt("index") ?: 0,
                     onBack = { navController.popBackStack() },
-                    viewModel = walletViewModel
+                    viewModel = walletViewModel,
+                    onOpenChat = { address -> navController.navigate("chat/$address") },
                 )
             }
 
@@ -1414,7 +1417,8 @@ fun MainShell(
             composable("identity_address_detail") {
                 IdentityAddressDetailScreen(
                     onBack = { navController.popBackStack() },
-                    viewModel = walletViewModel
+                    viewModel = walletViewModel,
+                    onOpenChat = { address -> navController.navigate("chat/$address") },
                 )
             }
 

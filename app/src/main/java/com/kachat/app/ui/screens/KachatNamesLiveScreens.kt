@@ -143,7 +143,9 @@ fun KaspaUnit.parseSompi(text: String): Long? {
 // MARK: - Shared pieces
 
 object KachatLive {
-    val isEnabled: Boolean get() = KachatNamesService.isEnabled
+    /** The registry is live on this network (testnet only for now) - reads and actions run. Not
+     *  the .kachat UI, which is on everywhere ([KachatNamesService.isEnabled], iOS 7227d69). */
+    val isEnabled: Boolean get() = KachatNamesService.isLaunched
 
     /** testnet-10 runs at 10 blocks per second */
     const val DAA_PER_SECOND: Long = 10
@@ -282,7 +284,9 @@ private fun Context.kachatAuthorize(onSuccess: () -> Unit) {
 /**
  * The live screens' state and services (iOS `KachatHubModel`, plus the singletons iOS reaches as
  * `.shared`). Hub state lives here; the detail and the sheets read the registry and run actions
- * through [registry] and [actions]. Created on testnet only - mainnet never constructs it.
+ * through [registry] and [actions]. Created on testnet only - mainnet never constructs it: the
+ * screens that show there (the hub's pages, Your Domains, an address's .kachat tab, the profile
+ * editor) take a null model and draw their empty, "Coming soon" state (iOS 7227d69).
  */
 @HiltViewModel
 class KachatLiveViewModel @Inject constructor(
@@ -324,14 +328,14 @@ class KachatLiveViewModel @Inject constructor(
     var loaded by mutableStateOf(false); private set
 
     /** This wallet's x-only key. Read once here: it parses the account list, too slow per row. */
-    var myKey by mutableStateOf(if (KachatNamesService.isEnabled) actions.myKey else null); private set
+    var myKey by mutableStateOf(if (KachatNamesService.isLaunched) actions.myKey else null); private set
 
     val isLive: Boolean get() = KachatLive.isEnabled && ready == true
     val graceMs: Long get() = registry.graceMs
 
     init {
         // iOS: onReceive(registry.$revision.dropFirst()) - the registry changed, reload the pages.
-        if (KachatNamesService.isEnabled) {
+        if (KachatNamesService.isLaunched) {
             viewModelScope.launch {
                 registry.revision.drop(1).collect { if (isLive) reload() }
             }
@@ -424,7 +428,7 @@ class KachatLiveViewModel @Inject constructor(
      * else the one the source knows. Null on mainnet.
      */
     suspend fun hero(address: String): Hero? {
-        if (!KachatNamesService.isEnabled) return null
+        if (!KachatNamesService.isLaunched) return null
         registry.refreshIfStale(300_000)
         val identity = try {
             registry.identity(address)
@@ -458,6 +462,16 @@ class KachatLiveViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * Just the social lookups (avatar, banner, bio from a linked account), for the profile editor where
+ * the registry isn't launched (mainnet, iOS 7227d69): it shows the live editor there, and its
+ * previews look the accounts up, but nothing builds the registry stack.
+ */
+@HiltViewModel
+class KachatSocialViewModel @Inject constructor(
+    val social: KachatSocialImageResolver,
+) : ViewModel()
 
 // MARK: - Small building blocks
 
@@ -1080,13 +1094,16 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
 
 // MARK: - Hub: pages
 
-/** Marketplace: names for sale, and Reclaimable (lapsed names, with Reclaim). */
+/**
+ * Marketplace: names for sale, and Reclaimable (lapsed names, with Reclaim). [vm] is null where
+ * the registry isn't launched (mainnet): the same page, empty (iOS 7227d69).
+ */
 @Composable
-fun KachatLiveMarketPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, onReclaim: (NameInfo) -> Unit) {
+fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, onReclaim: (NameInfo) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
         KachatLiveSectionHeader(stringResource(R.string.kn_for_sale), stringResource(R.string.kn_for_sale_detail))
-        if (vm.listings.isEmpty()) {
-            KachatLiveEmpty(if (vm.loaded) stringResource(R.string.kn_no_listings) else null)
+        if (vm == null || vm.listings.isEmpty()) {
+            KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_listings) else null)
         } else {
             KachatGlassList {
                 vm.listings.forEachIndexed { index, n ->
@@ -1097,8 +1114,8 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, on
         }
 
         KachatLiveSectionHeader(stringResource(R.string.kn_reclaimable), stringResource(R.string.kn_reclaimable_detail))
-        if (vm.lapsed.isEmpty()) {
-            KachatLiveEmpty(if (vm.loaded) stringResource(R.string.kn_nothing_to_reclaim) else null)
+        if (vm == null || vm.lapsed.isEmpty()) {
+            KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_to_reclaim) else null)
         } else {
             KachatGlassList {
                 vm.lapsed.forEachIndexed { index, n ->
@@ -1113,14 +1130,16 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, on
     }
 }
 
-/** My Names, and My Offers (withdraw, refund once refundable). */
+/** My Names, and My Offers (withdraw, refund once refundable). [vm] null: mainnet, empty (iOS
+ *  7227d69). */
 @Composable
-fun KachatLiveMyNamesPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, onOfferAction: (KachatOfferAction) -> Unit) {
+fun KachatLiveMyNamesPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, onOfferAction: (KachatOfferAction) -> Unit) {
     val colors = LocalAppColors.current
-    val source by vm.registry.source.collectAsState()
+    // `vm` is null for the screen's whole life on mainnet, so this call is never conditional in practice.
+    val source = vm?.registry?.source?.collectAsState()?.value
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
         KachatLiveSectionHeader(stringResource(R.string.km_my_names), stringResource(R.string.kn_my_names_extend_detail))
-        if (vm.mine.isEmpty()) {
+        if (vm == null || vm.mine.isEmpty()) {
             Column(
                 Modifier.fillMaxWidth().padding(vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1140,8 +1159,8 @@ fun KachatLiveMyNamesPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, o
         }
 
         KachatLiveSectionHeader(stringResource(R.string.kn_my_offers), stringResource(R.string.kn_my_offers_detail))
-        if (vm.myOffers.isEmpty()) {
-            KachatLiveEmpty(if (vm.loaded) stringResource(R.string.kn_no_open_offers) else null)
+        if (vm == null || vm.myOffers.isEmpty()) {
+            KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_open_offers) else null)
         } else {
             KachatGlassList {
                 vm.myOffers.forEachIndexed { index, o ->
@@ -1156,13 +1175,13 @@ fun KachatLiveMyNamesPage(vm: KachatLiveViewModel, onOpen: (NameInfo) -> Unit, o
     }
 }
 
-/** Recent activity across the registry. */
+/** Recent activity across the registry. [vm] null: mainnet, empty (iOS 7227d69). */
 @Composable
-fun KachatLiveActivityPage(vm: KachatLiveViewModel) {
+fun KachatLiveActivityPage(vm: KachatLiveViewModel?) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
         KachatLiveSectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.kn_activity_detail))
-        if (vm.activity.isEmpty()) {
-            KachatLiveEmpty(if (vm.loaded) stringResource(R.string.kn_nothing_yet) else null)
+        if (vm == null || vm.activity.isEmpty()) {
+            KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_yet) else null)
         } else {
             val shown = vm.activity.take(100)
             KachatGlassList {
@@ -1586,6 +1605,12 @@ private enum class KachatDetailSheet { BUY, OFFER, EXTEND, RENEW, LIST, DELIST, 
  * do with it - buy, offer or message the owner; or, for their own names, extend or renew (registry
  * v2, iOS bd2c54a), list, transfer, release and make it their primary name. Offers and history
  * below (iOS `KachatLiveNameDetail`).
+ *
+ * It knows which of your addresses holds the name ([KachatNamesActions.ownAddress], iOS 881ada6):
+ * the chatting address gets every owner action, Set as Primary included; a spending address gets
+ * list / delist / transfer / release / accept, signed and paid for by that address's key; a
+ * KasSigner address is read-only (the Owner card says which one holds it). Your own names are
+ * never offered Buy / Make an Offer.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1608,8 +1633,19 @@ fun KachatLiveNameDetailScreen(
     var history by remember { mutableStateOf<List<Event>>(emptyList()) }
     var gone by remember { mutableStateOf(false) }
     var confirmPrimary by remember { mutableStateOf(false) }
+    // Which of this wallet's addresses holds the name (chatting, a spending address, a KasSigner
+    // address), or null for someone else's. Resolved on load: it derives addresses (iOS 881ada6).
+    var heldBy by remember(initial.name) { mutableStateOf<KachatNamesActions.OwnAddress?>(null) }
 
-    val mine = vm.isMine(info.owner)
+    // Held by the chatting address: the identity, so "Set as Primary" applies.
+    val mine = heldBy == KachatNamesActions.OwnAddress.Chatting || (heldBy == null && vm.isMine(info.owner))
+    // Held by an address this app can sign for: every owner action is available.
+    val canActAsOwner = when (heldBy) {
+        KachatNamesActions.OwnAddress.Chatting, is KachatNamesActions.OwnAddress.Spending -> true
+        else -> mine
+    }
+    // Held by any of this wallet's addresses - never offered Buy / Make an Offer.
+    val ownedByWallet = heldBy != null || mine
     val status = info.status(vm.graceMs)
     val ownerAddress = KachatNamesRegistry.address(info.owner)
 
@@ -1624,7 +1660,9 @@ fun KachatLiveNameDetailScreen(
         } catch (_: Exception) {
         }
         val owner = KachatNamesRegistry.address(info.owner)
-        if (!vm.isMine(info.owner) && owner != null) {
+        val held = runCatching { vm.actions.ownAddress(info.owner) }.getOrNull()
+        heldBy = held
+        if (held == null && !vm.isMine(info.owner) && owner != null) {
             runCatching { vm.registry.identity(owner) }.getOrNull()?.let { ownerLabel = it.label }
         }
         offers = runCatching { vm.registry.offers(info.name) }.getOrNull() ?: emptyList()
@@ -1742,7 +1780,7 @@ fun KachatLiveNameDetailScreen(
                         }
                     }
                     when {
-                        status == Status.GRACE && mine -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
+                        status == Status.GRACE && ownedByWallet -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
                         status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace), color = colors.warning, fontSize = 13.sp)
                         status == Status.LAPSED -> Text(stringResource(R.string.kn_detail_lapsed), color = colors.danger, fontSize = 13.sp)
                     }
@@ -1754,7 +1792,7 @@ fun KachatLiveNameDetailScreen(
                     // Actions
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         val big = Modifier.fillMaxWidth()
-                        if (mine) {
+                        if (canActAsOwner) {
                             KachatPeriodActions(info, status, vm) { sheet = it }
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 KachatButton(
@@ -1767,12 +1805,19 @@ fun KachatLiveNameDetailScreen(
                                 if (info.isListed) {
                                     KachatButton(stringResource(R.string.kn_delist), Modifier.weight(1f), Icons.AutoMirrored.Filled.LabelOff, large = true) { sheet = KachatDetailSheet.DELIST }
                                 }
-                                KachatButton(
-                                    stringResource(R.string.set_as_primary), Modifier.weight(1f), Icons.Default.HowToReg,
-                                    enabled = status == Status.ACTIVE, large = true
-                                ) { confirmPrimary = true }
+                                // The primary name is the chatting address's identity; a name on a
+                                // spending address can't be it (iOS 881ada6).
+                                if (mine) {
+                                    KachatButton(
+                                        stringResource(R.string.set_as_primary), Modifier.weight(1f), Icons.Default.HowToReg,
+                                        enabled = status == Status.ACTIVE, large = true
+                                    ) { confirmPrimary = true }
+                                }
                             }
                             KachatButton(stringResource(R.string.kn_release_name), big, Icons.Default.Delete, destructive = true, large = true) { sheet = KachatDetailSheet.RELEASE }
+                        } else if (heldBy is KachatNamesActions.OwnAddress.KasSigner) {
+                            // Read-only: the app shows that a KasSigner address holds the name (the
+                            // Owner card says which); acting on it is the device's job (iOS 881ada6).
                         } else if (status == Status.LAPSED) {
                             KachatButton(stringResource(R.string.kn_reclaim), big, Icons.Default.Recycling, prominent = true, large = true) { sheet = KachatDetailSheet.RECLAIM }
                         } else {
@@ -1795,10 +1840,18 @@ fun KachatLiveNameDetailScreen(
                             Icon(Icons.Default.AccountCircle, contentDescription = null, tint = KaspaTeal.copy(alpha = 0.6f), modifier = Modifier.size(34.dp))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                if (mine) {
-                                    Text(stringResource(R.string.kn_you), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                } else {
-                                    ownerLabel?.let { Text("$it.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                                val held = heldBy
+                                when {
+                                    mine -> Text(stringResource(R.string.kn_you), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                    held is KachatNamesActions.OwnAddress.Spending -> Text(
+                                        stringResource(R.string.kn_your_spending_address, held.index),
+                                        color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
+                                    )
+                                    held is KachatNamesActions.OwnAddress.KasSigner -> Text(
+                                        stringResource(R.string.kn_your_kassigner_address, held.account, held.index),
+                                        color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
+                                    )
+                                    else -> ownerLabel?.let { Text("$it.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                                 }
                                 ownerAddress?.let {
                                     SelectionContainer {
@@ -1806,7 +1859,7 @@ fun KachatLiveNameDetailScreen(
                                     }
                                 }
                             }
-                            if (!mine && ownerAddress != null) {
+                            if (!ownedByWallet && ownerAddress != null) {
                                 Spacer(Modifier.width(8.dp))
                                 KachatButton(stringResource(R.string.kl_message), icon = Icons.Default.Forum) {
                                     vm.message(ownerAddress, onOpenChat)
@@ -1817,7 +1870,7 @@ fun KachatLiveNameDetailScreen(
 
                     // Offers
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        KachatLiveSectionHeader(stringResource(R.string.kl_offers), if (mine) stringResource(R.string.kn_accept_one) else null)
+                        KachatLiveSectionHeader(stringResource(R.string.kl_offers), if (canActAsOwner) stringResource(R.string.kn_accept_one) else null)
                         if (offers.isEmpty()) {
                             Box(
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp).kachatGlass(colors).padding(vertical = 14.dp),
@@ -1827,7 +1880,7 @@ fun KachatLiveNameDetailScreen(
                             KachatGlassList {
                                 offers.forEachIndexed { index, o ->
                                     KachatOfferRow(
-                                        o, vm, isBuyer = vm.isMine(o.buyer), isOwner = mine && source?.isIndexer == true,
+                                        o, vm, isBuyer = vm.isMine(o.buyer), isOwner = canActAsOwner && source?.isIndexer == true,
                                         onAction = { offerAction = it }, name = info
                                     )
                                     if (index < offers.lastIndex) KachatRowDivider(50)
@@ -2137,7 +2190,22 @@ fun KachatReclaimSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMo
 
 // MARK: - Your Domains > .kachat
 
-/** Your Domains > .kachat on testnet: the wallet's names (iOS `KachatLiveDomainsTab`). */
+/**
+ * The card badge for a name: Listed, Expired (in grace) or Lapsed - shared by Your Domains and the
+ * per-address lists ([KachatAddressLiveNamesList], iOS 881ada6 `KachatLiveDomainsTab.badge`).
+ */
+@Composable
+fun kachatNameBadge(n: NameInfo, graceMs: Long): String? = when (n.status(graceMs)) {
+    Status.ACTIVE -> if (n.isListed) stringResource(R.string.kn_ev_listed) else null
+    Status.GRACE -> stringResource(R.string.kn_status_expired)
+    Status.LAPSED -> stringResource(R.string.kn_status_lapsed)
+}
+
+/**
+ * Your Domains > .kachat: the wallet's names (iOS `KachatLiveDomainsTab`). On every network since
+ * iOS 7227d69 - where the registry isn't launched (mainnet) [vm] is null and the tab is its empty
+ * state with the Inscribe button, without ever building the registry.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatLiveDomainsTab(
@@ -2148,17 +2216,18 @@ fun KachatLiveDomainsTab(
     /** Set when the marketplace was just closed: the list refreshes so a new name shows at once. */
     refreshRequested: Boolean = false,
     onRefreshHandled: () -> Unit = {},
-    vm: KachatLiveViewModel = hiltViewModel(),
+    vm: KachatLiveViewModel? = if (KachatNamesService.isLaunched) hiltViewModel() else null,
 ) {
     val colors = LocalAppColors.current
-    val revision by vm.registry.revision.collectAsState()
-    val upgrading by vm.service.registryUpgrading.collectAsState()
+    // `vm` is null for the screen's whole life on mainnet, so these calls are never conditional in practice.
+    val revision = vm?.registry?.revision?.collectAsState()?.value
+    val upgrading = vm?.service?.registryUpgrading?.collectAsState()?.value == true
     var names by remember { mutableStateOf<List<NameInfo>>(emptyList()) }
-    var loaded by remember { mutableStateOf(false) }
+    var loaded by remember { mutableStateOf(vm == null) }
 
     LaunchedEffect(revision, walletAddress) {
         val key = KachatNamesRegistry.keyOf(walletAddress)
-        if (key == null) { loaded = true; return@LaunchedEffect }
+        if (vm == null || key == null) { loaded = true; return@LaunchedEffect }
         if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
         names = try {
             vm.registry.names(key, includeInactive = true)
@@ -2173,20 +2242,17 @@ fun KachatLiveDomainsTab(
     LaunchedEffect(refreshRequested) {
         if (refreshRequested) {
             onRefreshHandled()
-            vm.registry.refresh()
+            vm?.registry?.refresh()
         }
     }
 
     val pullState = rememberPullToRefreshState()
     LaunchedEffect(pullState.isRefreshing) {
         if (pullState.isRefreshing) {
-            vm.registry.refresh()
+            vm?.registry?.refresh()
             pullState.endRefresh()
         }
     }
-    val listed = stringResource(R.string.kn_ev_listed)
-    val expired = stringResource(R.string.kn_status_expired)
-    val lapsed = stringResource(R.string.kn_status_lapsed)
     Column(Modifier.fillMaxSize()) {
     Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(pullState.nestedScrollConnection)) {
         Column(
@@ -2214,12 +2280,7 @@ fun KachatLiveDomainsTab(
                     Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 }
                 else -> names.forEach { n ->
-                    val badge = when (n.status(vm.graceMs)) {
-                        Status.ACTIVE -> if (n.isListed) listed else null
-                        Status.GRACE -> expired
-                        Status.LAPSED -> lapsed
-                    }
-                    DomainNameCard(title = n.display, badge = badge, modifier = Modifier.clickable { onOpen(n) })
+                    DomainNameCard(title = n.display, badge = kachatNameBadge(n, vm?.graceMs ?: 0L), modifier = Modifier.clickable { onOpen(n) })
                 }
             }
         }
@@ -2434,7 +2495,13 @@ private fun KachatSourceField(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
+fun KachatLiveProfileEditorScreen(
+    onBack: () -> Unit,
+    /** Null where the registry isn't launched (mainnet): the same editor, nothing read or saved
+     *  (iOS 7227d69). */
+    vm: KachatLiveViewModel? = if (KachatNamesService.isLaunched) hiltViewModel() else null,
+    social: KachatSocialImageResolver = vm?.social ?: hiltViewModel<KachatSocialViewModel>().social,
+) {
     val colors = LocalAppColors.current
     // Each piece's source: a platform from the picker plus the handle typed after its prefix.
     var avatarIn by remember { mutableStateOf(KachatSourceInput()) }
@@ -2452,8 +2519,8 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
     var pickPrimary by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        val address = vm.actions.myAddress
-        if (address == null) { loaded = true; return@LaunchedEffect }
+        val address = vm?.actions?.myAddress
+        if (vm == null || address == null) { loaded = true; return@LaunchedEffect }
         vm.registry.refreshIfStale()
         val p = vm.registry.ownProfile(address)?.profile
             ?: runCatching { vm.registry.identity(address).profile }.getOrNull()
@@ -2499,7 +2566,7 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
         primaryName = primary.ifEmpty { null }
     ).sanitized()
 
-    if (showSave) {
+    if (showSave && vm != null) {
         KachatProfileSaveSheet(
             title = stringResource(R.string.kn_save_profile), confirmTitle = stringResource(R.string.kn_save_profile),
             doneTitle = R.string.kn_done_profile_saved, makeProfile = { profile() },
@@ -2520,13 +2587,13 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
             }
         }
         FormSection(header = stringResource(R.string.avatar), footer = if (avatarIn.isBad(SocialSource.Kind.AVATAR)) ({ invalidHandleNote() }) else null) {
-            KachatSourceField(avatarIn, { avatarIn = it }, SocialSource.Kind.AVATAR, avatarLookup, { avatarLookup = it }, vm.social)
+            KachatSourceField(avatarIn, { avatarIn = it }, SocialSource.Kind.AVATAR, avatarLookup, { avatarLookup = it }, social)
         }
         FormSection(header = stringResource(R.string.banner), footer = if (bannerIn.isBad(SocialSource.Kind.BANNER)) ({ invalidHandleNote() }) else null) {
-            KachatSourceField(bannerIn, { bannerIn = it }, SocialSource.Kind.BANNER, bannerLookup, { bannerLookup = it }, vm.social)
+            KachatSourceField(bannerIn, { bannerIn = it }, SocialSource.Kind.BANNER, bannerLookup, { bannerLookup = it }, social)
         }
         FormSection(header = stringResource(R.string.bio), footer = if (bioIn.isBad(SocialSource.Kind.BIO)) ({ invalidHandleNote() }) else null) {
-            KachatSourceField(bioIn, { bioIn = it }, SocialSource.Kind.BIO, bioLookup, { bioLookup = it }, vm.social)
+            KachatSourceField(bioIn, { bioIn = it }, SocialSource.Kind.BIO, bioLookup, { bioLookup = it }, social)
         }
         FormSection(
             header = stringResource(R.string.kn_links),
@@ -2559,8 +2626,11 @@ fun KachatLiveProfileEditorScreen(onBack: () -> Unit, vm: KachatLiveViewModel = 
                 }
             }
         }
-        FormSection(footer = { FormFooter(stringResource(R.string.kn_save_footer)) }) {
-            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked) { showSave = true }
+        // Mainnet shows the editor, but nothing is written until .kachat launches there (iOS 7227d69).
+        FormSection(footer = {
+            FormFooter(stringResource(if (KachatNamesService.isLaunched) R.string.kn_save_footer else R.string.kn_profiles_saved_once_launched))
+        }) {
+            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked && KachatNamesService.isLaunched) { showSave = true }
         }
     }
 }

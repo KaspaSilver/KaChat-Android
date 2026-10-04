@@ -496,8 +496,6 @@
     <string name="portfolio_fees_count_loading">Transaksi: %1$d. Beberapa harga masih dimuat.</string>
     <string name="portfolio_fees_count_priced">Transaksi: %1$d, dengan harga tiap hari.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di total yang bisa dibelanjakan. Gunakan alamat ini untuk semua hal selain obrolan.</string>
-    <string name="qr_chatting_address_subtitle">Alamat ini untuk mengobrol. Sekitar 50 Kaspa cukup untuk mengirim pesan dalam waktu lama.</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">Jika seed ini sudah menyimpan identitasmu di alamat lain - domain (.kas, .k, atau .kaspa) atau saldo obrolan - pilih di sini. Hanya alamat dengan saldo atau domain yang ditampilkan.</string>
     <string name="chatting_picker_other_names_count">Nama .k dan .kaspa (%1$d)</string>
@@ -777,4 +775,21 @@
     <string name="payment_not_on_chain_yet">Pembayaran ini belum on-chain.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">Membuka marketplace .kachat</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">Nama milik alamat ini muncul di sini.</string>
+    <string name="kn_your_spending_address">Alamat pengeluaran Anda #%1$d</string>
+    <string name="kn_your_kassigner_address">Alamat KasSigner Anda (%1$s #%2$d)</string>
+    <string name="chats_new">Baru</string>
+    <string name="chats_new_chat">Obrolan Baru</string>
+    <string name="chats_new_group_chat">Obrolan Grup Baru</string>
+    <string name="chats_new_public_chat">Obrolan Publik Baru</string>
+    <string name="chats_fund_chatting_address">Isi Alamat Obrolan</string>
+    <string name="chats_new_chat_subtitle">Kirim pesan ke seseorang lewat alamat atau namanya.</string>
+    <string name="chats_new_group_subtitle">Mulai grup terenkripsi dengan beberapa orang.</string>
+    <string name="chats_new_public_subtitle">Bergabung ke ruang publik, atau buat sendiri.</string>
+    <string name="chats_fund_subtitle">Menampilkan kode QR untuk menambah Kaspa guna mengirim pesan.</string>
+    <string name="chats_receive_subtitle">Menampilkan alamat baru untuk menerima pembayaran.</string>
+    <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di saldo belanja Anda. Gunakan alamat ini untuk semua hal yang tidak terkait obrolan atau domain.</string>
+    <string name="qr_chatting_address_subtitle">Alamat ini hanya untuk obrolan dan domain. 1 Kaspa cukup untuk sekitar 500 interaksi di aplikasi. Harga domain berkisar 35 hingga 4.000 Kaspa, tergantung namanya.</string>
+    <string name="kn_profiles_saved_once_launched">Profil bisa disimpan setelah .kachat diluncurkan di mainnet.</string>
 </resources>

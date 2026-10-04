@@ -625,8 +625,6 @@
     <string name="portfolio_fees_count_loading">المعاملات: %1$d. لا تزال بعض الأسعار قيد التحميل.</string>
     <string name="portfolio_fees_count_priced">المعاملات: %1$d، بسعر كل يوم.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
-    <string name="qr_receive_address_subtitle">عنوان جديد لم يُستخدم من قبل. تصل Kaspa المرسلة إلى هنا إلى هذا الحساب وتظهر في إجمالي الإنفاق. استخدم هذا العنوان لكل ما لا يتعلق بالمحادثة.</string>
-    <string name="qr_chatting_address_subtitle">هذا العنوان مخصص للمحادثة. يكفي تمويله بنحو 50 Kaspa لإرسال الرسائل لفترة طويلة.</string>
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_intro_any_name">إذا كانت عبارة الاسترداد هذه تحمل هويتك بالفعل في عنوان آخر - نطاق (.kas أو .k أو .kaspa) أو رصيد محادثة - فاختره هنا. تظهر فقط العناوين التي لديها رصيد أو نطاقات.</string>
     <string name="chatting_picker_other_names_count">أسماء .k و.kaspa (%1$d)</string>
@@ -920,4 +918,21 @@
     <string name="payment_not_on_chain_yet">الدفعة دي لسه مش على السلسلة.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
     <string name="kn_opens_marketplace">بيفتح سوق .kachat</string>
+    <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
+    <string name="kachat_names_this_address_owns">الأسماء اللي العنوان ده بيملكها بتظهر هنا.</string>
+    <string name="kn_your_spending_address">عنوان الصرف بتاعك #%1$d</string>
+    <string name="kn_your_kassigner_address">عنوان KasSigner بتاعك (%1$s #%2$d)</string>
+    <string name="chats_new">جديد</string>
+    <string name="chats_new_chat">شات جديد</string>
+    <string name="chats_new_group_chat">جروب جديد</string>
+    <string name="chats_new_public_chat">شات عام جديد</string>
+    <string name="chats_fund_chatting_address">اشحن عنوان الشات</string>
+    <string name="chats_new_chat_subtitle">ابعت لحد بعنوانه أو اسمه.</string>
+    <string name="chats_new_group_subtitle">ابدأ جروب متشفر مع كذا شخص.</string>
+    <string name="chats_new_public_subtitle">ادخل أوضة عامة أو اعمل واحدة.</string>
+    <string name="chats_fund_subtitle">بيوريك كود QR عشان تضيف Kaspa لإرسال الرسايل.</string>
+    <string name="chats_receive_subtitle">بيوريك عنوان جديد عشان تستلم فلوس.</string>
+    <string name="qr_receive_address_subtitle">عنوان جديد عمره ما اتستخدم. الـKaspa اللي تتبعت هنا بتوصل للحساب ده وبتظهر في رصيد الصرف بتاعك. استخدم العنوان ده لأي حاجة مش ليها علاقة بالشات أو الدومينات.</string>
+    <string name="qr_chatting_address_subtitle">العنوان ده للشات والدومينات بس. 1 Kaspa يكفي لحوالي 500 استخدام في التطبيق. الدومينات بتتكلف من 35 لـ4000 Kaspa حسب الاسم.</string>
+    <string name="kn_profiles_saved_once_launched">هتقدر تحفظ البروفايلات أول ما ‎.kachat ينزل على الشبكة الرئيسية.</string>
 </resources>
