@@ -1,6 +1,9 @@
 package com.kachat.app.services
 
 import android.util.Base64
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -64,20 +67,34 @@ object BackupCrypto {
             .take(8)
             .joinToString("") { "%02x".format(it) }
 
+    /** The envelope version this client writes and reads. */
+    const val ENVELOPE_VERSION = 1
+
     /**
      * True when [content] is a v1 envelope (`kachatEncryptedBackup == 1`). The cheap `contains`
      * pre-filter keeps the common legacy-plaintext path free of a second full JSON parse (a
      * legacy archive can be megabytes).
      */
-    fun isEnvelope(content: String): Boolean {
-        if (!content.contains("\"$MARKER\"")) return false
-        return runCatching { JSONObject(content).optInt(MARKER, 0) == 1 }.getOrDefault(false)
+    fun isEnvelope(content: String): Boolean = envelopeVersion(content) == ENVELOPE_VERSION
+
+    /**
+     * The `kachatEncryptedBackup` version of a JSON object that carries the envelope marker, or
+     * null when [content] isn't one (or isn't JSON). Lets the sync tell a NEWER envelope - never
+     * written over (NEXTCLOUD_SYNC.md §7) - from a damaged file. Parsed with Gson (as the archive
+     * itself is) so the envelope checks run in plain JVM unit tests too.
+     */
+    fun envelopeVersion(content: String): Int? {
+        if (!content.contains("\"$MARKER\"")) return null
+        val envelope = runCatching { JsonParser.parseString(content) }.getOrNull() as? JsonObject ?: return null
+        val marker = envelope.get(MARKER) as? JsonPrimitive ?: return null
+        return runCatching { marker.asInt }.getOrNull()
     }
 
     /** The envelope's `walletHint`, or null when absent or unreadable — lets a reader skip a
      *  foreign wallet's file without paying for a decrypt. */
     fun envelopeWalletHint(content: String): String? = runCatching {
-        JSONObject(content).optString("walletHint").trim().takeIf { it.isNotEmpty() }
+        val envelope = JsonParser.parseString(content) as? JsonObject
+        (envelope?.get("walletHint") as? JsonPrimitive)?.asString?.trim()?.takeIf { it.isNotEmpty() }
     }.getOrNull()
 
     /** Encrypts the archive JSON into a fresh v1 envelope (new random nonce every call). */

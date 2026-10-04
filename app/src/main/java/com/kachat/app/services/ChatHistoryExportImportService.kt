@@ -140,33 +140,32 @@ class ChatHistoryExportImportService @Inject constructor(
      * no device can delete another's. [existingRemoteJson] is what the transport just downloaded
      * (null when there is no backup yet — then this is simply the local archive).
      *
-     * Every validation failure THROWS: the caller must abort the upload, leaving a foreign or
-     * unreadable file exactly as it was rather than destroying it.
+     * What happens to the server copy is [planRemoteBackup]'s call (NEXTCLOUD_SYNC.md §7, iOS
+     * d57019a): another wallet's file, a hint-less envelope that won't decrypt and a newer
+     * schema THROW, so the caller aborts before any PUT and that file is never touched; THIS
+     * wallet's file that can't be read (a failed decrypt under our own walletHint, or content
+     * that isn't a valid archive, e.g. cut off at rest) is replaced in place with this device's
+     * history and no copy is made — Nextcloud's version history keeps the old content, and every
+     * other device unions its own history back in on its next sync. It used to abort instead,
+     * which left automatic sync stuck for good.
      *
-     * Encrypted end to end: an enveloped remote file ([BackupCrypto.isEnvelope]) is
-     * walletHint-checked (a foreign wallet's file aborts without even decrypting) then decrypted
-     * before the merge — a failed decrypt throws HERE, before any upload — while a legacy
-     * plaintext remote file merges as-is. The upload body is ALWAYS a fresh v1 envelope.
+     * The upload body is ALWAYS a fresh v1 envelope ([BackupCrypto]).
      */
     suspend fun buildBackupJson(existingRemoteJson: String?): String {
         val myAddress = walletManager.getAddress()
         val key = backupEncryptionKey()
+        val plan = planRemoteBackup(existingRemoteJson, myAddress) { BackupCrypto.decrypt(it, key) }
         val local = gson.toJsonTree(buildLocalArchive()).asJsonObject
-        val remoteRaw = existingRemoteJson?.takeIf { it.isNotBlank() }
-            ?: return BackupCrypto.encrypt(gson.toJson(local), key, myAddress)
-        val remoteJson = if (BackupCrypto.isEnvelope(remoteRaw)) {
-            val hint = BackupCrypto.envelopeWalletHint(remoteRaw)
-            if (hint != null && hint != BackupCrypto.walletHint(myAddress)) {
-                throw IllegalStateException(
-                    "The backup already on the server belongs to a different account. Nothing was uploaded and it was left untouched. Choose a separate backup folder for this account."
-                )
+        val body = when (plan) {
+            is RemoteBackupPlan.Merge -> mergeArchives(plan.remote, local)
+            is RemoteBackupPlan.WriteLocal -> {
+                plan.replacedBecause?.let {
+                    Log.w(TAG, "The backup on the server is this account's but $it; replacing it in place (Nextcloud keeps the old version)")
+                }
+                local
             }
-            BackupCrypto.decrypt(remoteRaw, key)
-        } else {
-            remoteRaw
         }
-        val remote = parseRemoteArchive(remoteJson, myAddress)
-        return BackupCrypto.encrypt(gson.toJson(mergeArchives(remote, local)), key, myAddress)
+        return BackupCrypto.encrypt(gson.toJson(body), key, myAddress)
     }
 
     /**
@@ -241,25 +240,36 @@ class ChatHistoryExportImportService @Inject constructor(
         json: String,
         onConversationProgress: ((done: Int, total: Int) -> Unit)? = null
     ): ImportResult {
+        // Every "this file can't be imported" verdict below is an [UnreadableBackupException]
+        // (messages unchanged for the restore screens), so the change watcher can tell a file it
+        // has judged - and should not download again until it changes (NEXTCLOUD_SYNC.md §6) -
+        // from a failure worth retrying.
         val archiveJson = if (BackupCrypto.isEnvelope(json)) {
             val hint = BackupCrypto.envelopeWalletHint(json)
             if (hint != null && hint != BackupCrypto.walletHint(walletManager.getAddress())) {
-                throw IllegalStateException("This backup belongs to a different account.")
+                throw UnreadableBackupException("This backup belongs to a different account.")
             }
-            BackupCrypto.decrypt(json, backupEncryptionKey())
+            // Key first, outside the try: a key that can't be loaded is this device's problem,
+            // not a verdict on the file.
+            val key = backupEncryptionKey()
+            try {
+                BackupCrypto.decrypt(json, key)
+            } catch (e: IllegalStateException) {
+                throw UnreadableBackupException(e.message ?: BackupCrypto.DECRYPT_FAILED_MESSAGE)
+            }
         } else {
             json
         }
         val archive = try {
             gson.fromJson(archiveJson, ChatHistoryArchive::class.java) ?: throw IllegalStateException("empty")
         } catch (e: Exception) {
-            throw IllegalStateException("This file isn't a valid chat history export")
+            throw UnreadableBackupException("This file isn't a valid chat history export")
         }
         if (archive.schemaVersion != ChatHistoryArchive.CURRENT_SCHEMA_VERSION) {
-            throw IllegalStateException("This export was made with an incompatible app version")
+            throw UnreadableBackupException("This export was made with an incompatible app version")
         }
         if (archive.conversations.all { it.messages.isEmpty() }) {
-            throw IllegalStateException("This file has no chat history to import")
+            throw UnreadableBackupException("This file has no chat history to import")
         }
 
         val myAddress = walletManager.getAddress()
@@ -515,8 +525,9 @@ class ChatHistoryExportImportService @Inject constructor(
         }
 
         // -----------------------------------------------------------------------------
-        // Shared-file merge (upload side) — mirrors desktop's parseRemoteChatArchive +
-        // mergeChatArchives, including its abort-rather-than-destroy contract.
+        // Shared-file merge (upload side) — mirrors iOS's parseRemoteArchive +
+        // mergeBackupArchives, with NEXTCLOUD_SYNC.md §7 deciding what is never touched and
+        // what is replaced in place ([planRemoteBackup]).
         // -----------------------------------------------------------------------------
 
         private fun JsonObject.string(key: String): String {
@@ -543,29 +554,90 @@ class ChatHistoryExportImportService @Inject constructor(
         private fun exportedAtMs(archive: JsonObject): Long = parseIsoMs(archive.string("exportedAt")) ?: 0L
 
         /**
-         * Validates the archive already sitting on the server. Every failure path THROWS — the
-         * caller aborts BEFORE uploading, so an unreadable or foreign backup is left exactly as it
-         * was rather than being overwritten with this device's history.
+         * What a sync does with the file already on the server, per NEXTCLOUD_SYNC.md §4.3 and §7
+         * (the same verdicts as iOS d57019a `performBackup`). Pure, so the cases are unit-tested:
+         *
+         *   * null (a genuine 404) - no backup yet: write this device's history;
+         *   * an empty file - nothing anyone could lose: write this device's history in place;
+         *   * an envelope with ANOTHER wallet's walletHint - THROWS, never touched;
+         *   * an envelope this client can't read because it is a newer envelope version - THROWS
+         *     (a newer app wrote it);
+         *   * an envelope that won't decrypt: with THIS wallet's walletHint it is our own damaged
+         *     file - write this device's history in place, no copy; with no walletHint it can't be
+         *     attributed to anyone - THROWS;
+         *   * archive JSON (decrypted, or legacy plaintext) that is a newer schema or another
+         *     wallet's (plaintext `walletAddress`) - THROWS;
+         *   * content that isn't a valid archive at all (e.g. cut off at rest) - write this
+         *     device's history in place.
+         *
+         * A download that failed or stopped early never gets here: the transport throws first
+         * (see NextcloudService.readBackupBody), because a transfer problem says nothing about
+         * the file. [decrypt] opens a v1 envelope with this wallet's key and throws on failure.
+         */
+        internal fun planRemoteBackup(
+            existingRemoteJson: String?,
+            myAddress: String,
+            decrypt: (String) -> String
+        ): RemoteBackupPlan {
+            if (existingRemoteJson == null) return RemoteBackupPlan.WriteLocal(replacedBecause = null)
+            if (existingRemoteJson.isBlank()) return RemoteBackupPlan.WriteLocal("the file is empty")
+            val plaintext = if (BackupCrypto.isEnvelope(existingRemoteJson)) {
+                val hint = BackupCrypto.envelopeWalletHint(existingRemoteJson)
+                if (hint != null && hint != BackupCrypto.walletHint(myAddress)) {
+                    throw IllegalStateException(FOREIGN_WALLET_MESSAGE)
+                }
+                try {
+                    decrypt(existingRemoteJson)
+                } catch (e: Exception) {
+                    // Only our own walletHint makes a failed decrypt OUR damaged file. An envelope
+                    // without one can't be attributed and is never treated as ours (iOS
+                    // BackupEnvelope.isOwnUnreadableEnvelope).
+                    if (hint == null) throw e
+                    return RemoteBackupPlan.WriteLocal("it can't be decrypted")
+                }
+            } else {
+                val envelopeVersion = BackupCrypto.envelopeVersion(existingRemoteJson)
+                if (envelopeVersion != null && envelopeVersion > BackupCrypto.ENVELOPE_VERSION) {
+                    throw IllegalStateException(
+                        "The backup already on the server uses a newer encrypted format (version $envelopeVersion), which this version can't merge — nothing was uploaded and it was left untouched. Update the app."
+                    )
+                }
+                existingRemoteJson
+            }
+            return try {
+                RemoteBackupPlan.Merge(parseRemoteArchive(plaintext, myAddress))
+            } catch (e: RemoteBackupUnreadableException) {
+                RemoteBackupPlan.WriteLocal("it isn't a readable archive (damaged or cut off)")
+            }
+        }
+
+        private const val FOREIGN_WALLET_MESSAGE =
+            "The backup already on the server belongs to a different account. Nothing was uploaded and it was left untouched. Choose a separate backup folder for this account."
+
+        /**
+         * Validates the archive JSON already sitting on the server (decrypted, or legacy
+         * plaintext). Throws [RemoteBackupUnreadableException] for content that isn't a KaChat
+         * archive at all - [planRemoteBackup] replaces that in place - and a plain
+         * [IllegalStateException] for a file that must never be touched: a newer (or otherwise
+         * different) schema, or another wallet's archive.
+         *
+         * A newer schemaVersion is checked BEFORE the shape, so a future archive that reshapes
+         * its body is still recognised as newer and left alone rather than taken for damage.
          */
         internal fun parseRemoteArchive(json: String, myAddress: String): JsonObject {
             val parsed = runCatching { JsonParser.parseString(json) }.getOrNull()
-                ?: throw IllegalStateException(
-                    "The backup already on the server isn't readable JSON — nothing was uploaded and that file was left untouched. Move it aside (or pick another backup folder) to start a fresh backup."
-                )
+                ?: throw RemoteBackupUnreadableException("The backup already on the server isn't readable JSON.")
             val remote = parsed as? JsonObject
-                ?: throw IllegalStateException(
-                    "The file already on the server isn't a KaChat backup — nothing was uploaded and it was left untouched. Pick a different backup folder."
-                )
-            if (remote.get("conversations")?.isJsonArray != true) {
-                throw IllegalStateException(
-                    "The file already on the server isn't a KaChat backup — nothing was uploaded and it was left untouched. Pick a different backup folder."
-                )
-            }
+                ?: throw RemoteBackupUnreadableException("The file already on the server isn't a KaChat backup.")
             val schemaVersion = remote.long("schemaVersion")
+            if (schemaVersion > ChatHistoryArchive.CURRENT_SCHEMA_VERSION.toLong()) {
+                throw IllegalStateException(incompatibleSchemaMessage(schemaVersion))
+            }
+            if (remote.get("conversations")?.isJsonArray != true) {
+                throw RemoteBackupUnreadableException("The file already on the server isn't a KaChat backup.")
+            }
             if (schemaVersion != ChatHistoryArchive.CURRENT_SCHEMA_VERSION.toLong()) {
-                throw IllegalStateException(
-                    "The backup already on the server uses schema version $schemaVersion, which this version can't merge — nothing was uploaded and it was left untouched."
-                )
+                throw IllegalStateException(incompatibleSchemaMessage(schemaVersion))
             }
             val remoteWallet = remote.string("walletAddress").trim()
             if (remoteWallet.isNotEmpty() && myAddress.isNotEmpty() && remoteWallet != myAddress) {
@@ -575,6 +647,9 @@ class ChatHistoryExportImportService @Inject constructor(
             }
             return remote
         }
+
+        private fun incompatibleSchemaMessage(schemaVersion: Long) =
+            "The backup already on the server uses schema version $schemaVersion, which this version can't merge — nothing was uploaded and it was left untouched."
 
         /** A body that carries no real content — a real one always beats it in [preferArchiveMessage]. */
         private fun isPlaceholderBody(content: String): Boolean = content.isEmpty() || content in PLACEHOLDER_BODIES
@@ -654,6 +729,7 @@ class ChatHistoryExportImportService @Inject constructor(
         private class ConversationMerge(val contactAddress: String, val base: JsonObject) {
             var conversationId: String = ""
             var contactAlias: String = ""
+            var contactPhoto: String = ""
             var unreadCount: Long = 0
             val messages = LinkedHashMap<String, JsonObject>()
         }
@@ -666,7 +742,7 @@ class ChatHistoryExportImportService @Inject constructor(
          *     preferMessage ordering — so a remote `pending` message, which this device would
          *     never export itself, survives the union (and is upgraded rather than dropped if the
          *     same txId is confirmed locally);
-         *   * conversation metadata (alias / unreadCount) comes from whichever archive was
+         *   * conversation metadata (alias / photo / unreadCount) comes from whichever archive was
          *     exported more recently, and an empty value never overwrites a real one;
          *     `conversationId` keeps the already-published value for stability.
          *
@@ -688,6 +764,7 @@ class ChatHistoryExportImportService @Inject constructor(
                     val metadataWins = if (isRemote) remoteIsNewer else !remoteIsNewer
                     val alias = conversation.string("contactAlias").trim()
                     val conversationId = conversation.string("conversationId").trim()
+                    val photo = conversation.string("contactPhoto")
                     val unreadCount = conversation.long("unreadCount").coerceAtLeast(0L)
 
                     var entry = merged[contactAddress]
@@ -695,12 +772,18 @@ class ChatHistoryExportImportService @Inject constructor(
                         entry = ConversationMerge(contactAddress, conversation.deepCopy()).also {
                             it.conversationId = conversationId
                             it.contactAlias = alias
+                            it.contactPhoto = photo
                             it.unreadCount = unreadCount
                             merged[contactAddress] = it
                         }
                     } else {
                         if (alias.isNotEmpty() && (metadataWins || entry.contactAlias.isEmpty())) entry.contactAlias = alias
                         if (conversationId.isNotEmpty() && entry.conversationId.isEmpty()) entry.conversationId = conversationId
+                        // The photo is per-conversation metadata like the alias (NEXTCLOUD_SYNC.md
+                        // §5: the newer exportedAt wins, and an empty value never overwrites a real
+                        // one). The remote-seeded base used to keep the server's photo always and
+                        // drop this device's whenever the server copy had none.
+                        if (photo.isNotEmpty() && (metadataWins || entry.contactPhoto.isEmpty())) entry.contactPhoto = photo
                         if (metadataWins) entry.unreadCount = unreadCount
                     }
 
@@ -750,6 +833,8 @@ class ChatHistoryExportImportService @Inject constructor(
                 conversation.addProperty("contactAddress", entry.contactAddress)
                 if (entry.contactAlias.isEmpty()) conversation.remove("contactAlias")
                 else conversation.addProperty("contactAlias", entry.contactAlias)
+                if (entry.contactPhoto.isEmpty()) conversation.remove("contactPhoto")
+                else conversation.addProperty("contactPhoto", entry.contactPhoto)
                 conversation.addProperty("unreadCount", entry.unreadCount)
                 conversation.add("messages", sortedMessages(entry.messages.values.map { normalizeArchiveMessage(it) }))
                 conversations.add(conversation)
@@ -786,3 +871,30 @@ class ChatHistoryExportImportService @Inject constructor(
         }
     }
 }
+
+/** What [ChatHistoryExportImportService.planRemoteBackup] decided to do with the server copy. */
+internal sealed class RemoteBackupPlan {
+    /** Merge this device's history into [remote] and write the union. */
+    class Merge(val remote: JsonObject) : RemoteBackupPlan()
+
+    /**
+     * Write this device's history as the whole file. [replacedBecause] is null for the plain
+     * "no backup yet" case, and otherwise says why THIS wallet's file on the server is being
+     * replaced in place (logged; Nextcloud's version history keeps the old content).
+     */
+    class WriteLocal(val replacedBecause: String?) : RemoteBackupPlan()
+}
+
+/** The server copy isn't a KaChat archive at all (not JSON, not an object, no conversations):
+ *  the one archive-level verdict that [ChatHistoryExportImportService.planRemoteBackup] turns
+ *  into "replace in place" rather than "never touch". */
+internal class RemoteBackupUnreadableException(message: String) : IllegalStateException(message)
+
+/**
+ * A backup file [ChatHistoryExportImportService.importChatHistory] judged and refused - another
+ * account's, undecryptable, not an archive, an incompatible schema, or empty. Still an
+ * [IllegalStateException] with the same user-facing message as before; the type is what lets the
+ * change watcher record that version's ETag instead of downloading it on every poll
+ * (NEXTCLOUD_SYNC.md §6).
+ */
+class UnreadableBackupException(message: String) : IllegalStateException(message)

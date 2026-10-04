@@ -222,10 +222,10 @@ class KaChatApplication : Application(), Configuration.Provider {
                 kaPostsNotificationPoller.stop()
                 addressActivityNotifier.onAppBackground()
                 // Backgrounding is the natural "done chatting" moment — run the Nextcloud
-                // automatic sync then, throttled to at most once per hour. autoBackupIfDue
-                // no-ops unless the Automatic Sync toggle is on, an account is connected, and
-                // the persisted dirty flag says a sync is actually owed; it swallows its own
-                // failures (the next trigger or the fallback worker retries).
+                // automatic sync then: a catch-up when the last upload is an hour old or the
+                // persisted dirty flag says a sync is owed (NEXTCLOUD_SYNC.md §6). autoBackupIfDue
+                // no-ops unless the Automatic Sync toggle is on and an account is connected; it
+                // swallows its own failures (the next trigger or the fallback worker retries).
                 owner.lifecycleScope.launch(Dispatchers.IO) {
                     nextcloudSyncService.autoBackupIfDue()
                 }

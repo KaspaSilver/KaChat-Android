@@ -61,9 +61,9 @@ import javax.inject.Singleton
  *      and restarts a quiet-time timer ([DEBOUNCE_IN_CHAT_MS] with a conversation on screen,
  *      [DEBOUNCE_IDLE_MS] otherwise; the tier is read fresh each time the timer re-arms).
  *   2. **App lifecycle** — the historical `autoBackupIfDue` cadence (hourly on background, daily
- *      catch-up on foreground) is folded in here as [autoBackupIfDue]; it now uploads only when
- *      the dirty flag says something is owed (or the wallet never synced), and clears that flag
- *      on success like every other path.
+ *      catch-up on foreground) is folded in here as [autoBackupIfDue]; it uploads when the last
+ *      upload is that old OR the dirty flag says something is owed (NEXTCLOUD_SYNC.md §6), and
+ *      clears that flag on success like every other path.
  *   3. **Periodic WorkManager fallback** ([NextcloudAutoSyncWorker], every 6h, network connected
  *      + battery not low) — catches uploads the in-process paths missed because the process died
  *      first. Enqueued exactly while an account is connected AND the wallet's Automatic Sync
@@ -129,15 +129,20 @@ class NextcloudSyncService @Inject constructor(
         /** Remote change watcher cadence per tier (foreground only): one Depth-0 PROPFIND per
          *  tick. The tier is re-resolved every tick, and opening a thread wakes the loop
          *  immediately, so a residual idle sleep never delays the first in-chat poll.
-         *  On METERED networks the idle tiers apply even in-chat (watcher and debounce both) —
-         *  the near-live mirror is a WiFi luxury, not worth cellular data. */
+         *  On METERED networks the watcher has its own relaxed pair (NEXTCLOUD_SYNC.md §6: 30 s
+         *  in a chat, 60 s elsewhere - iOS's `...ChangeWatchIntervalExpensive`): the PROPFIND is
+         *  tiny, but a moved ETag costs a full archive download. The upload debounce is NOT
+         *  metered-dependent; the metered upload floor below covers cellular data. */
         const val WATCHER_POLL_IN_CHAT_MS = 5_000L
         const val WATCHER_POLL_IDLE_MS = 30_000L
+        const val WATCHER_POLL_IN_CHAT_METERED_MS = 30_000L
+        const val WATCHER_POLL_IDLE_METERED_MS = 60_000L
 
         /** Floor between AUTOMATIC uploads: each upload is a PROPFIND + (usually skipped)
          *  download + full-archive PUT, so even merge-safe uploads shouldn't ride every message
-         *  burst. A debounce that fires earlier re-arms to the earliest allowed time rather
-         *  than dropping the work. Manual Back Up Now is not floored. */
+         *  burst. Every automatic path (debounce, lifecycle catch-up, periodic worker) that comes
+         *  due earlier re-arms to the earliest allowed time rather than dropping the work
+         *  (NEXTCLOUD_SYNC.md §6, iOS performAutomaticSync). Manual Back Up Now is not floored. */
         const val MIN_UPLOAD_INTERVAL_MS = 90_000L
         const val MIN_UPLOAD_INTERVAL_METERED_MS = 300_000L
 
@@ -161,6 +166,7 @@ class NextcloudSyncService @Inject constructor(
         private const val KEY_PENDING_CHANGES = "nextcloud_auto_sync_pending"
         private const val KEY_RESTORE_DONE = "nextcloud_auto_restore_done"
         private const val KEY_LAST_ETAG = "nextcloud_auto_sync_etag"
+        private const val KEY_MERGED_ETAG = "nextcloud_auto_sync_merged_etag"
 
         private fun lastSyncKey(address: String) =
             longPreferencesKey("${KEY_LAST_SYNC_MS}_${NextcloudService.walletHashSuffix(address)}")
@@ -172,9 +178,24 @@ class NextcloudSyncService @Inject constructor(
             booleanPreferencesKey("${KEY_RESTORE_DONE}_${NextcloudService.walletHashSuffix(address)}")
 
         /** The backup file's last-known WebDAV ETag for this wallet — the watcher's change
-         *  detector AND its own-write guard (updated after every import and every upload). */
+         *  detector and own-write guard: updated after every upload and import, AND when the
+         *  watcher judged a version it could not import (another wallet's, unreadable), so that
+         *  version isn't downloaded again on every poll (NEXTCLOUD_SYNC.md §6). */
         private fun etagKey(address: String) =
             stringPreferencesKey("${KEY_LAST_ETAG}_${NextcloudService.walletHashSuffix(address)}")
+
+        /**
+         * The ETag of the last server version this device actually HOLDS merged — its own upload,
+         * or a successful import — and nothing else. Only this one licenses the upload's ETag
+         * short-cut (skip the download, write the local archive as is; §4.2).
+         *
+         * Kept apart from [etagKey] on purpose. The watcher also records the ETag of a file it
+         * merely LOOKED at and skipped; if that ETag licensed the short-cut, the next automatic
+         * upload would skip the read and write straight over that file - another wallet's backup
+         * included, which §7 says is never touched, or a newer device's content never merged.
+         */
+        private fun mergedEtagKey(address: String) =
+            stringPreferencesKey("${KEY_MERGED_ETAG}_${NextcloudService.walletHashSuffix(address)}")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -273,35 +294,39 @@ class NextcloudSyncService @Inject constructor(
         scope.launch {
             if (!isAutoSyncActive(address)) return@launch
             dataStore.edit { it[pendingKey(address)] = true }
-            debounceWallet = address
-            debounceJob?.cancel()
-            debounceJob = scope.launch {
-                // Tier chosen at arm time; every re-arm (each new message restarts the timer)
-                // re-reads the open-chat state, so leaving or entering a chat mid-burst takes
-                // effect on the very next message. On metered networks the idle tier applies
-                // even in-chat — cellular doesn't fund the near-live mirror.
-                val metered = meteredNetwork.isMetered
-                val quietMs = if (!metered && notificationHelper.isChatOpen) DEBOUNCE_IN_CHAT_MS else DEBOUNCE_IDLE_MS
-                delay(quietMs)
-                // Floor between automatic uploads: a debounce firing earlier than the minimum
-                // interval since the last successful upload re-arms to the earliest allowed
-                // time instead of dropping (a new message meanwhile just restarts the whole
-                // timer, which is fine — the dirty flag preserves that work is owed).
-                val minIntervalMs = if (metered) MIN_UPLOAD_INTERVAL_METERED_MS else MIN_UPLOAD_INTERVAL_MS
-                val lastUpload = dataStore.data.first()[lastSyncKey(address)] ?: 0L
-                val earliest = lastUpload + minIntervalMs
-                val waitMs = earliest - System.currentTimeMillis()
-                if (waitMs > 0) delay(waitMs)
-                if (debounceWallet == address) uploadIfDirty(address)
-            }
+            // Tier chosen at arm time; every re-arm (each new message restarts the timer)
+            // re-reads the open-chat state, so leaving or entering a chat mid-burst takes
+            // effect on the very next message. 5 s / 15 s on every network (NEXTCLOUD_SYNC.md
+            // §6, iOS currentSyncDebounceInterval): metered data is spared by the longer upload
+            // floor that uploadIfDirty applies, not by a slower debounce.
+            val quietMs = if (notificationHelper.isChatOpen) DEBOUNCE_IN_CHAT_MS else DEBOUNCE_IDLE_MS
+            armUpload(address, quietMs)
         }
     }
 
     /**
-     * The app-lifecycle trigger (KaChatApplication: hourly on background, daily catch-up on
-     * foreground) — the historical `NextcloudService.autoBackupIfDue` cadence folded into the
-     * one shared upload path. Uploads only when the persisted dirty flag says a sync is owed or
-     * the wallet has never synced, and clears that flag on success. Never throws.
+     * (Re)arms the one pending automatic upload for [address] to run after [delayMs]: the
+     * message-activity debounce, and the re-arm when an upload comes due inside the floor
+     * (iOS armSyncDebounce). A new arm replaces the previous one; the persisted dirty flag is
+     * what guarantees the work is owed, so replacing a timer never loses it.
+     */
+    private fun armUpload(address: String, delayMs: Long) {
+        debounceWallet = address
+        debounceJob?.cancel()
+        debounceJob = scope.launch {
+            delay(delayMs)
+            if (debounceWallet == address) uploadIfDirty(address)
+        }
+    }
+
+    /**
+     * The app-lifecycle trigger (KaChatApplication: on background with [AUTO_BACKUP_MIN_INTERVAL_MS],
+     * on launch/foreground with [AUTO_BACKUP_CATCH_UP_INTERVAL_MS]) folded into the one shared
+     * upload path. NEXTCLOUD_SYNC.md §6 (iOS autoBackupIfDue): a catch-up upload runs when the
+     * last one is at least [minIntervalMs] old (or there never was one) OR the persisted dirty
+     * flag says message activity is still owed an upload - either alone is enough. It used to
+     * need both, so a dirty archive waited out the hour and a clean but stale one never caught
+     * up. The upload floor still applies (see [uploadIfDirty]). Never throws.
      */
     suspend fun autoBackupIfDue(minIntervalMs: Long = AUTO_BACKUP_MIN_INTERVAL_MS) {
         val address = walletManager.activeAddressFlow.value ?: return
@@ -309,9 +334,9 @@ class NextcloudSyncService @Inject constructor(
             if (!isAutoSyncActive(address)) return
             val prefs = dataStore.data.first()
             val last = prefs[lastSyncKey(address)] ?: 0L
-            if (last > 0L && System.currentTimeMillis() - last < minIntervalMs) return
+            val due = last == 0L || System.currentTimeMillis() - last >= minIntervalMs
             val pending = prefs[pendingKey(address)] ?: false
-            if (pending || last == 0L) uploadIfDirty(address)
+            if (due || pending) uploadIfDirty(address)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -351,6 +376,17 @@ class NextcloudSyncService @Inject constructor(
      */
     private suspend fun uploadIfDirty(address: String) {
         try {
+            // Upload floor (NEXTCLOUD_SYNC.md §6, iOS performAutomaticSync): at most one
+            // automatic upload per MIN_UPLOAD_INTERVAL_MS (longer on metered networks), whatever
+            // the trigger. One due earlier re-arms for the earliest allowed time - the dirty
+            // flag is still set, so the work is deferred, never dropped.
+            val minIntervalMs = if (meteredNetwork.isMetered) MIN_UPLOAD_INTERVAL_METERED_MS else MIN_UPLOAD_INTERVAL_MS
+            val lastUpload = dataStore.data.first()[lastSyncKey(address)] ?: 0L
+            val waitMs = lastUpload + minIntervalMs - System.currentTimeMillis()
+            if (lastUpload > 0L && waitMs > 0L) {
+                armUpload(address, waitMs)
+                return
+            }
             syncMutex.withLock {
                 if (walletManager.activeAddressFlow.value != address) return
                 if (!isAutoSyncActive(address)) return
@@ -359,15 +395,15 @@ class NextcloudSyncService @Inject constructor(
                 // re-marks it, so nothing is lost; clearing after would swallow that signal.
                 dataStore.edit { it[pendingKey(address)] = false }
 
-                // ETag short-circuit: a cheap Depth-0 PROPFIND first. When the server file's
-                // ETag still equals the one THIS wallet last wrote/imported, that server copy
-                // is our own last write — it was already the merge of everything both sides
-                // held then, and the auto-restore watcher has been merging every other
-                // device's write into local since, so local is a superset and the pre-merge
-                // download of our own bytes is pure waste. Skip it and PUT the fresh local
-                // archive directly. Any doubt (no stored ETag, PROPFIND failed, ETag moved)
-                // falls through to the full download+merge exactly as before.
-                val storedEtag = dataStore.data.first()[etagKey(address)]
+                // ETag short-circuit (§4.2): a cheap Depth-0 PROPFIND first. When the server
+                // file's ETag still equals the last version THIS wallet wrote or imported
+                // ([mergedEtagKey] - never one the watcher merely skipped), that server copy is
+                // already merged locally, and the watcher has been merging every other device's
+                // write into local since, so local is a superset and the pre-merge download is
+                // pure waste. Skip it and PUT the fresh local archive directly. Any doubt (no
+                // stored ETag, PROPFIND failed, ETag moved) falls through to the full
+                // download+merge.
+                val storedEtag = dataStore.data.first()[mergedEtagKey(address)]
                 val serverEtag = if (storedEtag != null) {
                     runCatching { nextcloudService.fetchBackupEtag() }.getOrNull()
                 } else null
@@ -393,7 +429,10 @@ class NextcloudSyncService @Inject constructor(
                     // Own-write guard: the watcher compares against this, so this device's own
                     // upload never reads as "another device changed the file". A null ETag (rare
                     // server) just means one harmless re-import of our own merge.
-                    if (newEtag != null) it[etagKey(address)] = newEtag
+                    if (newEtag != null) {
+                        it[etagKey(address)] = newEtag
+                        it[mergedEtagKey(address)] = newEtag
+                    }
                 }
                 Log.i(TAG, "Automatic Nextcloud sync uploaded the merged archive")
             }
@@ -401,8 +440,10 @@ class NextcloudSyncService @Inject constructor(
             throw e
         } catch (e: Exception) {
             // Re-mark so the fallback worker (or the next trigger) retries what this attempt
-            // could not finish. runBackup aborts BEFORE uploading whenever the server copy
-            // can't be read or merged, so the existing file is never at risk here.
+            // could not finish - no retry loop here, including for a cut-off upload
+            // (NextcloudUploadCutOffException, §4.6). runBackup aborts BEFORE uploading on a
+            // transfer problem, another wallet's file, a hint-less envelope or a newer schema;
+            // only this wallet's own unreadable file is ever replaced (§7).
             runCatching { dataStore.edit { it[pendingKey(address)] = true } }
             Log.w(TAG, "Automatic Nextcloud sync upload failed (a later trigger retries)", e)
         }
@@ -457,7 +498,10 @@ class NextcloudSyncService @Inject constructor(
                 val result = chatHistoryExportImportServiceLazy.get().importChatHistory(json)
                 dataStore.edit {
                     it[restoreDoneKey(address)] = true
-                    if (etag != null) it[etagKey(address)] = etag
+                    if (etag != null) {
+                        it[etagKey(address)] = etag
+                        it[mergedEtagKey(address)] = etag
+                    }
                 }
                 Log.i(
                     TAG,
@@ -511,10 +555,13 @@ class NextcloudSyncService @Inject constructor(
         }
         var consecutiveFailures = 0
         while (true) {
-            // Metered networks stay on the idle cadence even in-chat — see the tier constants.
-            val baseMs =
-                if (notificationHelper.isChatOpen && !meteredNetwork.isMetered) WATCHER_POLL_IN_CHAT_MS
-                else WATCHER_POLL_IDLE_MS
+            // Metered networks get the relaxed tier pair — see the tier constants.
+            val chatOpen = notificationHelper.isChatOpen
+            val baseMs = if (meteredNetwork.isMetered) {
+                if (chatOpen) WATCHER_POLL_IN_CHAT_METERED_MS else WATCHER_POLL_IDLE_METERED_MS
+            } else {
+                if (chatOpen) WATCHER_POLL_IN_CHAT_MS else WATCHER_POLL_IDLE_MS
+            }
             var delayMs = baseMs
             repeat(minOf(consecutiveFailures, 3)) {
                 delayMs = minOf(delayMs * WATCHER_BACKOFF_MULTIPLIER, WATCHER_BACKOFF_CAP_MS)
@@ -529,16 +576,13 @@ class NextcloudSyncService @Inject constructor(
                 consecutiveFailures = 0
                 if (etag == null) continue // No backup file yet — nothing to mirror.
 
+                // Any ETag other than the last known one - including none known yet - is imported
+                // (NEXTCLOUD_SYNC.md §6, iOS checkForRemoteChangeAndImport). The import is
+                // additive and txId-deduped, so overlapping the auto-restore costs one download.
+                // It used to record a first-seen ETag without importing, which also let the
+                // upload short-cut skip a merge of content never read.
                 val known = dataStore.data.first()[etagKey(address)]
-                when {
-                    known == null ->
-                        // First observation for this wallet: record the baseline without
-                        // importing — the once-per-wallet auto-restore already covers (or will
-                        // cover) the bootstrap; the watcher only mirrors changes from here on.
-                        dataStore.edit { it[etagKey(address)] = etag }
-                    etag != known ->
-                        importRemoteChange(address, etag)
-                }
+                if (etag != known) importRemoteChange(address, etag)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -553,10 +597,17 @@ class NextcloudSyncService @Inject constructor(
      * same additive txId-deduped [ChatHistoryExportImportService.importChatHistory] the restore
      * paths use (imported messages land read), silently — one log line, no UI. Serialized behind
      * [syncMutex] so it can never interleave with an upload or the auto-restore, with the same
-     * wallet-snapshot re-checks around the import. The stored ETag advances even when the file
-     * turns out to belong to a foreign wallet — that version was seen and judged, so the watcher
-     * must not re-download it every tick. Throws on failure so the caller's backoff engages
-     * (and the ETag stays put, so the next successful poll retries the import).
+     * wallet-snapshot re-checks around the import.
+     *
+     * NEXTCLOUD_SYNC.md §6: a file that can't be read still has its ETag recorded, so it isn't
+     * downloaded on every poll - a foreign wallet's file, and any version the import judges and
+     * refuses ([UnreadableBackupException]: undecryptable, not an archive, cut off at rest,
+     * incompatible schema). A replacement changes the ETag and gets a fresh look. Only the
+     * watcher's change detector advances then, never [mergedEtagKey]: this device does not hold
+     * that content merged, so the next upload must read it (and, if it is this wallet's damaged
+     * file, replace it in place - §7). A failed or early-ended DOWNLOAD is different - it says
+     * nothing about the file - so it throws, the caller backs off and the ETag stays put for the
+     * next poll to retry.
      */
     private suspend fun importRemoteChange(address: String, etag: String) {
         syncMutex.withLock {
@@ -567,17 +618,28 @@ class NextcloudSyncService @Inject constructor(
             val json = nextcloudService.downloadBackup()
             if (walletManager.activeAddressFlow.value != address) return
 
-            if (backupBelongsToWallet(address, json)) {
-                val result = chatHistoryExportImportServiceLazy.get().importChatHistory(json)
-                Log.i(
-                    TAG,
-                    "Nextcloud change watcher merged another device's update: " +
-                        "${result.importedMessageCount} new messages in ${result.conversationCount} chats"
-                )
-            } else {
+            if (!backupBelongsToWallet(address, json)) {
                 Log.w(TAG, "Nextcloud backup belongs to a different wallet; watcher import skipped")
+                dataStore.edit { it[etagKey(address)] = etag }
+                return
             }
-            dataStore.edit { it[etagKey(address)] = etag }
+            val result = try {
+                chatHistoryExportImportServiceLazy.get().importChatHistory(json)
+            } catch (e: UnreadableBackupException) {
+                Log.w(TAG, "Nextcloud change watcher skipped an unreadable server backup: ${e.message}")
+                dataStore.edit { it[etagKey(address)] = etag }
+                return
+            }
+            if (walletManager.activeAddressFlow.value != address) return
+            dataStore.edit {
+                it[etagKey(address)] = etag
+                it[mergedEtagKey(address)] = etag
+            }
+            Log.i(
+                TAG,
+                "Nextcloud change watcher merged another device's update: " +
+                    "${result.importedMessageCount} new messages in ${result.conversationCount} chats"
+            )
         }
     }
 
@@ -590,7 +652,12 @@ class NextcloudSyncService @Inject constructor(
     fun noteOwnUpload(etag: String?) {
         if (etag == null) return
         val address = walletManager.activeAddressFlow.value ?: return
-        scope.launch { dataStore.edit { it[etagKey(address)] = etag } }
+        scope.launch {
+            dataStore.edit {
+                it[etagKey(address)] = etag
+                it[mergedEtagKey(address)] = etag
+            }
+        }
     }
 
     /** True when the shared file's contents belong to [address] (or carry no wallet marker).
@@ -646,6 +713,7 @@ class NextcloudSyncService @Inject constructor(
                 it.remove(pendingKey(walletAddress))
                 it.remove(restoreDoneKey(walletAddress))
                 it.remove(etagKey(walletAddress))
+                it.remove(mergedEtagKey(walletAddress))
             }
         }
     }

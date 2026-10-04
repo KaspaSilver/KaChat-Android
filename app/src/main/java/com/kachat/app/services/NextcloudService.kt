@@ -98,6 +98,20 @@ fun List<NextcloudFile>.sortedNewestFirst(): List<NextcloudFile> = sortedWith(NE
 data class NextcloudThumbnailRequest(val url: String, val authorization: String)
 
 /**
+ * The backup PUT finished but the server stored a different number of bytes than were sent:
+ * something between this device and Nextcloud (a relay, a proxy) ended the upload early
+ * (NEXTCLOUD_SYNC.md §4.6 and §7, iOS d57019a `NextcloudError.uploadCutOff`). Deliberately NOT an
+ * [IOException]: it is not a transfer hiccup worth "check your connection" advice, and
+ * [com.kachat.app.util.UserFacingError] shows an app-authored exception's own message, so the
+ * person reads plainly what happened. The automatic sync re-marks the archive dirty and stops -
+ * the next trigger tries again; nothing retries in a loop.
+ */
+class NextcloudUploadCutOffException(val sentBytes: Long, val storedBytes: Long) : Exception(
+    "The backup upload was cut off: the server stored $storedBytes of $sentBytes bytes. " +
+        "Something between this device and Nextcloud is ending large uploads early."
+)
+
+/**
  * Talks to the user's own Nextcloud server (mirrors iOS's `NextcloudService.swift`): connect with
  * an app password, browse files over WebDAV, and mint public `/s/TOKEN` share links via the OCS
  * API — so chats carry a small link the recipient's link-preview feature renders, instead of
@@ -189,6 +203,23 @@ class NextcloudService @Inject constructor(
             return if (url.host.isEmpty()) null else raw
         }
 
+        /**
+         * The verify step after every backup PUT (NEXTCLOUD_SYNC.md §4.6, iOS d57019a): true when
+         * the upload must be reported as cut off. [storedBytes] and [currentEtag] come from one
+         * Depth-0 PROPFIND made right after the PUT; [putEtag] is the ETag the PUT response
+         * carried (null when a proxy stripped it).
+         *
+         * Only our own write counts: when the server's ETag has moved on from the one our PUT
+         * returned, another device replaced the file in between and its size says nothing about
+         * our upload. Without a PUT ETag there is nothing to tell the two apart, so a size
+         * mismatch is taken at face value - as iOS does. An unknown stored size (the PROPFIND
+         * failed or omitted getcontentlength) is no evidence either way.
+         */
+        internal fun isUploadCutOff(sentBytes: Long, storedBytes: Long?, putEtag: String?, currentEtag: String?): Boolean {
+            if (storedBytes == null || storedBytes == sentBytes) return false
+            return putEtag == null || currentEtag == putEtag
+        }
+
         /** WebDAV's getlastmodified is RFC 1123 ("Mon, 11 Aug 2026 20:14:07 GMT"). */
         private fun rfc1123Formatter() = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("GMT")
@@ -213,6 +244,17 @@ class NextcloudService @Inject constructor(
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)
+        .build()
+
+    /**
+     * The backup PUT's client: [client] with the read timeout raised to 120 s. Once the body is
+     * sent, Nextcloud can sit silent for a long time while it stores a large archive, and the
+     * 60 s read timeout would give up on a write that is still succeeding. NEXTCLOUD_SYNC.md §7
+     * asks anything between a client and Nextcloud to give writes at least 120 s; this device's
+     * own wait is held to the same floor. Shares [client]'s connection pool.
+     */
+    private val backupWriteClient = client.newBuilder()
+        .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
     private val _account = MutableStateFlow<NextcloudAccount?>(null)
@@ -945,42 +987,58 @@ class NextcloudService @Inject constructor(
     // -------------------------------------------------------------------------
 
     /**
-     * The whole backup: read whatever the server already holds, hand it to [buildJson] to be
-     * MERGED with this device's history, and upload the union — so a backup can only ever ADD to
+     * The whole backup (NEXTCLOUD_SYNC.md §4): read whatever the server already holds, hand it to
+     * [buildJson] to be MERGED with this device's history, write the union with one PUT to the
+     * same path, then verify the stored size - so a backup can only ever ADD to
      * `kachat-backup.json` (desktop, iOS and Android all write that same file) and no device can
      * delete another's chat history.
      *
-     * The only "just upload" case is a genuine 404 (no backup yet). Every other failure — an
-     * unreadable server response, or a [buildJson] that rejects the remote file as foreign,
-     * corrupt or a different wallet — throws BEFORE the PUT, leaving the existing file untouched.
+     * [buildJson] receives the raw server content: null for a genuine 404 (no backup yet - the
+     * only case that writes without merging), otherwise the file exactly as downloaded, which
+     * [ChatHistoryExportImportService.buildBackupJson] judges per §7 - another wallet's file, a
+     * hint-less envelope and a newer schema throw (nothing is written), while THIS wallet's
+     * unreadable file is replaced in place. A download that failed or stopped early throws here,
+     * before [buildJson] ever sees it: a transfer problem says nothing about the file, so it is
+     * never a reason to overwrite.
      *
-     * Returns the uploaded file's WebDAV ETag (from the PUT response header, with a Depth-0
-     * PROPFIND fallback for servers that omit it), or null when neither source yielded one.
+     * The active wallet is re-checked after the download and again right before the PUT (§4.7):
+     * a switch mid-sync aborts instead of writing one account's history into another's file -
+     * for the manual Back Up Now as much as for the automatic sync.
+     *
+     * Returns the uploaded file's WebDAV ETag (`OC-ETag` then `ETag` on the PUT response, with a
+     * Depth-0 PROPFIND fallback for proxies that strip both), or null when nothing yielded one.
      * [NextcloudSyncService] records it so its remote change watcher never mistakes this
-     * device's own write for another device's change.
+     * device's own write for another device's change. Throws [NextcloudUploadCutOffException]
+     * when the server kept fewer bytes than were sent (§4.6).
      */
     suspend fun runBackup(buildJson: suspend (String?) -> String): String? = backupMutex.withLock {
-        // Snapshot the account/folder so a wallet switch mid-backup can't redirect the upload.
+        // Snapshot the account/folder/wallet so a wallet switch mid-backup can't redirect the upload.
         val account = requireAccount()
         val folder = backupFolderPath
-        val existingRemoteJson = downloadExistingBackup(account, folder)
-        val putEtag = uploadBackup(buildJson(existingRemoteJson), account, folder)
-        return@withLock putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
+        val walletAtStart = currentWalletAddress ?: throw IOException("Open a wallet account before backing up.")
+        val existingRemoteJson = readBackupBody(account, folder, onProgress = null)
+        ensureWalletUnchanged(walletAtStart)
+        val body = buildJson(existingRemoteJson)
+        ensureWalletUnchanged(walletAtStart)
+        return@withLock writeAndVerifyBackup(body, account, folder)
     }
 
     /**
      * [runBackup] minus the pre-merge download, for the ONE case where skipping it is provably
-     * safe: the caller verified (by ETag — see NextcloudSyncService.uploadIfDirty) that the
-     * server file is still THIS device's own last write, i.e. bytes we already merged then and
-     * have kept merged since via the change watcher. Anything short of that certainty must use
-     * [runBackup] — the merge-on-upload rule is what guarantees no device can erase another's
-     * history. Same ETag return contract as [runBackup].
+     * safe (§4.2): the caller verified (by ETag — see NextcloudSyncService.uploadIfDirty) that the
+     * server file is still content this device has already merged, i.e. bytes we wrote or
+     * imported and have kept merged since via the change watcher. Anything short of that
+     * certainty must use [runBackup] — the merge-on-upload rule is what guarantees no device can
+     * erase another's history. Same wallet re-check, verify step and ETag return contract as
+     * [runBackup].
      */
     suspend fun runBackupWithoutDownload(buildJson: suspend () -> String): String? = backupMutex.withLock {
         val account = requireAccount()
         val folder = backupFolderPath
-        val putEtag = uploadBackup(buildJson(), account, folder)
-        return@withLock putEtag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
+        val walletAtStart = currentWalletAddress ?: throw IOException("Open a wallet account before backing up.")
+        val body = buildJson()
+        ensureWalletUnchanged(walletAtStart)
+        return@withLock writeAndVerifyBackup(body, account, folder)
     }
 
     /**
@@ -991,26 +1049,32 @@ class NextcloudService @Inject constructor(
      */
     private val backupMutex = kotlinx.coroutines.sync.Mutex()
 
+    /** NEXTCLOUD_SYNC.md §4.7: one wallet's history must never land in another's file. */
+    private fun ensureWalletUnchanged(walletAtStart: String) {
+        if (currentWalletAddress != walletAtStart) throw IOException("The active account changed during the sync.")
+    }
+
     /**
-     * The backup file's current contents, or null when there is none yet (404 — file or folder).
-     * Any OTHER failure throws, because "couldn't read it" must abort the backup rather than let
-     * the caller overwrite a file whose contents are unknown.
+     * Steps 5 and 6 of a sync (NEXTCLOUD_SYNC.md §4, iOS d57019a `performBackup`): PUT the body,
+     * then read back the stored size with one Depth-0 PROPFIND and compare it with the bytes
+     * sent. A relay that cuts a large PUT leaves a short file, which the next sync would read as
+     * damaged - so a mismatch on our own write ([isUploadCutOff]) is reported plainly as
+     * [NextcloudUploadCutOffException] rather than letting sync go round in circles. A failed
+     * PROPFIND skips the check (no evidence either way), like iOS.
+     *
+     * The same PROPFIND's ETag doubles as the fallback when a proxy stripped the PUT response's
+     * ETag headers (§4.5), so the common case still costs one request.
      */
-    private suspend fun downloadExistingBackup(account: NextcloudAccount, folder: String): String? = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(davUrl(account, "$folder/$BACKUP_FILE_NAME"))
-            .header("Authorization", basicAuth(account))
-            .build()
-        client.newCall(request).execute().use { response ->
-            when {
-                response.code == 404 -> null
-                response.code == 401 -> throw IOException("Nextcloud rejected the username or app password — nothing was uploaded.")
-                !response.isSuccessful -> throw IOException(
-                    "Could not read the backup already on the server (HTTP ${response.code}) — nothing was uploaded and that file was left untouched."
-                )
-                else -> response.body?.string()?.takeIf { it.isNotBlank() }
-            }
+    private suspend fun writeAndVerifyBackup(archiveJson: String, account: NextcloudAccount, folder: String): String? {
+        // The exact bytes the PUT carries - the size the server must report back.
+        val bytes = archiveJson.toByteArray(Charsets.UTF_8)
+        val putEtag = uploadBackup(bytes, account, folder)
+        val stat = runCatching { statBackup(account, folder) }.getOrNull()
+        if (isUploadCutOff(bytes.size.toLong(), stat?.size, putEtag, stat?.etag)) {
+            Log.w(TAG, "Backup upload cut off: server stored ${stat?.size} of ${bytes.size} bytes")
+            throw NextcloudUploadCutOffException(sentBytes = bytes.size.toLong(), storedBytes = stat?.size ?: 0L)
         }
+        return putEtag ?: stat?.etag ?: runCatching { fetchBackupEtag(account, folder) }.getOrNull()
     }
 
     /**
@@ -1053,9 +1117,11 @@ class NextcloudService @Inject constructor(
      * (MKCOL answers 405 when it already exists — fine; a user-picked folder always already
      * exists since it was chosen through the folder browser). Overwrites in place: callers that
      * back chat history up must go through [runBackup] so the body is a merge, not a replacement.
-     * Returns the new file's ETag when the server sends one on the PUT response, else null.
+     * Returns the new file's ETag when the server sends one on the PUT response, else null:
+     * `OC-ETag` first - Nextcloud's canonical header - then `ETag` (NEXTCLOUD_SYNC.md §4.5, same
+     * order as iOS).
      */
-    private suspend fun uploadBackup(archiveJson: String, account: NextcloudAccount, folder: String): String? = withContext(Dispatchers.IO) {
+    private suspend fun uploadBackup(archiveBytes: ByteArray, account: NextcloudAccount, folder: String): String? = withContext(Dispatchers.IO) {
         val folderUrl = davUrl(account, folder)
 
         val mkcol = Request.Builder()
@@ -1072,19 +1138,19 @@ class NextcloudService @Inject constructor(
 
         val put = Request.Builder()
             .url(folderUrl.newBuilder().addPathSegment(BACKUP_FILE_NAME).build())
-            .put(archiveJson.toRequestBody("application/json".toMediaType()))
+            .put(archiveBytes.toRequestBody("application/json".toMediaType()))
             .header("Authorization", basicAuth(account))
             .build()
         var attempt = 0
         while (true) {
-            val outcome = client.newCall(put).execute().use { response ->
+            val outcome = backupWriteClient.newCall(put).execute().use { response ->
                 if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
                 // 423 Locked: another device, or this one's own sync, is reading or writing the
                 // archive. The lock clears in seconds, so wait it out rather than failing the
                 // backup - only a lock that never clears is worth telling the user about.
                 if (response.code == 423) return@use null
                 if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
-                normalizeEtag(response.header("ETag") ?: response.header("OC-ETag")) to true
+                normalizeEtag(response.header("OC-ETag") ?: response.header("ETag")) to true
             }
             if (outcome != null) return@withContext outcome.first
             if (attempt >= LOCK_RETRY_DELAYS_SECONDS.size) {
@@ -1139,30 +1205,68 @@ class NextcloudService @Inject constructor(
         }
     }
 
+    /** The backup file's ETag and stored byte count, as one Depth-0 PROPFIND reports them. */
+    private data class BackupStat(val etag: String?, val size: Long?)
+
+    /**
+     * The verify step's read-back (NEXTCLOUD_SYNC.md §4.6): one Depth-0 PROPFIND asking for
+     * `getetag` and `getcontentlength` together, so the size and the ETag that says whose write
+     * it is describe the same version of the file. Null on 404; any other failure throws.
+     */
+    private suspend fun statBackup(account: NextcloudAccount, folder: String): BackupStat? = withContext(Dispatchers.IO) {
+        val body = """
+            <?xml version="1.0"?>
+            <d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:getcontentlength/></d:prop></d:propfind>
+        """.trimIndent().toRequestBody("application/xml".toMediaType())
+        val request = Request.Builder()
+            .url(davUrl(account, "$folder/$BACKUP_FILE_NAME"))
+            .method("PROPFIND", body)
+            .header("Depth", "0")
+            .header("Authorization", basicAuth(account))
+            .build()
+        client.newCall(request).execute().use { response ->
+            when {
+                response.code == 404 -> null
+                response.code == 401 -> throw IOException("Nextcloud rejected the username or app password.")
+                response.code != 207 -> throw IOException("Nextcloud returned HTTP ${response.code}.")
+                else -> parseBackupStat(
+                    response.body?.string() ?: throw IOException("Unexpected response from the Nextcloud server.")
+                )
+            }
+        }
+    }
+
     /** Pulls the first `getetag` value out of a PROPFIND multistatus (namespace-agnostic). */
-    private fun parseEtagFromMultistatus(xml: String): String? {
+    private fun parseEtagFromMultistatus(xml: String): String? = parseBackupStat(xml).etag
+
+    /** The first `getetag` and `getcontentlength` values in a PROPFIND multistatus
+     *  (namespace-agnostic; either is null when absent or unparseable). */
+    private fun parseBackupStat(xml: String): BackupStat {
         val parser = Xml.newPullParser().apply {
             setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
             setInput(xml.reader())
         }
-        var inEtag = false
+        var etag: String? = null
+        var size: Long? = null
+        var current: String? = null
         val text = StringBuilder()
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
-                XmlPullParser.START_TAG -> if (parser.name == "getetag") {
-                    inEtag = true
+                XmlPullParser.START_TAG -> if (parser.name == "getetag" || parser.name == "getcontentlength") {
+                    current = parser.name
                     text.setLength(0)
                 }
-                XmlPullParser.TEXT -> if (inEtag) text.append(parser.text)
-                XmlPullParser.END_TAG -> if (parser.name == "getetag") {
-                    normalizeEtag(text.toString())?.let { return it }
-                    inEtag = false
+                XmlPullParser.TEXT -> if (current != null) text.append(parser.text)
+                XmlPullParser.END_TAG -> if (parser.name == current) {
+                    if (current == "getetag" && etag == null) etag = normalizeEtag(text.toString())
+                    if (current == "getcontentlength" && size == null) size = text.toString().trim().toLongOrNull()
+                    current = null
                 }
             }
             event = parser.next()
         }
-        return null
+        return BackupStat(etag, size)
     }
 
     /** Strips the weak-validator prefix and surrounding quotes so PUT-header and PROPFIND forms
@@ -1179,22 +1283,42 @@ class NextcloudService @Inject constructor(
     /**
      * Downloads the backup archive JSON. 404 -> "no backup was found". [onProgress] (optional)
      * streams (receivedBytes, totalBytes) as the body downloads — totalBytes is null when the
-     * server sends no Content-Length. Drives the restore modal's download stage.
+     * server sends no Content-Length. Drives the restore modal's download stage; the change
+     * watcher and the silent restore read through here too.
      */
-    suspend fun downloadBackup(onProgress: ((receivedBytes: Long, totalBytes: Long?) -> Unit)? = null): String = withContext(Dispatchers.IO) {
+    suspend fun downloadBackup(onProgress: ((receivedBytes: Long, totalBytes: Long?) -> Unit)? = null): String {
         val account = requireAccount()
+        val body = readBackupBody(account, backupFolderPath, onProgress)
+            ?: throw IOException("No KaChat backup was found on this Nextcloud server.")
+        return body.takeIf { it.isNotEmpty() } ?: throw IOException("Unexpected response from the Nextcloud server.")
+    }
+
+    /**
+     * GETs `<folder>/kachat-backup.json`: null on 404 (file or folder - no backup yet), the body
+     * otherwise (possibly empty, when the file on the server is). The one download every reader
+     * shares - the sync's read step ([runBackup]), the restore and the change watcher - so they
+     * all treat a bad transfer the same way: every failure here is an [IOException] that
+     * aborts the caller BEFORE any PUT (NEXTCLOUD_SYNC.md §4.3, §7). In particular:
+     *   * a 2xx HTML body is a reverse-proxy, login, or maintenance page standing in for the
+     *     server, never the backup - rejected so it retries as a transient error instead of
+     *     reaching the merge, which would now take it for a damaged file and replace it;
+     *   * a download that stopped early (fewer bytes than Content-Length) is a transfer problem,
+     *     not a damaged file: the file on the server may be fine, so it must never be
+     *     overwritten on the strength of half of it (§7, iOS d57019a).
+     */
+    private suspend fun readBackupBody(
+        account: NextcloudAccount,
+        folder: String,
+        onProgress: ((receivedBytes: Long, totalBytes: Long?) -> Unit)?
+    ): String? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url(davUrl(account, "$backupFolderPath/$BACKUP_FILE_NAME"))
+            .url(davUrl(account, "$folder/$BACKUP_FILE_NAME"))
             .header("Authorization", basicAuth(account))
             .build()
         client.newCall(request).execute().use { response ->
+            if (response.code == 404) return@withContext null
             if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
-            if (response.code == 404) throw IOException("No KaChat backup was found on this Nextcloud server.")
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
-            // A WebDAV GET of the backup file is never legitimately HTML; a 2xx HTML body is a
-            // reverse-proxy, login, or maintenance page standing in for the server. Reject it
-            // here so it retries as a transient error instead of reaching the merge parser and
-            // surfacing as "the file on the server isn't a KaChat backup".
             val contentType = response.header("Content-Type")?.lowercase() ?: ""
             if ("html" in contentType) throw IOException("Unexpected response from the Nextcloud server.")
             val body = response.body ?: throw IOException("Unexpected response from the Nextcloud server.")
@@ -1211,18 +1335,16 @@ class NextcloudService @Inject constructor(
             }
             // A stream that ends early does not always throw - a connection closed gracefully
             // mid-body just returns -1 from read() - so short of the advertised length has to be
-            // caught here. Silently accepting it hands megabytes of half an archive to the merge
-            // parser, which reports it as a corrupt or foreign backup. Worth distinguishing,
-            // because the advice is opposite: one is "try again", the other is "your backup is
-            // gone".
+            // caught here. Silently accepting it would hand half an archive to the merge, which
+            // reads it as this wallet's damaged file and replaces it in place: a transfer
+            // problem must never cost the server copy.
             if (totalBytes != null && out.size().toLong() < totalBytes) {
                 throw IOException(
                     "The backup download stopped early (${out.size()} of $totalBytes bytes). " +
                         "Nothing on the server was changed, so trying again is safe."
                 )
             }
-            out.toString("UTF-8").takeIf { it.isNotEmpty() }
-                ?: throw IOException("Unexpected response from the Nextcloud server.")
+            out.toString("UTF-8")
         }
     }
 }
