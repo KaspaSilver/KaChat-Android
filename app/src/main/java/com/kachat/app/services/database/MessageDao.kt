@@ -121,6 +121,10 @@ interface MessageDao {
     suspend fun hasSentToContact(contactId: String, walletAddress: String): Boolean
 
     /** Anything they sent us we can see - a message, payment or handshake. */
+    /** Block time of the contact's newest received message, null when none. */
+    @Query("SELECT MAX(blockTimestamp) FROM messages WHERE walletAddress = :walletAddress AND contactId = :contactId AND direction = 'received'")
+    suspend fun getLatestReceivedTimestamp(contactId: String, walletAddress: String): Long?
+
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE walletAddress = :walletAddress AND contactId = :contactId AND direction = 'received')")
     suspend fun hasReceivedFromContact(contactId: String, walletAddress: String): Boolean
 

@@ -1214,7 +1214,7 @@ class ChatRepository @Inject constructor(
         // Saved-handshake notes: re-create chats that never had a handshake after a fresh
         // import, and write the notes still missing (iOS fe45704). Not on the fast poll tick.
         if (!fromPollLoop) contactNotesLazy.get().syncNotesInBackground()
-        syncContextualMessages(myAddress, api, pollShaped = fromPollLoop)
+        syncContextualMessages(myAddress, api, pollShaped = fromPollLoop, slowLane = true)
         // Payments get their own, slower cadence on the poll path: the endpoint is
         // full-transactions (inputs + outputs + payloads resolved server-side — by far the
         // heaviest GET in the cycle) and has no cursor, so polling it every fast tick
@@ -1532,11 +1532,42 @@ class ChatRepository @Inject constructor(
      * between contacts so a sweep is a drizzle, not a burst. Mirrors iOS ChatService's
      * startForegroundContactSweep. Manual refresh/resync flows never pass this.
      */
+    // MARK: - The slow lane for old-style aliases (iOS 00d4919)
+
+    /** When each old-style alias was last queried, this launch - so a quiet one is queried once
+     *  per launch, then at most daily. */
+    private val legacyAliasPolledAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun legacyAliasKey(wallet: String, contactId: String, aliasHex: String) =
+        "${wallet.lowercase()}|${contactId.lowercase()}|$aliasHex"
+
+    /**
+     * Whether the regular sync should query an old-style (pre-deterministic) alias this time.
+     * Old-style aliases mostly hold history, yet each one cost an indexer request on every sync,
+     * sweep and open-chat poll, forever. They ride a slow lane - once per launch, then at most
+     * daily - unless in use: the contact sent on an old alias within 30 days, or has never used
+     * the deterministic alias and messaged within 30 days (an old client). Deterministic aliases
+     * are always queried by the caller.
+     */
+    private suspend fun shouldPollAlias(myAddress: String, contactId: String, aliasHex: String): Boolean {
+        val now = System.currentTimeMillis()
+        fun isRecent(ms: Long?): Boolean = ms != null && ms > 0 && (now < ms || now - ms < LEGACY_ALIAS_ACTIVE_WINDOW_MS)
+        if (isRecent(peerAliasStore.lastLegacyIncomingAtMs(myAddress, contactId))) return true
+        if (!peerAliasStore.usesDeterministic(myAddress, contactId) &&
+            isRecent(database.messageDao().getLatestReceivedTimestamp(contactId, myAddress))
+        ) return true
+        val lastPolled = legacyAliasPolledAt[legacyAliasKey(myAddress, contactId, aliasHex)] ?: return true
+        return now < lastPolled || now - lastPolled >= LEGACY_ALIAS_POLL_INTERVAL_MS
+    }
+
     private suspend fun syncContextualMessages(
         myAddress: String,
         api: KasiaIndexerApi,
         onlyContactIds: Set<String>? = null,
         pollShaped: Boolean = false,
+        /** The regular sync: quiet old-style aliases ride the slow lane ([shouldPollAlias]).
+         *  Rescans, resyncs, a new sender's history and an explicit refresh query everything. */
+        slowLane: Boolean = false,
         onContactDone: (suspend (done: Int, total: Int) -> Unit)? = null
     ): Int {
         // Fetch for BOTH active and pending contacts. Gating the FETCH on "active" made a
@@ -1606,6 +1637,10 @@ class ChatRepository @Inject constructor(
             }
 
             for (aliasHex in (listOfNotNull(legacyAliasHex, deterministicAliasHex) + knownAliasHexes).distinct()) {
+                val isLegacyAlias = deterministicAliasHex != null && aliasHex != deterministicAliasHex
+                // Old-style (pre-deterministic) aliases ride the slow lane (iOS 00d4919).
+                if (slowLane && isLegacyAlias && !shouldPollAlias(myAddress, contact.id, aliasHex)) continue
+                var aliasQueried = false
                 // block_time cursor, tracked per (contact, alias) since each is its own independent
                 // stream on the indexer — see MessageSyncCursorEntity's doc comment.
                 //
@@ -1647,6 +1682,7 @@ class ChatRepository @Inject constructor(
                         Log.w("ChatRepository", "Failed to fetch messages for ${contact.id}", e)
                         break
                     }
+                    aliasQueried = true
                     if (messages.isEmpty()) break
 
                     for (message in messages) {
@@ -1654,6 +1690,15 @@ class ChatRepository @Inject constructor(
                             if (database.messageDao().exists(message.txId, myAddress)) continue
                             if (isTombstoned(deleted, message.txId, message.blockTime)) continue
                             processContextualMessage(myAddress, contact, message)
+                            // Which lane the contact's aliases belong in: a message on an old
+                            // alias keeps them in the every-sync lane for a while.
+                            if (contact.id != myAddress) {
+                                if (isLegacyAlias) {
+                                    peerAliasStore.noteLegacyIncoming(myAddress, contact.id, message.blockTime)
+                                } else if (aliasHex == deterministicAliasHex) {
+                                    peerAliasStore.noteDeterministicIncoming(myAddress, contact.id)
+                                }
+                            }
                         } catch (e: Exception) {
                             Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
                         }
@@ -1679,6 +1724,7 @@ class ChatRepository @Inject constructor(
                     if (messages.size < CONTEXTUAL_PAGE_LIMIT || !moved) break
                     fetchFrom = maxBlockTime
                 }
+                if (aliasQueried && isLegacyAlias) legacyAliasPolledAt[legacyAliasKey(myAddress, contact.id, aliasHex)] = System.currentTimeMillis()
             }
             onContactDone?.invoke(index + 1, syncableContacts.size)
         }
@@ -2083,6 +2129,10 @@ class ChatRepository @Inject constructor(
         /** Poll-path contact-sweep shape — see [syncContextualMessages]. Matches iOS's
          *  startForegroundContactSweep (5s between sweeps, 100-120ms between contacts, cap 40). */
         private const val CONTACT_SWEEP_MIN_INTERVAL_MS = 5_000L
+        /** Quiet old-style aliases are queried at most this often (iOS 00d4919). */
+        private const val LEGACY_ALIAS_POLL_INTERVAL_MS = 24L * 60 * 60 * 1000
+        /** An old-style alias counts as in use for this long after the contact's last message on one. */
+        private const val LEGACY_ALIAS_ACTIVE_WINDOW_MS = 30L * 24 * 60 * 60 * 1000
         /** How often the fast poll tick also asks the inbox for first-contact messages. */
         private const val INBOX_POLL_INTERVAL_MS = 30_000L
         private const val CONTACT_SWEEP_CAP = 40
