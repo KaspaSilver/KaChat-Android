@@ -303,8 +303,7 @@ fun ChatThreadScreen(
     // replaced the composer's payment mode; every way into a payment opens it: the "+" sheet's Pay
     // in Kaspa, and the paymentMode chat route ("Pay in Kaspa" from a group or public chat's
     // sender sheet).
-    // rememberSaveable (not remember) so the sheet survives a push to Manage Spending Addresses
-    // from its Available pill and back - iOS presents that screen over the sheet.
+    // rememberSaveable (not remember) so the sheet survives a rotation.
     var showPaymentSheet by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     // Opened with the paymentMode route: presented once the push has landed, not mid-transition,
     // and only the first time (not again after a rotation).
@@ -318,19 +317,29 @@ fun ChatThreadScreen(
      *  Explorer, Copy Transaction ID). It replaced the sent-confirmation sheet after a chat
      *  payment (iOS 80a6aae). */
     var paymentDetailMessage by remember { mutableStateOf<MessageEntity?>(null) }
+    /** The spending address this payment comes from, when not the primary (Chats Payment Privacy
+     *  on): picked from the sheet's Available pill. null = the primary. Resets each time the
+     *  sheet opens; the primary itself never changes (iOS dae8a01). */
+    var paymentSource by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
+    var showPaymentSourcePicker by remember { mutableStateOf(false) }
     val openPaymentSheet: () -> Unit = {
         chatViewModel.setPaymentAmount("")
         chatViewModel.setPaymentNote("")
         paymentNote = ""
         paymentError = null
+        paymentSource = null
+        chatViewModel.setPaymentSource(null)
         showPaymentSheet = true
     }
     val closePaymentSheet: () -> Unit = {
         showPaymentSheet = false
+        showPaymentSourcePicker = false
         chatViewModel.setPaymentAmount("")
         chatViewModel.setPaymentNote("")
         paymentNote = ""
         paymentError = null
+        paymentSource = null
+        chatViewModel.setPaymentSource(null)
     }
     LaunchedEffect(Unit) {
         if (startInPaymentMode && !startPaymentConsumed) {
@@ -340,6 +349,7 @@ fun ChatThreadScreen(
         }
     }
     val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
+    val primarySpendingIndex by walletViewModel.primarySpendingIndex.collectAsState()
     val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val identityFullBalance by walletViewModel.fullBalance.collectAsState()
     val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
@@ -1804,11 +1814,19 @@ fun ChatThreadScreen(
             note = paymentNote,
             onNoteChange = { paymentNote = it },
             feeSompi = estimatedFee,
-            // Primary spending balance when Chats Payment Privacy is ON (underlined + tappable,
-            // opens Manage Spending Addresses), chatting balance when OFF (plain, not tappable).
-            availableText = "available: ${if (paymentPrivacyOn) spendingBalance else identityFullBalance}",
+            // The paying spending address's balance when Chats Payment Privacy is ON (underlined
+            // + tappable, opens Send From to pay from another spending address), chatting balance
+            // when OFF (plain, not tappable: it always pays from the chatting address) - iOS
+            // dae8a01. The pill no longer opens Manage Addresses.
+            availableText = "available: " + when {
+                !paymentPrivacyOn -> identityFullBalance
+                paymentSource != null -> "%.8f %s".format(java.util.Locale.US, paymentSource!!.balanceSompi / 100_000_000.0, KaspaUnit.symbol)
+                else -> spendingBalance
+            },
             availableTappable = paymentPrivacyOn,
-            onAvailableClick = { navController.navigate("manage_addresses") },
+            onAvailableClick = { showPaymentSourcePicker = true },
+            availableSourceLabel = paymentSource?.let { spendingAddressDisplayLabel(it.index, it.label) }
+                ?: primarySpendingIndex?.let { "Address #$it" },
             paysToFreshAddress = paysToFreshPoolAddress,
             maxKas = {
                 // Mirror KaspaWalletEngine's own fee calculation exactly (real Kaspa mass model,
@@ -1819,9 +1837,9 @@ fun ChatThreadScreen(
                     payloadSize = 0
                 )
                 val fee = com.kachat.app.util.KaspaMass.calculateFee(mass, networkFeeRate.toLong())
-                // Same source the send will use: primary spending balance with privacy ON,
-                // chatting balance with privacy OFF.
-                val sourceBalanceSompi = if (paymentPrivacyOn) spendingBalanceSompi else identityBalanceSompi
+                // Same source the send will use: the paying spending address (the picked one,
+                // else the primary) with privacy ON, chatting balance with privacy OFF.
+                val sourceBalanceSompi = if (paymentPrivacyOn) (paymentSource?.balanceSompi ?: spendingBalanceSompi) else identityBalanceSompi
                 (sourceBalanceSompi - fee).coerceAtLeast(0L).toDouble() / 100_000_000.0
             },
             error = paymentError,
@@ -1830,7 +1848,7 @@ fun ChatThreadScreen(
                 if (paymentAmount.isNotEmpty() && !paymentSending) {
                     paymentSending = true
                     paymentError = null
-                    chatViewModel.sendPayment(contactId, paymentAmount, paymentNote) { ok, message, _ ->
+                    chatViewModel.sendPayment(contactId, paymentAmount, paymentNote, sourceSpendingIndex = paymentSource?.index) { ok, message, _ ->
                         paymentSending = false
                         if (ok) {
                             // No confirmation sheet: the payment bubble in the chat is the
@@ -1846,6 +1864,20 @@ fun ChatThreadScreen(
                 }
             },
             onDismiss = closePaymentSheet,
+        )
+    }
+
+    if (showPaymentSheet && showPaymentSourcePicker && paymentPrivacyOn) {
+        val primaryIndex = primarySpendingIndex
+        SpendingSourcePicker(
+            currentIndex = paymentSource?.index ?: primaryIndex ?: -1,
+            viewModel = walletViewModel,
+            onPick = { picked ->
+                // This payment only: picking the primary is the same as no pick.
+                paymentSource = if (picked.index == primaryIndex) null else picked
+                chatViewModel.setPaymentSource(paymentSource?.index)
+            },
+            onDismiss = { showPaymentSourcePicker = false },
         )
     }
 

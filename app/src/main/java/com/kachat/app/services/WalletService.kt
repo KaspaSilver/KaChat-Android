@@ -191,10 +191,18 @@ class WalletService @Inject constructor(
      * "Pay in Kaspa" — orchestrates a payment sourced from the spending address, not the
      * identity address (see [KaspaWalletEngine.sendSpendingPayment]). The only send path that
      * doesn't go through [sendKaspa] above; messaging/handshakes are unaffected.
+     * [sourceSpendingIndex] pays from that spending address instead of the primary, without
+     * moving the primary (iOS dae8a01); null = the primary.
      * @return The transaction ID if successful.
      */
-    suspend fun payInKaspa(toAddress: String, amountSompi: Long, feeRateOverride: Long? = null, payloadBytes: ByteArray? = null): String {
-        val result = walletEngine.sendSpendingPayment(toAddress, amountSompi, feeRateOverride, payloadBytes)
+    suspend fun payInKaspa(
+        toAddress: String,
+        amountSompi: Long,
+        feeRateOverride: Long? = null,
+        payloadBytes: ByteArray? = null,
+        sourceSpendingIndex: Int? = null,
+    ): String {
+        val result = walletEngine.sendSpendingPayment(toAddress, amountSompi, feeRateOverride, payloadBytes, sourceSpendingIndex)
 
         if (result.isSuccess) {
             refreshSpendingBalance()

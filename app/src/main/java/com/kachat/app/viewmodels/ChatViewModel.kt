@@ -1271,13 +1271,26 @@ class ChatViewModel @Inject constructor(
     private val _spendingUtxosFromSpendingAddress = MutableStateFlow(false)
     val spendingUtxosFromSpendingAddress: StateFlow<Boolean> = _spendingUtxosFromSpendingAddress.asStateFlow()
 
+    /** The spending address the open Send KAS sheet pays from when it isn't the primary (Chats
+     *  Payment Privacy on), picked from its Available pill; null = the primary. The sheet resets
+     *  it each time it opens and closes. [refreshSpendingUtxos] reads this source's UTXOs, so the
+     *  fee preview and Max price what the send will actually spend (iOS dae8a01). */
+    private val _paymentSourceIndex = MutableStateFlow<Int?>(null)
+
+    fun setPaymentSource(index: Int?) {
+        if (_paymentSourceIndex.value == index) return
+        _paymentSourceIndex.value = index
+        refreshSpendingUtxos()
+    }
+
     fun refreshSpendingUtxos() {
+        val source = _paymentSourceIndex.value
         viewModelScope.launch {
             try {
                 val privacy = paymentPoolService.isChatsPrivacyEnabled()
                 _spendingUtxosFromSpendingAddress.value = privacy
                 val address = if (privacy) {
-                    walletManager.currentSpendingAddress()
+                    source?.let { walletManager.deriveSpendingAddress(it) } ?: walletManager.currentSpendingAddress()
                 } else {
                     walletManager.getAddress()
                 }
@@ -1291,7 +1304,9 @@ class ChatViewModel @Inject constructor(
                     Log.w("ChatViewModel", "Could not fetch fee estimate, using network minimum")
                 }
 
-                _spendingUtxos.value = api.getUtxos(address)
+                val utxos = api.getUtxos(address)
+                // A refresh for a source that has since changed would price the wrong address.
+                if (_paymentSourceIndex.value == source) _spendingUtxos.value = utxos
             } catch (e: Exception) {
                 Log.w("ChatViewModel", "Spending UTXO refresh failed", e)
             }
@@ -3007,8 +3022,20 @@ class ChatViewModel @Inject constructor(
      *  [note] is the Send KAS sheet's memo (iOS 8d208b2): sealed to the recipient in a
      *  `kchat:1:pay:` payload, so only they can read it back from the chain - which is why the
      *  sender's own bubble keeps it from send time ("Sent X KAS — memo", iOS 2be75ed). A payment
-     *  with no memo carries no payload at all, as before. */
-    fun sendPayment(contactId: String, amount: String, note: String = "", onResult: ((Boolean, String?, String?) -> Unit)? = null) {
+     *  with no memo carries no payload at all, as before.
+     *
+     *  [sourceSpendingIndex] pays from that spending address instead of the primary (Chats
+     *  Payment Privacy on; the Send KAS sheet's Available pill) without moving the primary - see
+     *  [com.kachat.app.services.KaspaWalletEngine.sendSpendingPayment]. null = the primary, as
+     *  always; ignored with privacy off, which always pays from the chatting address (iOS
+     *  dae8a01). */
+    fun sendPayment(
+        contactId: String,
+        amount: String,
+        note: String = "",
+        sourceSpendingIndex: Int? = null,
+        onResult: ((Boolean, String?, String?) -> Unit)? = null,
+    ) {
         val amountKas = amount.toDoubleOrNull() ?: run { onResult?.invoke(false, "Enter a valid amount.", null); return }
         val sompi = (amountKas * 100_000_000).toLong()
         val feeRate = _feeRateOverride.value
@@ -3058,7 +3085,13 @@ class ChatViewModel @Inject constructor(
                     recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
                 )
                 val txId = if (privacyOn) {
-                    walletService.payInKaspa(toAddress = destination, amountSompi = sompi, feeRateOverride = feeRate, payloadBytes = payload)
+                    walletService.payInKaspa(
+                        toAddress = destination,
+                        amountSompi = sompi,
+                        feeRateOverride = feeRate,
+                        payloadBytes = payload,
+                        sourceSpendingIndex = sourceSpendingIndex,
+                    )
                 } else {
                     walletService.sendKaspa(toAddress = destination, amountSompi = sompi, payloadBytes = payload, feeRateOverride = feeRate)
                 }

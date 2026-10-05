@@ -169,6 +169,10 @@ class WalletViewModel @Inject constructor(
 
     val spendingBalanceSompi: StateFlow<Long> = walletService.spendingBalance
 
+    /** The primary ("Pay in Kaspa") spending index, live - the Send KAS sheet names it on its
+     *  Available pill and checks it in Send From (iOS dae8a01). */
+    val primarySpendingIndex: StateFlow<Int?> = walletManager.primarySpendingIndexFlow
+
     /** Every revealed spending address together, formatted, or null when unknown. Shown under the
      *  Profile row's balance: that row says what the address you are about to spend FROM holds,
      *  which after a few payments is a long way from what the account has. */

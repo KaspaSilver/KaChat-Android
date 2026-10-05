@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -90,10 +91,14 @@ fun SendKasSheet(
     onNoteChange: (String) -> Unit,
     feeSompi: Long?,
     availableText: String,
-    /** Chats Payment Privacy on: the Available pill is the spending balance, underlined, and
-     *  opens Manage Spending Addresses. */
+    /** Chats Payment Privacy on: the Available pill is the paying spending address's balance,
+     *  underlined, and opens Send From to pay from another spending address (iOS dae8a01). Off,
+     *  payments come from the chatting address, so there's nothing to pick. */
     availableTappable: Boolean,
     onAvailableClick: () -> Unit,
+    /** Which spending address pays ("Address #N"), shown after the balance with a chevron when
+     *  [availableTappable]. */
+    availableSourceLabel: String?,
     /** The payment goes to a fresh pool address the contact shared (privacy on only). */
     paysToFreshAddress: Boolean,
     /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
@@ -204,6 +209,7 @@ fun SendKasSheet(
             }
 
             // Fee and available pills.
+            val sourcePickerHint = stringResource(R.string.send_from_hint)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), modifier = Modifier.fillMaxWidth()) {
                 Text(
                     if (feeSompi != null) "fee: ${ChatRepository.formatKas(feeSompi)} ${KaspaUnit.symbol}" else "fee: -- ${KaspaUnit.symbol}",
@@ -222,7 +228,11 @@ fun SendKasSheet(
                         .weight(1f, fill = false)
                         .clip(RoundedCornerShape(14.dp))
                         .background(colors.surface)
-                        .then(if (availableTappable) Modifier.clickable { onAvailableClick() } else Modifier)
+                        .then(
+                            if (availableTappable) {
+                                Modifier.clickable(onClickLabel = sourcePickerHint, role = androidx.compose.ui.semantics.Role.Button) { onAvailableClick() }
+                            } else Modifier
+                        )
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text(
@@ -232,7 +242,20 @@ fun SendKasSheet(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textDecoration = if (availableTappable) TextDecoration.Underline else null,
+                        // The balance gives way first on a narrow screen, so the address shows.
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+                    if (availableTappable && availableSourceLabel != null) {
+                        // Which spending address pays: the primary unless another was picked.
+                        Text("·", color = colors.textSecondary, fontSize = 11.sp)
+                        Text(availableSourceLabel, color = colors.textSecondary, fontSize = 11.sp, maxLines = 1)
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
                     if (availableTappable && paysToFreshAddress) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowForward,

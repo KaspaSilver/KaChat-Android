@@ -419,6 +419,11 @@ class KaspaWalletEngine @Inject constructor(
      * change to a freshly derived *next* spending address, which becomes the new current one.
      * The stored index only advances after the send actually succeeds — a failed/rejected send
      * leaves the current spending address exactly as it was, safe to retry.
+     *
+     * [sourceSpendingIndex] pays from that spending address instead of the primary (the Send KAS
+     * sheet's Available pill, Chats Payment Privacy on); null = the primary, as always. A picked
+     * source keeps the primary where it is: its change still goes to a fresh never-used index,
+     * which is revealed (listed in Manage Addresses) rather than made primary (iOS dae8a01).
      */
     suspend fun sendSpendingPayment(
         toAddress: String,
@@ -427,13 +432,16 @@ class KaspaWalletEngine @Inject constructor(
         /** The payment's `kchat:1:pay:` payload when it carries a memo (see
          *  [com.kachat.app.util.MessageProtocol.buildPaymentPayload]); null for a plain payment. */
         payloadBytes: ByteArray? = null,
+        sourceSpendingIndex: Int? = null,
     ): Result<String> {
         val identityAddress = walletManager.getAddress()
-        val currentIndex = walletManager.getActiveAccount()?.spendingAddressIndex
+        val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
             ?: return Result.failure(IllegalStateException("No active account"))
-        val currentSpendingAddress = walletManager.deriveSpendingAddress(currentIndex)
-        val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(currentIndex)
-        // Change goes one past the ALL-TIME max index (not just currentIndex + 1) — guarantees it
+        val keepsPrimary = sourceSpendingIndex != null && sourceSpendingIndex != primaryIndex
+        val spendingIndex = sourceSpendingIndex ?: primaryIndex
+        val sourceSpendingAddress = walletManager.deriveSpendingAddress(spendingIndex)
+        val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(spendingIndex)
+        // Change goes one past the ALL-TIME max index (not just spendingIndex + 1) — guarantees it
         // never lands on an address that's already been used, offered as a payment-pool
         // reservation, or manually generated from Manage Addresses. The allocation bumps the max
         // atomically, so a concurrent pool reservation can't collide either (matches iOS's
@@ -446,14 +454,20 @@ class KaspaWalletEngine @Inject constructor(
             toAddress = toAddress,
             amountSompi = amountSompi,
             payloadBytes = payloadBytes,
-            fromAddress = currentSpendingAddress,
+            fromAddress = sourceSpendingAddress,
             signingPrivateKey = spendingPrivateKey,
             changeAddress = nextSpendingAddress,
             sweepAll = true,
             feeRateOverride = feeRateOverride
         )
         if (result.isSuccess) {
-            walletManager.setSpendingAddressIndex(identityAddress, nextIndex)
+            if (keepsPrimary) {
+                // Revealed, not made primary: the allocation above already raised the max to
+                // cover it; make sure it isn't hidden either (iOS revealSpendingAddress).
+                walletManager.setSpendingAddressHidden(identityAddress, nextIndex, hidden = false)
+            } else {
+                walletManager.setSpendingAddressIndex(identityAddress, nextIndex)
+            }
         }
         return result
     }
