@@ -566,10 +566,8 @@
     <string name="kl_1d">1일</string>
     <string name="kl_3d">3일</string>
     <string name="kl_7d">7일</string>
-    <string name="kl_30d">30일</string>
     <string name="kl_listed_at">판매 가격</string>
     <string name="kl_your_offer">내 제안</string>
-    <string name="kl_your_offer_footer">KAS는 판매자가 수락하거나, 제안을 철회하거나, 만료될 때까지 체인에 잠겨 있습니다. 다른 누구도 손댈 수 없습니다.</string>
     <string name="kl_expires_after">만료 기간</string>
     <string name="kl_send_offer">제안 보내기</string>
     <string name="kl_offers_open">.kachat 이름이 출시되면 제안할 수 있습니다.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">이 이름은 만료까지 30일도 안 남았어요. 곧 갱신해야 해요.</string>
     <string name="kn_buy_footer">결제는 판매자에게, 이름은 나에게 같은 거래에서 도착해요. 둘 다 이루어지거나 둘 다 안 이루어져요.</string>
     <string name="kn_price_to_seller">가격 (판매자에게)</string>
-    <string name="kn_offer_below_listing">이 이름은 내 제안보다 싸게 판매 중이에요. 누구나 내 제안으로 구매할 수 있으니 바로 구매하는 걸 고려하세요.</string>
-    <string name="kn_offer_locked">내 KAS는 소유자가 수락하거나, 내가 제안을 철회하거나, 만료될 때까지 체인에 잠겨 있어요. 그 뒤에는 누구나 나에게 돌려줄 수 있어요.</string>
     <string name="kn_refundable_after">환불 가능 시점</string>
     <string name="kn_price_per_year">연간 가격</string>
     <string name="kn_new_expiry">새 만료일</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">갱신 가능</string>
     <string name="kn_extend_footer">연장하면 현재 결제된 기간에 연수가 더해져요. 한 기간은 최대 2년이에요. 가격은 채굴자에게 가요.</string>
     <string name="kn_renew_period_footer">갱신하면 현재 만료일부터 다음 기간이 시작되므로, 만료일이 지났더라도 시간을 잃거나 더 얻지 않아요. 가격은 채굴자에게 가요.</string>
-    <string name="kn_err_period_full">이 이름은 기간 시작부터 이미 2년치가 결제되었어요. 갱신은 %1$s부터 가능해요.</string>
     <string name="kn_err_period_unknown">이름 인덱서가 이 이름의 결제 기간을 보내지 않았어요. 아래로 당겨 새로 고친 뒤 다시 시도하세요.</string>
     <string name="kn_my_names_extend_detail">연장, 갱신, 판매 등록, 전송, 해제를 하고 KaChat이 보여 줄 이름을 고르세요.</string>
     <string name="kn_claim_step3_cap">이름은 결제한 연수 동안 내 것이에요(최대 2년 앞까지). 1년 이름은 2년으로 연장할 수 있고, 만료 10일 전부터 갱신할 수 있어요.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">거절됨 - 이름 소유자가 바뀌어 나에게 반환 중</string>
     <string name="kn_offer_declined_earlier_owner">거절됨 - 이전 소유자에게 한 제안</string>
     <string name="kn_err_offer_declined">이 제안은 이름의 소유자가 바뀌기 전에 이루어져 거절되었으며 구매자에게 반환됩니다.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">이 이름은 이미 최대 기간까지 결제되어 있어요. 갱신은 %1$s부터 가능해요.</string>
+    <string name="kn_err_price_busy">가격 기록이 지금 사용 중이에요. 잠시 후 다시 시도하세요.</string>
+    <string name="kn_err_offer_own_name">내 이름에는 제안할 수 없어요.</string>
+    <string name="kn_err_offer_max_days">제안은 최대 7일까지 유지돼요.</string>
+    <string name="kn_price_per_period">%1$s당 가격</string>
+    <string name="kn_available_per_period">사용 가능 · %2$s당 %1$s</string>
+    <string name="kn_extend_to_period">%1$s(으)로 연장</string>
+    <string name="kn_manage_extend_hint_time">지금 더 많은 기간을 결제해요. 최대 %1$s까지예요.</string>
+    <string name="kn_extend_footer_time">연장하면 현재 결제 기간에 시간이 더해지며, 기간은 최대 %1$s예요. 가격은 채굴자에게 가요.</string>
+    <string name="kn_claim_step3_time">결제한 기간 동안 이름은 내 것이에요. 최대 %1$s 앞까지예요. 만료 %2$s 전부터 갱신할 수 있어요.</string>
+    <string name="kn_decline_offer">제안 거절</string>
+    <string name="kn_ev_offer_declined">제안 거절됨</string>
+    <string name="kn_decline_footer">제안은 구매자에게 돌아가요. 네트워크 수수료는 제안 금액에서 빠지므로 거절해도 비용이 들지 않아요.</string>
+    <string name="kn_offer_locked_decline">내 KAS는 소유자가 수락하거나 거절하거나, 내가 제안을 철회하거나, 만료될 때까지 체인에 잠겨 있어요. 그 뒤에는 누구나 나에게 돌려줄 수 있어요.</string>
+    <string name="kn_offer_below_listing_buy">이 이름은 내 제안보다 낮은 가격에 판매 중이에요. 대신 바로 구매하는 것을 고려해 보세요.</string>
 </resources>

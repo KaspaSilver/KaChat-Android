@@ -85,8 +85,9 @@ data class PendingRegistration(
  * through [KachatNamesService.requireTestnet]. Every action returns its txid and refreshes the
  * registry once the transaction is accepted. A port of iOS
  * KaChat/Services/KachatNames/KachatNamesActions.swift (KaChat 1ed6e57, 5df42b4; registry v2 extend and
- * the renewal window from 5766c00; expired offers going back and offers on a changed owner declined
- * from ba07975).
+ * the renewal window from 5766c00; expired offers going back from ba07975; registry v3 - prices from
+ * a live price shard, offers made to the owner and capped at 7 days, decline, the seller-bound
+ * declined check - from 49c0baa).
  */
 @Singleton
 class KachatNamesActions @Inject constructor(
@@ -119,6 +120,13 @@ class KachatNamesActions @Inject constructor(
     /** Offers this app is withdrawing because the name changed hands (see [withdrawDeclinedOffers], iOS ba07975). */
     val withdrawingOffers: StateFlow<Set<String>> = _withdrawingOffers.asStateFlow()
 
+    private val _decliningOffers = MutableStateFlow<Set<String>>(emptySet())
+    /** Offers this app is declining for their seller (see [declineOpenOffers], iOS 49c0baa). */
+    val decliningOffers: StateFlow<Set<String>> = _decliningOffers.asStateFlow()
+
+    /** The shards the last [liveShard] read, to tell which one a built plan spends. */
+    @Volatile private var lastShards: List<ShardInfo> = emptyList()
+
     @Volatile private var pendingWallet: String? = null
     @Volatile private var driver: Job? = null
 
@@ -133,9 +141,9 @@ class KachatNamesActions @Inject constructor(
         /** renew before its window: the network's time has not reached `expiresAt - renewWindowMs` (iOS 5766c00) */
         class RenewalNotOpen(val opensMs: Long) : ActionError("Renewal opens at $opensMs (unix ms).")
 
-        /** extend past `periodStart + maxYears` (iOS 5766c00) */
+        /** extend past `periodStart + maxYears` periods (iOS 5766c00, 49c0baa) */
         class PeriodFull(val renewalOpensMs: Long) :
-            ActionError("This name is already paid for 2 years from the start of its period. Renewal opens at $renewalOpensMs (unix ms).")
+            ActionError("This name is already paid up to its longest period. Renewal opens at $renewalOpensMs (unix ms).")
 
         /** the record has no periodStart (an indexer without the field), so its state is unknown (iOS 5766c00) */
         class PeriodUnknown : ActionError("The names indexer didn't send this name's paid period. Pull to refresh and try again.")
@@ -143,8 +151,18 @@ class KachatNamesActions @Inject constructor(
         /** accept past the offer's refund time: the contract would still take it, the app doesn't (iOS ba07975) */
         class OfferExpired : ActionError("This offer has expired. It's going back to the buyer.")
 
-        /** accept an offer made to an earlier owner of the name (iOS ba07975) */
+        /** accept an offer made to an earlier owner of the name (iOS ba07975; the seller field since 49c0baa) */
         class OfferDeclined : ActionError("This offer was made before the name changed hands, so it's declined and going back to the buyer.")
+
+        /** every live price shard was gone when read (spent by someone else's register / extend /
+         *  renew, or not on chain with the price covenant id; iOS 49c0baa) */
+        class PriceBusy : ActionError("The price record is busy right now. Try again in a moment.")
+
+        /** an offer on a name this key owns (iOS 49c0baa) */
+        class OwnName : ActionError("You can't make an offer on your own name.")
+
+        /** an offer past the app's 7-day cap, or one already refundable (iOS 49c0baa) */
+        class OfferTooLong : ActionError("An offer can run for up to 7 days.")
     }
 
     // Wallet
@@ -224,23 +242,26 @@ class KachatNamesActions @Inject constructor(
     /**
      * The signer for [op]. Owner-only actions (transfer, list/delist, accept, release) on a name
      * held by one of this wallet's spending addresses sign - and pay their fee - from that
-     * address. Everything else, including extend and renew (anyone may pay those), uses the
-     * chatting address (iOS 881ada6 `signer(for:)`).
+     * address, and so does a decline of an offer made to one (with the key the offer was made to).
+     * Everything else, including extend and renew (anyone may pay those), uses the chatting
+     * address (iOS 881ada6 `signer(for:)`, decline from 49c0baa).
      */
     private suspend fun signer(op: Operation): Signer {
-        val held: NameInfo? = when (op) {
-            is Operation.Transfer -> op.name
-            is Operation.List -> op.name
-            is Operation.Release -> op.name
-            is Operation.Accept -> op.name
+        val heldBy: ByteArray? = when (op) {
+            is Operation.Transfer -> op.name.owner
+            is Operation.List -> op.name.owner
+            is Operation.Release -> op.name.owner
+            is Operation.Accept -> op.name.owner
+            // the seller declines with the key the offer was made to
+            is Operation.Decline -> op.offer.seller
             else -> null
         }
-        val spending = held?.let { ownAddress(it.owner) } as? OwnAddress.Spending
-        if (held != null && spending != null) {
+        val spending = heldBy?.let { ownAddress(it) } as? OwnAddress.Spending
+        if (heldBy != null && spending != null) {
             service.requireTestnet()
             val key = try { walletManager.getSpendingPrivateKeyBytes(spending.index) } catch (_: Exception) { throw ActionError.NoWallet() }
             val me = KachatNamesService.xonlyKey(key)
-            if (!me.contentEquals(held.owner)) throw ActionError.KeyMismatch()
+            if (!me.contentEquals(heldBy)) throw ActionError.KeyMismatch()
             return Signer(spending.address.lowercase(), key, me)
         }
         return signer()
@@ -308,13 +329,34 @@ class KachatNamesActions @Inject constructor(
     }
 
     /**
-     * A live price shard for a register, extend or renew (registry v3, iOS e1e3455). The price
-     * record is read from the registry in the next step of the port (iOS 49c0baa); until then
-     * nothing that pays a price is built.
+     * A live price shard for a register, extend or renew (registry v3, iOS 49c0baa): a random one
+     * of the K, so paid operations at the same moment rarely pick the same shard, skipping [avoid]
+     * (shards a previous attempt lost to someone else; tried last) and any the node no longer has
+     * at that state with the price covenant id.
      */
-    @Suppress("UNUSED_PARAMETER", "RedundantSuspendModifier")
-    private suspend fun liveShard(m: Manifest): PriceRecord =
-        throw KachatNames.Failure("the .kachat price record is not read yet (registry v3)")
+    private suspend fun liveShard(m: Manifest, avoid: Set<Long> = emptySet()): PriceRecord {
+        val all = registry.shards()
+        lastShards = all
+        val fresh = all.filter { it.shard !in avoid }.shuffled()
+        val lost = all.filter { it.shard in avoid }.shuffled()
+        for (sh in fresh + lost) {
+            val u = try {
+                service.livePriceUtxo(m.price.script(sh.fields.encoded), sh.outpoint)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                continue
+            }
+            return PriceRecord(sh.fields, u.entry.amount, u)
+        }
+        throw ActionError.PriceBusy()
+    }
+
+    /** The price shard a built plan spends (register, extend, renew), so a retry can avoid it. */
+    private fun shardSpent(plan: Plan): Long? {
+        val u = plan.inputs.firstOrNull { it.role == BudgetRole.PRICE_USE }?.utxo ?: return null
+        return lastShards.firstOrNull { it.outpoint == u.outpoint }?.shard
+    }
 
     /** A unit of [offerTimeLeft]. */
     enum class TimeLeftUnit { DAY, HOUR, MINUTE }
@@ -322,7 +364,7 @@ class KachatNamesActions @Inject constructor(
     // Operations
 
     sealed class Operation {
-        /** add years to the current paid period (anyone, any time, up to 2 years past periodStart) */
+        /** add periods to the current paid period (anyone, any time, up to maxYears periods past periodStart) */
         data class Extend(val name: NameInfo, val years: Long) : Operation()
         /** start the next period at the current expiry (anyone, once the renewal window opened) */
         data class Renew(val name: NameInfo, val years: Long) : Operation()
@@ -330,10 +372,13 @@ class KachatNamesActions @Inject constructor(
         /** price 0 delists */
         data class List(val name: NameInfo, val price: Long) : Operation()
         data class Buy(val name: NameInfo) : Operation()
-        data class Offer(val name: String, val amount: Long, val refundAfterDaa: Long, val target: NameInfo?) : Operation()
+        /** made to the name's current owner, the only one who can accept or decline it (registry v3) */
+        data class Offer(val target: NameInfo, val amount: Long, val refundAfterDaa: Long) : Operation()
         data class Withdraw(val offer: OfferInfo) : Operation()
         data class Refund(val offer: OfferInfo) : Operation()
         data class Accept(val offer: OfferInfo, val name: NameInfo) : Operation()
+        /** the seller sends it back to the buyer (registry v3); the network fee comes out of the offer */
+        data class Decline(val offer: OfferInfo) : Operation()
         data class Release(val name: NameInfo) : Operation()
         data class Reclaim(val name: NameInfo) : Operation()
     }
@@ -345,7 +390,7 @@ class KachatNamesActions @Inject constructor(
         build(op, s).first
     }
 
-    private suspend fun build(op: Operation, s: Signer): Pair<Plan, Env> {
+    private suspend fun build(op: Operation, s: Signer, avoidShards: Set<Long> = emptySet()): Pair<Plan, Env> {
         val m = registry.prepare()
         val c = context(s)
         val b = c.builder
@@ -357,7 +402,7 @@ class KachatNamesActions @Inject constructor(
                 if (op.years < 1 || op.years > op.name.extendableYears(m.params)) {
                     throw ActionError.PeriodFull(op.name.renewOpens(m.params))
                 }
-                b.extend(env, wallet, liveName(op.name, m), liveShard(m), op.years)
+                b.extend(env, wallet, liveName(op.name, m), liveShard(m, avoidShards), op.years)
             }
             is Operation.Renew -> {
                 // Valid only once the network's median time passes the window opening (the mempool
@@ -365,7 +410,7 @@ class KachatNamesActions @Inject constructor(
                 if (!Builder.renewWindowOpen(env, m.params, op.name.expiresAt)) {
                     throw ActionError.RenewalNotOpen(op.name.renewOpens(m.params))
                 }
-                b.renew(env, wallet, liveName(op.name, m), liveShard(m), op.years)
+                b.renew(env, wallet, liveName(op.name, m), liveShard(m, avoidShards), op.years)
             }
             is Operation.Transfer -> {
                 validateKey(op.to, "The new owner")
@@ -383,27 +428,23 @@ class KachatNamesActions @Inject constructor(
             }
             is Operation.Offer -> {
                 validateKey(env.me, "Your key")
-                // registry v3: an offer is made to the registered name's current owner (iOS e1e3455)
-                val target = op.target ?: throw KachatNames.Failure("an offer is made on a registered name")
-                b.offer(env, wallet, liveName(target, m), op.amount, op.refundAfterDaa)
+                if (op.target.owner.contentEquals(env.me)) throw ActionError.OwnName()
+                // the app's cap: the buyer's funds come back within a week at most
+                val cap = env.blockDaa + MAX_OFFER_DAYS * 86_400L * DAA_PER_SECOND
+                if (op.refundAfterDaa <= env.blockDaa || op.refundAfterDaa > cap) throw ActionError.OfferTooLong()
+                b.offer(env, wallet, liveName(op.target, m), op.amount, op.refundAfterDaa)
             }
             is Operation.Withdraw -> b.withdrawOffer(env, liveOffer(op.offer, m))
             is Operation.Refund -> b.refundOffer(env, liveOffer(op.offer, m))
             is Operation.Accept -> {
                 // The contract would still take an expired offer; the app doesn't - it goes back (iOS ba07975).
                 if (op.offer.refundable(env.blockDaa)) throw ActionError.OfferExpired()
-                // Made to an earlier owner: declined, never accepted by the app.
-                val history = try {
-                    registry.history(op.name.name)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    emptyList()
-                }
-                if (isDeclined(op.offer, ownerSince(history))) throw ActionError.OfferDeclined()
+                // Made to an earlier owner: the contract refuses it, and it goes back to the buyer (iOS 49c0baa).
+                if (op.offer.isDeclined(op.name.owner)) throw ActionError.OfferDeclined()
                 validateKey(op.offer.buyer, "The buyer")
                 b.acceptOffer(env, liveName(op.name, m), liveOffer(op.offer, m))
             }
+            is Operation.Decline -> b.declineOffer(env, liveOffer(op.offer, m))
             is Operation.Release -> {
                 val (below, above) = registry.exitGaps(op.name)
                 b.release(env, ExitParts(liveGap(below, m), liveName(op.name, m), liveGap(above, m)))
@@ -420,16 +461,49 @@ class KachatNamesActions @Inject constructor(
      *  transaction is accepted. */
     suspend fun perform(op: Operation): String = withContext(Dispatchers.IO) {
         val s = signer(op)
-        val (plan, env) = build(op, s)
-        val txId = service.signAndSubmit(plan, s.privateKey, env)
-        val o = plan.newOffer
-        if (op is Operation.Offer && o != null) {
-            registry.trackOffer(
-                OfferInfo(o.utxo.outpoint, o.fields.key, o.name, o.fields.buyer, o.fields.seller, o.value, o.fields.refundAfter, System.currentTimeMillis())
-            )
+        val txId = submit(op, s)
+        when (op) {
+            // A name that leaves this owner takes no offers with it: the ones made to this owner
+            // can never be accepted any more, so they go straight back to their buyers (iOS 49c0baa).
+            is Operation.Transfer -> declineOpenOffers(op.name, except = null)
+            is Operation.Release -> declineOpenOffers(op.name, except = null)
+            is Operation.Accept -> declineOpenOffers(op.name, except = op.offer)
+            else -> Unit
         }
         registry.refreshAfter(txId)
         txId
+    }
+
+    /**
+     * Signs and submits [op]. A register, extend or renew that lost its price shard to someone
+     * else's transaction (the node rejects it as already spent; nothing was sent) is rebuilt on
+     * another shard, up to twice (iOS 49c0baa).
+     */
+    private suspend fun submit(op: Operation, s: Signer): String {
+        val avoid = HashSet<Long>()
+        for (attempt in 0 until 3) {
+            val (plan, env) = build(op, s, avoid)
+            try {
+                val txId = service.signAndSubmit(plan, s.privateKey, env)
+                val o = plan.newOffer
+                if (op is Operation.Offer && o != null) {
+                    registry.trackOffer(
+                        OfferInfo(
+                            o.utxo.outpoint, o.fields.key, o.name, o.fields.buyer, o.fields.seller, o.value, o.fields.refundAfter,
+                            System.currentTimeMillis()
+                        )
+                    )
+                }
+                return txId
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val shard = shardSpent(plan)
+                if (attempt >= 2 || shard == null || !isSpentConflict(e)) throw e
+                avoid.add(shard)
+            }
+        }
+        throw KachatNames.Failure("unreachable")
     }
 
     // Expired offers (iOS ba07975)
@@ -465,11 +539,44 @@ class KachatNamesActions @Inject constructor(
     }
 
     /**
-     * Pulls this wallet's declined offers back (a withdraw, signed by the buyer - you - and paid
-     * back to you). Before its refund time only the buyer can return an offer, so the buyer's app
-     * does it as soon as it sees the name changed hands; after that, [returnExpiredOffers] covers
-     * it from any app. Each offer is tried once per session ([withdrawingOffers]; one already
-     * being returned is left to that). iOS `withdrawDeclinedOffers`.
+     * Sends back every open offer on [n] made to its owner, once the name leaves them (transfer,
+     * release, or an accepted offer - [except] is that one). Each is the seller's `decline`, so it
+     * costs the seller nothing: the network fee comes out of the offer. Each offer is tried once
+     * per session ([decliningOffers]). iOS 49c0baa `declineOpenOffers`.
+     */
+    fun declineOpenOffers(n: NameInfo, except: OfferInfo?) {
+        if (!KachatNamesService.isLaunched) return
+        scope.launch {
+            val all = try {
+                registry.offers(n.name)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            val open = all.filter { it.seller.contentEquals(n.owner) && it.id != except?.id && it.id !in _decliningOffers.value }
+            for (o in open) {
+                if (!claim(_decliningOffers, o.id)) continue
+                try {
+                    val txId = perform(Operation.Decline(o))
+                    Log.i(TAG, "declined offer ${o.id} on ${n.name} (the name left this owner): $txId")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.i(TAG, "offer ${o.id} not declined: ${e.message ?: e}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Pulls this wallet's declined offers back: those made to an earlier owner of the name (the
+     * contract refuses them now) or on a name since released. A withdraw, signed by the buyer -
+     * you - and paid back to you. Before its refund time only the buyer or the seller can return
+     * an offer, so the buyer's app does it as soon as it sees the name changed hands; after that,
+     * [returnExpiredOffers] covers it from any app. Each offer is tried once per session
+     * ([withdrawingOffers]; one already being returned is left to that). iOS
+     * `withdrawDeclinedOffers` (the seller field since 49c0baa).
      */
     suspend fun withdrawDeclinedOffers(offers: List<OfferInfo>) {
         if (!KachatNamesService.isLaunched) return
@@ -478,29 +585,23 @@ class KachatNamesActions @Inject constructor(
             it.buyer.contentEquals(me) && it.id !in _withdrawingOffers.value && it.id !in _returningOffers.value
         }
         if (mine.isEmpty()) return
-        val historyByName = HashMap<String, List<Event>>()
-        val freeNames = HashSet<String>()
+        // the name's current owner; null inside = the name is free (released): every offer on it is declined
+        val ownerByName = HashMap<String, ByteArray?>()
         for (o in mine) {
             val name = o.name ?: continue
-            if (name !in historyByName) {
-                historyByName[name] = try {
-                    registry.history(name)
+            if (!ownerByName.containsKey(name)) {
+                val l = try {
+                    registry.lookup(name)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    emptyList()
+                    continue
                 }
-                val free = try {
-                    registry.lookup(name) is Lookup.Free
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    false
-                }
-                if (free) freeNames.add(name)
+                ownerByName[name] = (l as? Lookup.Registered)?.info?.owner
             }
-            val since = ownerSince(historyByName[name].orEmpty())
-            if (!isDeclined(o, since, nameFree = name in freeNames)) continue
+            // still made to the name's current owner: it stands
+            val current = ownerByName[name]
+            if (current != null && !o.isDeclined(current)) continue
             // an expired one may have started going back meanwhile: leave it to that
             if (o.id in _returningOffers.value || !claim(_withdrawingOffers, o.id)) continue
             scope.launch {
@@ -571,7 +672,7 @@ class KachatNamesActions @Inject constructor(
     }
 
     /** The cost of registering [name] for [years], estimated by building both transactions
-     *  (nothing is signed or sent). */
+     *  (nothing is signed or sent); the price from a live price shard (registry v3, iOS 49c0baa). */
     suspend fun quote(name: String, years: Long, gap: GapInfo): Quote = withContext(Dispatchers.IO) {
         val s = signer()
         val m = registry.prepare()
@@ -846,6 +947,8 @@ class KachatNamesActions @Inject constructor(
             val plan = c.builder.register(
                 c.env, c.wallet, liveGap(gap, m),
                 CommitRecord(p.name, s.me, salt, commit.entry.amount, commit),
+                // a random live shard each try: one someone else just spent fails this try, and
+                // the next tick picks again
                 liveShard(m), p.years, Builder.registerNow(c.env)
             )
             val txId = service.signAndSubmit(plan, s.privateKey, c.env)
@@ -857,8 +960,9 @@ class KachatNamesActions @Inject constructor(
             val message = e.message ?: e.toString()
             Log.w(TAG, "register ${p.name} failed: $message")
             // funds and a missing salt need the person; anything else (a gap that just moved, a
-            // node hiccup) is retried on the next tick
-            val fatal = message.contains("insufficient funds") || e is ActionError
+            // node hiccup, a price shard someone else just spent - iOS throws that one as a plain
+            // Failure) is retried on the next tick
+            val fatal = message.contains("insufficient funds") || (e is ActionError && e !is ActionError.PriceBusy)
             set(p) { it.copy(lastError = message, stage = if (fatal) PendingRegistration.Stage.FAILED else it.stage) }
         }
     }
@@ -956,24 +1060,16 @@ class KachatNamesActions @Inject constructor(
         private const val SALT_PREFS_NAME = "kachat_names_secure_prefs"
         private val PENDING_LIST_TYPE = object : TypeToken<List<PendingRegistration>>() {}.type
 
-        /** When the name last got a new owner: its latest register, transfer, sale or accepted
-         *  offer (iOS ba07975 `ownerSince`). */
-        fun ownerSince(history: List<Event>): Long? =
-            history.filter { it.op in OWNER_CHANGES }.mapNotNull { it.at }.maxOrNull()
+        /** Longest an offer can run before its buyer may take it back (the app's cap, registry v3, iOS 49c0baa). */
+        const val MAX_OFFER_DAYS: Long = 7
 
-        private val OWNER_CHANGES = setOf("register", "transfer", "sale", "offer_accepted", "offer_accept")
+        /** Kaspa's DAA scores per second (offer refund times are DAA scores). */
+        const val DAA_PER_SECOND: Long = 10
 
-        /**
-         * An offer made before the name's current owner got it (or on a name since released):
-         * declined. The contract would still let the new owner accept it until it expires, so the
-         * app treats it as declined - the owner can't accept it, and the buyer's app pulls it back.
-         * An offer or a history without times is not declined (iOS ba07975 `isDeclined`).
-         */
-        fun isDeclined(offer: OfferInfo, ownerSince: Long?, nameFree: Boolean = false): Boolean {
-            if (nameFree) return true
-            val made = offer.createdAt ?: return false
-            val since = ownerSince ?: return false
-            return made < since
+        /** Whether a submit failed because an input was spent meanwhile (iOS 49c0baa `isSpentConflict`). */
+        fun isSpentConflict(error: Throwable): Boolean {
+            val lower = (error.message ?: error.toString()).lowercase()
+            return "already spent" in lower || "double spend" in lower || "orphan" in lower
         }
 
         /**

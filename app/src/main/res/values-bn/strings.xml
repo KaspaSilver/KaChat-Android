@@ -566,10 +566,8 @@
     <string name="kl_1d">১ দিন</string>
     <string name="kl_3d">৩ দিন</string>
     <string name="kl_7d">৭ দিন</string>
-    <string name="kl_30d">৩০ দিন</string>
     <string name="kl_listed_at">তালিকাভুক্ত দাম</string>
     <string name="kl_your_offer">আপনার অফার</string>
-    <string name="kl_your_offer_footer">বিক্রেতা গ্রহণ না করা, আপনি অফার তুলে না নেওয়া বা মেয়াদ শেষ না হওয়া পর্যন্ত আপনার KAS চেইনে লক থাকে। আর কেউ এতে হাত দিতে পারে না।</string>
     <string name="kl_expires_after">মেয়াদ শেষ হবে</string>
     <string name="kl_send_offer">অফার পাঠান</string>
     <string name="kl_offers_open">.kachat নাম চালু হলে অফার খুলবে।</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">এই নামের মেয়াদ শেষ হতে ৩০ দিনেরও কম বাকি। শিগগিরই নবায়ন করতে হবে।</string>
     <string name="kn_buy_footer">পেমেন্ট বিক্রেতার কাছে আর নাম আপনার কাছে একই লেনদেনে পৌঁছায় - দুটোই ঘটে, নয়তো কোনোটাই নয়।</string>
     <string name="kn_price_to_seller">দাম (বিক্রেতার জন্য)</string>
-    <string name="kn_offer_below_listing">এই নামটি আপনার প্রস্তাবের চেয়ে কম দামে তালিকাভুক্ত। যে কেউ আপনার প্রস্তাব দিয়ে সেটি কিনে নিতে পারে, তাই বরং সরাসরি কেনার কথা ভাবুন।</string>
-    <string name="kn_offer_locked">মালিক গ্রহণ না করা, আপনি প্রস্তাব প্রত্যাহার না করা বা মেয়াদ শেষ না হওয়া পর্যন্ত আপনার KAS চেইনে আটকে থাকে - তারপর যে কেউ তা আপনাকে ফেরত পাঠাতে পারে।</string>
     <string name="kn_refundable_after">এর পরে ফেরতযোগ্য</string>
     <string name="kn_price_per_year">প্রতি বছরের দাম</string>
     <string name="kn_new_expiry">নতুন মেয়াদ</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">নবায়ন খোলা</string>
     <string name="kn_extend_footer">বাড়ালে বর্তমান পরিশোধিত মেয়াদকালে বছর যোগ হয়, যা সর্বোচ্চ ২ বছর ধরে। দাম যায় মাইনারদের কাছে।</string>
     <string name="kn_renew_period_footer">নবায়ন বর্তমান মেয়াদ শেষের দিন থেকে পরের মেয়াদকাল শুরু করে, তাই সময় হারায় না বা বাড়ে না, মেয়াদ পার হয়ে গেলেও। দাম যায় মাইনারদের কাছে।</string>
-    <string name="kn_err_period_full">এই নামটি মেয়াদকালের শুরু থেকে ইতিমধ্যে ২ বছরের জন্য পরিশোধিত। নবায়ন খুলবে %1$s।</string>
     <string name="kn_err_period_unknown">নাম ইনডেক্সার এই নামের পরিশোধিত মেয়াদকাল পাঠায়নি। রিফ্রেশ করতে নিচে টানুন এবং আবার চেষ্টা করুন।</string>
     <string name="kn_my_names_extend_detail">সেগুলো বাড়ান, নবায়ন করুন, বিক্রির জন্য তালিকাভুক্ত করুন, হস্তান্তর করুন বা ছেড়ে দিন, এবং KaChat আপনার জন্য কোনটি দেখাবে তা বেছে নিন।</string>
     <string name="kn_claim_step3_cap">যত বছরের জন্য পরিশোধ করেছেন, নামটি তত বছর আপনার, সর্বোচ্চ ২ বছর আগাম। ১ বছরের নাম ২ বছর পর্যন্ত বাড়ানো যায়; মেয়াদ শেষের ১০ দিন আগে থেকে নবায়ন করতে পারবেন।</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">প্রত্যাখ্যাত - নামের মালিক বদলেছে, আপনার কাছে ফিরছে</string>
     <string name="kn_offer_declined_earlier_owner">প্রত্যাখ্যাত - আগের মালিককে দেওয়া</string>
     <string name="kn_err_offer_declined">নামের মালিক বদলানোর আগে এই অফার দেওয়া হয়েছিল, তাই এটি প্রত্যাখ্যাত এবং ক্রেতার কাছে ফিরে যাচ্ছে।</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">এই নামটি ইতিমধ্যে সবচেয়ে দীর্ঘ মেয়াদ পর্যন্ত পরিশোধিত। নবায়ন খুলবে %1$s।</string>
+    <string name="kn_err_price_busy">মূল্য রেকর্ডটি এখন ব্যস্ত। একটু পরে আবার চেষ্টা করুন।</string>
+    <string name="kn_err_offer_own_name">আপনি নিজের নামে প্রস্তাব দিতে পারবেন না।</string>
+    <string name="kn_err_offer_max_days">একটি প্রস্তাব সর্বোচ্চ ৭ দিন চলতে পারে।</string>
+    <string name="kn_price_per_period">প্রতি %1$s মূল্য</string>
+    <string name="kn_available_per_period">উপলব্ধ · প্রতি %2$s %1$s</string>
+    <string name="kn_extend_to_period">%1$s পর্যন্ত বাড়ান</string>
+    <string name="kn_manage_extend_hint_time">এখন আরও সময়ের জন্য পরিশোধ করে, %1$s সীমা পর্যন্ত।</string>
+    <string name="kn_extend_footer_time">বাড়ালে বর্তমান পরিশোধিত মেয়াদে সময় যোগ হয়, যা সর্বোচ্চ %1$s ধরে রাখে। মূল্য মাইনারদের কাছে যায়।</string>
+    <string name="kn_claim_step3_time">আপনি যত সময়ের জন্য পরিশোধ করেছেন নামটি তত দিন আপনার, সর্বোচ্চ %1$s আগাম। মেয়াদ শেষ হওয়ার %2$s আগে থেকে আপনি এটি নবায়ন করতে পারবেন।</string>
+    <string name="kn_decline_offer">প্রস্তাব প্রত্যাখ্যান</string>
+    <string name="kn_ev_offer_declined">প্রস্তাব প্রত্যাখ্যাত</string>
+    <string name="kn_decline_footer">প্রস্তাবটি ক্রেতার কাছে ফিরে যায়। এর নেটওয়ার্ক ফি প্রস্তাব থেকেই কাটা হয়, তাই প্রত্যাখ্যান করতে আপনার কোনো খরচ নেই।</string>
+    <string name="kn_offer_locked_decline">মালিক গ্রহণ বা প্রত্যাখ্যান না করা, আপনি প্রস্তাব প্রত্যাহার না করা বা মেয়াদ শেষ না হওয়া পর্যন্ত আপনার KAS চেইনে আটকে থাকে - তারপর যে কেউ এটি আপনাকে ফেরত পাঠাতে পারে।</string>
+    <string name="kn_offer_below_listing_buy">এই নামটি আপনার প্রস্তাবের চেয়ে কম দামে বিক্রির জন্য তালিকাভুক্ত। বরং এটি কিনে নেওয়ার কথা ভাবুন।</string>
 </resources>

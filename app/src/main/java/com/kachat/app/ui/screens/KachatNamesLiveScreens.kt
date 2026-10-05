@@ -190,6 +190,7 @@ object KachatLive {
         "offer" -> R.string.kn_ev_offer_made
         "offer_withdraw" -> R.string.kn_ev_offer_withdrawn
         "offer_refund" -> R.string.kn_ev_offer_refunded
+        "offer_decline" -> R.string.kn_ev_offer_declined
         else -> R.string.km_activity
     }
 
@@ -207,14 +208,54 @@ object KachatLive {
      *  "Oct 2, 2026". */
     fun date(ms: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(ms))
 
+    /**
+     * A unix-ms day as a row value ("Oct 12, 2027"), with the time when it is within two days
+     * (testnet's 10-minute periods, or a renewal that opens tomorrow): iOS 49c0baa `KachatLive.day`
+     * and `KachatNamesActions.dayString`.
+     */
+    fun day(ms: Long): String =
+        if (kotlin.math.abs(ms - KachatNames.nowMs()) < 2 * 86_400_000L) {
+            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms))
+        } else {
+            date(ms)
+        }
+
     /** The registry parameters, once the manifest is verified (iOS `KachatLive.params`, bd2c54a). */
     fun params(service: KachatNamesService): Params? = service.manifest.value?.params
 
+    /** Whether a period is a year (mainnet), not a short test clock (testnet's 10 minutes; iOS 49c0baa). */
+    fun yearlyPeriods(p: Params?): Boolean = (p?.periodMs ?: KachatNames.YEAR_MS) == KachatNames.YEAR_MS
+
+    /**
+     * A length of time ("10m", "10d") in the app's language (iOS 49c0baa `KachatLive.duration`):
+     * days from a day up, else hours and minutes from an hour up, else minutes; zero units dropped.
+     */
+    fun duration(ms: Long, context: Context): String {
+        val s = ms / 1000
+        val parts = when {
+            s >= 86_400 -> listOf(KachatNamesActions.TimeLeftUnit.DAY to s / 86_400)
+            s >= 3600 -> listOf(KachatNamesActions.TimeLeftUnit.HOUR to s / 3600, KachatNamesActions.TimeLeftUnit.MINUTE to (s % 3600) / 60)
+                .filter { it.second > 0 }
+            else -> listOf(KachatNamesActions.TimeLeftUnit.MINUTE to s / 60)
+        }
+        return timeLeft(parts, context)
+    }
+
+    /**
+     * The price per period for [name], from the price record (registry v3; every shard holds the
+     * same prices): the last prices read, else the genesis prices (iOS 49c0baa `KachatLive.price`).
+     */
+    fun price(registry: KachatNamesRegistry, name: String): Long? {
+        val prices = registry.cachedPrices ?: return null
+        if (prices.size != 5) return null
+        return prices[KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size)]
+    }
+
     /** Whether extending [info] by [years] fills its period to exactly `maxYears` (iOS
-     *  `KachatExtendSheet.fillsPeriod`, bd2c54a). */
+     *  `KachatExtendSheet.fillsPeriod`, bd2c54a; periodMs from 49c0baa). */
     fun fillsPeriod(info: NameInfo, years: Long, p: Params): Boolean {
         val start = info.periodStart ?: return false
-        return info.expiresAt + years * KachatNames.YEAR_MS == start + p.maxYears * KachatNames.YEAR_MS
+        return info.expiresAt + years * p.periodMs == start + p.maxYears * p.periodMs
     }
 
     /**
@@ -271,12 +312,16 @@ fun Context.kachatErrorText(e: Throwable): String {
             }
             getString(R.string.kn_err_invalid_key, what)
         }
-        is KachatNamesActions.ActionError.RenewalNotOpen -> getString(R.string.kn_renewal_opens_on, KachatLive.date(e.opensMs))
-        is KachatNamesActions.ActionError.PeriodFull -> getString(R.string.kn_err_period_full, KachatLive.date(e.renewalOpensMs))
+        is KachatNamesActions.ActionError.RenewalNotOpen -> getString(R.string.kn_renewal_opens_on, KachatLive.day(e.opensMs))
+        is KachatNamesActions.ActionError.PeriodFull -> getString(R.string.kn_err_period_full_longest, KachatLive.day(e.renewalOpensMs))
         is KachatNamesActions.ActionError.PeriodUnknown -> getString(R.string.kn_err_period_unknown)
         // localized on iOS too (ba07975)
         is KachatNamesActions.ActionError.OfferExpired -> getString(R.string.kn_err_offer_expired)
         is KachatNamesActions.ActionError.OfferDeclined -> getString(R.string.kn_err_offer_declined)
+        // localized on iOS too (49c0baa)
+        is KachatNamesActions.ActionError.PriceBusy -> getString(R.string.kn_err_price_busy)
+        is KachatNamesActions.ActionError.OwnName -> getString(R.string.kn_err_offer_own_name)
+        is KachatNamesActions.ActionError.OfferTooLong -> getString(R.string.kn_err_offer_max_days)
         is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
         // localized on iOS too (d36fc42 `wrongAddressNetwork`)
         is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
@@ -407,6 +452,13 @@ class KachatLiveViewModel @Inject constructor(
         try {
             listings = registry.listings()
             lapsed = registry.lapsed()
+            // the prices can change at any time (registry v3, iOS 49c0baa): read them with the rest
+            try {
+                registry.currentPrices()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
             val me = myKey
             if (me != null) {
                 mine = registry.names(me, includeInactive = true)
@@ -449,8 +501,8 @@ class KachatLiveViewModel @Inject constructor(
         }
     }
 
-    fun pricePerYear(name: String): Long? =
-        service.manifest.value?.params?.genesisPrices?.getOrNull(KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size))
+    /** The price per period for [name] from the price record (iOS 49c0baa `KachatLive.price`). */
+    fun pricePerYear(name: String): Long? = KachatLive.price(registry, name)
 
     /** The profile hero's `.kachat` part: your label, your profile's avatar, banner and bio
      *  sources (a social link each, iOS c124cb3) and its Linktree link. */
@@ -639,10 +691,19 @@ private fun KachatSegmented(titles: List<String>, selected: Int, onSelect: (Int)
     }
 }
 
-/** "1 year" / "2 years". */
+/** "1 year" / "2 years", or on a short clock (testnet) "10m" / "20m" (iOS 49c0baa `KachatYearsText`). */
 @Composable
-private fun yearsText(years: Int): String =
-    if (years == 1) stringResource(R.string.kn_one_year) else stringResource(R.string.kn_n_years, years)
+private fun yearsText(years: Int, params: Params?): String = when {
+    !KachatLive.yearlyPeriods(params) -> KachatLive.duration(years * (params?.periodMs ?: KachatNames.YEAR_MS), LocalContext.current)
+    years == 1 -> stringResource(R.string.kn_one_year)
+    else -> stringResource(R.string.kn_n_years, years)
+}
+
+/** "Price per year", or on a short clock "Price per 10m" (iOS 49c0baa `pricePerPeriodTitle`). */
+@Composable
+private fun pricePerPeriodTitle(params: Params?): String =
+    if (KachatLive.yearlyPeriods(params)) stringResource(R.string.kn_price_per_year)
+    else stringResource(R.string.kn_price_per_period, yearsText(1, params))
 
 /** A Form text field: no box, the row is the field. */
 @Composable
@@ -900,8 +961,15 @@ fun KachatLiveSearchResult(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("${s.name}.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val params = vm.service.manifest.collectAsState().value?.params
+                        vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
                         vm.pricePerYear(s.name)?.let { price ->
-                            Text(stringResource(R.string.kn_available_per_year, KaspaUnit.amount(price)), color = colors.success, fontSize = 12.sp)
+                            val text = if (KachatLive.yearlyPeriods(params)) {
+                                stringResource(R.string.kn_available_per_year, KaspaUnit.amount(price))
+                            } else {
+                                stringResource(R.string.kn_available_per_period, KaspaUnit.amount(price), yearsText(1, params))
+                            }
+                            Text(text, color = colors.success, fontSize = 12.sp)
                         }
                     }
                     Spacer(Modifier.width(12.dp))
@@ -1262,7 +1330,7 @@ private fun KachatEventRow(event: Event, showName: Boolean = false) {
 
 /** What the person wants to do with an offer. */
 class KachatOfferAction(val kind: Kind, val offer: OfferInfo, val name: NameInfo? = null) {
-    enum class Kind { WITHDRAW, REFUND, ACCEPT }
+    enum class Kind { WITHDRAW, REFUND, ACCEPT, DECLINE }
 }
 
 /**
@@ -1352,7 +1420,18 @@ private fun KachatOfferRow(
                 }
             }
             acceptable -> {
-                Spacer(Modifier.width(8.dp))
+                // the owner can decline it too (registry v3, iOS 49c0baa)
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = KaspaTeal)
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.decline), color = LocalAppColors.current.danger) },
+                            onClick = { menu = false; onAction(KachatOfferAction(KachatOfferAction.Kind.DECLINE, offer)) }
+                        )
+                    }
+                }
                 KachatButton(stringResource(R.string.accept), prominent = true) {
                     onAction(KachatOfferAction(KachatOfferAction.Kind.ACCEPT, offer, name))
                 }
@@ -1401,6 +1480,16 @@ fun KachatOfferActionSheet(action: KachatOfferAction, onClose: () -> Unit) {
                 doneTitle = R.string.kn_ev_offer_accepted
             )
         }
+        KachatOfferAction.Kind.DECLINE -> KachatTxSheet(
+            title = stringResource(R.string.kn_decline_offer), confirmTitle = stringResource(R.string.decline),
+            footer = stringResource(R.string.kn_decline_footer),
+            rows = listOf(
+                KachatTxRow(stringResource(R.string.kl_offer), KaspaUnit.amount(offer.amount)),
+                KachatTxRow(stringResource(R.string.kn_buyer), KachatNamesRegistry.address(offer.buyer)?.let { KachatNamesRegistry.shortAddress(it) } ?: ""),
+            ),
+            operation = KachatNamesActions.Operation.Decline(offer), operationKey = "decline-${offer.id}", onClose = onClose, vm = vm,
+            doneTitle = R.string.kn_ev_offer_declined
+        )
     }
 }
 
@@ -1620,7 +1709,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
             LabeledRow(stringResource(R.string.kl_name), "${target.name}.kachat", bold = false)
             SettingsDivider()
             val count = maxOf(1, maxYears.toInt())
-            KachatSegmented((1..count).map { yearsText(it) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+            KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
         }
 
         FormSection(
@@ -1649,13 +1738,19 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         }
 
         FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
-            listOf(R.string.kn_claim_step1, R.string.kn_claim_step2, R.string.kn_claim_step3_cap).forEachIndexed { index, res ->
+            val params = manifest?.params
+            val step3 = if (KachatLive.yearlyPeriods(params)) {
+                stringResource(R.string.kn_claim_step3_cap)
+            } else {
+                stringResource(R.string.kn_claim_step3_time, yearsText(maxYears.toInt(), params), KachatLive.duration(params?.renewWindowMs ?: 0L, context))
+            }
+            listOf(stringResource(R.string.kn_claim_step1), stringResource(R.string.kn_claim_step2), step3).forEachIndexed { index, text ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
                     Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
                         Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text(stringResource(res), color = colors.textPrimary, fontSize = 15.sp)
+                    Text(text, color = colors.textPrimary, fontSize = 15.sp)
                 }
                 if (index < 2) SettingsDivider(50.dp)
             }
@@ -1774,7 +1869,7 @@ fun KachatLiveNameDetailScreen(
         val close = { sheet = null }
         when (s) {
             KachatDetailSheet.BUY -> KachatLiveBuySheet(info, close)
-            KachatDetailSheet.OFFER -> KachatLiveOfferSheet(info.name, info, close)
+            KachatDetailSheet.OFFER -> KachatLiveOfferSheet(info, close)
             KachatDetailSheet.EXTEND -> KachatExtendSheet(info, close)
             KachatDetailSheet.RENEW -> KachatRenewSheet(info, close)
             KachatDetailSheet.LIST -> KachatListSheet(info, close)
@@ -1869,7 +1964,7 @@ fun KachatLiveNameDetailScreen(
                             Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                stringResource(R.string.kn_paid_from_to, KachatLive.date(start), KachatLive.date(info.expiresAt)),
+                                stringResource(R.string.kn_paid_from_to, KachatLive.day(start), KachatLive.day(info.expiresAt)),
                                 color = colors.textSecondary, fontSize = 12.sp
                             )
                         }
@@ -1994,7 +2089,8 @@ fun KachatLiveNameDetailScreen(
                                     KachatOfferRow(
                                         o, vm, isBuyer = vm.isMine(o.buyer), isOwner = canActAsOwner && source?.isIndexer == true,
                                         onAction = { offerAction = it }, name = info,
-                                        declined = KachatNamesActions.isDeclined(o, KachatNamesActions.ownerSince(history))
+                                        // made to an earlier owner (registry v3: the offer's seller, iOS 49c0baa)
+                                        declined = o.isDeclined(info.owner)
                                     )
                                     if (index < offers.lastIndex) KachatRowDivider(50)
                                 }
@@ -2084,12 +2180,15 @@ private fun KachatManageNameSheet(
         if (params != null) {
             val extendable = info.extendableYears(params)
             if (extendable > 0) {
-                val title = if (KachatLive.fillsPeriod(info, extendable, params)) {
-                    stringResource(R.string.kn_extend_to_years, params.maxYears.toInt())
-                } else {
-                    stringResource(R.string.kn_extend)
+                val yearly = KachatLive.yearlyPeriods(params)
+                val title = when {
+                    !KachatLive.fillsPeriod(info, extendable, params) -> stringResource(R.string.kn_extend)
+                    yearly -> stringResource(R.string.kn_extend_to_years, params.maxYears.toInt())
+                    else -> stringResource(R.string.kn_extend_to_period, yearsText(params.maxYears.toInt(), params))
                 }
-                add(KachatManageItem(title, stringResource(R.string.kn_manage_extend_hint), Icons.Default.MoreTime, run = open(KachatDetailSheet.EXTEND)))
+                val subtitle = if (yearly) stringResource(R.string.kn_manage_extend_hint)
+                else stringResource(R.string.kn_manage_extend_hint_time, yearsText(params.maxYears.toInt(), params))
+                add(KachatManageItem(title, subtitle, Icons.Default.MoreTime, run = open(KachatDetailSheet.EXTEND)))
             }
             if (info.renewOpen(params)) {
                 add(KachatManageItem(stringResource(R.string.kn_renew), stringResource(R.string.kn_manage_renew_hint), Icons.Default.Refresh, run = open(KachatDetailSheet.RENEW)))
@@ -2138,8 +2237,12 @@ fun KachatLiveBuySheet(info: NameInfo, onClose: () -> Unit) {
     )
 }
 
+/**
+ * An offer on [info], the name as registered: it is made to its current owner, the only one who
+ * can accept or decline it, and runs for at most 7 days (registry v3, iOS 49c0baa).
+ */
 @Composable
-fun KachatLiveOfferSheet(name: String, info: NameInfo?, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
+fun KachatLiveOfferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     var amountText by remember { mutableStateOf("") }
     var days by remember { mutableIntStateOf(3) }
     var virtualDaa by remember { mutableStateOf<Long?>(null) }
@@ -2147,25 +2250,26 @@ fun KachatLiveOfferSheet(name: String, info: NameInfo?, onClose: () -> Unit, vm:
 
     val amount = KaspaUnit.parseSompi(amountText)?.takeIf { it > 0 }
     val refundAfter = virtualDaa?.let { it + days.toLong() * 86_400L * KachatLive.DAA_PER_SECOND }
-    val operation = if (amount != null && refundAfter != null) KachatNamesActions.Operation.Offer(name, amount, refundAfter, info) else null
-    val belowListing = info != null && info.isListed && amount != null && info.price < amount
+    val operation = if (amount != null && refundAfter != null) KachatNamesActions.Operation.Offer(info, amount, refundAfter) else null
+    val belowListing = info.isListed && amount != null && info.price < amount
 
     val rows = buildList {
-        add(KachatTxRow(stringResource(R.string.kl_name), "$name.kachat"))
-        if (info != null && info.isListed) add(KachatTxRow(stringResource(R.string.kl_listed_at), KaspaUnit.amount(info.price)))
-        if (info != null) add(KachatTxRow(stringResource(R.string.kn_expires), KachatLive.date(info.expiresAt)))
+        add(KachatTxRow(stringResource(R.string.kl_name), "${info.name}.kachat"))
+        if (info.isListed) add(KachatTxRow(stringResource(R.string.kl_listed_at), KaspaUnit.amount(info.price)))
+        add(KachatTxRow(stringResource(R.string.kn_expires), KachatLive.day(info.expiresAt)))
         if (amount != null) add(KachatTxRow(stringResource(R.string.kl_offer), KaspaUnit.amount(amount)))
     }
-    val choices = listOf(1 to R.string.kl_1d, 3 to R.string.kl_3d, 7 to R.string.kl_7d, 30 to R.string.kl_30d)
+    // up to 7 days, the app's cap (KachatNamesActions.MAX_OFFER_DAYS)
+    val choices = listOf(1 to R.string.kl_1d, 3 to R.string.kl_3d, 7 to R.string.kl_7d)
     KachatTxSheet(
         title = stringResource(R.string.kl_make_offer), confirmTitle = stringResource(R.string.kl_send_offer),
         doneTitle = R.string.kn_done_offer_sent,
-        footer = if (belowListing) stringResource(R.string.kn_offer_below_listing) else null,
+        footer = if (belowListing) stringResource(R.string.kn_offer_below_listing_buy) else null,
         rows = rows,
         operation = operation, operationKey = "${amount ?: 0}-$days-${virtualDaa ?: 0}",
         onClose = onClose, vm = vm
     ) {
-        FormSection(header = stringResource(R.string.kl_your_offer), footer = { FormFooter(KaspaUnit.label(stringResource(R.string.kn_offer_locked))) }) {
+        FormSection(header = stringResource(R.string.kl_your_offer), footer = { FormFooter(KaspaUnit.label(stringResource(R.string.kn_offer_locked_decline))) }) {
             AmountField(amountText) { amountText = it }
         }
         FormSection(header = stringResource(R.string.kn_refundable_after)) {
@@ -2175,9 +2279,9 @@ fun KachatLiveOfferSheet(name: String, info: NameInfo?, onClose: () -> Unit, vm:
 }
 
 /**
- * Registry v2 `extend` (iOS bd2c54a `KachatExtendSheet`): years added to the current paid period
- * (periodStart kept), up to 2 years past its start - in practice a 1-year name extended to 2.
- * Anyone may extend any name.
+ * `extend` (iOS bd2c54a / 49c0baa `KachatExtendSheet`): periods added to the current paid period
+ * (periodStart kept), up to `maxYears` periods past its start - in practice a 1-period name extended
+ * to 2. Anyone may extend any name. The price per period comes from the price record.
  */
 @Composable
 fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
@@ -2187,53 +2291,61 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
     val maxYears = params?.maxYears ?: 2L
     /** The years that still fit in the period (in practice 1). */
     val available = maxOf(1L, params?.let { info.extendableYears(it) } ?: 1L)
-    val perYear = params?.genesisPrices?.getOrNull(KachatNames.Codec.tier(info.name.toByteArray(Charsets.UTF_8).size)) ?: 0L
-    val title = if (params != null && KachatLive.fillsPeriod(info, years, params)) {
-        stringResource(R.string.kn_extend_to_years, maxYears.toInt())
-    } else {
-        stringResource(R.string.kn_extend)
+    vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
+    val perYear = KachatLive.price(vm.registry, info.name) ?: 0L
+    val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
+    val yearly = KachatLive.yearlyPeriods(params)
+    val title = when {
+        params == null || !KachatLive.fillsPeriod(info, years, params) -> stringResource(R.string.kn_extend)
+        yearly -> stringResource(R.string.kn_extend_to_years, maxYears.toInt())
+        else -> stringResource(R.string.kn_extend_to_period, yearsText(maxYears.toInt(), params))
     }
     KachatTxSheet(
         title = title, confirmTitle = stringResource(R.string.kn_extend),
         doneTitle = R.string.kn_ev_extended,
-        footer = stringResource(R.string.kn_extend_footer),
+        footer = if (yearly) stringResource(R.string.kn_extend_footer)
+        else stringResource(R.string.kn_extend_footer_time, yearsText(maxYears.toInt(), params)),
         rows = listOf(
             KachatTxRow(stringResource(R.string.kl_name), info.display),
-            KachatTxRow(stringResource(R.string.kn_price_per_year), KaspaUnit.amount(perYear)),
-            KachatTxRow(stringResource(R.string.kn_expires), KachatLive.date(info.expiresAt)),
-            KachatTxRow(stringResource(R.string.kn_new_expiry), KachatLive.date(info.expiresAt + years * KachatNames.YEAR_MS)),
+            KachatTxRow(pricePerPeriodTitle(params), KaspaUnit.amount(perYear)),
+            KachatTxRow(stringResource(R.string.kn_expires), KachatLive.day(info.expiresAt)),
+            KachatTxRow(stringResource(R.string.kn_new_expiry), KachatLive.day(info.expiresAt + years * periodMs)),
         ),
         operation = KachatNamesActions.Operation.Extend(info, minOf(years, available)), operationKey = "extend-$years",
         onClose = onClose, vm = vm
     ) {
         if (available > 1) {
             FormSection {
-                KachatSegmented((1..available.toInt()).map { yearsText(it) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+                KachatSegmented((1..available.toInt()).map { yearsText(it, params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
             }
         }
     }
 }
 
 /**
- * Registry v2 `renew`: the next period, from the current expiry, for 1 or 2 years - only once the
- * renewal window is open (10 days before the expiry; the detail screen says when; iOS bd2c54a).
+ * `renew`: the next period, from the current expiry, for 1 or 2 periods - only once the renewal
+ * window is open (`renewWindowMs` before the expiry; the detail screen says when; iOS bd2c54a,
+ * 49c0baa). The price per period comes from the price record.
  */
 @Composable
 fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val manifest by vm.service.manifest.collectAsState()
     var years by remember { mutableLongStateOf(1L) }
-    val maxYears = manifest?.params?.maxYears ?: 2L
-    val perYear = manifest?.params?.genesisPrices?.getOrNull(KachatNames.Codec.tier(info.name.toByteArray(Charsets.UTF_8).size)) ?: 0L
+    val params = manifest?.params
+    val maxYears = params?.maxYears ?: 2L
+    vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
+    val perYear = KachatLive.price(vm.registry, info.name) ?: 0L
+    val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
     KachatTxSheet(
         title = stringResource(R.string.kn_renew), confirmTitle = stringResource(R.string.kn_renew),
         doneTitle = R.string.kn_ev_renewed,
         footer = stringResource(R.string.kn_renew_period_footer),
         rows = listOf(
             KachatTxRow(stringResource(R.string.kl_name), info.display),
-            KachatTxRow(stringResource(R.string.kn_price_per_year), KaspaUnit.amount(perYear)),
+            KachatTxRow(pricePerPeriodTitle(params), KaspaUnit.amount(perYear)),
             KachatTxRow(
                 stringResource(R.string.kn_new_period),
-                "${KachatLive.date(info.expiresAt)} – ${KachatLive.date(info.expiresAt + years * KachatNames.YEAR_MS)}"
+                "${KachatLive.day(info.expiresAt)} – ${KachatLive.day(info.expiresAt + years * periodMs)}"
             ),
         ),
         operation = KachatNamesActions.Operation.Renew(info, years), operationKey = "renew-$years",
@@ -2241,7 +2353,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     ) {
         FormSection {
             val count = maxOf(1, maxYears.toInt())
-            KachatSegmented((1..count).map { yearsText(it) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+            KachatSegmented((1..count).map { yearsText(it, params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
         }
     }
 }

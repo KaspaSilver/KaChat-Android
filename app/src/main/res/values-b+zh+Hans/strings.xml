@@ -566,10 +566,8 @@
     <string name="kl_1d">1 天</string>
     <string name="kl_3d">3 天</string>
     <string name="kl_7d">7 天</string>
-    <string name="kl_30d">30 天</string>
     <string name="kl_listed_at">挂单价格</string>
     <string name="kl_your_offer">你的出价</string>
-    <string name="kl_your_offer_footer">你的 KAS 会锁定在链上，直到卖家接受、你撤回出价或出价过期。其他任何人都无法动用。</string>
     <string name="kl_expires_after">有效期</string>
     <string name="kl_send_offer">发送出价</string>
     <string name="kl_offers_open">.kachat 名称上线后即可出价。</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">这个名称将在 30 天内到期，你很快就需要续期。</string>
     <string name="kn_buy_footer">付款到达卖家、名称到达你，在同一笔交易中完成——要么都发生，要么都不发生。</string>
     <string name="kn_price_to_seller">价格（归卖家）</string>
-    <string name="kn_offer_below_listing">这个名称的售价低于你的报价。任何人都可以用你的报价买下它，建议直接购买。</string>
-    <string name="kn_offer_locked">你的 KAS 会锁定在链上，直到所有者接受、你撤回报价或报价到期——之后任何人都可以把它退还给你。</string>
     <string name="kn_refundable_after">可退还时间</string>
     <string name="kn_price_per_year">每年价格</string>
     <string name="kn_new_expiry">新的到期时间</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">可续期</string>
     <string name="kn_extend_footer">延长会为当前已付期间增加年数，每个期间最多 2 年。价格归矿工。</string>
     <string name="kn_renew_period_footer">续期从当前到期时间开始下一个期间，因此不会损失或多出时间，即使已过期也是如此。价格归矿工。</string>
-    <string name="kn_err_period_full">此名称自期间开始起已付满 2 年。续期于 %1$s 开放。</string>
     <string name="kn_err_period_unknown">名称索引器没有返回此名称的已付期间。下拉刷新后重试。</string>
     <string name="kn_my_names_extend_detail">延长、续期、挂售、转让或释放名称，并选择 KaChat 为你显示的那一个。</string>
     <string name="kn_claim_step3_cap">名称在你付费的年数内归你所有，最多提前 2 年。1 年期的名称可以延长到 2 年；到期前 10 天起可以续期。</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">已拒绝 - 名称已易主，正在退还给你</string>
     <string name="kn_offer_declined_earlier_owner">已拒绝 - 向前任所有者发出</string>
     <string name="kn_err_offer_declined">此报价是在名称易主之前发出的，因此已被拒绝并正在退还给买家。</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">此名称已支付至最长期限。续期于 %1$s 开放。</string>
+    <string name="kn_err_price_busy">价格记录正忙。请稍后再试。</string>
+    <string name="kn_err_offer_own_name">你不能对自己的名称报价。</string>
+    <string name="kn_err_offer_max_days">报价最长可持续 7 天。</string>
+    <string name="kn_price_per_period">每 %1$s 价格</string>
+    <string name="kn_available_per_period">可用 · 每 %2$s %1$s</string>
+    <string name="kn_extend_to_period">延长至 %1$s</string>
+    <string name="kn_manage_extend_hint_time">现在支付更多时长，上限为 %1$s。</string>
+    <string name="kn_extend_footer_time">延长会为当前已付期限增加时长，期限最多 %1$s。费用归矿工。</string>
+    <string name="kn_claim_step3_time">名称在你支付的时长内归你所有，最多提前 %1$s。到期前 %2$s 起即可续期。</string>
+    <string name="kn_decline_offer">拒绝报价</string>
+    <string name="kn_ev_offer_declined">报价已拒绝</string>
+    <string name="kn_decline_footer">报价会退还给买家。网络费从报价中扣除，所以拒绝不会让你花费任何费用。</string>
+    <string name="kn_offer_locked_decline">你的 KAS 会锁定在链上，直到所有者接受或拒绝、你撤回报价或报价到期——之后任何人都可以把它退还给你。</string>
+    <string name="kn_offer_below_listing_buy">此名称的挂牌价低于你的报价。不如直接购买。</string>
 </resources>

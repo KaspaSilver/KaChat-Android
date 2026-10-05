@@ -1226,12 +1226,13 @@ private fun KachatOfferScreen(onClose: () -> Unit) {
                 Text(KaspaUnit.symbol, color = colors.textSecondary)
             }
         }
-        SettingsFooter(KaspaUnit.label(stringResource(R.string.kl_your_offer_footer)))
+        SettingsFooter(KaspaUnit.label(stringResource(R.string.kn_offer_locked_decline)))
         Spacer(Modifier.height(16.dp))
         SettingsSection(title = stringResource(R.string.kl_expires_after)) {
             // iOS's segmented control.
             Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceVariant).padding(2.dp)) {
-                listOf(R.string.kl_1d, R.string.kl_3d, R.string.kl_7d, R.string.kl_30d).forEachIndexed { index, res ->
+                // up to 7 days, the app's cap on offers (KachatNamesActions.MAX_OFFER_DAYS, iOS 49c0baa)
+                listOf(R.string.kl_1d, R.string.kl_3d, R.string.kl_7d).forEachIndexed { index, res ->
                     Box(
                         Modifier.weight(1f).clip(RoundedCornerShape(7.dp))
                             .background(if (index == expiry) colors.surface else Color.Transparent)

@@ -603,10 +603,8 @@
     <string name="kl_1d">۱ روز</string>
     <string name="kl_3d">۳ روز</string>
     <string name="kl_7d">۷ روز</string>
-    <string name="kl_30d">۳۰ روز</string>
     <string name="kl_listed_at">قیمت آگهی</string>
     <string name="kl_your_offer">پیشنهاد شما</string>
-    <string name="kl_your_offer_footer">KAS شما روی زنجیره قفل می‌ماند تا فروشنده بپذیرد، پیشنهاد را پس بگیرید یا منقضی شود. هیچ‌کس دیگری نمی‌تواند به آن دست بزند.</string>
     <string name="kl_expires_after">انقضا پس از</string>
     <string name="kl_send_offer">ارسال پیشنهاد</string>
     <string name="kl_offers_open">پیشنهادها با راه‌اندازی نام‌های ‎.kachat باز می‌شوند.</string>
@@ -782,8 +780,6 @@
     <string name="kn_buy_soon">کمتر از ۳۰ روز تا انقضای این نام مانده است. باید به‌زودی تمدیدش کنید.</string>
     <string name="kn_buy_footer">پرداخت به فروشنده و نام به شما در همان تراکنش می‌رسد - یا هر دو انجام می‌شوند یا هیچ‌کدام.</string>
     <string name="kn_price_to_seller">قیمت (به فروشنده)</string>
-    <string name="kn_offer_below_listing">این نام کمتر از پیشنهاد شما قیمت خورده است. هر کسی می‌تواند با پیشنهاد شما آن را بخرد؛ بهتر است مستقیم بخریدش.</string>
-    <string name="kn_offer_locked">KAS شما روی زنجیره قفل می‌ماند تا مالک بپذیرد، پیشنهاد را پس بگیرید یا منقضی شود - سپس هر کسی می‌تواند آن را به شما برگرداند.</string>
     <string name="kn_refundable_after">قابل بازپرداخت پس از</string>
     <string name="kn_price_per_year">قیمت سالانه</string>
     <string name="kn_new_expiry">انقضای جدید</string>
@@ -872,7 +868,6 @@
     <string name="kn_renewal_open">تمدید باز است</string>
     <string name="kn_extend_footer">افزایش مدت، سال‌هایی به دوره پرداخت‌شده فعلی اضافه می‌کند که حداکثر ۲ سال است. قیمت به ماینرها می‌رسد.</string>
     <string name="kn_renew_period_footer">تمدید، دوره بعدی را از تاریخ انقضای فعلی شروع می‌کند، پس هیچ زمانی از دست نمی‌رود یا اضافه نمی‌شود، حتی اگر گذشته باشد. قیمت به ماینرها می‌رسد.</string>
-    <string name="kn_err_period_full">این نام از ابتدای دوره‌اش برای ۲ سال پرداخت شده است. تمدید از %1$s باز می‌شود.</string>
     <string name="kn_err_period_unknown">ایندکسر نام‌ها دوره پرداخت‌شده این نام را نفرستاد. برای تازه‌سازی به پایین بکشید و دوباره امتحان کنید.</string>
     <string name="kn_my_names_extend_detail">مدتشان را افزایش دهید، تمدید کنید، برای فروش بگذارید، منتقل یا رها کنید، و نامی را که KaChat برای شما نشان می‌دهد انتخاب کنید.</string>
     <string name="kn_claim_step3_cap">نام برای سال‌هایی که پرداخته‌اید مال شماست، حداکثر ۲ سال جلوتر. مدت نام ۱ ساله را می‌توان تا ۲ سال افزایش داد؛ از ۱۰ روز پیش از انقضا می‌توانید آن را تمدید کنید.</string>
@@ -1022,4 +1017,20 @@
     <string name="kn_offer_declined_returning_to_you">رد شد - مالک نام عوض شد، به شما برمی‌گردد</string>
     <string name="kn_offer_declined_earlier_owner">رد شد - به مالک قبلی داده شده بود</string>
     <string name="kn_err_offer_declined">این پیشنهاد پیش از تغییر مالک نام داده شده بود، پس رد شده و به خریدار برمی‌گردد.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">این نام از قبل تا طولانی‌ترین دوره پرداخت شده است. تمدید از %1$s باز می‌شود.</string>
+    <string name="kn_err_price_busy">رکورد قیمت در حال حاضر مشغول است. لحظه‌ای دیگر دوباره امتحان کنید.</string>
+    <string name="kn_err_offer_own_name">نمی‌توانید برای نام خودتان پیشنهاد بدهید.</string>
+    <string name="kn_err_offer_max_days">یک پیشنهاد حداکثر ۷ روز اعتبار دارد.</string>
+    <string name="kn_price_per_period">قیمت برای هر %1$s</string>
+    <string name="kn_available_per_period">در دسترس · %1$s برای هر %2$s</string>
+    <string name="kn_extend_to_period">افزایش تا %1$s</string>
+    <string name="kn_manage_extend_hint_time">اکنون برای زمان بیشتری می‌پردازد، تا سقف %1$s.</string>
+    <string name="kn_extend_footer_time">افزایش، زمان را به دوره پرداخت‌شده فعلی اضافه می‌کند که حداکثر %1$s است. قیمت به ماینرها می‌رسد.</string>
+    <string name="kn_claim_step3_time">نام برای مدتی که پرداخت کرده‌اید مال شماست، حداکثر %1$s جلوتر. از %2$s پیش از انقضا می‌توانید آن را تمدید کنید.</string>
+    <string name="kn_decline_offer">رد پیشنهاد</string>
+    <string name="kn_ev_offer_declined">پیشنهاد رد شد</string>
+    <string name="kn_decline_footer">پیشنهاد به خریدار برمی‌گردد. کارمزد شبکه از خود پیشنهاد کم می‌شود، پس رد کردن برای شما هزینه‌ای ندارد.</string>
+    <string name="kn_offer_locked_decline">KAS شما روی زنجیره قفل می‌ماند تا مالک بپذیرد یا رد کند، پیشنهاد را پس بگیرید یا منقضی شود - سپس هر کسی می‌تواند آن را به شما برگرداند.</string>
+    <string name="kn_offer_below_listing_buy">این نام کمتر از پیشنهاد شما برای فروش گذاشته شده است. بهتر است همان را بخرید.</string>
 </resources>

@@ -566,10 +566,8 @@
     <string name="kl_1d">1日</string>
     <string name="kl_3d">3日</string>
     <string name="kl_7d">7日間</string>
-    <string name="kl_30d">30日</string>
     <string name="kl_listed_at">出品価格</string>
     <string name="kl_your_offer">あなたのオファー</string>
-    <string name="kl_your_offer_footer">KAS は売り手が承諾するか、オファーを取り下げるか、期限が切れるまでオンチェーンでロックされます。他の誰も触れられません。</string>
     <string name="kl_expires_after">期限</string>
     <string name="kl_send_offer">オファーを送信</string>
     <string name="kl_offers_open">.kachat 名が始まるとオファーできるようになります。</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">この名前の期限まで 30 日を切っています。すぐに更新が必要です。</string>
     <string name="kn_buy_footer">支払いは売り手に、名前はあなたに同じ取引で届きます。両方が成立するか、どちらも成立しないかです。</string>
     <string name="kn_price_to_seller">価格（売り手へ）</string>
-    <string name="kn_offer_below_listing">この名前はあなたのオファーより安く出品されています。誰でもあなたのオファーで購入できてしまうので、直接購入を検討してください。</string>
-    <string name="kn_offer_locked">KAS は所有者が承諾するか、あなたが取り下げるか、期限が来るまでチェーン上にロックされます。その後は誰でもあなたに返せます。</string>
     <string name="kn_refundable_after">返金可能になるまで</string>
     <string name="kn_price_per_year">1 年あたりの価格</string>
     <string name="kn_new_expiry">新しい有効期限</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">更新受付中</string>
     <string name="kn_extend_footer">延長すると現在の支払い済み期間に年数が加わります。期間は最長 2 年です。価格はマイナーに渡ります。</string>
     <string name="kn_renew_period_footer">更新すると現在の有効期限から次の期間が始まるので、期限を過ぎていても時間が失われたり増えたりしません。価格はマイナーに渡ります。</string>
-    <string name="kn_err_period_full">この名前は期間の開始からすでに 2 年分支払われています。更新は %1$s から可能です。</string>
     <string name="kn_err_period_unknown">名前インデクサーがこの名前の支払い済み期間を返しませんでした。引っ張って更新し、もう一度お試しください。</string>
     <string name="kn_my_names_extend_detail">延長、更新、出品、譲渡、解放ができ、KaChat に表示する名前も選べます。</string>
     <string name="kn_claim_step3_cap">名前は支払った年数の間あなたのものです（最長 2 年先まで）。1 年の名前は 2 年に延長でき、期限の 10 日前から更新できます。</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">辞退 - 名前の所有者が変わったため、あなたに返却中</string>
     <string name="kn_offer_declined_earlier_owner">辞退 - 以前の所有者へのオファー</string>
     <string name="kn_err_offer_declined">このオファーは名前の所有者が変わる前に出されたため、辞退扱いとなり購入者に返却されます。</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">この名前はすでに最長の期間まで支払い済みです。更新は %1$s から可能です。</string>
+    <string name="kn_err_price_busy">価格レコードは現在使用中です。少し待ってからもう一度お試しください。</string>
+    <string name="kn_err_offer_own_name">自分の名前にオファーすることはできません。</string>
+    <string name="kn_err_offer_max_days">オファーの期間は最長 7 日です。</string>
+    <string name="kn_price_per_period">%1$s あたりの価格</string>
+    <string name="kn_available_per_period">利用可能 · %2$s あたり %1$s</string>
+    <string name="kn_extend_to_period">%1$s に延長</string>
+    <string name="kn_manage_extend_hint_time">今、さらに期間分を支払います（上限 %1$s）。</string>
+    <string name="kn_extend_footer_time">延長すると現在の支払い期間に時間が追加されます。期間は最長 %1$s です。代金はマイナーに支払われます。</string>
+    <string name="kn_claim_step3_time">支払った期間中、名前はあなたのものです（最長 %1$s 先まで）。期限の %2$s 前から更新できます。</string>
+    <string name="kn_decline_offer">オファーを辞退</string>
+    <string name="kn_ev_offer_declined">オファー辞退済み</string>
+    <string name="kn_decline_footer">オファーは購入者に返されます。ネットワーク手数料はオファーから差し引かれるため、辞退に費用はかかりません。</string>
+    <string name="kn_offer_locked_decline">KAS は所有者が承諾または辞退するか、あなたが取り下げるか、期限が来るまでチェーン上にロックされます。その後は誰でもあなたに返せます。</string>
+    <string name="kn_offer_below_listing_buy">この名前はあなたのオファーより安く出品されています。代わりに購入することを検討してください。</string>
 </resources>

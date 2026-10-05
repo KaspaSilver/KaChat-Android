@@ -443,10 +443,8 @@
     <string name="kl_1d">1 Hari</string>
     <string name="kl_3d">3 Hari</string>
     <string name="kl_7d">7 Hari</string>
-    <string name="kl_30d">30 Hari</string>
     <string name="kl_listed_at">Harga jual</string>
     <string name="kl_your_offer">Penawaranmu</string>
-    <string name="kl_your_offer_footer">KAS-mu tetap terkunci di chain sampai penjual menerima, kamu menarik penawaran, atau kedaluwarsa. Tidak ada orang lain yang bisa menyentuhnya.</string>
     <string name="kl_expires_after">Kedaluwarsa setelah</string>
     <string name="kl_send_offer">Kirim Penawaran</string>
     <string name="kl_offers_open">Penawaran dibuka saat nama .kachat diluncurkan.</string>
@@ -622,8 +620,6 @@
     <string name="kn_buy_soon">Kurang dari 30 hari lagi nama ini kedaluwarsa. Anda perlu memperpanjangnya segera.</string>
     <string name="kn_buy_footer">Pembayaran sampai ke penjual dan nama sampai ke Anda dalam transaksi yang sama - keduanya terjadi, atau tidak sama sekali.</string>
     <string name="kn_price_to_seller">Harga (untuk penjual)</string>
-    <string name="kn_offer_below_listing">Nama ini dijual lebih murah dari penawaran Anda. Siapa pun bisa membelinya dengan penawaran Anda, jadi sebaiknya beli langsung.</string>
-    <string name="kn_offer_locked">KAS Anda tetap terkunci di chain sampai pemilik menerima, Anda menarik penawaran, atau penawaran kedaluwarsa - lalu siapa pun bisa mengembalikannya kepada Anda.</string>
     <string name="kn_refundable_after">Bisa dikembalikan setelah</string>
     <string name="kn_price_per_year">Harga per tahun</string>
     <string name="kn_new_expiry">Kedaluwarsa baru</string>
@@ -714,7 +710,6 @@
     <string name="kn_renewal_open">Perpanjangan dibuka</string>
     <string name="kn_extend_footer">Menambah masa memberi tahun tambahan pada periode berbayar saat ini, yang paling lama 2 tahun. Harga diberikan ke penambang.</string>
     <string name="kn_renew_period_footer">Perpanjangan memulai periode berikutnya pada tanggal kedaluwarsa saat ini, jadi tidak ada waktu yang hilang atau bertambah, meski sudah lewat. Harga diberikan ke penambang.</string>
-    <string name="kn_err_period_full">Nama ini sudah dibayar untuk 2 tahun sejak awal periodenya. Perpanjangan dibuka %1$s.</string>
     <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
     <string name="kn_my_names_extend_detail">Tambah masa, perpanjang, jual, transfer, atau lepas nama Anda, dan pilih yang ditampilkan KaChat untuk Anda.</string>
     <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
@@ -855,4 +850,20 @@
     <string name="kn_offer_declined_returning_to_you">Ditolak - pemilik nama berganti, dana kembali ke Anda</string>
     <string name="kn_offer_declined_earlier_owner">Ditolak - diajukan ke pemilik sebelumnya</string>
     <string name="kn_err_offer_declined">Penawaran ini diajukan sebelum nama berganti pemilik, jadi ditolak dan dananya kembali ke pembeli.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">Nama ini sudah dibayar hingga periode terpanjangnya. Perpanjangan dibuka %1$s.</string>
+    <string name="kn_err_price_busy">Catatan harga sedang sibuk. Coba lagi sebentar lagi.</string>
+    <string name="kn_err_offer_own_name">Anda tidak bisa mengajukan penawaran untuk nama Anda sendiri.</string>
+    <string name="kn_err_offer_max_days">Penawaran bisa berlaku hingga 7 hari.</string>
+    <string name="kn_price_per_period">Harga per %1$s</string>
+    <string name="kn_available_per_period">Tersedia · %1$s per %2$s</string>
+    <string name="kn_extend_to_period">Tambah hingga %1$s</string>
+    <string name="kn_manage_extend_hint_time">Membayar lebih banyak waktu sekarang, hingga batas %1$s.</string>
+    <string name="kn_extend_footer_time">Menambah waktu ke periode berbayar saat ini, yang menampung paling lama %1$s. Harganya diberikan ke penambang.</string>
+    <string name="kn_claim_step3_time">Nama ini milik Anda selama waktu yang Anda bayar, paling lama %1$s ke depan. Mulai %2$s sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
+    <string name="kn_decline_offer">Tolak Penawaran</string>
+    <string name="kn_ev_offer_declined">Penawaran ditolak</string>
+    <string name="kn_decline_footer">Penawaran kembali ke pembeli. Biaya jaringannya diambil dari penawaran, jadi menolak tidak memakan biaya apa pun bagi Anda.</string>
+    <string name="kn_offer_locked_decline">KAS Anda tetap terkunci di chain sampai pemilik menerima atau menolak, Anda menarik penawaran, atau penawaran kedaluwarsa - lalu siapa pun bisa mengembalikannya kepada Anda.</string>
+    <string name="kn_offer_below_listing_buy">Nama ini dijual lebih murah dari penawaran Anda. Pertimbangkan untuk membelinya saja.</string>
 </resources>

@@ -566,10 +566,8 @@
     <string name="kl_1d">יום אחד</string>
     <string name="kl_3d">3 ימים</string>
     <string name="kl_7d">7 ימים</string>
-    <string name="kl_30d">30 ימים</string>
     <string name="kl_listed_at">מחיר מבוקש</string>
     <string name="kl_your_offer">ההצעה שלך</string>
-    <string name="kl_your_offer_footer">ה-KAS שלכם נשארים נעולים בשרשרת עד שהמוכר יקבל, תמשכו את ההצעה או שתפוג. אף אחד אחר לא יכול לגעת בהם.</string>
     <string name="kl_expires_after">פג תוקף אחרי</string>
     <string name="kl_send_offer">שליחת הצעה</string>
     <string name="kl_offers_open">ההצעות ייפתחו עם השקת שמות ‎.kachat.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">נותרו פחות מ-30 יום עד שהשם יפוג. תצטרכו לחדש אותו בקרוב.</string>
     <string name="kn_buy_footer">התשלום מגיע למוכר והשם מגיע אליך באותה עסקה - שניהם קורים, או אף אחד מהם.</string>
     <string name="kn_price_to_seller">מחיר (למוכר)</string>
-    <string name="kn_offer_below_listing">השם מוצע למכירה בפחות מההצעה שלך. כל אחד יכול לקנות אותו עם ההצעה שלך, אז עדיף לקנות אותו ישירות.</string>
-    <string name="kn_offer_locked">ה-KAS שלך נשאר נעול בשרשרת עד שהבעלים יקבל, תמשכו את ההצעה או שהיא תפוג - ואז כל אחד יכול להחזיר אותו אליכם.</string>
     <string name="kn_refundable_after">ניתן להחזר אחרי</string>
     <string name="kn_price_per_year">מחיר לשנה</string>
     <string name="kn_new_expiry">תפוגה חדשה</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">החידוש פתוח</string>
     <string name="kn_extend_footer">הארכה מוסיפה שנים לתקופה המשולמת הנוכחית, שמחזיקה לכל היותר שנתיים. המחיר הולך לכורים.</string>
     <string name="kn_renew_period_footer">חידוש מתחיל את התקופה הבאה בתאריך התפוגה הנוכחי, כך ששום זמן לא אובד ולא מתווסף, גם אם התאריך כבר עבר. המחיר הולך לכורים.</string>
-    <string name="kn_err_period_full">השם הזה כבר שולם לשנתיים מתחילת התקופה שלו. החידוש נפתח ב-%1$s.</string>
     <string name="kn_err_period_unknown">האינדקסר של השמות לא שלח את התקופה המשולמת של השם הזה. משכו לרענון ונסו שוב.</string>
     <string name="kn_my_names_extend_detail">האריכו, חדשו, הציעו למכירה, העבירו או שחררו אותם, ובחרו את השם ש-KaChat מציג עבורכם.</string>
     <string name="kn_claim_step3_cap">השם שלכם לשנים ששילמתם, לכל היותר שנתיים מראש. שם לשנה אחת אפשר להאריך לשנתיים; מ-10 ימים לפני התפוגה אפשר לחדש אותו.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">נדחתה - השם עבר בעלות, חוזרת אליכם</string>
     <string name="kn_offer_declined_earlier_owner">נדחתה - הוגשה לבעלים קודמים</string>
     <string name="kn_err_offer_declined">ההצעה הוגשה לפני שהשם עבר בעלות, ולכן נדחתה והיא חוזרת לקונה.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">השם הזה כבר משולם עד התקופה הארוכה ביותר. החידוש נפתח ב-%1$s.</string>
+    <string name="kn_err_price_busy">רשומת המחירים תפוסה כרגע. נסו שוב בעוד רגע.</string>
+    <string name="kn_err_offer_own_name">אי אפשר להציע הצעה על השם שלך.</string>
+    <string name="kn_err_offer_max_days">הצעה יכולה להימשך עד 7 ימים.</string>
+    <string name="kn_price_per_period">מחיר ל-%1$s</string>
+    <string name="kn_available_per_period">זמין · %1$s ל-%2$s</string>
+    <string name="kn_extend_to_period">הארכה ל-%1$s</string>
+    <string name="kn_manage_extend_hint_time">משלם עכשיו על זמן נוסף, עד למגבלה של %1$s.</string>
+    <string name="kn_extend_footer_time">הארכה מוסיפה זמן לתקופה המשולמת הנוכחית, שמכילה לכל היותר %1$s. המחיר עובר לכורים.</string>
+    <string name="kn_claim_step3_time">השם שלך לזמן ששילמת, לכל היותר %1$s מראש. החל מ-%2$s לפני שהוא פג אפשר לחדש אותו.</string>
+    <string name="kn_decline_offer">דחיית ההצעה</string>
+    <string name="kn_ev_offer_declined">ההצעה נדחתה</string>
+    <string name="kn_decline_footer">ההצעה חוזרת לקונה. עמלת הרשת יורדת מההצעה עצמה, כך שהדחייה לא עולה לך כלום.</string>
+    <string name="kn_offer_locked_decline">ה-KAS שלך נשאר נעול בשרשרת עד שהבעלים יקבל או ידחה, תמשכו את ההצעה או שהיא תפוג - ואז כל אחד יכול להחזיר אותו אליכם.</string>
+    <string name="kn_offer_below_listing_buy">השם הזה מוצע למכירה בפחות מההצעה שלך. כדאי לשקול לקנות אותו במקום.</string>
 </resources>

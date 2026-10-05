@@ -11,8 +11,9 @@ import org.junit.Test
 
 /**
  * The name detail's pure pieces: the Owner card's one-line address (iOS 71448d8
- * `KachatNamesRegistry.compactAddress`), and the offers' rules (iOS ba07975): when the name last
- * changed hands, which offers are declined, and what's left of an offer's time.
+ * `KachatNamesRegistry.compactAddress`), and the offers' rules (iOS ba07975, registry v3 49c0baa):
+ * which offers are declined (made to another owner than the current one), a submit that lost its
+ * price shard, and what's left of an offer's time.
  */
 class KachatNamesDetailTest {
 
@@ -34,38 +35,27 @@ class KachatNamesDetailTest {
         assertEquals("", KachatNamesRegistry.compactAddress(""))
     }
 
+    private val seller = ByteArray(32) { 3 }
+
     private fun offer(createdAt: Long?, refundAfter: Long = 1_000L) =
-        OfferInfo(Outpoint(ByteArray(32), 0), ByteArray(32), "alice", ByteArray(32), ByteArray(32) { 3 }, 100_000_000L, refundAfter, createdAt)
+        OfferInfo(Outpoint(ByteArray(32), 0), ByteArray(32), "alice", ByteArray(32), seller, 100_000_000L, refundAfter, createdAt)
 
     @Test
-    fun ownerSinceIsTheLatestChangeOfOwner() {
-        val history = listOf(
-            Event("t5", "list", "alice", at = 500),
-            Event("t4", "offer_accepted", "alice", at = 400),
-            Event("t3", "extend", "alice", at = 300),
-            Event("t2", "transfer", "alice", at = 200),
-            Event("t1", "register", "alice", at = 100)
-        )
-        assertEquals(400L, KachatNamesActions.ownerSince(history))
-        assertEquals(250L, KachatNamesActions.ownerSince(listOf(Event("a", "sale", at = 250), Event("b", "register", at = 100))))
-        assertEquals(90L, KachatNamesActions.ownerSince(listOf(Event("a", "offer_accept", at = 90))))
-        // list / delist / extend / renew / offers don't change the owner; events without a time don't count
-        assertNull(KachatNamesActions.ownerSince(listOf(Event("a", "list", at = 1), Event("b", "renew", at = 2), Event("c", "offer", at = 3))))
-        assertNull(KachatNamesActions.ownerSince(listOf(Event("a", "register"))))
-        assertNull(KachatNamesActions.ownerSince(emptyList()))
+    fun offersMadeToAnotherOwnerAreDeclined() {
+        // registry v3: the offer names its seller; only that owner can accept or decline it
+        assertFalse(offer(createdAt = 100).isDeclined(currentOwner = seller))
+        assertTrue(offer(createdAt = 100).isDeclined(currentOwner = ByteArray(32) { 4 }))
+        // the time it was made no longer matters
+        assertFalse(offer(createdAt = null).isDeclined(currentOwner = seller))
     }
 
     @Test
-    fun offersMadeBeforeTheOwnerChangedAreDeclined() {
-        assertTrue(KachatNamesActions.isDeclined(offer(createdAt = 100), ownerSince = 200))
-        assertFalse(KachatNamesActions.isDeclined(offer(createdAt = 200), ownerSince = 200))
-        assertFalse(KachatNamesActions.isDeclined(offer(createdAt = 300), ownerSince = 200))
-        // unknown times: not declined
-        assertFalse(KachatNamesActions.isDeclined(offer(createdAt = null), ownerSince = 200))
-        assertFalse(KachatNamesActions.isDeclined(offer(createdAt = 100), ownerSince = null))
-        // a name since released: every offer on it is declined
-        assertTrue(KachatNamesActions.isDeclined(offer(createdAt = null), ownerSince = null, nameFree = true))
-        assertTrue(KachatNamesActions.isDeclined(offer(createdAt = 300), ownerSince = 200, nameFree = true))
+    fun aSubmitThatLostItsShardIsASpentConflict() {
+        assertTrue(KachatNamesActions.isSpentConflict(Exception("transaction rejected: input already spent by another transaction")))
+        assertTrue(KachatNamesActions.isSpentConflict(Exception("Rejected: double spend in mempool")))
+        assertTrue(KachatNamesActions.isSpentConflict(Exception("transaction is an orphan")))
+        assertFalse(KachatNamesActions.isSpentConflict(Exception("insufficient funds")))
+        assertEquals(7L, KachatNamesActions.MAX_OFFER_DAYS)
     }
 
     @Test

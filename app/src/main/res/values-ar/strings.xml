@@ -566,10 +566,8 @@
     <string name="kl_1d">يوم واحد</string>
     <string name="kl_3d">3 أيام</string>
     <string name="kl_7d">7 أيام</string>
-    <string name="kl_30d">30 يومًا</string>
     <string name="kl_listed_at">سعر العرض</string>
     <string name="kl_your_offer">عرضك</string>
-    <string name="kl_your_offer_footer">تبقى KAS الخاصة بك مقفلة على السلسلة حتى يقبل البائع أو تسحب العرض أو تنتهي صلاحيته. لا يمكن لأحد غيرك لمسها.</string>
     <string name="kl_expires_after">تنتهي بعد</string>
     <string name="kl_send_offer">إرسال العرض</string>
     <string name="kl_offers_open">تُفتح العروض عند إطلاق أسماء ‎.kachat.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">تبقّى أقل من 30 يومًا على انتهاء هذا الاسم. ستحتاج إلى تجديده قريبًا.</string>
     <string name="kn_buy_footer">يصل الدفع إلى البائع والاسم إليك في المعاملة نفسها - إما أن يحدث الأمران أو لا يحدث أي منهما.</string>
     <string name="kn_price_to_seller">السعر (للبائع)</string>
-    <string name="kn_offer_below_listing">هذا الاسم معروض بأقل من عرضك. يمكن لأي شخص شراء العرض المعروض بعرضك، لذا فكّر في شرائه مباشرة.</string>
-    <string name="kn_offer_locked">تبقى KAS الخاصة بك مقفلة على السلسلة حتى يقبل المالك أو تسحب العرض أو تنتهي مدته - وعندها يمكن لأي شخص إعادتها إليك.</string>
     <string name="kn_refundable_after">قابل للاسترداد بعد</string>
     <string name="kn_price_per_year">السعر لكل سنة</string>
     <string name="kn_new_expiry">تاريخ الانتهاء الجديد</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">التجديد متاح</string>
     <string name="kn_extend_footer">يضيف التمديد سنوات إلى الفترة المدفوعة الحالية، التي لا تتجاوز سنتين. يذهب السعر إلى المعدِّنين.</string>
     <string name="kn_renew_period_footer">يبدأ التجديد الفترة التالية عند تاريخ الانتهاء الحالي، فلا يضيع وقت ولا يُضاف، حتى بعد مروره. يذهب السعر إلى المعدِّنين.</string>
-    <string name="kn_err_period_full">هذا الاسم مدفوع بالفعل لسنتين من بداية فترته. يبدأ التجديد في %1$s.</string>
     <string name="kn_err_period_unknown">لم يرسل مفهرس الأسماء الفترة المدفوعة لهذا الاسم. اسحب للتحديث وحاول مرة أخرى.</string>
     <string name="kn_my_names_extend_detail">مدّدها أو جدّدها أو اعرضها للبيع أو انقلها أو تخلَّ عنها، واختر الاسم الذي يعرضه KaChat لك.</string>
     <string name="kn_claim_step3_cap">الاسم لك طوال السنوات التي دفعتها، وسنتين مقدمًا كحد أقصى. يمكن تمديد اسم لسنة واحدة إلى سنتين؛ ومن 10 أيام قبل انتهائه يمكنك تجديده.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">مرفوض - تغيّر مالك الاسم، يعود إليك</string>
     <string name="kn_offer_declined_earlier_owner">مرفوض - قُدّم لمالك سابق</string>
     <string name="kn_err_offer_declined">قُدّم هذا العرض قبل أن يتغير مالك الاسم، لذا رُفض وهو يعود إلى المشتري.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">هذا الاسم مدفوع بالفعل حتى أطول فترة. يبدأ التجديد في %1$s.</string>
+    <string name="kn_err_price_busy">سجل الأسعار مشغول الآن. حاول مرة أخرى بعد لحظة.</string>
+    <string name="kn_err_offer_own_name">لا يمكنك تقديم عرض على اسمك.</string>
+    <string name="kn_err_offer_max_days">يمكن أن يستمر العرض حتى 7 أيام.</string>
+    <string name="kn_price_per_period">السعر لكل %1$s</string>
+    <string name="kn_available_per_period">متاح · %1$s لكل %2$s</string>
+    <string name="kn_extend_to_period">تمديد إلى %1$s</string>
+    <string name="kn_manage_extend_hint_time">يدفع مقابل وقت إضافي الآن، حتى حد %1$s.</string>
+    <string name="kn_extend_footer_time">يضيف التمديد وقتًا إلى الفترة المدفوعة الحالية، التي تتسع لـ %1$s كحد أقصى. يذهب السعر إلى المعدّنين.</string>
+    <string name="kn_claim_step3_time">الاسم لك للمدة التي دفعتها، حتى %1$s مقدمًا. يمكنك تجديده قبل انتهائه بـ %2$s.</string>
+    <string name="kn_decline_offer">رفض العرض</string>
+    <string name="kn_ev_offer_declined">رُفض العرض</string>
+    <string name="kn_decline_footer">يعود العرض إلى المشتري. تُقتطع رسوم الشبكة من العرض، فلا يكلّفك الرفض شيئًا.</string>
+    <string name="kn_offer_locked_decline">تبقى KAS الخاصة بك مقفلة على السلسلة حتى يقبل المالك أو يرفض، أو تسحب العرض، أو تنتهي مدته - وعندها يمكن لأي شخص إعادتها إليك.</string>
+    <string name="kn_offer_below_listing_buy">هذا الاسم معروض للبيع بأقل من عرضك. فكّر في شرائه بدلًا من ذلك.</string>
 </resources>

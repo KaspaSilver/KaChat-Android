@@ -81,8 +81,8 @@ class KachatNamesService @Inject constructor(
 
     private val _registryUpgrading = MutableStateFlow(false)
     /**
-     * The manifest describes the previous registry (v1): names wait for the v2 genesis manifest.
-     * The screens show "Setting up" instead of an error (iOS d2e0673).
+     * The manifest describes an earlier registry (v1 or v2): names wait for the v3 genesis
+     * manifest. The screens show "Setting up" instead of an error (iOS d2e0673, 49c0baa).
      */
     val registryUpgrading: StateFlow<Boolean> = _registryUpgrading.asStateFlow()
 
@@ -107,8 +107,8 @@ class KachatNamesService @Inject constructor(
         class NotOnChain(what: String) : ServiceError("$what is not on chain (or not with the registry covenant id)")
         class BadProfile(why: String) : ServiceError("Profile: $why")
         class SubmitMismatch(expected: String, got: String) : ServiceError("The node accepted $got, expected $expected")
-        /** the manifest is for registry v1; this app builds for v2 and waits for its genesis (the
-         *  screens show it localized, `kn_registry_upgrading`) */
+        /** the manifest is an earlier registry's; this app builds for v3 and waits for its genesis
+         *  (the screens show it localized, `kn_registry_upgrading`) */
         class RegistryUpgrading :
             ServiceError("The .kachat registry on Testnet is being upgraded. Names open here again once the new registry is live.")
     }
@@ -307,6 +307,14 @@ class KachatNamesService @Inject constructor(
         return u
     }
 
+    /** [liveUtxo] for a price shard, which must also carry the price covenant id (registry v3, iOS 49c0baa). */
+    suspend fun livePriceUtxo(script: ByteArray, outpoint: Outpoint): Utxo {
+        val m = loadManifest()
+        val u = liveUtxo(script, outpoint)
+        if (!m.priceCovenantId.contentEquals(u.entry.covenantId)) throw ServiceError.NotOnChain("a price shard")
+        return u
+    }
+
     // Signing and submit
 
     /** Submits a signed version-1 transaction; returns its id. Register and renew carry the price
@@ -407,7 +415,7 @@ class KachatNamesService @Inject constructor(
          */
         val profilesEnabled: Boolean get() = isEnabled
 
-        /** Whether [error] means the registry is being upgraded (a v1 manifest), not a failure (iOS d2e0673). */
+        /** Whether [error] means the registry is being upgraded (an earlier registry's manifest), not a failure (iOS d2e0673). */
         fun isRegistryUpgrading(error: Throwable): Boolean =
             error is ServiceError.RegistryUpgrading || (error as? KachatNames.Failure)?.isOutdatedRegistry == true
 

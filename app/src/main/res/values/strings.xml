@@ -738,10 +738,8 @@
     <string name="kl_1d">1 Day</string>
     <string name="kl_3d">3 Days</string>
     <string name="kl_7d">7 Days</string>
-    <string name="kl_30d">30 Days</string>
     <string name="kl_listed_at">Listed at</string>
     <string name="kl_your_offer">Your offer</string>
-    <string name="kl_your_offer_footer">Your KAS stays locked on chain until the seller accepts, you withdraw the offer, or it expires. Nobody else can touch it.</string>
     <string name="kl_expires_after">Expires after</string>
     <string name="kl_send_offer">Send Offer</string>
     <string name="kl_offers_open">Offers open when .kachat names launch.</string>
@@ -918,8 +916,6 @@
     <string name="kn_buy_soon">Less than 30 days are left before this name expires. You\'d have to renew it soon.</string>
     <string name="kn_buy_footer">The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does.</string>
     <string name="kn_price_to_seller">Price (to the seller)</string>
-    <string name="kn_offer_below_listing">This name is listed for less than your offer. Anyone could buy the listing with your offer, so consider buying it instead.</string>
-    <string name="kn_offer_locked">Your KAS stays locked on chain until the owner accepts, you withdraw the offer, or it expires - then anyone can send it back to you.</string>
     <string name="kn_refundable_after">Refundable after</string>
     <string name="kn_price_per_year">Price per year</string>
     <string name="kn_new_expiry">New expiry</string>
@@ -1008,7 +1004,6 @@
     <string name="kn_renewal_open">Renewal open</string>
     <string name="kn_extend_footer">Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners.</string>
     <string name="kn_renew_period_footer">A renewal starts the next period at the current expiry, so no time is lost or gained, even after it passed. The price goes to the miners.</string>
-    <string name="kn_err_period_full">This name is already paid for 2 years from the start of its period. Renewal opens on %1$s.</string>
     <string name="kn_err_period_unknown">The names indexer didn\'t send this name\'s paid period. Pull to refresh and try again.</string>
     <string name="kn_my_names_extend_detail">Extend, renew, list, transfer or release them, and pick the one KaChat shows for you.</string>
     <string name="kn_claim_step3_cap">The name is yours for the years you paid, at most 2 ahead. A 1-year name can be extended to 2 years; from 10 days before it expires you can renew it.</string>
@@ -1158,4 +1153,20 @@
     <string name="kn_offer_declined_returning_to_you">Declined - the name changed hands, returning to you</string>
     <string name="kn_offer_declined_earlier_owner">Declined - made to an earlier owner</string>
     <string name="kn_err_offer_declined">This offer was made before the name changed hands, so it\'s declined and going back to the buyer.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">This name is already paid up to its longest period. Renewal opens on %1$s.</string>
+    <string name="kn_err_price_busy">The price record is busy right now. Try again in a moment.</string>
+    <string name="kn_err_offer_own_name">You can\'t make an offer on your own name.</string>
+    <string name="kn_err_offer_max_days">An offer can run for up to 7 days.</string>
+    <string name="kn_price_per_period">Price per %1$s</string>
+    <string name="kn_available_per_period">Available · %1$s per %2$s</string>
+    <string name="kn_extend_to_period">Extend to %1$s</string>
+    <string name="kn_manage_extend_hint_time">Pays for more time now, up to the %1$s limit.</string>
+    <string name="kn_extend_footer_time">Extending adds time to the current paid period, which holds at most %1$s. The price goes to the miners.</string>
+    <string name="kn_claim_step3_time">The name is yours for the time you paid, at most %1$s ahead. From %2$s before it expires you can renew it.</string>
+    <string name="kn_decline_offer">Decline Offer</string>
+    <string name="kn_ev_offer_declined">Offer declined</string>
+    <string name="kn_decline_footer">The offer goes back to the buyer. Its network fee comes out of the offer, so declining costs you nothing.</string>
+    <string name="kn_offer_locked_decline">Your KAS stays locked on chain until the owner accepts or declines, you withdraw the offer, or it expires - then anyone can send it back to you.</string>
+    <string name="kn_offer_below_listing_buy">This name is listed for less than your offer. Consider buying it instead.</string>
 </resources>

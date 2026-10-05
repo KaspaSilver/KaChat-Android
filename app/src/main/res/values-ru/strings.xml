@@ -566,10 +566,8 @@
     <string name="kl_1d">1 день</string>
     <string name="kl_3d">3 дня</string>
     <string name="kl_7d">7 дней</string>
-    <string name="kl_30d">30 дней</string>
     <string name="kl_listed_at">Цена продажи</string>
     <string name="kl_your_offer">Ваше предложение</string>
-    <string name="kl_your_offer_footer">Ваши KAS заблокированы в блокчейне, пока продавец не примет предложение, вы его не отзовёте или оно не истечёт. Больше никто не может их тронуть.</string>
     <string name="kl_expires_after">Истекает через</string>
     <string name="kl_send_offer">Отправить предложение</string>
     <string name="kl_offers_open">Предложения откроются с запуском имён .kachat.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">До истечения этого имени меньше 30 дней. Его скоро придётся продлить.</string>
     <string name="kn_buy_footer">Платёж доходит до продавца, а имя — до вас в одной транзакции: либо оба, либо ничего.</string>
     <string name="kn_price_to_seller">Цена (продавцу)</string>
-    <string name="kn_offer_below_listing">Это имя продаётся дешевле вашего предложения. Любой может купить его на ваше предложение — лучше купите его сами.</string>
-    <string name="kn_offer_locked">Ваши KAS заблокированы в сети, пока владелец не примет предложение, вы его не отзовёте или оно не истечёт, — после этого кто угодно может вернуть их вам.</string>
     <string name="kn_refundable_after">Можно вернуть через</string>
     <string name="kn_price_per_year">Цена за год</string>
     <string name="kn_new_expiry">Новый срок</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">Продление открыто</string>
     <string name="kn_extend_footer">Дополнение добавляет годы к текущему оплаченному периоду, который вмещает не больше 2 лет. Цена уходит майнерам.</string>
     <string name="kn_renew_period_footer">Продление начинает следующий период с текущей даты окончания, так что время не теряется и не добавляется, даже если срок уже прошёл. Цена уходит майнерам.</string>
-    <string name="kn_err_period_full">Это имя уже оплачено на 2 года от начала периода. Продление откроется %1$s.</string>
     <string name="kn_err_period_unknown">Индексатор имён не прислал оплаченный период этого имени. Потяните вниз, чтобы обновить, и попробуйте снова.</string>
     <string name="kn_my_names_extend_detail">Дополняйте, продлевайте, выставляйте на продажу, передавайте или освобождайте их и выберите то, которое KaChat показывает для вас.</string>
     <string name="kn_claim_step3_cap">Имя ваше на оплаченные годы, не больше 2 вперёд. Имя на 1 год можно дополнить до 2 лет; за 10 дней до окончания срока его можно продлить.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">Отклонено - у имени сменился владелец, возвращается вам</string>
     <string name="kn_offer_declined_earlier_owner">Отклонено - сделано прежнему владельцу</string>
     <string name="kn_err_offer_declined">Это предложение сделано до смены владельца имени, поэтому оно отклонено и возвращается покупателю.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">Это имя уже оплачено на максимальный срок. Продление откроется %1$s.</string>
+    <string name="kn_err_price_busy">Запись цен сейчас занята. Попробуйте ещё раз через мгновение.</string>
+    <string name="kn_err_offer_own_name">Нельзя сделать предложение на собственное имя.</string>
+    <string name="kn_err_offer_max_days">Предложение может действовать до 7 дней.</string>
+    <string name="kn_price_per_period">Цена за %1$s</string>
+    <string name="kn_available_per_period">Доступно · %1$s за %2$s</string>
+    <string name="kn_extend_to_period">Дополнить до %1$s</string>
+    <string name="kn_manage_extend_hint_time">Оплачивает больше времени сейчас, до предела в %1$s.</string>
+    <string name="kn_extend_footer_time">Продление добавляет время к текущему оплаченному периоду, который вмещает не больше %1$s. Плата уходит майнерам.</string>
+    <string name="kn_claim_step3_time">Имя ваше на оплаченное время, не больше чем на %1$s вперёд. За %2$s до истечения его можно продлить.</string>
+    <string name="kn_decline_offer">Отклонить предложение</string>
+    <string name="kn_ev_offer_declined">Предложение отклонено</string>
+    <string name="kn_decline_footer">Предложение возвращается покупателю. Комиссия сети берётся из самого предложения, так что отказ вам ничего не стоит.</string>
+    <string name="kn_offer_locked_decline">Ваши KAS заблокированы в сети, пока владелец не примет или не отклонит предложение, вы его не отзовёте или оно не истечёт, — после этого кто угодно может вернуть их вам.</string>
+    <string name="kn_offer_below_listing_buy">Это имя выставлено дешевле вашего предложения. Возможно, лучше просто купить его.</string>
 </resources>

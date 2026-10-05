@@ -566,10 +566,8 @@
     <string name="kl_1d">1 ngày</string>
     <string name="kl_3d">3 ngày</string>
     <string name="kl_7d">7 ngày</string>
-    <string name="kl_30d">30 ngày</string>
     <string name="kl_listed_at">Giá rao</string>
     <string name="kl_your_offer">Đề nghị của bạn</string>
-    <string name="kl_your_offer_footer">KAS của bạn bị khóa trên chuỗi cho đến khi người bán chấp nhận, bạn rút đề nghị hoặc hết hạn. Không ai khác có thể đụng vào.</string>
     <string name="kl_expires_after">Hết hạn sau</string>
     <string name="kl_send_offer">Gửi đề nghị</string>
     <string name="kl_offers_open">Đề nghị sẽ mở khi tên .kachat ra mắt.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">Còn chưa đến 30 ngày nữa tên này hết hạn. Bạn sẽ cần gia hạn sớm.</string>
     <string name="kn_buy_footer">Khoản thanh toán đến người bán và tên đến bạn trong cùng một giao dịch - cả hai cùng xảy ra, hoặc không gì cả.</string>
     <string name="kn_price_to_seller">Giá (trả cho người bán)</string>
-    <string name="kn_offer_below_listing">Tên này đang rao bán thấp hơn đề nghị của bạn. Ai cũng có thể dùng đề nghị của bạn để mua, nên hãy cân nhắc mua trực tiếp.</string>
-    <string name="kn_offer_locked">KAS của bạn bị khóa trên chuỗi cho đến khi chủ chấp nhận, bạn rút đề nghị, hoặc đề nghị hết hạn - sau đó ai cũng có thể trả lại cho bạn.</string>
     <string name="kn_refundable_after">Có thể hoàn sau</string>
     <string name="kn_price_per_year">Giá mỗi năm</string>
     <string name="kn_new_expiry">Hạn mới</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">Đang mở gia hạn</string>
     <string name="kn_extend_footer">Kéo dài thêm năm vào kỳ đã trả hiện tại, mỗi kỳ tối đa 2 năm. Giá trả cho thợ đào.</string>
     <string name="kn_renew_period_footer">Gia hạn bắt đầu kỳ tiếp theo tại ngày hết hạn hiện tại, nên không mất hay thêm thời gian, kể cả khi đã quá hạn. Giá trả cho thợ đào.</string>
-    <string name="kn_err_period_full">Tên này đã được trả đủ 2 năm tính từ đầu kỳ. Mở gia hạn vào %1$s.</string>
     <string name="kn_err_period_unknown">Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.</string>
     <string name="kn_my_names_extend_detail">Kéo dài, gia hạn, rao bán, chuyển hoặc nhả tên, và chọn tên KaChat hiển thị cho bạn.</string>
     <string name="kn_claim_step3_cap">Tên là của bạn trong số năm đã trả, tối đa trước 2 năm. Tên 1 năm có thể kéo dài thành 2 năm; từ 10 ngày trước khi hết hạn bạn có thể gia hạn.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">Bị từ chối - tên đã đổi chủ, đang hoàn lại cho bạn</string>
     <string name="kn_offer_declined_earlier_owner">Bị từ chối - gửi cho chủ cũ</string>
     <string name="kn_err_offer_declined">Đề nghị này được gửi trước khi tên đổi chủ, nên đã bị từ chối và đang hoàn lại cho người mua.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">Tên này đã được trả đến kỳ dài nhất. Mở gia hạn vào %1$s.</string>
+    <string name="kn_err_price_busy">Bản ghi giá đang bận. Hãy thử lại sau giây lát.</string>
+    <string name="kn_err_offer_own_name">Bạn không thể đưa đề nghị cho tên của chính mình.</string>
+    <string name="kn_err_offer_max_days">Một đề nghị có thể kéo dài tối đa 7 ngày.</string>
+    <string name="kn_price_per_period">Giá mỗi %1$s</string>
+    <string name="kn_available_per_period">Còn trống · %1$s mỗi %2$s</string>
+    <string name="kn_extend_to_period">Kéo dài đến %1$s</string>
+    <string name="kn_manage_extend_hint_time">Trả thêm thời gian ngay bây giờ, tối đa %1$s.</string>
+    <string name="kn_extend_footer_time">Kéo dài sẽ thêm thời gian vào kỳ đã trả hiện tại, tối đa %1$s. Khoản phí được trả cho thợ đào.</string>
+    <string name="kn_claim_step3_time">Tên là của bạn trong thời gian bạn đã trả, tối đa %1$s về sau. Từ %2$s trước khi hết hạn, bạn có thể gia hạn.</string>
+    <string name="kn_decline_offer">Từ chối đề nghị</string>
+    <string name="kn_ev_offer_declined">Đã từ chối đề nghị</string>
+    <string name="kn_decline_footer">Đề nghị được trả lại cho người mua. Phí mạng được trừ vào đề nghị, nên từ chối không tốn gì của bạn.</string>
+    <string name="kn_offer_locked_decline">KAS của bạn bị khóa trên chuỗi cho đến khi chủ chấp nhận hoặc từ chối, bạn rút đề nghị, hoặc đề nghị hết hạn - sau đó ai cũng có thể trả lại cho bạn.</string>
+    <string name="kn_offer_below_listing_buy">Tên này đang được bán với giá thấp hơn đề nghị của bạn. Hãy cân nhắc mua luôn.</string>
 </resources>

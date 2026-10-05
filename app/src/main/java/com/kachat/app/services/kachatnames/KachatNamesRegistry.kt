@@ -109,6 +109,10 @@ class KachatNamesRegistry @Inject constructor(
     val revision: StateFlow<Int> = _revision.asStateFlow()
 
     @Volatile private var cacheNetwork: String? = null
+
+    private val _pricesCache = MutableStateFlow<PriceFields?>(null)
+    /** The last prices read ([currentPrices]); screens collect it to re-price (iOS 49c0baa `currentPricesCache`). */
+    val pricesCache: StateFlow<PriceFields?> = _pricesCache.asStateFlow()
     private val ownProfiles = ConcurrentHashMap<String, OwnProfile>()
     /** Addresses with no saved profile file: [ownProfile] is read while names render, so a miss
      *  is remembered instead of touching the disk again (until [noteOwnProfile]). */
@@ -167,6 +171,7 @@ class KachatNamesRegistry @Inject constructor(
         _source.value = null
         _chainState.value = null
         cacheNetwork = null
+        _pricesCache.value = null
         ownProfiles.clear()
         ownProfileMisses.clear()
         synchronized(identityLock) { identities = emptyMap() }
@@ -187,7 +192,10 @@ class KachatNamesRegistry @Inject constructor(
         } catch (e: Exception) {
             return Source.Chain
         }
-        return if (status.registryCovenantId?.lowercase() == hex(m.registryCovenantId)) Source.Indexer(base) else Source.Chain
+        // registry v3: the indexer must follow this manifest's registry and price covenants (iOS 49c0baa)
+        return if (status.registryCovenantId?.lowercase() == hex(m.registryCovenantId) &&
+            status.priceCovenantId?.lowercase() == hex(m.priceCovenantId)
+        ) Source.Indexer(base) else Source.Chain
     }
 
     private suspend fun indexerBase(): String? {
@@ -455,9 +463,36 @@ class KachatNamesRegistry @Inject constructor(
         prepare()
         return when (val src = _source.value) {
             is Source.Indexer -> IndexerApi.EventJson.parseEvents(get(src.base, "/market/activity"))
-            else -> (_chainState.value?.events ?: emptyList()).reversed().take(200)
+            // name activity only: price changes are the registry's, not a name's (iOS 49c0baa)
+            else -> (_chainState.value?.events ?: emptyList()).filterNot { it.op.startsWith("price") }.reversed().take(200)
         }
     }
+
+    /**
+     * Every live price shard, shard order (registry v3, iOS 49c0baa). A register, extend or renew
+     * spends one; the actions re-read the picked shard's UTXO from a node before building.
+     */
+    suspend fun shards(): List<ShardInfo> {
+        prepare()
+        return when (val src = _source.value) {
+            is Source.Indexer -> IndexerApi.PricesJson.parse(get(src.base, "/names/prices")).shards.mapNotNull { it.info }.sortedBy { it.shard }
+            else -> _chainState.value?.shardInfos ?: emptyList()
+        }
+    }
+
+    /** The current prices per period by name length (every shard holds the same ones). */
+    suspend fun currentPrices(): PriceFields? {
+        val first = shards().firstOrNull()?.fields
+        if (first != null) _pricesCache.value = first
+        return first
+    }
+
+    /**
+     * The last prices read, for screens that price names synchronously (refreshed by
+     * [currentPrices] and every walk). Falls back to the manifest's genesis prices.
+     */
+    val cachedPrices: List<Long>?
+        get() = (_pricesCache.value ?: _chainState.value?.currentPrices)?.prices ?: service.manifest.value?.params?.genesisPrices
 
     /** The two gaps around a registered name (what release and reclaim spend): below, above. */
     suspend fun exitGaps(n: NameInfo): Pair<GapInfo, GapInfo> {

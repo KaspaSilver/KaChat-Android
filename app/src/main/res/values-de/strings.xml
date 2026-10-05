@@ -566,10 +566,8 @@
     <string name="kl_1d">1 Tag</string>
     <string name="kl_3d">3 Tage</string>
     <string name="kl_7d">7 Tage</string>
-    <string name="kl_30d">30 Tage</string>
     <string name="kl_listed_at">Angeboten für</string>
     <string name="kl_your_offer">Dein Angebot</string>
-    <string name="kl_your_offer_footer">Deine KAS bleiben on-chain gesperrt, bis der Verkäufer annimmt, du das Angebot zurückziehst oder es abläuft. Niemand sonst kann darauf zugreifen.</string>
     <string name="kl_expires_after">Läuft ab nach</string>
     <string name="kl_send_offer">Angebot senden</string>
     <string name="kl_offers_open">Angebote sind möglich, sobald .kachat-Namen starten.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">Bis dieser Name abläuft, sind es weniger als 30 Tage. Du müsstest ihn bald verlängern.</string>
     <string name="kn_buy_footer">Die Zahlung geht an den Verkäufer und der Name an dich in derselben Transaktion - beides passiert, oder nichts davon.</string>
     <string name="kn_price_to_seller">Preis (an den Verkäufer)</string>
-    <string name="kn_offer_below_listing">Dieser Name ist günstiger angeboten als dein Angebot. Jeder könnte das Angebot mit deinem Angebot kaufen - kauf ihn lieber direkt.</string>
-    <string name="kn_offer_locked">Deine KAS bleiben auf der Chain gesperrt, bis der Inhaber annimmt, du das Angebot zurückziehst oder es abläuft - dann kann sie dir jeder zurückschicken.</string>
     <string name="kn_refundable_after">Erstattbar nach</string>
     <string name="kn_price_per_year">Preis pro Jahr</string>
     <string name="kn_new_expiry">Neues Ablaufdatum</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">Verlängerung offen</string>
     <string name="kn_extend_footer">Erweitern fügt dem aktuellen bezahlten Zeitraum Jahre hinzu; er umfasst höchstens 2 Jahre. Der Preis geht an die Miner.</string>
     <string name="kn_renew_period_footer">Eine Verlängerung beginnt den nächsten Zeitraum am aktuellen Ablaufdatum, so geht keine Zeit verloren oder dazu, auch wenn es schon vorbei ist. Der Preis geht an die Miner.</string>
-    <string name="kn_err_period_full">Dieser Name ist ab Beginn seines Zeitraums schon für 2 Jahre bezahlt. Verlängerung möglich ab %1$s.</string>
     <string name="kn_err_period_unknown">Der Namens-Indexer hat den bezahlten Zeitraum dieses Namens nicht geschickt. Zum Aktualisieren nach unten ziehen und erneut versuchen.</string>
     <string name="kn_my_names_extend_detail">Erweitere, verlängere, verkaufe, übertrage oder gib sie frei, und wähle den, den KaChat für dich zeigt.</string>
     <string name="kn_claim_step3_cap">Der Name gehört dir für die bezahlten Jahre, höchstens 2 im Voraus. Ein Name für 1 Jahr lässt sich auf 2 Jahre erweitern; ab 10 Tagen vor Ablauf kannst du ihn verlängern.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">Abgelehnt – der Name hat den Besitzer gewechselt, geht an dich zurück</string>
     <string name="kn_offer_declined_earlier_owner">Abgelehnt – an einen früheren Besitzer gerichtet</string>
     <string name="kn_err_offer_declined">Dieses Angebot wurde gemacht, bevor der Name den Besitzer wechselte. Es ist abgelehnt und geht an den Käufer zurück.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">Dieser Name ist bereits für den längsten Zeitraum bezahlt. Verlängerung möglich ab %1$s.</string>
+    <string name="kn_err_price_busy">Der Preiseintrag ist gerade belegt. Versuch es gleich noch einmal.</string>
+    <string name="kn_err_offer_own_name">Du kannst kein Angebot für deinen eigenen Namen machen.</string>
+    <string name="kn_err_offer_max_days">Ein Angebot kann bis zu 7 Tage laufen.</string>
+    <string name="kn_price_per_period">Preis pro %1$s</string>
+    <string name="kn_available_per_period">Verfügbar · %1$s pro %2$s</string>
+    <string name="kn_extend_to_period">Auf %1$s erweitern</string>
+    <string name="kn_manage_extend_hint_time">Bezahlt jetzt für mehr Zeit, bis zur Grenze von %1$s.</string>
+    <string name="kn_extend_footer_time">Erweitern fügt dem aktuellen bezahlten Zeitraum Zeit hinzu; er umfasst höchstens %1$s. Der Preis geht an die Miner.</string>
+    <string name="kn_claim_step3_time">Der Name gehört dir für die bezahlte Zeit, höchstens %1$s im Voraus. Ab %2$s vor dem Ablauf kannst du ihn verlängern.</string>
+    <string name="kn_decline_offer">Angebot ablehnen</string>
+    <string name="kn_ev_offer_declined">Angebot abgelehnt</string>
+    <string name="kn_decline_footer">Das Angebot geht an den Käufer zurück. Die Netzwerkgebühr wird vom Angebot abgezogen, das Ablehnen kostet dich also nichts.</string>
+    <string name="kn_offer_locked_decline">Deine KAS bleiben auf der Chain gesperrt, bis der Inhaber annimmt oder ablehnt, du das Angebot zurückziehst oder es abläuft - dann kann sie dir jeder zurückschicken.</string>
+    <string name="kn_offer_below_listing_buy">Dieser Name ist günstiger gelistet als dein Angebot. Kauf ihn vielleicht lieber direkt.</string>
 </resources>

@@ -566,10 +566,8 @@
     <string name="kl_1d">1 Gün</string>
     <string name="kl_3d">3 Gün</string>
     <string name="kl_7d">7 Gün</string>
-    <string name="kl_30d">30 Gün</string>
     <string name="kl_listed_at">İlan fiyatı</string>
     <string name="kl_your_offer">Teklifin</string>
-    <string name="kl_your_offer_footer">KAS\'ın satıcı kabul edene, teklifi geri çekene ya da süresi dolana kadar zincirde kilitli kalır. Başka kimse dokunamaz.</string>
     <string name="kl_expires_after">Süre sonu</string>
     <string name="kl_send_offer">Teklifi Gönder</string>
     <string name="kl_offers_open">Teklifler .kachat adları başlayınca açılacak.</string>
@@ -745,8 +743,6 @@
     <string name="kn_buy_soon">Bu adın süresinin dolmasına 30 günden az kaldı. Yakında yenilemeniz gerekir.</string>
     <string name="kn_buy_footer">Ödeme satıcıya, ad size aynı işlemde ulaşır - ya ikisi de olur ya hiçbiri.</string>
     <string name="kn_price_to_seller">Fiyat (satıcıya)</string>
-    <string name="kn_offer_below_listing">Bu ad teklifinizden daha ucuza satışta. Herkes teklifinizle satın alabilir; doğrudan satın almayı düşünün.</string>
-    <string name="kn_offer_locked">KAS\'ınız sahibi kabul edene, teklifi geri çekene veya süresi dolana kadar zincirde kilitli kalır - sonra herkes size geri gönderebilir.</string>
     <string name="kn_refundable_after">Şu süreden sonra iade edilebilir</string>
     <string name="kn_price_per_year">Yıllık fiyat</string>
     <string name="kn_new_expiry">Yeni bitiş tarihi</string>
@@ -835,7 +831,6 @@
     <string name="kn_renewal_open">Yenileme açık</string>
     <string name="kn_extend_footer">Uzatma, en fazla 2 yıl kapsayan mevcut ödenmiş döneme yıl ekler. Fiyat madencilere gider.</string>
     <string name="kn_renew_period_footer">Yenileme, sonraki dönemi mevcut bitiş tarihinde başlatır; tarih geçmiş olsa bile zaman kaybedilmez veya kazanılmaz. Fiyat madencilere gider.</string>
-    <string name="kn_err_period_full">Bu ad, dönemin başından itibaren zaten 2 yıl için ödendi. Yenileme %1$s tarihinde açılır.</string>
     <string name="kn_err_period_unknown">Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.</string>
     <string name="kn_my_names_extend_detail">Onları uzatın, yenileyin, satışa çıkarın, aktarın veya bırakın ve KaChat\'in sizin için gösterdiğini seçin.</string>
     <string name="kn_claim_step3_cap">Ad, ödediğiniz yıllar boyunca sizindir, en fazla 2 yıl ileriye. 1 yıllık bir ad 2 yıla uzatılabilir; bitişinden 10 gün önceden itibaren yenileyebilirsiniz.</string>
@@ -991,4 +986,20 @@
     <string name="kn_offer_declined_returning_to_you">Reddedildi - adın sahibi değişti, sana dönüyor</string>
     <string name="kn_offer_declined_earlier_owner">Reddedildi - önceki sahibine yapılmış</string>
     <string name="kn_err_offer_declined">Bu teklif ad el değiştirmeden önce yapıldığı için reddedildi ve alıcıya geri dönüyor.</string>
+    <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
+    <string name="kn_err_period_full_longest">Bu ad zaten en uzun dönemine kadar ödenmiş. Yenileme %1$s tarihinde açılır.</string>
+    <string name="kn_err_price_busy">Fiyat kaydı şu anda meşgul. Birazdan tekrar deneyin.</string>
+    <string name="kn_err_offer_own_name">Kendi adınıza teklif veremezsiniz.</string>
+    <string name="kn_err_offer_max_days">Bir teklif en fazla 7 gün sürebilir.</string>
+    <string name="kn_price_per_period">%1$s başına fiyat</string>
+    <string name="kn_available_per_period">Müsait · %2$s başına %1$s</string>
+    <string name="kn_extend_to_period">%1$s süresine uzat</string>
+    <string name="kn_manage_extend_hint_time">Şimdi daha fazla süre için öder, %1$s sınırına kadar.</string>
+    <string name="kn_extend_footer_time">Uzatma, mevcut ödenmiş döneme süre ekler; dönem en fazla %1$s olabilir. Ücret madencilere gider.</string>
+    <string name="kn_claim_step3_time">Ad, ödediğiniz süre boyunca sizindir, en fazla %1$s ilerisine kadar. Süresi dolmadan %2$s önce yenileyebilirsiniz.</string>
+    <string name="kn_decline_offer">Teklifi Reddet</string>
+    <string name="kn_ev_offer_declined">Teklif reddedildi</string>
+    <string name="kn_decline_footer">Teklif alıcıya geri döner. Ağ ücreti tekliften karşılanır, yani reddetmek size hiçbir şeye mal olmaz.</string>
+    <string name="kn_offer_locked_decline">KAS\'ınız sahibi kabul edene veya reddedene, teklifi geri çekene veya süresi dolana kadar zincirde kilitli kalır - sonra herkes size geri gönderebilir.</string>
+    <string name="kn_offer_below_listing_buy">Bu ad teklifinizden daha düşük bir fiyata listelenmiş. Bunun yerine satın almayı düşünün.</string>
 </resources>
