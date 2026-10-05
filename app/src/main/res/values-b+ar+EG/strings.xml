@@ -955,4 +955,11 @@
     <string name="chats_send_kaspa">إرسال كاسبا</string>
     <string name="chats_send_kaspa_hint">ابعت Kaspa من عنوان الصرف بتاعك.</string>
     <string name="spending_address_unlocking">عنوان الصرف بيتفتح — ارجع وجرّب تاني.</string>
+    <!-- Chats circle half sheet (iOS f90a70a) -->
+    <string name="chats_circle_pin_to_front">ثبّته في الأول</string>
+    <string name="chats_circle_unpin">شيل التثبيت</string>
+    <string name="chats_circle_unpin_hint">بيرجع مكانه حسب آخر نشاط.</string>
+    <string name="chats_circle_pin_hint">بيفضل الأول في الصف اللي فوق الشاتات بتاعتك.</string>
+    <string name="chats_circle_hold_for_options">اضغط مطوّل للخيارات</string>
+    <string name="delete_room_title">تمسح الأوضة؟</string>
 </resources>

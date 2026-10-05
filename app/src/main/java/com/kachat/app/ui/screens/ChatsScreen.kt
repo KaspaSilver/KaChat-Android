@@ -16,6 +16,8 @@ import androidx.compose.foundation.border
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.ArrowCircleUp
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -167,6 +169,11 @@ fun ChatsScreen(
     val circlePins by remember(myAddress) {
         myAddress?.let { chatViewModel.chatCirclePins(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList())
     }.collectAsState(initial = emptyList())
+    /** The circle whose long-press half sheet is up ("g:<groupId>" / "r:<room>", iOS f90a70a). */
+    var circleActionTarget by remember { mutableStateOf<String?>(null) }
+    /** A group or custom room waiting on its delete confirmation, from that sheet. */
+    var circleDeleteGroup by remember { mutableStateOf<String?>(null) }
+    var circleDeleteRoom by remember { mutableStateOf<String?>(null) }
     /** Pins a circle to the front, or unpins it, with a toast saying which (iOS `toggleCirclePin`). */
     fun toggleCirclePin(id: String) {
         val address = myAddress ?: return
@@ -489,7 +496,8 @@ fun ChatsScreen(
 
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 // Group chats and public rooms, as circles under the search bar - swipe sideways
-                // for all of them. Tap opens, hold pins to the front, Select mode selects them too.
+                // for all of them. Tap opens, hold opens its half sheet, Select mode selects them
+                // too.
                 item(key = "chat_circles") {
                     ChatCirclesStrip(
                         items = circleItems,
@@ -521,7 +529,8 @@ fun ChatsScreen(
                                 }
                             }
                         },
-                        onLongPress = { item -> toggleCirclePin(item.id) },
+                        // Hold: the circle's half sheet, like a chat row's (iOS f90a70a).
+                        onLongPress = { item -> circleActionTarget = item.id },
                     )
                 }
                 // People who wrote first and haven't been accepted - one row, always there,
@@ -814,6 +823,71 @@ fun ChatsScreen(
         }
     }
 
+    circleActionTarget?.let { id ->
+        ChatCircleActionSheet(
+            id = id,
+            isPinned = id in circlePins,
+            groupConversations = groupConversations,
+            listedRooms = listedRooms,
+            roomSummaries = roomSummaries,
+            chatViewModel = chatViewModel,
+            broadcastViewModel = broadcastViewModel,
+            onDismiss = { circleActionTarget = null },
+            onTogglePin = { toggleCirclePin(id) },
+            onDeleteGroup = { circleDeleteGroup = it },
+            onDeleteRoom = { circleDeleteRoom = it },
+        )
+    }
+    circleDeleteGroup?.let { groupId ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { circleDeleteGroup = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Delete Group?", color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(stringResource(R.string.this_removes_the_group_and_its), color = LocalAppColors.current.textSecondary)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    chatViewModel.deleteGroupChat(groupId)
+                    circleDeleteGroup = null
+                }) {
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { circleDeleteGroup = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+    circleDeleteRoom?.let { name ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { circleDeleteRoom = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.delete_room_title), color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    "Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history.",
+                    color = LocalAppColors.current.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    broadcastViewModel.leaveChannel(name)
+                    circleDeleteRoom = null
+                }) {
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { circleDeleteRoom = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+
     // The New sheet (iOS 5da8ccf -> e6400d6): New Chat / New Group Chat swap it to the create
     // screen, New Public Chat pushes a room name inside it, and the two QR options close it and
     // then bring up Profile's white QR page.
@@ -898,9 +972,9 @@ private fun chatCircleItems(
 /**
  * Group chats and public rooms as a row of circles above the chats list, under the search bar
  * (iOS a062577 `ChatCirclesStrip`). Swipe sideways for all of them. A red count shows messages
- * from others since you last opened it; a pin marks the ones pinned to the front. Tap opens; in
- * Select mode a tap selects instead (a check on the circle), for the list's mark read / unread /
- * delete bar.
+ * from others since you last opened it; a pin marks the ones pinned to the front. Tap opens; hold
+ * opens its half sheet (read state, pin, notifications, delete - iOS f90a70a); in Select mode a
+ * tap selects instead (a check on the circle), for the list's mark read / unread / delete bar.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -918,6 +992,7 @@ private fun ChatCirclesStrip(
     }
     val colors = LocalAppColors.current
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val holdHint = stringResource(R.string.chats_circle_hold_for_options)
     androidx.compose.foundation.lazy.LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -939,7 +1014,9 @@ private fun ChatCirclesStrip(
                             haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             onLongPress(item)
                         }),
-                    ),
+                    )
+                    // Its name, then the hint (iOS: label + "Hold for options").
+                    .semantics { contentDescription = "${item.title}. $holdHint" },
             ) {
                 Box(modifier = Modifier.size(60.dp)) {
                     Box(
@@ -1026,6 +1103,169 @@ private fun ChatCircleAvatar(item: ChatCircle) {
             contentAlignment = Alignment.Center,
         ) {
             Text("#", color = KaspaTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/**
+ * A group or room circle's long-press half sheet - the chat row's options for that kind (iOS
+ * f90a70a `circleActionSheet`): read state, pin to the front, notifications, (rooms) the room
+ * link, and delete. A group's delete and a custom room's are confirmed first ([onDeleteGroup] /
+ * [onDeleteRoom]); a default room is only switched off, as in Public Chats settings.
+ */
+@Composable
+private fun ChatCircleActionSheet(
+    id: String,
+    isPinned: Boolean,
+    groupConversations: List<GroupConversation>,
+    listedRooms: List<com.kachat.app.models.BroadcastChannelEntity>,
+    roomSummaries: Map<String, com.kachat.app.repository.BroadcastRepository.RoomSummary>,
+    chatViewModel: ChatViewModel,
+    broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel,
+    onDismiss: () -> Unit,
+    onTogglePin: () -> Unit,
+    onDeleteGroup: (String) -> Unit,
+    onDeleteRoom: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val silentGroups by chatViewModel.groupSilent.collectAsState()
+    fun toast(text: String) = android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+
+    @Composable
+    fun PinRow() {
+        ActionSheetRow(
+            icon = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+            title = stringResource(if (isPinned) R.string.chats_circle_unpin else R.string.chats_circle_pin_to_front),
+            subtitle = stringResource(if (isPinned) R.string.chats_circle_unpin_hint else R.string.chats_circle_pin_hint),
+        ) {
+            onDismiss()
+            onTogglePin()
+        }
+    }
+
+    if (id.startsWith("g:")) {
+        val convo = groupConversations.firstOrNull { "g:${it.group.groupId}" == id } ?: return
+        val groupId = convo.group.groupId
+        val isSilent = groupId in silentGroups
+        ActionSheetContainer(title = convo.group.name, subtitle = null, onDismiss = onDismiss) {
+            if (convo.unreadCount > 0) {
+                ActionSheetRow(
+                    icon = Icons.Default.MarkEmailRead,
+                    title = stringResource(R.string.mark_as_read),
+                    subtitle = "Clears the unread badge on this group.",
+                ) {
+                    onDismiss()
+                    chatViewModel.markGroupsAsRead(listOf(groupId))
+                }
+            } else {
+                ActionSheetRow(
+                    icon = Icons.Default.MarkEmailUnread,
+                    title = stringResource(R.string.mark_as_unread),
+                    subtitle = "Puts the unread badge back so you come across it again.",
+                ) {
+                    onDismiss()
+                    chatViewModel.markGroupsAsUnread(listOf(groupId))
+                }
+            }
+            PinRow()
+            ActionSheetRow(
+                icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                title = if (isSilent) "Unsilence" else "Silence",
+                subtitle = if (isSilent) {
+                    "Notifications from this group resume, including mentions."
+                } else {
+                    "No notification from this group, mentions included."
+                },
+            ) {
+                onDismiss()
+                chatViewModel.setGroupSilent(groupId, !isSilent)
+            }
+            ActionSheetRow(
+                icon = Icons.Default.Delete,
+                title = stringResource(R.string.delete),
+                subtitle = "Removes this group and its messages from this device.",
+                tint = LocalAppColors.current.danger,
+            ) {
+                onDismiss()
+                onDeleteGroup(groupId)
+            }
+        }
+    } else if (id.startsWith("r:")) {
+        val name = id.removePrefix("r:")
+        val channel = listedRooms.firstOrNull { it.channelName == name }
+        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
+        val notifyOn = channel?.notifyEnabled == true
+        ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = onDismiss) {
+            if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
+                ActionSheetRow(
+                    icon = Icons.Default.MarkEmailRead,
+                    title = stringResource(R.string.mark_as_read),
+                    subtitle = "Clears the unread badge on this room.",
+                ) {
+                    onDismiss()
+                    broadcastViewModel.markRoomRead(name)
+                }
+            } else {
+                ActionSheetRow(
+                    icon = Icons.Default.MarkEmailUnread,
+                    title = stringResource(R.string.mark_as_unread),
+                    subtitle = "Puts the unread badge back so you come across it again.",
+                ) {
+                    onDismiss()
+                    broadcastViewModel.markRoomUnread(name)
+                }
+            }
+            PinRow()
+            ActionSheetRow(
+                icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
+                subtitle = when {
+                    notifyOn -> "No notification for new messages in this room."
+                    isCurated -> "Notifies you of new messages, even when the app is closed."
+                    else -> "Notifies you of new messages while the app is open."
+                },
+            ) {
+                onDismiss()
+                broadcastViewModel.setNotifyEnabledEnsuringJoined(name, !notifyOn)
+                toast(
+                    when {
+                        notifyOn -> "Notifications are off for this public chat"
+                        isCurated -> "You'll get notifications for new messages in this public chat, even when the app is closed"
+                        else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
+                    }
+                )
+            }
+            ActionSheetRow(
+                icon = Icons.Default.Link,
+                title = "Copy Room Link",
+                subtitle = "A kachat.app link that opens this room.",
+            ) {
+                onDismiss()
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
+                toast("Room link copied")
+            }
+            if (isCurated) {
+                ActionSheetRow(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.delete),
+                    subtitle = stringResource(R.string.default_room_delete_subtitle),
+                    tint = LocalAppColors.current.danger,
+                ) {
+                    onDismiss()
+                    broadcastViewModel.removeFromList(name)
+                }
+            } else if (channel != null) {
+                ActionSheetRow(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.delete),
+                    subtitle = "Removes this room and its messages from this device.",
+                    tint = LocalAppColors.current.danger,
+                ) {
+                    onDismiss()
+                    onDeleteRoom(name)
+                }
+            }
         }
     }
 }

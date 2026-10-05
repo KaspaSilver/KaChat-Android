@@ -955,4 +955,11 @@
     <string name="chats_send_kaspa">发送 Kaspa</string>
     <string name="chats_send_kaspa_hint">从你的支出地址发送 Kaspa。</string>
     <string name="spending_address_unlocking">支出地址正在解锁，请返回后重试。</string>
+    <!-- Chats circle half sheet (iOS f90a70a) -->
+    <string name="chats_circle_pin_to_front">置顶</string>
+    <string name="chats_circle_unpin">取消置顶</string>
+    <string name="chats_circle_unpin_hint">按最近活动回到原来的位置。</string>
+    <string name="chats_circle_pin_hint">在聊天上方的一行中保持在最前。</string>
+    <string name="chats_circle_hold_for_options">长按查看选项</string>
+    <string name="delete_room_title">删除聊天室？</string>
 </resources>

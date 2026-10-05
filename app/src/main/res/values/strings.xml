@@ -1122,4 +1122,11 @@
     <string name="chats_send_kaspa">Send Kaspa</string>
     <string name="chats_send_kaspa_hint">Send Kaspa from your spending address.</string>
     <string name="spending_address_unlocking">Spending address is unlocking — go back and try again.</string>
+    <!-- Chats circle half sheet (iOS f90a70a) -->
+    <string name="chats_circle_pin_to_front">Pin to Front</string>
+    <string name="chats_circle_unpin">Unpin</string>
+    <string name="chats_circle_unpin_hint">Goes back to its place by latest activity.</string>
+    <string name="chats_circle_pin_hint">Keeps it first in the row above your chats.</string>
+    <string name="chats_circle_hold_for_options">Hold for options</string>
+    <string name="delete_room_title">Delete Room?</string>
 </resources>

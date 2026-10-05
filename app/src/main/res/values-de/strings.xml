@@ -955,4 +955,11 @@
     <string name="chats_send_kaspa">Kaspa senden</string>
     <string name="chats_send_kaspa_hint">Kaspa von deiner Ausgabeadresse senden.</string>
     <string name="spending_address_unlocking">Die Ausgabeadresse wird entsperrt – geh zurück und versuch es erneut.</string>
+    <!-- Chats circle half sheet (iOS f90a70a) -->
+    <string name="chats_circle_pin_to_front">Nach vorne anheften</string>
+    <string name="chats_circle_unpin">Loslösen</string>
+    <string name="chats_circle_unpin_hint">Kehrt an seinen Platz nach letzter Aktivität zurück.</string>
+    <string name="chats_circle_pin_hint">Bleibt an erster Stelle in der Reihe über deinen Chats.</string>
+    <string name="chats_circle_hold_for_options">Für Optionen halten</string>
+    <string name="delete_room_title">Raum löschen?</string>
 </resources>

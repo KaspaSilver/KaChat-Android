@@ -955,4 +955,11 @@
     <string name="chats_send_kaspa">Kaspa 보내기</string>
     <string name="chats_send_kaspa_hint">지출 주소에서 Kaspa를 보냅니다.</string>
     <string name="spending_address_unlocking">지출 주소 잠금을 해제하는 중입니다. 뒤로 가서 다시 시도하세요.</string>
+    <!-- Chats circle half sheet (iOS f90a70a) -->
+    <string name="chats_circle_pin_to_front">맨 앞에 고정</string>
+    <string name="chats_circle_unpin">고정 해제</string>
+    <string name="chats_circle_unpin_hint">최근 활동 순서의 원래 자리로 돌아갑니다.</string>
+    <string name="chats_circle_pin_hint">채팅 위 줄의 맨 앞에 유지됩니다.</string>
+    <string name="chats_circle_hold_for_options">길게 눌러 옵션 보기</string>
+    <string name="delete_room_title">방을 삭제할까요?</string>
 </resources>
