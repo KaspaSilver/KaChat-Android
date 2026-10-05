@@ -97,7 +97,6 @@
     <string name="generate_account">Gerar conta</string>
     <string name="grant_permission">Conceder permissao</string>
     <string name="grant_permission_2">Conceder permissao</string>
-    <string name="group_chats">Chats em grupo</string>
     <string name="group_info">Info do grupo</string>
     <string name="group_name_2">Nome do grupo</string>
     <string name="hidden_addresses">Enderecos ocultos</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">Nomear este endereco</string>
     <string name="next">Proximo</string>
     <string name="no_conversations_yet">Ainda não há conversas</string>
-    <string name="no_group_chats_yet">Ainda nenhum chat em grupo</string>
     <string name="no_matching_chats">Nenhum chat correspondente</string>
-    <string name="no_matching_groups">Nenhum grupo correspondente</string>
     <string name="no_cold_storage_accounts_yet_scan">Ainda nenhuma conta de armazenamento a frio. Escaneie uma kpub exportada do seu dispositivo KasSigner para observar seu saldo e enviar a partir dela.</string>
     <string name="no_domains_yet">Ainda não há domínios.</string>
     <string name="no_hidden_addresses">Nenhum endereco oculto.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Comprimento da seed phrase</string>
     <string name="select_time">Selecionar hora</string>
     <string name="select_chat">Selecionar chat</string>
-    <string name="select_group">Selecionar grupo</string>
     <string name="send">Enviar</string>
     <string name="send_all_kaspa_to_primary_spend">Enviar todo o Kaspa para o endereco de gasto principal</string>
     <string name="send_from_cold_storage">Enviar do armazenamento a frio</string>
@@ -240,7 +236,6 @@
     <string name="skip">Pular</string>
     <string name="some_changes_failed_to_save">Algumas alteracoes nao puderam ser salvas:</string>
     <string name="spending_kaspa_on_kachat_will_come">Gastar Kaspa no KaChat sera feito apenas a partir deste endereco a partir de agora. Qualquer Kaspa ainda no seu endereco de gasto atual sera enviado automaticamente para este novo.</string>
-    <string name="start_a_group_from_the_add">Inicie um grupo pelo botao de adicionar chat</string>
     <string name="start_a_new_chat_by_adding">Inicie um novo chat adicionando um contato</string>
     <string name="status">Status</string>
     <string name="still_indexing_it_ll_show_up">Ainda indexando. Aparecera acima em breve.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">Enviar de</string>
     <string name="send_from_hint">Escolha de qual endereço de gastos enviar</string>
     <string name="primary">Primario</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">Fixado no início</string>
+    <string name="chats_unpinned">Desafixado</string>
 </resources>

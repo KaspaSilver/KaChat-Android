@@ -97,7 +97,6 @@
     <string name="generate_account">Konto generieren</string>
     <string name="grant_permission">Berechtigung erteilen</string>
     <string name="grant_permission_2">Berechtigung erteilen</string>
-    <string name="group_chats">Gruppenchats</string>
     <string name="group_info">Gruppeninfo</string>
     <string name="group_name_2">Gruppenname</string>
     <string name="hidden_addresses">Versteckte Adressen</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">Diese Adresse benennen</string>
     <string name="next">Weiter</string>
     <string name="no_conversations_yet">Noch keine Unterhaltungen</string>
-    <string name="no_group_chats_yet">Noch keine Gruppenchats</string>
     <string name="no_matching_chats">Keine passenden Chats</string>
-    <string name="no_matching_groups">Keine passenden Gruppen</string>
     <string name="no_cold_storage_accounts_yet_scan">Noch keine Kaltlagerungskonten. Scanne eine kpub, die von deinem KasSigner-Gerät exportiert wurde, um ihr Guthaben zu beobachten und von ihr zu senden.</string>
     <string name="no_domains_yet">Noch keine Domains.</string>
     <string name="no_hidden_addresses">Keine versteckten Adressen.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Seed Phrase Länge</string>
     <string name="select_time">Zeit auswählen</string>
     <string name="select_chat">Chat auswählen</string>
-    <string name="select_group">Gruppe auswählen</string>
     <string name="send">Senden</string>
     <string name="send_all_kaspa_to_primary_spend">Alles Kaspa an die primäre Ausgabeadresse senden</string>
     <string name="send_from_cold_storage">Aus der Kaltlagerung senden</string>
@@ -240,7 +236,6 @@
     <string name="skip">Überspringen</string>
     <string name="some_changes_failed_to_save">Einige Änderungen konnten nicht gespeichert werden:</string>
     <string name="spending_kaspa_on_kachat_will_come">Das Ausgeben von Kaspa in KaChat erfolgt ab jetzt nur noch von dieser Adresse. Jegliches Kaspa, das noch auf deiner aktuellen Ausgabeadresse liegt, muss zuerst hierher transferiert werden.</string>
-    <string name="start_a_group_from_the_add">Starte eine Gruppe über die Schaltfläche zum Hinzufügen eines Chats</string>
     <string name="start_a_new_chat_by_adding">Starte einen neuen Chat, indem du einen Kontakt hinzufügst</string>
     <string name="status">Status</string>
     <string name="still_indexing_it_ll_show_up">Wird noch indiziert. Erscheint in Kürze oben.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">Senden von</string>
     <string name="send_from_hint">Wähle, von welcher Ausgabeadresse gesendet wird</string>
     <string name="primary">Primär</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">Nach vorne angeheftet</string>
+    <string name="chats_unpinned">Losgelöst</string>
 </resources>

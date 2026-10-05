@@ -97,7 +97,6 @@
     <string name="generate_account">계정 생성</string>
     <string name="grant_permission">권한 부여</string>
     <string name="grant_permission_2">권한 부여</string>
-    <string name="group_chats">그룹 채팅</string>
     <string name="group_info">그룹 정보</string>
     <string name="group_name_2">그룹 이름</string>
     <string name="hidden_addresses">숨겨진 주소</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">이 주소 이름 지정</string>
     <string name="next">다음</string>
     <string name="no_conversations_yet">아직 대화가 없습니다</string>
-    <string name="no_group_chats_yet">아직 그룹 채팅 없음</string>
     <string name="no_matching_chats">일치하는 채팅 없음</string>
-    <string name="no_matching_groups">일치하는 그룹 없음</string>
     <string name="no_cold_storage_accounts_yet_scan">아직 콜드 스토리지 계정이 없습니다. 잔액을 관찰하고 그곳에서 보내려면 KasSigner 기기에서 내보낸 kpub를 스캔하세요.</string>
     <string name="no_domains_yet">아직 도메인이 없습니다.</string>
     <string name="no_hidden_addresses">숨겨진 주소가 없습니다.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Seed Phrase 길이</string>
     <string name="select_time">시간 선택</string>
     <string name="select_chat">채팅 선택</string>
-    <string name="select_group">그룹 선택</string>
     <string name="send">보내기</string>
     <string name="send_all_kaspa_to_primary_spend">모든 Kaspa를 기본 지출 주소로 보내기</string>
     <string name="send_from_cold_storage">콜드 스토리지에서 보내기</string>
@@ -240,7 +236,6 @@
     <string name="skip">건너뛰기</string>
     <string name="some_changes_failed_to_save">일부 변경 사항을 저장하지 못했습니다:</string>
     <string name="spending_kaspa_on_kachat_will_come">이제부터 KaChat에서 Kaspa 지출은 이 주소에서만 이루어집니다. 현재 지출 주소에 남아 있는 Kaspa는 자동으로 이 새 주소로 전송됩니다.</string>
-    <string name="start_a_group_from_the_add">채팅 추가 버튼으로 그룹 시작</string>
     <string name="start_a_new_chat_by_adding">연락처를 추가해 새 채팅을 시작하세요</string>
     <string name="status">상태</string>
     <string name="still_indexing_it_ll_show_up">아직 색인 중입니다. 곧 위에 표시됩니다.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">보내는 주소</string>
     <string name="send_from_hint">보낼 지출 주소를 선택합니다</string>
     <string name="primary">기본</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">맨 앞에 고정됨</string>
+    <string name="chats_unpinned">고정 해제됨</string>
 </resources>

@@ -107,7 +107,6 @@
     <string name="network_fee">Biaya Jaringan</string>
     <string name="next">Berikutnya</string>
     <string name="no_conversations_yet">Belum Ada Percakapan</string>
-    <string name="no_group_chats_yet">Belum Ada Obrolan Grup</string>
     <string name="no_domains_yet">Belum ada domain.</string>
     <string name="asset_id">ID Aset</string>
     <string name="primary">Utama</string>
@@ -813,4 +812,7 @@
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Kirim Dari</string>
     <string name="send_from_hint">Pilih alamat pengeluaran untuk mengirim</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">Disematkan di depan</string>
+    <string name="chats_unpinned">Sematan dilepas</string>
 </resources>

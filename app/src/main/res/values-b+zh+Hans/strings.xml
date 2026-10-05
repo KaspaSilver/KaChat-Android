@@ -97,7 +97,6 @@
     <string name="generate_account">生成账户</string>
     <string name="grant_permission">授予权限</string>
     <string name="grant_permission_2">授予权限</string>
-    <string name="group_chats">群聊</string>
     <string name="group_info">群组信息</string>
     <string name="group_name_2">群组名称</string>
     <string name="hidden_addresses">隐藏的地址</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">为此地址命名</string>
     <string name="next">下一步</string>
     <string name="no_conversations_yet">暂无会话</string>
-    <string name="no_group_chats_yet">暂无群聊</string>
     <string name="no_matching_chats">没有匹配的聊天</string>
-    <string name="no_matching_groups">没有匹配的群组</string>
     <string name="no_cold_storage_accounts_yet_scan">尚无冷存储账户。扫描从您的 KasSigner 设备导出的 kpub 以监控其余额并从中发送。</string>
     <string name="no_domains_yet">还没有域名。</string>
     <string name="no_hidden_addresses">没有隐藏的地址。</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Seed Phrase 长度</string>
     <string name="select_time">选择时间</string>
     <string name="select_chat">选择聊天</string>
-    <string name="select_group">选择群组</string>
     <string name="send">发送</string>
     <string name="send_all_kaspa_to_primary_spend">将所有 Kaspa 发送到主消费地址</string>
     <string name="send_from_cold_storage">从冷存储发送</string>
@@ -240,7 +236,6 @@
     <string name="skip">跳过</string>
     <string name="some_changes_failed_to_save">部分更改未能保存:</string>
     <string name="spending_kaspa_on_kachat_will_come">从现在起,在 KaChat 上花费 Kaspa 将仅来自此地址。您当前消费地址上仍然存在的任何 Kaspa 都将自动发送到这个新地址。</string>
-    <string name="start_a_group_from_the_add">通过添加聊天按钮开始一个群组</string>
     <string name="start_a_new_chat_by_adding">添加联系人以开始新聊天</string>
     <string name="status">状态</string>
     <string name="still_indexing_it_ll_show_up">仍在索引中。稍后将显示在上方。</string>
@@ -953,4 +948,7 @@
     <string name="send_from">发送自</string>
     <string name="send_from_hint">选择从哪个支出地址发送</string>
     <string name="primary">主节点</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">已置顶</string>
+    <string name="chats_unpinned">已取消置顶</string>
 </resources>

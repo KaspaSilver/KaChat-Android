@@ -413,6 +413,23 @@ class AppSettingsRepository @Inject constructor(
     fun kapostsBlocked(walletAddress: String): Flow<Set<String>> =
         dataStore.data.map { it[kapostsBlockedKey(walletAddress)] ?: emptySet() }
 
+    /**
+     * The group chats and public rooms pinned to the front of the Chats circles row, newest pin
+     * first - ids "g:<groupId>" / "r:<room>", saved per wallet like iOS's
+     * `kachat_chat_circle_pins_<address>` (a062577). Order matters, so it is one newline-joined
+     * string rather than a string set; neither a group id nor a room name can hold a newline.
+     */
+    private fun chatCirclePinsKey(walletAddress: String) =
+        stringPreferencesKey("kachat_chat_circle_pins_${walletAddress.lowercase()}")
+
+    fun chatCirclePins(walletAddress: String): Flow<List<String>> =
+        dataStore.data.map { prefs ->
+            prefs[chatCirclePinsKey(walletAddress)]?.split('\n')?.filter { it.isNotEmpty() } ?: emptyList()
+        }
+
+    suspend fun setChatCirclePins(walletAddress: String, pins: List<String>) =
+        dataStore.edit { it[chatCirclePinsKey(walletAddress)] = pins.joinToString("\n") }
+
     /** Adopts the pre-scoping mute/block lists for [walletAddress] when this device has only
      *  that one account and no scoped lists exist yet; otherwise leaves everything as it is.
      *  Idempotent: the legacy keys are removed once adopted. */

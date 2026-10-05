@@ -336,11 +336,6 @@ class BroadcastViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    /** Everything unread across the rooms - the Public Chats tab's badge. */
-    val totalUnreadRooms: StateFlow<Int> = roomSummaries
-        .map { summaries -> summaries.values.sumOf { it.unreadCount } }
-        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
     /**
      * The rooms the Public Chats list shows, in its order: the two Popular rooms on top, then every
      * other joined room by latest activity. Default rooms switched off in settings are left out.

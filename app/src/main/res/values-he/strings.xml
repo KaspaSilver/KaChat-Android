@@ -97,7 +97,6 @@
     <string name="generate_account">צור חשבון</string>
     <string name="grant_permission">הענק הרשאה</string>
     <string name="grant_permission_2">הענק הרשאה</string>
-    <string name="group_chats">צ\'אטים קבוצתיים</string>
     <string name="group_info">מידע על הקבוצה</string>
     <string name="group_name_2">שם הקבוצה</string>
     <string name="hidden_addresses">כתובות מוסתרות</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">תן שם לכתובת זו</string>
     <string name="next">הבא</string>
     <string name="no_conversations_yet">עדיין אין שיחות</string>
-    <string name="no_group_chats_yet">אין עדיין צ\'אטים קבוצתיים</string>
     <string name="no_matching_chats">אין צ\'אטים תואמים</string>
-    <string name="no_matching_groups">אין קבוצות תואמות</string>
     <string name="no_cold_storage_accounts_yet_scan">אין עדיין חשבונות אחסון קר. סרוק kpub שיוצא מהמכשיר KasSigner שלך כדי לעקוב אחר היתרה שלו ולשלוח ממנו.</string>
     <string name="no_domains_yet">עדיין אין דומיינים.</string>
     <string name="no_hidden_addresses">אין כתובות מוסתרות.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">אורך Seed Phrase</string>
     <string name="select_time">בחר שעה</string>
     <string name="select_chat">בחר צ\'אט</string>
-    <string name="select_group">בחר קבוצה</string>
     <string name="send">שלח</string>
     <string name="send_all_kaspa_to_primary_spend">שלח את כל הקספה לכתובת ההוצאה הראשית</string>
     <string name="send_from_cold_storage">שלח מאחסון קר</string>
@@ -240,7 +236,6 @@
     <string name="skip">דלג</string>
     <string name="some_changes_failed_to_save">חלק מהשינויים לא נשמרו:</string>
     <string name="spending_kaspa_on_kachat_will_come">הוצאת קספה ב-KaChat תגיע רק מכתובת זו מעכשיו. כל קספה שנותרה בכתובת ההוצאה הנוכחית שלך תישלח אוטומטית לכתובת החדשה הזו.</string>
-    <string name="start_a_group_from_the_add">התחל קבוצה מכפתור הוספת צ\'אט</string>
     <string name="start_a_new_chat_by_adding">התחל צ\'אט חדש על ידי הוספת איש קשר</string>
     <string name="status">מצב</string>
     <string name="still_indexing_it_ll_show_up">עדיין באינדוקס. יופיע למעלה בקרוב.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">שליחה מ-</string>
     <string name="send_from_hint">בחרו מאיזו כתובת הוצאה לשלוח</string>
     <string name="primary">ראשי</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">הוצמד להתחלה</string>
+    <string name="chats_unpinned">ההצמדה בוטלה</string>
 </resources>

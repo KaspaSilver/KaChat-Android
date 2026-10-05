@@ -97,7 +97,6 @@
     <string name="generate_account">Genera account</string>
     <string name="grant_permission">Concedi permesso</string>
     <string name="grant_permission_2">Concedi permesso</string>
-    <string name="group_chats">Chat di gruppo</string>
     <string name="group_info">Info gruppo</string>
     <string name="group_name_2">Nome gruppo</string>
     <string name="hidden_addresses">Indirizzi nascosti</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">Assegna un nome a questo indirizzo</string>
     <string name="next">Avanti</string>
     <string name="no_conversations_yet">Nessuna conversazione per ora</string>
-    <string name="no_group_chats_yet">Ancora nessuna chat di gruppo</string>
     <string name="no_matching_chats">Nessuna chat corrispondente</string>
-    <string name="no_matching_groups">Nessun gruppo corrispondente</string>
     <string name="no_cold_storage_accounts_yet_scan">Ancora nessun account cold storage. Scansiona una kpub esportata dal tuo dispositivo KasSigner per monitorarne il saldo e inviare da esso.</string>
     <string name="no_domains_yet">Nessun dominio ancora.</string>
     <string name="no_hidden_addresses">Nessun indirizzo nascosto.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Lunghezza seed phrase</string>
     <string name="select_time">Seleziona ora</string>
     <string name="select_chat">Seleziona chat</string>
-    <string name="select_group">Seleziona gruppo</string>
     <string name="send">Invia</string>
     <string name="send_all_kaspa_to_primary_spend">Invia tutto il Kaspa all\'indirizzo di spesa principale</string>
     <string name="send_from_cold_storage">Invia da cold storage</string>
@@ -240,7 +236,6 @@
     <string name="skip">Salta</string>
     <string name="some_changes_failed_to_save">Alcune modifiche non sono state salvate:</string>
     <string name="spending_kaspa_on_kachat_will_come">Spendere Kaspa su KaChat provverra solo da questo indirizzo d\'ora in poi. Qualsiasi Kaspa ancora presente sul tuo indirizzo di spesa attuale verra inviato automaticamente a questo nuovo indirizzo.</string>
-    <string name="start_a_group_from_the_add">Avvia un gruppo dal pulsante per aggiungere chat</string>
     <string name="start_a_new_chat_by_adding">Avvia una nuova chat aggiungendo un contatto</string>
     <string name="status">Stato</string>
     <string name="still_indexing_it_ll_show_up">Ancora in fase di indicizzazione. Apparira sopra a breve.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">Invia da</string>
     <string name="send_from_hint">Scegli da quale indirizzo di spesa inviare</string>
     <string name="primary">Primario</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">Fissato in cima</string>
+    <string name="chats_unpinned">Sbloccato</string>
 </resources>

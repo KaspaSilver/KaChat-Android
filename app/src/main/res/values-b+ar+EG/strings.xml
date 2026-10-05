@@ -97,7 +97,6 @@
     <string name="generate_account">إنشاء حساب</string>
     <string name="grant_permission">منح الإذن</string>
     <string name="grant_permission_2">منح الإذن</string>
-    <string name="group_chats">دردشات جماعية</string>
     <string name="group_info">معلومات المجموعة</string>
     <string name="group_name_2">اسم المجموعة</string>
     <string name="hidden_addresses">العناوين المخفية</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">تسمية هذا العنوان</string>
     <string name="next">التالي</string>
     <string name="no_conversations_yet">مفيش محادثات لسه</string>
-    <string name="no_group_chats_yet">لا توجد دردشات جماعية بعد</string>
     <string name="no_matching_chats">لا توجد دردشات مطابقة</string>
-    <string name="no_matching_groups">لا توجد مجموعات مطابقة</string>
     <string name="no_cold_storage_accounts_yet_scan">لا توجد حسابات تخزين بارد بعد. امسح ضوئيًا kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده والإرسال منه.</string>
     <string name="no_domains_yet">لا توجد مجالات حتى الآن.</string>
     <string name="no_hidden_addresses">لا توجد عناوين مخفية.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">طول Seed Phrase</string>
     <string name="select_time">اختيار الوقت</string>
     <string name="select_chat">اختيار الدردشة</string>
-    <string name="select_group">اختيار المجموعة</string>
     <string name="send">إرسال</string>
     <string name="send_all_kaspa_to_primary_spend">إرسال كل الكاسبا إلى عنوان الإنفاق الرئيسي</string>
     <string name="send_from_cold_storage">إرسال من التخزين البارد</string>
@@ -240,7 +236,6 @@
     <string name="skip">تخطي</string>
     <string name="some_changes_failed_to_save">فشل حفظ بعض التغييرات:</string>
     <string name="spending_kaspa_on_kachat_will_come">سيتم إنفاق كاسبا في KaChat من هذا العنوان فقط من الآن فصاعدًا. أي كاسبا لا تزال في عنوان الإنفاق الحالي سيتم إرسالها تلقائيًا إلى هذا العنوان الجديد.</string>
-    <string name="start_a_group_from_the_add">ابدأ مجموعة من زر إضافة دردشة</string>
     <string name="start_a_new_chat_by_adding">ابدأ شات جديد بإضافة جهة اتصال</string>
     <string name="status">الحالة</string>
     <string name="still_indexing_it_ll_show_up">لا يزال قيد الفهرسة. سيظهر أعلاه قريبًا.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">ابعت من</string>
     <string name="send_from_hint">اختار عنوان الصرف اللي هتبعت منه</string>
     <string name="primary">أساسي</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">اتثبت في الأول</string>
+    <string name="chats_unpinned">اتشال التثبيت</string>
 </resources>

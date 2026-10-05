@@ -565,12 +565,12 @@ fun MainShell(
     }
 
     // A group notification that names no local group (a "you were added" push, or a group push
-    // this device could not resolve or ingest): the Group Chats list, which is where the new
-    // group appears once the next sync lands. Better than a group_chat/<blinded id> route that
+    // this device could not resolve or ingest): the Chats list, whose circles row is where the
+    // new group appears once the next sync lands - as specific as that tap can get now the Group
+    // Chats page is gone (iOS a062577). Better than a group_chat/<blinded id> route that
     // resolves to an empty, unusable thread.
     LaunchedEffect(pendingOpenGroups) {
         if (pendingOpenGroups) {
-            ChatsTabIntake.pendingGroupsTab.value = true
             navController.popBackStack(Screen.Chats.route, false)
             onPendingOpenGroupsHandled()
         }

@@ -848,19 +848,20 @@ class ChatViewModel @Inject constructor(
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
     /**
-     * Pull-to-refresh on the Chats tab. The wheel waits for the 1:1 fetch alone - what the list
-     * shows - exactly as iOS's `.refreshable` awaits only `fetchNewMessages()`. It used to wait for
-     * that, then a full group sync, then the balance, one after another: the group sync is every
-     * member of every group, up to 40 pages each, each request allowed 30 s, so on a wallet with a
-     * few groups the wheel spun for minutes and looked stuck for good.
+     * Pull-to-refresh on the Chats list, which is one list now - the chats, with the group chats
+     * and public rooms as circles above them - so the wheel waits for both the 1:1 fetch and the
+     * group catch-up, side by side, as iOS's `.refreshable` awaits `fetchNewMessages()` and
+     * `performCatchUpSync()` together (a062577). The pages it replaced each had their own pull.
+     * The rooms need no pull: their rows follow the database.
      *
-     * The group catch-up and the balance still run, alongside, without holding the wheel - group
-     * invites (gctl_root) otherwise only surface via the 15-min SyncWorker or the live delivery, and
-     * "just got invited, opened the app to check" should work. They go through runGroupCatchUp, so
-     * repeated pulls queue rather than pile up full syncs side by side.
+     * The catch-up goes through runGroupCatchUp, so repeated pulls queue rather than pile up full
+     * syncs side by side, and group invites (gctl_root) surface on a pull instead of only via the
+     * 15-min SyncWorker or the live delivery. The balance refreshes alongside without holding the
+     * wheel.
      *
-     * And the wheel stops after [REFRESH_SPINNER_CAP_MS] whatever happens: the fetch keeps going
-     * and its rows still land, but a slow node or indexer cannot pin the control on screen.
+     * And the wheel stops after [REFRESH_SPINNER_CAP_MS] whatever happens: the fetches keep going
+     * and their rows still land, but a slow node or indexer cannot pin the control on screen -
+     * the group sync is every member of every group, up to 40 pages each.
      */
     fun refreshChats() {
         if (_isRefreshing.value) return
@@ -875,35 +876,20 @@ class ChatViewModel @Inject constructor(
                     Log.e("ChatViewModel", "Error refreshing chats", e)
                 }
             }
-            launch {
-                runCatching { groupRepository.runGroupCatchUp() }
-                    .onFailure { Log.w("ChatViewModel", "Group catch-up after a pull failed", it) }
-                runCatching { walletService.refreshBalance() }
-            }
-            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) { fetch.join() }
-            _isRefreshing.value = false
-        }
-    }
-
-    /**
-     * Pull-to-refresh on the Group Chats tab: groups only, not the 1:1 sync and the balance the
-     * Chats tab's refresh also does. Pulling on a list of groups should ask about groups - and,
-     * as on iOS, the wheel waits for that catch-up, up to the same cap.
-     */
-    fun refreshGroups() {
-        if (_isRefreshing.value) return
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            val sync = launch {
+            val groups = launch {
                 try {
                     groupRepository.runGroupCatchUp()
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.e("ChatViewModel", "Error refreshing groups", e)
+                    Log.w("ChatViewModel", "Group catch-up after a pull failed", e)
                 }
             }
-            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) { sync.join() }
+            launch { runCatching { walletService.refreshBalance() } }
+            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) {
+                fetch.join()
+                groups.join()
+            }
             _isRefreshing.value = false
         }
     }
@@ -1822,6 +1808,20 @@ class ChatViewModel @Inject constructor(
 
     fun setGroupSilent(groupId: String, enabled: Boolean) {
         viewModelScope.launch { settings.setGroupSilent(groupId, enabled) }
+    }
+
+    /** The Chats circles row's pins for [walletAddress], in order (iOS a062577 `circlePins`). */
+    fun chatCirclePins(walletAddress: String): Flow<List<String>> = settings.chatCirclePins(walletAddress)
+
+    /**
+     * Pins a circle ("g:<groupId>" / "r:<room>") to the front - newest pin first - or unpins it.
+     * Returns whether it is pinned now, for the toast (iOS a062577 `toggleCirclePin`).
+     */
+    suspend fun toggleChatCirclePin(walletAddress: String, id: String): Boolean {
+        val pins = settings.chatCirclePins(walletAddress).first()
+        val pinned = id !in pins
+        settings.setChatCirclePins(walletAddress, if (pinned) listOf(id) + pins else pins - id)
+        return pinned
     }
 
     fun hideGroupMember(groupId: String, address: String) {

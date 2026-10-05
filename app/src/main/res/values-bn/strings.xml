@@ -97,7 +97,6 @@
     <string name="generate_account">অ্যাকাউন্ট জেনারেট করুন</string>
     <string name="grant_permission">অনুমতি দিন</string>
     <string name="grant_permission_2">অনুমতি দিন</string>
-    <string name="group_chats">গ্রুপ চ্যাট</string>
     <string name="group_info">গ্রুপ তথ্য</string>
     <string name="group_name_2">গ্রুপের নাম</string>
     <string name="hidden_addresses">লুকানো ঠিকানা</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">এই ঠিকানার নাম দিন</string>
     <string name="next">পরবর্তী</string>
     <string name="no_conversations_yet">এখনও কোনো কথোপকথন নেই</string>
-    <string name="no_group_chats_yet">এখনও কোনো গ্রুপ চ্যাট নেই</string>
     <string name="no_matching_chats">কোনো মিলযুক্ত চ্যাট নেই</string>
-    <string name="no_matching_groups">কোনো মিলযুক্ত গ্রুপ নেই</string>
     <string name="no_cold_storage_accounts_yet_scan">এখনও কোনো কোল্ড স্টোরেজ অ্যাকাউন্ট নেই। এর ব্যালেন্সের উপর নজর রাখতে এবং সেখান থেকে পাঠাতে আপনার KasSigner ডিভাইস থেকে এক্সপোর্ট করা kpub স্ক্যান করুন।</string>
     <string name="no_domains_yet">এখনো কোনো ডোমেইন নেই।</string>
     <string name="no_hidden_addresses">কোনো লুকানো ঠিকানা নেই।</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Seed Phrase-এর দৈর্ঘ্য</string>
     <string name="select_time">সময় নির্বাচন করুন</string>
     <string name="select_chat">চ্যাট নির্বাচন করুন</string>
-    <string name="select_group">গ্রুপ নির্বাচন করুন</string>
     <string name="send">পাঠান</string>
     <string name="send_all_kaspa_to_primary_spend">সমস্ত কাস্পা প্রধান খরচের ঠিকানায় পাঠান</string>
     <string name="send_from_cold_storage">কোল্ড স্টোরেজ থেকে পাঠান</string>
@@ -240,7 +236,6 @@
     <string name="skip">এড়িয়ে যান</string>
     <string name="some_changes_failed_to_save">কিছু পরিবর্তন সংরক্ষণ করা যায়নি:</string>
     <string name="spending_kaspa_on_kachat_will_come">KaChat-এ কাস্পা খরচ করা এখন থেকে শুধুমাত্র এই ঠিকানা থেকে হবে। আপনার বর্তমান খরচের ঠিকানায় এখনো থাকা যেকোনো কাস্পা স্বয়ংক্রিয়ভাবে এই নতুন ঠিকানায় পাঠানো হবে।</string>
-    <string name="start_a_group_from_the_add">চ্যাট যোগ করুন বোতাম থেকে একটি গ্রুপ শুরু করুন</string>
     <string name="start_a_new_chat_by_adding">নতুন চ্যাট শুরু করতে একটি কন্টাক্ট যোগ করুন</string>
     <string name="status">স্থিতি</string>
     <string name="still_indexing_it_ll_show_up">এখনও ইনডেক্স হচ্ছে। শীঘ্রই উপরে দেখা যাবে।</string>
@@ -953,4 +948,7 @@
     <string name="send_from">যেখান থেকে পাঠাবেন</string>
     <string name="send_from_hint">কোন খরচের ঠিকানা থেকে পাঠাবেন তা বেছে নিন</string>
     <string name="primary">প্রাথমিক</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">সামনে পিন করা হয়েছে</string>
+    <string name="chats_unpinned">পিন সরানো হয়েছে</string>
 </resources>

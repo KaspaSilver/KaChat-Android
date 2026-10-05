@@ -97,7 +97,6 @@
     <string name="generate_account">アカウントを生成</string>
     <string name="grant_permission">許可を付与</string>
     <string name="grant_permission_2">許可を付与</string>
-    <string name="group_chats">グループチャット</string>
     <string name="group_info">グループ情報</string>
     <string name="group_name_2">グループ名</string>
     <string name="hidden_addresses">非表示のアドレス</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">このアドレスに名前を付ける</string>
     <string name="next">次へ</string>
     <string name="no_conversations_yet">まだ会話がありません</string>
-    <string name="no_group_chats_yet">まだグループチャットがありません</string>
     <string name="no_matching_chats">一致するチャットがありません</string>
-    <string name="no_matching_groups">一致するグループがありません</string>
     <string name="no_cold_storage_accounts_yet_scan">まだコールドストレージアカウントがありません。残高を監視してそこから送金するには、KasSignerデバイスからエクスポートされたkpubをスキャンしてください。</string>
     <string name="no_domains_yet">まだドメインがありません。</string>
     <string name="no_hidden_addresses">非表示のアドレスはありません。</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Seed Phraseの長さ</string>
     <string name="select_time">時刻を選択</string>
     <string name="select_chat">チャットを選択</string>
-    <string name="select_group">グループを選択</string>
     <string name="send">送信</string>
     <string name="send_all_kaspa_to_primary_spend">すべてのKaspaをメインの使用アドレスに送信</string>
     <string name="send_from_cold_storage">コールドストレージから送信</string>
@@ -240,7 +236,6 @@
     <string name="skip">スキップ</string>
     <string name="some_changes_failed_to_save">一部の変更を保存できませんでした:</string>
     <string name="spending_kaspa_on_kachat_will_come">KaChatでのKaspaの使用は今後このアドレスからのみ行われます。現在の使用アドレスに残っているKaspaは自動的にこの新しいアドレスに送信されます。</string>
-    <string name="start_a_group_from_the_add">チャット追加ボタンからグループを開始</string>
     <string name="start_a_new_chat_by_adding">連絡先を追加して新しいチャットを始めましょう</string>
     <string name="status">ステータス</string>
     <string name="still_indexing_it_ll_show_up">まだインデックス作成中です。まもなく上に表示されます。</string>
@@ -953,4 +948,7 @@
     <string name="send_from">送信元</string>
     <string name="send_from_hint">送信元の支払い用アドレスを選びます</string>
     <string name="primary">プライマリ</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">先頭に固定しました</string>
+    <string name="chats_unpinned">固定を解除しました</string>
 </resources>

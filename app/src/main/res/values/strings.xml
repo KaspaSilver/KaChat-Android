@@ -193,7 +193,6 @@
     <string name="generate_account">Generate Account</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="grant_permission_2">Grant permission</string>
-    <string name="group_chats">Group Chats</string>
     <string name="group_info">Group Info</string>
     <string name="group_name_2">Group name</string>
     <string name="hidden_addresses">Hidden Addresses</string>
@@ -251,9 +250,7 @@
     <string name="nextcloud">Nextcloud</string>
     <string name="next">Next</string>
     <string name="no_conversations_yet">No Conversations Yet</string>
-    <string name="no_group_chats_yet">No Group Chats Yet</string>
     <string name="no_matching_chats">No Matching Chats</string>
-    <string name="no_matching_groups">No Matching Groups</string>
     <string name="no_cold_storage_accounts_yet_scan">No cold storage accounts yet. Scan a kpub exported from your KasSigner device to watch its balance and send from it.</string>
     <string name="no_domains_yet">No domains yet.</string>
     <string name="send_domain">Send Domain</string>
@@ -340,7 +337,6 @@
     <string name="select_time">Select Time</string>
     <string name="select_all">Select All</string>
     <string name="select_chat">Select chat</string>
-    <string name="select_group">Select group</string>
     <string name="selected">Selected</string>
     <string name="send">Send</string>
     <string name="send_all_kaspa_to_primary_spend">Send All Kaspa To Primary Spend Address</string>
@@ -356,7 +352,6 @@
     <string name="skip">Skip</string>
     <string name="some_changes_failed_to_save">Some changes failed to save:</string>
     <string name="spending_kaspa_on_kachat_will_come">Spending Kaspa on KaChat will come out of this address only now. Any Kaspa still sitting on your current spending address will be sent to this new one automatically.</string>
-    <string name="start_a_group_from_the_add">Start a group from the add-chat button</string>
     <string name="start_a_new_chat_by_adding">Start a new chat by adding a contact</string>
     <string name="status">Status</string>
     <string name="still_indexing_it_ll_show_up">Still indexing. It\'ll show up above shortly.</string>
@@ -574,7 +569,6 @@
     <string name="contacts_call_needs_microphone">KaChat needs the microphone to make a call.</string>
     <string name="contacts_call_contact_missing">That contact is no longer in KaChat.</string>
     <string name="contacts_call_not_enabled">Calls are turned off for this contact in KaChat.</string>
-    <string name="public_chats">Public Chats</string>
     <string name="user_info">User Info</string>
     <string name="share">Share</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
@@ -1121,4 +1115,7 @@
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Send From</string>
     <string name="send_from_hint">Choose which spending address to send from</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">Pinned to the front</string>
+    <string name="chats_unpinned">Unpinned</string>
 </resources>

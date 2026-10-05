@@ -97,7 +97,6 @@
     <string name="generate_account">खाता जनरेट करें</string>
     <string name="grant_permission">अनुमति दें</string>
     <string name="grant_permission_2">अनुमति दें</string>
-    <string name="group_chats">समूह चैट</string>
     <string name="group_info">समूह जानकारी</string>
     <string name="group_name_2">समूह का नाम</string>
     <string name="hidden_addresses">छिपे हुए पते</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">इस पते को नाम दें</string>
     <string name="next">अगला</string>
     <string name="no_conversations_yet">अभी कोई बातचीत नहीं</string>
-    <string name="no_group_chats_yet">अभी तक कोई समूह चैट नहीं</string>
     <string name="no_matching_chats">कोई मेल खाता चैट नहीं</string>
-    <string name="no_matching_groups">कोई मेल खाता समूह नहीं</string>
     <string name="no_cold_storage_accounts_yet_scan">अभी तक कोई कोल्ड स्टोरेज खाता नहीं है। इसके बैलेंस पर नज़र रखने और उससे भेजने के लिए अपने KasSigner डिवाइस से निर्यात किया गया kpub स्कैन करें।</string>
     <string name="no_domains_yet">अभी तक कोई डोमेन नहीं.</string>
     <string name="no_hidden_addresses">कोई छिपा हुआ पता नहीं।</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Seed Phrase की लंबाई</string>
     <string name="select_time">समय चुनें</string>
     <string name="select_chat">चैट चुनें</string>
-    <string name="select_group">समूह चुनें</string>
     <string name="send">भेजें</string>
     <string name="send_all_kaspa_to_primary_spend">सारा कास्पा मुख्य खर्च पते पर भेजें</string>
     <string name="send_from_cold_storage">कोल्ड स्टोरेज से भेजें</string>
@@ -240,7 +236,6 @@
     <string name="skip">छोड़ें</string>
     <string name="some_changes_failed_to_save">कुछ बदलाव सहेजे नहीं जा सके:</string>
     <string name="spending_kaspa_on_kachat_will_come">KaChat पर कास्पा खर्च करना अब केवल इसी पते से होगा। आपके वर्तमान खर्च पते पर अभी भी बचा कोई भी कास्पा स्वचालित रूप से इस नए पते पर भेज दिया जाएगा।</string>
-    <string name="start_a_group_from_the_add">चैट जोड़ें बटन से एक समूह शुरू करें</string>
     <string name="start_a_new_chat_by_adding">नया चैट शुरू करने के लिए एक संपर्क जोड़ें</string>
     <string name="status">स्थिति</string>
     <string name="still_indexing_it_ll_show_up">अभी भी इंडेक्स हो रहा है। यह जल्द ही ऊपर दिखाई देगा।</string>
@@ -953,4 +948,7 @@
     <string name="send_from">यहाँ से भेजें</string>
     <string name="send_from_hint">चुनें कि किस खर्च पते से भेजना है</string>
     <string name="primary">प्राथमिक</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">सबसे आगे पिन किया गया</string>
+    <string name="chats_unpinned">पिन हटाया गया</string>
 </resources>

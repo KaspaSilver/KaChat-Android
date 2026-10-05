@@ -97,7 +97,6 @@
     <string name="generate_account">Tạo tài khoản</string>
     <string name="grant_permission">Cấp quyền</string>
     <string name="grant_permission_2">Cấp quyền</string>
-    <string name="group_chats">Trò chuyện nhóm</string>
     <string name="group_info">Thông tin nhóm</string>
     <string name="group_name_2">Tên nhóm</string>
     <string name="hidden_addresses">Địa chỉ đã ẩn</string>
@@ -149,9 +148,7 @@
     <string name="name_this_address">Đặt tên cho địa chỉ này</string>
     <string name="next">Tiếp theo</string>
     <string name="no_conversations_yet">Chưa có cuộc trò chuyện nào</string>
-    <string name="no_group_chats_yet">Chưa có trò chuyện nhóm nào</string>
     <string name="no_matching_chats">Không có trò chuyện phù hợp</string>
-    <string name="no_matching_groups">Không có nhóm phù hợp</string>
     <string name="no_cold_storage_accounts_yet_scan">Chưa có tài khoản lưu trữ lạnh nào. Quét kpub được xuất từ thiết bị KasSigner của bạn để theo dõi số dư và gửi từ đó.</string>
     <string name="no_domains_yet">Chưa có tên miền nào.</string>
     <string name="no_hidden_addresses">Không có địa chỉ ẩn.</string>
@@ -225,7 +222,6 @@
     <string name="seed_phrase_length">Độ dài seed phrase</string>
     <string name="select_time">Chọn giờ</string>
     <string name="select_chat">Chọn trò chuyện</string>
-    <string name="select_group">Chọn nhóm</string>
     <string name="send">Gửi</string>
     <string name="send_all_kaspa_to_primary_spend">Gửi toàn bộ Kaspa đến địa chỉ chi tiêu chính</string>
     <string name="send_from_cold_storage">Gửi từ lưu trữ lạnh</string>
@@ -240,7 +236,6 @@
     <string name="skip">Bỏ qua</string>
     <string name="some_changes_failed_to_save">Một số thay đổi không thể lưu:</string>
     <string name="spending_kaspa_on_kachat_will_come">Việc chi tiêu Kaspa trên KaChat từ giờ chỉ đến từ địa chỉ này. Bất kỳ Kaspa nào vẫn còn trên địa chỉ chi tiêu hiện tại của bạn sẽ được tự động gửi đến địa chỉ mới này.</string>
-    <string name="start_a_group_from_the_add">Bắt đầu một nhóm từ nút thêm trò chuyện</string>
     <string name="start_a_new_chat_by_adding">Bắt đầu cuộc trò chuyện mới bằng cách thêm liên hệ</string>
     <string name="status">Trạng thái</string>
     <string name="still_indexing_it_ll_show_up">Vẫn đang lập chỉ mục. Sẽ xuất hiện ở trên trong giây lát.</string>
@@ -953,4 +948,7 @@
     <string name="send_from">Gửi từ</string>
     <string name="send_from_hint">Chọn địa chỉ chi tiêu để gửi</string>
     <string name="primary">Chính</string>
+    <!-- Chats circles row (iOS a062577) -->
+    <string name="chats_pinned_to_front">Đã ghim lên đầu</string>
+    <string name="chats_unpinned">Đã bỏ ghim</string>
 </resources>
