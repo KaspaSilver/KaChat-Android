@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">يبقى أولاً في الصف فوق دردشاتك.</string>
     <string name="chats_circle_hold_for_options">اضغط مطولاً للخيارات</string>
     <string name="delete_room_title">حذف الغرفة؟</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">لم يعد هذا العنوان ضمن هذه المحفظة.</string>
 </resources>

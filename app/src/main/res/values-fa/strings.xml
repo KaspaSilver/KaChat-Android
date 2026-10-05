@@ -993,4 +993,6 @@
     <string name="chats_circle_pin_hint">در ردیف بالای گفتگوهایتان اول می‌ماند.</string>
     <string name="chats_circle_hold_for_options">برای گزینه‌ها نگه دارید</string>
     <string name="delete_room_title">اتاق حذف شود؟</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">این آدرس دیگر در این کیف پول نیست.</string>
 </resources>

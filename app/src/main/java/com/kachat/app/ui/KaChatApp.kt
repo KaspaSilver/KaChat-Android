@@ -348,7 +348,9 @@ fun KaChatApp(
     pendingOpenGroups: Boolean = false,
     onPendingOpenGroupsHandled: () -> Unit = {},
     pendingWalletActivityKind: String? = null,
-    onPendingWalletActivityHandled: () -> Unit = {}
+    onPendingWalletActivityHandled: () -> Unit = {},
+    pendingOwnAddress: String? = null,
+    onPendingOwnAddressHandled: () -> Unit = {}
 ) {
     val isLoggedIn by walletViewModel.isLoggedIn.collectAsState()
     val mnemonic by walletViewModel.mnemonic.collectAsState()
@@ -376,7 +378,9 @@ fun KaChatApp(
             pendingOpenGroups = pendingOpenGroups,
             onPendingOpenGroupsHandled = onPendingOpenGroupsHandled,
             pendingWalletActivityKind = pendingWalletActivityKind,
-            onPendingWalletActivityHandled = onPendingWalletActivityHandled
+            onPendingWalletActivityHandled = onPendingWalletActivityHandled,
+            pendingOwnAddress = pendingOwnAddress,
+            onPendingOwnAddressHandled = onPendingOwnAddressHandled
         )
     }
 }
@@ -415,7 +419,9 @@ fun MainShell(
     pendingOpenGroups: Boolean = false,
     onPendingOpenGroupsHandled: () -> Unit = {},
     pendingWalletActivityKind: String? = null,
-    onPendingWalletActivityHandled: () -> Unit = {}
+    onPendingWalletActivityHandled: () -> Unit = {},
+    pendingOwnAddress: String? = null,
+    onPendingOwnAddressHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -588,6 +594,34 @@ fun MainShell(
                 navController.navigate("manage_addresses") { launchSingleTop = true }
             }
             onPendingWalletActivityHandled()
+        }
+    }
+
+    // A "Received" receipt that named one of your addresses: that address's History, in a sheet
+    // over whatever tab is showing (iOS 13046ad). MainActivity holds the address until this shell
+    // exists, so a cold start (still on the loading route when the tap arrived) lands here too -
+    // iOS's OwnAddressRoute.pending.
+    var ownAddressSheet by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingOwnAddress) {
+        val address = pendingOwnAddress
+        if (address != null) {
+            ownAddressSheet = address
+            onPendingOwnAddressHandled()
+        }
+    }
+    ownAddressSheet?.let { address ->
+        // keyed so a second tap on another address resolves afresh rather than reusing the first
+        key(address) {
+            OwnAddressHistorySheet(
+                address = address,
+                walletViewModel = walletViewModel,
+                coldStorageViewModel = { sharedColdStorageViewModel(navController) },
+                onOpenChat = { contact ->
+                    ownAddressSheet = null
+                    navController.navigate("chat/$contact")
+                },
+                onDismiss = { ownAddressSheet = null },
+            )
         }
     }
 
@@ -1912,4 +1946,96 @@ fun MainShell(
         }
         }
     }
+}
+
+/**
+ * One of your own addresses, opened from a tapped "Received" notification on its History tab
+ * (iOS 13046ad `OwnAddressHistorySheet`): the chatting address, a spending address or a
+ * cold-storage address, each on the same screen you'd reach it through (Profile > Chatting
+ * Address, Manage Addresses, Cold Storage), resolved with its balance for the header. Those
+ * screens already open on History and carry their own back control, which closes the sheet here
+ * in place of iOS's Done.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OwnAddressHistorySheet(
+    address: String,
+    walletViewModel: WalletViewModel,
+    coldStorageViewModel: @Composable () -> com.kachat.app.viewmodels.ColdStorageViewModel,
+    onOpenChat: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val coldViewModel = coldStorageViewModel()
+    var resolved by remember { mutableStateOf<OwnAddressResolution?>(null) }
+    LaunchedEffect(address) {
+        resolved = when {
+            walletViewModel.address.value?.equals(address, ignoreCase = true) == true -> OwnAddressResolution.Chatting
+            else -> walletViewModel.resolveOwnSpendingAddress(address)?.let { OwnAddressResolution.Spending(it) }
+                ?: coldViewModel.resolveOwnColdAddress(address)?.let { OwnAddressResolution.Cold(it) }
+                ?: OwnAddressResolution.Unknown
+        }
+    }
+    com.kachat.app.ui.theme.IosSheetColors {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = LocalAppColors.current.background,
+            dragHandle = null,
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                when (val target = resolved) {
+                    OwnAddressResolution.Chatting -> IdentityAddressDetailScreen(
+                        onBack = onDismiss,
+                        viewModel = walletViewModel,
+                        onOpenChat = onOpenChat,
+                    )
+                    is OwnAddressResolution.Spending -> SpendingAddressTxHistoryScreen(
+                        index = target.entry.index,
+                        onBack = onDismiss,
+                        viewModel = walletViewModel,
+                        onOpenChat = onOpenChat,
+                        fallbackEntry = target.entry,
+                    )
+                    is OwnAddressResolution.Cold -> ColdStorageTxHistoryScreen(
+                        address = target.row.address,
+                        onBack = onDismiss,
+                        viewModel = coldViewModel,
+                        onOpenChat = onOpenChat,
+                        resolvedRow = target.row,
+                    )
+                    OwnAddressResolution.Unknown, null -> Column(Modifier.fillMaxSize()) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                            TextButton(onClick = onDismiss) {
+                                Text(
+                                    androidx.compose.ui.res.stringResource(com.kachat.app.R.string.done),
+                                    color = KaspaTeal,
+                                )
+                            }
+                        }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            if (target == null) {
+                                CircularProgressIndicator(color = KaspaTeal)
+                            } else {
+                                Text(
+                                    androidx.compose.ui.res.stringResource(com.kachat.app.R.string.own_address_not_in_wallet),
+                                    color = LocalAppColors.current.textSecondary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(16.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Which of your addresses a "Received" notification named (iOS 13046ad `Resolved`). */
+private sealed interface OwnAddressResolution {
+    data object Chatting : OwnAddressResolution
+    data class Spending(val entry: com.kachat.app.services.WalletService.SpendingAddressEntry) : OwnAddressResolution
+    data class Cold(val row: com.kachat.app.viewmodels.ColdStorageViewModel.AddressRow) : OwnAddressResolution
+    data object Unknown : OwnAddressResolution
 }

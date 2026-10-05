@@ -76,6 +76,10 @@ class MainActivity : AppCompatActivity() {
     private var pendingOpenGroups by mutableStateOf(false)
     // "cold" / "spending" — which wallet screen an address-activity receipt tap opens.
     private var pendingWalletActivityKind by mutableStateOf<String?>(null)
+    // The one own address a "Received" receipt named: its History opens in a sheet (iOS 13046ad).
+    // Held here until the shell is up and takes it, which is what covers a cold start (iOS's
+    // OwnAddressRoute.pending).
+    private var pendingOwnAddress by mutableStateOf<String?>(null)
 
     // Android 13+ requires an explicit runtime grant before ANY notification (local or FCM push)
     // can be shown. Registered here (during construction, as required) and requested in onCreate.
@@ -195,7 +199,9 @@ class MainActivity : AppCompatActivity() {
                         pendingOpenGroups = pendingOpenGroups,
                         onPendingOpenGroupsHandled = { pendingOpenGroups = false },
                         pendingWalletActivityKind = pendingWalletActivityKind,
-                        onPendingWalletActivityHandled = { pendingWalletActivityKind = null }
+                        onPendingWalletActivityHandled = { pendingWalletActivityKind = null },
+                        pendingOwnAddress = pendingOwnAddress,
+                        onPendingOwnAddressHandled = { pendingOwnAddress = null }
                     )
                     CrashNotice()
                     BatteryExemptionRationale(isLoggedIn = isLoggedIn)
@@ -430,6 +436,10 @@ class MainActivity : AppCompatActivity() {
         pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         pendingOpenGroups = intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_GROUPS, false)
         pendingWalletActivityKind = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND)
+        // One address got the Kaspa: open that address's History rather than the wallet tab -
+        // the kind is then only the fallback (iOS 13046ad).
+        pendingOwnAddress = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS)?.takeIf { it.isNotEmpty() }
+        if (pendingOwnAddress != null) pendingWalletActivityKind = null
         // A .kachat name notification: open that name (iOS beeedd4).
         intent.getStringExtra(NotificationHelper.EXTRA_KACHAT_NAME)?.takeIf { it.isNotBlank() }?.let {
             com.kachat.app.ui.screens.KachatDeepLink.pendingName.value =
@@ -437,7 +447,8 @@ class MainActivity : AppCompatActivity() {
         }
         val ownKaPostTarget = handleKaPostDeepLink(intent)
         if (!ownKaPostTarget && pendingContactId == null && pendingChannelName == null &&
-            pendingGroupId == null && !pendingOpenGroups && pendingWalletActivityKind == null
+            pendingGroupId == null && !pendingOpenGroups && pendingWalletActivityKind == null &&
+            pendingOwnAddress == null
         ) {
             applyFcmNotificationTarget(intent)
         }
@@ -447,6 +458,7 @@ class MainActivity : AppCompatActivity() {
             NotificationHelper.EXTRA_GROUP_ID,
             NotificationHelper.EXTRA_OPEN_GROUPS,
             NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND,
+            NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS,
             NotificationHelper.EXTRA_KACHAT_NAME,
             NotificationHelper.EXTRA_OPEN_KAPOSTS,
             NotificationHelper.EXTRA_KAPOST_TXID,

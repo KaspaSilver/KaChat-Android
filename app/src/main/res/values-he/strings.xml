@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">נשאר ראשון בשורה שמעל הצ\'אטים שלך.</string>
     <string name="chats_circle_hold_for_options">החזיקו לאפשרויות</string>
     <string name="delete_room_title">למחוק את החדר?</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">הכתובת הזו כבר לא נמצאת בארנק הזה.</string>
 </resources>

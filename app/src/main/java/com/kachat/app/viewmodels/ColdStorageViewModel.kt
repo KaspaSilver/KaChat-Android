@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -392,6 +394,40 @@ class ColdStorageViewModel @Inject constructor(
         return KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
             ?.let { KaspaExtendedPublicKey.toDeterministicKey(it) }
             ?.also { rootKeyCache[accountId] = it }
+    }
+
+    /**
+     * Which cold-storage account and index [address] is, as an address row with its live
+     * balance - for the History sheet a tapped "Received" notification opens (iOS 13046ad,
+     * `OwnAddressHistorySheet.resolve`, which walks every account's 0...maxAddressIndex the same
+     * way). Null when no account derives it. Kept off [_addresses] on purpose: that list belongs
+     * to whichever account detail is open underneath the sheet.
+     */
+    suspend fun resolveOwnColdAddress(address: String): AddressRow? {
+        val match = withContext(Dispatchers.Default) {
+            for (account in coldStorageManager.getAccounts()) {
+                val rootKey = KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
+                    ?.let { runCatching { KaspaExtendedPublicKey.toDeterministicKey(it) }.getOrNull() }
+                    ?: continue
+                for (index in 0..maxOf(0, account.maxDerivedIndex)) {
+                    val candidate = runCatching {
+                        KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index)
+                    }.getOrNull() ?: continue
+                    if (candidate.equals(address, ignoreCase = true)) return@withContext Triple(account.id, index, candidate)
+                }
+            }
+            null
+        } ?: return null
+        val (accountId, index, candidate) = match
+        val balance = addressDiscovery.fetchBalances(listOf(candidate))?.get(candidate) ?: 0L
+        return AddressRow(
+            index = index,
+            address = candidate,
+            balanceSompi = balance,
+            hasHistory = true,
+            label = coldStorageManager.getAddressLabels(accountId)[index],
+            hidden = index in coldStorageManager.getHiddenIndices(accountId),
+        )
     }
 
     /** On-demand watch-only derivation of a single receive address — the cold twin of

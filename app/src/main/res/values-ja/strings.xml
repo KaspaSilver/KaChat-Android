@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">チャットの上の列で先頭に表示されます。</string>
     <string name="chats_circle_hold_for_options">長押しでオプション</string>
     <string name="delete_room_title">ルームを削除しますか？</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">このアドレスはもうこのウォレットにありません。</string>
 </resources>

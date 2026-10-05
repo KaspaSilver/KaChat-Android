@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">Sohbetlerinin üstündeki sırada ilk kalır.</string>
     <string name="chats_circle_hold_for_options">Seçenekler için basılı tut</string>
     <string name="delete_room_title">Oda silinsin mi?</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">Bu adres artık bu cüzdanda değil.</string>
 </resources>

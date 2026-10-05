@@ -286,7 +286,10 @@ class AddressActivityNotifier @Inject constructor(
             title = "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}",
             text = describe(address, coldLabels),
             dedupeKey = dedupeKey,
-            kind = kindOf(address, coldLabels)
+            kind = kindOf(address, coldLabels),
+            // One address per notification here (each receipt is posted per address), so the
+            // tap always opens that address's History (iOS 13046ad).
+            address = address
         )
         // Also list it in the Profile notifications bell.
         notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), null)
@@ -300,7 +303,10 @@ class AddressActivityNotifier @Inject constructor(
             title = "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}",
             text = describe(address, coldLabels),
             dedupeKey = dedupeKey,
-            kind = kindOf(address, coldLabels)
+            kind = kindOf(address, coldLabels),
+            // One address per notification here (each receipt is posted per address), so the
+            // tap always opens that address's History (iOS 13046ad).
+            address = address
         )
         notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), null)
     }

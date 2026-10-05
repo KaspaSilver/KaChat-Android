@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">Останется первым в ряду над вашими чатами.</string>
     <string name="chats_circle_hold_for_options">Удерживайте для действий</string>
     <string name="delete_room_title">Удалить комнату?</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">Этого адреса больше нет в этом кошельке.</string>
 </resources>

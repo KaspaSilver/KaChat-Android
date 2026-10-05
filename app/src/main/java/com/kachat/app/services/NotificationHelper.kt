@@ -348,12 +348,23 @@ class NotificationHelper @Inject constructor(
      *  [kind] is [KIND_COLD] or [KIND_SPENDING] (iOS sends the same string in the notification's
      *  `userInfo["kind"]`): the tap opens Storage or Manage Addresses respectively, so the
      *  receipt lands on a screen that actually shows the address it was about. Without it the
-     *  tap only re-opened whatever screen the app was last on. */
-    suspend fun showAddressActivity(title: String, text: String, dedupeKey: String, kind: String = KIND_SPENDING) {
+     *  tap only re-opened whatever screen the app was last on.
+     *
+     *  [address] names the one address the Kaspa landed on (iOS 13046ad, `userInfo["address"]`):
+     *  the tap then opens that address's own History, in a sheet over the current tab, and
+     *  [kind] is only the fallback for a receipt that spans several addresses. */
+    suspend fun showAddressActivity(
+        title: String,
+        text: String,
+        dedupeKey: String,
+        kind: String = KIND_SPENDING,
+        address: String? = null,
+    ) {
         if (!settings.notificationsEnabled.first()) return
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_WALLET_ACTIVITY_KIND, kind)
+            if (!address.isNullOrEmpty()) putExtra(EXTRA_WALLET_ACTIVITY_ADDRESS, address)
         }
         val notificationId = "addr_activity_$dedupeKey".hashCode()
         val pendingIntent = PendingIntent.getActivity(
@@ -539,6 +550,9 @@ class NotificationHelper @Inject constructor(
         const val EXTRA_WALLET_ACTIVITY_KIND = "wallet_activity_kind"
         const val KIND_COLD = "cold"
         const val KIND_SPENDING = "spending"
+        /** The single own address an address-activity notification is about; its tap opens
+         *  that address's History (iOS 13046ad). Absent for a receipt across several addresses. */
+        const val EXTRA_WALLET_ACTIVITY_ADDRESS = "wallet_activity_address"
 
         // (channelId, soundEnabled, vibrationEnabled)
         private val CHANNELS = listOf(

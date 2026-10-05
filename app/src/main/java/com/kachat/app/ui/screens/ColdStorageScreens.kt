@@ -1803,6 +1803,10 @@ fun ColdStorageTxHistoryScreen(
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
     /** Message on a .kachat name's owner, from its detail. */
     onOpenChat: (String) -> Unit = {},
+    /** This address's row when it was resolved outside the account detail - the History sheet a
+     *  tapped "Received" notification opens (iOS 13046ad) - so it still reads "Address #N" with
+     *  its balance while the shared list holds another account, or nothing yet. */
+    resolvedRow: ColdStorageViewModel.AddressRow? = null,
 ) {
     val txHistory by viewModel.txHistory.collectAsState()
     val isLoading by viewModel.isLoadingTxHistory.collectAsState()
@@ -1819,7 +1823,9 @@ fun ColdStorageTxHistoryScreen(
 
     // Looked up from the already-loaded address list (shared with the account detail screen)
     // rather than a new route param — avoids widening the nav route just for a display name.
-    val addressRow = remember(addresses, address) { addresses.firstOrNull { it.address == address } }
+    val addressRow = remember(addresses, address, resolvedRow) {
+        addresses.firstOrNull { it.address == address } ?: resolvedRow?.takeIf { it.address == address }
+    }
     val displayName = addressRow?.label?.takeIf { it.isNotBlank() }
         ?: addressRow?.let { "Address #${it.index}" }
         ?: address

@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">채팅 위 줄의 맨 앞에 유지됩니다.</string>
     <string name="chats_circle_hold_for_options">길게 눌러 옵션 보기</string>
     <string name="delete_room_title">방을 삭제할까요?</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">이 주소는 더 이상 이 지갑에 없습니다.</string>
 </resources>

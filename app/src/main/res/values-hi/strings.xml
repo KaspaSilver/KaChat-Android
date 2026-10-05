@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">आपकी चैट्स के ऊपर की पंक्ति में सबसे आगे रहता है।</string>
     <string name="chats_circle_hold_for_options">विकल्पों के लिए दबाकर रखें</string>
     <string name="delete_room_title">रूम हटाएँ?</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">यह पता अब इस वॉलेट में नहीं है।</string>
 </resources>

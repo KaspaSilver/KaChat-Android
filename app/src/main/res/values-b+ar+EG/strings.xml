@@ -962,4 +962,6 @@
     <string name="chats_circle_pin_hint">بيفضل الأول في الصف اللي فوق الشاتات بتاعتك.</string>
     <string name="chats_circle_hold_for_options">اضغط مطوّل للخيارات</string>
     <string name="delete_room_title">تمسح الأوضة؟</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">العنوان ده مبقاش في المحفظة دي.</string>
 </resources>

@@ -583,6 +583,31 @@ class WalletViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Which revealed spending-chain slot [address] is, as its row with a live balance - for the
+     * History sheet a tapped "Received" notification opens (iOS 13046ad,
+     * `OwnAddressHistorySheet.resolve`). Null when it isn't one of this wallet's spending
+     * addresses. The list is reloaded first so the header shows the Kaspa that just arrived,
+     * not a snapshot's balance; if that load fails the row still opens, from the snapshot or
+     * bare.
+     */
+    suspend fun resolveOwnSpendingAddress(address: String): WalletService.SpendingAddressEntry? {
+        val all = withContext(Dispatchers.IO) { walletManager.allSpendingAddresses() }
+        val index = all.indexOfFirst { it.equals(address, ignoreCase = true) }
+        if (index < 0) return null
+        loadManageAddressesAndAwait()
+        val isCurrent = walletManager.primarySpendingIndexFlow.value == index
+        return _manageAddressesRaw.value.firstOrNull { it.index == index }?.copy(isCurrent = isCurrent)
+            ?: WalletService.SpendingAddressEntry(
+                index = index,
+                address = all[index],
+                balanceSompi = 0L,
+                everUsed = true,
+                isCurrent = isCurrent,
+                liveChecked = false,
+            )
+    }
+
     /** Address at [index] on the spending chain, derived on demand — Address Visibility pager
      *  rows beyond the revealed bound. */
     fun spendingAddressAt(index: Int): String? =

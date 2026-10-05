@@ -826,4 +826,6 @@
     <string name="chats_circle_pin_hint">Tetap pertama di baris atas obrolan Anda.</string>
     <string name="chats_circle_hold_for_options">Tahan untuk opsi</string>
     <string name="delete_room_title">Hapus ruang?</string>
+    <!-- iOS 13046ad: Received notification opens the address's history -->
+    <string name="own_address_not_in_wallet">Alamat ini sudah tidak ada di dompet ini.</string>
 </resources>

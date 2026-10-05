@@ -6475,12 +6475,17 @@ fun SpendingAddressTxHistoryScreen(
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
     /** Message on a .kachat name's owner, from its detail. */
     onOpenChat: (String) -> Unit = {},
+    /** The row resolved by the History sheet a tapped "Received" notification opens (iOS
+     *  13046ad), used only while the shared list hasn't got this index (a failed load). */
+    fallbackEntry: com.kachat.app.services.WalletService.SpendingAddressEntry? = null,
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     // Looked up from the already-loaded address list (shared with ManageAddressesScreen) rather
     // than threading label/balance through the route - keeps the nav arg down to just the index
     // withdrawFromSpendingAddress actually signs with.
-    val entry = remember(addresses, index) { addresses.firstOrNull { it.index == index } }
+    val entry = remember(addresses, index, fallbackEntry) {
+        addresses.firstOrNull { it.index == index } ?: fallbackEntry?.takeIf { it.index == index }
+    }
     val address = entry?.address.orEmpty()
 
     val txHistory by viewModel.spendingAddressTxHistory.collectAsState()
