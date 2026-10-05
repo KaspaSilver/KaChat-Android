@@ -4303,8 +4303,23 @@ fun ProfileScreen(
             // Your domains are a thing you own, not a setting of the profile that happens to use
             // one of them - so they sit here rather than two levels down inside Edit KNS Profile,
             // where nothing on this screen suggested they existed.
+            // Every name the account owns: .kachat, KNS, .k and .kaspa (iOS df23b6f, 10e4a1a).
+            val ownedKnsDomains by viewModel.ownedDomains.collectAsState()
+            val ownedServiceNames by viewModel.nameServices.owned.collectAsState()
+            val kachatRevision by viewModel.kachatRegistryRevision.collectAsState()
+            var kachatOwnedCount by remember(address) { mutableStateOf(0) }
+            // The .k and .kaspa lookups, so the count includes them before the list opens.
+            LaunchedEffect(address) {
+                address?.let { viewModel.nameServices.refresh(it) }
+            }
+            // Reloads whenever the registry moves (a registration, sale or transfer lands).
+            LaunchedEffect(address, kachatRevision) {
+                val owner = address ?: return@LaunchedEffect
+                viewModel.kachatOwnedCount(owner)?.let { kachatOwnedCount = it }
+            }
+            val domainsCount = kachatOwnedCount + ownedKnsDomains.size + ownedServiceNames.values.sumOf { it.size }
             SettingsSection(title = null) {
-                SettingsNavigationItem("Your Domains", Icons.Default.AlternateEmail, onClick = {
+                SettingsNavigationItem("Your Domains", Icons.Default.AlternateEmail, value = "$domainsCount", onClick = {
                     navController.navigate("kns_domains")
                 })
             }

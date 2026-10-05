@@ -1709,6 +1709,29 @@ class WalletViewModel @Inject constructor(
     /** Addresses in the Manage Addresses list that own at least one KNS domain (or, where it is
      *  live, a .kachat name - iOS 881ada6) — batched cached
      *  lookups fired AFTER the rows are already visible, so tags fill in without blocking. */
+    /** The registry's revision where it's live, so Profile's Your Domains count reloads when a
+     *  registration, sale or transfer lands; a flat 0 where it isn't launched (iOS 10e4a1a). */
+    val kachatRegistryRevision: StateFlow<Int> =
+        if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) kachatRegistry.get().revision
+        else MutableStateFlow(0)
+
+    /** The account's .kachat names for Profile's Your Domains count - the same set its .kachat
+     *  tab lists (grace and lapsed included). 0 where the registry isn't launched; null when the
+     *  lookup failed, so the caller keeps what it had (iOS 10e4a1a, loadKachatOwnedCount). */
+    suspend fun kachatOwnedCount(address: String): Int? {
+        if (!com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) return 0
+        val key = com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(address) ?: return 0
+        return try {
+            val registry = kachatRegistry.get()
+            registry.refreshIfStale(maxAgeMs = 300_000)
+            registry.names(key, includeInactive = true).size
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private val _domainOwningAddresses = MutableStateFlow<Set<String>>(emptySet())
     val domainOwningAddresses: StateFlow<Set<String>> = _domainOwningAddresses.asStateFlow()
 
