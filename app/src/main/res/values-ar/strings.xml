@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">تم التثبيت في المقدمة</string>
     <string name="chats_unpinned">تم إلغاء التثبيت</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">إرسال كاسبا</string>
+    <string name="chats_send_kaspa_hint">أرسل Kaspa من عنوان الإنفاق الخاص بك.</string>
+    <string name="spending_address_unlocking">يجري فتح قفل عنوان الإنفاق — ارجع وحاول مرة أخرى.</string>
 </resources>

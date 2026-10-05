@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Nach vorne angeheftet</string>
     <string name="chats_unpinned">Losgelöst</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">Kaspa senden</string>
+    <string name="chats_send_kaspa_hint">Kaspa von deiner Ausgabeadresse senden.</string>
+    <string name="spending_address_unlocking">Die Ausgabeadresse wird entsperrt – geh zurück und versuch es erneut.</string>
 </resources>

@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">已置顶</string>
     <string name="chats_unpinned">已取消置顶</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">发送 Kaspa</string>
+    <string name="chats_send_kaspa_hint">从你的支出地址发送 Kaspa。</string>
+    <string name="spending_address_unlocking">支出地址正在解锁，请返回后重试。</string>
 </resources>

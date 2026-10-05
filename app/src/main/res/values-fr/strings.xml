@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Épinglé en tête</string>
     <string name="chats_unpinned">Désépinglé</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">Envoyer du Kaspa</string>
+    <string name="chats_send_kaspa_hint">Envoyez des Kaspa depuis votre adresse de dépense.</string>
+    <string name="spending_address_unlocking">L\'adresse de dépense se déverrouille — revenez en arrière et réessayez.</string>
 </resources>

@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">सबसे आगे पिन किया गया</string>
     <string name="chats_unpinned">पिन हटाया गया</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">कास्पा भेजें</string>
+    <string name="chats_send_kaspa_hint">अपने खर्च पते से Kaspa भेजें।</string>
+    <string name="spending_address_unlocking">खर्च पता अनलॉक हो रहा है — वापस जाकर फिर से कोशिश करें।</string>
 </resources>

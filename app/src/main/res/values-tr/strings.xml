@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Başa sabitlendi</string>
     <string name="chats_unpinned">Sabitleme kaldırıldı</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">Kaspa Gonder</string>
+    <string name="chats_send_kaspa_hint">Harcama adresinden Kaspa gönder.</string>
+    <string name="spending_address_unlocking">Harcama adresinin kilidi açılıyor — geri dönüp tekrar dene.</string>
 </resources>

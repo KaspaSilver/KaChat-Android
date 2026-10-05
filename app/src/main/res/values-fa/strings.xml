@@ -982,4 +982,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">به ابتدا سنجاق شد</string>
     <string name="chats_unpinned">سنجاق برداشته شد</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">ارسال کاسپا</string>
+    <string name="chats_send_kaspa_hint">از آدرس خرج خود Kaspa بفرستید.</string>
+    <string name="spending_address_unlocking">آدرس خرج در حال باز شدن است — برگردید و دوباره امتحان کنید.</string>
 </resources>

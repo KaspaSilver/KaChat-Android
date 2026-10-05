@@ -15,6 +15,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.ArrowCircleUp
+import androidx.compose.material.icons.outlined.ArrowCircleDown
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoveToInbox
@@ -150,6 +154,8 @@ fun ChatsScreen(
     // Receive Kaspa's fresh address: decided as the sheet opens (the check is a network round
     // trip) and re-confirmed when the QR page comes up - the same two steps as Profile's.
     var receiveQrAddress by remember { mutableStateOf<String?>(null) }
+    /** "Send Kaspa" in the New sheet: Profile's send from the current spending address (iOS f81e8d6). */
+    var showSpendingSend by remember { mutableStateOf(false) }
     LaunchedEffect(showNewSheet, newSheetQr) {
         if (showNewSheet || newSheetQr == ChatsNewQr.RECEIVE) {
             walletViewModel.resolveFreshReceiveAddress { address -> if (address != null) receiveQrAddress = address }
@@ -261,6 +267,12 @@ fun ChatsScreen(
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    // In place, full screen, the way Profile shows the same send.
+    if (showSpendingSend) {
+        ChatsSpendingSendLauncher(walletViewModel = walletViewModel, onDone = { showSpendingSend = false })
+        return
     }
 
     if (showPublicChatsSettings) {
@@ -818,6 +830,7 @@ fun ChatsScreen(
                 if (KaChatLink.sanitizeChannelName(name) == name) navController.navigate("broadcast_channel/$name")
             },
             onShowQr = { newSheetQr = it },
+            onSendKaspa = { showSpendingSend = true },
         )
     }
     when (newSheetQr) {
@@ -1472,14 +1485,16 @@ private enum class ChatsNewQr { FUND_CHATTING, RECEIVE }
 private enum class ChatsNewPage { MENU, JOIN_ROOM, NEW_CHAT, NEW_GROUP }
 
 /**
- * The Chats screen's New sheet, wherever you are in Chats (iOS 5da8ccf, then be0857a, f508292,
- * 231c05e and e6400d6 - this is where they ended): a half sheet of New Chat, New Group Chat, New
- * Public Chat, Fund Chatting Address and Receive Kaspa. Everything but the QR codes happens in
- * this one sheet, so there is no close-then-open wait:
+ * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6 and
+ * f81e8d6 - this is where they ended): a half sheet of square tiles - New Chat, New Group Chat,
+ * New Public Chat, Send Kaspa, Receive Kaspa and Fund Chatting Address. Everything but the send
+ * and the QR codes happens in this one sheet, so there is no close-then-open wait:
  * - New Chat / New Group Chat swap the sheet to the create screen, full height ([CreateChatScreen],
  *   whose Cancel comes back to the menu);
  * - New Public Chat pushes a room-name field inside the sheet, at the menu's height; joining opens
- *   the room on the Public Chats page, and an invalid name says why in place;
+ *   the room, and an invalid name says why in place;
+ * - Send Kaspa closes the sheet and then opens Profile's send from the current spending address
+ *   ([onSendKaspa]);
  * - Fund Chatting Address / Receive Kaspa close the sheet and then bring up Profile's full white QR
  *   page ([onShowQr]) - a white page inside a dark sheet never fit (231c05e, undone by e6400d6).
  */
@@ -1493,6 +1508,7 @@ private fun ChatsNewSheet(
     onGroupCreated: (String) -> Unit,
     onRoomJoined: (String) -> Unit,
     onShowQr: (ChatsNewQr) -> Unit,
+    onSendKaspa: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1556,13 +1572,16 @@ private fun ChatsNewSheet(
                     }
                 },
             )
+            // The New options as square tiles, three to a row (iOS f81e8d6): New Chat, New Group
+            // Chat, New Public Chat / Send Kaspa, Receive Kaspa, Fund Chatting Address. Each keeps
+            // its old line as the TalkBack hint.
             ChatsNewPage.MENU -> Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(ChatsNewSheetHeight)
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -1570,47 +1589,151 @@ private fun ChatsNewSheet(
                     color = colors.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
                 )
-                ActionSheetRow(
-                    icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
-                    title = stringResource(R.string.chats_new_chat),
-                    subtitle = stringResource(R.string.chats_new_chat_subtitle),
-                ) { page = ChatsNewPage.NEW_CHAT }
-                ActionSheetRow(
-                    icon = Icons.Default.Groups,
-                    title = stringResource(R.string.chats_new_group_chat),
-                    subtitle = stringResource(R.string.chats_new_group_subtitle),
-                ) { page = ChatsNewPage.NEW_GROUP }
-                ActionSheetRow(
-                    icon = Icons.Default.Tag,
-                    title = stringResource(R.string.chats_new_public_chat),
-                    subtitle = stringResource(R.string.chats_new_public_subtitle),
-                ) {
-                    roomName = ""
-                    joining = null
-                    broadcastViewModel.resetJoinChannelState()
-                    page = ChatsNewPage.JOIN_ROOM
+                // 104 dp tiles as on iOS, smaller only where three of them do not fit across.
+                BoxWithConstraints(contentAlignment = Alignment.Center) {
+                    val tileSize = minOf(ChatsNewTileSize, (maxWidth - ChatsNewTileSpacing * 2) / 3)
+                    Column(verticalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                            ChatsNewTile(
+                                size = tileSize,
+                                icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
+                                title = stringResource(R.string.chats_new_chat),
+                                hint = stringResource(R.string.chats_new_chat_subtitle),
+                            ) { page = ChatsNewPage.NEW_CHAT }
+                            ChatsNewTile(
+                                size = tileSize,
+                                icon = Icons.Default.Groups,
+                                title = stringResource(R.string.chats_new_group_chat),
+                                hint = stringResource(R.string.chats_new_group_subtitle),
+                            ) { page = ChatsNewPage.NEW_GROUP }
+                            ChatsNewTile(
+                                size = tileSize,
+                                icon = Icons.Default.Tag,
+                                title = stringResource(R.string.chats_new_public_chat),
+                                hint = stringResource(R.string.chats_new_public_subtitle),
+                            ) {
+                                roomName = ""
+                                joining = null
+                                broadcastViewModel.resetJoinChannelState()
+                                page = ChatsNewPage.JOIN_ROOM
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                            ChatsNewTile(
+                                size = tileSize,
+                                icon = Icons.Outlined.ArrowCircleUp,
+                                title = stringResource(R.string.chats_send_kaspa),
+                                hint = stringResource(R.string.chats_send_kaspa_hint),
+                            ) { close { onSendKaspa() } }
+                            ChatsNewTile(
+                                size = tileSize,
+                                icon = Icons.Outlined.ArrowCircleDown,
+                                title = stringResource(R.string.receive_kaspa),
+                                hint = stringResource(R.string.chats_receive_subtitle),
+                            ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
+                            ChatsNewTile(
+                                size = tileSize,
+                                icon = Icons.Default.QrCode,
+                                title = stringResource(R.string.chats_fund_chatting_address),
+                                hint = stringResource(R.string.chats_fund_subtitle),
+                            ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
+                        }
+                    }
                 }
-                ActionSheetRow(
-                    icon = Icons.Default.QrCode,
-                    title = stringResource(R.string.chats_fund_chatting_address),
-                    subtitle = stringResource(R.string.chats_fund_subtitle),
-                ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
-                ActionSheetRow(
-                    icon = painterResource(R.drawable.ic_kaspa_logo),
-                    title = stringResource(R.string.receive_kaspa),
-                    subtitle = stringResource(R.string.chats_receive_subtitle),
-                ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
                 Spacer(Modifier.weight(1f))
             }
         }
     }
 }
 
+/** One square option in the Chats New sheet: an icon over a two-line title, on glass. Its old
+ *  explanatory line is the TalkBack hint (iOS f81e8d6 `CreateTile`). */
+@Composable
+private fun ChatsNewTile(size: Dp, icon: ImageVector, title: String, hint: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .size(size)
+            .sendKaspaGlass(18.dp)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "$title. $hint" }
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(28.dp))
+        Text(
+            title,
+            color = LocalAppColors.current.textPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private val ChatsNewTileSize = 104.dp
+private val ChatsNewTileSpacing = 14.dp
+
+/**
+ * The New sheet's "Send Kaspa" (iOS f81e8d6 `SpendingSendLauncher`): the same send Profile opens
+ * for the current spending address - [SpendingAddressSendFlow], full screen in place, as Profile
+ * shows it - once that address's balance has loaded (it shows in the screen's Available pill).
+ */
+@Composable
+private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: () -> Unit) {
+    val address by walletViewModel.spendingAddress.collectAsState()
+    val index by walletViewModel.primarySpendingIndex.collectAsState()
+    var balanceSompi by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(Unit) {
+        if (walletViewModel.spendingAddress.value == null) walletViewModel.refreshSpendingAddress()
+        walletViewModel.refreshSpendingBalanceAndAwait()
+        balanceSompi = walletViewModel.spendingBalanceSompi.value
+    }
+    val from = address
+    val spendingIndex = index
+    val balance = balanceSompi
+    if (from != null && spendingIndex != null && balance != null) {
+        SpendingAddressSendFlow(
+            fromAddress = from,
+            balanceSompi = balance,
+            title = stringResource(R.string.chats_send_kaspa),
+            spendingIndex = spendingIndex,
+            viewModel = walletViewModel,
+            onDone = onDone,
+        )
+        return
+    }
+    androidx.activity.compose.BackHandler(onBack = onDone)
+    Box(
+        modifier = Modifier.fillMaxSize().background(LocalAppColors.current.background).statusBarsPadding(),
+        contentAlignment = Alignment.Center,
+    ) {
+        IconButton(onClick = onDone, modifier = Modifier.align(Alignment.TopStart)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
+        }
+        if (balance != null) {
+            // Loaded, and still no spending address to send from.
+            Text(
+                stringResource(R.string.spending_address_unlocking),
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(16.dp),
+            )
+        } else {
+            CircularProgressIndicator(color = KaspaTeal)
+        }
+    }
+}
+
 /** The menu and the room name share one height, so moving between them is a plain push; the
- *  create screens open at full height (iOS e6400d6 `createSheetHeight`, 580 pt). */
-private val ChatsNewSheetHeight = 580.dp
+ *  create screens open at full height. Shrunk to fit the tiles grid (iOS f81e8d6
+ *  `createSheetHeight`, 380 pt). */
+private val ChatsNewSheetHeight = 380.dp
 
 /**
  * Join or create a public room, right in the New sheet (iOS be0857a `createJoinRoom`): the same

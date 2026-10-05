@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">הוצמד להתחלה</string>
     <string name="chats_unpinned">ההצמדה בוטלה</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">שלח קספה</string>
+    <string name="chats_send_kaspa_hint">שליחת Kaspa מכתובת ההוצאה שלך.</string>
+    <string name="spending_address_unlocking">כתובת ההוצאה נפתחת — חזרו ונסו שוב.</string>
 </resources>

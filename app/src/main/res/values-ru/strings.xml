@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Закреплено в начале</string>
     <string name="chats_unpinned">Откреплено</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">Отправить Kaspa</string>
+    <string name="chats_send_kaspa_hint">Отправить Kaspa с вашего адреса для трат.</string>
+    <string name="spending_address_unlocking">Адрес для трат разблокируется — вернитесь и попробуйте снова.</string>
 </resources>

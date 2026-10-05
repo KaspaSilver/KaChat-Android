@@ -951,4 +951,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">맨 앞에 고정됨</string>
     <string name="chats_unpinned">고정 해제됨</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">Kaspa 보내기</string>
+    <string name="chats_send_kaspa_hint">지출 주소에서 Kaspa를 보냅니다.</string>
+    <string name="spending_address_unlocking">지출 주소 잠금을 해제하는 중입니다. 뒤로 가서 다시 시도하세요.</string>
 </resources>

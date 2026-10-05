@@ -1118,4 +1118,8 @@
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Pinned to the front</string>
     <string name="chats_unpinned">Unpinned</string>
+    <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
+    <string name="chats_send_kaspa">Send Kaspa</string>
+    <string name="chats_send_kaspa_hint">Send Kaspa from your spending address.</string>
+    <string name="spending_address_unlocking">Spending address is unlocking — go back and try again.</string>
 </resources>
